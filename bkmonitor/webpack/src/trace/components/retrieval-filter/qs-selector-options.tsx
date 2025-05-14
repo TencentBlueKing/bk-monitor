@@ -115,16 +115,13 @@ export default defineComponent({
       if (props.queryString && !/^\s*$/.test(props.queryString)) {
         const keyword = props.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
         for (const item of props.favoriteList) {
-          const favorites = item?.favorites || [];
-          for (const favoriteItem of favorites) {
-            const content = favoriteItem?.config?.queryConfig?.query_string || '';
-            if (content?.toLocaleLowerCase().includes(keyword)) {
-              favoriteOptions$.push({
-                title: `${item.name} / ${favoriteItem.name}`,
-                content,
-                keyword,
-              });
-            }
+          const content = item?.config?.queryParams?.query || '';
+          if (content?.toLocaleLowerCase().includes(keyword)) {
+            favoriteOptions$.push({
+              title: `${item.name} / ${item.name}`,
+              content,
+              keyword,
+            });
           }
         }
       }

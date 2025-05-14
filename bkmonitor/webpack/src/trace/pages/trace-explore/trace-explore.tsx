@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch, onUnmounted } from 'vue';
+import {
+  computed,
+  defineComponent,
+  ref as deepRef,
+  onMounted,
+  shallowRef,
+  watch,
+  onUnmounted,
+  useTemplateRef,
+  type ComponentPublicInstance,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -49,9 +59,7 @@ import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
-import FavoriteBox, { EditFavorite } from './components/favorite-box';
-// import EditFavorite from './components/favorite-box/components/group-tree/components/render-favorite/components/edit-favorite';
-import useGroupList from './components/favorite-box/hooks/use-group-list';
+import FavoriteBox, { EditFavorite, type IFavoriteGroup } from './components/favorite-box';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
@@ -73,7 +81,10 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
-    const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
+    const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
+    const allFavoriteList = computed(() => {
+      return favoriteBox.value?.getFavoriteList() || [];
+    });
     /** 自动查询定时器 */
     let autoQueryTimer = null;
     const applicationLoading = shallowRef(false);
@@ -114,7 +125,7 @@ export default defineComponent({
     const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
-    const editFavoriteData = shallowRef(null);
+    const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
 
     const { getFieldsOptionValuesProxy } = useCandidateValue();
@@ -498,7 +509,7 @@ export default defineComponent({
           type: 'trace',
           ...params,
         });
-        refreshGroupList();
+        favoriteBox.value.refreshGroupList();
       } else {
         editFavoriteData.value = params;
         editFavoriteShow.value = true;
@@ -572,6 +583,7 @@ export default defineComponent({
           class='favorite-panel'
         >
           <FavoriteBox
+            ref='favoriteBox'
             defaultFavoriteId={this.defaultFavoriteId}
             type='trace'
             onChange={this.handleFavoriteChange}
@@ -598,7 +610,7 @@ export default defineComponent({
                 dataId={this.appName}
                 defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
-                favoriteList={this.allFavoriteList as any[]}
+                favoriteList={this.allFavoriteList}
                 fields={this.fieldList as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}

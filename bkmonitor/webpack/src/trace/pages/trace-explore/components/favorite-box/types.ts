@@ -74,7 +74,7 @@ interface IEventFavoriteConfig {
     commonWhere?: any[];
   };
 }
-export interface ITraceFavoriteConfig {
+interface ITraceFavoriteConfig {
   bk_biz_id: number;
   componentData: {
     mode: 'span' | 'trace';
