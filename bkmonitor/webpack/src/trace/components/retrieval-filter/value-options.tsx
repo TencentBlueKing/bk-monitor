@@ -145,6 +145,12 @@ export default defineComponent({
         case 'Enter': {
           event.preventDefault();
           handleOptionsEnter();
+          emit(
+            'isChecked',
+            hoverActiveIndex.value >= 0 &&
+              hoverActiveIndex.value <= renderOptions.value.length - 1 &&
+              !!renderOptions.value.length
+          );
           break;
         }
       }
@@ -159,9 +165,14 @@ export default defineComponent({
      * @emits isChecked - 发送选中状态，当悬停索引在有效范围内时为 true
      */
     function updateSelection() {
-      emit('isChecked', hoverActiveIndex.value >= 0 && hoverActiveIndex.value <= localOptions.value.length - 1);
+      emit(
+        'isChecked',
+        hoverActiveIndex.value >= 0 &&
+          hoverActiveIndex.value <= renderOptions.value.length - 1 &&
+          !!renderOptions.value.length
+      );
       nextTick(() => {
-        const listEl = elRef.value.querySelector('.options-drop-down-wrap.main__wrap');
+        const listEl = elRef.value?.querySelector('.options-drop-down-wrap.main__wrap');
         const el = hasCustomOption.value
           ? listEl?.children?.[hoverActiveIndex.value + 1]
           : listEl?.children?.[hoverActiveIndex.value];
@@ -333,19 +344,33 @@ export default defineComponent({
               <div
                 key={index}
                 class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
-                overflow-title={{
-                  content: item.name,
-                  placement: 'right',
-                }}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleCheck(item);
                 }}
               >
                 <TextHighlighter
+                  class='title__text'
+                  v-overflow-text={{
+                    content: item.name,
+                    placement: 'top',
+                  }}
                   content={item.name}
                   keyword={this.search}
                 />
+                {item.id !== item.name ? (
+                  <TextHighlighter
+                    class='subtitle__text'
+                    v-overflow-text={{
+                      content: item.id,
+                      placement: 'top',
+                    }}
+                    content={`（${item.id}）`}
+                    keyword={this.search}
+                  />
+                ) : (
+                  ''
+                )}
               </div>
             ))}
             {this.scrollLoading && (

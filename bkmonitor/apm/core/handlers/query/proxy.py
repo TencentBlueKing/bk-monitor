@@ -179,9 +179,21 @@ class QueryProxy:
     def query_span_detail(self, span_id):
         return self.span_query.query_by_span_id(span_id)
 
-    def query_option_values(self, query_mode, datasource_type: str, start_time, end_time, fields):
+    def query_option_values(
+        self,
+        query_mode,
+        datasource_type: str,
+        start_time,
+        end_time,
+        fields,
+        limit,
+        filters,
+        query_string,
+    ):
         """获取候选值"""
-        return self.query_mode[query_mode].query_option_values(datasource_type, start_time, end_time, fields)
+        return self.query_mode[query_mode].query_option_values(
+            datasource_type, start_time, end_time, fields, limit, filters, query_string
+        )
 
     def query_statistics(self, query_mode, start_time, end_time, limit, offset, filters=None, es_dsl=None):
         return self.statistics_query.query_statistics(query_mode, start_time, end_time, limit, offset, filters, es_dsl)

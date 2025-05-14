@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from re import L
 import time
 from functools import partial
 from typing import Any, Dict, List
@@ -429,9 +430,13 @@ class GetVariableField(Resource):
         ],
         "module": [
             {"bk_property_id": "bk_module_id", "bk_property_name": _("模块ID")},
+            {"bk_property_id": "bk_module_name", "bk_property_name": _("模块名")},
             {"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")},
         ],
-        "set": [{"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")}],
+        "set": [
+            {"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")},
+            {"bk_property_id": "bk_set_name", "bk_property_name": _("集群名")},
+        ],
         "service_instance": [
             {"bk_property_id": "service_instance_id", "bk_property_name": _("服务实例ID")},
             {"bk_property_id": "name", "bk_property_name": _("服务实例名")},
@@ -452,12 +457,16 @@ class GetVariableField(Resource):
             properties = []
             if scope_type != "service_instance":
                 try:
-                    properties = api.cmdb.get_object_attribute(bk_obj_id=scope_type)
+                    properties: list[dict] = api.cmdb.get_object_attribute(bk_obj_id=scope_type)
                 except BKAPIError:
                     pass
 
+            # 字段去重
+            exists_fields = {p["bk_property_id"] for p in self.extend_fields.get(scope_type, [])}
             data = [
-                {"bk_property_id": p["bk_property_id"], "bk_property_name": p["bk_property_name"]} for p in properties
+                {"bk_property_id": p["bk_property_id"], "bk_property_name": p["bk_property_name"]}
+                for p in properties
+                if p["bk_property_id"] not in exists_fields
             ]
 
             data.extend(self.extend_fields.get(scope_type, []))
