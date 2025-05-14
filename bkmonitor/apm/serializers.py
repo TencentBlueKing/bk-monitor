@@ -12,6 +12,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext as _
 
 from apm.constants import EnabledStatisticsDimension, QueryMode
+from apm.models import ApmDataSourceConfigBase
 
 
 class FilterSerializer(serializers.Serializer):
@@ -64,3 +65,14 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))
         return attrs
+
+
+class NewQueryOptionValuesSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
+    fields = serializers.ListField(child=serializers.CharField(), label="查询字段")
+    limit = serializers.IntegerField(label="数量限制", required=False, default=100)
+    datasource_type = serializers.ChoiceField(
+        required=False,
+        label="数据源类型",
+        default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
+        choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
+    )

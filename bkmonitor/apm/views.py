@@ -63,6 +63,8 @@ from apm.resources import (
     StopApplicationSimpleResource,
     UpdateMetricFieldsResource,
     QueryFieldStatisticsGraphResource,
+    NewQuerySpanOptionValuesResource,
+    NewQueryTraceOptionValuesResource,
 )
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -120,6 +122,8 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryFieldsTopkResource, endpoint="query_fields_topk"),
         ResourceRoute("POST", QueryFieldStatisticsInfoResource, endpoint="query_field_statistics_info"),
         ResourceRoute("POST", QueryFieldStatisticsGraphResource, endpoint="query_field_statistics_graph"),
+        ResourceRoute("POST", NewQuerySpanOptionValuesResource, endpoint="new_query_span_option_values"),
+        ResourceRoute("POST", NewQueryTraceOptionValuesResource, endpoint="new_query_trace_option_values"),
     ]
 
 

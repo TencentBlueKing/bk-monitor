@@ -31,7 +31,7 @@ from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.data_source import dict_to_q
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import ThreadPool, run_threads, InheritParentThread
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
@@ -385,7 +385,12 @@ class BaseQuery:
             .order_by("-_value")
         )
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
-        return list(queryset)
+        try:
+            field_topk_values = list(queryset)
+        except Exception as e:
+            logger.warning("failed to query field %s topk, error: %s", field, e)
+            raise ValueError(_(f"字段 {field} topk值查询出错"))
+        return sorted(field_topk_values, key=lambda topk_item: topk_item["_result_"], reverse=True)
 
     def _query_total(self, start_time, end_time, filters: list[types.Filter], query_string: str):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
@@ -426,6 +431,37 @@ class BaseQuery:
             .group_by(field)
         )
         return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
+
+    def query_fields_option_values(
+        self,
+        datasource_type: str,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ) -> dict[str, list[str]]:
+        q: QueryConfigBuilder = (
+            self._get_q(datasource_type).filter(self._build_filters(filters)).query_string(query_string)
+        )
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
+        option_values: dict[str, list[str]] = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self._collect_option_values,
+                    args=(
+                        q,
+                        queryset,
+                        field,
+                        option_values,
+                    ),
+                )
+                for field in fields
+            ]
+        )
+        return {field: values for field, values in option_values.items()}
 
 
 class FakeQuery:

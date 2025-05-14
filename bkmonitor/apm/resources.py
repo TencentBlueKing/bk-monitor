@@ -71,6 +71,7 @@ from apm.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
+    NewQueryOptionValuesSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
@@ -1936,11 +1937,12 @@ class QueryFieldsTopkResource(Resource):
                 "distinct_count": field_distinct_map.get(field, 0),
                 "list": [
                     {
-                        "value": field_topk.get("field_value", ""),
-                        "count": int(field_topk.get("count", 0)),
-                        "proportions": round(100 * (field_topk.get("count", 0) / total), 2) if total > 0 else 0,
+                        "value": field_topk["field_value"],
+                        "count": field_topk["count"],
+                        "proportions": round(100 * (field_topk["count"] / total), 2) if total > 0 else 0,
                     }
                     for field_topk in field_topk_map.get(field, [])
+                    if field_topk["count"] > 0
                 ],
             }
             for field in fields
@@ -2203,3 +2205,39 @@ class QueryFieldStatisticsGraphResource(Resource):
             **interval_query_params,
         )
         bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
+
+
+class NewQuerySpanOptionValuesResource(Resource):
+    """新版获取Span候选值"""
+
+    RequestSerializer = NewQueryOptionValuesSerializer
+
+    def perform_request(self, validated_data):
+        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_fields_option_values(
+            QueryMode.SPAN,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
+        )
+
+
+class NewQueryTraceOptionValuesResource(Resource):
+    """新版获取Trace候选值"""
+
+    RequestSerializer = NewQueryOptionValuesSerializer
+
+    def perform_request(self, validated_data):
+        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_fields_option_values(
+            QueryMode.TRACE,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
+        )

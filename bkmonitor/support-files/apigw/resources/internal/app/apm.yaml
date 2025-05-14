@@ -997,3 +997,39 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm field statistics graph
+  /app/apm/new_query_apm_span_option_values/:
+    post:
+      operationId: new_query_apm_span_option_values
+      description: 查询span字段候选值
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /apm_api/v1/application/new_query_span_option_values/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query apm span option values
+  /app/apm/new_query_apm_trace_option_values/:
+    post:
+      operationId: new_query_apm_trace_option_values
+      description: 查询Trace字段候选值
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /apm_api/v1/application/new_query_trace_option_values/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query apm trace option values

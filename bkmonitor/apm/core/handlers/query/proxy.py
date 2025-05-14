@@ -279,3 +279,19 @@ class QueryProxy:
         query_string: str,
     ):
         return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)
+
+    def query_fields_option_values(
+        self,
+        query_mode: str,
+        datasource_type: str,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ) -> dict[str, list[str]]:
+        """获取候选值"""
+        return self.query_mode[query_mode].query_fields_option_values(
+            datasource_type, start_time, end_time, fields, limit, filters, query_string
+        )
