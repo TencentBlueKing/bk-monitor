@@ -39,3 +39,21 @@ class DimensionStatisticsAPIHandler:
                 query_string=params.get("query_string", ""),
             )
         )
+
+    @classmethod
+    def get_api_statistics_graph_data(cls, params: dict) -> dict:
+        """获取graph数据"""
+
+        return api.apm_api.query_field_statistics_graph(
+            dict(
+                bk_biz_id=params["bk_biz_id"],
+                app_name=params["app_name"],
+                mode=params["mode"],
+                start_time=params["start_time"],
+                end_time=params["end_time"],
+                field=params["field"],
+                limit=params.get("limit", 5),
+                filters=params.get("filters", []),
+                query_string=params.get("query_string", ""),
+            )
+        )
