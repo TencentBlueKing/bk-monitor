@@ -199,7 +199,10 @@ export default defineComponent({
       chartData.value = series.map(item => {
         if (isInteger.value) {
           return {
-            datapoints: item.datapoints.map(item => [item[0], transformFieldName(localField.value, item[1])]),
+            datapoints: item.datapoints.map(item => [
+              item[0],
+              transformFieldName(localField.value, item[1]) || item[1],
+            ]),
             color: '#5AB8A8',
             name: localField.value,
           };
@@ -345,7 +348,8 @@ export default defineComponent({
                     onMouseenter={e => topKItemMouseenter(e, item.value)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    <span>{item.alias}</span>
+                    <span>{item.alias || item.value}</span>
+                    {item.alias && <span class='sub-name'>（{item.value}）</span>}
                   </span>
 
                   <span class='counts'>
