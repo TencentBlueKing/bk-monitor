@@ -38,6 +38,7 @@ interface IParams {
   filters: any[];
   limit: number;
   fields: string[];
+  query_string: string;
 }
 export const useCandidateValue = () => {
   const candidateValueMap: ICandidateValueMap = new Map();
@@ -49,7 +50,7 @@ export const useCandidateValue = () => {
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const hasData = candidateItem?.values?.length >= params.limit || candidateItem?.isEnd;
-      if (searchValue ? candidateItem?.isEnd : hasData) {
+      if (searchValue ? candidateItem?.isEnd : hasData && !params?.query_string) {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();
