@@ -1324,8 +1324,10 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        return API_GRAPH_DATA
+    def perform_request(self, validated_data):
+        if validated_data.get("is_mock"):
+            return API_GRAPH_DATA
+        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
 class ListFlattenSpanResource(Resource):
