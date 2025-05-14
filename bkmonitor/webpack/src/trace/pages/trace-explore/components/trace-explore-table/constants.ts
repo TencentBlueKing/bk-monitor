@@ -105,3 +105,21 @@ export const SPAN_STATUS_CODE_MAP: Record<number, GetTableCellRenderValue<Explor
   1: { alias: window.i18n.t('正常'), prefixIcon: 'status-code-icon-normal' },
   2: { alias: window.i18n.t('异常'), prefixIcon: 'status-code-icon-failed' },
 };
+
+/**
+ * 根据id查找name所对应的字段别名，没有找到返回空字符串
+ */
+export const transformFieldName = (id: string, name: number | string) => {
+  switch (id) {
+    case 'kind':
+    case 'root_span_kind':
+    case 'root_service_kind':
+      return SPAN_KIND_MAPS[name]?.alias || '';
+    case 'root_service_category':
+      return SERVICE_CATEGORY_MAP[name] || '';
+    case 'status.code':
+      return SPAN_STATUS_CODE_MAP[name]?.alias || '';
+    default:
+      return '';
+  }
+};

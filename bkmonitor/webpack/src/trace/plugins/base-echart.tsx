@@ -229,7 +229,9 @@ export default defineComponent({
       }
       let liHtmlList = [];
       let ulStyle = '';
-      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      const pointTime = params[0].axisType.includes('time')
+        ? dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss')
+        : '';
       if (params[0]?.data?.tooltips) {
         liHtmlList.push(params[0].data.tooltips);
       } else {
