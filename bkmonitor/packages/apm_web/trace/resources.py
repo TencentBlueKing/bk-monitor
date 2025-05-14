@@ -1067,6 +1067,25 @@ class ListOptionValuesResource(Resource):
     获取Span/Trace表头下拉框候选值
     """
 
+    TRACE_LIST_FIELDS = {
+        QueryMode.TRACE: [
+            "root_service",
+            "root_service_span_name",
+            "root_service_status_code",
+            "root_service_category",
+            "root_span_name",
+            "root_span_service",
+        ],
+        QueryMode.SPAN: [
+            "span_name",
+            "status.code",
+            "kind",
+            "resource.telemetry.sdk.version",
+            "resource.service.name",
+            "resource.bk.instance.id",
+        ],
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
@@ -1076,7 +1095,8 @@ class ListOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_data):
-        return QueryHandler.query_option_values(**validated_data)
+        validated_data["fields"] = self.TRACE_LIST_FIELDS[validated_data["mode"]]
+        return QueryHandler.get_file_option_values(**validated_data)
 
 
 class GetFieldOptionValuesResource(Resource):
@@ -1110,7 +1130,15 @@ class GetFieldsOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
-        return API_FIELDS_OPTION_VALUE_DATA
+        if validated_request_data.get("is_mock"):
+            return API_FIELDS_OPTION_VALUE_DATA
+        validated_request_data.pop("is_mock", None)
+        option_values_dict = QueryHandler.get_fields_option_values(**validated_request_data)
+        data = {}
+        for field_name, option_value_list in option_values_dict.items():
+            data[field_name] = [option_value_dict.get("value", "") for option_value_dict in option_value_list]
+
+        return data
 
 
 class ListSpanStatisticsResource(Resource):
