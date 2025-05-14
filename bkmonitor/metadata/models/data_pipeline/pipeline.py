@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import Dict, List, Optional
 
 from django.db import models
 from django.db.models import Q
@@ -33,9 +31,14 @@ from .managers import (
 logger = logging.getLogger("metadata")
 
 
+# 链路管道模型似乎并未启用,且链路管道逻辑上和租户无关
+
+
 class DataPipeline(BaseModel):
     name = models.CharField("链路管道名称", max_length=128, unique=True)
-    chinese_name = models.CharField("链路管道中文名称", max_length=64, null=True, blank=True, help_text="如果不传递，可以和name保持一致")
+    chinese_name = models.CharField(
+        "链路管道中文名称", max_length=64, null=True, blank=True, help_text="如果不传递，可以和name保持一致"
+    )
     label = models.CharField("标签", max_length=256, null=True, blank=True, help_text="管道的标签")
     kafka_cluster_id = models.IntegerField("消息队列 kafka 集群 ID")
     transfer_cluster_id = models.CharField("transfer 集群 ID", max_length=64)
@@ -52,7 +55,7 @@ class DataPipeline(BaseModel):
         verbose_name = "数据链路信息"
         verbose_name_plural = "数据链路信息"
 
-    def to_dict(self, fields: Optional[List] = None, exclude: Optional[List] = None) -> Dict:
+    def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}
         for f in self._meta.concrete_fields + self._meta.many_to_many:
             value = f.value_from_object(self)
@@ -73,15 +76,15 @@ class DataPipeline(BaseModel):
     @classmethod
     def filter_data(
         cls,
-        name: Optional[str] = None,
-        chinese_name: Optional[str] = None,
-        etl_config: Optional[str] = None,
-        space_type: Optional[str] = None,
-        space_id: Optional[str] = None,
-        is_enable: Optional[bool] = None,
-        page_size: Optional[int] = constants.DEFAULT_PAGE_SIZE,
-        page: Optional[int] = constants.MIN_PAGE_NUM,
-    ) -> List[Dict]:
+        name: str | None = None,
+        chinese_name: str | None = None,
+        etl_config: str | None = None,
+        space_type: str | None = None,
+        space_id: str | None = None,
+        is_enable: bool | None = None,
+        page_size: int | None = constants.DEFAULT_PAGE_SIZE,
+        page: int | None = constants.MIN_PAGE_NUM,
+    ) -> list[dict]:
         """根据参数过滤数据
 
         :param name: 链路名称
@@ -146,7 +149,7 @@ class DataPipeline(BaseModel):
         return ret_data
 
     @classmethod
-    def check_exist_default(cls, spaces: List[Dict], etl_configs: List[str]) -> bool:
+    def check_exist_default(cls, spaces: list[dict], etl_configs: list[str]) -> bool:
         """检测指定条件下是否已经存在默认链路"""
         # 根据使用范围过滤数据
         space_filter_params = Q()
@@ -171,20 +174,20 @@ class DataPipeline(BaseModel):
     def create_record(
         cls,
         name: str,
-        etl_configs: List[str],
-        spaces: List[Dict],
+        etl_configs: list[str],
+        spaces: list[dict],
         kafka_cluster_id: int,
         transfer_cluster_id: str,
         creator: str,
-        chinese_name: Optional[str] = "",
-        label: Optional[str] = "",
-        influxdb_storage_cluster_id: Optional[int] = None,
-        kafka_storage_cluster_id: Optional[int] = None,
-        es_storage_cluster_id: Optional[int] = None,
-        vm_storage_cluster_id: Optional[int] = None,
-        is_enable: Optional[bool] = True,
-        is_default: Optional[bool] = False,
-        description: Optional[str] = "",
+        chinese_name: str | None = "",
+        label: str | None = "",
+        influxdb_storage_cluster_id: int | None = None,
+        kafka_storage_cluster_id: int | None = None,
+        es_storage_cluster_id: int | None = None,
+        vm_storage_cluster_id: int | None = None,
+        is_enable: bool | None = True,
+        is_default: bool | None = False,
+        description: str | None = "",
     ):
         """创建数据链路
         :param name: 链路名称
@@ -205,7 +208,11 @@ class DataPipeline(BaseModel):
         """
         # 校验是否可以设置默认
         if is_default and cls.check_exist_default(spaces, etl_configs):
-            raise ValueError(_lazy("已经存在默认记录，空间信息: {}, 使用场景: {}").format(json.dumps(spaces), json.dumps(etl_configs)))
+            raise ValueError(
+                _lazy("已经存在默认记录，空间信息: {}, 使用场景: {}").format(
+                    json.dumps(spaces), json.dumps(etl_configs)
+                )
+            )
 
         try:
             # 创建管道
@@ -239,11 +246,11 @@ class DataPipeline(BaseModel):
         cls,
         name: str,
         updater: str,
-        is_enable: Optional[bool] = None,
-        is_default: Optional[bool] = None,
-        description: Optional[str] = None,
-        etl_configs: Optional[List[str]] = None,
-        spaces: Optional[List[Dict]] = None,
+        is_enable: bool | None = None,
+        is_default: bool | None = None,
+        description: str | None = None,
+        etl_configs: list[str] | None = None,
+        spaces: list[dict] | None = None,
     ) -> "DataPipeline":
         try:
             obj = cls.objects.get(name=name)
@@ -333,7 +340,11 @@ class DataPipelineSpace(BaseModel):
     data_pipeline_name = models.CharField("链路管道名称", max_length=64)
     space_type = models.CharField("允许的空间类型", max_length=64)
     space_id = models.CharField(
-        "允许的空间ID", max_length=256, null=True, blank=True, help_text="允许的空间 ID, 当允许某一类空间访问时，可以为空"
+        "允许的空间ID",
+        max_length=256,
+        null=True,
+        blank=True,
+        help_text="允许的空间 ID, 当允许某一类空间访问时，可以为空",
     )
     is_default = models.BooleanField("是否为默认", default=False)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import json
 import logging
 import math
 import time
-from typing import Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
 from django.db import models
@@ -25,6 +24,7 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import (
@@ -87,21 +87,36 @@ class TimeSeriesGroup(CustomGroupBase):
         }
     ]
 
-    # 组合一个默认的tableid
+    # 组合一个默认的table_id
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None):
-        if str(bk_biz_id) != "0":
-            return "{}_bkmonitor_time_series_{}.{}".format(bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT)
+    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_table_id: enable multi-tenant mode")
+            if str(bk_biz_id) != "0":
+                return "{}_{}_bkmonitor_time_series_{}.{}".format(
+                    bk_tenant_id, bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+                )
+            return "{}_bkmonitor_time_series_{}.{}".format(
+                bk_tenant_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+            )
+        else:
+            if str(bk_biz_id) != "0":
+                return "{}_bkmonitor_time_series_{}.{}".format(
+                    bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
+                )
 
-        return "bkmonitor_time_series_{}.{}".format(bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT)
+            return f"bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
     def make_metric_table_id(self, field_name):
         # 结果表是bk_k8s开头，保证这些的结果表和用户的结果表是区别开的
+        if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
+            logger.info("make_metric_table_id: enable multi-tenant mode")
+            return f"bk_k8s_{self.bk_tenant_id}_{self.time_series_group_name}_{field_name}"
         return f"bk_k8s_{self.time_series_group_name}_{field_name}"
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_tag_fields(
-        self, table_id: str, tag_list: List[Tuple[str, str]], update_description: bool = False
+        self, table_id: str, tag_list: list[tuple[str, str]], update_description: bool = False
     ) -> bool:
         """
         更新维度信息
@@ -117,6 +132,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 rt_field = ResultTableField.objects.get(
                     table_id=table_id,
                     field_name=field_name,
+                    bk_tenant_id=self.bk_tenant_id,
                     tag__in=[
                         ResultTableField.FIELD_TAG_DIMENSION,
                         ResultTableField.FIELD_TAG_TIMESTAMP,
@@ -129,6 +145,7 @@ class TimeSeriesGroup(CustomGroupBase):
             except ResultTableField.DoesNotExist:
                 ResultTableField.objects.create(
                     table_id=table_id,
+                    bk_tenant_id=self.bk_tenant_id,
                     field_name=field_name,
                     description=description,
                     tag=ResultTableField.FIELD_TAG_DIMENSION,
@@ -173,6 +190,7 @@ class TimeSeriesGroup(CustomGroupBase):
             table_id=table_id,
             field_name=field_name,
             tag=ResultTableField.FIELD_TAG_METRIC,
+            bk_tenant_id=self.bk_tenant_id,
             defaults={
                 "field_type": ResultTableField.FIELD_TYPE_FLOAT,
                 "creator": "system",
@@ -203,10 +221,10 @@ class TimeSeriesGroup(CustomGroupBase):
         :return: True：是自动发现/False：不是自动发现（插件白名单模式）
         """
         return not ResultTableOption.objects.filter(
-            table_id=self.table_id, name='enable_field_black_list', value="false"
+            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name="enable_field_black_list", value="false"
         ).exists()
 
-    def _refine_metric_tags(self, metric_info: List) -> Dict:
+    def _refine_metric_tags(self, metric_info: list) -> dict:
         """去除重复的维度"""
         metric_dict, tag_dict = {}, {}
         # 标识是否需要更新描述
@@ -235,9 +253,9 @@ class TimeSeriesGroup(CustomGroupBase):
     def _bulk_create_or_update_metrics(
         self,
         table_id: str,
-        metric_dict: Dict,
-        need_create_metrics: Set,
-        need_update_metrics: Set,
+        metric_dict: dict,
+        need_create_metrics: set,
+        need_update_metrics: set,
     ):
         """批量创建或更新字段"""
         logger.info("bulk create or update rt metrics")
@@ -247,6 +265,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 ResultTableField(
                     table_id=table_id,
                     field_name=metric,
+                    bk_tenant_id=self.bk_tenant_id,
                     tag=ResultTableField.FIELD_TAG_METRIC,
                     field_type=ResultTableField.FIELD_TYPE_FLOAT,
                     creator="system",
@@ -266,7 +285,11 @@ class TimeSeriesGroup(CustomGroupBase):
             ResultTableField,
             "field_name__in",
             need_update_metrics,
-            other_filter={"table_id": table_id, "tag": ResultTableField.FIELD_TAG_METRIC},
+            other_filter={
+                "table_id": table_id,
+                "tag": ResultTableField.FIELD_TAG_METRIC,
+                "bk_tenant_id": self.bk_tenant_id,
+            },
         )
         for obj in qs_objs:
             expect_metric_status = metric_dict.get(obj.field_name, False)
@@ -279,9 +302,9 @@ class TimeSeriesGroup(CustomGroupBase):
     def _bulk_create_or_update_tags(
         self,
         table_id: str,
-        tag_dict: Dict,
-        need_create_tags: Set,
-        need_update_tags: Set,
+        tag_dict: dict,
+        need_create_tags: set,
+        need_update_tags: set,
         update_description: bool,
     ):
         """批量创建或更新 tag"""
@@ -292,6 +315,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 ResultTableField(
                     table_id=table_id,
                     field_name=tag,
+                    bk_tenant_id=self.bk_tenant_id,
                     description=tag_dict.get(tag, ""),
                     tag=ResultTableField.FIELD_TAG_DIMENSION,
                     field_type=ResultTableField.FIELD_TYPE_STRING,
@@ -319,6 +343,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     ResultTableField.FIELD_TAG_TIMESTAMP,
                     ResultTableField.FIELD_TAG_GROUP,
                 ],
+                "bk_tenant_id": self.bk_tenant_id,
             },
         )
         for obj in qs_objs:
@@ -329,13 +354,17 @@ class TimeSeriesGroup(CustomGroupBase):
         ResultTableField.objects.bulk_update(update_records, ["description"], batch_size=BULK_UPDATE_BATCH_SIZE)
         logger.info("batch update tag successfully")
 
-    def bulk_refresh_rt_fields(self, table_id: str, metric_info: List):
+    def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
         # 通过结果表过滤到到指标和维度
         # NOTE: 因为 `ResultTableField` 字段是打平的，因此，需要排除已经存在的，以已经存在的为准
-        exist_fields = set(ResultTableField.objects.filter(table_id=table_id).values_list("field_name", flat=True))
+        exist_fields = set(
+            ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=self.bk_tenant_id).values_list(
+                "field_name", flat=True
+            )
+        )
         # 过滤需要创建或更新的指标
         metric_dict = metric_tag_info["metric_dict"]
         metric_set = set(metric_dict.keys())
@@ -452,10 +481,12 @@ class TimeSeriesGroup(CustomGroupBase):
 
     @property
     def metric_consul_path(self):
-        return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
+        return f"{config.CONSUL_PATH}/influxdb_metrics/{self.bk_data_id}/time_series_metric"
 
-    def get_metric_from_bkdata(self) -> List:
+    def get_metric_from_bkdata(self) -> list:
         """通过bkdata获取数据信息"""
+
+        # TODO: 多租户 BkBase关联信息
         from metadata.models import AccessVMRecord, BCSClusterInfo
 
         default_resp = []
@@ -494,7 +525,7 @@ class TimeSeriesGroup(CustomGroupBase):
             ret_data.append(item)
         return ret_data
 
-    def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
+    def get_metrics_from_redis(self, expired_time: int | None = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
@@ -520,7 +551,7 @@ class TimeSeriesGroup(CustomGroupBase):
         for i in range(math.ceil(client.zcount(**metrics_filter_params) / fetch_step)):
             try:
                 # 0. 首先获取有效期内的所有 metrics
-                metrics_with_scores: List[Tuple[bytes, float]] = client.zrangebyscore(
+                metrics_with_scores: list[tuple[bytes, float]] = client.zrangebyscore(
                     **metrics_filter_params, start=fetch_step * i, num=fetch_step, withscores=True
                 )
             except Exception:
@@ -530,7 +561,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
             # 1. 获取当前这批 metrics 的 dimensions 信息
             try:
-                dimensions_list: List[bytes] = client.hmget(metric_dimensions_key, [x[0] for x in metrics_with_scores])
+                dimensions_list: list[bytes] = client.hmget(metric_dimensions_key, [x[0] for x in metrics_with_scores])
             except Exception:
                 logger.exception("failed to get dimensions from metrics")
                 continue
@@ -586,7 +617,7 @@ class TimeSeriesGroup(CustomGroupBase):
             )
         )
         metrics_queryset.delete()
-        logger.info("all metrics about {}->[{}] is deleted.".format(self.__class__.__name__, self.time_series_group_id))
+        logger.info(f"all metrics about {self.__class__.__name__}->[{self.time_series_group_id}] is deleted.")
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -602,8 +633,9 @@ class TimeSeriesGroup(CustomGroupBase):
         is_split_measurement=True,
         is_builtin=False,
         default_storage_config=None,
-        additional_options: Optional[dict] = None,
-        data_label: Optional[str] = None,
+        additional_options: dict | None = None,
+        data_label: str | None = None,
+        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -619,6 +651,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param default_storage_config: 默认存储配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
+        :param bk_tenant_id: 租户ID
         :return: group object
         """
 
@@ -635,6 +668,7 @@ class TimeSeriesGroup(CustomGroupBase):
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
@@ -654,7 +688,7 @@ class TimeSeriesGroup(CustomGroupBase):
         field_list=None,
         enable_field_black_list=None,
         metric_info_list=None,
-        data_label: Optional[str] = None,
+        data_label: str | None = None,
     ):
         """
         修改一个自定义时序组
@@ -691,6 +725,7 @@ class TimeSeriesGroup(CustomGroupBase):
     def to_json(self):
         return {
             "time_series_group_id": self.time_series_group_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "time_series_group_name": self.time_series_group_name,
             "bk_data_id": self.bk_data_id,
             "bk_biz_id": self.bk_biz_id,
@@ -750,6 +785,7 @@ class TimeSeriesGroup(CustomGroupBase):
     def to_json_self_only(self):
         return {
             "time_series_group_id": self.time_series_group_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "time_series_group_name": self.time_series_group_name,
             "bk_data_id": self.bk_data_id,
             "bk_biz_id": self.bk_biz_id,
@@ -762,7 +798,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def _filter_metric_by_dimension(self, metrics: List, dimension_name: str, dimension_value: str) -> Tuple[Set, Set]:
+    def _filter_metric_by_dimension(self, metrics: list, dimension_name: str, dimension_value: str) -> tuple[set, set]:
         metric_by_dimension_name = set()
         metric_by_dimension_value = set()
         for d in metrics:
@@ -782,7 +818,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     metric_by_dimension_value.add(d.get("field_name"))
         return metric_by_dimension_name, metric_by_dimension_value
 
-    def get_ts_metrics_by_dimension(self, dimension_name: str, dimension_value: str) -> List:
+    def get_ts_metrics_by_dimension(self, dimension_name: str, dimension_value: str) -> list:
         """获取指标名称
         从 redis 中获取数据，然后比对满足条件的记录，获取到指标名称
 
@@ -852,7 +888,9 @@ class TimeSeriesGroup(CustomGroupBase):
             metric_filter_params["field_name__in"] = metric_list
 
         for orm_field in (
-            ResultTableField.objects.filter(table_id=self.table_id).values(*TimeSeriesMetric.ORM_FIELD_NAMES).iterator()
+            ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            .values(*TimeSeriesMetric.ORM_FIELD_NAMES)
+            .iterator()
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
@@ -873,7 +911,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
         orm_field_map = {}
         for orm_field in (
-            ResultTableField.objects.filter(table_id=self.table_id).values(*TimeSeriesMetric.ORM_FIELD_NAMES).iterator()
+            ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            .values(*TimeSeriesMetric.ORM_FIELD_NAMES)
+            .iterator()
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
@@ -903,22 +943,42 @@ class TimeSeriesGroup(CustomGroupBase):
         # 1. 判断是否公共结果表
         if not self.is_split_measurement:
             # 公共结果表，直接设置即可
-            ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
-            logger.info("ts group->[%s] table_id->[%s] is set to disabled now.", self.custom_group_name, self.table_id)
+            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
+                is_deleted=True, is_enable=False
+            )
+            logger.info(
+                "ts group->[%s] table_id->[%s] of bk_tenant_id->[%s] is set to disabled now.",
+                self.custom_group_name,
+                self.table_id,
+                self.bk_tenant_id,
+            )
 
             return True
 
         # 2. 拆分结果表的，先遍历所有的metric
-        # TODO 这里需要调整,因为实际拆分结果表也不会生成新的tableid了，对应的应该在TimeSeriesMetric上增加状态位
+        # TODO 这里需要调整,因为实际拆分结果表也不会生成新的table_id了，对应的应该在TimeSeriesMetric上增加状态位
+
         logger.info("ts group->[%s] is split measurement will disable all tables.", self.custom_group_name)
         for metric_group in TimeSeriesMetric.objects.filter(group_id=self.custom_group_id):
             # 2.1 每个metric拼接出结果表名
             table_id = self.make_metric_table_id(metric_group.field_name)
             # 2.2 设置该结果表启用
-            ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
-            logger.info("ts group->[%s] per table_id->[%s] is set to disabled now.", self.custom_group_name, table_id)
+            ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).update(
+                is_deleted=True, is_enable=False
+            )
 
-        logger.info("ts group->[%s] all table_id is set to disabled now.", self.custom_group_name)
+            logger.info(
+                "ts group->[%s] of bk_tenant_id->[%s]per table_id->[%s] is set to disabled now.",
+                self.custom_group_name,
+                self.bk_tenant_id,
+                table_id,
+            )
+
+        logger.info(
+            "ts group->[%s] of bk_tenant_id->[%s] all table_id is set to disabled now.",
+            self.custom_group_name,
+            self.bk_tenant_id,
+        )
         return True
 
 
@@ -938,6 +998,7 @@ class TimeSeriesMetric(models.Model):
         "description",
         "is_disabled",
     )
+    # group_id来自于TimeSeriesGroup.time_series_group_id,类似于UUID用法
 
     group_id = models.IntegerField(verbose_name="自定义时序所属分组ID")
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
@@ -958,9 +1019,9 @@ class TimeSeriesMetric(models.Model):
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
-            return "{}_bkmonitor_time_series_{}.{}".format(bk_biz_id, bk_data_id, self.field_name)
+            return f"{bk_biz_id}_bkmonitor_time_series_{bk_data_id}.{self.field_name}"
 
-        return "bkmonitor_time_series_{}.{}".format(bk_data_id, self.field_name)
+        return f"bkmonitor_time_series_{bk_data_id}.{self.field_name}"
 
     def to_rt_field_json(self):
         """
@@ -1011,7 +1072,7 @@ class TimeSeriesMetric(models.Model):
         return result
 
     @classmethod
-    def get_metric_tag_from_metric_info(cls, metric_info: Dict) -> List:
+    def get_metric_tag_from_metric_info(cls, metric_info: dict) -> list:
         # 获取 tag
         if "tag_value_list" in metric_info:
             tags = set(metric_info["tag_value_list"].keys())
@@ -1025,8 +1086,8 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _bulk_create_metrics(
         cls,
-        metrics_dict: Dict,
-        need_create_metrics: Union[List, Set],
+        metrics_dict: dict,
+        need_create_metrics: list | set,
         group_id: int,
         table_id: str,
         is_auto_discovery: bool,
@@ -1057,7 +1118,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _bulk_update_metrics(
-        cls, metrics_dict: Dict, need_update_metrics: Union[List, Set], group_id: int, is_auto_discovery: bool
+        cls, metrics_dict: dict, need_update_metrics: list | set, group_id: int, is_auto_discovery: bool
     ) -> bool:
         """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         qs_objs = filter_model_by_in_page(
@@ -1112,7 +1173,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def bulk_refresh_ts_metrics(
-        cls, group_id: int, table_id: str, metric_info_list: List, is_auto_discovery: bool
+        cls, group_id: int, table_id: str, metric_info_list: list, is_auto_discovery: bool
     ) -> bool:
         """
             更新或创建时序指标数据
@@ -1173,7 +1234,7 @@ class TimeSeriesMetric(models.Model):
         """
         # 0. 判断是否真的存在某个group_id
         if not TimeSeriesGroup.objects.filter(time_series_group_id=group_id).exists():
-            logger.info("time_series_group_id->[{}] not exists, nothing will do.".format(group_id))
+            logger.info(f"time_series_group_id->[{group_id}] not exists, nothing will do.")
             raise ValueError(_("自定义时序组ID[{}]不存在，请确认后重试").format(group_id))
         group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
 
@@ -1217,7 +1278,7 @@ class TimeSeriesMetric(models.Model):
                 # 如果不存在指标，创建一个新的
                 metric_obj = cls.objects.create(field_name=field_name, group_id=group_id)
                 created = True
-                logger.info("new metric_obj->[{}] is create for group_id->[{}].".format(metric_obj, group_id))
+                logger.info(f"new metric_obj->[{metric_obj}] is create for group_id->[{group_id}].")
                 # NOTE: 如果有新增, 则标识要更新，删除时，可以不立即更新
                 is_updated = True
 
@@ -1302,7 +1363,9 @@ class TimeSeriesMetric(models.Model):
         orm_field_map = field_map or {}
         if not orm_field_map:
             for orm_field in (
-                ResultTableField.objects.filter(table_id=group.table_id).values(*self.ORM_FIELD_NAMES).iterator()
+                ResultTableField.objects.filter(table_id=group.table_id, bk_tenant_id=group.bk_tenant_id)
+                .values(*self.ORM_FIELD_NAMES)
+                .iterator()
             ):
                 orm_field_map[orm_field["field_name"]] = orm_field
 
@@ -1319,8 +1382,7 @@ class TimeSeriesMetric(models.Model):
         # 填充指标信息
         if self.field_name not in orm_field_map:
             logger.warning(
-                f"metric->[{self.field_name}] is not exists in table->[{group.table_id}] "
-                f"not metrics info will return."
+                f"metric->[{self.field_name}] is not exists in table->[{group.table_id}] not metrics info will return."
             )
             return None
 
@@ -1366,7 +1428,9 @@ class TimeSeriesMetric(models.Model):
         orm_field_map = field_map or {}
         if not orm_field_map:
             for orm_field in (
-                ResultTableField.objects.filter(table_id=group.table_id).values(*self.ORM_FIELD_NAMES).iterator()
+                ResultTableField.objects.filter(table_id=group.table_id, bk_tenant_id=group.bk_tenant_id)
+                .values(*self.ORM_FIELD_NAMES)
+                .iterator()
             ):
                 orm_field_map[orm_field["field_name"]] = orm_field
 
@@ -1381,8 +1445,7 @@ class TimeSeriesMetric(models.Model):
         # 填充指标信息
         if self.field_name not in orm_field_map:
             logger.warning(
-                f"metric->[{self.field_name}] is not exists in table->[{group.table_id}] "
-                f"not metrics info will return."
+                f"metric->[{self.field_name}] is not exists in table->[{group.table_id}] not metrics info will return."
             )
             return None
 
@@ -1411,7 +1474,7 @@ class TimeSeriesMetric(models.Model):
 class TimeSeriesTagManager(models.Manager):
     """自定义时序标签(维度)管理器"""
 
-    def create_by_infos(self, metric_obj: TimeSeriesMetric, tag_infos: Dict[str, dict]) -> List["TimeSeriesTag"]:
+    def create_by_infos(self, metric_obj: TimeSeriesMetric, tag_infos: dict[str, dict]) -> list["TimeSeriesTag"]:
         """通过关键信息批量构建标签实例"""
         _ins = []
         for tag_name, tag_info in tag_infos.items():

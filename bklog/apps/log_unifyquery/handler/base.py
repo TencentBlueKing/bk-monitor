@@ -29,6 +29,8 @@ from apps.log_search.constants import (
     OperatorEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    MAX_ASYNC_COUNT,
+    SCROLL,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -56,6 +58,31 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.time_handler import timestamp_to_timeformat
 from bkm_ipchooser.constants import CommonEnum
+from django.utils.translation import gettext as _
+from apps.log_search.constants import ERROR_MSG_CHECK_FIELDS_FROM_BKDATA, ERROR_MSG_CHECK_FIELDS_FROM_LOG
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.api import MonitorApi
+from apps.log_databus.models import CollectorConfig
+from apps.log_databus.constants import EtlConfig
+from apps.log_search.constants import ASYNC_SORTED
+
+
+def fields_config(name: str, is_active: bool = False):
+    def decorator(func):
+        def func_decorator(*args, **kwargs):
+            config = {"name": name, "is_active": is_active}
+            result = func(*args, **kwargs)
+            if isinstance(result, tuple):
+                config["is_active"], config["extra"] = result
+                return config
+            if result is None:
+                return config
+            config["is_active"] = result
+            return config
+
+        return func_decorator
+
+    return decorator
 
 
 class UnifyQueryHandler:
@@ -877,3 +904,332 @@ class UnifyQueryHandler:
                 search_mode=search_mode,
                 from_favorite_id=self.search_params.get("from_favorite_id", 0),
             )
+
+    def scroll_search(self, scroll_result, scroll=SCROLL):
+        """
+        scroll_result
+        @param scroll_result:
+        @param scroll:
+        @return:
+        """
+        # 获取scroll对应的esquery方法
+        scroll_size = len(scroll_result["list"])
+        result_size = scroll_size
+        index_set = self.index_info_list[0]["index_set_obj"]
+        max_result_window = index_set.result_window
+        # 参数补充
+        search_dict = copy.deepcopy(self.base_dict)
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = max_result_window
+        search_dict["trace_id"] = scroll_result["trace_id"]
+        search_dict["scroll"] = scroll
+        while scroll_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+            search_dict["result_table_options"] = scroll_result["result_table_options"]
+            scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
+            scroll_size = len(scroll_result["list"])
+            result_size += scroll_size
+            yield self._deal_query_result(scroll_result)
+
+    def pre_get_result(self, sorted_fields: list, size: int, scroll=None):
+        """
+        pre_get_result
+        @param sorted_fields:
+        @param size:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+
+        if self.search_params["scenario_id"] != Scenario.ES:
+            order_by = []
+            for param in sorted_fields:
+                if param[1] == "asc":
+                    order_by.append(param[0])
+                elif param[1] == "desc":
+                    order_by.append(f"-{param[0]}")
+            search_dict["order_by"] = order_by
+
+        # 参数补充
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = size
+        search_dict["scroll"] = scroll
+        result = UnifyQueryApi.query_ts_raw(search_dict)
+        return result
+
+    def search_after_result(self, search_result, sorted_fields):
+        """
+        search_after_result
+        @param search_result:
+        @param sorted_fields:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+        if self.search_params["scenario_id"] != Scenario.ES:
+            order_by = []
+            for param in sorted_fields:
+                if param[1] == "asc":
+                    order_by.append(param[0])
+                elif param[1] == "desc":
+                    order_by.append(f"-{param[0]}")
+            search_dict["order_by"] = order_by
+
+        index_set = self.index_info_list[0]["index_set_obj"]
+        search_after_size = len(search_result["list"])
+        result_size = search_after_size
+        max_result_window = index_set.result_window
+        # 参数补充
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = max_result_window
+        while search_after_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+            search_dict["result_table_options"] = search_result["result_table_options"]
+            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            search_after_size = len(search_result["list"])
+            result_size += search_after_size
+            yield self._deal_query_result(search_result)
+
+    def _get_user_sorted_list(self, sorted_fields):
+        index_set_id = self.index_info_list[0]["index_set_id"]
+        config = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=self.request_username)
+        if not config:
+            return [[sorted_field, ASYNC_SORTED] for sorted_field in sorted_fields]
+        user_sort_list = config.sort_list
+        user_sort_fields = [i[0] for i in user_sort_list]
+        for sorted_field in sorted_fields:
+            if sorted_field in user_sort_fields:
+                continue
+            user_sort_list.append([sorted_field, ASYNC_SORTED])
+
+        return user_sort_list
+
+    @property
+    def index_set(self):
+        if not hasattr(self, "_index_set"):
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_info_list[0]["index_set_id"]).first()
+        return self._index_set
+
+    def fields(self, scope="default"):
+        # self = self.unify_query_handler
+        index_info = self.index_info_list[0]
+        index_set_id = index_info["index_set_id"]
+        scenario_id = index_info["origin_scenario_id"]
+        is_union_search = self.search_params.get("is_union_search", False)
+        time_field, time_field_type, time_field_unit = self.init_time_field(index_set_id, scenario_id)
+        mapping_handlers = MappingHandlers(
+            index_info["origin_indices"],
+            index_info["index_set_id"],
+            index_info["origin_scenario_id"],
+            index_info["storage_cluster_id"],
+            time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            time_zone=get_local_param("time_zone", settings.TIME_ZONE),
+        )
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
+            scope=scope, is_union_search=is_union_search
+        )
+
+        if not is_union_search:
+            sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=index_set_id, scope=scope)
+        else:
+            sort_list = list()
+
+        # 校验sort_list字段是否存在
+        field_result_list = [i["field_name"] for i in field_result]
+        sort_field_list = [j for j in sort_list if j[0] in field_result_list]
+
+        if not sort_field_list and scenario_id in [Scenario.BKDATA, Scenario.LOG]:
+            sort_field_list = sort_list
+
+        result_dict: dict = {
+            "fields": field_result,
+            "display_fields": display_fields,
+            "sort_list": sort_field_list,
+            "time_field": time_field,
+            "time_field_type": time_field_type,
+            "time_field_unit": time_field_unit,
+            "config": [],
+        }
+
+        if is_union_search:
+            return result_dict
+
+        for _fields_config in [
+            self.bcs_web_console(field_result_list, scenario_id),
+            self.bk_log_to_trace(index_set_id),
+            self.analyze_fields(field_result),
+            self.bkmonitor(field_result_list),
+            self.async_export(field_result, scenario_id),
+            self.ip_topo_switch(index_set_id),
+            self.apm_relation(index_set_id),
+            self.clustering_config(index_set_id),
+            self.clean_config(),
+        ]:
+            result_dict["config"].append(_fields_config)
+        # 将用户当前使用的配置id传递给前端
+        config_obj = UserIndexSetFieldsConfig.get_config(
+            index_set_id=index_set_id, username=self.request_username, scope=scope
+        )
+        result_dict["config_id"] = config_obj.id if config_obj else ""
+
+        return result_dict
+
+    @fields_config("bcs_web_console")
+    def bcs_web_console(self, field_result_list, scenario_id):
+        """
+        bcs_web_console
+        @param field_result_list:
+        @param scenario_id:
+        @return:
+        """
+        enable_bcs_manage = settings.BCS_WEB_CONSOLE_DOMAIN if settings.BCS_WEB_CONSOLE_DOMAIN != "" else None
+        if not enable_bcs_manage:
+            return False, {"reason": _("未配置BCS WEB CONSOLE")}
+
+        container_fields = (
+            ("cluster", "container_id"),
+            ("__ext.io_tencent_bcs_cluster", "__ext.container_id"),
+            ("__ext.bk_bcs_cluster_id", "__ext.container_id"),
+        )
+
+        for cluster_field, container_id_field in container_fields:
+            if cluster_field in field_result_list and container_id_field in field_result_list:
+                return True
+
+        reason = _("{} 不能同时为空").format(container_fields)
+        return False, {"reason": reason + self._get_message_by_scenario()}
+
+    @fields_config("trace")
+    def bk_log_to_trace(self, index_set_id):
+        """
+        [{
+            "log_config": [{
+                "index_set_id": 111,
+                "field": "span_id"
+            }],
+            "trace_config": {
+                "index_set_name": "xxxxxx"
+            }
+        }]
+        """
+        if not FeatureToggleObject.switch("bk_log_to_trace"):
+            return False
+        toggle = FeatureToggleObject.toggle("bk_log_to_trace")
+        feature_config = toggle.feature_config
+        if isinstance(feature_config, dict):
+            feature_config = [feature_config]
+
+        if not feature_config:
+            return False
+
+        for config in feature_config:
+            log_config = config.get("log_config", [])
+            target_config = [c for c in log_config if str(c["index_set_id"]) == str(index_set_id)]
+            if not target_config:
+                continue
+            target_config, *_ = target_config
+            return True, {**config.get("trace_config"), "field": target_config["field"]}
+
+    @fields_config("context_and_realtime")
+    def analyze_fields(self, field_result):
+        """
+        analyze_fields
+        @param field_result:
+        @param index_set:
+        @return:
+        """
+        # 设置了自定义排序字段的，默认认为支持上下文
+        if self.index_set.target_fields and self.index_set.sort_fields:
+            return True, {"reason": "", "context_fields": []}
+        result = MappingHandlers.analyze_fields(field_result)
+        if result["context_search_usable"]:
+            return True, {"reason": "", "context_fields": result.get("context_fields", [])}
+        return False, {"reason": result["usable_reason"]}
+
+    @fields_config("bkmonitor")
+    def bkmonitor(self, field_result_list):
+        if "ip" in field_result_list or "serverIp" in field_result_list:
+            return True
+        reason = _("缺少字段, ip 和 serverIp 不能同时为空") + self._get_message_by_scenario()
+        return False, {"reason": reason}
+
+    def _get_message_by_scenario(self):
+        if self.index_info_list[0]["origin_scenario_id"] == Scenario.BKDATA:
+            return ERROR_MSG_CHECK_FIELDS_FROM_BKDATA
+        else:
+            return ERROR_MSG_CHECK_FIELDS_FROM_LOG
+
+    @fields_config("async_export")
+    def async_export(self, field_result, scenario_id):  # TODO ?? index_set
+        """
+        async_export
+        @param field_result:
+        @param scenario_id:
+        @return:
+        """
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, scenario_id, sort_fields)
+        if result["async_export_usable"]:
+            return True, {"fields": result["async_export_fields"]}
+        return False, {"usable_reason": result["async_export_usable_reason"]}
+
+    @fields_config("ip_topo_switch")
+    def ip_topo_switch(self, index_set_id):
+        return MappingHandlers.init_ip_topo_switch(index_set_id)
+
+    @fields_config("apm_relation")
+    def apm_relation(self, index_set_id):
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
+        try:
+            if qs.exists():
+                collector_config = qs.first()
+                params = {
+                    "index_set_id": int(index_set_id),
+                    "bk_data_id": int(collector_config.bk_data_id),
+                    "bk_biz_id": collector_config.bk_biz_id,
+                }
+                if self.start_time and self.end_time:
+                    params["start_time"] = self.start_time
+                    params["end_time"] = self.end_time
+                res = MonitorApi.query_log_relation(params=params)
+            else:
+                res = MonitorApi.query_log_relation(params={"index_set_id": int(index_set_id)})
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"fail to request log relation => index_set_id: {index_set_id}, exception => {e}")
+            return False
+
+        if not res:
+            return False
+
+        return True, res
+
+    @fields_config("clustering_config")
+    def clustering_config(self, index_set_id):
+        """
+        判断聚类配置
+        """
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+        if clustering_config:
+            return (
+                clustering_config.signature_enable,
+                {
+                    "collector_config_id": self.index_set.collector_config_id,
+                    "signature_switch": clustering_config.signature_enable,
+                    "clustering_field": clustering_config.clustering_fields,
+                },
+            )
+        return False, {"collector_config_id": None, "signature_switch": False, "clustering_field": None}
+
+    @fields_config("clean_config")
+    def clean_config(self):
+        """
+        获取清洗配置
+        """
+        if not self.index_set.collector_config_id:
+            return False, {"collector_config_id": None}
+        collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        return (
+            collector_config.etl_config != EtlConfig.BK_LOG_TEXT,
+            {
+                "collector_scenario_id": collector_config.collector_scenario_id,
+                "collector_config_id": self.index_set.collector_config_id,
+            },
+        )

@@ -1518,7 +1518,7 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_es_router(
+            TransferApi.create_or_update_log_router(
                 {
                     "cluster_id": index_set.storage_cluster_id,
                     "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
