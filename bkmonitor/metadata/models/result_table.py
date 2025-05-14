@@ -1119,6 +1119,8 @@ class ResultTable(models.Model):
         is_enable=None,
         time_option=None,
         data_label=None,
+        need_delete_storages=None,
+        bk_biz_id_alias=None,
     ):
         """
         修改结果表的配置
@@ -1135,6 +1137,8 @@ class ResultTable(models.Model):
         :param is_enable: 是否启用结果表
         :param time_option: 时间字段配置
         :param data_label: 数据标签
+        :param need_delete_storages 需要删除额外存储配置
+        :param bk_biz_id_alias: 结果表业务ID别名
         :return: True | raise Exception
         """
         logger.info(
@@ -1307,6 +1311,20 @@ class ResultTable(models.Model):
                 ex_storage_type,
             )
 
+            # 删除额外存储配置
+            need_delete_storages = need_delete_storages or {}
+            for storage_type, delete_storage in need_delete_storages.items():
+                if storage_type not in self.REAL_STORAGE_DICT:
+                    logger.info(
+                        "try to delete storage->[%s] for table->[%s] but storage is not exists.",
+                        storage_type,
+                        self.table_id,
+                    )
+                    continue
+                ex_storage = self.REAL_STORAGE_DICT[storage_type]
+                ex_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
+                logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
+
         # 更新结果表option配置
         if option is not None:
             result_table_option_ids = ResultTableOption.objects.filter(
@@ -1358,6 +1376,15 @@ class ResultTable(models.Model):
                             self.table_id, self.bk_tenant_id, self.is_enable
                         )
                     )
+
+        if bk_biz_id_alias is not None:
+            logger.info(
+                "modify_result_table: table_id->[%s] got new_bk_biz_id_alias->[%s]", self.table_id, bk_biz_id_alias
+            )
+            self.bk_biz_id_alias = bk_biz_id_alias
+            SpaceTypeToResultTableFilterAlias.objects.update_or_create(
+                table_id=self.table_id, defaults={"space_type": SpaceTypes.BKCC.value, "filter_alias": bk_biz_id_alias}
+            )
 
         # 是否需要修改数据标签
         if data_label is not None:

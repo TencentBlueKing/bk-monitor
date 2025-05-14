@@ -997,6 +997,9 @@
       //             true : !this.globalsData.field_built_in.find(item => item.id === val.toLocaleLowerCase())
       // },
       checkTypeItem(row) {
+        if (row.is_objectKey) {
+          return true;
+        }
         row.typeErr = row.is_delete ? false : !row.field_type;
         return !row.typeErr;
       },
@@ -1113,7 +1116,7 @@
             let result = true;
             this.formData.tableList.forEach(row => {
               // 如果有别名，不判断字段名，判断别名，如果为内置字段不判断
-              if (!row.is_built_in) {
+              if (!row.is_built_in && !row.is_objectKey) {
                 const hasAliasNameIssue = row.alias_name && this.checkAliasNameItem(row);
                 const hasFieldNameIssue = this.checkFieldNameItem(row);
                 if (hasAliasNameIssue || hasFieldNameIssue) {

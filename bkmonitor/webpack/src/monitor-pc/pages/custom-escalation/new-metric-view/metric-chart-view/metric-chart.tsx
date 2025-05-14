@@ -168,6 +168,10 @@ class NewMetricChart extends CommonSimpleChart {
   get menuList() {
     return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
   }
+  /** hover展示多个tooltips */
+  get hoverAllTooltips() {
+    return this.panel.options?.time_series?.hoverAllTooltips;
+  }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
   handleHeightChange() {
@@ -877,7 +881,8 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
-                  groupId={this.groupId}
+                  groupId={this.panel.groupId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
