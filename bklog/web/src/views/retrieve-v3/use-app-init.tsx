@@ -121,7 +121,7 @@ export default () => {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
         const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
-        const target = resolver.convertQueryToStore();
+        const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
           $http

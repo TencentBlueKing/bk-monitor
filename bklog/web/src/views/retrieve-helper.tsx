@@ -233,7 +233,6 @@ class RetrieveHelper extends RetrieveBase {
    * @param isShown
    */
   setLeftFieldIsShown(isShown: boolean) {
-    console.log('--left showe', isShown);
     this.leftFieldSettingShown = isShown;
     this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown);
   }
