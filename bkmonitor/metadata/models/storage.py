@@ -803,7 +803,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         help_text="设置influxdb proxy 和 后端存储集群的关联关系记录 ID, 用以查询结果表使用的 proxy 和后端存储",
     )
 
-    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         # 实际数据库存储表信息不可重复
@@ -2000,7 +2000,9 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
-            cluster_id = ClusterInfo.objects.get(cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True).cluster_id
+            cluster_id = (
+                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True).first().cluster_id
+            )
 
         # 如果有提供集群信息，需要判断
         else:
@@ -4879,7 +4881,7 @@ class ArgusStorage(models.Model, StorageResultTable):
     storage_cluster_id = models.IntegerField("存储集群")
 
     tenant_id = models.CharField("argus租户ID", max_length=64)
-    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default='system')
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     def __str__(self):
         return f"<{self.table_id}, {self.storage_cluster_id}>"
@@ -5169,9 +5171,11 @@ class DorisStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True
-            ).cluster_id
+            storage_cluster_id = (
+                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True)
+                .first()
+                .cluster_id
+            )
             logger.info("CreateDorisStorage: use default Doris storage cluster->[%s]", storage_cluster_id)
         else:
             if not ClusterInfo.objects.filter(
