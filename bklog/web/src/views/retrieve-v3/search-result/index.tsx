@@ -34,7 +34,7 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-container',
+  name: 'v3-result-container',
   setup(_, {}) {
     const router = useRouter();
     const route = useRoute();

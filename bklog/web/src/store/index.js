@@ -40,7 +40,6 @@ import {
   parseBigNumberList,
   setDefaultTableWidth,
   formatDate,
-  getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import Vuex from 'vuex';
@@ -305,6 +304,7 @@ const store = new Vuex.Store({
 
       localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
+
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },
@@ -335,10 +335,14 @@ const store = new Vuex.Store({
               ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
             );
           } else {
-            set(state.indexItem, key, payload[key]);
+            if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
+              set(state.indexItem, key, payload[key]);
+            }
           }
         } else {
-          set(state.indexItem, key, payload[key]);
+          if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
+            set(state.indexItem, key, payload[key]);
+          }
         }
       });
     },

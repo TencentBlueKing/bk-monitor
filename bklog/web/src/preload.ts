@@ -56,14 +56,22 @@ export default ({
 
     store.commit('updateMySpaceList', spaceList);
 
-    const space_uid = localStorage.getItem('space_uid');
+    const space_uid = store.state.spaceUid;
+    const bkBizId = store.state.bkBizId;
+    let space = null;
 
-    const space = space_uid
-      ? (spaceList ?? []).find(item => item.space_uid === space_uid) ?? spaceList?.[0]
-      : spaceList?.[0];
+    if (space_uid) {
+      space = (spaceList ?? []).find(item => item.space_uid === space_uid);
+    }
 
-    localStorage.setItem('space_uid', space.space_uid);
-    localStorage.setItem('bk_biz_id', space.bk_biz_id);
+    if (!space && bkBizId) {
+      space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
+    }
+
+    if (!space) {
+      space = spaceList?.[0];
+    }
+
     store.commit('updateSpace', space_uid);
 
     if (isExternal) {

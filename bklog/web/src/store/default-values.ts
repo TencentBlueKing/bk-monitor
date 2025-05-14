@@ -96,9 +96,19 @@ const getUrlArgs = () => {
 
   const hash = window.location.hash.replace(/^#/, '');
   const route = router.resolve(hash);
-  const urlResulver = new RouteUrlResolver({ route: route.resolved });
-  urlResulver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
-  return urlResulver.convertQueryToStore<RouteParams>();
+  const urlResolver = new RouteUrlResolver({ route: route.resolved });
+  urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+  const routeParams = urlResolver.convertQueryToStore<RouteParams>();
+
+  if (routeParams.bizId) {
+    window.localStorage.setItem('bk_biz_id', routeParams.bizId);
+  }
+
+  if (routeParams.spaceUid) {
+    window.localStorage.setItem('space_uid', routeParams.spaceUid);
+  }
+
+  return routeParams;
 };
 
 export const URL_ARGS = getUrlArgs();
@@ -227,6 +237,17 @@ export const getStorageOptions = () => {
           update = true;
         }
       });
+
+      // [
+      //   ['space_uid', BK_LOG_STORAGE.SPACE_UID],
+      //   ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
+      // ].forEach(([k1, k2]) => {
+      //   const oldVal = localStorage.getItem(k1);
+      //   if (oldVal !== undefined) {
+      //     storage[k2] = oldVal;
+      //     localStorage.removeItem(k1);
+      //   }
+      // });
 
       if (update) {
         window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));

@@ -607,7 +607,7 @@
     clearTableFilter,
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
-    deepClone
+    deepClone,
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -860,15 +860,15 @@
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
-    watch:{
-      collectShowList:{
+    watch: {
+      collectShowList: {
         handler(val) {
           if (val) {
             const callbackFn = (item, key, value) => {
-                this.$set(item, key, value[key]);
+              this.$set(item, key, value[key]);
             };
             requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch((error) => {
+              .catch(error => {
                 console.error('Error loading data:', error);
               })
               .finally(() => {
@@ -876,7 +876,7 @@
               });
           }
         },
-      }
+      },
     },
     methods: {
       async stopCollectHandler(row) {
@@ -995,6 +995,7 @@
           query.type = 'masking';
         }
         this.$store.commit('collect/setCurCollect', row);
+
         this.$router.push({
           name: targetRoute,
           params,
@@ -1279,7 +1280,7 @@
       },
       formatUsage(dailyUsage, totalUsage) {
         return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
+      },
     },
   };
 </script>
