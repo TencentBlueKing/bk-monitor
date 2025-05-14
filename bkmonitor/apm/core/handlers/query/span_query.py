@@ -105,3 +105,21 @@ class SpanQuery(BaseQuery):
         if not need_empty:
             q = q.filter(**{f"{field}__ne": ""})
         return self._query_field_aggregated_value(start_time, end_time, field, method, q)
+
+    def query_option_values(
+        self,
+        datasource_type: str,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ) -> dict[str, list[str]]:
+        q: QueryConfigBuilder = (
+            self._get_q(datasource_type)
+            .filter(self._build_filters(filters))
+            .query_string(query_string)
+            .order_by("-_value")
+        )
+        return self._query_option_values(start_time, end_time, fields, q, limit)

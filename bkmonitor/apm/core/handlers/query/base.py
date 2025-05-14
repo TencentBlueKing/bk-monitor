@@ -202,22 +202,14 @@ class BaseQuery:
             return queryset.scope(self.bk_biz_id)
         return queryset
 
-    def query_option_values(
+    def _query_option_values(
         self,
-        datasource_type: str,
         start_time: int,
         end_time: int,
         fields: list[str],
+        q: QueryConfigBuilder,
         limit: int,
-        filters: list[types.Filter],
-        query_string: str,
     ) -> dict[str, list[str]]:
-        q: QueryConfigBuilder = (
-            self._get_q(datasource_type)
-            .filter(self._build_filters(filters))
-            .query_string(query_string)
-            .order_by("-_value")
-        )
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？

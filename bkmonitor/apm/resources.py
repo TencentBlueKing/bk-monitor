@@ -1033,22 +1033,6 @@ class QueryTraceOptionValues(Resource):
     RequestSerializer = QueryOptionValuesSerializer
 
     def perform_request(self, validated_data):
-        if validated_data["datasource_type"] == ApmDataSourceConfigBase.TRACE_DATASOURCE:
-            filters = validated_data["filters"]
-            filters.append(
-                {
-                    "key": "biz_id",
-                    "value": validated_data["bk_biz_id"],
-                    "operator": FilterOperator.EQUAL,
-                }
-            )
-            filters.append(
-                {
-                    "key": "app_name",
-                    "value": validated_data["app_name"],
-                    "operator": FilterOperator.EQUAL,
-                }
-            )
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
             QueryMode.TRACE,
             validated_data["datasource_type"],
