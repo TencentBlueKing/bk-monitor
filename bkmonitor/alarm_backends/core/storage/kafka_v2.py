@@ -117,8 +117,8 @@ class KafkaQueueV2:
         consumer = self._ensure_connected(self.get_consumer())
         records = []
         while not records:
-            records += consumer.poll(timeout_ms=timeout * 1000, max_records=count)
-        messages = list(itertools.chain.from_iterable(records.values()))
+            records += consumer.poll(timeout_ms=timeout * 1000, max_records=count).values()
+        messages = list(itertools.chain.from_iterable(records))
         consumer.commit()  # 手动提交保证可靠性
         logger.info(f"{consumer._subscription.assignment} poll messages: {len(messages)}")
         return messages
