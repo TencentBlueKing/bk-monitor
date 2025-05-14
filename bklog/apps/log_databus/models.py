@@ -813,8 +813,6 @@ class LogSubscriptionConfig(models.Model):
     @classmethod
     def get_target_hosts(cls, collector_config):
         target_hosts = []
-        from apps.api import NodeApi
-
         proxy_list = NodeApi.get_host_biz_proxies({"bk_biz_id": collector_config.bk_biz_id})
         for p in proxy_list:
             if p["bk_cloud_id"] == 0:
