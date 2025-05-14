@@ -100,6 +100,7 @@ export default defineComponent({
         arrow: false,
         interactive: true,
         offset: [0, 12],
+        interactiveBorder: 30,
         hideOnClick: false,
         onShown() {
           context.emit('show');
