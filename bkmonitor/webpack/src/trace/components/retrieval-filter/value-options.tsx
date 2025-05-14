@@ -47,7 +47,7 @@ export default defineComponent({
     const loading = shallowRef(false);
     const hoverActiveIndex = shallowRef(-1);
     const scrollLoading = shallowRef(false);
-    const pageSize = shallowRef(10);
+    const pageSize = shallowRef(100);
     const page = shallowRef(1);
     const isEnd = shallowRef(false);
 

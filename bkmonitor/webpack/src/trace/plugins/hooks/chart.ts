@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ComputedRef, type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
+import {
+  type ComputedRef,
+  type Ref,
+  type WatchStopHandle,
+  computed,
+  inject,
+  onBeforeUnmount,
+  provide,
+  watch,
+} from 'vue';
+import { shallowRef } from 'vue';
 
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
@@ -204,7 +214,7 @@ export const useCompareTypeInject = () => inject<Ref<PanelToolsType.CompareId>>(
 export const useReadonlyProvider = (v: boolean) => {
   provide(READONLY, v);
 };
-export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY);
+export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY, shallowRef(false));
 
 export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
 export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);
@@ -213,4 +223,8 @@ export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKe
 export const useIsEnabledProfilingProvider = (enableProfiling: ComputedRef<boolean>) => {
   provide(IS_ENABLED_PROFILING, enableProfiling);
 };
-export const useIsEnabledProfilingInject = () => inject<ComputedRef<boolean>>(IS_ENABLED_PROFILING);
+export const useIsEnabledProfilingInject = () =>
+  inject<ComputedRef<boolean>>(
+    IS_ENABLED_PROFILING,
+    computed(() => false)
+  );

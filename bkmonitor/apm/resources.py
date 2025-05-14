@@ -34,6 +34,7 @@ from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
@@ -69,9 +70,11 @@ from apm.models.profile import ProfileService
 from apm.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
+
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -85,7 +88,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
@@ -2078,3 +2081,125 @@ class QueryFieldStatisticsInfoResource(Resource):
             else 0
         )
         return processed_statistics_info
+
+
+class QueryFieldStatisticsGraphResource(Resource):
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_data):
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        # keyword类型，返回时序数据图
+        field = validated_data["field"]
+        values = field["values"]
+        base_query_params = {
+            "query_mode": validated_data["mode"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "query_string": validated_data["query_string"],
+            "filters": validated_data["filters"],
+            "field": field["field_name"],
+        }
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+            base_query_params["filters"].append(
+                {
+                    "key": field["field_name"],
+                    "value": values,
+                    "operator": FilterOperator.EQUAL,
+                }
+            )
+            config = proxy.query_graph_config(**base_query_params)
+            config.update(
+                {
+                    "query_method": validated_data["query_method"],
+                    "time_alignment": validated_data["time_alignment"],
+                    "start_time": config["start_time"] // 1000,
+                    "end_time": config["end_time"] // 1000,
+                }
+            )
+            return resource.grafana.graph_unify_query(config)
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
+            field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
+            return self.process_graph_info(
+                [
+                    [topk_item["count"], int(topk_item["field_value"])]
+                    for topk_item in sorted(field_topk, key=lambda topk_item: topk_item["field_value"])
+                ]
+            )
+        return self.process_graph_info(
+            self.calculate_interval_buckets(
+                base_query_params, proxy, self.calculate_intervals(min_value, max_value, interval_num)
+            )
+        )
+
+    @classmethod
+    def calculate_intervals(cls, min_value, max_value, interval_num):
+        """
+        计算区间
+        :param min_value: int
+            区间的最小值。
+        :param max_value: int
+            区间的最大值。
+        :param interval_num: int
+            区间数量。
+        :return: List[Tuple[int, int]]
+            返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
+        """
+        intervals = []
+        current_min = min_value
+        for i in range(interval_num):
+            # 闭区间，加上区间数后要 -1
+            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
+            # 确保最后一个区间覆盖到 max_value
+            if i == interval_num - 1:
+                current_max = max_value
+            intervals.append((current_min, current_max))
+            current_min = current_max + 1
+        return intervals
+
+    @classmethod
+    def process_graph_info(cls, buckets):
+        """
+        处理数值趋势图格式，和时序趋势图保持一致
+        """
+        return {"series": [{"datapoints": buckets}]}
+
+    @classmethod
+    def calculate_interval_buckets(cls, base_query_params, proxy, intervals) -> list:
+        """
+        统计各区间计数
+        """
+        buckets = []
+        run_threads(
+            [
+                InheritParentThread(
+                    target=cls.collect_interval_buckets,
+                    args=(
+                        base_query_params,
+                        proxy,
+                        buckets,
+                        interval,
+                    ),
+                )
+                for interval in intervals
+            ]
+        )
+        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+
+    @classmethod
+    def collect_interval_buckets(cls, base_query_params, proxy, bucket, interval: tuple[int, int]):
+        interval_query_params = copy.deepcopy(base_query_params)
+        interval_query_params["filters"].append(
+            {
+                "key": interval_query_params["field"],
+                "value": [interval[0], interval[1]],
+                "operator": FilterOperator.BETWEEN,
+            }
+        )
+        interval_query_params["method"] = AggregatedMethod.COUNT.value
+        interval_count = proxy.query_field_aggregated_value(
+            **interval_query_params,
+        )
+        bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])

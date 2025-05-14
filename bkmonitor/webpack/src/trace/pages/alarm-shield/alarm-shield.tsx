@@ -724,6 +724,9 @@ export default defineComponent({
                     : undefined,
                   cell: (_, { row }) => this.handleSetFormat(row, item.id),
                 }))}
+                pagination={{
+                  total: this.pagination.count,
+                }}
                 data={this.tableList}
                 filterValue={this.filterValue}
                 rowKey='id'

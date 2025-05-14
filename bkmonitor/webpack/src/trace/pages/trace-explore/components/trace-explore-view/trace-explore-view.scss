@@ -4,8 +4,8 @@
   flex-direction: column;
   min-width: 600px;
   height: 100%;
+  overflow-x: hidden;
   overflow-y: scroll;
-  overflow-y: overlay;
 
   .trace-explore-view-chart {
     flex-shrink: 0;

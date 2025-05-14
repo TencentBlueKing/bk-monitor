@@ -70,15 +70,17 @@ export default defineComponent({
     const clearKey = shallowRef('');
 
     const localFields = computed(() => {
-      return props.fields.map(item => ({
-        ...item,
-        supported_operations:
-          item?.supported_operations?.map(s => ({
-            ...s,
-            alias: s.label,
-            value: s.operator,
-          })) || [],
-      })) as IFilterField[];
+      return props.fields
+        .filter(item => item?.is_searched)
+        .map(item => ({
+          ...item,
+          supported_operations:
+            item?.supported_operations?.map(s => ({
+              ...s,
+              alias: s.label,
+              value: s.operator,
+            })) || [],
+        })) as IFilterField[];
     });
     const curFavoriteId = computed(() => props.selectFavorite?.config?.queryParams?.app_name);
     const isDefaultResidentSetting = computed(() => {
@@ -239,7 +241,7 @@ export default defineComponent({
             key: item.key.id,
             condition: ECondition.and,
             value: item.value.map(v => v.id),
-            ...(item?.options?.is_wildcard ? { options: { is_wildcard: true } } : {}),
+            ...(Object.keys(item?.options || {}).length ? { options: item.options } : {}),
             method: item.method.id,
           });
         }
@@ -250,6 +252,7 @@ export default defineComponent({
         key: item.key,
         operator: item.method,
         value: item.value,
+        options: item?.options || undefined,
       }));
       emit('whereChange', props.isTraceRetrieval ? traceWhere : where);
     }
@@ -292,7 +295,7 @@ export default defineComponent({
             key: cacheItem.key,
             condition: { id: ECondition.and, name: 'AND' },
             method: { id: w.method as EMethod, name: methodName || w.method },
-            options: w.options || { is_wildcard: false },
+            options: w.options || {},
             value: w.value.map(v => ({
               id: v,
               name: cacheValueMap.get(v) || v,
@@ -307,7 +310,7 @@ export default defineComponent({
             key: keyItem,
             condition: { id: ECondition.and, name: 'AND' },
             method: { id: w.method as EMethod, name: METHOD_MAP[w.method] || w.method },
-            options: w.options || { is_wildcard: false },
+            options: w.options || {},
             value: w.value.map(v => ({
               id: v,
               name: v,

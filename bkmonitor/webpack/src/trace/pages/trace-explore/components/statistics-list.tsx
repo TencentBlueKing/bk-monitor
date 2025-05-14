@@ -43,6 +43,7 @@ import { handleTransformTime, handleTransformToTimestamp } from '../../../compon
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
+import { transformFieldName } from './trace-explore-table/constants';
 
 import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../typing';
 import type { PropType } from 'vue';
@@ -144,7 +145,11 @@ export default defineComponent({
       if (count !== getStatisticsListCount.value) return;
       statisticsList.distinct_count = data[0].distinct_count || 0;
       statisticsList.field = data[0].field || '';
-      statisticsList.list = data[0].list || [];
+      const list = data[0].list || [];
+      statisticsList.list = list.map(item => ({
+        ...item,
+        alias: transformFieldName(localField.value, item.value),
+      }));
       popoverLoading.value = false;
       await getStatisticsGraphData();
     }
@@ -192,11 +197,21 @@ export default defineComponent({
 
       const series = data.series || [];
       chartData.value = series.map(item => {
+        if (isInteger.value) {
+          return {
+            datapoints: item.datapoints.map(item => [
+              item[0],
+              transformFieldName(localField.value, item[1]) || item[1],
+            ]),
+            color: '#5AB8A8',
+            name: localField.value,
+          };
+        }
         const name = item.dimensions?.[localField.value];
         const index = statisticsList.list.findIndex(i => name === i.value) || 0;
         return {
-          color: isInteger.value ? '#5AB8A8' : topKColorList[index],
-          name,
+          color: topKColorList[index],
+          name: transformFieldName(localField.value, name),
           ...item,
         };
       });
@@ -237,7 +252,11 @@ export default defineComponent({
       }).catch(() => []);
       sliderDimensionList.distinct_count = data[0]?.distinct_count || 0;
       sliderDimensionList.field = data[0]?.field || '';
-      sliderDimensionList.list = data[0]?.list || [];
+      const list = data[0]?.list || [];
+      sliderDimensionList.list = list.map(item => ({
+        ...item,
+        alias: transformFieldName(localField.value, item.value),
+      }));
       sliderLoadMoreLoading.value = false;
       sliderListPage.value += 1;
     }
@@ -282,7 +301,7 @@ export default defineComponent({
         });
         slideOverflowPopoverInstance.value.install();
         setTimeout(() => {
-          slideOverflowPopoverInstance.value?.show(50);
+          slideOverflowPopoverInstance.value?.show();
         }, 100);
       }
     }
@@ -329,7 +348,8 @@ export default defineComponent({
                     onMouseenter={e => topKItemMouseenter(e, item.value)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    <span v-bk-overflow-tips>{item.value}</span>
+                    <span>{item.alias || item.value}</span>
+                    {item.alias && <span class='sub-name'>（{item.value}）</span>}
                   </span>
 
                   <span class='counts'>

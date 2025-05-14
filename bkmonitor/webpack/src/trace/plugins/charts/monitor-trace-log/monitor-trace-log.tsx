@@ -35,7 +35,9 @@ import {
   watch,
   type ComputedRef,
 } from 'vue';
+import { shallowRef } from 'vue';
 
+import { useTraceExploreStore } from '@/store/modules/explore';
 import {
   MonitorRetrieve as Log,
   initMonitorState,
@@ -60,18 +62,21 @@ export default defineComponent({
   name: 'MonitorTraceLog',
   setup() {
     const spanDetailQueryStore = useSpanDetailQueryStore();
+    const traceStore = useTraceExploreStore();
     const empty = ref(true);
     const loading = ref(true);
     const bizId = computed(() => useAppStore().bizId || 0);
+
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
-    const refreshImmediate = inject<Ref<string>>(REFRESH_IMMEDIATE_KEY);
-    const refreshInterval = inject<Ref<number>>(REFRESH_INTERVAL_KEY);
+    const refreshImmediate = inject<Ref<string>>(REFRESH_IMMEDIATE_KEY, shallowRef(traceStore.refreshImmediate));
+    const refreshInterval = inject<Ref<number>>(REFRESH_INTERVAL_KEY, shallowRef(traceStore.refreshInterval));
     const spanId = inject<Ref<string>>('spanId', ref(''));
+
     const mainRef = ref<HTMLDivElement>();
     const customTimeProvider = inject<ComputedRef<string[]>>(
       'customTimeProvider',
-      computed(() => [])
+      computed(() => traceStore.timeRange)
     );
     const defaultTimeRange = useTimeRangeInject();
     const timeRange = computed(() => {

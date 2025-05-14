@@ -907,7 +907,7 @@ export default defineComponent({
     getFilterValues();
     function handleScrollBottom(arg: { bottom: number }) {
       // TODO：这里貌似不太严谨，会导致重复调用 scrollBottotm 事件。
-      if (arg.bottom <= 2) {
+      if (arg.bottom <= 2 || arg?.[0]?.bottom <= 2) {
         /* 到底了 */
         emit('scrollBottom');
       }

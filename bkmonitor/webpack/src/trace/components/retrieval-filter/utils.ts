@@ -163,6 +163,7 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
         (sourceItem?.method || null) === (item?.method || null) &&
         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
         (sourceItem?.options?.is_wildcard || null) === (item?.options?.is_wildcard || null) &&
+        (sourceItem?.options?.group_relation || null) === (item?.options?.group_relation || null) &&
         (sourceItem?.operator || null) === (item?.operator || null)
       )
     ) {
@@ -191,6 +192,7 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
     method: item?.operator || item?.method || '',
     value: item.value,
     condition: ECondition.and,
+    options: item?.options || {},
   })) as IWhereItem[];
 };
 
@@ -224,3 +226,10 @@ export function getTopDocument(node = document) {
   // 返回最终的顶层 document
   return currentRoot === document ? document : currentRoot;
 }
+
+/* 通配符字段key */
+export const WILDCARD_KEY = 'is_wildcard';
+/* 组件关系字段key */
+export const GROUP_RELATION_KEY = 'group_relation';
+/* 存在/不存在的key */
+export const EXISTS_KEYS = ['exists', 'not exists'];

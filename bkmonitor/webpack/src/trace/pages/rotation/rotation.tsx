@@ -717,7 +717,11 @@ export default defineComponent({
                         : undefined,
                       sorter: column.sortable,
                     }))}
+                    pagination={{
+                      total: this.tablePagination.count,
+                    }}
                     data={this.tableData}
+                    filterRow={undefined}
                     resizable={true}
                     rowKey='name'
                     showSortColumnBgColor={true}

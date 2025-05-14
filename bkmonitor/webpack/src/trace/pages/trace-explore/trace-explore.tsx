@@ -24,17 +24,20 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref as deepRef, onMounted, shallowRef, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { getFieldsOptionValues, listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
+import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
@@ -42,6 +45,7 @@ import {
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { updateTimezone } from '../../i18n/dayjs';
+import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
@@ -54,14 +58,15 @@ import TraceExploreView from './components/trace-explore-view/trace-explore-view
 import { getFilterByCheckboxFilter } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
-
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 updateTimezone(window.timezone);
+
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
+    const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
     const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
@@ -69,8 +74,10 @@ export default defineComponent({
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
+
     /** 自动查询定时器 */
     let autoQueryTimer = null;
+    const applicationLoading = shallowRef(false);
     /** 应用列表 */
     const applicationList = shallowRef<IApplicationItem[]>([]);
     /** 是否展示收藏夹 */
@@ -111,7 +118,7 @@ export default defineComponent({
     const editFavoriteData = shallowRef(null);
     const editFavoriteShow = shallowRef(false);
 
-    let axiosController = new AbortController();
+    const { getFieldsOptionValuesProxy } = useCandidateValue();
 
     const residentSettingOnlyId = computed(() => {
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
@@ -121,6 +128,11 @@ export default defineComponent({
       return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
     const appName = computed(() => store.appName);
+    /** 当前应用是否开启 profiling 功能 */
+    const enableProfiling = computed(
+      () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
+    );
+    useIsEnabledProfilingProvider(enableProfiling);
 
     watch(
       () => store.refreshInterval,
@@ -164,7 +176,9 @@ export default defineComponent({
 
     /** 获取应用列表 */
     async function getApplicationList() {
+      applicationLoading.value = true;
       const data = await listApplicationInfo().catch(() => []);
+      applicationLoading.value = false;
       applicationList.value = data;
       store.updateAppList(data);
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
@@ -343,46 +357,69 @@ export default defineComponent({
     }
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
-      axiosController?.abort?.();
-      axiosController = new AbortController();
       const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
-      return getFieldsOptionValues(
-        {
-          app_name: store.appName,
-          start_time: startTime,
-          end_time: endTime,
-          fields: params?.fields || [],
-          limit: params?.limit || 5,
-          filters:
-            params?.where?.map(item => ({
-              key: item.key,
-              operator: 'like',
-              value: item.value || [],
-            })) || [],
-          query_string: params?.queryString || '',
-          mode: store.mode,
-        },
-        {
-          signal: axiosController.signal,
-        }
-      )
+      return getFieldsOptionValuesProxy({
+        app_name: store.appName,
+        start_time: startTime,
+        end_time: endTime,
+        fields: params?.fields || [],
+        limit: params?.limit || 5,
+        filters:
+          params?.where?.map(item => ({
+            key: item.key,
+            operator: 'like',
+            value: item.value || [],
+          })) || [],
+        query_string: params?.queryString || '',
+        mode: store.mode,
+      } as any)
         .then(res => {
-          const data = res?.[params?.fields?.[0]] || [];
           return {
-            count: +data?.length || 0,
-            list:
-              data?.map(item => ({
-                id: item,
-                name: item,
-              })) || [],
+            count: res.length,
+            list: res,
           };
         })
-        .catch(() => {
-          return {
-            count: 0,
-            list: [],
-          };
-        });
+        .catch(() => ({
+          count: 0,
+          list: [],
+        }));
+      // return getFieldsOptionValues(
+      //   {
+      //     app_name: store.appName,
+      //     start_time: startTime,
+      //     end_time: endTime,
+      //     fields: params?.fields || [],
+      //     limit: params?.limit || 5,
+      //     filters:
+      //       params?.where?.map(item => ({
+      //         key: item.key,
+      //         operator: 'like',
+      //         value: item.value || [],
+      //       })) || [],
+      //     query_string: params?.queryString || '',
+      //     mode: store.mode,
+      //   },
+      //   {
+      //     signal: axiosController.signal,
+      //   }
+      // )
+      //   .then(res => {
+      //     const data = res?.[params?.fields?.[0]] || [];
+      //     return {
+      //       count: +data?.length || 0,
+      //       list:
+      //         data?.map(item => ({
+      //           id: item,
+      //           name: item,
+      //         })) || [],
+      //     };
+      //   })
+      //   .catch(() => {
+      //     return {
+      //       count: 0,
+      //       list: [],
+      //     };
+      //   });
     }
 
     /**
@@ -477,8 +514,15 @@ export default defineComponent({
       localStorage.setItem(TRACE_EXPLORE_SHOW_FAVORITE, JSON.stringify(isShow));
     }
 
+    function handleCreateApp() {
+      const url = location.href.replace(location.hash, '#/apm/home');
+      window.open(url, '_blank');
+    }
+
     return {
+      t,
       traceExploreLayoutRef,
+      applicationLoading,
       applicationList,
       isShowFavorite,
       fieldListMap,
@@ -518,6 +562,7 @@ export default defineComponent({
       handleFavoriteOpenBlank,
       handleFavoriteSave,
       handleEditFavoriteShow,
+      handleCreateApp,
     };
   },
   render() {
@@ -573,34 +618,50 @@ export default defineComponent({
                 onWhereChange={this.handleWhereChange}
               />
             )}
-            <TraceExploreLayout
-              ref='traceExploreLayoutRef'
-              class='content-container'
-            >
-              {{
-                aside: () => (
-                  <div class='dimension-filter-panel'>
-                    <DimensionFilterPanel
-                      list={this.fieldList}
-                      listLoading={this.loading}
-                      params={this.commonParams}
-                      onClose={this.handleCloseDimensionPanel}
-                      onConditionChange={this.handleConditionChange}
-                    />
-                  </div>
-                ),
-                default: () => (
-                  <div class='result-content-panel'>
-                    <TraceExploreView
-                      checkboxFilters={this.checkboxFilters}
-                      commonParams={this.commonParams}
-                      fieldListMap={this.fieldListMap}
-                      onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
-                    />
-                  </div>
-                ),
-              }}
-            </TraceExploreLayout>
+            {!this.applicationLoading && !this.applicationList.length && (
+              <div class='create-app-guide'>
+                <EmptyStatus
+                  textMap={{ 'empty-app': this.t('暂无应用') }}
+                  type='empty-app'
+                >
+                  <p class='subTitle'>
+                    <i18n-t keypath='无法查询调用链，请先 {0}'>
+                      <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                    </i18n-t>
+                  </p>
+                </EmptyStatus>
+              </div>
+            )}
+            {!this.applicationLoading && !!this.applicationList.length && (
+              <TraceExploreLayout
+                ref='traceExploreLayoutRef'
+                class='content-container'
+              >
+                {{
+                  aside: () => (
+                    <div class='dimension-filter-panel'>
+                      <DimensionFilterPanel
+                        list={this.fieldList}
+                        listLoading={this.loading}
+                        params={this.commonParams}
+                        onClose={this.handleCloseDimensionPanel}
+                        onConditionChange={this.handleConditionChange}
+                      />
+                    </div>
+                  ),
+                  default: () => (
+                    <div class='result-content-panel'>
+                      <TraceExploreView
+                        checkboxFilters={this.checkboxFilters}
+                        commonParams={this.commonParams}
+                        fieldListMap={this.fieldListMap}
+                        onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                      />
+                    </div>
+                  ),
+                }}
+              </TraceExploreLayout>
+            )}
           </div>
         </div>
         <EditFavorite

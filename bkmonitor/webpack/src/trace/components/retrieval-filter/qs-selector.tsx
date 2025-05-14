@@ -140,13 +140,16 @@ export default defineComponent({
       });
       popoverInstance.value?.show();
       showSelector.value = true;
-      onClickOutsideFn = onClickOutside(
-        [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
-        () => {
-          destroyPopoverInstance();
-        },
-        { once: true }
-      );
+      setTimeout(() => {
+        onClickOutsideFn = onClickOutside(
+          [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
+          () => {
+            destroyPopoverInstance();
+          },
+          { once: true }
+        );
+      }, 50);
+
       // popoverInstance.value = $bkPopover({
       //   target: event.target as any,
       //   content: selectRef.value,
@@ -198,7 +201,7 @@ export default defineComponent({
         target: elBRef.value,
       };
       if (popoverInstance.value) {
-        popoverInstance.value?.vm?.show();
+        popoverInstance.value?.show();
         return;
       }
       handleShowSelect(customEvent as any);

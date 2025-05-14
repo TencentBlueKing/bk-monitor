@@ -970,6 +970,9 @@ export default defineComponent({
           headerAffixedTop={{
             container: SCROLL_ELEMENT_CLASS_NAME,
           }}
+          horizontalScrollAffixedBottom={{
+            container: SCROLL_ELEMENT_CLASS_NAME,
+          }}
           lastFullRow={
             this.tableViewData.length
               ? () => (
@@ -1003,10 +1006,7 @@ export default defineComponent({
           tableLayout='fixed'
           onSortChange={this.handleSortChange}
         />
-        <TableSkeleton
-          // style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ? 'visible' : 'hidden' }}
-          class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`}
-        />
+        <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
         {this.traceSliderRender()}
         {this.spanSliderRender()}
       </div>
