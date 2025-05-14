@@ -91,7 +91,14 @@ class HostDiscover(DiscoverBase):
         from alarm_backends.core.cache.cmdb.host import HostManager
 
         host_keys = HostManager.cache.hget(HostManager.get_biz_cache_key(), str(self.bk_biz_id))
-        host_keys = json.loads(host_keys) or []
+        if host_keys is None:
+            return {}
+
+        try:
+            host_keys = json.loads(host_keys) or []
+        except Exception:  # pylint: disable=broad-except
+            return {}
+
         ip_to_host_key = {}
         for host_key in host_keys:
             if not host_key:
