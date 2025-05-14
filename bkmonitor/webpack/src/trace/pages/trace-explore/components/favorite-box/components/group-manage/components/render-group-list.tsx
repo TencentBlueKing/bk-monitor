@@ -166,15 +166,14 @@ export default defineComponent({
                 <div class='group-sub-count'>{groupItem.favorites.length}</div>
               </div>
             ))}
+            {groupSearchKey.value && renderGroupList.value.length < 1 && (
+              <Exception
+                description={t('搜索为空')}
+                scene='part'
+                type='search-empty'
+              />
+            )}
           </div>
-
-          {groupSearchKey.value && renderGroupList.value.length < 1 && (
-            <Exception
-              description={t('搜索为空')}
-              scene='part'
-              type='search-empty'
-            />
-          )}
         </div>
       </Loading>
     );

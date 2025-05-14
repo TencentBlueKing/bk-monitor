@@ -162,16 +162,14 @@ export default defineComponent({
             <div class='favorite-wrapper'>
               {expandGroupMap.value[groupData.id] &&
                 groupData.favorites.map(favoriteItem => (
-                  <div
-                    key={favoriteItem.id}
-                    onClick={() => handleFavoriteSelect(favoriteItem)}
-                  >
+                  <div key={favoriteItem.id}>
                     <RenderFavorite
                       class={{
                         'is-active': activeFavoriteId.value === favoriteItem.id,
                       }}
                       data={favoriteItem}
                       onOpenBlank={handleFavoriteOpenBlank}
+                      onSelected={() => handleFavoriteSelect(favoriteItem)}
                     />
                   </div>
                 ))}
@@ -198,15 +196,16 @@ export default defineComponent({
             <i class='icon-monitor icon-xinjiansuo' />
             {t('新检索')}
           </div>
-          <div class='favorite-group-wrapper'>{renderGroupList.value.map(renderGroup)}</div>
-
-          {renderGroupList.value.length < 1 && (
-            <Exception
-              description={t('搜索为空')}
-              scene='part'
-              type='search-empty'
-            />
-          )}
+          <div class='favorite-group-wrapper'>
+            {renderGroupList.value.map(renderGroup)}
+            {renderGroupList.value.length < 1 && (
+              <Exception
+                description={t('搜索为空')}
+                scene='part'
+                type='search-empty'
+              />
+            )}
+          </div>
         </div>
       );
     };

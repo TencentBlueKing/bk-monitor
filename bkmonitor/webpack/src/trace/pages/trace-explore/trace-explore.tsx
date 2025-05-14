@@ -49,8 +49,8 @@ import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
-import FavoriteBox from './components/favorite-box';
-import EditFavorite from './components/favorite-box/components/group-tree/components/render-favorite/components/edit-favorite';
+import FavoriteBox, { EditFavorite } from './components/favorite-box';
+// import EditFavorite from './components/favorite-box/components/group-tree/components/render-favorite/components/edit-favorite';
 import useGroupList from './components/favorite-box/hooks/use-group-list';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
@@ -74,7 +74,6 @@ export default defineComponent({
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const { allFavoriteList, run: refreshGroupList } = useGroupList('trace');
-
     /** 自动查询定时器 */
     let autoQueryTimer = null;
     const applicationLoading = shallowRef(false);

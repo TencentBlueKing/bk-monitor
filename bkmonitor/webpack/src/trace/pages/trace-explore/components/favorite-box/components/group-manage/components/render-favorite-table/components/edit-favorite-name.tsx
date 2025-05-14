@@ -52,14 +52,19 @@ export default defineComponent({
     const { run: refreshGroupList } = useGroupList(favoriteType.value);
 
     const formRef = shallowRef<InstanceType<typeof Form>>();
+    const nameRef = shallowRef<typeof Input>();
     const isEditing = shallowRef(false);
     const formData = reactive({
       name: '',
     });
 
-    const handleEditStart = () => {
+    const handleEditStart = (event: Event) => {
+      event.stopPropagation();
       isEditing.value = true;
       formData.name = props.data.name;
+      setTimeout(() => {
+        nameRef.value.focus();
+      });
     };
 
     const handleSubmit = async () => {
@@ -112,6 +117,7 @@ export default defineComponent({
               required
             >
               <Input
+                ref={nameRef}
                 v-model={formData.name}
                 onBlur={handleSubmit}
               />
