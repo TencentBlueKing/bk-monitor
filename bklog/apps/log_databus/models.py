@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -24,6 +23,7 @@ from typing import Union
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.exceptions import ArchiveNotFound, CollectorPluginNotImplemented
+from apps.log_databus.utils.log_subscription import count_md5
 from apps.models import MultiStrSplitByCommaFieldText
 from apps.utils.cache import cache_one_hour
 from apps.utils.function import map_if
@@ -46,8 +46,8 @@ from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-i
     JSONField,
 )
 
-from apps.api import CmsiApi, TransferApi  # noqa
-from apps.log_databus.constants import CollectItsmStatus  # noqa
+from apps.api import CmsiApi, TransferApi, NodeApi  # noqa
+from apps.log_databus.constants import CollectItsmStatus, LOG_REPORT_MAX_QPS  # noqa
 from apps.log_databus.constants import EtlConfig  # noqa
 from apps.log_databus.constants import TargetNodeTypeEnum  # noqa
 from apps.log_databus.constants import TargetObjectTypeEnum  # noqa
@@ -127,10 +127,16 @@ class CollectorConfig(CollectorBase):
     )
     category_id = models.CharField(_("数据分类"), max_length=64)
     target_object_type = models.CharField(
-        _("对象类型"), max_length=32, choices=TargetObjectTypeEnum.get_choices(), default=TargetObjectTypeEnum.HOST.value
+        _("对象类型"),
+        max_length=32,
+        choices=TargetObjectTypeEnum.get_choices(),
+        default=TargetObjectTypeEnum.HOST.value,
     )
     target_node_type = models.CharField(
-        _("节点类型"), max_length=32, choices=TargetNodeTypeEnum.get_choices(), default=TargetNodeTypeEnum.INSTANCE.value
+        _("节点类型"),
+        max_length=32,
+        choices=TargetNodeTypeEnum.get_choices(),
+        default=TargetNodeTypeEnum.INSTANCE.value,
     )
     target_nodes = JsonField(_("采集目标"), null=True, default=None)
     target_subscription_diff = JsonField(_("与上一次采集订阅的差异"), null=True)
@@ -157,7 +163,10 @@ class CollectorConfig(CollectorBase):
     params = JsonField(_("params"), null=True, default=None)
     itsm_ticket_sn = models.CharField(_("itsm单据号"), max_length=255, null=True, default=None, blank=True)
     itsm_ticket_status = models.CharField(
-        _("采集接入单据状态"), max_length=20, choices=CollectItsmStatus.get_choices(), default=CollectItsmStatus.NOT_APPLY.value
+        _("采集接入单据状态"),
+        max_length=20,
+        choices=CollectItsmStatus.get_choices(),
+        default=CollectItsmStatus.NOT_APPLY.value,
     )
     can_use_independent_es_cluster = models.BooleanField(_("是否能够使用独立es集群"), default=True, blank=True)
     collector_package_count = models.IntegerField(_("采集打包数量"), null=True, default=10)
@@ -319,7 +328,11 @@ class CollectorConfig(CollectorBase):
     def generate_itsm_title(self):
         space = Space.objects.get(bk_biz_id=self.bk_biz_id)
         return str(
-            _("【日志采集】{}-{}-{}".format(space.space_name, self.collector_config_name, self.created_at.strftime("%Y%m%d")))
+            _(
+                "【日志采集】{}-{}-{}".format(
+                    space.space_name, self.collector_config_name, self.created_at.strftime("%Y%m%d")
+                )
+            )
         )
 
     def get_cur_cap(self, bytes="mb"):
@@ -658,7 +671,10 @@ class CollectorPlugin(CollectorBase):
     processing_id = models.CharField(_("计算平台清洗id"), max_length=255, null=True, blank=True)
     is_allow_alone_etl_config = models.BooleanField(_("是否允许独立配置清洗规则"), default=True)
     etl_processor = models.CharField(
-        _("数据处理器"), max_length=32, choices=ETLProcessorChoices.get_choices(), default=ETLProcessorChoices.TRANSFER.value
+        _("数据处理器"),
+        max_length=32,
+        choices=ETLProcessorChoices.get_choices(),
+        default=ETLProcessorChoices.TRANSFER.value,
     )
     etl_config = models.CharField(
         _("清洗配置"), max_length=32, null=True, default=None, choices=EtlConfigChoices.get_choices()
@@ -741,17 +757,17 @@ class FieldDateFormat(OperateRecordModel):
     es_format = models.CharField(
         max_length=32,
         choices=[
-            ('epoch_millis', 'epoch_millis'),
-            ('strict_date_optional_time_nanos', 'strict_date_optional_time_nanos'),
+            ("epoch_millis", "epoch_millis"),
+            ("strict_date_optional_time_nanos", "strict_date_optional_time_nanos"),
         ],
         verbose_name="ES数据格式",
     )
     es_type = models.CharField(
-        max_length=32, choices=[('date', 'date'), ('date_nanos', 'date_nanos')], verbose_name="ES数据类型"
+        max_length=32, choices=[("date", "date"), ("date_nanos", "date_nanos")], verbose_name="ES数据类型"
     )
     timestamp_unit = models.CharField(
         max_length=32,
-        choices=[('s', 'seconds'), ('ms', 'milliseconds'), ('µs', 'microseconds'), ('ns', 'nanoseconds')],
+        choices=[("s", "seconds"), ("ms", "milliseconds"), ("µs", "microseconds"), ("ns", "nanoseconds")],
         verbose_name="时间格式精度",
     )
 
@@ -775,3 +791,157 @@ class FieldDateFormat(OperateRecordModel):
             }
             for obj in objs
         ]
+
+
+class LogSubscriptionConfig(models.Model):
+    max_rate = models.IntegerField(_("上报速率限制"), default=-1)
+    subscription_id = models.IntegerField(_("节点管理订阅ID"))
+    collector_config_id = models.IntegerField(_("采集配置ID"))
+    bk_biz_id = models.IntegerField(_("业务id"))
+    config = JsonField("订阅配置")
+
+    class Meta:
+        verbose_name = "自定义日志订阅"
+        verbose_name_plural = verbose_name
+
+    # Plugin Name
+    PLUGIN_NAME = "bk-collector"
+    # Template Name
+    PLUGIN_LOG_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
+
+    @classmethod
+    def get_target_hosts(cls, collector_config):
+        target_hosts = []
+        from apps.api import NodeApi
+
+        proxy_list = NodeApi.get_host_biz_proxies({"bk_biz_id": collector_config.bk_biz_id})
+        for p in proxy_list:
+            if p["bk_cloud_id"] == 0:
+                continue
+            target_hosts.append({"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0})
+        return target_hosts
+
+    @classmethod
+    def refresh(cls, collector_config) -> None:
+        """
+        Refresh Config
+        """
+
+        # Get Hosts
+        bk_host_ids = cls.get_target_hosts(collector_config)
+        if not bk_host_ids:
+            logger.info("no bk-collector node, otlp is disabled")
+            return
+
+        # Initial Config
+        log_group = TransferApi.get_log_group({"log_group_id": collector_config.log_group_id})
+        log_config = cls.get_log_config(log_group, collector_config)
+
+        # Deploy Config
+        try:
+            cls.deploy(log_group, log_config, bk_host_ids, collector_config)
+        except Exception:
+            logger.exception("auto deploy bk-collector log config error")
+
+    @classmethod
+    def get_log_config(cls, log_group, collector_config) -> dict:
+        """
+        Get Log Config
+        """
+
+        return {
+            "bk_data_token": log_group["bk_data_token"],
+            "bk_biz_id": log_group["bk_biz_id"],
+            "bk_app_name": log_group["log_group_name"],
+            "qps_config": cls.get_qps_config(collector_config),
+        }
+
+    @classmethod
+    def get_qps_config(cls, collector_config) -> dict:
+        """
+        Log QPS
+        """
+
+        return {
+            "name": "rate_limiter/token_bucket",
+            "type": "token_bucket",
+            "qps": collector_config.max_rate if collector_config.max_rate > 0 else LOG_REPORT_MAX_QPS,
+        }
+
+    @classmethod
+    def deploy(cls, log_group, platform_config, bk_host_ids, collector_config) -> None:
+        """
+        Deploy Custom Log Config
+        """
+
+        # Build Subscription Params
+        scope = {
+            "object_type": "HOST",
+            "node_type": "INSTANCE",
+            "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
+        }
+        subscription_params = {
+            "scope": scope,
+            "steps": [
+                {
+                    "id": cls.PLUGIN_NAME,
+                    "type": "PLUGIN",
+                    "config": {
+                        "plugin_name": cls.PLUGIN_NAME,
+                        "plugin_version": "latest",
+                        "config_templates": [{"name": cls.PLUGIN_LOG_CONFIG_TEMPLATE_NAME, "version": "latest"}],
+                    },
+                    "params": {"context": platform_config},
+                }
+            ],
+        }
+
+        log_subscription = cls.objects.filter(bk_biz_id=log_group["bk_biz_id"], collector_config_id=collector_config.id)
+        if log_subscription.exists():
+            try:
+                logger.info("custom log config subscription task already exists.")
+                sub_config_obj = log_subscription.first()
+                subscription_params["subscription_id"] = sub_config_obj.subscription_id
+                subscription_params["run_immediately"] = True
+
+                old_subscription_params_md5 = count_md5(sub_config_obj.config)
+                new_subscription_params_md5 = count_md5(subscription_params)
+                if old_subscription_params_md5 != new_subscription_params_md5:
+                    logger.info("custom log config subscription task config has changed, update it.")
+                    result = NodeApi.update_subscription_info(subscription_params)
+                    logger.info(f"update custom log config subscription successful, result:{result}")
+                    log_subscription.update(config=subscription_params)
+                return sub_config_obj.subscription_id
+            except Exception as e:
+                logger.exception(f"update custom log config subscription error:{e}, params:{subscription_params}")
+        else:
+            try:
+                logger.info("custom log config subscription task not exists, create it.")
+                result = NodeApi.create_subscription(subscription_params)
+                logger.info(f"create custom log config subscription successful, result:{result}")
+
+                # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
+                subscription_id = result["subscription_id"]
+                LogSubscriptionConfig.objects.create(
+                    max_rate=collector_config.max_rate,
+                    subscription_id=subscription_id,
+                    collector_config_id=collector_config.id,
+                    bk_biz_id=log_group["bk_biz_id"],
+                    config=subscription_params,
+                )
+                collector_config.subscription_id = subscription_id
+                collector_config.save()
+
+                params = {"subscription_id": subscription_id, "actions": {cls.PLUGIN_NAME: "INSTALL"}}
+
+                # 无scope.nodes时，节点管理默认对全部已配置的scope.nodes进行操作
+                # 有scope.nodes时，对指定scope.nodes进行操作
+                if scope:
+                    params["scope"] = scope
+                    params["scope"]["bk_biz_id"] = log_group["bk_biz_id"]
+
+                result = NodeApi.run_subscription_task(params)
+
+                logger.info(f"run custom log config subscription result:{result}")
+            except Exception as e:
+                logger.exception(f"create custom log config subscription error{e}, params:{subscription_params}")

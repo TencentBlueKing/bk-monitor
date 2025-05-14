@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import time
 import traceback
@@ -28,6 +28,7 @@ import pytz
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 from django.conf import settings
+from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from apps.api import BkLogApi, TransferApi
@@ -49,6 +50,7 @@ from apps.log_databus.models import (
     CollectorConfig,
     ContainerCollectorConfig,
     StorageUsed,
+    LogSubscriptionConfig,
 )
 from apps.log_measure.handlers.elastic import ElasticHandle
 from apps.log_search.constants import CustomTypeEnum
@@ -363,9 +365,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
                 )
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
-            )
+            logger.exception(f"switch collector->[{collector.collector_config_id}] storage cluster error: {e}")
 
 
 @high_priority_task(ignore_result=True)
@@ -456,3 +456,21 @@ def update_alias_settings(collector_config_id, alias_settings):
             collector_config_id,
             e,
         )
+
+
+@periodic_task(run_every=crontab(minute="*/30"))
+def refresh_custom_log_config():
+    """
+    自定义上报dataid下发限流配置
+    """
+    collectors = CollectorConfig.objects.filter(
+        Q(custom_type=CustomTypeEnum.OTLP_TRACE.value) | Q(custom_type=CustomTypeEnum.OTLP_LOG.value),
+        log_group_id__isnull=False,
+    )
+    for collector_config in collectors:
+        try:
+            LogSubscriptionConfig.refresh(collector_config)
+        except Exception as err:
+            logger.exception(
+                "[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), collector_config.log_group_id
+            )
