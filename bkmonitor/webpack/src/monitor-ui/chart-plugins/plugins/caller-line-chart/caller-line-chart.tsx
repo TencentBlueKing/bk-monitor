@@ -1309,6 +1309,7 @@ class CallerLineChart extends CommonSimpleChart {
                         {this.$t('确定')}
                       </bk-button>
                       <bk-button
+                        v-bk-tooltips={{ placement: 'top',content: this.$t('服务下其他图表一并生效') }}
                         style={{ width: '108px' }}
                         outline={true}
                         size='small'
