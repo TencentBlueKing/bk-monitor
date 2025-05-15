@@ -112,6 +112,7 @@ export interface IGetValueFnParams {
   queryString?: string;
   search?: string;
   field?: string;
+  isInit__?: boolean; // 此字段不传给后台
 }
 export interface IOptionsInfo {
   count: 0;

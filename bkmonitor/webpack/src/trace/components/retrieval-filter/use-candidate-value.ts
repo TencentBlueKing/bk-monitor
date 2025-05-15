@@ -42,6 +42,7 @@ interface IParams {
   limit: number;
   fields: string[];
   query_string: string;
+  isInit__?: boolean; // 此字段判断是否需要初始化缓存候选值，不传给接口参数
 }
 export const useCandidateValue = () => {
   let candidateValueMap: ICandidateValueMap = new Map();
@@ -50,12 +51,19 @@ export const useCandidateValue = () => {
   /* 缓存条件: 
     第一次调用接口时已获取到全部数据.
     同时只能缓存一个字段的候选值.
+    参数：limit = 200(先按200条查，后续测试下查询的速度看要不要调大)
+    1.-> 返回数量 >= limit， 用户后续输入检索值通过 API 模糊检索(unify - query查指标返回的数据可能会大于limit, 这里后台没做截断 
+    2.-> 返回数量 < limit， 用户输入检索值由前端模糊检索（查询的数据量小于limit,检索值下拉框没有失焦用户继续输入检索值走前端的模糊检索）
+    3.-> 来回切换字段、 检索值下拉框失焦再次点击，都要重新拉取候选项
   */
   function getFieldsOptionValuesProxy(params: IParams): Promise<{ id: string; name: string }[]> {
     return new Promise((resolve, _reject) => {
-      const candidateItem = candidateValueMap.get(getMapKey(params));
+      if (params?.isInit__) {
+        candidateValueMap = new Map();
+      }
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
+      const candidateItem = candidateValueMap.get(getMapKey(params));
       // const hasData = candidateItem?.values?.length >= params.limit || candidateItem?.isEnd;
       // if (searchValue ? candidateItem?.isEnd : hasData && !params?.query_string) {
       if (candidateItem?.isEnd && !params?.query_string) {
@@ -72,9 +80,15 @@ export const useCandidateValue = () => {
       } else {
         axiosController.abort();
         axiosController = new AbortController();
-        getFieldsOptionValues(params, {
-          signal: axiosController.signal,
-        })
+        getFieldsOptionValues(
+          {
+            ...params,
+            isInit__: undefined,
+          },
+          {
+            signal: axiosController.signal,
+          }
+        )
           .then(res => {
             const data = res?.[params?.fields?.[0]] || [];
             const values =

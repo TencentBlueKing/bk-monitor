@@ -47,7 +47,7 @@ export default defineComponent({
     const loading = shallowRef(false);
     const hoverActiveIndex = shallowRef(-1);
     const scrollLoading = shallowRef(false);
-    const pageSize = shallowRef(100);
+    const pageSize = shallowRef(200);
     const page = shallowRef(1);
     const isEnd = shallowRef(false);
 
@@ -67,7 +67,7 @@ export default defineComponent({
         if (props.isPopover) {
           if (val) {
             dataInit();
-            const list = await getValueData();
+            const list = await getValueData(false, true);
             localOptions.value = localOptionsFilter(list);
             cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
             window.addEventListener('keydown', handleKeydownEvent);
@@ -92,7 +92,7 @@ export default defineComponent({
     async function init() {
       if (!props.isPopover) {
         dataInit();
-        const list = await getValueData();
+        const list = await getValueData(false, true);
         localOptions.value = localOptionsFilter(list);
         cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
       }
@@ -236,7 +236,7 @@ export default defineComponent({
      * - 处理加载状态和滚动加载状态
      * - 判断是否到达数据末尾
      */
-    async function getValueData(isScroll = false) {
+    async function getValueData(isScroll = false, isInit = false) {
       let list = [];
       if (isScroll) {
         scrollLoading.value = true;
@@ -250,6 +250,7 @@ export default defineComponent({
           search: props.search,
           limit,
           field: props.fieldInfo.field,
+          isInit__: isInit,
         });
         list = data.list;
         isEnd.value = limit >= data.count;
@@ -365,7 +366,7 @@ export default defineComponent({
                       content: item.id,
                       placement: 'top',
                     }}
-                    content={`（${item.id}）`}
+                    content={item.name ? `（${item.id}）` : item.id}
                     keyword={this.search}
                   />
                 ) : (

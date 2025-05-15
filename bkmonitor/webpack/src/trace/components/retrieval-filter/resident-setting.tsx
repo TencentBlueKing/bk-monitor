@@ -273,6 +273,7 @@ export default defineComponent({
               : [],
             fields: [params.field],
             limit: params.limit,
+            isInit__: params?.isInit__ || false,
           })
           .then(data => {
             resolve(data);

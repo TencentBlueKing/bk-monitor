@@ -382,6 +382,7 @@ export default defineComponent({
           })) || [],
         query_string: params?.queryString || '',
         mode: store.mode,
+        isInit__: params?.isInit__ || false,
       } as any)
         .then(res => {
           return {
