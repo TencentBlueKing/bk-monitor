@@ -88,14 +88,14 @@ def get_metrics() -> list:
                     id="master_node_count",
                     name=_lazy("集群Master节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["container","node"],
                 ),
                 # count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="worker_node_count",
                     name=_lazy("集群Worker节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["container","node"],
                 ),
                 # count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
