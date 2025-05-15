@@ -97,7 +97,7 @@ class _BkDataDatabusApi:
             description="创建清洗分发任务",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
-            bk_tenant_id=biz_to_tenant_getter(),
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
         )
         self.delete_tasks = DataAPI(
             method="DELETE",
@@ -107,7 +107,7 @@ class _BkDataDatabusApi:
             description="停止清洗，分发任务",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
-            bk_tenant_id=biz_to_tenant_getter(),
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
         )
 
 

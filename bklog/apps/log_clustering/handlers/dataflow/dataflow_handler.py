@@ -183,9 +183,7 @@ class DataFlowHandler(BaseAiopsHandler):
         """
         检查并启动清洗任务
         """
-        result_table = BkDataMetaApi.result_tables.retrieve(
-            self._set_username({"result_table_id": result_table_id, "bk_biz_id": result_table_id.split("_", 1)[0]})
-        )
+        result_table = BkDataMetaApi.result_tables.retrieve(self._set_username({"result_table_id": result_table_id}))
         if result_table["processing_type"] == "clean":
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}")
             result = BkDataDatabusApi.post_tasks(
@@ -193,7 +191,6 @@ class DataFlowHandler(BaseAiopsHandler):
                     {
                         "result_table_id": result_table_id,
                         "storages": ["kafka"],
-                        "bk_biz_id": result_table_id.split("_", 1)[0],
                     }
                 )
             )
@@ -739,9 +736,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @param result_table_id:
         @return:
         """
-        result = BkDataMetaApi.result_tables.storages(
-            {"result_table_id": result_table_id, "bk_biz_id": result_table_id.split("_", 1)[0]}
-        )
+        result = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
         es = result.get("es")
         if not es:
             return None

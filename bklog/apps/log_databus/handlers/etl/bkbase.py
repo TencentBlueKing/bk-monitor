@@ -49,7 +49,6 @@ class BKBaseEtlHandler(EtlHandler):
             params={
                 "result_table_id": bkdata_result_table_id,
                 "bk_username": get_request_username(),
-                "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
             }
         )
 
@@ -64,7 +63,6 @@ class BKBaseEtlHandler(EtlHandler):
                 "result_table_id": bkdata_result_table_id,
                 "storages": ["kafka"],
                 "bk_username": get_request_username(),
-                "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
             }
         )
 

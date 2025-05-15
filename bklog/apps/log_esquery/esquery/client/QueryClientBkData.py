@@ -153,9 +153,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         storage_cluster_domains = []
         storage_cluster_ports = []
         for rt_id in result_table_ids:
-            cluster_info = BkDataMetaApi.result_tables.storages(
-                {"result_table_id": rt_id, "bk_biz_id": rt_id.split("_", 1)[0]}
-            )
+            cluster_info = BkDataMetaApi.result_tables.storages({"result_table_id": rt_id})
             es_info = cluster_info.get("es")
             if not es_info:
                 continue

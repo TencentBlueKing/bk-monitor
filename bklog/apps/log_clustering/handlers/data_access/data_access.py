@@ -55,9 +55,7 @@ class DataAccessHandler(BaseAiopsHandler):
 
     @classmethod
     def get_fields(cls, result_table_id: str):
-        return BkDataMetaApi.result_tables.fields(
-            {"result_table_id": result_table_id, "bk_biz_id": result_table_id.split("_", 1)[0]}
-        )
+        return BkDataMetaApi.result_tables.fields({"result_table_id": result_table_id})
 
     def create_bkdata_access(self, collector_config_id):
         collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
@@ -254,7 +252,6 @@ class DataAccessHandler(BaseAiopsHandler):
                 "bk_username": self.conf.get("bk_username"),
                 "operator": self.conf.get("bk_username"),
                 "no_request": True,
-                "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
             }
         )
 
@@ -265,16 +262,13 @@ class DataAccessHandler(BaseAiopsHandler):
             "bk_username": self.conf.get("bk_username"),
             "operator": self.conf.get("bk_username"),
             "no_request": True,
-            "bk_biz_id": bkdata_result_table_id.split("_", 1)[0],
         }
         if from_tail:
             params["consume_position"] = "tail"
         return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id, bk_biz_id):
-        storage_config = BkDataMetaApi.result_tables.storages(
-            {"result_table_id": result_table_id, "bk_biz_id": bk_biz_id}
-        )
+        storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params={
                 "resource_type": "storage",

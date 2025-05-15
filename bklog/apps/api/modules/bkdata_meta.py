@@ -42,5 +42,7 @@ class _BkDataMetaApi:
                 "mine": DRFActionAPI(method="GET", detail=False),
                 "fields": DRFActionAPI(method="GET"),
             },
-            bk_tenant_id=biz_to_tenant_getter(),
+            bk_tenant_id=biz_to_tenant_getter(
+                lambda p: p["bk_biz_id"] if "bk_biz_id" in p else p["result_table_id"].split("_", 1)[0],
+            ),
         )
