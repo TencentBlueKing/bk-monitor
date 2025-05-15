@@ -83,14 +83,14 @@ export const useCandidateValue = () => {
                 name: transformFieldName(params?.fields?.[0], item) || '',
               })) || [];
             const isEnd = values.length < params.limit;
+            const newMap = new Map();
             if (!searchValue && isEnd) {
-              const newMap = new Map();
               newMap.set(getMapKey(params), {
                 values,
                 isEnd: isEnd,
               });
-              candidateValueMap = newMap;
             }
+            candidateValueMap = newMap;
             resolve(values);
           })
           .catch(() => {
