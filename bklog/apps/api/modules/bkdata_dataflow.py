@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
-from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user  # noqa
+from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter  # noqa
 from config.domains import DATAFLOW_APIGATEWAY_ROOT  # noqa
 
 
@@ -47,6 +47,7 @@ class _BkDataDataFlowApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.start_flow = DataAPI(
             method="POST",
@@ -92,6 +93,7 @@ class _BkDataDataFlowApi:
             description="新增节点",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["config"]["bk_biz_id"]),
         )
         self.put_flow_nodes = DataAPI(
             method="PUT",
@@ -101,6 +103,7 @@ class _BkDataDataFlowApi:
             description="更新节点",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["modify_flow"]["bk_biz_id"]),
         )
         self.get_latest_deploy_data = DataAPI(
             method="GET",
@@ -136,6 +139,7 @@ class _BkDataDataFlowApi:
             description="设置dataflow资源",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 

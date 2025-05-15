@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from django.conf import settings
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import BCS_APIGATEWAY_ROOT
 
 
@@ -68,6 +68,7 @@ class _BcsApi:
             before_request=bcs_before_request,
             after_request=list_project_after,
             header_keys=["Authorization"],
+            bk_tenant_id=biz_to_tenant_getter("businessID"),
         )
         self.list_namespaces = DataAPI(
             method="GET",
