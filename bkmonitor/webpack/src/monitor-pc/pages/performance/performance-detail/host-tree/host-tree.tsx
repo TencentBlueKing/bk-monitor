@@ -867,7 +867,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
                 class={['big-tree', { 'clear-selected': !this.curNode?.id }]}
                 data={this.hostTreeData}
                 default-expanded-nodes={this.defaultExpandedId}
-                display-matched-node-descendants={true}
                 expand-on-click={false}
                 filter-method={this.filterMethod}
                 scopedSlots={scopedSlots}

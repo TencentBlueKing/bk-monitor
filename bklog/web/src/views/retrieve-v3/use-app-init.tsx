@@ -272,13 +272,12 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
-      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
+          ...resolver.getDefUrlQuery(),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },
