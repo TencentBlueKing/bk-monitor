@@ -1096,7 +1096,7 @@ class ListOptionValuesResource(Resource):
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_data):
         validated_data["fields"] = self.TRACE_LIST_FIELDS[validated_data["mode"]]
-        return QueryHandler.get_file_option_values(**validated_data)
+        return QueryHandler.get_fields_option_values(**validated_data, filters=[], query_string="", limit=500)
 
 
 class GetFieldOptionValuesResource(Resource):
