@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -31,7 +30,6 @@ from metadata.config import (
 from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
 from metadata.task.tasks import (
     bulk_check_and_delete_ds_consul_config,
-    bulk_refresh_data_link_status,
     clean_disable_es_storage,
     manage_es_storage,
 )
@@ -50,7 +48,7 @@ def refresh_consul_influxdb_tableinfo():
         logger.info("start to refresh metadata influxdb table info")
         models.ResultTable.refresh_consul_influxdb_tableinfo()
     except Exception as e:
-        logger.error("refresh influxdb table info failed for ->{}".format(e))
+        logger.error(f"refresh influxdb table info failed for ->{e}")
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshConsulStorage")
@@ -68,7 +66,7 @@ def refresh_consul_storage():
         logger.info("start to refresh metadata es storage info")
         models.ClusterInfo.refresh_consul_storage_config()
     except Exception as e:
-        logger.error("refresh es storage failed for ->{}".format(e))
+        logger.error(f"refresh es storage failed for ->{e}")
 
     cost_time = time.time() - start_time
 
@@ -98,7 +96,7 @@ def refresh_consul_es_info():
         logger.info("start to refresh metadata es table info")
         models.ESStorage.refresh_consul_table_config()
     except Exception as e:
-        logger.error("refresh es table failed for ->{}".format(e))
+        logger.error(f"refresh es table failed for ->{e}")
 
     cost_time = time.time() - start_time
 
@@ -142,7 +140,7 @@ def refresh_influxdb_route():
 
     except Exception:
         # 上述的内容对外统一是依赖consul，所以使用一个exception进行捕获
-        logger.error("failed to refresh influxdb router info for->[{}]".format(traceback.format_exc()))
+        logger.error(f"failed to refresh influxdb router info for->[{traceback.format_exc()}]")
 
     # 任务完成前，更新一下version
     consul_tools.refresh_router_version()
@@ -155,7 +153,7 @@ def refresh_influxdb_route():
             result_table.sync_db()
             # 确保存在可用的清理策略
             result_table.ensure_rp()
-            logger.debug("tsdb result_table->[{}] sync_db success.".format(result_table.table_id))
+            logger.debug(f"tsdb result_table->[{result_table.table_id}] sync_db success.")
         except Exception:
             logger.error(
                 "result_table->[{}] failed to sync database for->[{}]".format(
@@ -167,7 +165,7 @@ def refresh_influxdb_route():
         logger.info("start to refresh metadata tag")
         models.InfluxDBTagInfo.refresh_consul_tag_config()
     except Exception as e:
-        logger.error("refresh tag failed for ->{}".format(e))
+        logger.error(f"refresh tag failed for ->{e}")
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_cleanInfluxdbTag")
@@ -240,7 +238,7 @@ def refresh_kafka_storage():
     for kafka_storage in models.KafkaStorage.objects.all():
         try:
             kafka_storage.ensure_topic()
-            logger.debug("kafka storage for result_table->[{}] is ensure create.".format(kafka_storage.table_id))
+            logger.debug(f"kafka storage for result_table->[{kafka_storage.table_id}] is ensure create.")
         except Exception:
             logger.error(
                 "kafka->[{}] failed to make sure topic exists for->[{}]".format(
@@ -321,7 +319,7 @@ def refresh_es_storage():
 
     # 1. 获取设置中的黑名单和启用V2索引轮转的白名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
-    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
+    # enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
 
     # # 处理白名单中的集群，串行处理
@@ -343,16 +341,17 @@ def refresh_es_storage():
 
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    # 4. 设置每个任务处理的记录数
-    start, step = 0, settings.ES_INDEX_ROTATION_STEP
-
-    # 5. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
-    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+    # 4. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
+    es_storages_by_cluster = es_storages.values("storage_cluster_id").distinct()
 
     for cluster in es_storages_by_cluster:
         try:
-            cluster_id = cluster['storage_cluster_id']
+            cluster_id = cluster["storage_cluster_id"]
             cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+
+            # 这里不再传递queryset,改为传递主键列表,因为在Celery异步分发时,传递复杂对象可能导致数据缺失
+            cluster_storages_ids = list(cluster_storages.values_list("id", flat=True))
+
             count = cluster_storages.count()
             logger.info(
                 "refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]，now try to rotate",
@@ -361,7 +360,8 @@ def refresh_es_storage():
             )
 
             # 默认使用新方式轮转
-            manage_es_storage.delay(cluster_storages, cluster_id)
+            manage_es_storage.delay(storage_record_ids=cluster_storages_ids, cluster_id=cluster_id)
+
         except Exception as e:  # pylint: disable=broad-except
             logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
             continue
@@ -393,12 +393,12 @@ def manage_disable_es_storage():
 
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+    es_storages_by_cluster = es_storages.values("storage_cluster_id").distinct()
 
     # 4, 分集群执行并发清理
     for cluster in es_storages_by_cluster:
         try:
-            cluster_id = cluster['storage_cluster_id']
+            cluster_id = cluster["storage_cluster_id"]
             cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
             count = cluster_storages.count()
             logger.info(
@@ -433,7 +433,7 @@ def refresh_bcs_info():
         logger.info("start to refresh resources")
         models.PodMonitorInfo.refresh_all_to_consul()
     except Exception as e:
-        logger.error("refresh bcs info into consul failed for ->{}".format(e))
+        logger.error(f"refresh bcs info into consul failed for ->{e}")
     # 清理到期的回溯索引
     models.EsSnapshotRestore.clean_expired_restore()
     cost_time = time.time() - start_time
