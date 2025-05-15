@@ -85,7 +85,11 @@
         try {
           return bigJson.parse(val);
         } catch (e) {
-          console.error(`${e.name}: ${e.message}; `, e);
+          if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
+            console.warn(`${e.name}: ${e.message}; `, e);
+
+            return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
+          }
           return val;
         }
       }
