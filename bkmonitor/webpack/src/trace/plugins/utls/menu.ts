@@ -309,7 +309,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
       map.min = tableTdArr[0][index].value;
       map.max = map.min;
       tableTdArr.forEach(td => {
-        const cur = td[index].value;
+        const cur = td[index]?.value;
         cur > map.max && cur !== null && (map.max = cur);
         cur < map.min && cur !== null && (map.min = cur);
       });

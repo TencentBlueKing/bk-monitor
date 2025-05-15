@@ -1,0 +1,11 @@
+.back-top-btn {
+  position: fixed;
+  right: 50px;
+  bottom: 50px;
+  display: none;
+  cursor: pointer;
+
+  &.is-show {
+    display: initial;
+  }
+}

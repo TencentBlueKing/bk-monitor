@@ -26,7 +26,8 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Button, Checkbox, Input, Radio, Select, Switcher, Table } from 'bkui-vue';
+import { PrimaryTable } from '@blueking/tdesign-ui';
+import { Button, Checkbox, Input, Radio, Select, Switcher } from 'bkui-vue';
 import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import CommonItem from '../components/common-item';
@@ -138,18 +139,18 @@ export default defineComponent({
     ]);
 
     const paramTableColumns = ref([
-      { label: '', field: 'isEnabled', prop: 'isEnabled', width: 31, minWidth: 31 },
-      { label: `${window.i18n.t('字段名')}`, prop: 'key', field: 'key' },
-      { label: `${window.i18n.t('值')}`, prop: 'value', field: 'value' },
-      { label: `${window.i18n.t('描述')}`, prop: 'desc', field: 'desc' },
-      { label: '', prop: 'handle', width: 48, minWidth: 48, field: 'handle' },
+      { title: '', field: 'isEnabled', colKey: 'isEnabled', width: 31, minWidth: 31 },
+      { title: `${window.i18n.t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${window.i18n.t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${window.i18n.t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
     const headersTableColumns = ref([
-      { label: '', prop: 'isEnabled', field: 'isEnabled', width: 31, minWidth: 31, type: 'selection' },
-      { label: `${window.i18n.t('字段名')}`, prop: 'key', field: 'key' },
-      { label: `${window.i18n.t('值')}`, prop: 'value', field: 'value' },
-      { label: `${window.i18n.t('描述')}`, prop: 'desc', field: 'desc' },
-      { label: '', prop: 'handle', width: 48, minWidth: 48, field: 'handle' },
+      { title: '', colKey: 'isEnabled', field: 'isEnabled', width: 31, minWidth: 31, type: 'selection' },
+      { title: `${window.i18n.t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${window.i18n.t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${window.i18n.t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
 
     const headerHideTips = ref({
@@ -390,7 +391,7 @@ export default defineComponent({
       if (content && type === 'json') {
         try {
           JSON.parse(content);
-        } catch (error) {
+        } catch {
           errorMsg = t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
         }
       }
@@ -417,9 +418,8 @@ export default defineComponent({
      */
     const paramInputScopedSlots = (data, changeFn?, deleteFn?) => {
       return {
-        default: row => {
-          const { index } = row;
-          const prop = row.column.field;
+        default: (_, { rowIndex: index, col }) => {
+          const prop = col.field;
           const item = data[index];
           const isEmpty = rowIsEmpty(item);
           const handleChecked = () => {
@@ -553,11 +553,11 @@ export default defineComponent({
       const scopedSlots = paramInputScopedSlots(data, paramInput, handleDel);
       const columns = [];
       paramTableColumns.value.forEach(column => {
-        columns.push({ ...column, render: scopedSlots.default });
+        columns.push({ ...column, cell: scopedSlots.default });
       });
       return (
         <div class='header-content header-params'>
-          <Table
+          <PrimaryTable
             columns={columns}
             data={data}
           />
@@ -601,7 +601,7 @@ export default defineComponent({
               {isHide ? <span>{t('已隐藏{count}项', { count: hideCount })}</span> : <span>{t('已展开全部')}</span>}
             </div>
           ) : undefined}
-          <Table
+          <PrimaryTable
             columns={columns}
             data={temp}
           />
@@ -684,6 +684,7 @@ export default defineComponent({
                   default: () => {
                     return [
                       <Input
+                        key='content-textarea'
                         class='textarea'
                         v-model={data.content}
                         disabled={!props.isEdit}
@@ -702,7 +703,7 @@ export default defineComponent({
             </div>
           ) : undefined}
           {isTable ? (
-            <Table
+            <PrimaryTable
               class='table'
               columns={columns}
               data={data}

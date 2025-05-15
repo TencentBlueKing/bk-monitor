@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { useTraceStore } from '../../store/modules/trace';
-
 import type { ISpanListItem, ITraceListItem } from '../../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 // import { formatDuration } from '../trace-view/utils/date';
@@ -43,6 +41,7 @@ export class DurationDataModal {
   chartData: IChartItem[] = [];
   /** 横坐标耗时步长 */
   durationStep = 0;
+  listType = 'trace';
   /** 最大耗时 */
   maxDuration = 0;
   /** 最小耗时 */
@@ -53,25 +52,24 @@ export class DurationDataModal {
   /** x轴数据 */
   xAxisData: string[] = [];
 
-  constructor(list: ISpanListItem[] | ITraceListItem[]) {
+  constructor(list: ISpanListItem[] | ITraceListItem[], listType: string) {
     this.sourceList = list;
+    this.listType = listType;
     this.initDate(list);
   }
 
   handleFilter(start: number, end: number) {
-    const store = useTraceStore();
     if (start === this.minDuration && end === this.maxDuration) return [];
 
     return this.sourceList.filter(val => {
-      const curVal = store.listType === 'trace' ? val.trace_duration : val.elapsed_time;
+      const curVal = this.listType === 'trace' ? val.trace_duration : val.elapsed_time;
       return curVal >= start && curVal <= end;
     });
   }
 
   /** 初始化数据 */
   initDate(list: ISpanListItem[] | ITraceListItem[]) {
-    const store = useTraceStore();
-    const durationList = list.map(val => (store.listType === 'trace' ? val.trace_duration : val.elapsed_time)); // trace列表耗时集合数组
+    const durationList = list.map(val => (this.listType === 'trace' ? val.trace_duration : val.elapsed_time)); // trace列表耗时集合数组
     this.minDuration = Math.min(...durationList); // 最小耗时
     this.maxDuration = Math.max(...durationList); // 最大耗时
     this.durationStep = Math.ceil((this.maxDuration - this.minDuration) / DURATION_AVERAGE_COUNT); // 耗时区间间隔
@@ -81,7 +79,7 @@ export class DurationDataModal {
       const start = curVal;
       const end = curVal + this.durationStep;
       const rangeData = list.filter(item => {
-        const target = store.listType === 'trace' ? item.trace_duration : item.elapsed_time;
+        const target = this.listType === 'trace' ? item.trace_duration : item.elapsed_time;
         return target >= start && target < end;
       });
       curVal = end;

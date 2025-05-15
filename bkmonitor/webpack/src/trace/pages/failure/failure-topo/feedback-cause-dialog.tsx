@@ -210,7 +210,6 @@ export default defineComponent({
       <Dialog
         width={660}
         class='feedback-cause-dialog'
-        ext-cls='feedback-cause-dialog'
         v-slots={{
           footer: () => (
             <div>
@@ -232,23 +231,24 @@ export default defineComponent({
               </Button>
             </div>
           ),
+          default: () => (
+            <Collapse
+              class='feedback-cause-collapse'
+              v-model={this.activeIndex}
+              v-slots={{
+                content: (item: any) => item.renderFn(),
+              }}
+              header-icon='right-shape'
+              list={collapseList}
+            />
+          ),
         }}
         dialog-type='operation'
         is-loading={this.btnLoading}
         is-show={this.$props.visible}
         title={this.t('反馈新根因')}
         onUpdate:isShow={this.valueChange}
-      >
-        <Collapse
-          class='feedback-cause-collapse'
-          v-model={this.activeIndex}
-          v-slots={{
-            content: (item: any) => item.renderFn(),
-          }}
-          header-icon='right-shape'
-          list={collapseList}
-        />
-      </Dialog>
+      />
     );
   },
 });

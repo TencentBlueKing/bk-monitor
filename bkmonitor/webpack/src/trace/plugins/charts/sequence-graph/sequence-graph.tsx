@@ -513,7 +513,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const xMultiple = mainDom.scrollWidth / mainWidth;
       const yMultiple = mainDom.scrollHeight / mainHeight;
       const useWidthScale = xMultiple > 1 || yMultiple > 1 ? xMultiple > yMultiple : mainWidth > mainHeight;
-
       let thumbnailWidth = useWidthScale ? MaxImgWidth : mainDom.scrollWidth / (mainDom.scrollHeight / MaxImgHeight);
 
       let thumbnailHeight = useWidthScale ? mainDom.scrollHeight / (mainDom.scrollWidth / MaxImgWidth) : MaxImgHeight;
@@ -659,7 +658,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               renderType='auto'
               theme='light'
               trigger='manual'
-              zIndex={1001}
+              zIndex={300001}
             >
               {{
                 default: () => (
@@ -678,10 +677,11 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                 ),
                 content: () => [
                   this.showLegend ? (
-                    <ViewLegend />
+                    <ViewLegend key={0} />
                   ) : (
                     <div
                       id='sequence-thumbnail'
+                      key={1}
                       ref='sequenceThumbnailRef'
                       class='sequence-thumbnail'
                     >

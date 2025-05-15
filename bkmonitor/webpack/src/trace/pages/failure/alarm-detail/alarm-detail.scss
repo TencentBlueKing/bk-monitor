@@ -2,6 +2,10 @@
 @import '../../../static/scss/mixin.scss';
 $statusColors: #ea3635 #ff9c00 #699df4;
 
+.alarm-detail-table {
+  --td-bg-color-secondarycontainer: #fafbfd;
+}
+
 .tag-column-popover {
   padding: 3px 8px !important;
 
@@ -17,8 +21,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     margin: 2px;
     margin-right: 3px;
     overflow: hidden;
-    line-height: 22px;
     text-overflow: ellipsis;
+    line-height: 22px;
     white-space: nowrap;
     background: #f0f1f5;
     border-radius: 2px;
@@ -36,11 +40,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   }
 
   .alarm-detail-table {
-    .bk-table-body {
-      .cell {
-        display: flex !important;
-        height: 56px !important;
-        line-height: 56px !important;
+    .vxe-table--body {
+      .duration-class .vxe-cell {
+        height: 100%;
       }
     }
 
@@ -64,8 +66,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       margin: 2px;
       margin-right: 3px;
       overflow: hidden;
-      line-height: 22px;
       text-overflow: ellipsis;
+      line-height: 22px;
       white-space: nowrap;
       background: #f0f1f5;
       border-radius: 2px;
@@ -89,7 +91,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       width: 100%;
       height: 100%;
 
-      .root-cause, .root-feed {
+      .root-cause,
+      .root-feed {
         position: absolute;
         top: 50%;
         right: -3px;
@@ -106,7 +109,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       }
 
       .root-feed {
-        background: #FF9C01;
+        background: #ff9c01;
       }
 
       .name-info {
@@ -128,7 +131,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       display: flex;
       align-items: center;
       width: 100%;
-      height: 100%;
+      height: 46px;
 
       .status-label {
         display: flex;
@@ -157,11 +160,12 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       .operate-panel {
         position: absolute;
         top: 0;
-        right: 0;
         bottom: 0;
+        left: 0;
         display: flex;
         align-items: center;
         justify-content: flex-start;
+        width: 100%;
         padding: 0 15px;
         margin: 0 -15px;
         background-color: #f0f1f5;
@@ -276,4 +280,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
 .alarm-detail-table-more-popover {
   padding: 6px 0px !important;
+}
+
+.alarm-detail-table-tooltip {
+  padding: 8px 12px !important;
+  background-color: #303133 !important;
 }

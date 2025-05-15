@@ -85,7 +85,7 @@
         display: flex;
         flex: 1;
         height: 32px;
-        background-color: rgba(255,255,255,.05);
+        background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid #2c354d;
         border-radius: 2px;
 
@@ -102,7 +102,9 @@
             position: absolute;
             right: 10px;
             font-size: 18px;
-            transition: transform .3s cubic-bezier(.4,0,.2,1),-webkit-transform .3s cubic-bezier(.4,0,.2,1);
+            transition:
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
         }
 
@@ -118,7 +120,7 @@
           overflow: auto;
           background-color: #363f56;
           border-radius: 2px;
-          box-shadow: 0px 2px 6px 0px rgba(0,0,0,.20);;
+          box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
           .list-empty,
           %list-empty {
@@ -159,12 +161,12 @@
             color: #acb5c6;
             background-color: #363f56;
             border: 0;
-            border-bottom: 1px solid rgba(240,241,245,.16);
+            border-bottom: 1px solid rgba(240, 241, 245, 0.16);
             border-radius: 0;
 
             &:focus {
               background-color: #363f56 !important;
-              border-color: rgba(240,241,245,.16) !important;
+              border-color: rgba(240, 241, 245, 0.16) !important;
             }
           }
         }
@@ -264,7 +266,7 @@
   }
 
   .group-name-wrap {
-    color: rgba(172,178,198,.60);
+    color: rgba(172, 178, 198, 0.6);
   }
 
   .footer-icon {
@@ -281,6 +283,30 @@
     width: 32px;
     height: 32px;
     background: url('../static/img/logo.svg');
+  }
+
+  .goto-old {
+    display: flex;
+    align-items: center;
+    min-width: 81px;
+    padding: 0 12px 0 13px;
+    color: #3a84ff;
+    border-left: 1px solid #eaebf0;
+
+    .goto-old-wrap {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .icon {
+      margin-right: 5px;
+      transform: rotateY(180deg);
+
+      .icon-zhuanhuan {
+        font-size: 14px;
+      }
+    }
   }
 }
 

@@ -1,0 +1,70 @@
+.favorite-box-group-manage-list {
+  padding: 12px 0;
+  height: calc(100vh - 100px);
+  .group-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    height: 32px;
+    padding: 0 20px;
+    overflow: hidden;
+    &:hover {
+      background: #dde1eb;
+    }
+    &.is-active {
+      background: #e1ecff;
+      color: #3a84ff;
+      .group-sub-count,
+      .group-flag {
+        color: #3a84ff;
+      }
+    }
+
+    .group-flag {
+      color: #a3b1cc;
+      font-size: 16px;
+    }
+    .group-name {
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 12px;
+      line-height: 32px;
+    }
+
+    .group-sub-count {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: bold;
+      color: #a3b1cc;
+    }
+  }
+  .line {
+    height: 1px;
+    background: #dcdee5;
+    margin-bottom: 4px;
+  }
+  .group-filter {
+    display: flex;
+    padding: 13px 20px 8px;
+    .create-btn {
+      background: #cddffe;
+      border-radius: 2px;
+      color: #3a84ff;
+      cursor: pointer;
+      font-size: 16px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+      width: 32px;
+      margin-right: 8px;
+      flex: 0 0 32px;
+    }
+  }
+  .group-custom-wrapper {
+    height: calc(100% - 154px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}

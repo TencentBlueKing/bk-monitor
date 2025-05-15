@@ -291,6 +291,7 @@ export default defineComponent({
                       <DatePicker
                         ref='timeRef'
                         v-model={customTime.value}
+                        appendToBody={true}
                         options={options.value}
                         placeholder={t('选择日期时间范围')}
                         type={'datetimerange'}

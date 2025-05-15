@@ -35,7 +35,9 @@ import {
   watch,
   type ComputedRef,
 } from 'vue';
+import { shallowRef } from 'vue';
 
+import { useTraceExploreStore } from '@/store/modules/explore';
 import {
   MonitorRetrieve as Log,
   initMonitorState,
@@ -50,7 +52,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
-import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
+import { REFRESH_IMMEDIATE_KEY, REFRESH_INTERVAL_KEY, useTimeRangeInject } from '../../hooks';
 
 import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
@@ -60,20 +62,23 @@ export default defineComponent({
   name: 'MonitorTraceLog',
   setup() {
     const spanDetailQueryStore = useSpanDetailQueryStore();
+    const traceStore = useTraceExploreStore();
     const empty = ref(true);
     const loading = ref(true);
     const bizId = computed(() => useAppStore().bizId || 0);
+
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
-    const refreshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
-    const refreshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
+    const refreshImmediate = inject<Ref<string>>(REFRESH_IMMEDIATE_KEY, shallowRef(traceStore.refreshImmediate));
+    const refreshInterval = inject<Ref<number>>(REFRESH_INTERVAL_KEY, shallowRef(traceStore.refreshInterval));
     const spanId = inject<Ref<string>>('spanId', ref(''));
+
     const mainRef = ref<HTMLDivElement>();
     const customTimeProvider = inject<ComputedRef<string[]>>(
       'customTimeProvider',
-      computed(() => [])
+      computed(() => traceStore.timeRange)
     );
-    const defaultTimeRange = useTimeRanceInject();
+    const defaultTimeRange = useTimeRangeInject();
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];

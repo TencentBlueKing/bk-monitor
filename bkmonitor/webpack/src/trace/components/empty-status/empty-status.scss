@@ -3,12 +3,14 @@
   padding: 20px 0;
   overflow: auto;
 
-  .exception-image {
-    height: 180px;
-    user-select: none;
-    user-select: none;
-    user-select: none;
-    onselectstart: none;
+  .bk-exception.bk-exception-part {
+    .exception-image {
+      height: 180px;
+      user-select: none;
+      user-select: none;
+      user-select: none;
+      onselectstart: none;
+    }
   }
 
   .bk-exception-footer {

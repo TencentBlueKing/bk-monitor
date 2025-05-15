@@ -43,8 +43,8 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from packages.monitor_web.data_explorer.event.resources import EventTopKResource
-from packages.monitor_web.data_explorer.event.serializers import (
+from monitor_web.data_explorer.event.resources import EventTopKResource
+from monitor_web.data_explorer.event.serializers import (
     EventDownloadTopKRequestSerializer,
 )
 from apm_web.utils import generate_csv_file_download_response

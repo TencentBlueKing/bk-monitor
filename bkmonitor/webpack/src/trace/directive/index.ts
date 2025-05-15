@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { bkTooltips, bkEllipsis } from 'bkui-vue';
+import { bkTooltips, clickoutside, overflowTitle, bkEllipsis } from 'bkui-vue';
 
 import authority from './authority';
 import overflowText from './overflow-text';
@@ -36,15 +36,18 @@ const directives: Record<string, any> = {
   // 指令对象
   authority,
   bkTooltips,
+  clickoutside,
+  overflowTitle,
   watermark,
-  overflowText,
+  overflowTips: bkEllipsis,
   bkOverflowTips: bkEllipsis,
+  overflowText,
 };
 
 export default {
   install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+    for (const [key, directive] of Object.entries(directives)) {
+      app.directive(key, directive);
+    }
   },
 };

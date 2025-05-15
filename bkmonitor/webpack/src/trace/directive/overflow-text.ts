@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { $bkPopover } from 'bkui-vue';
+import tippy from 'tippy.js';
 
 import type { DirectiveBinding } from 'vue';
 interface IElement extends HTMLElement {
@@ -35,28 +35,47 @@ export default {
     function mouseenter(event: MouseEvent) {
       event.stopPropagation();
       if (!instance) {
-        instance = $bkPopover({
-          target: event.target,
-          content: binding.value.text || el.innerText,
-          trigger: 'hover',
-          placement: binding.value.placement || 'top',
-          popoverDelay: [300, 0],
-          onHide: () => {
-            instance?.hide?.();
+        instance = tippy(event.target as any, {
+          trigger: 'mouseenter',
+          allowHTML: true,
+          placement: binding.value?.placement || 'top',
+          delay: [300, 0],
+          content: `<span style="font-size: 12px;">${binding.value?.text || el.innerText}</span>`,
+          onHidden: () => {
+            instance?.hide();
+            instance?.destroy();
             instance = null;
           },
         });
-        setTimeout(() => {
-          instance?.show(event.target);
-        }, 50);
+        instance?.show();
       } else {
-        instance?.show(event.target);
+        instance?.show();
       }
     }
-    setTimeout(() => {
-      if (el.scrollWidth > el.clientWidth + 1) {
-        el.addEventListener('mouseenter', mouseenter);
+
+    function observeElementVisibility(el, callback) {
+      const observer = new IntersectionObserver(
+        entries => {
+          for (const entry of entries) {
+            callback(entry.isIntersecting);
+          }
+        },
+        {
+          threshold: 0.1, // 当10%的元素可见时触发
+        }
+      );
+      observer.observe(el);
+      return observer; // 返回observer以便后续取消监听
+    }
+
+    observeElementVisibility(el, isVisible => {
+      if (isVisible) {
+        if (el.scrollWidth > el.clientWidth) {
+          el.addEventListener('mouseenter', mouseenter);
+        }
+      } else {
+        el.removeEventListener('mouseenter', mouseenter);
       }
-    }, 300);
+    });
   },
 };

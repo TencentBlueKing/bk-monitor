@@ -137,6 +137,10 @@
 
     .shield-table {
       width: 100% !important;
+
+      .t-table__pagination-wrap {
+        display: none;
+      }
     }
 
     .icon-filter-fill {

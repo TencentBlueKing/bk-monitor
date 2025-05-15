@@ -1,0 +1,84 @@
+.explore-trace-slider {
+  .bk-modal-content {
+    // 组件库sideslider的bk-modal-content高度没有自动变化(组件库dialog的bk-modal-content高度是会变的)
+    // 52为sideslider的title高度
+    height: calc(100% - 52px) !important;
+
+    & > div {
+      height: 100%;
+      vertical-align: middle;
+    }
+  }
+
+  .bk-sideslider-content {
+    height: 100%;
+  }
+
+  .explore-trace-slider-main {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 100%;
+    background-color: #f5f7fa;
+
+    .full-screen-loading.is-active {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+
+    .toggle-full-screen {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 9999;
+      width: 48px;
+      height: 48px;
+      color: #fff;
+      cursor: pointer;
+
+      .circle {
+        position: absolute;
+        top: -48px;
+        right: -48px;
+        width: 96px;
+        height: 96px;
+        overflow: hidden;
+        background: #979ba5;
+        border-radius: 50%;
+      }
+
+      .icon-monitor {
+        position: relative;
+        top: -2px;
+        left: 8px;
+        font-size: 30px;
+      }
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .icon-page-close {
+      font-size: 116px;
+      color: #fff;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+
+      &.fullscreen-close {
+        top: 0;
+        right: 28px;
+      }
+    }
+
+    .trace-detail-wrapper {
+      flex: 1;
+      padding-right: 12px;
+    }
+  }
+}

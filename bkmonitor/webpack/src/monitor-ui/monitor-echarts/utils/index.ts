@@ -26,7 +26,7 @@
 import { connect, disconnect } from 'echarts/core';
 /** 图表联动 */
 export const echartsConnect = (groupId: string) => {
-  if (!!groupId) {
+  if (groupId) {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
     setTimeout(() => {
       connect(groupId);

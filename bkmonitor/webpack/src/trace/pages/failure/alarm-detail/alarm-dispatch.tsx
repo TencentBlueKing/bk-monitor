@@ -193,7 +193,7 @@ export default defineComponent({
     return (
       <Dialog
         width={480}
-        extCls={'alarm-dispatch-component-dialog'}
+        class='alarm-dispatch-component-dialog'
         v-slots={{
           default: () => (
             <Loading loading={this.loading}>
