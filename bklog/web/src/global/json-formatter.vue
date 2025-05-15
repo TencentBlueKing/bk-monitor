@@ -134,7 +134,6 @@
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
   const debounceUpdate = debounce(() => {
-    debugger;
     updateRootFieldOperator(rootList.value, depth.value);
     setEditor(depth.value);
     setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
