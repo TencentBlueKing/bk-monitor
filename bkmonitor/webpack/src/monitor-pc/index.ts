@@ -34,6 +34,7 @@ import './common/import-magicbox-ui';
 import 'monitor-static/svg-icons';
 import 'monitor-ui/directive/index';
 
+import Aegis from 'aegis-web-sdk';
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
@@ -157,6 +158,20 @@ if (hasRouteHash) {
       .finally(() => {
         immediateRegister();
         appLoadingNode?.remove();
+        console.info(window.rum_access_url);
+        window.aegisInstance = new Aegis({
+          id: 'bk_monitor_test', // 项目上报id
+          uin: window.user_name || window.username, // 用户唯一标识（可选）
+          reportApiSpeed: true, // 接口测速
+          reportAssetSpeed: true, // 静态资源测速
+          hostUrl: window.rum_access_url, // 上报域名，
+          spa: true, // spa 页面需要开启，页面切换的时候上报pv
+          // url: window.rum_access_url,
+          // pvUrl: window.rum_access_url,
+          // whiteListUrl: window.rum_access_url,
+          // speedUrl: window.rum_access_url,
+          // performanceUrl: window.rum_access_url,
+        });
       });
   }
 }

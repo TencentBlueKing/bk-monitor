@@ -24,6 +24,7 @@
     "@blueking/search-select-v3": "0.0.1-beta.10",
     "@blueking/user-selector": "^1.0.14",
     "@prometheus-io/lezer-promql": "0.51.2",
+    "aegis-web-sdk": "^1.39.3",
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
     "big.js": "^6.2.2",
