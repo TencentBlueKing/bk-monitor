@@ -79,6 +79,7 @@ const mountedVueInstance = () => {
     const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
+    store.commit('requestMenuList', spaceUid);
     const router = getRouter(spaceUid, bkBizId);
     setRouterErrorHandle(router);
 
