@@ -76,6 +76,7 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
     # 是否直接使用标准格式数据，兼容BCS非标准返回的情况
     IS_STANDARD_FORMAT = True
     METRIC_REPORT_NOW = True
+    # CMDB API 已在请求头的 x-bkapi-authorization 中包含了 bk_username，不需要在请求参数中重复添加
     INSERT_BK_USERNAME_TO_REQUEST_DATA = True
 
     ignore_error_msg_list = []
