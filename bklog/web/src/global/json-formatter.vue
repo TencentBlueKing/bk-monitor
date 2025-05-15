@@ -85,6 +85,7 @@
         try {
           return bigJson.parse(val);
         } catch (e) {
+          console.error(`${e.name}: ${e.message}; `, e);
           return val;
         }
       }
@@ -133,6 +134,7 @@
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
   const debounceUpdate = debounce(() => {
+    debugger;
     updateRootFieldOperator(rootList.value, depth.value);
     setEditor(depth.value);
     setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
