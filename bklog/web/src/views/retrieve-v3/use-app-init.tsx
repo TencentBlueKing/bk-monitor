@@ -54,7 +54,6 @@ export default () => {
    * 更新相关参数到store
    */
   const reoverRouteParams = () => {
-    debugger;
     update_URL_ARGS(route);
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
