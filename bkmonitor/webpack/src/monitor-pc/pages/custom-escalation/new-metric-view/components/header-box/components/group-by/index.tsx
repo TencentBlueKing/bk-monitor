@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../metric-chart-view/utils';
 import SelectPanel from './components/select-panel';
 
 import './index.scss';
@@ -214,9 +215,19 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
 
   render() {
     const renderField = (data: { field: string }) => {
-      return this.dimensionAliasNameMap[data.field]
-        ? `${this.dimensionAliasNameMap[data.field]} (${data.field})`
-        : data.field;
+      return (
+        <span
+          v-bk-tooltips={{
+            content: formatTipsContent(data.field, this.dimensionAliasNameMap[data.field]),
+            placement: 'bottom',
+          }}
+        >
+          {this.dimensionAliasNameMap[data.field] || data.field}
+        </span>
+      );
+      // return this.dimensionAliasNameMap[data.field]
+      //   ? `${this.dimensionAliasNameMap[data.field]} (${data.field})`
+      //   : data.field;
     };
     return (
       <div

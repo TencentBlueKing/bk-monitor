@@ -184,6 +184,9 @@
   import { deepClone } from '../../../../common/util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import useFieldNameHook from '@/hooks/use-field-name';
+
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+
   export default {
     components: {
       DataFingerprint,
@@ -283,7 +286,7 @@
         return this.$store.state.bkBizId;
       },
       showFieldAlias() {
-        return this.$store.state.storage.showFieldAlias
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);
@@ -352,7 +355,7 @@
         deep: true,
         immediate: true,
         handler(newVal, oldVal) {
-          if(newVal === oldVal){
+          if (newVal === oldVal) {
             return;
           }
           // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
@@ -377,9 +380,9 @@
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
       },
-      showFieldAlias(){
-        this.filterGroupList()
-      }
+      showFieldAlias() {
+        this.filterGroupList();
+      },
     },
     methods: {
       setRouteParams() {
@@ -601,7 +604,7 @@
         const filterList = this.totalFields
           .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
           .map(item => {
-            return getConcatenatedFieldName(item)
+            return getConcatenatedFieldName(item);
           });
         this.fingerOperateData.groupList = filterList;
       },
@@ -694,21 +697,37 @@
           this.isFieldInit = false;
         }
       },
+      async onMountedLoad() {
+        if (!this.isClusterActive) {
+          this.isClusterActive = true;
+          await this.confirmClusterStepStatus();
+          if (this.isClickSearch && !this.isInitPage) this.requestFinger();
+          if (!this.isInitPage) {
+            this.$store.commit('updateClusterParams', this.requestData);
+            this.setRouteParams();
+          }
+        }
+      },
+      async onUnMountedLoad() {
+        if (this.isClusterActive) {
+          this.isClusterActive = false;
+          this.$store.commit('updateClusterParams', null);
+          this.setRouteParams();
+          this.stopPolling(); // 停止状态轮询
+        }
+      },
+    },
+    async mounted() {
+      await this.onMountedLoad();
     },
     async activated() {
-      this.isClusterActive = true;
-      await this.confirmClusterStepStatus();
-      if (this.isClickSearch && !this.isInitPage) this.requestFinger();
-      if (!this.isInitPage) {
-        this.$store.commit('updateClusterParams', this.requestData);
-        this.setRouteParams();
-      }
+      await this.onMountedLoad();
     },
     deactivated() {
-      this.isClusterActive = false;
-      this.$store.commit('updateClusterParams', null);
-      this.setRouteParams();
-      this.stopPolling(); // 停止状态轮询
+      this.onUnMountedLoad();
+    },
+    unmounted() {
+      this.onUnMountedLoad();
     },
     beforeDestroy() {
       this.$store.commit('updateClusterParams', null);

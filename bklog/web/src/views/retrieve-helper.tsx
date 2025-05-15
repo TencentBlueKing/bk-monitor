@@ -25,196 +25,35 @@
  */
 
 import { Ref } from 'vue';
-import { random } from '../common/util';
 
-import OptimizedHighlighter from './optimized-highlighter';
-import { getRgbaColors } from './colors';
-
-// 滚动条查询条件
-const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
-
-export interface GradeSetting {
-  id: string;
-  color?: string;
-  name?: string;
-  regExp?: string;
-  enable: boolean;
-}
-
-interface GradeConfiguration {
-  disabled: boolean;
-  type: 'custom' | 'normal';
-  field: string; // 'field' is null, but we can define it as any unless more specific information is available
-  settings: GradeSetting[];
-}
+import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
+import RetrieveEvent from './retrieve-core/retrieve-events';
+import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
+import RetrieveBase from './retrieve-core/base';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
-export enum RetrieveEvent {
-  /**
-   * 展示收藏内容
-   */
-  FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
-
-  /**
-   * 收藏栏是否展示
-   */
-  FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
-
-  /**
-   * 收藏栏宽度变化
-   */
-  FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
-
-  /**
-   * 左侧字段信息初始化
-   */
-  LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',
-
-  /**
-   * 左侧字段设置宽度变化
-   */
-  LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
-
-  /**
-   * 左侧字段设置是否展示
-   */
-  LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
-
-  /**
-   * 搜索栏高度变化
-   */
-  SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
-
-  /**
-   * 趋势图高度变化
-   */
-  TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
-
-  /**
-   * 趋势图搜索
-   */
-  TREND_GRAPH_SEARCH = 'trend-graph-search',
-
-  /**
-   * 趋势图缩放
-   */
-  TREND_GRAPH_ZOOM = 'trend-graph-zoom',
-
-  /**
-   * localStorage 变化
-   */
-  STORAGE_CHANGE = 'storage-change',
-
-  /**
-   * 打开索引配置
-   */
-  INDEX_CONFIG_OPEN = 'index-config-open',
-
-  /**
-   * 触发高亮设置
-   */
-  HILIGHT_TRIGGER = 'hilight-trigger',
-
-  /**
-   * 搜索条件改变
-   */
-  SEARCH_VALUE_CHANGE = 'search-value-change',
-
-  /**
-   * 搜索时间变化
-   */
-  SEARCH_TIME_CHANGE = 'search-time-change',
-
-  /**
-   * 全局滚动
-   */
-  GLOBAL_SCROLL = 'global-scroll',
-
-  /**
-   * 索引集id 变化
-   */
-  INDEX_SET_ID_CHANGE = 'index-set-id-change',
-}
-
-class RetrieveHelper {
-  // 滚动条查询条件
-  globalScrollSelector: string;
-
-  // 搜索栏高度
-  searchBarHeight: number;
-
-  // 左侧字段设置宽度
-  leftFieldSettingWidth: number;
-
-  // 左侧字段设置是否展示
-  leftFieldSettingShown: boolean = true;
-
-  // 收藏栏宽度
-  favoriteWidth: number;
-
-  // 收藏栏是否展示
-  isFavoriteShown: boolean;
-
-  // 趋势图添加随机类名
-  // 用于监听趋势图高度变化
-  randomTrendGraphClassName: string;
-
-  // 趋势图高度
-  trendGraphHeight: number;
-
-  // 事件列表
-  events: Map<string, ((...args) => void)[]>;
-
-  // 索引集id列表
-  indexSetIdList: string[];
-
-  // 索引集类型
-  indexSetType: string;
-
-  markInstance: OptimizedHighlighter = undefined;
-
-  // 正则表达式提取日志级别
-  logLevelRegex = {
-    level_1: '(?<FATAL>\\b(?:FATAL|CRITICAL|EMERGENCY)\\b)',
-    level_2: '(?<ERROR>\\b(?:ERROR|ERRORCODE|ERR|FAIL(?:ED|URE)?)\\b)',
-    level_3: '(?<WARNING>\\b(?:WARNING|WARN|ALERT|NOTICE)\\b)',
-    level_4: '(?<INFO>\\b(?:INFO|INFORMATION|LOG|STATUS)\\b)',
-    level_5: '(?<DEBUG>\\b(?:DEBUG|DIAGNOSTIC)\\b)',
-    level_6: '(?<TRACE>\\b(?:TRACE|TRACING|VERBOSE|DETAIL)\\b)',
-  };
-
-  logRowsContainerId: string;
-
-  RGBA_LIST: string[];
-
+export { RetrieveEvent, GradeSetting, GradeConfiguration };
+// 滚动条查询条件
+const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
+class RetrieveHelper extends RetrieveBase {
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
+    super({});
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.favoriteWidth = favoriteWidth;
-    this.randomTrendGraphClassName = `random-${random(12)}`;
-    this.events = new Map();
-    this.logRowsContainerId = `result_container_key_${random(12)}`;
-    this.RGBA_LIST = getRgbaColors(0.3);
   }
 
-  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
-    const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    targetEvents.forEach(event => {
-      if (this.events.has(event)) {
-        if (!this.events.get(event).includes(callbackFn)) {
-          this.events.get(event)?.push(callbackFn);
-        }
-        return this;
-      }
-
-      this.events.set(event, [callbackFn]);
-    });
-
-    return this;
+  /**
+   * 设置查询状态
+   * @param isSearching
+   */
+  setSearchingValue(isSearching: boolean) {
+    this.isSearching = isSearching;
+    this.runEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching);
   }
 
   /**
@@ -458,32 +297,6 @@ class RetrieveHelper {
     return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
   }
 
-  /**
-   * 触发指定事件
-   * 功能相当于 event bus
-   * @param eventName
-   * @param args
-   */
-  fire(eventName: RetrieveEvent, ...args) {
-    this.runEvent(eventName, ...args);
-  }
-
-  /**
-   * 移除事件
-   * @param eventName
-   * @param fn
-   */
-  off(eventName: RetrieveEvent, fn?: (...args) => void) {
-    if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item === fn);
-      if (index !== -1) {
-        this.events.get(eventName)?.splice(index, 1);
-      }
-      return;
-    }
-    this.events.delete(eventName);
-  }
-
   private handleScroll = (e: MouseEvent) => {
     this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
   };
@@ -495,14 +308,6 @@ class RetrieveHelper {
   destroy() {
     this.events.clear();
     document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
-  }
-
-  private runEvent(event: RetrieveEvent, ...args) {
-    this.events.get(event)?.forEach(item => {
-      if (typeof item === 'function') {
-        item(...args);
-      }
-    });
   }
 }
 

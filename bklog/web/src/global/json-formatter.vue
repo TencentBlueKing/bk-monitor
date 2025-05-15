@@ -36,6 +36,9 @@
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import RetrieveHelper from '../views/retrieve-helper';
+  import { BK_LOG_STORAGE } from '../store/store.type';
+  import { debounce } from 'lodash';
+  import JSONBig from 'json-bigint';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -55,10 +58,11 @@
     },
   });
 
+  const bigJson = JSONBig({ useNativeBigInt: true });
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
 
-  const isWrap = computed(() => store.state.storage.tableLineIsWrap);
+  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
       return props.fields;
@@ -79,7 +83,7 @@
     if (typeof val === 'string' && props.formatJson) {
       if (/^(\{|\[)/.test(val)) {
         try {
-          return JSON.parse(val);
+          return bigJson.parse(val);
         } catch (e) {
           return val;
         }
@@ -127,14 +131,17 @@
     }));
   });
 
-  const depth = computed(() => store.state.storage.tableJsonFormatDepth);
+  const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+  const debounceUpdate = debounce(() => {
+    updateRootFieldOperator(rootList.value, depth.value);
+    setEditor(depth.value);
+    setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
+  }, 100);
 
   watch(
     () => [formatCounter.value],
     () => {
-      updateRootFieldOperator(rootList.value, depth.value);
-      setEditor(depth.value);
-      setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
+      debounceUpdate();
     },
     {
       immediate: true,

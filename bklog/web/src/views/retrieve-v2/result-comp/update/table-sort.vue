@@ -3,7 +3,7 @@
     <vue-draggable
       v-bind="dragOptions"
       class="custom-select-list"
-      v-model="shadowSort"
+      v-model="sortList"
     >
       <transition-group>
         <li
@@ -18,7 +18,7 @@
             class="rtl-text"
             v-model="sorts[0]"
             auto-focus
-            filterable
+            searchable
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <div
@@ -90,6 +90,7 @@
   import VueDraggable from 'vuedraggable';
 
   import { deepClone, random } from '../../../../common/util';
+  import { BK_LOG_STORAGE } from '../../../../store/store.type';
   const props = defineProps({
     initData: {
       type: Array,
@@ -100,7 +101,7 @@
       default: false,
     },
   });
-  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
     animation: 150,

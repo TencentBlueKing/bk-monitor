@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
+import PageLegend from 'monitor-ui/chart-plugins/components/chart-legend/page-legend';
 import { MONITOR_BAR_OPTIONS, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { ResizeMixin } from 'monitor-ui/chart-plugins/mixins';
 import MonitorBaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 
-import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
+import type { ILegendItem, LegendActionType, MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './dimension-echarts.scss';
 
@@ -50,8 +51,22 @@ class DimensionEcharts extends Mixins<ResizeMixin>(ResizeMixin) {
 
   @Ref('baseEchartRef') baseEchartRef: any;
 
+  legendList: ILegendItem[] = [];
+
+  get LegendShowMap(): Record<string, boolean> {
+    return this.legendList.reduce((acc, cur) => {
+      acc[cur.name] = cur.show;
+      return acc;
+    }, {});
+  }
+
   width = 370;
   height = 136;
+
+  @Watch('data', { immediate: true })
+  handleDataChange(value: any[]) {
+    this.legendList = value.map(item => ({ name: item.name, color: item.color, show: true }));
+  }
 
   handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
     let formatterFunc = null;
@@ -112,6 +127,7 @@ class DimensionEcharts extends Mixins<ResizeMixin>(ResizeMixin) {
         color: item.color,
       },
     }));
+
     return deepmerge(
       deepClone(MONITOR_BAR_OPTIONS),
       {
@@ -143,16 +159,18 @@ class DimensionEcharts extends Mixins<ResizeMixin>(ResizeMixin) {
 
   get lineOptions(): MonitorEchartOptions {
     const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(this.data);
-    const series = this.data.map(item => ({
-      type: 'line',
-      name: item.name,
-      data: item.datapoints.map(point => [point[1], point[0]]),
-      symbol: 'none',
-      z: 6,
-      lineStyle: {
-        color: item.color,
-      },
-    }));
+    const series = this.data
+      .map(item => ({
+        type: 'line',
+        name: item.name,
+        data: item.datapoints.map(point => [point[1], point[0]]),
+        symbol: 'none',
+        z: 6,
+        lineStyle: {
+          color: item.color,
+        },
+      }))
+      .filter(item => this.LegendShowMap[item.name]);
     const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
     const formatterFunc = this.handleSetFormatterFunc(series[0]?.data || []);
     return deepmerge(
@@ -187,22 +205,51 @@ class DimensionEcharts extends Mixins<ResizeMixin>(ResizeMixin) {
     return this.seriesType === 'histogram' ? this.barOptions : this.lineOptions;
   }
 
+  handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    let legendList: ILegendItem[] = deepClone(this.legendList);
+    if (actionType === 'click') {
+      const hasHidden = legendList.some(legendItem => !legendItem.show);
+      legendList = legendList.map(legendItem => {
+        if (legendItem.name === item.name) {
+          legendItem.show = true;
+        } else {
+          legendItem.show = hasHidden && item.show;
+        }
+        return legendItem;
+      });
+    } else if (actionType === 'shift-click') {
+      const result = legendList.find(legendItem => legendItem.name === item.name);
+      result.show = !result.show;
+    }
+    this.legendList = legendList;
+  }
+
   render() {
     return (
       <div
         ref='chartContainer'
-        class='event-explore-dimension-echarts-e'
+        class={['event-explore-dimension-echarts-e', { 'has-legend': this.seriesType === 'line' }]}
       >
         {this.data.length ? (
-          <MonitorBaseEchart
-            ref='baseEchartRef'
-            width={this.width}
-            height={this.height}
-            customTooltips={this.seriesType === 'histogram' ? this.customTooltips : undefined}
-            options={this.options}
-          />
+          <div class='event-explore-dimension-echarts-content'>
+            <MonitorBaseEchart
+              ref='baseEchartRef'
+              width={this.width}
+              height={this.height}
+              customTooltips={this.seriesType === 'histogram' ? this.customTooltips : undefined}
+              options={this.options}
+            />
+          </div>
         ) : (
           <div class='empty-chart'>{this.$t('查无数据')}</div>
+        )}
+
+        {this.seriesType === 'line' && (
+          <PageLegend
+            legendData={this.legendList}
+            wrapHeight={40}
+            onSelectLegend={this.handleSelectLegend}
+          />
         )}
       </div>
     );

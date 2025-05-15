@@ -247,3 +247,12 @@ export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter,
   }
   return precision;
 };
+
+/**
+ * @description: 格式化tooltips展示的内容
+ * @param {string} name  指标名
+ * @param {string} alias  指标别名
+ * */
+export const formatTipsContent = (name: string, alias: string) => {
+  return `${window.i18n.tc('指标名：')}${name || '--'} <br/> ${window.i18n.tc('指标别名：')}${alias || '--'}`;
+};

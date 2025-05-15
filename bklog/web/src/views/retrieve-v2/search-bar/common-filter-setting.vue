@@ -169,7 +169,7 @@
 
   import { excludesFields } from './const.common';
   import { getCommonFilterAddition } from '../../../store/helper';
-
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
@@ -177,7 +177,7 @@
   const tippyOptions = {
     offset: '0, 4',
   };
-  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -194,7 +194,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -208,7 +208,7 @@
 
     const mapFn = item =>
       Object.assign({}, item, {
-        first_name: item.query_alias || item.field_alias || item.field_name,
+        first_name: item.query_alias || item.field_name,
         last_name: item.field_name,
       });
 
@@ -247,7 +247,7 @@
     const common_filter_addition = getCommonFilterAddition(store.state);
     const param = {
       filterSetting: shadowVisible.value,
-      filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
+      filterAddition: [], //common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
     };
     isLoading.value = true;
 

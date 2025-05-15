@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -84,13 +83,30 @@ def build_event_body(
     data_sources: dict = None,
     updated_telemetry_types: list = None,
 ):
+    bk_biz_name = ""
+    operator = (app.create_user if apm_event is APMEvent.APP_CREATE else app.update_user,)
+
     event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
     response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
     if response_biz_data:
         biz_data = response_biz_data[0]
         bk_biz_name = biz_data.bk_biz_name
-    else:
-        bk_biz_name = ""
+
+        from bkm_space.define import SpaceTypeEnum
+
+        if biz_data.space_type_id == SpaceTypeEnum.BKSAAS.value:
+            # 对于 PAAS 平台创建的 APM 应用，临时通过通知组<<应用成员>>来获取用户
+            SAAS_NOTICE_GROUP_NAME = "应用成员"
+            from bkmonitor.models import UserGroup
+
+            operators = []
+            qs = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=SAAS_NOTICE_GROUP_NAME)
+            if qs.exists():
+                for dr in qs.first().duty_arranges:
+                    operators.extend([user["id"] for user in dr.users if user["type"] == "user"])
+
+            if operators:
+                operator = ",".join(operators)
 
     event_body_map["target"] = get_local_ip()
     event_body_map["timestamp"] = int(round(time.time() * 1000))
@@ -100,7 +116,7 @@ def build_event_body(
         "app_alias": app.app_alias,
         "bk_biz_id": bk_biz_id,
         "bk_biz_name": bk_biz_name,
-        "operator": app.create_user if apm_event is APMEvent.APP_CREATE else app.update_user,
+        "operator": operator,
         "operate_time": strftime_local(app.create_time)
         if apm_event is APMEvent.APP_CREATE
         else strftime_local(app.update_time),
@@ -127,8 +143,7 @@ def refresh_application():
             application.set_service_count_and_data_status()
         except Exception as e:  # noqa
             logger.warning(
-                f"[REFRESH_APPLICATION] "
-                f"refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+                f"[REFRESH_APPLICATION] refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
             )
 
     logger.info("[REFRESH_APPLICATION] task finished")
@@ -161,7 +176,7 @@ def refresh_apm_application_metric():
 
     # 刷新 APM 应用列表页, 应用指标数据
     queryset = Application.objects.filter(
-        ~Q(metric_result_table_id=''), metric_result_table_id__isnull=False, is_enabled=True
+        ~Q(metric_result_table_id=""), metric_result_table_id__isnull=False, is_enabled=True
     )
 
     applications = ApplicationCacheSerializer(queryset, many=True).data
@@ -229,8 +244,7 @@ def cache_application_scope_name():
                 cache_agent.expire(cache_key, 60 * 60 * 24)
         except Exception as e:  # noqa
             logger.warning(
-                f"[REFRESH_APPLICATION] "
-                f"refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+                f"[REFRESH_APPLICATION] refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")

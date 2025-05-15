@@ -390,12 +390,11 @@ export default class CollectIndex extends tsc<IProps> {
     Object.assign(query, resolver.resolveParamsToUrl(), {
       tab: favoriteItem.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
     });
-    if (!isEqual(params, this.$route.params) || !isEqual(query, this.$route.query)) {
-      this.$router.replace({
-        params,
-        query,
-      });
-    }
+
+    this.$router.replace({
+      params,
+      query,
+    });
   }
 
   // 点击收藏列表的收藏

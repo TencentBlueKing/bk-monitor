@@ -154,7 +154,7 @@
       },
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
-        closeAndRetrieve();
+        debounceRetrieve();
         return true;
       },
       onFocusChange: (_, isFocusing) => {

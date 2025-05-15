@@ -233,6 +233,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
     const drillFilter = {};
     list.map(item => (drillFilter[item.key] = item.value));
+    this.setPanelConfigAndRefresh('group_by', activeKey, false);
     this.setPanelConfigAndRefresh('filter_dict.drill_filter', drillFilter);
   }
   /** 设置panel的值 */

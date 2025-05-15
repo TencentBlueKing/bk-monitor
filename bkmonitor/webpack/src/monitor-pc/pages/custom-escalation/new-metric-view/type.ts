@@ -32,6 +32,7 @@ export interface IDimensionItem {
   checked?: boolean;
   value?: number | string;
   text?: string;
+  alias?: string;
 }
 
 export interface IColumnItem {

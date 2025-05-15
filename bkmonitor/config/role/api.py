@@ -122,6 +122,7 @@ if IS_CONTAINER_MODE:
     for logger in LOGGING["loggers"]:
         if "null" not in LOGGING["loggers"][logger]["handlers"]:
             LOGGING["loggers"][logger]["handlers"] = ["console"]
+            LOGGING["loggers"][logger]["propagate"] = False
 
 #
 # Templates

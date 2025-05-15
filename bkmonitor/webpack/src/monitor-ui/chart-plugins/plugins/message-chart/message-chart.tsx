@@ -56,6 +56,10 @@ export default class MessageChart extends CommonSimpleChart {
     return this.panel.options?.header?.tips || '';
   }
 
+  get queryConfig() {
+    return this.$route.query || {};
+  }
+
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
@@ -145,6 +149,23 @@ export default class MessageChart extends CommonSimpleChart {
   handleItemShow(item) {
     item.showAll = !item.showAll;
   }
+  /** 调用链跳转 */
+  handleTraceLinkClick(e, item) {
+    e.stopPropagation();
+    const params = {
+      name: 'trace-retrieval',
+      query: {
+        app_name: this.queryConfig['filter-app_name'],
+        search_type: 'accurate',
+        search_id: 'traceID',
+        trace_id: item.trace_id,
+      },
+    };
+    const routeData = this.$router.resolve(params);
+    const url = location.href.replace(location.hash, `#/trace/home${routeData.href.slice(2)}`);
+    window.open(url, '_blank');
+  }
+
   render() {
     return (
       <div class='message-chart'>
@@ -224,6 +245,13 @@ export default class MessageChart extends CommonSimpleChart {
                     <div class='collapse-item-title'>
                       <div class='item-title'>{item.title}</div>
                       <div class='item-subtitle'>{item.subtitle}</div>
+                      <span
+                        class='item-trace-link'
+                        onClick={e => this.handleTraceLinkClick(e, item)}
+                      >
+                        {this.$t('调用链')}
+                        <i class='icon-monitor icon-mc-goto' />
+                      </span>
                     </div>
                     <div
                       class='collapse-item-content'

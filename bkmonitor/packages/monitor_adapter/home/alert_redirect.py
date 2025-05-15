@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from urllib.parse import urlencode
 
@@ -32,8 +32,8 @@ def generate_data_retrieval_url(bk_biz_id, collect_id):
     else:
         alert_ids = ActionInstance.objects.get(id=str(collect_id)[10:]).alerts
 
-    # 如果没有告警ID，直接跳转到数据检索页
-    if not alert_ids:
+    # 如果有告警ID，跳转到数据检索页
+    if alert_ids:
         params = resource.alert.get_alert_data_retrieval(alert_id=alert_ids[0])
         if params:
             if params["type"] == "metric":
