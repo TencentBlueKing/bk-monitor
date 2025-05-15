@@ -710,7 +710,11 @@ export default defineComponent({
                   resizable: true,
                   cellKey: item.id,
                   colKey: item.id,
-                  ellipsis: true,
+                  ellipsis: {
+                    popperOptions: {
+                      strategy: 'fixed',
+                    },
+                  },
                   sortType: 'all',
                   sorter: item.sortable,
                   filter: item.filter?.length

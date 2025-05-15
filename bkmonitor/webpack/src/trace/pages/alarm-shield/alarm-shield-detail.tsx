@@ -397,7 +397,11 @@ export default defineComponent({
                                     {
                                       colKey: 'name',
                                       title: this.scopeLabelMap?.[this.scopeData?.type] || '',
-                                      ellipsis: true,
+                                      ellipsis: {
+                                        popperOptions: {
+                                          strategy: 'fixed',
+                                        },
+                                      },
                                     },
                                   ]}
                                   bordered={true}
@@ -468,7 +472,11 @@ export default defineComponent({
                                     {
                                       colKey: 'name',
                                       title: this.scopeLabelMap?.[this.strategyData?.scope?.type] || '',
-                                      ellipsis: true,
+                                      ellipsis: {
+                                        popperOptions: {
+                                          strategy: 'fixed',
+                                        },
+                                      },
                                     },
                                   ]}
                                   bordered={true}

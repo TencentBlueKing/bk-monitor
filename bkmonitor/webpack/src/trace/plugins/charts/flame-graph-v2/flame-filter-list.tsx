@@ -189,7 +189,11 @@ export default defineComponent({
             {
               sorter: false,
               colKey: 'display_name',
-              ellipsis: true,
+              ellipsis: {
+                popperOptions: {
+                  strategy: 'fixed',
+                },
+              },
               title: () => (
                 <div class='col-label'>
                   <Select
@@ -213,7 +217,11 @@ export default defineComponent({
             {
               colKey: 'value',
               align: 'right',
-              ellipsis: true,
+              ellipsis: {
+                popperOptions: {
+                  strategy: 'fixed',
+                },
+              },
               title: () => (
                 <div class='col-value'>
                   <Select

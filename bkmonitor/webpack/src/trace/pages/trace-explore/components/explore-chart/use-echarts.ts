@@ -397,7 +397,6 @@ export const useEcharts = (
     },
     {
       immediate: true,
-      flush: 'post',
     }
   );
   return {

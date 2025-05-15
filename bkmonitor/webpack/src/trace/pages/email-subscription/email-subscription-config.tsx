@@ -1304,7 +1304,11 @@ export default defineComponent({
                     : undefined,
                   minWidth: item?.minWidth,
                   sorter: item.sortable,
-                  ellipsis: true,
+                  ellipsis: {
+                    popperOptions: {
+                      strategy: 'fixed',
+                    },
+                  },
                   title: item.label,
                   cell: (_, ctx) => this.handleSetFormat(ctx, item.field),
                 };
@@ -1366,7 +1370,11 @@ export default defineComponent({
               columns={this.tableForSelf.columns.map(item => ({
                 colKey: item.field,
                 cell: (_, ctx) => this.handleSetFormat(ctx, item.field),
-                ellipsis: true,
+                ellipsis: {
+                  popperOptions: {
+                    strategy: 'fixed',
+                  },
+                },
                 title: item.label,
                 filter: item.filter?.length
                   ? {

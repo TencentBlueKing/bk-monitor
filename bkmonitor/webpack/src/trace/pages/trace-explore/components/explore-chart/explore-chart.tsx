@@ -31,6 +31,8 @@ import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 import ChartTitle from '../../../../plugins/components/chart-title';
 // import { useTraceExploreStore } from '@/store/modules/explore';
 
+import { shallowRef } from 'vue';
+
 import { useTraceExploreStore } from '@/store/modules/explore';
 
 import CommonLegend from '../../../../plugins/components/common-legend';
@@ -58,6 +60,7 @@ export default defineComponent({
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
+    const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
     const { options, loading, metricList, targets, series } = useEcharts(
       panel,
@@ -72,21 +75,32 @@ export default defineComponent({
       chartRef
     );
     const { legendData, handleSelectLegend } = useChartLegend(options);
-    const handleDataZoom = (event: DataZoomEvent) => {
-      const xAxisData = options.value.xAxis[0]?.data;
-      if (!xAxisData.length || xAxisData.length < 2) return;
+    const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
+      if (!mouseIn.value) return;
+      const xAxisData = echartOptions.xAxis[0]?.data;
+      console.info(xAxisData, '__________');
+      if (!xAxisData.length || xAxisData.length <= 2) return;
       chartInstance.value.dispatchAction({
         type: 'restore',
       });
-      const { startValue, endValue } = event.batch[0];
+      let { startValue, endValue } = event.batch[0];
+      startValue = Math.max(0, startValue);
+      endValue = Math.min(endValue, xAxisData.length - 1);
       let endTime = xAxisData[endValue];
+      let startTime = xAxisData[startValue];
       if (startValue === endValue) {
         endTime = xAxisData[endValue + 1];
-        if (!endTime) {
-          endTime = xAxisData[startValue] + 1000;
-        }
       }
-      store.updateTimeRange([xAxisData[startValue], endTime]);
+      if (!endTime) {
+        endTime = xAxisData[startValue] + 1000;
+      }
+      if (!startTime) {
+        startTime = xAxisData[0];
+      }
+      store.updateTimeRange([startTime, endTime]);
+    };
+    const handleMouseInChange = (v: boolean) => {
+      mouseIn.value = v;
     };
     watch(
       [loading, options],
@@ -116,6 +130,7 @@ export default defineComponent({
       handleMetricClick,
       handleSelectLegend,
       handleDataZoom,
+      handleMouseInChange,
     };
   },
   render() {
@@ -151,7 +166,9 @@ export default defineComponent({
               group={this.panel.dashboardId}
               option={this.options}
               autoresize
-              onDatazoom={this.handleDataZoom}
+              onDatazoom={e => this.handleDataZoom(e, this.options)}
+              onMouseout={() => this.handleMouseInChange(true)}
+              onMouseover={() => this.handleMouseInChange(true)}
             />
             <CommonLegend
               legendData={this.legendData}

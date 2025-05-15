@@ -330,7 +330,11 @@ export default defineComponent({
         title: t('告警ID'),
         colKey: 'id',
         minWidth: 134,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         disabled: true,
         cell: (_, { row: data }) => {
           return (
@@ -357,7 +361,11 @@ export default defineComponent({
         title: t('告警名称'),
         colKey: 'alert_name',
         minWidth: 134,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
@@ -381,7 +389,11 @@ export default defineComponent({
         title: t('业务名称'),
         colKey: 'project',
         width: 157,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         minWidth: 60,
         cell: (_, { row: data }) => {
           return data.bk_biz_name || '--';
@@ -392,7 +404,11 @@ export default defineComponent({
         colKey: 'category_display',
         width: 134,
         minWidth: 60,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           return data.category_display;
         },
@@ -401,7 +417,11 @@ export default defineComponent({
         title: t('告警指标'),
         colKey: 'index',
         minWidth: 134,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
@@ -443,7 +463,11 @@ export default defineComponent({
         title: t('告警状态'),
         colKey: 'status',
         minWidth: 134,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           const { status } = data;
           return (
@@ -457,7 +481,11 @@ export default defineComponent({
         title: t('告警阶段'),
         colKey: 'stage_display',
         minWidth: 80,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           return data?.stage_display ?? '--';
         },
@@ -466,7 +494,11 @@ export default defineComponent({
         title: t('告警开始/结束时间'),
         colKey: 'time',
         minWidth: 145,
-        ellipsis: true,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
         cell: (_, { row: data }) => {
           return (
             <span class='time-column'>

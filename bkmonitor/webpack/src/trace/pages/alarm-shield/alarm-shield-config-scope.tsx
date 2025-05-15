@@ -428,7 +428,11 @@ export default defineComponent({
                       {
                         colKey: 'name',
                         title: this.scopeState?.labelMap?.[this.scopeState?.bkGroup?.value] || '',
-                        ellipsis: true,
+                        ellipsis: {
+                          popperOptions: {
+                            strategy: 'fixed',
+                          },
+                        },
                       },
                     ]}
                     bordered={true}

@@ -1051,7 +1051,11 @@ export default defineComponent({
                             {
                               width: '140px',
                               title: `${this.$t('订阅名称')}`,
-                              ellipsis: true,
+                              ellipsis: {
+                                popperOptions: {
+                                  strategy: 'fixed',
+                                },
+                              },
                               cell: (_, { row: data }) => {
                                 return (
                                   <div style='display: flex;align-items: center;'>
@@ -1071,13 +1075,21 @@ export default defineComponent({
                             },
                             {
                               width: '80px',
-                              ellipsis: true,
+                              ellipsis: {
+                                popperOptions: {
+                                  strategy: 'fixed',
+                                },
+                              },
                               title: `${this.$t('变量说明')}`,
                               colKey: 'description',
                             },
                             {
                               width: '160px',
-                              ellipsis: true,
+                              ellipsis: {
+                                popperOptions: {
+                                  strategy: 'fixed',
+                                },
+                              },
                               title: `${this.$t('示例')}`,
                               colKey: 'example',
                             },

@@ -706,7 +706,14 @@ export default defineComponent({
                       colKey: column.field,
                       cell: (_, { row }) => this.handleSetFormatter(row, column.field),
                       title: column.title,
-                      ellipsis: true,
+                      ellipsis: {
+                        popperOptions: {
+                          strategy: 'fixed',
+                        },
+                        onVisibleChange(v, ctx) {
+                          console.info(v, ctx);
+                        },
+                      },
                       filter: column.filters?.length
                         ? {
                             list: column.filters,
