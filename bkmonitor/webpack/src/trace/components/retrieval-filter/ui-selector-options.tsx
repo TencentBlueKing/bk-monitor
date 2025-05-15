@@ -115,7 +115,8 @@ export default defineComponent({
       handleSearchChange();
     }, 300);
 
-    init();
+    let cleanup = () => {};
+
     watch(
       () => props.fields,
       () => {
@@ -130,6 +131,7 @@ export default defineComponent({
           initData();
         }
         if (val) {
+          init();
           if (props.value) {
             const id = props.value.key.id;
             let index = -1;
@@ -161,6 +163,8 @@ export default defineComponent({
               searchInputRef.value?.focus();
             }, 300);
           }
+        } else {
+          cleanup?.();
         }
       },
       { immediate: true }
@@ -168,7 +172,7 @@ export default defineComponent({
 
     function init() {
       isMacSystem.value = detectOperatingSystem() === 'macOS';
-      useEventListener(window, 'keydown', handleKeydownEvent);
+      cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
     }
 
     function initData() {
@@ -407,6 +411,7 @@ export default defineComponent({
               : [],
             fields: [params.field],
             limit: params.limit,
+            isInit__: params?.isInit__ || false,
           })
           .then(data => {
             resolve(data);
