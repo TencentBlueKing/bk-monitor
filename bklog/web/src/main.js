@@ -75,8 +75,9 @@ const mountedVueInstance = () => {
     },
   };
   preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
-    const spaceUid = localStorage.getItem('space_uid');
-    const bkBizId = localStorage.getItem('bk_biz_id');
+    const spaceUid = store.state.spaceUid;
+    const bkBizId = store.state.bkBizId;
+
     const router = getRouter(spaceUid, bkBizId);
     setRouterErrorHandle(router);
 

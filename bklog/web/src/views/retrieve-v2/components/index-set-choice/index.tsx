@@ -179,6 +179,7 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       document.removeEventListener('keydown', handleKeyDown);
+      refRootElement.value?.hide();
     });
 
     const contentStyleVar = computed(() => {
