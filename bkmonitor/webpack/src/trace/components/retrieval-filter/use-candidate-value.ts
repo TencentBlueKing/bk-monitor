@@ -33,7 +33,6 @@ type ICandidateValueMap = Map<
   {
     values: { id: string; name: string }[];
     isEnd: boolean;
-    limit: number;
   }
 >;
 interface IParams {
@@ -45,16 +44,21 @@ interface IParams {
   query_string: string;
 }
 export const useCandidateValue = () => {
-  const candidateValueMap: ICandidateValueMap = new Map();
+  let candidateValueMap: ICandidateValueMap = new Map();
   let axiosController = new AbortController();
 
+  /* 缓存条件: 
+    第一次调用接口时已获取到全部数据.
+    同时只能缓存一个字段的候选值.
+  */
   function getFieldsOptionValuesProxy(params: IParams): Promise<{ id: string; name: string }[]> {
     return new Promise((resolve, _reject) => {
       const candidateItem = candidateValueMap.get(getMapKey(params));
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
-      const hasData = candidateItem?.values?.length >= params.limit || candidateItem?.isEnd;
-      if (searchValue ? candidateItem?.isEnd : hasData && !params?.query_string) {
+      // const hasData = candidateItem?.values?.length >= params.limit || candidateItem?.isEnd;
+      // if (searchValue ? candidateItem?.isEnd : hasData && !params?.query_string) {
+      if (candidateItem?.isEnd && !params?.query_string) {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();
@@ -78,12 +82,14 @@ export const useCandidateValue = () => {
                 id: item,
                 name: transformFieldName(params?.fields?.[0], item) || '',
               })) || [];
-            if (!searchValue) {
-              candidateValueMap.set(getMapKey(params), {
+            const isEnd = values.length < params.limit;
+            if (!searchValue && isEnd) {
+              const newMap = new Map();
+              newMap.set(getMapKey(params), {
                 values,
-                isEnd: values.length < params.limit,
-                limit: params.limit,
+                isEnd: isEnd,
               });
+              candidateValueMap = newMap;
             }
             resolve(values);
           })
