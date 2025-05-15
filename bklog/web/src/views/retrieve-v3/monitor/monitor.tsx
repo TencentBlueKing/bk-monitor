@@ -39,7 +39,6 @@ import useAppInit from '../use-app-init';
 import '../../../static/style.css';
 import '../../../static/font-face/index.css';
 import './monitor.scss';
-
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {

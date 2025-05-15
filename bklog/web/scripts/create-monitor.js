@@ -154,6 +154,7 @@ const createMonitorConfig = config => {
           'dayjs',
           /lodash/,
           /vue-json-pretty/,
+          /monaco-editor/,
           ({ request }, cb) => {
             if (request === 'echarts') {
               return cb(undefined, request.replace(request, request));
