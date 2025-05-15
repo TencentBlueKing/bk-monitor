@@ -645,20 +645,20 @@ class K8sClusterMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_master_node_count(self):
+        """count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{role=~"master|control-plane"}))"""
         filter_string = self.filter.filter_string()
         filter_string += ","
-        filter_string += 'role!="master|control-plane"'
-        return f"""count(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
-
+        filter_string += 'role=~"master|control-plane"'
+        return f"""count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
     @property
     def meta_prom_with_worker_node_count(self):
-        """count(kube_node_labels) - count(sum by (bcs_cluster_id)(kube_node_role{role=~"master|control-plane"}))"""
+        """count by(bcs_cluster_id)(kube_node_labels) - count(sum by (bcs_cluster_id, node)(kube_node_role{role=~"master|control-plane"}))"""
         filter_string = self.filter.filter_string()
         filter_string += ","
-        filter_string += 'role!="master|control-plane"'
-        return f"""(count(kube_node_labels{{{filter_string}}})
+        filter_string += 'role=~"master|control-plane"'
+        return f"""(count by(bcs_cluster_id)(kube_node_labels{{{filter_string}}})
          -
-         count(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}})))"""
+         count(sum by (node)(kube_node_role{{{filter_string}}})))"""
 
     @property
     def meta_prom_with_node_pod_usage(self):
@@ -799,25 +799,6 @@ class K8sNodeMeta(K8sResourceMeta):
                 filter_string = f"bcs_cluster_id={f_obj.filter_string().split('=')[1]}"
                 return filter_string
         return ""
-
-    @property
-    def meta_prom_with_master_node_count(self):
-        filter_string = self.bcs_cluster_id_filter
-        if filter_string:
-            filter_string += ","
-        filter_string += 'role=~"master|control-plane"'
-        return f"""count(sum by (node)(kube_node_role{{{filter_string}}}))"""
-
-    @property
-    def meta_prom_with_worker_node_count(self):
-        """count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))"""
-        filter_string = self.bcs_cluster_id_filter
-        if filter_string:
-            filter_string += ","
-        filter_string += 'role=~"master|control-plane"'
-        return f"""(count(kube_node_labels{{{self.bcs_cluster_id_filter}}})
-         -
-         count(sum by (node)(kube_node_role{{{filter_string}}})))"""
 
     @property
     def meta_prom_with_node_pod_usage(self):
