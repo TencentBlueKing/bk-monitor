@@ -38,6 +38,8 @@ __all__ = [
 class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     module_name = "cmdb"
     return_type = list
+    # CMDB API 已在请求头的 x-bkapi-authorization 中包含了 bk_username，不需要在请求参数中重复添加
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     def use_apigw(self):
         """
@@ -209,9 +211,6 @@ class SearchObjectAttribute(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-
-    def use_apigw(self):
-        return False
 
     @property
     def action(self):
