@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import VueRouter from 'vue-router';
+
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import VueRouter from 'vue-router';
-import RouteUrlResolver from './url-resolver';
+
 import { RouteParams, BK_LOG_STORAGE } from './store.type';
+import RouteUrlResolver from './url-resolver';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -97,10 +99,15 @@ const getUrlArgs = () => {
   const hash = window.location.hash.replace(/^#/, '');
   const route = router.resolve(hash);
   const urlResulver = new RouteUrlResolver({ route: route.resolved });
-  urlResulver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+  urlResulver.setResolver('index_id', () => {
+    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+    return route.resolved.params.indexId ?? '';
+    // #else
+    // #code return route.resolved.query.indexId ?? '';
+    // #endif
+  });
   return urlResulver.convertQueryToStore<RouteParams>();
 };
-
 export const URL_ARGS = getUrlArgs();
 
 export const getDefaultRetrieveParams = () => {
@@ -176,7 +183,6 @@ export const IndexFieldInfo = {
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
-
 export const IndexItem = {
   ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
   isUnionIndex: URL_ARGS.unionList?.length ?? false,

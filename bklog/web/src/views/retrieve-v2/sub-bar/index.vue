@@ -1,256 +1,256 @@
 <script setup>
-  import { ref, computed } from 'vue';
-  import { bkMessage } from 'bk-magic-vue';
+import { ref, computed } from 'vue';
+import { bkMessage } from 'bk-magic-vue';
 
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
-  import useStore from '@/hooks/use-store';
-  import { ConditionOperator } from '@/store/condition-operator';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
-  import { useRoute, useRouter } from 'vue-router/composables';
+import FieldSetting from '@/global/field-setting.vue';
+import VersionSwitch from '@/global/version-switch.vue';
+import useStore from '@/hooks/use-store';
+import { ConditionOperator } from '@/store/condition-operator';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { isEqual } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
 
-  import IndexSetChoice from '../components/index-set-choice/index';
-  import { getInputQueryIpSelectItem } from '../search-bar/const.common';
-  import QueryHistory from './query-history';
-  import TimeSetting from './time-setting';
-  import ClusterSetting from '../setting-modal/index.vue';
-  import BarGlobalSetting from './bar-global-setting.tsx';
-  import MoreSetting from './more-setting.vue';
-  import WarningSetting from './warning-setting.vue';
-  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
-  import * as authorityMap from '@/common/authority-map';
+import IndexSetChoice from '../components/index-set-choice/index';
+import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+import QueryHistory from './query-history';
+import TimeSetting from './time-setting';
+import ClusterSetting from '../setting-modal/index.vue';
+import BarGlobalSetting from './bar-global-setting.tsx';
+import MoreSetting from './more-setting.vue';
+import WarningSetting from './warning-setting.vue';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import * as authorityMap from '@/common/authority-map';
 
-  const props = defineProps({
-    showFavorites: {
-      type: Boolean,
-      default: true,
-    },
-  });
-  const route = useRoute();
-  const router = useRouter();
-  const store = useStore();
+const props = defineProps({
+  showFavorites: {
+    type: Boolean,
+    default: true,
+  },
+});
+const route = useRoute();
+const router = useRouter();
+const store = useStore();
 
-  const fieldSettingRef = ref(null);
+const fieldSettingRef = ref(null);
 
-  const isShowClusterSetting = ref(false);
-  const indexSetParams = computed(() => store.state.indexItem);
+const isShowClusterSetting = ref(false);
+const indexSetParams = computed(() => store.state.indexItem);
 
-  // 索引集列表
-  const indexSetList = computed(() => store.state.retrieve.indexSetList);
+// 索引集列表
+const indexSetList = computed(() => store.state.retrieve.indexSetList);
 
-  // 索引集选择结果
-  const indexSetValue = computed(() => store.state.indexItem.ids);
+// 索引集选择结果
+const indexSetValue = computed(() => store.state.indexItem.ids);
 
-  // 索引集类型
-  const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+// 索引集类型
+const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
 
-  // 索引集当前激活Tab
-  const indexSetTab = computed(() => {
-    return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
-  });
+// 索引集当前激活Tab
+const indexSetTab = computed(() => {
+  return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
+});
 
-  const spaceUid = computed(() => store.state.spaceUid);
+/** 是否是监控组件 */
+const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
 
-  const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
-  });
+const spaceUid = computed(() => store.state.spaceUid);
 
-  // 如果不是采集下发和自定义上报则不展示
-  const hasCollectorConfigId = computed(() => {
-    const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.value.find(item => item.index_set_id == indexSetId);
-    return currentIndexSet?.collector_config_id;
-  });
+const textDir = computed(() => {
+  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+});
 
-  const isExternal = computed(() => store.state.isExternal);
+// 如果不是采集下发和自定义上报则不展示
+const hasCollectorConfigId = computed(() => {
+  const indexSetId = route.params?.indexId;
+  const currentIndexSet = indexSetList.value.find(item => item.index_set_id == indexSetId);
+  return currentIndexSet?.collector_config_id;
+});
 
-  const isFieldSettingShow = computed(() => {
-    return !store.getters.isUnionSearch && !isExternal.value;
-  });
+const isExternal = computed(() => store.state.isExternal);
 
-  const setRouteParams = (ids, isUnionIndex) => {
-    if (isUnionIndex) {
-      router.replace({
-        params: {
-          ...route.params,
-          indexId: undefined,
-        },
-        query: {
-          ...route.query,
-          unionList: JSON.stringify(ids),
-          clusterParams: undefined,
-          [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-          [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
-        },
-      });
+const isFieldSettingShow = computed(() => {
+  return !store.getters.isUnionSearch && !isExternal.value;
+});
 
-      return;
-    }
-
+const setRouteParams = (ids, isUnionIndex) => {
+  if (isUnionIndex) {
     router.replace({
       params: {
         ...route.params,
-        indexId: ids[0],
+        indexId: undefined,
       },
       query: {
         ...route.query,
-        unionList: undefined,
+        unionList: JSON.stringify(ids),
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
         [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
       },
     });
-  };
 
-  const setRouteQuery = () => {
-    const query = { ...route.query };
-    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    return;
+  }
 
-    const resolver = new RetrieveUrlResolver({
-      keyword,
-      addition,
-      ip_chooser,
-      search_mode,
-      begin,
-      size,
+  router.replace({
+    params: {
+      ...route.params,
+      indexId: ids[0],
+    },
+    query: {
+      ...route.query,
+      unionList: undefined,
+      clusterParams: undefined,
       [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
       [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
-    });
+    },
+  });
+};
 
-    Object.assign(query, resolver.resolveParamsToUrl());
+const setRouteQuery = () => {
+  const query = { ...route.query };
+  const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
 
-    router.replace({
-      query,
-    });
-  };
+  const resolver = new RetrieveUrlResolver({
+    keyword,
+    addition,
+    ip_chooser,
+    search_mode,
+    begin,
+    size,
+    [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+    [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+  });
 
-  const handleIndexSetSelected = async payload => {
-    if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
+  Object.assign(query, resolver.resolveParamsToUrl());
 
-      setRouteParams(payload.ids, payload.isUnionIndex);
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('updateIndexItem', payload);
+  router.replace({
+    query,
+  });
+};
 
-      if (!payload.isUnionIndex) {
-        store.commit('updateIndexId', payload.ids[0]);
-      }
+const handleIndexSetSelected = async payload => {
+  if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+    RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
 
-      store.commit('updateSqlQueryFieldList', []);
-      store.commit('updateIndexSetQueryResult', {
-        origin_log_list: [],
-        list: [],
-      });
+    setRouteParams(payload.ids, payload.isUnionIndex);
+    store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+    store.commit('updateIndexItem', payload);
 
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
-        store.dispatch('requestIndexSetQuery');
-      });
-    }
-  };
-
-  const updateSearchParam = payload => {
-    const { keyword, addition, ip_chooser, search_mode } = payload;
-    const foramtAddition = (addition ?? []).map(item => {
-      const instance = new ConditionOperator(item);
-      return instance.formatApiOperatorToFront();
-    });
-
-    if (Object.keys(ip_chooser).length) {
-      foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
+    if (!payload.isUnionIndex) {
+      store.commit('updateIndexId', payload.ids[0]);
     }
 
-    store.commit('updateIndexItemParams', {
-      keyword,
-      addition: foramtAddition,
-      ip_chooser,
-      begin: 0,
-      search_mode,
+    store.commit('updateSqlQueryFieldList', []);
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
     });
 
-    setRouteQuery();
-    setTimeout(() => {
+    store.dispatch('requestIndexSetFieldInfo').then(() => {
       store.dispatch('requestIndexSetQuery');
-      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
     });
-  };
-
-  const handleActiveTypeChange = type => {
-    const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
-    if (['union', 'single'].includes(type)) {
-      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
-      store.commit('updateIndexItem', {
-        isUnionIndex: type === 'union',
-      });
-    }
-
-    store.commit('updateStorage', storage);
-  };
-
-  const handleIndexSetValueChange = (values, type, id) => {
-    const storage = {};
-    if (['single', 'union'].includes(type)) {
-      store.commit('updateIndexItem', {
-        isUnionIndex: type === 'union',
-      });
-
-      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
-    }
-
-    if ('favorite' === indexSetTab.value) {
-      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: id, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
-    }
-
-    if ('history' === indexSetTab.value) {
-      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
-    }
-
-    store.commit('updateStorage', storage);
-    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
-  };
-
-  const handleAuthRequest = item => {
-    try {
-      store
-        .dispatch('getApplyData', {
-          action_ids: [authorityMap.SEARCH_LOG_AUTH],
-          resources: [
-            {
-              type: 'indices',
-              id: item.index_set_id,
-            },
-          ],
-        })
-        .then(res => {
-          window.open(res.data.apply_url);
-        });
-    } catch (err) {
-      console.warn(err);
-    }
-  };
-
-  /**
-   * @description: 打开 索引集配置 抽屉页
-   */
-  function handleIndexConfigSliderOpen() {
-    if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
-      fieldSettingRef.value?.handleShowSlider?.();
-    } else {
-      bkMessage({
-        theme: 'primary',
-        message: '第三方ES、计算平台索引集类型不支持自定义分词',
-      });
-    }
   }
+};
+
+const updateSearchParam = payload => {
+  const { keyword, addition, ip_chooser, search_mode } = payload;
+  const foramtAddition = (addition ?? []).map(item => {
+    const instance = new ConditionOperator(item);
+    return instance.formatApiOperatorToFront();
+  });
+
+  if (Object.keys(ip_chooser).length) {
+    foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
+  }
+
+  store.commit('updateIndexItemParams', {
+    keyword,
+    addition: foramtAddition,
+    ip_chooser,
+    begin: 0,
+    search_mode,
+  });
+
+  setRouteQuery();
+  setTimeout(() => {
+    store.dispatch('requestIndexSetQuery');
+    RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+  });
+};
+
+const handleActiveTypeChange = type => {
+  const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
+  if (['union', 'single'].includes(type)) {
+    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+    store.commit('updateIndexItem', {
+      isUnionIndex: type === 'union',
+    });
+  }
+
+  store.commit('updateStorage', storage);
+};
+
+const handleIndexSetValueChange = (values, type, id) => {
+  const storage = {};
+  if (['single', 'union'].includes(type)) {
+    store.commit('updateIndexItem', {
+      isUnionIndex: type === 'union',
+    });
+
+    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+  }
+
+  if ('favorite' === indexSetTab.value) {
+    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: id, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+  }
+
+  if ('history' === indexSetTab.value) {
+    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
+  }
+
+  store.commit('updateStorage', storage);
+  handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
+};
+
+const handleAuthRequest = item => {
+  try {
+    store
+      .dispatch('getApplyData', {
+        action_ids: [authorityMap.SEARCH_LOG_AUTH],
+        resources: [
+          {
+            type: 'indices',
+            id: item.index_set_id,
+          },
+        ],
+      })
+      .then(res => {
+        window.open(res.data.apply_url);
+      });
+  } catch (err) {
+    console.warn(err);
+  }
+};
+
+/**
+ * @description: 打开 索引集配置 抽屉页
+ */
+function handleIndexConfigSliderOpen() {
+  if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+    fieldSettingRef.value?.handleShowSlider?.();
+  } else {
+    bkMessage({
+      theme: 'primary',
+      message: '第三方ES、计算平台索引集类型不支持自定义分词',
+    });
+  }
+}
 </script>
 <template>
   <div class="subbar-container">
-    <div
-      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
-      class="box-biz-select"
-    >
+    <div :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }" class="box-biz-select">
       <IndexSetChoice
         :index-set-list="indexSetList"
         :index-set-value="indexSetValue"
@@ -265,22 +265,15 @@
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
-
-    <div class="box-right-option">
+    <div v-if="!isMonitorComponent" class="box-right-option">
       <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <WarningSetting
-        v-if="!isExternal"
-        class="custom-border-right"
-      ></WarningSetting>
-      <ClusterSetting
-        class="custom-border-right"
-        v-model="isShowClusterSetting"
-      ></ClusterSetting>
+      <WarningSetting v-if="!isExternal" class="custom-border-right"></WarningSetting>
+      <ClusterSetting class="custom-border-right" v-model="isShowClusterSetting"></ClusterSetting>
       <!-- <div
         v-if="!isExternal"
       >
@@ -290,59 +283,53 @@
         class="custom-border-right"
         @show-index-config-slider="handleIndexConfigSliderOpen"
       ></BarGlobalSetting>
-      <div
-        v-if="!isExternal"
-        class="more-setting"
-      >
+      <div v-if="!isExternal" class="more-setting">
         <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
       </div>
-      <VersionSwitch
-        style="border-left: 1px solid #eaebf0"
-        version="v2"
-      />
+      <VersionSwitch style="border-left: 1px solid #eaebf0" version="v2" />
     </div>
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
+@import './index.scss';
 
-  .box-right-option {
-    .more-setting {
-      height: 100%;
+.box-right-option {
+  .more-setting {
+    height: 100%;
 
-      &:hover {
-        background: #f5f7fa;
-      }
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+
+  .custom-border-right {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    line-height: 20px;
+    border-right: 1px solid #eaebf0;
+
+    &:hover {
+      background: #f5f7fa;
     }
 
-    .custom-border-right {
-      display: flex;
-      align-items: center;
-      height: 100%;
-      line-height: 20px;
-      border-right: 1px solid #eaebf0;
+    &.query-params-wrap {
+      .__bk_date_picker__ {
+        color: #4d4f56;
 
-      &:hover {
-        background: #f5f7fa;
-      }
-
-      &.query-params-wrap {
-        .__bk_date_picker__ {
+        .date-icon {
           color: #4d4f56;
+        }
 
-          .date-icon {
-            color: #4d4f56;
-          }
+        .date-content {
+          padding: 0;
 
-          .date-content {
-            padding: 0;
-
-            & > svg {
-              fill: #4d4f56;
-            }
+          & > svg {
+            fill: #4d4f56;
           }
         }
       }
     }
   }
+}
 </style>

@@ -24,35 +24,100 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
+import { TimeRangeType } from '../../../components/time-range/time-range';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { updateTimezone } from '../../../language/dayjs';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import V3Container from '../container';
 import V3Collection from '../favorite';
 import V3Searchbar from '../search-bar';
 import V3SearchResult from '../search-result';
 import V3Toolbar from '../toolbar';
-import useAppInit from '../use-app-init';
+import useMonitorAppInit from './use-monitor-app-init';
 
-import '../../../static/style.css';
 import '../../../static/font-face/index.css';
+import '../../../static/style.css';
 import './monitor.scss';
 export default defineComponent({
   name: 'RetrieveV3',
-  setup() {
+  props: {
+    indexSetApi: {
+      type: Function,
+      default: null,
+    },
+    timeRange: {
+      type: Array,
+      default: () => ['now-15m', 'now'],
+    },
+    timezone: {
+      type: String,
+      default: '',
+    },
+    refreshImmediate: {
+      type: String,
+      default: '',
+    },
+    handleChartDataZoom: {
+      type: Function,
+      default: null,
+    },
+  },
+  setup(props) {
     const store = useStore();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
-      useAppInit();
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, isPreApiLoaded, getIndexSetList } =
+      useMonitorAppInit(props.indexSetApi);
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+
+    const init = () => {
+      const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
+      store.commit('updateIndexItem', {
+        start_time: result[0],
+        end_time: result[1],
+        datePickerValue: props.timeRange,
+      });
+    };
+    init();
+
+    watch(
+      () => props.timeRange,
+      async val => {
+        if (!val) return;
+        getIndexSetList();
+        store.commit('updateIsSetDefaultTableColumn', false);
+        const result = handleTransformToTimestamp(val as TimeRangeType, store.getters.retrieveParams.format);
+        store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+        await store.dispatch('requestIndexSetFieldInfo');
+        store.dispatch('requestIndexSetQuery');
+      },
+    );
+
+    watch(
+      () => props.timezone,
+      val => {
+        if (!val) return;
+        store.commit('updateIndexItemParams', { timezone: val });
+        updateTimezone(val);
+        store.dispatch('requestIndexSetQuery');
+      },
+    );
+
+    watch(
+      () => props.refreshImmediate,
+      () => {
+        store.dispatch('requestIndexSetQuery');
+      },
+    );
 
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return (
           <div
-            style={contentStyle.value}
+            style='width: 100%'
             class='v3-bklog-content'
           >
             <V3Toolbar></V3Toolbar>
