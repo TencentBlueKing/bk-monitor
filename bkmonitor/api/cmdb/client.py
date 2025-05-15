@@ -38,6 +38,7 @@ __all__ = [
 class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     module_name = "cmdb"
     return_type = list
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     def use_apigw(self):
         """
@@ -209,9 +210,6 @@ class SearchObjectAttribute(CMDBBaseResource):
     """
 
     cache_type = CacheType.CC_BACKEND
-
-    def use_apigw(self):
-        return False
 
     @property
     def action(self):
