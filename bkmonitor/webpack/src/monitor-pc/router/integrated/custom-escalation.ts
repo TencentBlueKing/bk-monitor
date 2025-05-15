@@ -116,37 +116,13 @@ export default [
     },
   },
   {
-    path: '/custom-escalation-detail/timeseries/:id',
-    name: 'custom-detail-timeseries',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: CustomEscalationDetail,
-    },
-    meta: {
-      title: '详情',
-      navId: 'custom-metric',
-      needBack: true,
-      authority: {
-        map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC,
-      },
-      route: {
-        parent: 'custom-metric',
-      },
-      needCopyLink: true,
-      noNavBar: true,
-    },
-  },
-  {
     path: '/custom-escalation-view/:id',
     name: 'custom-escalation-view',
     props: {
       noCache: true,
     },
     components: {
-      noCache: CustomEscalationView,
+      noCache: NewCustomEscalationView,
     },
     meta: {
       title: '可视化',
@@ -187,35 +163,10 @@ export default [
       },
     },
   },
-  /** 新版自定义指标页面 */
-  {
-    path: '/new-custom-escalation-view/:id',
-    name: 'new-custom-escalation-view',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: NewCustomEscalationView,
-    },
-    meta: {
-      title: '新版自定义指标页面',
-      navId: 'custom-metric',
-      needBack: true,
-      customTitle: true,
-      noNavBar: true,
-      authority: {
-        map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC,
-      },
-      route: {
-        parent: 'custom-metric',
-      },
-    },
-  },
   /** 新版自定义指标详情页 */
   {
-    path: '/new-custom-escalation-detail/timeseries/:id/:activeTab?',
-    name: 'new-custom-detail-timeseries',
+    path: '/custom-escalation-detail/timeseries/:id/:activeTab?',
+    name: 'custom-detail-timeseries',
     props: {
       noCache: true,
     },
