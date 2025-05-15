@@ -33,6 +33,7 @@ import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from
 
 import RemoveConfirm from './components/remove-confirm';
 import ViewSave from './components/view-save';
+import ViewManage from './components/view-manage';
 
 import './index.scss';
 
@@ -186,6 +187,10 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       ...this.viewList[0],
       view_order: this.tabRef.visiblePanels.map(item => item.name),
     });
+    console.log(
+      this.tabRef.visiblePanels.map(item => item.name),
+      'this.tabRef.visiblePanels.map(item => item.name)'
+    );
   }
 
   async handleRemoveView(id: string) {
@@ -257,6 +262,12 @@ export default class ViewTab extends tsc<IProps, IEmit> {
             </bk-tab>
           )}
           <div class='extend-action'>
+            <ViewManage
+              payload={this.graphConfigPayload}
+              sceneId={this.sceneId}
+              viewList={this.viewList}
+              onSuccess={this.handleViewSaveSuccess}
+            />
             <ViewSave
               payload={this.graphConfigPayload}
               sceneId={this.sceneId}

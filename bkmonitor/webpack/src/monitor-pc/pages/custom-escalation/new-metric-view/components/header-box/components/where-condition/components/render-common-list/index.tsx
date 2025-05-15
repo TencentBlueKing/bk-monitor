@@ -68,14 +68,34 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             onChange={this.handleChange}
           />
         ))}
+        {this.data.length > 0 && (
+          <router-link
+            style='color: #3a84ff;'
+            to={{
+              name: 'new-custom-detail-timeseries',
+              params: {
+                id: this.$route.params.id,
+                activeTab: 'dimension',
+              },
+            }}
+            target='_blank'
+          >
+            <span class='filter-conditions-setting'>
+              {this.$t('设置')}
+              <i class='icon-monitor icon-mc-goto setting-icon' />
+            </span>
+          </router-link>
+        )}
         {this.data.length < 1 && (
           <i18n path='(暂无常用维度，请前往 {0} 设置)'>
             <router-link
               style='color: #3a84ff;'
               to={{
                 name: 'new-custom-detail-timeseries',
-                id: this.$route.params.id,
-                activeTab: 'dimension',
+                params: {
+                  id: this.$route.params.id,
+                  activeTab: 'dimension',
+                },
               }}
               target='_blank'
             >
