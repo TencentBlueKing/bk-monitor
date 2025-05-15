@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import BatchIAMPermission, InstanceActionPermission
@@ -32,6 +34,7 @@ from apps.log_trace.serializers import (
     UnionSearchAggsTermsSerializer,
     UnionSearchDateHistogramSerializer,
 )
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.drf import detail_route, list_route
 
 
@@ -176,6 +179,9 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(DateHistogramSerializer)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            return Response(UnifyQueryHandler(data).date_histogram())
         return Response(AggsViewAdapter().date_histogram(index_set_id, data))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")

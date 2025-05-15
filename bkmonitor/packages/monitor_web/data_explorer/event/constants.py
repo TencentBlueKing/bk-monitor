@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import sys
 from enum import Enum, IntEnum
-from typing import Dict, Tuple
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -73,7 +72,9 @@ class EventSource(CachedEnum):
     @cached_property
     def label(self):
         return str(
-            {self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")}.get(self, self.value)
+            {self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机"), self.DEFAULT: _("业务上报")}.get(
+                self, self.value
+            )
         )
 
     @classmethod
@@ -151,10 +152,9 @@ CATEGORY_WEIGHTS = {
     EventCategory.CICD_EVENT.value: CategoryWeight.CICD_EVENT.value,
 }
 
+DEFAULT_EVENT_ORIGIN: tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
 
-DEFAULT_EVENT_ORIGIN: Tuple[str, str] = (EventDomain.DEFAULT.value, EventSource.DEFAULT.value)
-
-EVENT_ORIGIN_MAPPING: Dict[str, Tuple[str, str]] = {
+EVENT_ORIGIN_MAPPING: dict[str, tuple[str, str]] = {
     EventCategory.SYSTEM_EVENT.value: (
         EventDomain.SYSTEM.value,
         EventSource.HOST.value,
@@ -195,7 +195,7 @@ class EventDimensionTypeEnum(Enum):
 
 
 # 事件字段别名
-EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
+EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
     EventCategory.COMMON.value: {
         "time": _("数据上报时间"),
         "event_name": _("事件名"),
@@ -275,12 +275,20 @@ class Operation:
     NE = {"alias": "!=", "value": "ne"}
     GT = {"alias": ">", "value": "gt"}
     GTE = {"alias": ">=", "value": "gte"}
-    LT = {"alias": "<", "value": "le"}
+    LT = {"alias": "<", "value": "lt"}
     LTE = {"alias": "<=", "value": "lte"}
     INCLUDE = {"alias": _("包含"), "value": "include"}
     EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
-    EQ_WITH_WILDCARD = {"alias": _("包含"), "value": "include", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
-    NE_WITH_WILDCARD = {"alias": _("不包含"), "value": "exclude", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
+    EQ_WITH_WILDCARD = {
+        "alias": _("包含"),
+        "value": "include",
+        "options": {"label": _("使用通配符"), "name": "is_wildcard"},
+    }
+    NE_WITH_WILDCARD = {
+        "alias": _("不包含"),
+        "value": "exclude",
+        "options": {"label": _("使用通配符"), "name": "is_wildcard"},
+    }
 
 
 # 类型和操作符映射
@@ -375,7 +383,7 @@ K8S_EVENT_TRANSLATIONS = {
     "CronJob": {
         "BackoffLimitExceeded": _("退避超限"),
         "SuccessfulCreate": _("Pod 创建"),
-        "SuccessfulDelete": _("Pod 删除 "),
+        "SuccessfulDelete": _("Pod 删除"),
         "SawCompletedJob": _("已完成"),
     },
     "Deployment": {
@@ -446,6 +454,56 @@ K8S_EVENT_TRANSLATIONS = {
         "NodeHasSufficientMemory": _("节点内存充足"),
         "NodeHasSufficientDisk": _("节点磁盘充足"),
         "NodeHasSufficientPID": _("节点 PID 充足"),
+    },
+    "Service": {
+        "EnsuringLoadBalancer": _("负载均衡器准备中"),
+        "EnsuredLoadBalancer": _("负载均衡器已就绪"),
+        "DeletingLoadBalancer": _("负载均衡器删除中"),
+        "DeletedLoadBalancer": _("负载均衡器已删除"),
+        "FailedToCreateLoadBalancer": _("负载均衡器创建失败"),
+        "FailedToDeleteLoadBalancer": _("负载均衡器删除失败"),
+        "PortConflict": _("端口冲突"),
+        "ProtocolNotSupported": _("协议不支持"),
+        "FailedToAllocateExternalIP": _("外部 IP 分配失败"),
+        "ExternalIPConflict": _("外部 IP 冲突"),
+        "NoEndpoints": _("无可用 Endpoints"),
+        "FailedToUpdateEndpointSlices": _("EndpointSlices 更新失败"),
+        "CloudProviderRateLimited": _("云提供商 API 限频"),
+        "QuotaExceeded": _("云资源配额不足"),
+        "SessionAffinityConflict": _("会话亲和性配置冲突"),
+        "AllocationFailed": _("资源分配失败"),
+        "InvalidExternalName": _("ExternalName 格式错误"),
+        "ClusterIPNotAllocated": _("ClusterIP 未分配"),
+    },
+    "Endpoints": {
+        "FailedToUpdateEndpoint": _("Endpoints 更新失败"),
+        "FailedToCreateEndpoint": _("Endpoints 创建失败"),
+        "FailedToDeleteEndpoint": _("Endpoints 删除失败"),
+        "NoMatchingPods": _("无匹配的 Pod"),
+        "PortConflict": _("端口冲突"),
+        "AddressNotReady": _("Pod IP 未就绪"),
+        "ResourceExhausted": _("资源不足"),
+        "InvalidTopology": _("拓扑约束不满足"),
+    },
+    "Ingress": {
+        "SyncLoadBalancerFailed": _("负载均衡器同步失败"),
+        "CreateLoadBalancerFailed": _("负载均衡器创建失败"),
+        "UpdateLoadBalancerFailed": _("负载均衡器更新失败"),
+        "DeleteLoadBalancerFailed": _("负载均衡器删除失败"),
+        "NoServersAvailable": _("无可用后端服务"),
+        "BackendNotFound": _("后端服务未找到"),
+        "InvalidTLSSecret": _("证书 Secret 无效"),
+        "CertificateExpired": _("证书已过期"),
+        "MissingTLSSecret": _("证书 Secret 缺失"),
+        "PathConflict": _("路径规则冲突"),
+        "AddressNotAssigned": _("域名未分配"),
+        "InvalidIngressClass": _("IngressClass 配置无效"),
+        "InvalidHost": _("Host 域名格式错误"),
+        "InvalidPath": _("路径规则格式错误"),
+        "UnsupportedProtocol": _("协议不支持"),
+        "FailedToUpdateStatus": _("状态更新失败"),
+        "QuotaExceeded": _("云资源配额不足"),
+        "NetworkPolicyConflict": _("网络策略冲突"),
     },
 }
 
@@ -592,3 +650,22 @@ class CicdStatus(CachedEnum):
         default = super().get_default(value)
         default.label = value
         return default
+
+
+class ContainerMonitorMetricsType(Enum):
+    """
+    容器监控指标类型枚举
+    """
+
+    PERFORMANCE: str = "performance"
+    NETWORK: str = "network"
+
+
+class ContainerMonitorTabType(Enum):
+    """
+    容器监控界面类型枚举
+    """
+
+    LIST: str = "list"
+    CHART: str = "chart"
+    DETAIL: str = "detail"

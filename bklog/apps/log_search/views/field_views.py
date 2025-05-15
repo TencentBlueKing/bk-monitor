@@ -30,7 +30,7 @@ from apps.log_search.serializers import (
     QueryFieldBaseSerializer,
 )
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
-from apps.log_unifyquery.handler import UnifyQueryHandler
+from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.utils.drf import list_route
 from apps.utils.thread import MultiExecuteFunc
 
@@ -70,7 +70,7 @@ class FieldViewSet(APIViewSet):
         multi_execute_func = MultiExecuteFunc()
 
         for field in fields_list:
-            query_handler = UnifyQueryHandler({"agg_field": field["field_name"], **params})
+            query_handler = UnifyQueryFieldHandler({"agg_field": field["field_name"], **params})
             multi_execute_func.append(f"distinct_count_{field['field_name']}", query_handler.get_distinct_count)
 
         multi_result = multi_execute_func.run(return_exception=True)
@@ -93,7 +93,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_topk_list
         """
         params = self.params_valid(FetchTopkListSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
         distinct_count = query_handler.get_distinct_count()
@@ -119,7 +119,7 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchValueListSerializer)
         index = "_".join(params["result_table_ids"]).replace(".", "_")
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         value_list = query_handler.get_value_list(params["limit"])
 
         output = StringIO()
@@ -142,7 +142,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_info
         """
         params = self.params_valid(FetchStatisticsInfoSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
 
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
@@ -175,7 +175,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_total_count
         """
         params = self.params_valid(QueryFieldBaseSerializer)
-        total_count = UnifyQueryHandler(params).get_total_count()
+        total_count = UnifyQueryFieldHandler(params).get_total_count()
         return Response({"total_count": total_count})
 
     @list_route(methods=["POST"], url_path="statistics/graph")
@@ -185,7 +185,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_graph
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         if FIELD_TYPE_MAP.get(params["field_type"], "") == FieldDataTypeEnum.INT.value:
             if params["distinct_count"] < params["threshold"]:
                 return Response(query_handler.get_topk_list(params["threshold"]))

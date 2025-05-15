@@ -421,7 +421,6 @@ export default {
   维度过滤: 'Dimension',
   维度条件: 'Conditions',
   维度名称: 'Dimension Name',
-  维度下钻: 'Facet',
   异常维度: 'Abnormal Dimension',
   '异常维度(组合)': 'Abnormal Dimension (combination)',
   指标数据: 'Metrics',
@@ -1927,4 +1926,8 @@ export default {
   语句模式: 'Statement mode',
   收藏名称: 'Collection name',
   收藏详情: 'Collection details',
+
+  总行数: 'Total number of branches',
+  出现行数: 'Number of rows appearing',
+  日志条数: 'Number of logs',
 };

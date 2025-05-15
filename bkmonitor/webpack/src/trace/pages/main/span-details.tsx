@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -46,6 +47,7 @@ import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
 import { useAppStore } from '../../store/modules/app';
+import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
@@ -93,6 +95,7 @@ export default defineComponent({
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
     const localShow = ref(false);
@@ -267,7 +270,7 @@ export default defineComponent({
         source,
         error,
         message,
-        /* eslint-disable-next-line @typescript-eslint/naming-convention */
+
         stage_duration,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
@@ -706,16 +709,14 @@ export default defineComponent({
     }
 
     async function getFlameGraphData() {
-      const halfHour = 18 * 10 ** 8;
-      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
-      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
+      const { start_time, end_time } = getProfilingTimeRange();
       const data: IFlameGraphDataItem = await apmProfileQuery(
         {
           bk_biz_id: bizId.value,
           app_name: appName.value,
           service_name: serviceNameProvider.value,
-          start: profilingRerieveStartTime,
-          end: profilingRerieveEndTime,
+          start: start_time,
+          end: end_time,
           profile_id: originalData.value.span_id,
           diagram_types: ['flamegraph'],
         },
@@ -992,6 +993,21 @@ export default defineComponent({
       // }
     ];
 
+    // 快捷跳转文案
+    const exploreButtonName = computed(() => {
+      switch (activeTab.value) {
+        case 'Container':
+          return spanDetailQueryStore.queryData?.pod_name ? t('容器监控') : '';
+        case 'Host':
+          return spanDetailQueryStore.queryData?.bk_host_id ? t('主机监控') : '';
+        case 'Log':
+          return spanDetailQueryStore.queryData?.indexId ? t('日志检索') : '';
+        case 'Profiling':
+          return spanId.value ? t('Profiling检索') : '';
+      }
+      return '';
+    });
+
     const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
@@ -1086,6 +1102,57 @@ export default defineComponent({
         isTabPanelLoading.value = false;
       }
     };
+    const getProfilingTimeRange = () => {
+      const halfHour = 18 * 10 ** 8;
+      return {
+        start_time: originalData.value?.start_time - halfHour,
+        end_time: originalData.value?.start_time + halfHour,
+      };
+    };
+    // 快捷跳转
+    const handleQuickJump = () => {
+      switch (activeTab.value) {
+        case 'Log': {
+          if (!spanDetailQueryStore.queryData?.indexId) return;
+          const { indexId, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+          const url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+          window.open(url, '_blank');
+          return;
+        }
+        case 'Host': {
+          if (!spanDetailQueryStore.queryData?.bk_host_id) return;
+          window.open(`#/performance/detail/${spanDetailQueryStore.queryData.bk_host_id}`, '_blank');
+          return;
+        }
+        case 'Container': {
+          if (!spanDetailQueryStore.queryData?.pod_name) return;
+          const { pod_name, bcs_cluster_id, namespace } = spanDetailQueryStore.queryData;
+          window.open(
+            `#/k8s-new/?sceneId=kubernetes&cluster=${bcs_cluster_id}&filterBy=${encodeURIComponent(JSON.stringify({ namespace: [namespace], pod: [pod_name] }))}&groupBy=${encodeURIComponent(JSON.stringify(['namespace', 'pod']))}`
+          );
+          return;
+        }
+        case 'Profiling': {
+          const { app_name, service_name, span_id } = props.spanDetails;
+          if (!span_id) return;
+          const { start_time, end_time } = getProfilingTimeRange();
+          window.open(
+            `#/trace/profiling/?target=${encodeURIComponent(
+              JSON.stringify({
+                app_name,
+                service_name,
+                start: (start_time / 1000).toFixed(0),
+                end: (end_time / 1000).toFixed(0),
+                filter_labels: {
+                  span_id,
+                },
+              })
+            )}`
+          );
+          return;
+        }
+      }
+    };
 
     /** 是否显示空数据提示 */
     const showEmptyGuide = () => {
@@ -1149,9 +1216,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
-      const halfHour = 18 * 10 ** 8;
-      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
-      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
+      const { start_time, end_time } = getProfilingTimeRange();
       return (
         <Loading
           style='height: 100%;'
@@ -1231,6 +1296,24 @@ export default defineComponent({
                   <MonitorTab
                     key='info-tab'
                     class='info-tab'
+                    v-slots={{
+                      setting: () => {
+                        return (
+                          exploreButtonName.value && (
+                            <Button
+                              class='quick-jump'
+                              size='small'
+                              theme='primary'
+                              outline
+                              onClick={handleQuickJump}
+                            >
+                              {exploreButtonName.value}
+                              <i class='icon-monitor icon-fenxiang' />
+                            </Button>
+                          )
+                        );
+                      },
+                    }}
                     active={activeTab.value}
                     onTabChange={v => {
                       activeTab.value = v;
@@ -1449,10 +1532,10 @@ export default defineComponent({
                                 appName={appName.value}
                                 bizId={bizId.value}
                                 data={profilingFlameGraph.value}
-                                end={profilingRerieveEndTime}
+                                end={start_time}
                                 profileId={originalData.value.span_id}
                                 serviceName={serviceNameProvider.value}
-                                start={profilingRerieveStartTime}
+                                start={end_time}
                                 textDirection={ellipsisDirection.value}
                                 onUpdate:loading={val => {
                                   isTabPanelLoading.value = val;

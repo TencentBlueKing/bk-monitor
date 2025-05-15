@@ -551,6 +551,8 @@ export class PanelModel implements IPanelModel {
   realHeight = 0;
   // 是否显示
   show?: boolean = true;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  sub_title?: string;
   subTitle!: string;
   // 图表数据源
   targets: DataQuery[];

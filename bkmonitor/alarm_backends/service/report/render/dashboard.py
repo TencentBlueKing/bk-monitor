@@ -2,7 +2,6 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 from urllib.parse import quote
 
 from django.conf import settings
@@ -25,14 +24,20 @@ class RenderDashboardConfig:
     dashboard_uid: str
     width: int
     height: int
-    panel_id: Optional[str] = None
-    variables: Dict[str, List[str]] = field(default_factory=dict)
+    panel_id: str | None = None
+    variables: dict[str, list[str]] = field(default_factory=dict)
     start_time: int = field(default_factory=lambda: int(time.time() - 10800))
     end_time: int = field(default_factory=lambda: int(time.time()))
     # 是否需要标题，仅单个图表渲染时需要
     with_panel_title: bool = True
     # 像素比，默认为2，越大越清晰，但是图片大小也越大，最大值为4
     scale: int = 2
+    # 图片格式，默认jpeg, jpeg/png
+    image_format: str = "jpeg"
+    # 图片质量，默认85，范围0-100
+    image_quality: int = 85
+    # 是否透明背景，默认False
+    transparent: bool = False
 
 
 def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False):
@@ -41,7 +46,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
     """
     # 获取路径前缀
     if external:
-        prefix = f"http://{settings.BK_MONITOR_HOST.rstrip('/')}grafana/"
+        prefix = f"{settings.BK_MONITOR_HOST.rstrip('/')}/grafana/"
     else:
         if settings.BK_MONITOR_HOST.endswith("/o/bk_monitorv3/"):
             path_prefix = "/o/bk_monitorv3/"
@@ -66,7 +71,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
         variables_str = f"&{variables_str}"
 
     # 生成时间url参数
-    time_str = f"&from={config.start_time*1000}&to={config.end_time*1000}"
+    time_str = f"&from={config.start_time * 1000}&to={config.end_time * 1000}"
 
     # 生成仪表盘链接
     if config.panel_id:
@@ -123,6 +128,9 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
         await page.setViewport({"width": config.width, "height": heights["scroll"], "deviceScaleFactor": config.scale})
         content_selector = "div.react-grid-layout"
 
+    if config.transparent:
+        await page.evaluate("document.body.style.setProperty('background-color', 'transparent', 'important');")
+
     # 等待2秒，等待图表渲染动画完成
     time.sleep(2)
 
@@ -133,7 +141,9 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     target = await page.querySelector(content_selector)
     if not target:
         raise CustomError(message="screenshot target not found")
-    image = await target.screenshot(type="jpeg", quality=85)
+    image = await target.screenshot(
+        type=config.image_format, quality=config.image_quality, omitBackground=config.transparent
+    )
 
     # 关闭页面
     try:

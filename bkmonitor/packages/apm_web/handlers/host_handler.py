@@ -159,6 +159,27 @@ class HostHandler:
         return cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
 
     @classmethod
+    def has_hosts_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
+        """
+        是否存在主机关联
+        """
+        if api.apm_api.query_host_instance(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
+            return True
+
+        if CMDBServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        ).exists():
+            return True
+
+        if not start_time or not end_time:
+            end_time = int(time.time())
+            start_time = end_time - cls.ONE_HOUR_SECONDS
+        if cls.get_hosts_from_auto_relation(bk_biz_id, app_name, service_name, start_time, end_time):
+            return True
+
+        return False
+
+    @classmethod
     def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
         """
         获取应用的主机列表

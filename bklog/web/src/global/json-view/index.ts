@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage } from '@/common/util';
+import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
@@ -38,11 +39,14 @@ export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  JSONBigInstance: JSONBig;
+
   rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
+    this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
   }
 
   private createJsonField(name: number | string) {
@@ -82,7 +86,7 @@ export default class JsonView {
       return node;
     }
 
-    Object.keys(target).forEach(key => {
+    Object.keys(target ?? {}).forEach(key => {
       const row = document.createElement('div');
       row.classList.add('bklog-json-view-row');
       row.setAttribute('data-field-name', key);
@@ -99,37 +103,40 @@ export default class JsonView {
   private createObjectNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
-    const iconExpand = document.createElement('span');
-
     const isExpand = depth <= this.options.depth;
-
-    iconExpand.classList.add('bklog-json-view-icon-expand');
-    iconExpand.classList.add(isExpand ? 'is-expand' : 'is-collapse');
-    iconExpand.innerText = '▶';
 
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
     });
 
-    node.append(iconExpand);
+    if (typeof target === 'object' && target !== null) {
+      const iconExpand = document.createElement('span');
+      iconExpand.classList.add('bklog-json-view-icon-expand');
+      iconExpand.classList.add(isExpand ? 'is-expand' : 'is-collapse');
+      iconExpand.innerText = '▶';
+      node.append(iconExpand);
 
-    const nodeIconText = document.createElement('span');
-    nodeIconText.classList.add('bklog-json-view-icon-text');
-    const text = Array.isArray(target) ? '[...]' : '{...}';
-    nodeIconText.innerText = text;
+      const nodeIconText = document.createElement('span');
+      nodeIconText.classList.add('bklog-json-view-icon-text');
+      const text = Array.isArray(target) ? '[...]' : '{...}';
+      nodeIconText.innerText = text;
 
-    const child: HTMLElement[] = [];
+      const child: HTMLElement[] = [];
 
-    if (isExpand) {
-      child.push(this.createObjectChildNode(target, depth + 1));
+      if (isExpand) {
+        child.push(this.createObjectChildNode(target, depth + 1));
+      }
+
+      const copyItem = document.createElement('span');
+      copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
+      copyItem.setAttribute('title', window.$t('复制'));
+
+      node.append(nodeIconText, copyItem, ...child);
+      return [node];
     }
 
-    const copyItem = document.createElement('span');
-    copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
-    copyItem.setAttribute('title', window.$t('复制'));
-
-    node.append(nodeIconText, copyItem, ...child);
+    node.append(this.createObjectChildNode(target, depth));
     return [node];
   }
 
@@ -138,9 +145,19 @@ export default class JsonView {
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
-    const nodeType = typeof target;
+    let formatTarget = target;
 
-    if (nodeType === 'object') {
+    if (typeof target === 'string' && /^(\{|\[)/.test(target)) {
+      try {
+        formatTarget = this.JSONBigInstance.parse(target);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const nodeType = typeof formatTarget;
+
+    if (nodeType === 'object' && target !== null) {
       node.append(...this.createObjectNode(target, depth));
     } else {
       node.classList.add('bklog-json-field-value');
@@ -149,7 +166,7 @@ export default class JsonView {
           this.options.segmentRender(target, node);
         });
       } else {
-        node.append(target);
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${target}</span></span>`;
       }
     }
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -41,39 +40,39 @@ def mock_es_client(mocker):
     mock_get_mapping = mock_client.indices.get_mapping
     # 模拟返回值
     mock_get_alias.return_value = {
-        'v2_2_bklog_rt_create_20241125_0': {
-            'aliases': {
-                '2_bklog_rt_create_20241206_read': {},
-                '2_bklog_rt_create_20241205_read': {},
-                'write_20241206_2_bklog_rt_create': {},
-                'write_20241225_2_bklog_rt_create': {},
+        "v2_2_bklog_rt_create_20241125_0": {
+            "aliases": {
+                "2_bklog_rt_create_20241206_read": {},
+                "2_bklog_rt_create_20241205_read": {},
+                "write_20241206_2_bklog_rt_create": {},
+                "write_20241225_2_bklog_rt_create": {},
             }
         }
     }
 
     mock_get_mapping.return_value = {
-        'v2_2_bklog_rt_create_20241125_0': {
-            'mappings': {
-                'dynamic_templates': [
+        "v2_2_bklog_rt_create_20241125_0": {
+            "mappings": {
+                "dynamic_templates": [
                     {
-                        'strings_as_keywords': {
-                            'match_mapping_type': 'string',
-                            'mapping': {'norms': 'false', 'type': 'keyword'},
+                        "strings_as_keywords": {
+                            "match_mapping_type": "string",
+                            "mapping": {"norms": "false", "type": "keyword"},
                         }
                     }
                 ],
-                'properties': {
-                    'bk_agent_id': {},
-                    'bk_biz_id': {},
-                    'bk_cloud_id': {},
-                    'bk_cmdb_level': {},
-                    'bk_host_id': {},
-                    'bk_supplier_id': {},
-                    'bk_target_host_id': {},
-                    'ip': {},
-                    'test_field1': {'type': 'text'},
+                "properties": {
+                    "bk_agent_id": {},
+                    "bk_biz_id": {},
+                    "bk_cloud_id": {},
+                    "bk_cmdb_level": {},
+                    "bk_host_id": {},
+                    "bk_supplier_id": {},
+                    "bk_target_host_id": {},
+                    "ip": {},
+                    "test_field1": {"type": "text"},
                     # 'new_field1': {'type': 'alias', 'path': 'test_field1'},
-                    'time': {},
+                    "time": {},
                 },
             }
         }
@@ -95,7 +94,7 @@ def create_or_delete_records(mocker):
     )
     models.KafkaTopicInfo.objects.create(
         bk_data_id=50010,
-        topic='test_50010',
+        topic="test_50010",
         partition=0,
     )
     # field1,_ = models.ResultTableField.objects.get_or_create(
@@ -229,7 +228,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     # assert activate_index_list == ['v2_2_bklog_rt_create_20241125_0']
 
     # 测试mapping配置比对逻辑
-    is_same = es_rt.is_mapping_same(index_name='v2_2_bklog_rt_create_20241125_0')
+    is_same = es_rt.is_mapping_same(index_name="v2_2_bklog_rt_create_20241125_0")
     assert not is_same
 
     modify_params = dict(
@@ -274,7 +273,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
         data_label="1001_bklog_test",
     )
 
-    mocker.patch('metadata.models.ESStorage.update_index_and_aliases', return_value=None)
+    mocker.patch("metadata.models.ESStorage.update_index_and_aliases", return_value=None)
     ModifyResultTableResource().request(**modify_params)
 
     es_rt2 = models.ESStorage.objects.get(table_id="2_bklog.rt_create")
@@ -302,28 +301,28 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     # 测试索引body能否正确组装
     index_body = es_rt.index_body
     expected = {
-        'settings': {},
-        'mappings': {
-            'dynamic_templates': [
+        "settings": {},
+        "mappings": {
+            "dynamic_templates": [
                 {
-                    'strings_as_keywords': {
-                        'match_mapping_type': 'string',
-                        'mapping': {'norms': 'false', 'type': 'keyword'},
+                    "strings_as_keywords": {
+                        "match_mapping_type": "string",
+                        "mapping": {"norms": "false", "type": "keyword"},
                     }
                 }
             ],
-            'properties': {
-                'bk_agent_id': {},
-                'bk_biz_id': {},
-                'bk_cloud_id': {},
-                'bk_cmdb_level': {},
-                'bk_host_id': {},
-                'bk_supplier_id': {},
-                'bk_target_host_id': {},
-                'ip': {},
-                'test_field2': {'type': 'text'},
-                'new_field2': {'type': 'alias', 'path': 'test_field2'},
-                'time': {},
+            "properties": {
+                "bk_agent_id": {},
+                "bk_biz_id": {},
+                "bk_cloud_id": {},
+                "bk_cmdb_level": {},
+                "bk_host_id": {},
+                "bk_supplier_id": {},
+                "bk_target_host_id": {},
+                "ip": {},
+                "test_field2": {"type": "text"},
+                "new_field2": {"type": "alias", "path": "test_field2"},
+                "time": {},
             },
         },
     }
@@ -335,7 +334,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     assert es_record2.is_current is True
 
     # 测试mapping配置比对逻辑
-    is_same = es_rt.is_mapping_same(index_name='v2_2_bklog_rt_create_20241125_0')
+    is_same = es_rt.is_mapping_same(index_name="v2_2_bklog_rt_create_20241125_0")
     assert not is_same
 
     modify_params = dict(
@@ -379,7 +378,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
         data_label="1001_bklog_test",
     )
 
-    mocker.patch('metadata.models.ESStorage.update_index_and_aliases', return_value=None)
+    mocker.patch("metadata.models.ESStorage.update_index_and_aliases", return_value=None)
     ModifyResultTableResource().request(**modify_params)
 
     # 在不指定query_alias_settings的情况下,无事发生
@@ -430,12 +429,12 @@ def test_create_and_modify_result_table_resource_for_es_storage(
         data_label="1001_bklog_test",
     )
 
-    mocker.patch('metadata.models.ESStorage.update_index_and_aliases', return_value=None)
+    mocker.patch("metadata.models.ESStorage.update_index_and_aliases", return_value=None)
     ModifyResultTableResource().request(**modify_params)
 
     # 在指定query_alias_settings为[]的情况下,软删除所有的别名
 
-    activate_aliases = models.ESFieldQueryAliasOption.objects.filter(table_id='2_bklog.rt_create', is_deleted=False)
+    activate_aliases = models.ESFieldQueryAliasOption.objects.filter(table_id="2_bklog.rt_create", is_deleted=False)
     assert len(activate_aliases) == 0
 
     modify_params = dict(
@@ -483,3 +482,112 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     ModifyResultTableResource().request(**modify_params)
     assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=3)) == 2
     assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=11)) == 1
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_create_and_modify_result_table_resource_with_bk_biz_id_alias(
+    create_or_delete_records, mock_consul, mock_es_client, mocker
+):
+    """
+    测试CreateResultTable接口和ModifyResultTable（日志类型）
+    """
+    # 请求参数
+    params = dict(
+        bk_data_id=50010,
+        table_id="2_bklog.rt_create",
+        table_name_zh="1001_bklog_test",
+        is_custom_table=True,
+        schema_type="free",
+        bk_biz_id="2",
+        bk_biz_id_alias="dimensions.bk_biz_id",
+        default_storage=models.ClusterInfo.TYPE_ES,
+        # field_list参数中，将读别名放置在对应的option中
+        field_list=[
+            {
+                "field_name": "test_field1",
+                "field_type": "float",
+                "tag": "metric",
+                "description": "",
+                "option": {"field_index": 1, "es_type": "text"},
+            }
+        ],
+        query_alias_settings=[
+            {"field_name": "test_field1", "query_alias": "new_field1", "path_type": "keyword"},
+            {"field_name": "_ext.io", "query_alias": "k8s_io", "path_type": "keyword"},
+        ],
+        default_storage_config={
+            "mapping_settings": {
+                "dynamic_templates": [
+                    {
+                        "strings_as_keywords": {
+                            "match_mapping_type": "string",
+                            "mapping": {"norms": "false", "type": "keyword"},
+                        }
+                    }
+                ],
+            },
+        },
+        operator="admin",
+        data_label="1001_bklog_test",
+    )
+
+    # 调用CreateResultTable接口
+    CreateResultTableResource().request(**params)
+
+    rt_ins = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
+    assert rt_ins.bk_biz_id_alias == "dimensions.bk_biz_id"
+    rt_alias_ins = models.SpaceTypeToResultTableFilterAlias.objects.get(table_id="2_bklog.rt_create")
+    assert rt_alias_ins.filter_alias == "dimensions.bk_biz_id"
+
+    modify_params = dict(
+        table_id="2_bklog.rt_create",
+        table_name_zh="1001_bklog_test",
+        is_custom_table=True,
+        schema_type="fix",
+        bk_biz_id="2",
+        default_storage=models.ClusterInfo.TYPE_ES,
+        bk_biz_id_alias="tags.bk_biz_id",
+        # field_list参数中，将读别名放置在对应的option中
+        field_list=[
+            # {
+            #     "field_name": "test_field1",
+            #     "field_type": "float",
+            #     "tag": "metric",
+            #     "description": "",
+            #     "option": {"field_index": 1, "es_type": "text", "query_alias": "new_field1"},
+            # },
+            {
+                "field_name": "test_field2",
+                "field_type": "float",
+                "tag": "metric",
+                "description": "",
+                "option": {"field_index": 1, "es_type": "text"},
+            }
+        ],
+        query_alias_settings=[{"field_name": "test_field2", "query_alias": "new_field2"}],
+        default_storage_config={
+            "mapping_settings": {
+                "dynamic_templates": [
+                    {
+                        "strings_as_keywords": {
+                            "match_mapping_type": "string",
+                            "mapping": {"norms": "false", "type": "keyword"},
+                        }
+                    }
+                ],
+            },
+        },
+        external_storage={"elasticsearch": {"storage_cluster_id": 11}},
+        operator="admin",
+        data_label="1001_bklog_test",
+    )
+
+    mocker.patch("metadata.models.ESStorage.update_index_and_aliases", return_value=None)
+
+    # Modify逻辑
+    ModifyResultTableResource().request(**modify_params)
+
+    rt_ins = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
+    assert rt_ins.bk_biz_id_alias == "tags.bk_biz_id"
+    rt_alias_ins = models.SpaceTypeToResultTableFilterAlias.objects.get(table_id="2_bklog.rt_create")
+    assert rt_alias_ins.filter_alias == "tags.bk_biz_id"

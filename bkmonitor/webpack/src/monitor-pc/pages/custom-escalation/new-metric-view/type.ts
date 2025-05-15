@@ -31,6 +31,8 @@ export interface IDimensionItem {
   key: string;
   checked?: boolean;
   value?: number | string;
+  text?: string;
+  alias?: string;
 }
 
 export interface IColumnItem {
@@ -56,6 +58,7 @@ export interface IDataItem {
     fluctuation?: number;
   }[];
   dimensions?: IObjItem;
+  unit?: string;
 }
 
 export interface IRefreshItem {

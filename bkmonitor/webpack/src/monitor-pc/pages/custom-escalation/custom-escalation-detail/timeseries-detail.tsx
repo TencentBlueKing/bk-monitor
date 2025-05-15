@@ -32,14 +32,16 @@ import MetricTabDetail from './metric-tab-detail';
 
 import './timeseries-detail.scss';
 
-@Component
+@Component({
+  inheritAttrs: false,
+})
 export default class TimeseriesDetailNew extends tsc<any, any> {
   @Prop({ default: () => [] }) unitList;
   @Prop({ default: '' }) selectedLabel;
   @Prop({ default: () => [] }) customGroups;
   @Prop({ default: 0 }) nonGroupNum;
-  @Prop({ default: 0 }) metricNum;
-  @Prop({ default: 0 }) dimensionNum;
+  @Prop({ default: () => [] }) dimensions: any[];
+  @Prop({ default: () => [] }) metricList: any[];
 
   tabs = [
     {
@@ -55,6 +57,20 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
 
   created() {
     this.activeTab = this.$route.params.activeTab || this.tabs[0].id;
+  }
+
+  /**
+   * 计算维度数量
+   */
+  get dimensionNum(): number {
+    return this.dimensions.length;
+  }
+
+  /**
+   * 计算指标数量
+   */
+  get metricNum(): number {
+    return this.metricList.length;
   }
 
   @Emit('handleExport')
@@ -78,6 +94,8 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
               ...this.$listeners,
             },
           }}
+          dimensionTable={this.dimensions}
+          metricList={this.metricList}
           nonGroupNum={this.nonGroupNum}
           selectedLabel={this.selectedLabel}
           unitList={this.unitList}
@@ -86,6 +104,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
       /** 维度 */
       dimension: () => (
         <DimensionTabDetail
+          dimensionTable={this.dimensions}
           {...{
             attrs: this.$attrs,
             on: {

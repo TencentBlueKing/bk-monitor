@@ -330,7 +330,9 @@ class Permission(object):
             raise GetSystemInfoError(_("获取系统信息错误：{message}").format(message))
         return data
 
-    def filter_space_list_by_action(self, action: Union[ActionMeta, str], space_list: List = None) -> List:
+    def filter_space_list_by_action(
+        self, action: Union[ActionMeta, str], bk_tenant_id: str = "", space_list: List = None
+    ) -> List:
         """
         根据动作过滤用户有权限的业务列表
         """
@@ -338,7 +340,7 @@ class Permission(object):
             # 获取业务列表
             from apps.log_search.models import Space
 
-            space_list = Space.get_all_spaces()
+            space_list = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
         # 跳过权限检验
         if settings.IGNORE_IAM_PERMISSION:
             return space_list

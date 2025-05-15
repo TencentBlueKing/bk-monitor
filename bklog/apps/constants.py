@@ -446,6 +446,21 @@ class ViewSetActionEnum(ChoicesEnum):
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
     )
+    PATTERN_VIEWSET_SET_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="set_remark"
+    )
+    PATTERN_VIEWSET_UPDATE_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="update_remark"
+    )
+    PATTERN_VIEWSET_DELETE_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="delete_remark"
+    )
+    PATTERN_VIEWSET_SET_OWNER = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="set_owner"
+    )
+    PATTERN_VIEWSET_GET_OWNERS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="get_owners"
+    )
     # ======================================= 索引-IndexSetViewSet =======================================
     INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IndexSetViewSet", view_action="mark_favorite"
@@ -588,7 +603,13 @@ class ViewSetActionEnum(ChoicesEnum):
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
         CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY,
+        # ======================================= 日志聚类-PatternViewSet =====================================
         PATTERN_VIEWSET_SEARCH,
+        PATTERN_VIEWSET_SET_REMARK,
+        PATTERN_VIEWSET_UPDATE_REMARK,
+        PATTERN_VIEWSET_DELETE_REMARK,
+        PATTERN_VIEWSET_SET_OWNER,
+        PATTERN_VIEWSET_GET_OWNERS,
         # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,

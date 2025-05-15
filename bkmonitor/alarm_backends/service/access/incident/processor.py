@@ -20,6 +20,7 @@ from pika.spec import Basic
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
+from alarm_backends.service.composite.tasks import check_incident_action_and_composite
 from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
@@ -49,6 +50,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         self.queue_name = queue_name
         self.client = RabbitMQClient(broker_url=broker_url)
         self.client.ping()
+        self.actions = []
 
     def process(self) -> None:
         def callback(ch: BlockingChannel, method: Basic.Deliver, properties: Dict, body: str):
@@ -57,6 +59,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             ch.basic_ack(method.delivery_tag)
 
         self.client.start_consuming(self.queue_name, callback=callback)
+
+    def check_incident_actions(self, sync_info):
+        if sync_info.get("incident_stage") == "stage_exp" and sync_info.get("incident_actions"):
+            self.actions = sync_info["incident_actions"]
+            return True
+        return False
 
     def handle_sync_info(self, sync_info: Dict) -> None:
         """处理rabbitmq中的内容.
@@ -76,6 +84,18 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         # 生成故障归档记录
         logger.info(f"[CREATE]Access incident[{sync_info['incident_id']}], sync_info: {json.dumps(sync_info)}")
         try:
+            if self.check_incident_actions(sync_info):
+                check_incident_action_and_composite.apply_async(
+                    kwargs={
+                        "incident_id": sync_info["incident_id"],
+                        "incident_stage": sync_info["incident_stage"],
+                        "incident_actions": self.actions,
+                    },
+                    countdown=1,
+                )
+                # Todo: alert级别故障页面展示开发未完成，暂不进行快照和前端展示
+                return
+
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
             incident_document = IncidentDocument(**incident_info)

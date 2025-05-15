@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Watch, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -128,6 +128,8 @@ class CallerLineChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+
+  @Ref('eventAnalyze') eventAnalyzeRef: HTMLDivElement;
 
   metrics = [];
   options: Record<string, any> = {};
@@ -1115,7 +1117,7 @@ class CallerLineChart extends CommonSimpleChart {
           left: clientX + 12,
           top: clientY + 12,
         },
-        400,
+        720,
         300
       );
       this.customMenuPosition = {
@@ -1161,10 +1163,12 @@ class CallerLineChart extends CommonSimpleChart {
   }
   handleEventAnalyzeCancel() {
     this.eventConfig = JSON.parse(JSON.stringify(this.cacheEventConfig));
-    document.body.click();
+    // document.body.click();
+    this.eventAnalyzeRef?.hideHandler();
   }
   handleEventAnalyzeConfirm() {
-    document.body.click();
+    // document.body.click();
+    this.eventAnalyzeRef?.hideHandler();
     this.getPanelData();
   }
   async handleUpdateAnalyzeConfig() {
@@ -1230,12 +1234,14 @@ class CallerLineChart extends CommonSimpleChart {
           <div>
             {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
               <bk-popover
+                ref='eventAnalyze'
                 arrow={false}
                 distance={2}
                 placement='bottom-start'
                 theme='light common-monitor'
                 trigger='click'
                 on-show={this.handleEventAnalyzeShow}
+                tippyOptions={{ hideOnClick: !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags }}
               >
                 <div
                   class='event-analyze tips-icon'
@@ -1303,6 +1309,7 @@ class CallerLineChart extends CommonSimpleChart {
                         {this.$t('确定')}
                       </bk-button>
                       <bk-button
+                        v-bk-tooltips={{ placement: 'top',content: this.$t('服务下其他图表一并生效') }}
                         style={{ width: '108px' }}
                         outline={true}
                         size='small'

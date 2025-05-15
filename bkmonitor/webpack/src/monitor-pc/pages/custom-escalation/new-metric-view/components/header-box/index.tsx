@@ -26,6 +26,8 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import _ from 'lodash';
+
 import CompareType from './components/compare-type';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
@@ -91,6 +93,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   isExpaned = true;
   params = createDefaultParams();
+  calcLableWidth: () => void;
 
   @Watch('dimenstionParams', { immediate: true })
   dimenstionParamsChange() {
@@ -113,31 +116,6 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   triggerChange() {
     this.$emit('change', {
       ...this.params,
-    });
-  }
-
-  calcLableWidth() {
-    const resizeObserver = new ResizeObserver(() => {
-      const rootElLeft = this.rootRef.getBoundingClientRect().left;
-      const labelElList = Array.from(this.rootRef.querySelectorAll('[data-role="param-label"]')) as HTMLElement[];
-      let maxWidth = 0;
-      const fitLeftEl: HTMLElement[] = [];
-
-      for (const itemEl of labelElList) {
-        if (itemEl.getBoundingClientRect().left - 10 < rootElLeft) {
-          maxWidth = Math.max(maxWidth, itemEl.querySelector('div').getBoundingClientRect().width);
-          fitLeftEl.push(itemEl);
-        } else {
-          itemEl.style.width = 'auto';
-        }
-      }
-      for (const item of fitLeftEl) {
-        item.style.width = `${maxWidth + 30}px`;
-      }
-    });
-    resizeObserver.observe(this.rootRef);
-    this.$once('hook:beforeDestroy', () => {
-      resizeObserver.disconnect();
     });
   }
 
@@ -166,8 +144,33 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.isExpaned = !this.isExpaned;
   }
 
+  created() {
+    this.calcLableWidth = _.throttle(() => {
+      const rootElLeft = this.rootRef.getBoundingClientRect().left;
+      const labelElList = Array.from(this.rootRef.querySelectorAll('[data-role="param-label"]')) as HTMLElement[];
+      let maxWidth = 0;
+      const fitLeftEl: HTMLElement[] = [];
+
+      for (const itemEl of labelElList) {
+        if (itemEl.getBoundingClientRect().left - 10 < rootElLeft) {
+          maxWidth = Math.max(maxWidth, itemEl.querySelector('div').getBoundingClientRect().width);
+          fitLeftEl.push(itemEl);
+        } else {
+          itemEl.style.width = 'auto';
+        }
+      }
+      for (const item of fitLeftEl) {
+        item.style.width = `${maxWidth + 30}px`;
+      }
+    }, 300);
+  }
+
   mounted() {
-    this.calcLableWidth();
+    const resizeObserver = new ResizeObserver(this.calcLableWidth);
+    resizeObserver.observe(this.rootRef);
+    this.$once('hook:beforeDestroy', () => {
+      resizeObserver.disconnect();
+    });
   }
 
   render() {

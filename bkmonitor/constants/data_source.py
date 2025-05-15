@@ -33,6 +33,19 @@ class DataSourceLabel(object):
     BK_MONITOR_COLLECTOR_NEW = "bk_monitor_new"
 
 
+DATA_SOURCE_LABEL_ALIAS={
+    DataSourceLabel.BK_MONITOR_COLLECTOR: _lazy("监控采集指标"),
+    DataSourceLabel.BK_DATA: _lazy("计算平台指标"),
+    DataSourceLabel.CUSTOM: _lazy("自定义指标"),
+    DataSourceLabel.BK_LOG_SEARCH: _lazy("日志平台指标"),
+    DataSourceLabel.BK_FTA: _lazy("关联告警"),
+    DataSourceLabel.BK_APM: _lazy("Trace明细指标"),
+    DataSourceLabel.PROMETHEUS: _lazy("Prometheus"),
+    DataSourceLabel.DASHBOARD: _lazy("DASHBOARD"),
+    DataSourceLabel.BK_MONITOR_COLLECTOR_NEW: _lazy("BK_MONITOR_COLLECTOR_NEW"),
+}
+
+
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
 class DataTypeLabel(object):
     TIME_SERIES = "time_series"
@@ -226,6 +239,7 @@ UnifyQueryDataSources = [
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
 ]
 
 # V3链路版本

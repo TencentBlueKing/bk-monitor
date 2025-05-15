@@ -192,7 +192,7 @@ class K8SCustomChart extends CommonSimpleChart {
       )
     ) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('暂不支持');
+      this.emptyText = window.i18n.tc('暂无数据');
     } else {
       try {
         this.unregisterObserver();

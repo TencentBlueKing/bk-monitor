@@ -31,6 +31,7 @@
     data-test-id="retrieve_div_generalTrendEcharts"
   >
     <chart-title-v2
+      class="monitor-echarts-title"
       ref="chartTitle"
       :is-fold="isFold"
       :title="$t('总趋势')"
@@ -106,23 +107,6 @@
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });
   });
-
-  watch(
-    () => chartKey.value,
-    () => {
-      if (isResultLoading.value) {
-        return;
-      }
-
-      store.commit('updateIsSetDefaultTableColumn', false);
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
-        store.dispatch('requestIndexSetQuery', { formChartChange: false });
-      });
-    },
-    {
-      immediate: true,
-    },
-  );
 </script>
 
 <style scoped lang="scss">

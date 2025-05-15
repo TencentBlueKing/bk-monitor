@@ -181,7 +181,7 @@ API_CRONTAB = [
 ]
 
 
-RING_NODES = os.getenv("API_CACHE_BASE_INTERVAL", "5")
+RING_NODES = os.getenv("API_CACHE_BASE_INTERVAL", "10")
 try:
     RING_NODES = int(RING_NODES)
 except (TypeError, ValueError):

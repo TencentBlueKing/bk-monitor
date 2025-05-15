@@ -1,4 +1,8 @@
+{% if alarm.level == 1 %}
 **`[{{level_name | safe}}]` {{alert.alert_name | safe}}**
+{% else %}
+**[{{level_name | safe}}] {{alert.alert_name | safe}}**
+{% endif %}
 {{user_content | safe}}
 
 {% if notice_way == "wxwork-bot" and mentioned_users %}--mention-users--{% endif %}

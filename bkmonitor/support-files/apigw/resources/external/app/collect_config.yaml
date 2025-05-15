@@ -277,3 +277,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: batch retry instance step
+  /app/collect_config/target_status_topo/:
+    post:
+      operationId: target_status_topo
+      description: 获取采集对象和状态拓扑
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/target_status_topo/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get target status and topo

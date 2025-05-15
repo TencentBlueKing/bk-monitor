@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../metric-chart-view/utils';
 import SelectPanel from './components/select-panel';
 
 import './index.scss';
@@ -39,6 +40,10 @@ interface IProps {
     split: boolean;
   }[];
   splitable?: boolean;
+  customDemensionList?: {
+    name: string;
+    alias: string;
+  }[];
 }
 
 interface IEmit {
@@ -49,23 +54,31 @@ interface IEmit {
 export default class AggregateDimensions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly value: IProps['value'];
   @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
+  @Prop({ type: Array }) readonly customDemensionList: IProps['customDemensionList'];
 
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('wrapperRef') wrapperRef: HTMLElement;
   @Ref('calcTagListRef') calcTagListRef: HTMLElement;
-
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
-  }
 
   isCalcRenderTagNum = true;
   localValueList: Readonly<IProps['value']> = [];
   isWholeLine = false;
   renderTagNum = 0;
 
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
+
+  get dimensionAliasNameMap() {
+    return customEscalationViewStore.dimensionAliasNameMap;
+  }
+
   get demensionList() {
+    if (this.customDemensionList) {
+      return this.customDemensionList;
+    }
     const demenesionNameMap = {};
-    return this.currentSelectedMetricList.reduce<{ name: string }[]>((result, item) => {
+    return this.currentSelectedMetricList.reduce<{ name: string; alias: string }[]>((result, item) => {
       for (const demesionItem of item.dimensions) {
         if (!demenesionNameMap[demesionItem.name]) {
           result.push(demesionItem);
@@ -164,6 +177,8 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
 
   triggerChange() {
     this.$emit('change', this.localValueList);
+    // this.renderTagNum = this.localValueList.length;
+    this.calcRenderTagNum();
   }
 
   handleChange(value: IProps['value']) {
@@ -199,6 +214,21 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
   }
 
   render() {
+    const renderField = (data: { field: string }) => {
+      return (
+        <span
+          v-bk-tooltips={{
+            content: formatTipsContent(data.field, this.dimensionAliasNameMap[data.field]),
+            placement: 'bottom',
+          }}
+        >
+          {this.dimensionAliasNameMap[data.field] || data.field}
+        </span>
+      );
+      // return this.dimensionAliasNameMap[data.field]
+      //   ? `${this.dimensionAliasNameMap[data.field]} (${data.field})`
+      //   : data.field;
+    };
     return (
       <div
         ref='rootRef'
@@ -227,7 +257,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
                 }}
               >
                 {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
-                {item.field}
+                {renderField(item)}
                 <i
                   class='icon-monitor icon-mc-close remote-btn'
                   onClick={() => this.handleRemove(index)}
@@ -249,7 +279,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
                       class='value-item'
                     >
                       {item.split && <i class='icon-monitor icon-chaitu split-flag' />}
-                      {item.field}
+                      {renderField(item)}
                       <i
                         class='icon-monitor icon-mc-close remote-btn'
                         onClick={() => this.handleRemove(index)}

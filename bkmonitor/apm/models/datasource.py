@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,17 +7,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import json
 import math
+import operator
 import re
-from typing import Optional
+from functools import reduce
+from typing import Optional, Any
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from elasticsearch_dsl import Q
+
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -31,10 +34,12 @@ from apm.constants import (
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models.doris import BkDataDorisProvider
 from apm.utils.es_search import EsSearch
+from bkmonitor.data_source.unify_query.builder import UnifyQuerySet, QueryConfigBuilder
 from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import FlowType, OtlpKey, SpanKind
+from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
@@ -87,8 +92,7 @@ class ApmDataSourceConfigBase(models.Model):
             return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
         else:
             return (
-                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}"
-                f"_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
+                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_{self.DATASOURCE_TYPE}_{self.app_name}"
             )
 
     @property
@@ -206,7 +210,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_" f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
         else:
             return (
                 f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}_"
@@ -561,20 +565,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
     ]
 
     FILTER_KIND = {
-        "does not exists": lambda field_name, _, q: q.query("bool", must_not=[Q("exists", field=field_name)]),
-        "exists": lambda field_name, _, q: q.query("bool", filter=[Q("exists", field=field_name)]),
-        "=": lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
-        "!=": lambda field_name, value, q: q.query("bool", must_not=[Q("terms", **{field_name: value})]),
+        "exists": lambda field_name, _, q: q & Q(**{f"{field_name}__exists": ""}),
+        "does not exists": lambda field_name, _, q: q & Q(**{f"{field_name}__nexists": ""}),
+        "=": lambda field_name, value, q: q & Q(**{f"{field_name}__eq": value}),
+        "!=": lambda field_name, value, q: q & Q(**{f"{field_name}__neq": value}),
     }
 
     NESTED_FILED = ["events", "links"]
-
-    NESTED_FILTER_KIND = {
-        "does not exists": lambda field_name, _, q: q.query("bool", must_not=[Q("exists", field=field_name)]),
-        "exists": lambda field_name, _, q: q.query("bool", filter=[Q("exists", field=field_name)]),
-        "=": lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
-        "!=": lambda field_name, value, q: q.query("bool", must_not=[Q("terms", **{field_name: value})]),
-    }
 
     ENDPOINT_FILTER_PARAMS = [
         {
@@ -663,23 +660,19 @@ class TraceDataSource(ApmDataSourceConfigBase):
     ]
 
     GROUP_KEY_CONFIG = {
-        "db_system": {"db_system": {"terms": {"field": "attributes.db.system", "missing_bucket": True}}},
-        "http_url": {"http_url": {"terms": {"field": "attributes.http.url", "missing_bucket": True}}},
-        "messaging_system": {
-            "messaging_system": {"terms": {"field": "attributes.messaging.system", "missing_bucket": True}}
-        },
-        "rpc_system": {"rpc_system": {"terms": {"field": "attributes.rpc.system", "missing_bucket": True}}},
-        "trpc_callee_method": {
-            "trpc_callee_method": {"terms": {"field": "attributes.trpc.callee_method", "missing_bucket": True}}
-        },
+        "db_system": OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM),
+        "http_url": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
+        "messaging_system": OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM),
+        "rpc_system": OtlpKey.get_attributes_key(SpanAttributes.RPC_SYSTEM),
+        "trpc_callee_method": OtlpKey.get_attributes_key("trpc.callee_method"),
     }
 
     GROUP_KEY_FILTER_CONFIG = {
-        "db_system": Q("exists", field="attributes.db.system"),
-        "http_url": Q("exists", field="attributes.http.url"),
-        "messaging_system": Q("exists", field="attributes.messaging.system"),
-        "rpc_system": Q("exists", field="attributes.rpc.system"),
-        "trpc_callee_method": Q("exists", field="attributes.trpc.namespace"),
+        "db_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM)}__exists": ""}),
+        "http_url": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL)}__exists": ""}),
+        "messaging_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM)}__exists": ""}),
+        "rpc_system": Q(**{f"{OtlpKey.get_attributes_key(SpanAttributes.RPC_SYSTEM)}__exists": ""}),
+        "trpc_callee_method": Q(**{f"{OtlpKey.get_attributes_key('trpc.namespace')}__exists": ""}),
     }
 
     DEFAULT_LIMIT_MAX_SIZE = 10000
@@ -716,6 +709,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "default_storage_config": {
                 "cluster_id": option["es_storage_cluster"],
                 "storage_cluster_id": option["es_storage_cluster"],
+                # 指定 UnifyQuery 查询索引。
+                "index_set": self.table_id.replace(".", "_"),
                 "slice_size": option.get("es_slice_size", settings.APM_APP_DEFAULT_ES_SLICE_LIMIT),
                 "retention": option.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
                 # 默认1天区分一个index
@@ -731,9 +726,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",
-            "option": {
-                "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"]
-            },
+            "option": TRACE_RESULT_TABLE_OPTION,
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",
@@ -833,8 +826,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 res = api.log_search.update_index_set(index_set_id=index_set_id, **params)
             except Exception as e:  # noqa
                 logger.error(
-                    f"[TraceDatasource] update index set failed {e} "
-                    f"\n index set id: {index_set_id} params: {params}"
+                    f"[TraceDatasource] update index set failed {e} \n index set id: {index_set_id} params: {params}"
                 )
                 return self.index_set_id, self.index_set_name
 
@@ -865,7 +857,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(r".*_bkapm_trace_{0}_(\d{{8}})_\d+$".format(re.escape(app_name)))
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_\d+$")
 
         for name in index_names:
             match = pattern.search(name)
@@ -911,38 +903,81 @@ class TraceDataSource(ApmDataSourceConfigBase):
         return EsSearch(using=self.es_client, index=self.index_name)
 
     @classmethod
-    def build_filter_params(cls, query, filter_params=None, category=None):
+    def build_filter_params(cls, filter_params: list[dict[str, Any]] | None, category: str | None) -> Q:
+        """根据过滤参数 & 服务分类构建查询条件"""
         if not filter_params:
             filter_params = []
         if category:
-            category_filter_params = cls.CATEGORY_PARAMS.get(category, cls.ENDPOINT_FILTER_PARAMS)
+            category_filter_params: list[dict[str, Any]] = cls.CATEGORY_PARAMS.get(category, cls.ENDPOINT_FILTER_PARAMS)
             filter_params.extend(category_filter_params)
+
+        q: Q = Q()
         for filter_param in filter_params:
-            first_key, *_ = filter_param["key"].split(".")
-            if first_key in cls.NESTED_FILED:
-                query = cls.NESTED_FILTER_KIND.get(
-                    filter_param["op"],
-                    lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
-                )(filter_param["key"], filter_param["value"], query)
-                continue
-            query = cls.FILTER_KIND.get(
-                filter_param["op"],
-                lambda field_name, value, q: q.query("bool", filter=[Q("terms", **{field_name: value})]),
-            )(filter_param["key"], filter_param["value"], query)
-        return query
+            q = cls.FILTER_KIND.get(filter_param["op"], cls.FILTER_KIND["="])(
+                filter_param["key"], filter_param["value"], q
+            )
+        return q
+
+    def get_q(
+        self,
+        filter_params: list[dict[str, Any]] | None = None,
+        category: str | None = None,
+        fields: list[str] | None = None,
+    ):
+        """根据过滤条件（filter_params）、节点类别（category）、字段列表（fields）构建 QueryConfig"""
+        return (
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
+            .table(self.result_table_id)
+            .filter(self.build_filter_params(filter_params, category))
+            .time_field("end_time")
+            .values(*(fields or []))
+        )
+
+    def get_qs(self, start_time: int, end_time: int) -> UnifyQuerySet:
+        """根据时间范围（start_time、end_time）获取 UnifyQuerySet"""
+        return (
+            UnifyQuerySet()
+            .scope(self.bk_biz_id)
+            .time_align(False)
+            .start_time(start_time * 1000)
+            .end_time(end_time * 1000)
+        )
 
     @classmethod
-    def get_category_kind(cls, attributes):
+    def get_category_kind(cls, attributes: dict[str, Any]) -> tuple[str, str]:
+        """根据 Attributes 获取节点类别"""
         for key in cls.SERVICE_CATEGORY_KIND:
             if key in attributes:
                 return key, attributes[key]
         return "", ""
 
-    def query_endpoint(self, start_time, end_time, service_name=None, category=None, filter_params=None):
-        all_span = self.query_span(start_time, end_time, category=category, filter_params=filter_params)
-        result_set = set()
-        for span in all_span:
-            result_set.add(
+    def query_endpoint(
+        self,
+        start_time: int,
+        end_time: int,
+        service_name: str | None = None,
+        filter_params: list[dict[str, Any]] | None = None,
+        category: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """查询端点 / 接口（Endpoint）列表"""
+        if not filter_params:
+            filter_params = []
+
+        if service_name:
+            # 获取指定服务的数据。
+            filter_params.append({"key": ResourceAttributes.SERVICE_NAME, "value": service_name, "op": "="})
+
+        spans: list[dict[str, Any]] = self.query_span(
+            start_time,
+            end_time,
+            filter_params=filter_params,
+            fields=[OtlpKey.SPAN_NAME, OtlpKey.KIND, OtlpKey.RESOURCE, OtlpKey.ATTRIBUTES],
+            category=category,
+        )
+
+        duplicated_endpoints: set[tuple[Any, ...]] = set()
+        for span in spans:
+            duplicated_endpoints.add(
                 (
                     span[OtlpKey.SPAN_NAME],
                     span[OtlpKey.KIND],
@@ -950,140 +985,162 @@ class TraceDataSource(ApmDataSourceConfigBase):
                     self.get_category_kind(span.get(OtlpKey.ATTRIBUTES, {})),
                 )
             )
-        endpoints = [
+
+        return [
             {
                 "endpoint_name": span_name,
                 "kind": kind,
                 "service_name": service_name,
                 "category_kind": {"key": category_kind[0], "value": category_kind[1]},
             }
-            for span_name, kind, service_name, category_kind in result_set
+            for span_name, kind, service_name, category_kind in duplicated_endpoints
         ]
-        return [endpoint for endpoint in endpoints if not service_name or endpoint.get("service_name") == service_name]
 
-    def query_span(self, start_time, end_time, filter_params=None, fields=None, category=None):
-        query = self.fetch.query(
-            "bool",
-            filter=[
-                Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
-            ],
-        ).extra(size=10000)
-        if fields:
-            query = query.source(fields)
-
-        query = self.build_filter_params(query, filter_params, category)
-        result = []
+    def query_span(
+        self,
+        start_time: int,
+        end_time: int,
+        filter_params: list[dict[str, Any]] | None = None,
+        fields: list[str] | None = None,
+        category: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """查询 Span 列表"""
+        qs: UnifyQuerySet = (
+            self.get_qs(start_time, end_time).add_query(self.get_q(filter_params, category, fields)).limit(10_000)
+        )
         try:
-            for span in query.execute():
-                result.append(span.to_dict())
+            return list(qs)
         except Exception as e:
             logger.error(
                 f"[APM][query trace detail] bk_biz_id => [{self.bk_biz_id}] app_name [{self.app_name}] "
                 f"es scan data failed => {e}"
             )
-        return result
-
-    def query_span_with_group_keys(
-        self, start_time, end_time, filter_params=None, fields=None, category=None, group_keys=None
-    ):
-        query = self.fetch.query(
-            "bool",
-            filter=[
-                Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
-            ],
-        )
-        query = self.build_filter_params(query, filter_params, category)
-        if fields:
-            query = query.source(fields)
-        query = query.filter(
-            "bool", should=[self.GROUP_KEY_FILTER_CONFIG[i] for i in group_keys if i in self.GROUP_KEY_FILTER_CONFIG]
-        )
-        return self._query_metric_data(query, group_keys)
-
-    def _query_metric_data(self, query, group_keys):
-        # 获取分页游标
-        query = query.extra(size=0)
-        query = query.update_from_dict(
-            {
-                "aggs": {
-                    "group": {
-                        "composite": {
-                            "size": self.DEFAULT_LIMIT_MAX_SIZE,
-                            "sources": [self.GROUP_KEY_CONFIG[i] for i in group_keys if i in self.GROUP_KEY_CONFIG],
-                        },
-                        "aggs": self.get_metric_aggs(),
-                    }
-                }
-            }
-        )
-        response = query.execute()
-        results = response.to_dict()
-        return results["aggregations"]["group"].get("buckets", [])
-
-    def get_metric_aggs(self):
-        metric_aggs = {
-            "avg_duration": {"avg": {"field": OtlpKey.ELAPSED_TIME}},
-            "max_duration": {"max": {"field": OtlpKey.ELAPSED_TIME}},
-            "min_duration": {"min": {"field": OtlpKey.ELAPSED_TIME}},
-            "sum_duration": {"sum": {"field": OtlpKey.ELAPSED_TIME}},
-        }
-        return metric_aggs
+            return []
 
     @classmethod
-    def exists_by_trace_ids(cls, app, trace_ids, start_time, end_time):
-        """查询在此app下是否有trace_id信息 有的话范围trace_id与app关联"""
-        datasource = app.trace_datasource.fetch
-        response = (
-            datasource.query(
-                "bool",
-                filter=[Q("terms", **{OtlpKey.TRACE_ID: trace_ids})],
-                must=[Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000})],
+    def _query_field_aggregated_records(
+        cls, q: QueryConfigBuilder, qs: UnifyQuerySet, group_by: list[str], field: str, agg_method: str
+    ) -> list[dict[str, Any]]:
+        """按指定聚合方法（agg_method）计算指定字段（field）的聚合值"""
+        aggregated_records: list[dict[str, Any]] = []
+        q = q.metric(field=field, method=agg_method, alias="a").alias("a")
+        for record in list(qs.add_query(q).time_agg(False).instant()):
+            aggregated_records.append(
+                {
+                    # 某个聚合维度不存在也要展示成空字符串。
+                    "dimensions": {field: record.get(field) or "" for field in group_by},
+                    "agg_method": agg_method,
+                    "value": record["_result_"],
+                }
             )
-            .extra(size=10000)
-            .execute()
-        )
-        if not response.hits:
-            return {}
-        app_info = {"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
-        return {i[OtlpKey.TRACE_ID]: app_info for i in response.hits}
 
-    def query_event(self, start_time: int, end_time: int, name: list, filter_params: list = None, category: str = None):
-        if not name:
-            name = []
-        have_events_data_query = (
-            self.fetch.query(
-                "bool",
-                filter=[
-                    Q("nested", path="events", query=Q("exists", field="events.name")),
-                    Q("range", end_time={"gt": start_time * 1000 * 1000, "lte": end_time * 1000 * 1000}),
-                ]
-                + [
-                    Q("nested", path="events", query=Q("terms", events__name=name)),
-                ]
-                if name
-                else [],
-            )
-            .extra(size=constants.DISCOVER_BATCH_SIZE)
-            .source(["events", "resource", "span_name"])
+        return aggregated_records
+
+    def query_span_with_group_keys(
+        self,
+        start_time: int,
+        end_time: int,
+        group_keys: list[str],
+        filter_params: list[dict[str, Any]] | None = None,
+        category: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """按 group_keys 对一段时间内的 Span 数据进行聚合统计
+        TODO(crayon) 目前默认拉取 1w 条聚合结果的方式存在性能瓶颈，需改造为前端分页 + TopN 拉取（需 UnifyQuery 支持多 Query 聚合）。
+        """
+        group_by: list[str] = [
+            self.GROUP_KEY_CONFIG[group_key] for group_key in group_keys if group_key in self.GROUP_KEY_CONFIG
+        ]
+        or_query: Q = reduce(
+            operator.or_,
+            [
+                self.GROUP_KEY_FILTER_CONFIG[group_key]
+                for group_key in group_keys
+                if group_key in self.GROUP_KEY_FILTER_CONFIG
+            ],
         )
-        have_events_data_query = self.build_filter_params(have_events_data_query, filter_params, category)
-        result = []
+        q: QueryConfigBuilder = self.get_q(filter_params, category).group_by(*group_by).filter(or_query)
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time).limit(self.DEFAULT_LIMIT_MAX_SIZE)
+
+        pool = ThreadPool(5)
+        field_aggregated_records_list = pool.imap_unordered(
+            lambda _agg_method: self._query_field_aggregated_records(
+                q, qs, group_by, OtlpKey.ELAPSED_TIME, _agg_method
+            ),
+            ["avg", "max", "min", "sum", "count"],
+        )
+        pool.close()
+
+        span_group_aggregated_result_map: dict[frozenset, dict[str, Any]] = {}
+        field_group_key_map: dict[str, str] = {field: group_key for group_key, field in self.GROUP_KEY_CONFIG.items()}
+        for field_aggregated_records in field_aggregated_records_list:
+            for record in field_aggregated_records:
+                # 将 GroupBy 字段转为 GroupKey，构建 SpanGroup 作为聚合唯一 Key。
+                span_group: dict[str, str] = {
+                    field_group_key_map.get(field, field): field_value
+                    for field, field_value in record["dimensions"].items()
+                }
+
+                if record["agg_method"] == "count":
+                    construct_value = {"doc_count": record["value"]}
+                else:
+                    construct_value = {f"{record['agg_method']}_duration": {"value": record["value"]}}
+
+                # 按 SpanGroup 将不同聚合方法的聚合结果进行合并。
+                span_group_aggregated_result_map.setdefault(frozenset(span_group.items()), {"key": span_group}).update(
+                    construct_value
+                )
+
+        return list(span_group_aggregated_result_map.values())
+
+    def query_exists_trace_ids(self, trace_ids: list[str], start_time: int, end_time: int) -> list[str]:
+        """过滤出存在的 TraceID 列表"""
+        if not trace_ids:
+            return []
+
+        spans: list[dict[str, str]] = self.query_span(
+            start_time,
+            end_time,
+            filter_params=[{"key": OtlpKey.TRACE_ID, "op": "=", "value": trace_ids}],
+            fields=[OtlpKey.TRACE_ID],
+        )
+        return list({span[OtlpKey.TRACE_ID] for span in spans})
+
+    def query_event(
+        self,
+        start_time: int,
+        end_time: int,
+        name: list[str],
+        filter_params: list[dict[str, Any]] | None = None,
+        category: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """获取事件列表"""
+        q: QueryConfigBuilder = self.get_q(
+            None, category, [OtlpKey.EVENTS, OtlpKey.RESOURCE, OtlpKey.SPAN_NAME, OtlpKey.TRACE_ID]
+        ).filter(**{f"{OtlpKey.EVENTS}.name__exists": ""})
+        if name:
+            # 仅获取包含指定事件名的数据。
+            q = q.filter(**{f"{OtlpKey.EVENTS}.name__eq": name})
+
         try:
-            for span in have_events_data_query.execute():
-                span_dict = span.to_dict()
-                events = span_dict.get("events", [])
-                for event in events:
-                    if event.get("name") not in name:
-                        continue
-                    event["service_name"] = span_dict.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
-                    event["endpoint_name"] = span_dict.get("span_name")
-                    result.append(event)
-        except Exception as e:
+            spans: list[dict[str, Any]] = (
+                self.get_qs(start_time, end_time).add_query(q).limit(constants.DISCOVER_BATCH_SIZE)
+            )
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 f"[APM][query event] bk_biz_id => [{self.bk_biz_id}] app_name [{self.app_name}] "
                 f"es scan data failed => {e}"
             )
-        return result
+            return []
+
+        events: list[dict[str, Any]] = []
+        for span in spans:
+            # 从 Span 提取 / 格式化事件。
+            for event in span.get(OtlpKey.EVENTS, []):
+                event["service_name"] = span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
+                event["endpoint_name"] = span.get(OtlpKey.SPAN_NAME)
+                event["trace_id"] = span.get(OtlpKey.TRACE_ID, "")
+                events.append(event)
+        return events
 
     def fields(self):
         mapping = self.es_client.indices.get_mapping(index=self.index_name)
@@ -1139,7 +1196,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        super(TraceDataSource, cls).stop(bk_biz_id, app_name)
+        super().stop(bk_biz_id, app_name)
         # 删除关联的索引集
         ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if ins:
@@ -1156,7 +1213,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
 
     BUILTIN_APP_NAME = "builtin_profile_app"
-    _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
+    _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
@@ -1218,7 +1275,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
 
     @classmethod
-    def get_builtin_source(cls) -> Optional['ProfileDataSource']:
+    def get_builtin_source(cls) -> Optional["ProfileDataSource"]:
         if cls._CACHE_BUILTIN_DATASOURCE:
             return cls._CACHE_BUILTIN_DATASOURCE
 
@@ -1263,7 +1320,9 @@ class DataLink(models.Model):
     metric_transfer_cluster_id = models.CharField("Metric Transfer集群id", max_length=128, null=True)
     kafka_cluster_id = models.IntegerField("kafka集群id", null=True)
     influxdb_cluster_name = models.CharField("时序数据存储的influxdb集群名称", max_length=128, null=True)
-    elasticsearch_cluster_id = models.IntegerField("默认ES集群ID(在快速创建应用、创建默认预计算集群时会用到)", null=True)
+    elasticsearch_cluster_id = models.IntegerField(
+        "默认ES集群ID(在快速创建应用、创建默认预计算集群时会用到)", null=True
+    )
     pre_calculate_config = JsonField("预计算数据存储配置", null=True)
 
     @classmethod

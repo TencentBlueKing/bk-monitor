@@ -47,10 +47,10 @@ export default class NewMetricView extends tsc<object> {
   dimenstionParams: Record<string, any> = {};
   showStatisticalValue = false;
   isCustomTsMetricGroupsLoading = true;
-  viewColumn = 3;
+  viewColumn = 2;
   state = {
     showStatisticalValue: false,
-    viewColumn: 3,
+    viewColumn: 2,
   };
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
 
@@ -139,7 +139,7 @@ export default class NewMetricView extends tsc<object> {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
     this.state = {
-      viewColumn: Number.parseInt(routerQuery.viewColumn) || 3,
+      viewColumn: Number.parseInt(routerQuery.viewColumn) || 2,
       showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
   }

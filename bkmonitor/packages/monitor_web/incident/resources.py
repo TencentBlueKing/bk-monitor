@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import time
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -60,7 +60,7 @@ class IncidentBaseResource(Resource):
     故障相关资源基类
     """
 
-    def get_snapshot_alerts(self, snapshot: IncidentSnapshot, **kwargs) -> List[Dict]:
+    def get_snapshot_alerts(self, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
         alert_ids = snapshot.get_related_alert_ids()
         start_time, end_time = self.generate_time_range_from_alerts(alert_ids)
 
@@ -70,17 +70,17 @@ class IncidentBaseResource(Resource):
             kwargs["end_time"] = int(time.time()) if start_time == end_time else end_time
 
         if "conditions" in kwargs:
-            kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
+            kwargs["conditions"].append({"key": "id", "value": alert_ids, "method": "eq"})
         else:
-            kwargs["conditions"] = [{'key': 'id', 'value': alert_ids, 'method': 'eq'}]
+            kwargs["conditions"] = [{"key": "id", "value": alert_ids, "method": "eq"}]
         if "bk_biz_ids" not in kwargs:
             kwargs["bk_biz_ids"] = list(
-                map(lambda x: int(x), snapshot.incident_snapshot_content['rca_summary']['bk_biz_ids'])
+                map(lambda x: int(x), snapshot.incident_snapshot_content["rca_summary"]["bk_biz_ids"])
             )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
 
-    def generate_time_range_from_alerts(self, alert_ids: List[int]) -> Tuple[int, int]:
+    def generate_time_range_from_alerts(self, alert_ids: list[int]) -> tuple[int, int]:
         start_time, end_time = None, None
         for alert_id in alert_ids:
             timestamp = int(str(alert_id)[:10])
@@ -91,7 +91,7 @@ class IncidentBaseResource(Resource):
 
         return start_time, end_time
 
-    def get_item_by_chain_key(self, data: Dict, chain_key: str) -> Any:
+    def get_item_by_chain_key(self, data: dict, chain_key: str) -> Any:
         keys = chain_key.split(".")
         for key in keys:
             if not data or not isinstance(data, dict):
@@ -100,7 +100,7 @@ class IncidentBaseResource(Resource):
             data = data.get(key)
         return data
 
-    def expand_children_dict_as_list(self, aggregate_results: Dict) -> Dict:
+    def expand_children_dict_as_list(self, aggregate_results: dict) -> dict:
         for agg_value in aggregate_results.values():
             if isinstance(agg_value["children"], dict):
                 if agg_value["children"]:
@@ -111,8 +111,8 @@ class IncidentBaseResource(Resource):
         return list(aggregate_results.values())
 
     def generate_nodes_by_entites(
-        self, incident: IncidentDocument, snapshot: IncidentSnapshot, entities: List[IncidentGraphEntity]
-    ) -> List[Dict]:
+        self, incident: IncidentDocument, snapshot: IncidentSnapshot, entities: list[IncidentGraphEntity]
+    ) -> list[dict]:
         """根据图谱实体生成拓扑图节点
 
         :param entites: 实体列表
@@ -121,47 +121,70 @@ class IncidentBaseResource(Resource):
         nodes = []
 
         for entity in entities:
-            alert_ids = snapshot.entity_alerts(entity.entity_id)
-            bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
-            bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
+            if entity.entity_type in ("BcsWorkload", "BcsService"):
+                continue
+
+            dependency_parent = snapshot.get_entity_alert_parent(entity.entity_id)
+            dependency_content = (
+                self.generate_entity_node_info(incident, snapshot, dependency_parent) if dependency_parent else {}
+            )
+            # 如果一个从属父节点没有告警，也不是告警都恢复的状态，则不展示
+            if dependency_content and (
+                not dependency_content["is_on_alert"] and not dependency_content["alert_all_recorved"]
+            ):
+                dependency_parent = None
             nodes.append(
                 {
                     "id": entity.entity_id,
                     "comboId": str(entity.rank.rank_category.category_id),
-                    "subComboId": entity.logic_key(),
-                    "logic_content": entity.logic_content(),
+                    "subComboId": dependency_parent.entity_id if dependency_parent else "",
+                    "dependency_content": dependency_content if dependency_parent else {},
                     "aggregated_nodes": self.generate_nodes_by_entites(incident, snapshot, entity.aggregated_entities),
-                    "entity": {
-                        key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"
-                    },
                     "total_count": len(entity.aggregated_entities) + 1,
-                    "anomaly_count": self.get_anomaly_entity_count(entity),
-                    "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
-                    "is_on_alert": entity.is_on_alert,
-                    "alert_all_recorved": all(
-                        map(
-                            lambda alert_id: snapshot.alert_entity_mapping[alert_id].alert_status
-                            in (EventStatus.RECOVERED, EventStatus.CLOSED),
-                            alert_ids,
-                        )
-                    )
-                    if alert_ids
-                    else False,
-                    "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": bk_biz_name,
-                    "alert_ids": alert_ids,
-                    "alert_display": (
-                        {
-                            "alert_id": alert_ids[0],
-                            "alert_name": AlertDocument.get(alert_ids[0]).alert_name,
-                        }
-                        if len(alert_ids) > 0
-                        else {}
-                    ),
+                    **self.generate_entity_node_info(incident, snapshot, entity),
                 }
             )
 
         return nodes
+
+    def generate_entity_node_info(
+        self, incident: IncidentDocument, snapshot: IncidentSnapshot, entity: IncidentGraphEntity
+    ) -> dict:
+        """根据实体生成节点信息.
+
+        :param snapshot: 快照内容
+        :param entity: 实体
+        :return: 节点信息
+        """
+        bk_biz_id = entity.bk_biz_id or snapshot.bk_biz_id
+        bk_biz_name = resource.cc.get_app_by_id(bk_biz_id).name if bk_biz_id else bk_biz_id
+        alert_ids = snapshot.entity_alerts(entity.entity_id)
+        return {
+            "entity": {key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"},
+            "anomaly_count": self.get_anomaly_entity_count(entity),
+            "bk_biz_id": bk_biz_id,
+            "bk_biz_name": bk_biz_name,
+            "is_feedback_root": getattr(incident.feedback, "incident_root", None) == entity.entity_id,
+            "is_on_alert": entity.is_on_alert,
+            "alert_all_recorved": all(
+                map(
+                    lambda alert_id: snapshot.alert_entity_mapping[alert_id].alert_status
+                    in (EventStatus.RECOVERED, EventStatus.CLOSED),
+                    alert_ids,
+                )
+            )
+            if alert_ids
+            else False,
+            "alert_ids": alert_ids,
+            "alert_display": (
+                {
+                    "alert_id": alert_ids[0],
+                    "alert_name": AlertDocument.get(alert_ids[0]).alert_name,
+                }
+                if len(alert_ids) > 0
+                else {}
+            ),
+        }
 
     def get_anomaly_entity_count(self, entity: IncidentGraphEntity) -> int:
         """获取实体（包含聚合在这个实体的其他实体）的异常数量
@@ -176,7 +199,7 @@ class IncidentBaseResource(Resource):
 
         return anomaly_count
 
-    def update_incident_document(self, incident_info: Dict, update_time: arrow.Arrow) -> None:
+    def update_incident_document(self, incident_info: dict, update_time: arrow.Arrow) -> None:
         """更新故障记录，并记录故障流转
 
         :param incident_info: 需要更新的信息
@@ -219,7 +242,7 @@ class IncidentBaseResource(Resource):
         incident_document.update_time = update_time.timestamp
         IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
 
-    def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
+    def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> dict:
         """根据快照内容生成拓扑图数据
 
         :param snapshot: 快照内容
@@ -235,17 +258,22 @@ class IncidentBaseResource(Resource):
         sub_combos = [
             {
                 "id": node["subComboId"],
-                "label": node["subComboId"],
-                "dataType": node["subComboId"],
+                "label": node["dependency_content"]["entity"]["entity_name"],
+                "dataType": node["dependency_content"]["entity"]["entity_type"],
                 "comboId": str(node["entity"]["rank"]["rank_category"]["category_id"]),
-                "dimensions": node["logic_content"],
+                **node["dependency_content"],
             }
             for node in nodes
             if node["subComboId"]
         ]
         topology_data = {
             "nodes": nodes,
-            "edges": [edge.to_src_dict() for edge in snapshot.incident_graph_edges.values()],
+            "edges": [
+                edge.to_src_dict()
+                for edge in snapshot.incident_graph_edges.values()
+                if edge.source.entity_type not in ("BcsWorkload", "BcsService")
+                and edge.target.entity_type not in ("BcsWorkload", "BcsService")
+            ],
             "sub_combos": list({item["id"]: item for item in sub_combos}.values()),
             "combos": [
                 {
@@ -259,7 +287,7 @@ class IncidentBaseResource(Resource):
         }
         return topology_data
 
-    def filter_one_hop_snapshot(self, snapshot_content: Dict) -> Dict:
+    def filter_one_hop_snapshot(self, snapshot_content: dict) -> dict:
         """过滤故障根因拓扑图中超过一跳的节点.
 
         :param snapshot_content: 故障快照内容
@@ -317,7 +345,7 @@ class IncidentListResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentListResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(IncidentSearchSerializer):
         level = serializers.ListField(required=False, label="故障级别", default=[])
@@ -327,7 +355,7 @@ class IncidentListResource(IncidentBaseResource):
         page = serializers.IntegerField(required=False, label="页码")
         page_size = serializers.IntegerField(required=False, label="每页条数")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         record_history = validated_request_data.pop("record_history")
 
         handler = IncidentQueryHandler(**validated_request_data)
@@ -370,11 +398,11 @@ class IncidentOverviewResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentOverviewResource, self).__init__()
+        super().__init__()
 
     RequestSerializer = IncidentSearchSerializer
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         handler = IncidentQueryHandler(**validated_request_data)
         results = handler.search(show_overview=True, show_aggs=False)
         results["enable_aiops_incident"] = bool(
@@ -413,13 +441,13 @@ class IncidentDetailResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentDetailResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         id = validated_request_data["id"]
 
         incident_doc = IncidentDocument.get(id)
@@ -434,7 +462,7 @@ class IncidentDetailResource(IncidentBaseResource):
 
         return incident
 
-    def get_incident_snapshots(self, incident: IncidentDocument) -> Dict:
+    def get_incident_snapshots(self, incident: IncidentDocument) -> dict:
         """根据故障详情获取故障快照
 
         :param incident: 故障详情
@@ -451,7 +479,7 @@ class IncidentDetailResource(IncidentBaseResource):
             ]
         return snapshots
 
-    def get_incident_root_info(self, snapshot: IncidentSnapshot) -> Dict:
+    def get_incident_root_info(self, snapshot: IncidentSnapshot) -> dict:
         """根据快照详情获取故障根因节点的信息
 
         :param snapshot: 快照详情
@@ -468,7 +496,7 @@ class IncidentTopologyResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentTopologyResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -481,7 +509,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         end_time = serializers.IntegerField(required=False, label="结束时间", default=None)
         only_diff = serializers.BooleanField(required=False, default=False, label="是否只展示diff数据")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         limit = validated_request_data.get("limit")
         start_time = validated_request_data.get("start_time")
@@ -521,7 +549,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         )
         last_snapshot_content = None
         topologies_data = []
-        complete_topologies = {"nodes": {}, "edges": {}}
+        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}}
         for incident_snapshot in incident_snapshots:
             snapshot = snapshots[incident_snapshot.id]
             if validated_request_data["only_diff"]:
@@ -548,10 +576,11 @@ class IncidentTopologyResource(IncidentBaseResource):
             "complete": {
                 "nodes": list(complete_topologies["nodes"].values()),
                 "edges": list(complete_topologies["edges"].values()),
+                "sub_combos": list(complete_topologies["sub_combos"].values()),
             },
         }
 
-    def generate_entities_orders(self, incident_snapshots: List[IncidentSnapshotDocument]) -> Dict:
+    def generate_entities_orders(self, incident_snapshots: list[IncidentSnapshotDocument]) -> dict:
         entities_orders = {}
         for incident_snapshot in incident_snapshots:
             for entity in incident_snapshot.content["incident_propagation_graph"]["entities"]:
@@ -563,64 +592,85 @@ class IncidentTopologyResource(IncidentBaseResource):
         self,
         incident: IncidentDocument,
         snapshot: IncidentSnapshot,
-        last_snapshot_content: Dict,
-        complete_topologies: Dict,
-    ) -> Dict:
-        new_nodes = []
-        new_edges = []
+        last_snapshot_content: dict,
+        complete_topologies: dict,
+    ) -> dict:
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
-        last_nodes = {node["id"]: node for node in last_snapshot_content["nodes"]} if last_snapshot_content else {}
-        last_edges = (
-            {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in last_snapshot_content["edges"]}
-            if last_snapshot_content
-            else {}
+
+        last_nodes = self.generate_sub_content(last_snapshot_content, "nodes", lambda obj: obj["id"])
+        last_edges = self.generate_sub_content(
+            last_snapshot_content, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
         )
+        last_sub_combos = self.generate_sub_content(last_snapshot_content, "sub_combos", lambda obj: obj["id"])
 
         # 找出所有在上一帧没有出现过的节点(边)或者出现过但是已经修改的节点(边)
-        for current_node in current["nodes"]:
-            if current_node["id"] not in last_nodes:
-                new_nodes.append(current_node)
-                complete_topologies["nodes"][current_node["id"]] = current_node
-            elif self.check_node_diff(current_node, last_nodes[current_node["id"]]):
-                new_nodes.append(current_node)
-                complete_topologies["nodes"][current_node["id"]] = current_node
-            elif current_node["id"] not in complete_topologies["nodes"]:
-                complete_topologies["nodes"][current_node["id"]] = current_node
-
-        for current_edge in current["edges"]:
-            edge_id = (current_edge["source"], current_edge["target"], current_edge["edge_type"])
-            if edge_id not in last_edges:
-                new_edges.append(current_edge)
-                complete_topologies["edges"][edge_id] = current_edge
-            elif self.check_edge_diff(current_edge, last_edges[edge_id]):
-                new_edges.append(current_edge)
-                complete_topologies["edges"][edge_id] = current_edge
-            elif edge_id not in complete_topologies["edges"]:
-                complete_topologies["edges"][edge_id] = current_edge
+        new_nodes = self.generate_new_objs(
+            current, "nodes", last_nodes, complete_topologies, lambda obj: obj["id"], self.check_node_diff
+        )
+        new_edges = self.generate_new_objs(
+            current,
+            "edges",
+            last_edges,
+            complete_topologies,
+            lambda obj: (obj["source"], obj["target"], obj["edge_type"]),
+            self.check_edge_diff,
+        )
+        new_sub_combos = self.generate_new_objs(
+            current, "sub_combos", last_sub_combos, complete_topologies, lambda obj: obj["id"], self.check_node_diff
+        )
 
         # 找出所有在之前帧出现过，且未删除，但是在当前帧没有的节点(边)节点(边)
-        current_nodes = {node["id"]: node for node in current["nodes"]}
-        current_edges = {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in current["edges"]}
-        for complete_node_id, complete_node in complete_topologies["nodes"].items():
-            if complete_node.get("is_deleted", False):
+        current_nodes = self.generate_sub_content(current, "nodes", lambda obj: obj["id"])
+        current_edges = self.generate_sub_content(
+            current, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
+        )
+        current_sub_combos = self.generate_sub_content(current, "sub_combos", lambda obj: obj["id"])
+
+        # 增加删除标记位
+        self.generate_delete_tag("nodes", current_nodes, complete_topologies, new_nodes)
+        self.generate_delete_tag("edges", current_edges, complete_topologies, new_edges)
+        self.generate_delete_tag("sub_combos", current_sub_combos, complete_topologies, new_sub_combos)
+
+        return current, {"nodes": new_nodes, "edges": new_edges, "sub_combos": new_sub_combos}
+
+    def generate_sub_content(self, snapshot_content: dict, content_key: str, id_func: callable) -> dict:
+        return (
+            {id_func(sub_obj): sub_obj for sub_obj in snapshot_content.get(content_key, [])} if snapshot_content else {}
+        )
+
+    def generate_new_objs(
+        self,
+        snapshot_content: dict,
+        content_key: str,
+        last_objs: dict,
+        complete_content: dict,
+        id_func: callable,
+        diff_func: callable,
+    ) -> list[dict]:
+        new_objs = []
+        for current_obj in snapshot_content[content_key]:
+            obj_id = id_func(current_obj)
+            if obj_id not in last_objs:
+                new_objs.append(current_obj)
+                complete_content[content_key][obj_id] = current_obj
+            elif diff_func(current_obj, last_objs[obj_id]):
+                new_objs.append(current_obj)
+                complete_content[content_key][obj_id] = current_obj
+            elif obj_id not in complete_content[content_key]:
+                complete_content[content_key][obj_id] = current_obj
+
+        return new_objs
+
+    def generate_delete_tag(
+        self, content_key: str, current_objs: dict, complete_content: dict, new_objs: list[dict]
+    ) -> list[dict]:
+        for complete_obj_id, complete_obj in complete_content[content_key].items():
+            if complete_obj.get("is_deleted", False):
                 continue
 
-            if complete_node_id not in current_nodes:
-                complete_node["is_deleted"] = True
-                new_nodes.append(complete_node)
-
-        for complete_edge_id, complete_edge in complete_topologies["edges"].items():
-            if complete_edge.get("is_deleted", False):
-                continue
-
-            if complete_edge_id not in current_edges:
-                complete_edge["is_deleted"] = True
-                new_edges.append(complete_edge)
-
-        return current, {
-            "nodes": new_nodes,
-            "edges": new_edges,
-        }
+            if complete_obj_id not in current_objs:
+                complete_obj["is_deleted"] = True
+                new_objs.append(complete_obj)
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
@@ -632,6 +682,9 @@ class IncidentTopologyResource(IncidentBaseResource):
             "aggregated_nodes",
             "alert_all_recorved",
         ]:
+            if node_key not in current_node and node_key not in last_node:
+                continue
+
             if current_node[node_key] != last_node[node_key]:
                 return True
 
@@ -654,7 +707,7 @@ class IncidentTopologyResource(IncidentBaseResource):
 
         return False
 
-    def get_incident_snapshots(self, incident: IncidentDocument) -> Dict:
+    def get_incident_snapshots(self, incident: IncidentDocument) -> dict:
         """根据故障详情获取故障快照
 
         :param incident: 故障详情
@@ -670,13 +723,13 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentTopologyMenuResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
 
@@ -693,7 +746,7 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
             "default_aggregated_config": default_aggregated_config,
         }
 
-    def generate_topology_menu(self, snapshot: IncidentSnapshot) -> Dict:
+    def generate_topology_menu(self, snapshot: IncidentSnapshot) -> dict:
         """根据快照内容生成拓扑图目录选项
 
         :param snapshot: 快照内容
@@ -763,14 +816,14 @@ class IncidentTopologyUpstreamResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentTopologyUpstreamResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
         entity_id = serializers.CharField(required=True, label="故障实体")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
 
@@ -804,7 +857,7 @@ class IncidentTimeLineResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentTimeLineResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False, label="故障ID")
@@ -812,7 +865,7 @@ class IncidentTimeLineResource(IncidentBaseResource):
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         return {}
 
 
@@ -822,7 +875,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentAlertAggregateResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(AlertSearchSerializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -835,7 +888,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
 
@@ -855,8 +908,8 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
         return aggregate_results
 
     def aggregate_alerts(
-        self, alerts: List[Dict], aggregate_bys: List[str], snapshot: IncidentSnapshot, incident: IncidentDocument
-    ) -> Dict:
+        self, alerts: list[dict], aggregate_bys: list[str], snapshot: IncidentSnapshot, incident: IncidentDocument
+    ) -> dict:
         """对故障的告警进行聚合.
 
         :param alerts: 告警列表
@@ -951,13 +1004,13 @@ class IncidentHandlersResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentHandlersResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
@@ -1029,7 +1082,7 @@ class IncidentOperationsResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentOperationsResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.IntegerField(required=True, label="故障ID")
@@ -1037,7 +1090,7 @@ class IncidentOperationsResource(IncidentBaseResource):
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
             start_time=validated_request_data.get("start_time"),
@@ -1056,7 +1109,7 @@ class IncidentRecordOperationResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentRecordOperationResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.IntegerField(required=True, label="故障ID")
@@ -1066,7 +1119,7 @@ class IncidentRecordOperationResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         extra_info = serializers.JSONField(required=True, label="额外信息")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         IncidentOperationManager.record_operation(
             incident_id=validated_request_data["incident_id"],
             operation_type=IncidentOperationType(validated_request_data["operation_type"]),
@@ -1086,9 +1139,9 @@ class IncidentOperationTypesResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def __init__(self):
-        super(IncidentOperationTypesResource, self).__init__()
+        super().__init__()
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         operations = IncidentOperationDocument.list_by_incident_id(
             validated_request_data["incident_id"],
             order_by="-create_time",
@@ -1121,7 +1174,7 @@ class EditIncidentResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(EditIncidentResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -1135,7 +1188,7 @@ class EditIncidentResource(IncidentBaseResource):
         labels = serializers.ListField(required=False, label="故障标签")
         status = serializers.CharField(required=False, label="故障状态")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident_id = validated_request_data["incident_id"]
 
         incident_info = api.bkdata.get_incident_detail(incident_id=incident_id)
@@ -1155,7 +1208,7 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(FeedbackIncidentRootResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -1164,7 +1217,7 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         feedback = serializers.JSONField(required=True, label="反馈的内容")
         is_cancel = serializers.BooleanField(required=False, default=False)
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident_id = validated_request_data["incident_id"]
         is_cancel = validated_request_data["is_cancel"]
 
@@ -1195,7 +1248,7 @@ class IncidentAlertListResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentAlertListResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(AlertSearchSerializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -1204,7 +1257,7 @@ class IncidentAlertListResource(IncidentBaseResource):
         page = serializers.IntegerField(required=False, label="页码", default=1)
         page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
@@ -1236,7 +1289,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
     """
 
     def __init__(self):
-        super(IncidentAlertViewResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(AlertSearchSerializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -1245,7 +1298,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
         page = serializers.IntegerField(required=False, label="页码", default=1)
         page_size = serializers.IntegerField(required=False, label="每页条数", default=MAX_INCIDENT_ALERT_SIZE)
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
@@ -1278,13 +1331,13 @@ class AlertIncidentDetailResource(IncidentDetailResource):
     """
 
     def __init__(self):
-        super(AlertIncidentDetailResource, self).__init__()
+        super().__init__()
 
     class RequestSerializer(serializers.Serializer):
         alert_id = serializers.IntegerField(required=True, label="故障ID")
         filter_one_hop = serializers.BooleanField(required=False, default=True, label="保留根因关联跳数")
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         alert_id = validated_request_data["alert_id"]
         alert_doc = AlertDocument.get(alert_id)
 

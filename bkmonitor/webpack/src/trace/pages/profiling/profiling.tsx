@@ -136,7 +136,7 @@ export default defineComponent({
       {
         key: 'LAST',
         name: 'LAST',
-      }
+      },
     ]);
     /* 当前选择的文件 */
     const curFileInfo = ref(null);
@@ -172,7 +172,7 @@ export default defineComponent({
     function handleDataTypeChange(v: string, type?: string) {
       (type === 'agg' ? aggMethod : dataType).value = v;
       if (type === 'agg') {
-        aggMethod.value = v
+        aggMethod.value = v;
       } else {
         dataType.value = v;
         // 切换数据类型时，汇聚方法需要切换成后端给的值

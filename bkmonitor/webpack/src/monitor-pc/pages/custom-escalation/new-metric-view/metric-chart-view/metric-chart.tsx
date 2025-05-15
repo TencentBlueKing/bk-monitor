@@ -26,6 +26,7 @@
 import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -33,7 +34,12 @@ import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
+import {
+  downCsvFile,
+  transformSrcData,
+  transformTableDataToCsvStr,
+  type IUnifyQuerySeriesItem,
+} from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
@@ -43,11 +49,12 @@ import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
-import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter } from './utils';
+import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
+import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
 import type {
   DataQuery,
   ILegendItem,
@@ -79,6 +86,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: false }) isShowLegend: boolean;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
+  /** groupId */
+  @Prop({ default: '' }) groupId: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -135,12 +144,17 @@ class NewMetricChart extends CommonSimpleChart {
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
-  legendSorts: { name: string; timeShift: string }[] = [];
+  legendSorts: { name: string; timeShift: string; tipsName: string }[] = [];
   // 切换图例时使用
   seriesList = null;
   minBase = 0;
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
+  }
+
+  /** 指标列表 */
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
   }
 
   /** 操作的icon列表 */
@@ -152,7 +166,11 @@ class NewMetricChart extends CommonSimpleChart {
   }
   // /** 更多里的操作列表 */
   get menuList() {
-    return ['explore', 'drill-down', 'relate-alert', 'screenshot'];
+    return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
+  }
+  /** hover展示多个tooltips */
+  get hoverAllTooltips() {
+    return this.panel.options?.time_series?.hoverAllTooltips;
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -189,45 +207,6 @@ class NewMetricChart extends CommonSimpleChart {
         .replace(/\.$/, '');
     }
     return num;
-  }
-  /**
-   * @description: 设置精确度
-   * @param {number} data
-   * @param {ValueFormatter} formatter
-   * @param {string} unit
-   * @return {*}
-   */
-  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
-    if (!data || data.length === 0) {
-      return 0;
-    }
-    data.sort((a, b) => a - b);
-    const len = data.length;
-    if (data[0] === data[len - 1]) {
-      if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
-      const setList = String(data[0]).split('.');
-      return !setList || setList.length < 2 ? 2 : setList[1].length;
-    }
-    let precision = 0;
-    let sampling = [];
-    const middle = Math.ceil(len / 2);
-    sampling.push(data[0]);
-    sampling.push(data[Math.ceil(middle / 2)]);
-    sampling.push(data[middle]);
-    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
-    sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
-    while (precision < 5) {
-      const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formatter(cur, precision).text)] = 1;
-        return pre;
-      }, {});
-      if (Object.keys(samp).length >= sampling.length) {
-        return precision;
-      }
-      precision += 1;
-    }
-    return precision;
   }
 
   /**
@@ -315,14 +294,14 @@ class NewMetricChart extends CommonSimpleChart {
       legendItem.latestTime = latestVal;
 
       // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
+      const precision = handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
       if (item.name) {
         for (const key in legendItem) {
-          if (['min', 'max', 'avg', 'total'].includes(key)) {
+          if (['min', 'max', 'avg', 'total', 'latest'].includes(key)) {
             const val = legendItem[key];
             legendItem[`${key}Source`] = val;
             const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : precision);
@@ -354,18 +333,20 @@ class NewMetricChart extends CommonSimpleChart {
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);
       if (lItem) {
-        result.push(lItem);
+        result.push({ ...lItem, ...{ tipsName: item.tipsName } });
       }
     }
     this.legendData = result;
     return transformSeries;
   }
 
-  convertJsonObject(obj) {
+  convertJsonObject(obj, name: string) {
+    const dimensions = this.currentSelectedMetricList.find(ele => ele.metric_name === name)?.dimensions;
     const keys = Object.keys(obj);
     const parts = [];
     for (const key of keys) {
-      parts.push(`${key}=${obj[key]}`);
+      const info = dimensions.find(item => item.name === key);
+      parts.push(`${info.alias || info.name}=${obj[key]}`);
     }
     const separator = '|';
     return parts.join(separator);
@@ -379,17 +360,21 @@ class NewMetricChart extends CommonSimpleChart {
     const unit = matches[2];
     if (unit === 'd') {
       return `${number}天前`;
-    } else if (unit === 'h') {
+    }
+    if (unit === 'h') {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set) {
+  handleSeriesName(item: DataQuery, set, isFull = false) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
-    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}-` : '';
-    const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation });
-    const outputStr = output ? `(${output})` : '';
-    return `${timeOffset}${this.method}(${metric?.alias || metric?.name})${outputStr}`;
+    const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
+    const output = this.convertJsonObject({ ...dimensions, ...dimensions_translation }, metric.name);
+    const outputStr = output ? `${output}` : '';
+    if (!timeOffset && !outputStr) {
+      return metric.alias || metric.name;
+    }
+    return `${timeOffset}${time_offset && output ? '-' : ''}${outputStr}`;
   }
 
   handleTime() {
@@ -471,13 +456,16 @@ class NewMetricChart extends CommonSimpleChart {
               series.push(
                 ...res.series.map(set => {
                   const name = this.handleSeriesName(item, set) || set.target;
+                  const tipsName = this.handleSeriesName(item, set) || set.target;
                   this.legendSorts.push({
                     name,
+                    tipsName,
                     timeShift: set.time_offset || '',
                   });
                   return {
                     ...set,
                     name,
+                    tipsName,
                   };
                 })
               );
@@ -562,13 +550,12 @@ class NewMetricChart extends CommonSimpleChart {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
+            color: COLOR_LIST,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -650,7 +637,7 @@ class NewMetricChart extends CommonSimpleChart {
       .catch(() => {});
   }
   dataZoom(startTime: string, endTime: string) {
-    this.showRestore = startTime ? true : false;
+    this.showRestore = !!startTime;
     if (this.enableSelectionRestoreAll) {
       this.handleChartDataZoom([startTime, endTime]);
     } else {
@@ -701,10 +688,8 @@ class NewMetricChart extends CommonSimpleChart {
       case 'drillDown':
         this.$emit('drillDown', this.panel, ind);
         break;
-      case 'screenshot': // 保存到本地
-        setTimeout(() => {
-          this.handleStoreImage(this.panel.title || '测试');
-        }, 300);
+      case 'save': // 保存到仪表盘
+        this.handleCollectChart();
         break;
       case 'fullscreen': {
         // 大图
@@ -735,6 +720,37 @@ class NewMetricChart extends CommonSimpleChart {
     }
   }
   /**
+   * 根据图表接口响应数据下载csv文件
+   */
+  handleExportCsv() {
+    if (this.series?.length) {
+      const { tableThArr, tableTdArr } = transformSrcData(this.series);
+      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
+      downCsvFile(csvString, this.panel.title);
+    }
+  }
+  /**
+   * 点击更多菜单的子菜单
+   * @param data 菜单数据
+   */
+  handleSelectChildMenu(data: IChartTitleMenuEvents['onSelectChild']) {
+    switch (data.menu.id) {
+      case 'more' /** 更多操作 */:
+        if (data.child.id === 'screenshot') {
+          /** 截图 */
+          setTimeout(() => {
+            this.handleStoreImage(this.panel.title || '测试');
+          }, 300);
+        } else if (data.child.id === 'export-csv') {
+          /** 导出csv */
+          this.handleExportCsv();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  /**
    * @description: 点击所有指标
    * @param {*}
    * @return {*}
@@ -751,6 +767,11 @@ class NewMetricChart extends CommonSimpleChart {
   handleMetricClick(metric: IExtendMetricData) {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
+  }
+  /** 获取当前指标的维度列表长度 */
+  getDimensionsLen(name: string) {
+    const dimensions = this.currentSelectedMetricList.find(ele => ele.metric_name === name)?.dimensions || [];
+    return dimensions.length || 0;
   }
 
   renderToolIconList() {
@@ -776,13 +797,19 @@ class NewMetricChart extends CommonSimpleChart {
               slot='dropdown-content'
             >
               {this.panel.targets.map((target, ind) => {
+                const dimensionsName = target?.metric?.name;
+                const dimensionsLen = this.getDimensionsLen(dimensionsName);
                 return (
                   <li
-                    key={target.metric?.name}
-                    class='metric-dropdown-item-tool'
-                    onClick={() => this.handleIconClick(item, ind)}
+                    key={dimensionsName}
+                    class={['metric-dropdown-item-tool', { disabled: dimensionsLen === 0 }]}
+                    v-bk-tooltips={{
+                      content: this.$t('无维度数据'),
+                      disabled: dimensionsLen > 0,
+                    }}
+                    onClick={() => dimensionsLen > 0 && this.handleIconClick(item, ind)}
                   >
-                    <span>{target.metric?.name}</span>
+                    <span>{dimensionsName}</span>
                   </li>
                 );
               })}
@@ -790,20 +817,24 @@ class NewMetricChart extends CommonSimpleChart {
           </bk-dropdown-menu>
         );
       }
+      const dimensionsLen = this.getDimensionsLen(this.panel?.targets[0]?.metric?.name || '--');
+      /** 判断是否有维度可以下钻 */
+      const isDrillDisabled = item.id === 'drillDown' && dimensionsLen === 0;
       return (
         <i
           key={item.id}
-          class={`icon-monitor ${item.icon} menu-list-icon`}
+          class={`icon-monitor ${item.icon} menu-list-icon ${isDrillDisabled ? 'disabled' : ''}`}
           v-bk-tooltips={{
-            content: this.$t(item.text),
+            content: isDrillDisabled ? this.$t('无维度数据可下钻') : this.$t(item.text),
             delay: 200,
           }}
-          onClick={() => this.handleIconClick(item, 0)}
+          onClick={() => !isDrillDisabled && this.handleIconClick(item, 0)}
         />
       );
     });
   }
   render() {
+    console.log(this.panel.dashboardId, 'this.panel.dashboardId');
     return (
       <div class='new-metric-chart'>
         <ChartHeader
@@ -820,6 +851,7 @@ class NewMetricChart extends CommonSimpleChart {
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleIconClick}
           onMetricClick={this.handleMetricClick}
+          onSelectChild={this.handleSelectChildMenu}
         >
           <span class='status-tab-view'>
             <StatusTab
@@ -849,9 +881,10 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
-                  groupId={this.panel.dashboardId}
-                  showRestore={this.showRestore}
+                  groupId={this.panel.groupId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
+                  showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                 />

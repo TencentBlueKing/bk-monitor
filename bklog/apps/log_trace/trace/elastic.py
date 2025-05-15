@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
 from logging import getLogger
 
 import elasticsearch
@@ -55,7 +55,7 @@ def _wrap_perform_request(tracer, span_name_prefix, request_hook=None, response_
             method, url, *_ = args
         except IndexError:
             logger.warning(
-                "expected perform_request to receive two positional arguments. " "Got %d",
+                "expected perform_request to receive two positional arguments. Got %d",
                 len(args),
             )
 
@@ -101,9 +101,17 @@ def _wrap_perform_request(tracer, span_name_prefix, request_hook=None, response_
                 if method:
                     attributes["elasticsearch.method"] = method
                 if body:
-                    attributes[SpanAttributes.DB_STATEMENT] = str(body)
+                    try:
+                        body = json.dumps(body)
+                    except Exception:  # pylint: disable=broad-except
+                        body = str(body)
+                    attributes[SpanAttributes.DB_STATEMENT] = body
                 if params:
-                    attributes["elasticsearch.params"] = str(params)
+                    try:
+                        params = json.dumps(params)
+                    except Exception:  # pylint: disable=broad-except
+                        params = str(params)
+                    attributes["elasticsearch.params"] = params
                 if doc_id:
                     attributes["elasticsearch.id"] = doc_id
                 if search_target:

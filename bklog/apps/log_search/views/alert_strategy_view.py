@@ -60,7 +60,10 @@ class AlertStrategyViewSet(APIViewSet):
                     "first_anomaly_time": 1741685940,
                     "duration": "10m",
                     "status": "CLOSED",
-                    "severity": 2
+                    "severity": 2,
+                    "assignee": "xxx",
+                    "appointee": "xxx,
+                    "end_time": 17416865714,
                 }
             ],
             "code": 0,
@@ -143,6 +146,19 @@ class AlertStrategyViewSet(APIViewSet):
         query_config = alert_infos.get("extend_info", {})
         query_string = query_config.get("query_string", "*")
         agg_condition = query_config.get("agg_condition", [])
+        extra_info = alert_infos.get("extra_info", {})
+        dimensions = extra_info.get("origin_alarm", {}).get("data", {}).get("dimensions", {})
+        # 把维度信息追加到agg_condition中
+        for key, value in dimensions.items():
+            agg_condition.append(
+                {
+                    "condition": "and",
+                    "method": "eq",
+                    "dimension_name": key,
+                    "value": [f"{value}"],
+                    "key": key,
+                }
+            )
         return Response(
             {
                 "query_string": query_string,

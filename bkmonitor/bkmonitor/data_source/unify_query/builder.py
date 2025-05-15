@@ -32,6 +32,7 @@ from bkmonitor.data_source.models.sql import Query
 from bkmonitor.data_source.models.sql.query import get_limit_range
 from bkmonitor.data_source.models.sql.where import WhereNode
 from bkmonitor.data_source.unify_query.query import UnifyQuery
+from constants.data_source import GrayUnifyQueryDataSources
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +227,17 @@ class QueryHelper:
 
         # 2. Data
         for query_config in query_body.get("query_configs") or []:
+            using: Tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+
+            # distinct 对 UnifyQuery 而言是聚合逻辑，而在 ES 中是原始日志查询，当进入 UnifyQuery 灰度时，需重定向查询方法。
+            # 等后续 ES DSL 查询全部迁移到 UnifyQuery 后，可以移除该逻辑。
+            if query_config.get("distinct") and using in GrayUnifyQueryDataSources:
+                data_source = load_data_source(*using)(
+                    bk_biz_id=query_body["bk_biz_id"], use_full_index_names=True, **query_config
+                )
+                if data_source.switch_unify_query(query_body["bk_biz_id"]):
+                    return cls._query_reference
+
             if query_config.get("metrics"):
                 if query_config["is_time_agg"]:
                     return cls._query_data

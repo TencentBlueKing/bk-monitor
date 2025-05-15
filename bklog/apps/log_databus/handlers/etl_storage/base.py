@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import hashlib
 import re
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -52,10 +52,11 @@ from apps.log_search.constants import (
     FieldDateFormatEnum,
 )
 from apps.utils import is_match_variate
+from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
 
-class EtlStorage(object):
+class EtlStorage:
     """
     清洗入库
     """
@@ -74,9 +75,7 @@ class EtlStorage(object):
             EtlConfig.BK_LOG_REGEXP: "BkLogRegexpEtlStorage",
         }
         try:
-            etl_storage = import_string(
-                "apps.log_databus.handlers.etl_storage.{}.{}".format(etl_config, mapping.get(etl_config))
-            )
+            etl_storage = import_string(f"apps.log_databus.handlers.etl_storage.{etl_config}.{mapping.get(etl_config)}")
             return etl_storage()
         except ImportError as error:
             raise NotImplementedError(f"{etl_config} not implement, error: {error}")
@@ -131,9 +130,9 @@ class EtlStorage(object):
             "tokenize_on_chars": tokenize_on_chars,
         }
         # 将字典按照key的顺序转换为字符串, 防止顺序不固定导致的hash值不一致
-        data_str = ''.join([f'{k}{v}' for k, v in sorted(data.items())])
+        data_str = "".join([f"{k}{v}" for k, v in sorted(data.items())])
         # 使用SHA256算法生成hash值
-        hash_obj = hashlib.sha256(data_str.encode('utf-8'))
+        hash_obj = hashlib.sha256(data_str.encode("utf-8"))
         hash_str = hash_obj.hexdigest()[:length]
         # 截取指定长度的子串作为hash值
         return f"{type}_{hash_str}"
@@ -147,6 +146,9 @@ class EtlStorage(object):
         # 当大小写敏感和自定义分词器都为空时, 不使用自定义analyzer
         if not is_case_sensitive and not tokenize_on_chars:
             return ""
+        if tokenize_on_chars:
+            # 将unicode编码的字符串转换为正常字符串
+            tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
         return self.generate_hash_str("analyzer", field_name, field_alias, is_case_sensitive, tokenize_on_chars)
 
     @staticmethod
@@ -158,7 +160,7 @@ class EtlStorage(object):
             return ""
         return f"tokenizer_{field_name}_{field_alias}"
 
-    def generate_fields_analysis(self, fields: List[Dict[str, Any]], etl_params: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_fields_analysis(self, fields: list[dict[str, Any]], etl_params: dict[str, Any]) -> dict[str, Any]:
         """
         构建各个字段的分词器
         """
@@ -189,9 +191,12 @@ class EtlStorage(object):
                     result["analyzer"][analyzer_name]["filter"].append("lowercase")
                 if tokenizer_name:
                     result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                    original_text_tokenize_on_chars = etl_params.get("original_text_tokenize_on_chars", "")
+                    if original_text_tokenize_on_chars:
+                        original_text_tokenize_on_chars = unicode_str_decode(original_text_tokenize_on_chars)
                     result["tokenizer"][tokenizer_name] = {
                         "type": "char_group",
-                        "tokenize_on_chars": [x for x in etl_params.get("original_text_tokenize_on_chars", "")],
+                        "tokenize_on_chars": [x for x in original_text_tokenize_on_chars],
                     }
                 else:
                     # 自定义分词器为空时, 使用standard分词器, 不传es会报错
@@ -222,9 +227,12 @@ class EtlStorage(object):
                 result["analyzer"][analyzer_name]["filter"].append("lowercase")
             if tokenizer_name:
                 result["analyzer"][analyzer_name]["tokenizer"] = tokenizer_name
+                tokenize_on_chars = field.get("tokenize_on_chars", "")
+                if tokenize_on_chars:
+                    tokenize_on_chars = unicode_str_decode(tokenize_on_chars)
                 result["tokenizer"][tokenizer_name] = {
                     "type": "char_group",
-                    "tokenize_on_chars": [x for x in field.get("tokenize_on_chars", "")],
+                    "tokenize_on_chars": [x for x in tokenize_on_chars],
                 }
             else:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
@@ -349,17 +357,14 @@ class EtlStorage(object):
             )
             # 分词场景下, 自定义分词器
             if field["is_analyzed"]:
-                if field.get("option", {}).get("es_analyzer"):
-                    field_option["es_analyzer"] = field["option"]["es_analyzer"]
-                else:
-                    analyzer_name = self.generate_field_analyzer_name(
-                        field_name=field["field_name"],
-                        field_alias=field.get("alias_name", ""),
-                        is_case_sensitive=field.get("is_case_sensitive", False),
-                        tokenize_on_chars=field.get("tokenize_on_chars", ""),
-                    )
-                    if analyzer_name:
-                        field_option["es_analyzer"] = analyzer_name
+                analyzer_name = self.generate_field_analyzer_name(
+                    field_name=field["field_name"],
+                    field_alias=field.get("alias_name", ""),
+                    is_case_sensitive=field.get("is_case_sensitive", False),
+                    tokenize_on_chars=field.get("tokenize_on_chars", ""),
+                )
+                if analyzer_name:
+                    field_option["es_analyzer"] = analyzer_name
 
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
@@ -413,7 +418,7 @@ class EtlStorage(object):
 
     def update_or_create_result_table(
         self,
-        instance: Union[CollectorConfig, CollectorPlugin],
+        instance: CollectorConfig | CollectorPlugin,
         table_id: str,
         storage_cluster_id: int,
         retention: int,
@@ -612,7 +617,7 @@ class EtlStorage(object):
         return {"table_id": instance.table_id, "params": params}
 
     @staticmethod
-    def get_max_fields_index(field_list: List[dict]):
+    def get_max_fields_index(field_list: list[dict]):
         """
         得到field_list中最大的field_index
         """
@@ -826,7 +831,7 @@ class EtlStorage(object):
                     "subtype": "access_obj",
                     "label": "label60f0af",
                     "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                    "result": f'{field.get("alias_name") if field.get("alias_name") else field.get("field_name")}_json',
+                    "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
                     "default_type": "null",
                     "default_value": "",
                     "next": {
@@ -868,7 +873,7 @@ class EtlStorage(object):
     def _get_log_clustering_default_fields(cls):
         return {field["field_name"] for field in CollectorScenario.log_clustering_fields()}
 
-    def get_path_field_configs(self, etl_path_regexp: str, field_list: List[dict]):
+    def get_path_field_configs(self, etl_path_regexp: str, field_list: list[dict]):
         """
         获取路径清洗配置
         """
@@ -898,7 +903,7 @@ class EtlStorage(object):
             etl_field_index += 1
         return path_field_config_list
 
-    def separate_fields_config(self, field_list: List[dict]):
+    def separate_fields_config(self, field_list: list[dict]):
         """
         把log和path的字段配置分开
         """
@@ -912,7 +917,7 @@ class EtlStorage(object):
                 log_fields.append(item)
         return log_fields, path_fields
 
-    def add_path_configs(self, path_fields: List[dict], etl_path_regexp: str, bkdata_json_config):
+    def add_path_configs(self, path_fields: list[dict], etl_path_regexp: str, bkdata_json_config):
         """
         把路径配置添加到bkdata_json_config中
         """

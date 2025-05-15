@@ -226,7 +226,7 @@ class MetricHelper:
                         monitor_info_mapping[metric_service_name] = {}
                     if metric_field not in monitor_info_mapping[metric_service_name]:
                         monitor_info_mapping[metric_service_name][metric_field] = {"monitor_name_list": []}
-                    monitor_name = metric["dimensions"].get(monitor_name_key) or "default"
+                    monitor_name = metric["dimensions"].get(monitor_name_key) or ""
                     if monitor_name not in monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"]:
                         monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"].append(
                             monitor_name

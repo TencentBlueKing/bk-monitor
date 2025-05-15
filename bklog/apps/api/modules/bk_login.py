@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -55,15 +56,41 @@ def get_user_after(response_result):
 class _BKLoginApi:
     MODULE = _("PaaS平台登录模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
     def __init__(self):
-        self.get_user = DataAPI(
-            method="GET",
-            url=USER_MANAGE_APIGATEWAY_ROOT + "retrieve_user/",
-            module=self.MODULE,
-            description="获取单个用户",
-            before_request=get_user_before,
-            after_request=get_user_after,
-        )
+        if self.use_apigw:
+            self.get_user = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/",
+                module=self.MODULE,
+                description="获取单个用户",
+                before_request=get_user_before,
+                after_request=get_user_after,
+            )
+        else:
+            self.get_user = DataAPI(
+                method="GET",
+                url=USER_MANAGE_APIGATEWAY_ROOT + "retrieve_user/",
+                module=self.MODULE,
+                description="获取单个用户",
+                before_request=get_user_before,
+                after_request=get_user_after,
+            )
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            self.list_tenant = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenants/",
+                module=self.MODULE,
+                description="获取租户列表",
+            )
+        else:
+            # 没有开启多租户的，返回固定内容
+            self.list_tenant = lambda *args, **kwargs: [{"id": "system", "name": "Blueking", "status": "enabled"}]
+
         self.list_department_profiles = DataAPI(
             method="GET",
             url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",

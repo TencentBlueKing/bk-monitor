@@ -104,7 +104,7 @@ export default defineComponent({
             return v;
           },
         },
-        splitNumber: 4,
+        splitNumber: 2,
         minInterval: 1,
         position: 'left',
       },

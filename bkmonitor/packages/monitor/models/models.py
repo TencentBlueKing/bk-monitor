@@ -24,6 +24,7 @@ from django.utils.translation import gettext as _
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
 from common.log import logger
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -100,6 +101,7 @@ NODE_IP_TYPE_DICT = {status: desc for (status, desc) in NODE_IP_TYPE_CHOICES}
 
 
 class UptimeCheckNode(OperateRecordModel):
+    bk_tenant_id = models.CharField("租户ID", default=DEFAULT_TENANT_ID, max_length=128)
     bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
     is_common = models.BooleanField("是否为通用节点", default=False, db_index=True)
     biz_scope = JsonField("指定业务可见范围", default=[])

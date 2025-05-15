@@ -237,7 +237,6 @@ export default defineComponent({
                 });
               });
               chartInstance.on('contextmenu', (params: any) => {
-                console.info(params);
                 highlightNode.value = params.value[3];
                 contextMenuRect.value = { left: params.event.offsetX, top: params.event.offsetY };
                 showContextMenu.value = true;

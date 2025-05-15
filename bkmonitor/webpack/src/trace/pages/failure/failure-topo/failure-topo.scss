@@ -181,26 +181,36 @@
   .combo-label-tooltip {
     position: fixed;
     display: block;
+    visibility: hidden;
     padding: 7px 14px;
     font-size: 12px;
     color: #fff;
     white-space: nowrap;
     pointer-events: none;
-    visibility: hidden;
     background: #333;
     border-radius: 4px;
     transform: translateY(-8px);
 
-    &::before {
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      content: '';
-      border-color: #333 transparent transparent transparent;
-      border-style: solid;
-      border-width: 6px;
-      transform: translateX(-50%);
+    p {
+      padding: 0px;
+      margin: 0px;
+      font-size: 12px;
+      line-height: 20px;
     }
+
+    .combo-label-text {
+      color: #c4c6cc;
+    }
+    // &::before {
+    //   position: absolute;
+    //   top: 100%;
+    //   left: 50%;
+    //   content: '';
+    //   border-color: #333 transparent transparent transparent;
+    //   border-style: solid;
+    //   border-width: 6px;
+    //   transform: translateX(-50%);
+    // }
   }
 }
 
