@@ -1023,7 +1023,7 @@ class QueryOptionValuesSerializer(serializers.Serializer):
         choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
     )
     filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])
-    query_string = serializers.CharField(label="查询字符串", default="")
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     limit = serializers.IntegerField(label="数量限制", default=500)
 
 
