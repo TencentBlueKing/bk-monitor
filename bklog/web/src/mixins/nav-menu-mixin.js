@@ -184,10 +184,12 @@ export default {
         const space = this.mySpaceList.find(item => item.space_uid === spaceUid);
         await this.checkSpaceAuth(space);
       }
-      window.localStorage.setItem('space_uid', spaceUid);
+      // window.localStorage.setItem('space_uid', spaceUid);
+      this.$store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: spaceUid });
       for (const item of this.mySpaceList) {
         if (item.space_uid === spaceUid) {
-          window.localStorage.setItem('bk_biz_id', item.bk_biz_id);
+          // window.localStorage.setItem('bk_biz_id', item.bk_biz_id);
+          this.$store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
           break;
         }
       }

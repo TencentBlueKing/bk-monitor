@@ -154,7 +154,9 @@ const updatePositionFromLayouted = (layouted, data, parent?, index?) => {
     const [fixWidth, fixHeight] = getFixedRect(layouted);
     const startX = parent?.x;
     const startY = parent?.y;
+
     const isVirtualBox = (parent?.isVirtual && parent?.isCombo && !parent?.isRoot) ?? false;
+
     Object.assign(target, {
       fixSize: [fixWidth, fixHeight],
       width: fixWidth,
@@ -342,6 +344,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
     yKeys = [...groupByY.keys()];
     yKeys.sort((a, b) => b - a);
     let preLeveYVal = null;
+    let preLeveNodeLength = null;
     // biome-ignore lint/complexity/noForEach: <explanation>
     yKeys.forEach(key => {
       const nodes = groupByY.get(key);
@@ -382,8 +385,12 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
           }
         }
       });
-
+      // 对于y轴都只存在一个节点同时x轴位置页一致，则为了避免一条直线使其形成偏移处理
+      if (nodes.length === 1 && preLeveNodeLength === 1 && Math.abs(nodes[0].x - groupByY.get(preLeveYVal)[0].x) < 5) {
+        Object.assign(nodes[0], { x: nodes[0].x + nodeWidth });
+      }
       preLeveYVal = key;
+      preLeveNodeLength = nodes.length;
     });
   }
 

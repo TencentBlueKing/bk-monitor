@@ -49,6 +49,7 @@ import './static/style.css';
 import './static/font-face/index.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
+import { BK_LOG_STORAGE } from './store/store.type';
 
 Vue.prototype.$renderHeader = renderHeader;
 
@@ -75,8 +76,8 @@ const mountedVueInstance = () => {
     },
   };
   preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
-    const spaceUid = store.state.spaceUid;
-    const bkBizId = store.state.bkBizId;
+    const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     store.commit('requestMenuList', spaceUid);
     const router = getRouter(spaceUid, bkBizId);
