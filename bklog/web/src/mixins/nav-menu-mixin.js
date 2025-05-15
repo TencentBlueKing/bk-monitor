@@ -28,23 +28,11 @@ import reportLogStore from '@/store/modules/report-log';
 import { mapState } from 'vuex';
 
 import * as authorityMap from '../common/authority-map';
-// import { menuArr } from '../components/nav/complete-menu';
 import { BK_LOG_STORAGE } from '../store/store.type';
 
 export default {
   data() {
-    return {
-      // routeMap: {
-      //   // 后端返回的导航id映射
-      //   search: 'retrieve',
-      //   manage_access: 'manage',
-      //   manage_index_set: 'indexSet',
-      //   manage_data_link: 'linkConfiguration',
-      //   manage_user_group: 'permissionGroup',
-      //   manage_migrate: 'migrate',
-      //   manage_extract: 'manageExtract',
-      // },
-    };
+    return {};
   },
   computed: {
     ...mapState({
@@ -247,17 +235,6 @@ export default {
       }
       try {
         const menuList = await this.$store.dispatch('requestMenuList', spaceUid);
-        // const menuList = this.replaceMenuId(res.data || []);
-
-        // menuList.forEach(child => {
-        //   child.id = this.routeMap[child.id] || child.id;
-        //   const menu = menuArr.find(menuItem => menuItem.id === child.id);
-        //   if (menu) {
-        //     this.deepUpdateMenu(menu, child);
-        //   }
-        // });
-        // this.$store.commit('updateTopMenu', menuList);
-        // this.$store.commit('updateMenuProject', res.data || []);
 
         const manageGroupNavList = menuList.find(item => item.id === 'manage')?.children || [];
         const manageNavList = [];
@@ -360,40 +337,5 @@ export default {
         }, 0);
       }
     },
-    // deepUpdateMenu(oldMenu, resMenu) {
-    //   // resMenu结果返回的menu子级
-    //   resMenu.name = oldMenu.name;
-    //   resMenu.dropDown = oldMenu.dropDown;
-    //   resMenu.dropDown = oldMenu.dropDown;
-    //   resMenu.level = oldMenu.level;
-    //   resMenu.isDashboard = oldMenu.isDashboard;
-    //   if (resMenu.children) {
-    //     if (oldMenu.children) {
-    //       resMenu.children.forEach(item => {
-    //         item.id = this.routeMap[item.id] || item.id;
-    //         const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
-    //         if (menu) {
-    //           this.deepUpdateMenu(menu, item);
-    //         }
-    //       });
-    //     }
-    //   } else {
-    //     if (oldMenu.children) {
-    //       resMenu.children = oldMenu.children;
-    //     }
-    //   }
-    // },
-    // replaceMenuId(list) {
-    //   list.forEach(item => {
-    //     if (item.id === 'search') {
-    //       item.id = 'retrieve';
-    //     }
-    //     item.id = item.id.replace(/_/g, '-');
-    //     if (item.children) {
-    //       this.replaceMenuId(item.children);
-    //     }
-    //   });
-    //   return list;
-    // },
   },
 };
