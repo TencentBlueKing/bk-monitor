@@ -29,6 +29,7 @@ import { mapState } from 'vuex';
 
 import * as authorityMap from '../common/authority-map';
 import { menuArr } from '../components/nav/complete-menu';
+import { BK_LOG_STORAGE } from '../store/store.type';
 
 export default {
   data() {
@@ -140,7 +141,7 @@ export default {
             const matchProject = spaceList.find(item => item.space_uid === spaceUid || item.bk_biz_id === bizId);
             this.checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
           } else {
-            const storageSpaceUid = window.localStorage.getItem('space_uid');
+            const storageSpaceUid = this.$store.state.stage[BK_LOG_STORAGE.BK_SPACE_UID];
             const hasSpace = storageSpaceUid ? spaceList.some(item => item.space_uid === storageSpaceUid) : false;
             this.checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
           }
@@ -183,10 +184,12 @@ export default {
         const space = this.mySpaceList.find(item => item.space_uid === spaceUid);
         await this.checkSpaceAuth(space);
       }
-      window.localStorage.setItem('space_uid', spaceUid);
+      // window.localStorage.setItem('space_uid', spaceUid);
+      this.$store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: spaceUid });
       for (const item of this.mySpaceList) {
         if (item.space_uid === spaceUid) {
-          window.localStorage.setItem('bk_biz_id', item.bk_biz_id);
+          // window.localStorage.setItem('bk_biz_id', item.bk_biz_id);
+          this.$store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
           break;
         }
       }
