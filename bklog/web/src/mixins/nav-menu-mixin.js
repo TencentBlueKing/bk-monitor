@@ -34,16 +34,16 @@ import { BK_LOG_STORAGE } from '../store/store.type';
 export default {
   data() {
     return {
-      routeMap: {
-        // 后端返回的导航id映射
-        search: 'retrieve',
-        manage_access: 'manage',
-        manage_index_set: 'indexSet',
-        manage_data_link: 'linkConfiguration',
-        manage_user_group: 'permissionGroup',
-        manage_migrate: 'migrate',
-        manage_extract: 'manageExtract',
-      },
+      // routeMap: {
+      //   // 后端返回的导航id映射
+      //   search: 'retrieve',
+      //   manage_access: 'manage',
+      //   manage_index_set: 'indexSet',
+      //   manage_data_link: 'linkConfiguration',
+      //   manage_user_group: 'permissionGroup',
+      //   manage_migrate: 'migrate',
+      //   manage_extract: 'manageExtract',
+      // },
     };
   },
   computed: {
@@ -358,40 +358,40 @@ export default {
         }, 0);
       }
     },
-    deepUpdateMenu(oldMenu, resMenu) {
-      // resMenu结果返回的menu子级
-      resMenu.name = oldMenu.name;
-      resMenu.dropDown = oldMenu.dropDown;
-      resMenu.dropDown = oldMenu.dropDown;
-      resMenu.level = oldMenu.level;
-      resMenu.isDashboard = oldMenu.isDashboard;
-      if (resMenu.children) {
-        if (oldMenu.children) {
-          resMenu.children.forEach(item => {
-            item.id = this.routeMap[item.id] || item.id;
-            const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
-            if (menu) {
-              this.deepUpdateMenu(menu, item);
-            }
-          });
-        }
-      } else {
-        if (oldMenu.children) {
-          resMenu.children = oldMenu.children;
-        }
-      }
-    },
-    replaceMenuId(list) {
-      list.forEach(item => {
-        if (item.id === 'search') {
-          item.id = 'retrieve';
-        }
-        item.id = item.id.replace(/_/g, '-');
-        if (item.children) {
-          this.replaceMenuId(item.children);
-        }
-      });
-      return list;
-    },
+    // deepUpdateMenu(oldMenu, resMenu) {
+    //   // resMenu结果返回的menu子级
+    //   resMenu.name = oldMenu.name;
+    //   resMenu.dropDown = oldMenu.dropDown;
+    //   resMenu.dropDown = oldMenu.dropDown;
+    //   resMenu.level = oldMenu.level;
+    //   resMenu.isDashboard = oldMenu.isDashboard;
+    //   if (resMenu.children) {
+    //     if (oldMenu.children) {
+    //       resMenu.children.forEach(item => {
+    //         item.id = this.routeMap[item.id] || item.id;
+    //         const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
+    //         if (menu) {
+    //           this.deepUpdateMenu(menu, item);
+    //         }
+    //       });
+    //     }
+    //   } else {
+    //     if (oldMenu.children) {
+    //       resMenu.children = oldMenu.children;
+    //     }
+    //   }
+    // },
+    // replaceMenuId(list) {
+    //   list.forEach(item => {
+    //     if (item.id === 'search') {
+    //       item.id = 'retrieve';
+    //     }
+    //     item.id = item.id.replace(/_/g, '-');
+    //     if (item.children) {
+    //       this.replaceMenuId(item.children);
+    //     }
+    //   });
+    //   return list;
+    // },
   },
 };
