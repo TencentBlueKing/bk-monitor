@@ -92,6 +92,7 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
+from apm.serializers import FilterSerializer as TraceFilterSerializer
 
 logger = logging.getLogger("apm")
 
@@ -1022,7 +1023,7 @@ class QueryOptionValuesSerializer(serializers.Serializer):
         default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
         choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
     )
-    filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])
+    filters = serializers.ListSerializer(label="查询条件", child=TraceFilterSerializer(), default=[])
     query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     limit = serializers.IntegerField(label="数量限制", default=500)
 
