@@ -76,28 +76,36 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
-const getUrlArgs = () => {
-  const router = new VueRouter({
-    routes: [
-      {
-        path: '',
-        redirect: 'retrieve',
-        meta: {
-          title: '检索',
-          navId: 'retrieve',
-        },
-      },
-      {
-        name: 'retrieve',
-        path: '/retrieve/:indexId?',
-      },
-    ],
-  });
+const getUrlArgs = (_route?) => {
+  let urlResolver: RouteUrlResolver = null;
 
-  const hash = window.location.hash.replace(/^#/, '');
-  const route = router.resolve(hash);
-  const urlResolver = new RouteUrlResolver({ route: route.resolved });
-  urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+  if (!_route) {
+    const router = new VueRouter({
+      routes: [
+        {
+          path: '',
+          redirect: 'retrieve',
+          meta: {
+            title: '检索',
+            navId: 'retrieve',
+          },
+        },
+        {
+          name: 'retrieve',
+          path: '/retrieve/:indexId?',
+        },
+      ],
+    });
+
+    const hash = window.location.hash.replace(/^#/, '');
+    const route = router.resolve(hash);
+    urlResolver = new RouteUrlResolver({ route: route.resolved });
+    urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+  } else {
+    urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('index_id', () => _route.params.indexId ?? '');
+  }
+
   const routeParams = urlResolver.convertQueryToStore<RouteParams>();
 
   if (routeParams.bizId) {
@@ -111,7 +119,13 @@ const getUrlArgs = () => {
   return routeParams;
 };
 
-export const URL_ARGS = getUrlArgs();
+let URL_ARGS = getUrlArgs();
+const update_URL_ARGS = route => {
+  URL_ARGS = getUrlArgs(route);
+  return URL_ARGS;
+};
+
+export { URL_ARGS, update_URL_ARGS };
 
 export const getDefaultRetrieveParams = () => {
   return {

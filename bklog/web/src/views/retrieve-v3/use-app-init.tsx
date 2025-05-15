@@ -32,7 +32,8 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import useResizeObserve from '../../hooks/use-resize-observe';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
-import { RouteParams } from '../../store/store.type';
+import { BK_LOG_STORAGE, RouteParams } from '../../store/store.type';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
   const store = useStore();
@@ -53,12 +54,24 @@ export default () => {
    * 更新相关参数到store
    */
   const reoverRouteParams = () => {
-    const urlResolver = new RouteUrlResolver({ route });
-    urlResolver.setResolver('index_id', () => route.params.indexId ?? '');
-    const routeParams = urlResolver.convertQueryToStore<RouteParams>();
+    update_URL_ARGS(route);
+    const routeParams = getDefaultRetrieveParams();
+    let activeTab = 'single';
+
+    if (/^-?\d+$/.test(routeParams.index_id)) {
+      Object.assign(routeParams, { ids: [routeParams.index_id], isUnionIndex: false, selectIsUnionSearch: false });
+      activeTab = 'single';
+    }
+
+    if (routeParams.unionList?.length) {
+      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      activeTab = 'union';
+    }
+
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
     store.commit('updateIndexId', routeParams.index_id);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
   reoverRouteParams();
