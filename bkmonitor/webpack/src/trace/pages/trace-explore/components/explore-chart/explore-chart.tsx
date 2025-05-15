@@ -78,7 +78,6 @@ export default defineComponent({
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       if (!mouseIn.value) return;
       const xAxisData = echartOptions.xAxis[0]?.data;
-      console.info(xAxisData, '__________');
       if (!xAxisData.length || xAxisData.length <= 2) return;
       chartInstance.value.dispatchAction({
         type: 'restore',
