@@ -35,7 +35,6 @@ import {
   setScrollLoadCell,
 } from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
-import RetrieveHelper from '../views/retrieve-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;

@@ -85,6 +85,7 @@
         try {
           return bigJson.parse(val);
         } catch (e) {
+          console.error(`${e.name}: ${e.message}; `, e);
           return val;
         }
       }
