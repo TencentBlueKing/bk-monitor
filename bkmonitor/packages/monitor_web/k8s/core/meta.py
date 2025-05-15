@@ -593,8 +593,24 @@ class K8sClusterMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
+        """
+        指标聚合方法写死，使用 avg
+        ```PromQL
+        (
+            1 - avg by(bcs_cluster) (
+            rate(node_cpu_seconds_total{
+                mode="idle",
+                bk_biz_id="2",
+                bcs_cluster_id="BCS-K8S-00000"
+            }[1m]))
+        ) * 100
+        ```
+        """
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['mode="idle"'])
+        # 写死汇聚方法
+        self.set_agg_method("avg")
+        self.agg_interval = ""
         return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
     @property
@@ -725,8 +741,25 @@ class K8sNodeMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
+        """
+        指标聚合方法写死，使用 avg
+        ```PromQL
+        (
+            1 - avg by(node) (
+                rate(node_cpu_seconds_total{
+                    mode="idle",
+                    bk_biz_id="2",
+                    bcs_cluster_id="BCS-K8S-00000",
+                    node=~"^(node-127-0-0-1)$"
+                }[1m]))
+        ) * 100
+        ```
+        """
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['mode="idle"'])
+        # 写死汇聚方法
+        self.set_agg_method("avg")
+        self.agg_interval = ""
         return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
     @property
