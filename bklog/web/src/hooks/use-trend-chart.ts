@@ -365,7 +365,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
     if (cachedBatch === null && !batch.dblclick) {
-      cachedBatch = batch;
+      const { start_time, end_time } = store.state.indexItem;
+      cachedBatch = { startValue: start_time, endValue: end_time };
     }
 
     if (batch.startValue && batch.endValue) {
@@ -388,27 +389,30 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     chartInstance?.resize();
   });
 
+  const handleDblClick = () => {
+    if (cachedBatch !== null) {
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        dblclick: true,
+        batch: [
+          {
+            startValue: cachedBatch.startValue,
+            endValue: cachedBatch.endValue,
+            start: cachedBatch.startValue,
+            end: cachedBatch.endValue,
+          },
+        ],
+      });
+
+      cachedBatch = null;
+    }
+  };
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
 
       chartInstance.on('dataZoom', handleDataZoom);
-      chartInstance.on('dblclick', () => {
-        chartInstance.dispatchAction({
-          type: 'dataZoom',
-          dblclick: true,
-          batch: [
-            {
-              startValue: cachedBatch.startValue,
-              endValue: cachedBatch.endValue,
-              start: cachedBatch.startValue,
-              end: cachedBatch.endValue,
-            },
-          ],
-        });
-
-        cachedBatch = null;
-      });
+      target.value?.addEventListener('dblclick', handleDblClick);
 
       addListener(target.value, handleCanvasResize);
     }
@@ -417,6 +421,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
+      target.value.removeEventListener('dblclick', handleDblClick);
     }
   });
 
