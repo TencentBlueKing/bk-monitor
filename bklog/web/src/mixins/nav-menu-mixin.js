@@ -28,7 +28,8 @@ import reportLogStore from '@/store/modules/report-log';
 import { mapState } from 'vuex';
 
 import * as authorityMap from '../common/authority-map';
-import { menuArr } from '../components/nav/complete-menu';
+// import { menuArr } from '../components/nav/complete-menu';
+import { BK_LOG_STORAGE } from '../store/store.type';
 
 export default {
   data() {
@@ -140,7 +141,7 @@ export default {
             const matchProject = spaceList.find(item => item.space_uid === spaceUid || item.bk_biz_id === bizId);
             this.checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
           } else {
-            const storageSpaceUid = window.localStorage.getItem('space_uid');
+            const storageSpaceUid = this.$store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
             const hasSpace = storageSpaceUid ? spaceList.some(item => item.space_uid === storageSpaceUid) : false;
             this.checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
           }
@@ -243,18 +244,18 @@ export default {
         this.updateExternalMenuBySpace(spaceUid);
       }
       try {
-        const res = await this.$store.dispatch('getMenuList', spaceUid);
-        const menuList = this.replaceMenuId(res.data || []);
+        const menuList = await this.$store.dispatch('requestMenuList', spaceUid);
+        // const menuList = this.replaceMenuId(res.data || []);
 
-        menuList.forEach(child => {
-          child.id = this.routeMap[child.id] || child.id;
-          const menu = menuArr.find(menuItem => menuItem.id === child.id);
-          if (menu) {
-            this.deepUpdateMenu(menu, child);
-          }
-        });
-        this.$store.commit('updateTopMenu', menuList);
-        this.$store.commit('updateMenuProject', res.data || []);
+        // menuList.forEach(child => {
+        //   child.id = this.routeMap[child.id] || child.id;
+        //   const menu = menuArr.find(menuItem => menuItem.id === child.id);
+        //   if (menu) {
+        //     this.deepUpdateMenu(menu, child);
+        //   }
+        // });
+        // this.$store.commit('updateTopMenu', menuList);
+        // this.$store.commit('updateMenuProject', res.data || []);
 
         const manageGroupNavList = menuList.find(item => item.id === 'manage')?.children || [];
         const manageNavList = [];
