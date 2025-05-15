@@ -113,9 +113,11 @@ export default (indexSetApi) => {
     return getApmIndexSetList().then(resp => {
       isPreApiLoaded.value = true;
 
+      if(!resp?.length) return
+
       // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
-      if (!indexSetIdList.value.length) {
+      if (!route.query.indexId) {
         const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
         store.commit('updateIndexId', defaultId);
@@ -128,7 +130,7 @@ export default (indexSetApi) => {
       // 需要检查索引集列表中是否包含解析出来的索引集信息
       // 避免索引信息不存在导致的频繁错误请求和异常提示
       const emptyIndexSetList = [];
-      if (indexSetIdList.value.length) {
+      if (route.query.indexId) {
         indexSetIdList.value.forEach(id => {
           if (!resp.some(item => `${item.index_set_id}` === `${id}`)) {
             emptyIndexSetList.push(id);
@@ -148,7 +150,7 @@ export default (indexSetApi) => {
       if (emptyIndexSetList.length === 0) {
         RetrieveHelper.setSearchingValue(true);
 
-        const type = route.params.indexId ? 'single' : 'union';
+        const type = route.query.indexId ? 'single' : 'union';
         RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
 
         store.dispatch('requestIndexSetFieldInfo').then(() => {
