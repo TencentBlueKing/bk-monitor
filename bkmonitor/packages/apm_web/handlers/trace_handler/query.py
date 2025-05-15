@@ -327,6 +327,9 @@ class FieldTransformer(TreeTransformer):
 class OptionValues:
     FIELDS: list["Field"] = []
     API = None
+    STANDARD_FIELD_MAPPING: dict[str, StandardField] = {
+        field_info.field: field_info for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
+    }
 
     @dataclass
     class Field:
@@ -353,7 +356,7 @@ class OptionValues:
         end_time: int,
         filters: list,
         query_string: str,
-        limit: int = 500,
+        limit: int,
     ) -> dict[str, list[dict[str, Any]]]:
         field_transformer: Callable[[str], str] = {
             ValueSource.TRACE: self._transform_field_to_log_field,
@@ -392,6 +395,9 @@ class OptionValues:
 
     @classmethod
     def _transform_field_to_metric_field(cls, field: str) -> str:
+        field_info: StandardField | None = cls.STANDARD_FIELD_MAPPING.get(field)
+        if field_info is not None and field_info.value_source == ValueSource.METRIC:
+            return field_info.metric_dimension
         return field
 
     @classmethod
@@ -417,20 +423,6 @@ class OptionValues:
     def _get_field_mapping(cls) -> dict[str, Field]:
         return {field_info.id: field_info for field_info in cls.FIELDS}
 
-    def get_field_option_values(
-        self, fields: list[str], start_time: int, end_time: int
-    ) -> dict[str, list[dict[str, Any]]]:
-        option_values: dict[str, list[dict[str, Any]]] = {}
-        value_source_fields: dict[str, list[str]] = self._get_value_source_fields(fields)
-        for value_source, fields in value_source_fields.items():
-            if value_source == ValueSource.METHOD:
-                option_values.update(self._get_option_values_from_method(fields))
-            else:
-                option_values.update(
-                    self._get_option_values_from_api(value_source, fields, start_time, end_time, [], "")
-                )
-        return option_values
-
     def get_fields_option_values(
         self,
         fields: list[str],
@@ -441,7 +433,9 @@ class OptionValues:
         limit: int,
     ) -> dict[str, list[dict[str, Any]]]:
         option_values: dict[str, list[dict[str, Any]]] = {}
-        value_source_fields: dict[str, list[str]] = self._get_value_source_fields(fields, filters=filters)
+        value_source_fields: dict[str, list[str]] = self._get_value_source_fields(
+            fields, filters=filters, query_string=query_string
+        )
         for value_source, fields in value_source_fields.items():
             if value_source == ValueSource.METHOD:
                 option_values.update(self._get_option_values_from_method(fields))
@@ -452,6 +446,9 @@ class OptionValues:
                     )
                 )
         return option_values
+
+    def get_kind(self):
+        return SpanKind.list()
 
 
 class TraceOptionValues(OptionValues):
@@ -487,35 +484,14 @@ class TraceOptionValues(OptionValues):
     def get_root_span_kind(self):
         return SpanKind.list()
 
-    def get_kind(self):
-        return SpanKind.list()
-
 
 class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
-
-    STANDARD_FIELD_MAPPING: dict[str, StandardField] = {
-        field_info.field: field_info for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
-    }
 
     FIELDS = [
         OptionValues.Field(id=field_info.field, value_source=field_info.value_source, label=field_info.value)
         for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
     ]
-
-    @classmethod
-    def _transform_field_to_metric_field(cls, field: str) -> str:
-        field_info: StandardField | None = cls.STANDARD_FIELD_MAPPING.get(field)
-        if field_info is None:
-            return field
-
-        if field_info.value_source == ValueSource.METRIC:
-            return field_info.metric_dimension
-
-        return field
-
-    def get_kind(self):
-        return SpanKind.list()
 
     def get_status_code(self):
         return [
@@ -592,7 +568,7 @@ class QueryHandler:
         else:
             option = SpanOptionValues(bk_biz_id, app_name)
 
-        return option.get_field_option_values(fields, start_time, end_time)
+        return option.get_fields_option_values(fields, start_time, end_time, filters=[], query_string="", limit=500)
 
     @classmethod
     def get_fields_option_values(
