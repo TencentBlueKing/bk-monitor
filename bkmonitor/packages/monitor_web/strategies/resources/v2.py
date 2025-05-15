@@ -3526,21 +3526,25 @@ class UpdateMetricListByBizResource(Resource):
 
 
 class SimpleStrategyListV2Resource(Resource):
-    """对外提供的接口，供apigw调用，只返回id和name"""
+    """
+    对外提供的接口，供apigw调用，蓝盾插件使用该apigw，返回策略列表，每个元素只包含id和name。
+    """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         # 获取指定业务下启用的策略
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-        if not bk_biz_id or bk_biz_id == "":
+        bk_biz_id: str = validated_request_data.get("bk_biz_id")
+        if not bk_biz_id:
             return {"status": 0, "data": []}
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            StrategyModel.objects.filter(bk_biz_id=int(bk_biz_id), is_enabled=True)
             .values("id", "name")
             .order_by("-update_time")
         )
 
-        strategy_list = [{"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies]
+        strategy_list: list = [
+            {"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies
+        ]
         return {"status": 0, "data": strategy_list}
