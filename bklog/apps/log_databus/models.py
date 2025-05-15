@@ -815,9 +815,10 @@ class LogSubscriptionConfig(models.Model):
         target_hosts = []
         proxy_list = NodeApi.get_host_biz_proxies({"bk_biz_id": collector_config.bk_biz_id})
         for p in proxy_list:
-            if p["bk_cloud_id"] == 0:
+            bk_cloud_id = p.get("bk_cloud_id", 0)
+            if bk_cloud_id == 0:
                 continue
-            target_hosts.append({"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0})
+            target_hosts.append({"ip": p["inner_ip"], "bk_cloud_id": bk_cloud_id, "bk_supplier_id": 0})
         return target_hosts
 
     @classmethod
