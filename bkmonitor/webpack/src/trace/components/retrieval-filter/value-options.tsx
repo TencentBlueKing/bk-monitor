@@ -361,7 +361,7 @@ export default defineComponent({
                 />
                 {item.id !== item.name ? (
                   <TextHighlighter
-                    class='subtitle__text'
+                    class={item.name ? 'subtitle__text' : 'title__text'}
                     v-overflow-text={{
                       content: item.id,
                       placement: 'top',
