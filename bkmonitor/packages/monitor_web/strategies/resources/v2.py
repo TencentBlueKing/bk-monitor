@@ -3531,15 +3531,15 @@ class SimpleStrategyListV2Resource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+        bk_biz_id = serializers.IntegerField(required=False, allow_null=True)
 
     def perform_request(self, validated_request_data: dict) -> dict:
         # 获取指定业务下启用的策略
-        bk_biz_id: str = validated_request_data.get("bk_biz_id")
+        bk_biz_id: int = validated_request_data.get("bk_biz_id")
         if not bk_biz_id:
             return {"status": 0, "data": []}
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=int(bk_biz_id), is_enabled=True)
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
             .values("id", "name")
             .order_by("-update_time")
         )
