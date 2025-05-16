@@ -176,4 +176,11 @@ export default {
 
   数值分布直方图: 'Numerical distribution histogram',
   'TOP 5 时序图': 'TOP 5 Time Series Chart',
+
+  版本更新: 'Version update',
+  刷新页面: 'Refresh page',
+  暂不刷新: 'Do not refresh',
+  查看新特性: 'View new features',
+  '建议「刷新页面」体验新的特性，「暂不刷新」可能会遇到未知异常，可手动刷新解决。':
+    'It is recommended to "refresh the page" to experience the new features. If you choose "Do not refresh", you may encounter unknown exceptions. You can manually refresh to solve the problem.',
 };
