@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from enum import Enum
 
 from django.conf import settings
@@ -407,7 +407,12 @@ class KindCategory:
 
     @classmethod
     def choices(cls):
-        return [(cls.ASYNC, _("异步")), (cls.SYNC, _("同步")), (cls.INTERNAL, _("内部")), (cls.UNSPECIFIED, _("未指定"))]
+        return [
+            (cls.ASYNC, _("异步")),
+            (cls.SYNC, _("同步")),
+            (cls.INTERNAL, _("内部")),
+            (cls.UNSPECIFIED, _("未指定")),
+        ]
 
     @classmethod
     def get_category(cls, kind):
@@ -657,3 +662,14 @@ class StatisticsProperty(Enum):
     DISTINCT_COUNT = "distinct_count"
     FIELD_COUNT = "field_count"
     MEDIAN = "median"
+
+
+class OperatorGroupRelation(str, Enum):
+    """操作符组间关系"""
+
+    AND = "AND"
+    OR = "OR"
+
+    @classmethod
+    def choices(cls):
+        return [(relation.name, relation.value) for relation in cls]

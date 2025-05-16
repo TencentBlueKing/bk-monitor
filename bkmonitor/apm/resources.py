@@ -947,13 +947,6 @@ class QueryEventResource(Resource):
 
 
 class QuerySerializer(serializers.Serializer):
-    class FilterSerializer(serializers.Serializer):
-        key = serializers.CharField(label="查询键")
-        operator = serializers.CharField(label="操作符")
-        value = serializers.ListSerializer(
-            label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True
-        )
-
     bk_biz_id = serializers.IntegerField(label="业务id")
     app_name = serializers.CharField(label="应用名称", max_length=50)
     start_time = serializers.IntegerField(required=True, label="数据开始时间")
@@ -961,7 +954,7 @@ class QuerySerializer(serializers.Serializer):
     offset = serializers.IntegerField(required=False, label="偏移量", default=0)
     limit = serializers.IntegerField(required=False, label="每页数量", default=10)
     es_dsl = serializers.DictField(required=False, label="DSL语句")
-    filters = serializers.ListSerializer(required=False, label="查询条件", child=FilterSerializer())
+    filters = serializers.ListSerializer(required=False, label="查询条件", child=TraceFilterSerializer())
     exclude_field = serializers.ListSerializer(required=False, label="排除字段", child=serializers.CharField())
     query_mode = serializers.ChoiceField(
         required=False,
