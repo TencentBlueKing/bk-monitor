@@ -154,7 +154,7 @@ export default class CollectIndex extends tsc<IProps> {
   currentCollectionType = 'origin';
 
   // 勾选是否查看当前索引集
-  isShowCurrentIndexList = 'yes';
+  isShowCurrentIndexList = RetrieveHelper.isViewCurrentIndex? 'yes' : 'no'
 
   // 是否隐藏收藏
   isHidden = false;
@@ -810,6 +810,9 @@ export default class CollectIndex extends tsc<IProps> {
   handleFavoriteSetttingClick() {
     this.isShowManageDialog = true;
   }
+  handleShowCurrentChange() {
+    RetrieveHelper.setViewCurrentIndexn(this.isShowCurrentIndexList === 'yes');
+  }
   render() {
     return (
       <div
@@ -883,6 +886,7 @@ export default class CollectIndex extends tsc<IProps> {
                   v-model={this.isShowCurrentIndexList}
                   false-value='no'
                   true-value='yes'
+                  onChange={this.handleShowCurrentChange}
                 >
                   仅查看当前索引集
                 </bk-checkbox>
