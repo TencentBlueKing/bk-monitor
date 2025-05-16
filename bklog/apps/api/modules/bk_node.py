@@ -139,7 +139,6 @@ class _BKNodeApi:
             module=self.MODULE,
             description="节点管理统计订阅任务数据",
             before_request=get_bk_node_request_before,
-            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.query_host_subscriptions = DataAPI(
             method="GET",
