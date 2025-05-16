@@ -531,8 +531,8 @@ export default class K8SCharts extends tsc<
     // const metric = metricId.replace('node_', '');
     const clusterId = this.filterCommonParams.bcs_cluster_id;
     switch (metricId) {
-      case 'node_cpu_seconds_total': // 节点 CPU 使用量
-        return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()}}[$interval])[$interval:] $time_shift))`;
+      case 'node_cpu_seconds_total': // 节点CPU使用量
+        return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()},mode!="idle"}[$interval])[$interval:] $time_shift))`;
       case 'node_cpu_capacity_ratio': // 节点CPU装箱率
         return `
         ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
