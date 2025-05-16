@@ -157,6 +157,11 @@ class NewMetricChart extends CommonSimpleChart {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get viewWidth() {
+    const viewColumn = Number(this.$route.query?.viewColumn) || 2;
+    return this.width / (viewColumn + 1) - 40;
+  }
+
   /** 操作的icon列表 */
   get handleIconList() {
     return [
@@ -854,7 +859,7 @@ class NewMetricChart extends CommonSimpleChart {
         >
           <span class='status-tab-view'>
             <StatusTab
-              maxWidth={this.width - 300}
+              maxWidth={this.viewWidth}
               statusList={this.methodList}
               value={this.method}
               onChange={this.handleMethodChange}
