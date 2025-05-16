@@ -28,7 +28,9 @@
     .group-str {
       width: calc(100% - 20px);
       margin-left: 4px;
-      word-wrap: break-word;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
