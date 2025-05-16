@@ -88,6 +88,10 @@ export default defineComponent({
       errMsg.value = '';
     }, 300);
 
+    const handleInputChangeDebounce = useDebounceFn((val: string, type: 'end' | 'start') => {
+      handleInputChange(val, type);
+    }, 1000);
+
     function handleInputChange(val: string, type: 'end' | 'start') {
       const isError = !TIME_CONSUMING_REGEXP.test(val);
       if (type === 'start') {
@@ -177,6 +181,7 @@ export default defineComponent({
       handleInputChange,
       handleChangeDebounce,
       handleRangeChange,
+      handleInputChangeDebounce,
     };
   },
   render() {
@@ -200,7 +205,8 @@ export default defineComponent({
               v-model={this.startValue}
               placeholder={'0ns'}
               size={this.styleType !== 'form' ? 'small' : 'default'}
-              onChange={val => this.handleInputChange(val, 'start')}
+              onBlur={() => this.handleInputChange(this.startValue as string, 'start')}
+              onInput={val => this.handleInputChangeDebounce(val, 'start')}
             />
           ) : (
             <TInput
@@ -242,7 +248,8 @@ export default defineComponent({
               v-model={this.endValue}
               placeholder={'1s'}
               size={this.styleType !== 'form' ? 'small' : 'default'}
-              onChange={val => this.handleInputChange(val, 'end')}
+              onBlur={() => this.handleInputChange(this.endValue as string, 'end')}
+              onInput={val => this.handleInputChangeDebounce(val, 'end')}
             />
           ) : (
             <TInput

@@ -253,7 +253,7 @@ export default defineComponent({
           isInit__: isInit,
         });
         list = data.list;
-        isEnd.value = limit >= data.count;
+        isEnd.value = limit > data.count;
       }
       scrollLoading.value = false;
       loading.value = false;

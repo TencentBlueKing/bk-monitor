@@ -65,7 +65,7 @@ export default defineComponent({
         const valueStr = JSON.stringify(val);
         const localValueStr = JSON.stringify(localValue.value);
         if (valueStr !== localValueStr) {
-          localValue.value = JSON.parse(valueStr);
+          localValue.value = structuredClone(props.value);
         }
       },
       { immediate: true }

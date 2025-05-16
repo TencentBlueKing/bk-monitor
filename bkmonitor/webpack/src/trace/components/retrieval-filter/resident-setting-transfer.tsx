@@ -25,9 +25,10 @@
  */
 
 import { defineComponent, shallowRef, useTemplateRef, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
-import { Button, Input } from 'bkui-vue';
+import { Button, Input, Message } from 'bkui-vue';
 
 import EmptyStatus from '../empty-status/empty-status';
 import { type IFilterField, RESIDENT_SETTING_TRANSFER_EMITS, RESIDENT_SETTING_TRANSFER_PROPS } from './typing';
@@ -40,6 +41,7 @@ export default defineComponent({
   props: RESIDENT_SETTING_TRANSFER_PROPS,
   emits: RESIDENT_SETTING_TRANSFER_EMITS,
   setup(props, { emit }) {
+    const { t } = useI18n();
     const searchRef = useTemplateRef<HTMLDivElement>('search');
 
     const localFields = shallowRef<IFilterField[]>([]);
@@ -108,6 +110,13 @@ export default defineComponent({
     );
 
     function handleCheck(index: number) {
+      if (selectedFields.value.length >= 20) {
+        Message({
+          theme: 'error',
+          message: t('添加失败， 最多仅支持添加20个常驻筛选项'),
+        });
+        return;
+      }
       const name = searchLocalFields.value[index].name;
       const delIndex = localFields.value.findIndex(item => item.name === name);
       const item = JSON.parse(JSON.stringify(localFields.value[delIndex]));
@@ -224,12 +233,12 @@ export default defineComponent({
           <div class='component-top-left'>
             <div class='top-header'>
               <span class='header-title'>{`${this.$t('待选列表')}（${this.localFields.length}）`}</span>
-              <span
+              {/* <span
                 class='header-btn'
                 onClick={this.handleAllAdd}
               >
                 {this.$t('全部添加')}
-              </span>
+              </span> */}
             </div>
             <div class='content-wrap'>
               <div class='search-wrap'>
