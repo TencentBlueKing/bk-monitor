@@ -1133,7 +1133,7 @@ class UnifyQueryHandler:
         @return:
         """
         # 设置了自定义排序字段的，默认认为支持上下文
-        if self.index_set.target_fields and self.index_set.sort_fields:
+        if self.index_set["index_set_obj"].target_fields and self.index_set["index_set_obj"].sort_fields:
             return True, {"reason": "", "context_fields": []}
         result = MappingHandlers.analyze_fields(field_result)
         if result["context_search_usable"]:
@@ -1161,7 +1161,7 @@ class UnifyQueryHandler:
         @param scenario_id:
         @return:
         """
-        sort_fields = self.index_set.sort_fields if self.index_set else []
+        sort_fields = self.index_set["index_set_obj"].sort_fields if self.index_set else []
         result = MappingHandlers.async_export_fields(field_result, scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
@@ -1173,7 +1173,7 @@ class UnifyQueryHandler:
 
     @fields_config("apm_relation")
     def apm_relation(self, index_set_id):
-        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set["index_set_obj"].collector_config_id)
         try:
             if qs.exists():
                 collector_config = qs.first()
@@ -1207,7 +1207,7 @@ class UnifyQueryHandler:
             return (
                 clustering_config.signature_enable,
                 {
-                    "collector_config_id": self.index_set.collector_config_id,
+                    "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
                     "signature_switch": clustering_config.signature_enable,
                     "clustering_field": clustering_config.clustering_fields,
                 },
@@ -1219,13 +1219,15 @@ class UnifyQueryHandler:
         """
         获取清洗配置
         """
-        if not self.index_set.collector_config_id:
+        if not self.index_set["index_set_obj"].collector_config_id:
             return False, {"collector_config_id": None}
-        collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        collector_config = CollectorConfig.objects.get(
+            collector_config_id=self.index_set["index_set_obj"].collector_config_id
+        )
         return (
             collector_config.etl_config != EtlConfig.BK_LOG_TEXT,
             {
                 "collector_scenario_id": collector_config.collector_scenario_id,
-                "collector_config_id": self.index_set.collector_config_id,
+                "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
             },
         )
