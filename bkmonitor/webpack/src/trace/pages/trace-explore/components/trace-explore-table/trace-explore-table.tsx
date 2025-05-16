@@ -342,7 +342,14 @@ export default defineComponent({
       descriptionPopoverHide();
       const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
-      if (isEnd) {
+      if (
+        !(
+          tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
+          tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
+          tableLoading[ExploreTableLoadingEnum.SCROLL]
+        ) &&
+        isEnd
+      ) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
@@ -571,6 +578,7 @@ export default defineComponent({
         signal: abortController.signal,
       });
       if (res?.isAborted) {
+        tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
       tableLoading[loadingType] = false;
