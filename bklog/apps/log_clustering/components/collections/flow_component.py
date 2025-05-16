@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
@@ -61,7 +61,9 @@ class CreatePreTreatFlowService(BaseService):
     def _schedule(self, data, parent_data, callback_data=None):
         index_set_id = data.get_one_of_inputs("index_set_id")
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.pre_treat_flow_id)
+        deploy_data = DataFlowHandler().get_latest_deploy_data(
+            flow_id=clustering_config.pre_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
+        )
         if deploy_data["status"] == "failure":
             return False
         if deploy_data["status"] == "success":
@@ -75,7 +77,7 @@ class CreatePreTreatFlowComponent(Component):
     bound_service = CreatePreTreatFlowService
 
 
-class CreatePreTreatFlow(object):
+class CreatePreTreatFlow:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_pre_treat_flow = ServiceActivity(
             component_code="create_pre_treat_flow", name=f"create_pre_treat_flow:{index_set_id}_{collector_config_id}"
@@ -100,7 +102,9 @@ class CreateAfterTreatFlowService(BaseService):
     def _schedule(self, data, parent_data, callback_data=None):
         index_set_id = data.get_one_of_inputs("index_set_id")
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.after_treat_flow_id)
+        deploy_data = DataFlowHandler().get_latest_deploy_data(
+            flow_id=clustering_config.after_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
+        )
         if deploy_data["status"] == "failure":
             return False
         if deploy_data["status"] == "success":
@@ -109,6 +113,7 @@ class CreateAfterTreatFlowService(BaseService):
                     "receivers": clustering_config.created_by,
                     "content": _("聚类流程已经完成"),
                     "title": str(_("【日志平台】")),
+                    "bk_biz_id": clustering_config.bk_biz_id,
                 }
                 CmsiApi.send_mail(send_params)
                 CmsiApi.send_weixin(send_params)
@@ -122,7 +127,7 @@ class CreateAfterTreatFlowComponent(Component):
     bound_service = CreateAfterTreatFlowService
 
 
-class CreateAfterTreatFlow(object):
+class CreateAfterTreatFlow:
     def __init__(self, index_set_id, collector_config_id: int = None):
         self.create_after_treat_flow = ServiceActivity(
             component_code="create_after_treat_flow",
@@ -143,7 +148,7 @@ class CreateNewIndexSetService(BaseService):
         src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
         src_index_set_indexes = src_index_set.indexes
         new_cls_index_set = IndexSetHandler.create(
-            index_set_name="{}_clustering".format(src_index_set.index_set_name),
+            index_set_name=f"{src_index_set.index_set_name}_clustering",
             space_uid=src_index_set.space_uid,
             storage_cluster_id=src_index_set.storage_cluster_id,
             scenario_id=src_index_set.scenario_id,
@@ -178,7 +183,7 @@ class CreateNewIndexSetComponent(Component):
     bound_service = CreateNewIndexSetService
 
 
-class CreateNewIndexSet(object):
+class CreateNewIndexSet:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_new_index_set = ServiceActivity(
             component_code="create_new_index_set", name=f"create_new_index_set:{index_set_id}_{collector_config_id}"
@@ -208,7 +213,7 @@ class CreatePredictFlowComponent(Component):
     bound_service = CreatePredictFlowService
 
 
-class CreatePredictFlow(object):
+class CreatePredictFlow:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_predict_flow = ServiceActivity(
             component_code="create_predict_flow", name=f"create_predict_flow:{index_set_id}_{collector_config_id}"
@@ -239,7 +244,7 @@ class CreateLogCountAggregationFlowComponent(Component):
     bound_service = CreateLogCountAggregationFlowService
 
 
-class CreateLogCountAggregationFlow(object):
+class CreateLogCountAggregationFlow:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_log_count_aggregation_flow = ServiceActivity(
             component_code="create_log_count_aggregation_flow",
@@ -273,7 +278,7 @@ class CreateStrategyComponent(Component):
     bound_service = CreateStrategyService
 
 
-class CreateStrategy(object):
+class CreateStrategy:
     def __init__(self, index_set_id: int):
         self.create_strategy = ServiceActivity(
             component_code="create_strategy",
@@ -303,7 +308,7 @@ class UpdateFilterRulesComponent(Component):
     bound_service = UpdateFilterRulesService
 
 
-class UpdateFilterRules(object):
+class UpdateFilterRules:
     def __init__(self, index_set_id: int):
         self.update_filter_rules = ServiceActivity(
             component_code="update_filter_rules",
@@ -327,7 +332,7 @@ class UpdateOnlineModelComponent(Component):
     bound_service = UpdateOnlineModelService
 
 
-class UpdateOnlineModel(object):
+class UpdateOnlineModel:
     def __init__(self, index_set_id: int):
         self.update_online_model = ServiceActivity(
             component_code="update_online_model",
@@ -357,7 +362,7 @@ class UpdateClusteringFieldComponent(Component):
     bound_service = UpdateClusteringFieldService
 
 
-class UpdateClusteringField(object):
+class UpdateClusteringField:
     def __init__(self, index_set_id: int):
         self.update_clustering_field = ServiceActivity(
             component_code="update_clustering_field",

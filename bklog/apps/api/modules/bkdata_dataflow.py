@@ -84,6 +84,7 @@ class _BkDataDataFlowApi:
             description="获取DataFlow图信息",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.add_flow_nodes = DataAPI(
             method="POST",
@@ -113,6 +114,7 @@ class _BkDataDataFlowApi:
             description="获取flow最近部署信息",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_dataflow = DataAPI(
             method="GET",
@@ -122,6 +124,7 @@ class _BkDataDataFlowApi:
             description="获取flow信息",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.patch_flow_nodes = DataAPI(
             method="PATCH",
@@ -131,6 +134,7 @@ class _BkDataDataFlowApi:
             description="部分更新节点",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.set_dataflow_resource = DataAPI(
             method="POST",

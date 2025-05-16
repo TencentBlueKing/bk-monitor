@@ -1893,7 +1893,6 @@ class CollectorHandler:
             params={
                 "subscription_id_list": subscription_id_list,
                 "plugin_name": LogPluginInfo.NAME,
-                "bk_biz_id": self.data.bk_biz_id,
             }
         )
 

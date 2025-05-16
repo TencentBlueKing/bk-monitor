@@ -290,6 +290,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("创建结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.modify_result_table_snapshot = DataAPI(
             method="POST",
@@ -297,6 +298,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.delete_result_table_snapshot = DataAPI(
             method="POST",
@@ -304,6 +306,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("删除结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.list_result_table_snapshot = DataAPI(
             method="POST",
@@ -332,6 +335,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("快照回溯"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.modify_restore_result_table_snapshot = DataAPI(
             method="POST",

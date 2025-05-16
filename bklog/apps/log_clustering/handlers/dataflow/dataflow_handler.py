@@ -848,7 +848,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         graph = BkDataDataFlowApi.get_flow_graph(
-            params={"flow_id": after_treat_flow_id, "bk_username": self.conf.get("bk_username")}
+            params={"flow_id": after_treat_flow_id, "bk_username": self.conf.get("bk_username"), "bk_biz_id": bk_biz_id}
         )
         graph_nodes_dict = {
             (node["result_table_ids"][0], node["node_type"]): node["node_id"] for node in graph["nodes"]
@@ -872,27 +872,37 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         return modify_flow_cls
 
-    def get_latest_deploy_data(self, flow_id):
+    def get_latest_deploy_data(self, flow_id, bk_biz_id):
         """
         get_latest_deploy_data
         @param flow_id:
         @return:
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
-            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
+            params={
+                "flow_id": flow_id,
+                "bk_username": self.conf.get("bk_username"),
+                "no_request": True,
+                "bk_biz_id": bk_biz_id,
+            },
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
         )
 
-    def get_dataflow_info(self, flow_id):
+    def get_dataflow_info(self, flow_id, bk_biz_id):
         """
         get_dataflow_info
         @param flow_id:
         @return:
         """
         return BkDataDataFlowApi.get_dataflow(
-            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
+            params={
+                "flow_id": flow_id,
+                "bk_username": self.conf.get("bk_username"),
+                "no_request": True,
+                "bk_biz_id": bk_biz_id,
+            },
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
@@ -973,7 +983,7 @@ class DataFlowHandler(BaseAiopsHandler):
         )
 
         flow_id = clustering_config.pre_treat_flow_id
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
 
         nodes = flow_graph["nodes"]
         target_nodes = self.get_flow_node_config(
@@ -986,6 +996,7 @@ class DataFlowHandler(BaseAiopsHandler):
             filter_rule=filter_rule,
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
+            bk_biz_id=clustering_config.bk_biz_id,
         )
 
     def update_predict_flow_filter_rules(self, index_set_id):
@@ -1001,7 +1012,7 @@ class DataFlowHandler(BaseAiopsHandler):
         )
 
         flow_id = clustering_config.predict_flow_id
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=ClusteringConfig.bk_biz_id)
 
         nodes = flow_graph["nodes"]
         target_nodes = self.get_predict_flow_node_config(nodes=nodes)
@@ -1010,6 +1021,7 @@ class DataFlowHandler(BaseAiopsHandler):
             filter_rule=filter_rule,
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
+            bk_biz_id=ClusteringConfig.bk_biz_id,
         )
 
     def update_online_task(self, index_set_id: int):
@@ -1039,12 +1051,15 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
         flow_id = clustering_config.predict_flow_id  # 预测 flow_id
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
         nodes = flow_graph["nodes"]
         predict_node = self.get_predict_node_config(nodes=nodes)
         # 更新预测节点
         self.deal_update_predict_node(
-            predict_node=predict_node, flow_id=flow_id, predict_change_args=predict_change_args
+            predict_node=predict_node,
+            flow_id=flow_id,
+            predict_change_args=predict_change_args,
+            bk_biz_id=clustering_config.bk_biz_id,
         )
 
     def update_predict_nodes_and_online_tasks(self, index_set_id):
@@ -1065,15 +1080,17 @@ class DataFlowHandler(BaseAiopsHandler):
 
         logger.info(f"update predict_nodes success: flow_id -> {clustering_config.predict_flow_id}")
 
-    def get_flow_graph(self, flow_id):
+    def get_flow_graph(self, flow_id, bk_biz_id):
         """
         get_flow_graph
         @param flow_id:
         @return:
         """
-        return BkDataDataFlowApi.get_flow_graph(self._set_username(request_data_cls={"flow_id": flow_id}))
+        return BkDataDataFlowApi.get_flow_graph(
+            self._set_username(request_data_cls={"flow_id": flow_id, "bk_biz_id": bk_biz_id})
+        )
 
-    def update_flow_nodes(self, config, flow_id, node_id):
+    def update_flow_nodes(self, config, flow_id, node_id, bk_biz_id):
         """
         update_flow_nodes
         @param config:
@@ -1082,7 +1099,9 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.patch_flow_nodes(
-            self._set_username(request_data_cls={"flow_id": flow_id, "node_id": node_id, **config})
+            self._set_username(
+                request_data_cls={"flow_id": flow_id, "node_id": node_id, "bk_biz_id": bk_biz_id, **config}
+            )
         )
 
     @staticmethod
@@ -1136,7 +1155,7 @@ class DataFlowHandler(BaseAiopsHandler):
             if node["node_type"] == NodeType.MODEL:
                 return node
 
-    def deal_update_filter_predict_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id):
+    def deal_update_filter_predict_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id, bk_biz_id):
         """
         deal_update_filter_flow_node
         @param target_nodes:
@@ -1148,13 +1167,15 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_nodes = target_nodes.get(RealTimePredictFlowNode.PREDICT_CLUSTERING)
         if filter_nodes:
             sql = self.deal_filter_sql(filter_nodes["node_config"]["sql"].split("where")[0], filter_rule)
-            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=filter_nodes["node_id"])
+            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=filter_nodes["node_id"], bk_biz_id=bk_biz_id)
         not_cluster_nodes = target_nodes.get(RealTimePredictFlowNode.PREDICT_NOT_CLUSTERING)
         if not_cluster_nodes:
             sql = self.deal_filter_sql(not_cluster_nodes["node_config"]["sql"].split("where")[0], not_clustering_rule)
-            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"])
+            self.update_flow_nodes(
+                {"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"], bk_biz_id=bk_biz_id
+            )
 
-    def deal_update_predict_node(self, predict_node, flow_id, predict_change_args):
+    def deal_update_predict_node(self, predict_node, flow_id, predict_change_args, bk_biz_id):
         if predict_node:
             model_extra_config = predict_node["node_config"]["model_extra_config"]
             predict_args = model_extra_config.get("predict_args", {})
@@ -1165,12 +1186,15 @@ class DataFlowHandler(BaseAiopsHandler):
                         predict["value"] = predict_change_args[arg]
                         predict["sample_value"] = predict_change_args[arg]
             self.update_flow_nodes(
-                {"model_extra_config": model_extra_config}, flow_id=flow_id, node_id=predict_node["node_id"]
+                {"model_extra_config": model_extra_config},
+                flow_id=flow_id,
+                node_id=predict_node["node_id"],
+                bk_biz_id=bk_biz_id,
             )
         else:
             logger.error("could not find filter_nodes --> [predict_flow_id]: %s", flow_id)
 
-    def deal_update_filter_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id):
+    def deal_update_filter_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id, bk_biz_id):
         """
         deal_update_filter_flow_node
         @param target_nodes:
@@ -1182,11 +1206,13 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_nodes = target_nodes.get(RealTimeFlowNode.PRE_TREAT_SAMPLE_SET)
         if filter_nodes:
             sql = self.deal_filter_sql(filter_nodes["node_config"]["sql"].split("where")[0], filter_rule)
-            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=filter_nodes["node_id"])
+            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=filter_nodes["node_id"], bk_biz_id=bk_biz_id)
         not_cluster_nodes = target_nodes.get(RealTimeFlowNode.PRE_TREAT_NOT_CLUSTERING)
         if not_cluster_nodes:
             sql = self.deal_filter_sql(not_cluster_nodes["node_config"]["sql"].split("where")[0], not_clustering_rule)
-            self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"])
+            self.update_flow_nodes(
+                {"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"], bk_biz_id=bk_biz_id
+            )
 
     @staticmethod
     def deal_filter_sql(sql, rule):
@@ -1243,7 +1269,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @param clustering_fields:
         @return:
         """
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
         nodes = flow_graph["nodes"]
         time_format = self.get_time_format(
             nodes=nodes, table_name_prefix=RealTimeFlowNode.PRE_TREAT_SAMPLE_SET, flow_id=flow_id
@@ -1263,9 +1289,9 @@ class DataFlowHandler(BaseAiopsHandler):
             flow_mode=FlowMode.PRE_TREAT_FLOW.value, render_obj={"pre_treat": pre_treat_flow_dict}
         )
         flow = json.loads(pre_treat_flow)
-        self.deal_pre_treat_flow(nodes=nodes, flow=flow)
+        self.deal_pre_treat_flow(nodes=nodes, flow=flow, bk_biz_id=bk_biz_id)
 
-    def deal_predict_flow(self, nodes, flow):
+    def deal_predict_flow(self, nodes, flow, bk_biz_id):
         """
         deal_pre_treat_flow
         @param nodes:
@@ -1278,10 +1304,12 @@ class DataFlowHandler(BaseAiopsHandler):
             if not target_node:
                 logger.error("could not find target_node --> [table_name]: %s", table_name)
                 continue
-            self.deal_real_time_node(flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"])
+            self.deal_real_time_node(
+                flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"], bk_biz_id=bk_biz_id
+            )
         return
 
-    def deal_pre_treat_flow(self, nodes, flow):
+    def deal_pre_treat_flow(self, nodes, flow, bk_biz_id):
         """
         deal_pre_treat_flow
         @param nodes:
@@ -1294,7 +1322,9 @@ class DataFlowHandler(BaseAiopsHandler):
             if not target_node:
                 logger.error("could not find target_node --> [table_name]: %s", table_name)
                 continue
-            self.deal_real_time_node(flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"])
+            self.deal_real_time_node(
+                flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"], bk_biz_id=bk_biz_id
+            )
         return
 
     @classmethod
@@ -1359,7 +1389,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @param clustering_config:
         @return:
         """
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
         nodes = flow_graph["nodes"]
         time_format = self.get_time_format(
             nodes=nodes, table_name_prefix=RealTimeFlowNode.AFTER_TREAT_CHANGE_FIELD, flow_id=flow_id
@@ -1392,9 +1422,9 @@ class DataFlowHandler(BaseAiopsHandler):
             render_obj={"after_treat": after_treat_flow_dict},
         )
         flow = json.loads(after_treat_flow)
-        self.deal_after_treat_flow(nodes=nodes, flow=flow)
+        self.deal_after_treat_flow(nodes=nodes, flow=flow, bk_biz_id=bk_biz_id)
 
-    def deal_after_treat_flow(self, nodes, flow):
+    def deal_after_treat_flow(self, nodes, flow, bk_biz_id):
         """
         模型应用节点更新
         @param nodes:
@@ -1410,6 +1440,7 @@ class DataFlowHandler(BaseAiopsHandler):
             node_id=source_model_node["node_id"],
             input_config=target_model_node["input_config"],
             output_config=target_model_node["output_config"],
+            bk_biz_id=bk_biz_id,
         )
 
         target_real_time_node_dict, source_real_time_node_dict = self.get_real_time_nodes(flow=flow, nodes=nodes)
@@ -1420,7 +1451,9 @@ class DataFlowHandler(BaseAiopsHandler):
             if not target_node:
                 logger.error("could not find target_node --> [table_name]: %s", table_name)
                 continue
-            self.deal_real_time_node(flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"])
+            self.deal_real_time_node(
+                flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"], bk_biz_id=bk_biz_id
+            )
 
         target_es_storage_node_dict, source_es_storage_node_dict = self.get_elasticsearch_storage_nodes(
             flow=flow, nodes=nodes
@@ -1437,17 +1470,23 @@ class DataFlowHandler(BaseAiopsHandler):
                 date_fields=target_node["date_fields"],
                 doc_values_fields=target_node["doc_values_fields"],
                 json_fields=target_node["json_fields"],
+                bk_biz_id=bk_biz_id,
             )
 
-    def deal_model_node(self, flow_id, node_id, input_config, output_config):
+    def deal_model_node(self, flow_id, node_id, input_config, output_config, bk_biz_id):
         return self.update_flow_nodes(
-            config={"input_config": input_config, "output_config": output_config}, flow_id=flow_id, node_id=node_id
+            config={"input_config": input_config, "output_config": output_config},
+            flow_id=flow_id,
+            node_id=node_id,
+            bk_biz_id=bk_biz_id,
         )
 
-    def deal_real_time_node(self, flow_id, node_id, sql):
-        return self.update_flow_nodes(config={"sql": sql}, flow_id=flow_id, node_id=node_id)
+    def deal_real_time_node(self, flow_id, node_id, sql, bk_biz_id):
+        return self.update_flow_nodes(config={"sql": sql}, flow_id=flow_id, node_id=node_id, bk_biz_id=bk_biz_id)
 
-    def deal_elastic_storage_node(self, flow_id, node_id, analyzed_fields, date_fields, doc_values_fields, json_fields):
+    def deal_elastic_storage_node(
+        self, flow_id, node_id, analyzed_fields, date_fields, doc_values_fields, json_fields, bk_biz_id
+    ):
         """
         deal_elastic_storage_node
         @param flow_id:
@@ -1467,6 +1506,7 @@ class DataFlowHandler(BaseAiopsHandler):
             },
             flow_id=flow_id,
             node_id=node_id,
+            bk_biz_id=bk_biz_id,
         )
 
     def get_time_format(self, nodes, table_name_prefix, flow_id):
@@ -1823,7 +1863,7 @@ class DataFlowHandler(BaseAiopsHandler):
         logger.info(f"update predict flow beginning: flow_id -> {clustering_config.predict_flow_id}")
         flow_id = clustering_config.predict_flow_id
         # 画布结构
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
         # 根据画布结构  更新节点
         nodes = flow_graph["nodes"]
         predict_flow_dict = asdict(
@@ -1844,7 +1884,7 @@ class DataFlowHandler(BaseAiopsHandler):
         flow = json.loads(predict_flow)
 
         # 更新画布结构
-        self.deal_predict_flow(nodes=nodes, flow=flow)
+        self.deal_predict_flow(nodes=nodes, flow=flow, bk_biz_id=clustering_config.bk_biz_id)
 
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
@@ -1954,7 +1994,7 @@ class DataFlowHandler(BaseAiopsHandler):
         logger.info(f"update agg flow beginning: flow_id -> {clustering_config.log_count_aggregation_flow_id}")
         flow_id = clustering_config.log_count_aggregation_flow_id
         # 画布结构
-        flow_graph = self.get_flow_graph(flow_id=flow_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
         # 根据画布结构  更新节点
         nodes = flow_graph["nodes"]
         result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
@@ -1972,7 +2012,7 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         flow = json.loads(log_count_aggregation_flow)
         # 更新画布结构
-        self.deal_predict_flow(nodes=nodes, flow=flow)
+        self.deal_predict_flow(nodes=nodes, flow=flow, bk_biz_id=clustering_config.bk_biz_id)
 
         # 重启 flow
         self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
