@@ -27,8 +27,12 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { formatPreviousDayAndWeekTimestamps } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/utils';
 
 import { EPreDateType } from './utils';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './compare-time.scss';
 
@@ -65,14 +69,24 @@ function timeOffsetDateFormat(t: string) {
   return t;
 }
 
+function preDateToTimeRangeStr(timeRange: TimeRangeType) {
+  return formatPreviousDayAndWeekTimestamps(handleTransformToTimestamp(timeRange));
+}
+
 interface IProps {
   value?: string[];
+  timeRange?: TimeRangeType;
+  refreshInterval?: number;
+  refreshImmediate?: string;
   onChange?: (value: string[]) => void;
 }
 
 @Component
 export default class CompareTime extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
+  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
+  @Prop({ type: [String, Number], default: 0 }) refreshInterval: number;
+  @Prop({ type: String, default: '' }) refreshImmediate: string;
 
   localValue = [];
   /* 预设日期 */
@@ -90,6 +104,9 @@ export default class CompareTime extends tsc<IProps> {
   /* 自定义日期tag */
   dateTime = [];
   timeOffset = [];
+
+  preDateTimeRangeMap = {};
+  refreshIntervalInstance = null;
 
   get isChooseDateOrType() {
     return this.checkboxGroupValue.length === 1 && this.dateTime.length === 1;
@@ -116,6 +133,7 @@ export default class CompareTime extends tsc<IProps> {
       }
       this.checkboxGroupValue = checkboxGroupValue;
       this.dateTime = dateTime;
+      this.getPreDateTimeRangeMap();
     }
   }
 
@@ -130,7 +148,28 @@ export default class CompareTime extends tsc<IProps> {
     }
     this.localValue = result;
     this.timeOffset = result.map(item => timeShiftFormat(item));
+    this.getPreDateTimeRangeMap();
     return this.timeOffset;
+  }
+
+  @Watch('refreshInterval', { immediate: true })
+  handleWatchrRefreshInterval(v) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+    }
+    if (v <= 0) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
+      this.getPreDateTimeRangeMap();
+    }, this.refreshInterval);
+  }
+  @Watch('timeRange')
+  handleWatchTimeRange() {
+    this.getPreDateTimeRangeMap();
+  }
+  @Watch('refreshImmediate')
+  handleWatchRefreshImmediate() {
+    console.log('xx');
+    this.getPreDateTimeRangeMap();
   }
   /**
    * @description 展开日期选择器
@@ -216,6 +255,12 @@ export default class CompareTime extends tsc<IProps> {
     this.datePickOpen = state;
   }
 
+  getPreDateTimeRangeMap() {
+    if (this.timeRange.length) {
+      this.preDateTimeRangeMap = preDateToTimeRangeStr(this.timeRange);
+    }
+  }
+
   render() {
     return (
       <div class='group-compare-select___compare-time'>
@@ -235,9 +280,9 @@ export default class CompareTime extends tsc<IProps> {
               label={item.value}
             >
               {item.label}
-              {/* {this.checkboxGroupValue.includes(item.value) && (
-                <span class='time-tips'>{this.timeStrShow[item.value]}</span>
-              )} */}
+              {this.checkboxGroupValue.includes(item.value) && (
+                <span class='time-tips'>{this.preDateTimeRangeMap[item.value]}</span>
+              )}
             </bk-checkbox>
           ))}
         </bk-checkbox-group>
