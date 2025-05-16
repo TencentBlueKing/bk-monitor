@@ -137,8 +137,6 @@ export default defineComponent({
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
-    /** 表格行可用作 唯一主键值 的字段名 */
-    const tableRowKeyField = shallowRef('trace_id');
     /** 判断table数据是否还有数据可以获取 */
     const tableHasMoreData = shallowRef(false);
     /** table loading 配置 */
@@ -160,6 +158,8 @@ export default defineComponent({
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
+    /** 表格行可用作 唯一主键值 的字段名 */
+    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** table 列配置本地缓存时的 key */
     const displayColumnFieldsCacheKey = computed(() =>
       isSpanVisual.value ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
@@ -238,20 +238,11 @@ export default defineComponent({
         .filter(Boolean);
     });
 
-    /** 请求时间范围 */
-    const timestamp = computed(() => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
-      return {
-        start_time,
-        end_time,
-      };
-    });
-
     /** 请求参数 */
     const queryParams = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { mode, query_string, ...params } = props.commonParams;
+      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
 
       let sort = [];
       if (sortContainer.sortBy) {
@@ -260,7 +251,8 @@ export default defineComponent({
 
       return {
         ...params,
-        ...timestamp.value,
+        start_time,
+        end_time,
         query: query_string,
         sort,
       };
@@ -285,11 +277,10 @@ export default defineComponent({
 
     watch(
       () => isSpanVisual.value,
-      v => {
+      () => {
         tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
-        tableRowKeyField.value = v ? 'span_id' : 'trace_id';
         getDisplayColumnFields();
         sortContainer.sortBy = '';
         sortContainer.descending = null;
@@ -349,11 +340,16 @@ export default defineComponent({
       updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
-      const { scrollHeight } = target;
-      const { scrollTop } = target;
-      const { clientHeight } = target;
+      const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
-      if (isEnd) {
+      if (
+        !(
+          tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
+          tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
+          tableLoading[ExploreTableLoadingEnum.SCROLL]
+        ) &&
+        isEnd
+      ) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
@@ -582,6 +578,7 @@ export default defineComponent({
         signal: abortController.signal,
       });
       if (res?.isAborted) {
+        tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
       tableLoading[loadingType] = false;
