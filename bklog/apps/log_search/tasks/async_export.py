@@ -263,6 +263,7 @@ def union_async_export(
     async_task.export_status = ExportStatus.SUCCESS
     async_task.completed_at = timezone.now()
     async_task.save()
+    return
     async_export_util.clean_package()
     # 过$ASYNC_EXPORT_EXPIRED将对应状态置为ExportStatus.EXPIRED
     set_expired_status.apply_async(args=[async_task.id], countdown=ASYNC_EXPORT_EXPIRED)
@@ -695,21 +696,20 @@ class UnionAsyncExportUtils:
         return file_path
 
     def async_export(self):
-        search_dict = copy.deepcopy(self.union_search_handler.search_dict)
         multi_execute_func = MultiExecuteFunc()
         for index_set_id in self.union_search_handler.index_set_ids:
             # 构建请求参数
             params = {
-                "ip_chooser": search_dict.get("ip_chooser"),
-                "bk_biz_id": search_dict.get("bk_biz_id"),
-                "addition": search_dict.get("addition"),
-                "start_time": search_dict.get("start_time"),
-                "end_time": search_dict.get("end_time"),
-                "time_range": search_dict.get("time_range"),
-                "keyword": search_dict.get("keyword"),
-                "size": search_dict.get("size"),
+                "ip_chooser": self.union_search_handler.search_dict.get("ip_chooser"),
+                "bk_biz_id": self.union_search_handler.search_dict.get("bk_biz_id"),
+                "addition": self.union_search_handler.search_dict.get("addition"),
+                "start_time": self.union_search_handler.search_dict.get("start_time"),
+                "end_time": self.union_search_handler.search_dict.get("end_time"),
+                "time_range": self.union_search_handler.search_dict.get("time_range"),
+                "keyword": self.union_search_handler.search_dict.get("keyword"),
+                "size": self.union_search_handler.search_dict.get("size"),
                 "is_union_search": True,
-                "track_total_hits": search_dict.get("track_total_hits", False),
+                "track_total_hits": self.union_search_handler.search_dict.get("track_total_hits", False),
             }
             search_dict = copy.deepcopy(params)
             search_dict["begin"] = search_dict.get("begin", 0)
@@ -718,7 +718,7 @@ class UnionAsyncExportUtils:
             search_handler = SearchHandler(
                 index_set_id=index_set_id,
                 search_dict=search_dict,
-                export_fields=search_dict.get("export_fields", []),
+                export_fields=self.union_search_handler.search_dict.get("export_fields", []),
                 export_log=True,
             )
             file_path = f"{ASYNC_DIR}/{self.file_name}_{index_set_id}.{self.export_file_type}"
@@ -760,20 +760,19 @@ class UnionAsyncExportUtils:
                 self.file_path_list.append(result)
 
     def quick_export(self):
-        search_dict = copy.deepcopy(self.union_search_handler.search_dict)
         for index_set_id in self.union_search_handler.index_set_ids:
             # 构建请求参数
             params = {
-                "ip_chooser": search_dict.get("ip_chooser"),
-                "bk_biz_id": search_dict.get("bk_biz_id"),
-                "addition": search_dict.get("addition"),
-                "start_time": search_dict.get("start_time"),
-                "end_time": search_dict.get("end_time"),
-                "time_range": search_dict.get("time_range"),
-                "keyword": search_dict.get("keyword"),
-                "size": search_dict.get("size"),
+                "ip_chooser": self.union_search_handler.search_dict.get("ip_chooser"),
+                "bk_biz_id": self.union_search_handler.search_dict.get("bk_biz_id"),
+                "addition": self.union_search_handler.search_dict.get("addition"),
+                "start_time": self.union_search_handler.search_dict.get("start_time"),
+                "end_time": self.union_search_handler.search_dict.get("end_time"),
+                "time_range": self.union_search_handler.search_dict.get("time_range"),
+                "keyword": self.union_search_handler.search_dict.get("keyword"),
+                "size": self.union_search_handler.search_dict.get("size"),
                 "is_union_search": True,
-                "track_total_hits": search_dict.get("track_total_hits", False),
+                "track_total_hits": self.union_search_handler.search_dict.get("track_total_hits", False),
             }
             search_dict = copy.deepcopy(params)
             search_dict["begin"] = search_dict.get("begin", 0)
@@ -782,7 +781,6 @@ class UnionAsyncExportUtils:
             search_handler = SearchHandler(
                 index_set_id=index_set_id,
                 search_dict=search_dict,
-                export_fields=search_dict.get("export_fields", []),
                 export_log=True,
             )
             self._quick_export(search_handler)

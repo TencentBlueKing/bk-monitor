@@ -291,7 +291,6 @@ class UnionAsyncExportHandlers:
         self,
         bk_biz_id=None,
         search_dict: dict = None,
-        export_fields=None,
         index_set_ids: list = None,
         export_file_type: str = "txt",
     ):
@@ -299,7 +298,6 @@ class UnionAsyncExportHandlers:
         self.index_set_ids = index_set_ids
         self.search_dict = search_dict
         self.union_search_handler = UnionSearchHandler(search_dict=copy.deepcopy(self.search_dict))
-        self.union_search_handler.export_fields = export_fields
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
         self.export_file_type = export_file_type

@@ -885,7 +885,6 @@ class SearchViewSet(APIViewSet):
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
             index_set_ids=data["index_set_ids"],
-            export_fields=data["export_fields"],
             export_file_type=data["file_type"],
         ).async_export(is_quick_export=is_quick_export)
         return Response(
