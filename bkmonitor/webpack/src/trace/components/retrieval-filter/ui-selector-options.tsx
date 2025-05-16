@@ -683,7 +683,9 @@ export default defineComponent({
               class='mr-8'
               disabled={this.isIntegerError}
               theme='primary'
-              onClick={() => this.handleConfirm()}
+              onClick={() => {
+                this.handleConfirm();
+              }}
             >
               {`${this.$t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
             </Button>

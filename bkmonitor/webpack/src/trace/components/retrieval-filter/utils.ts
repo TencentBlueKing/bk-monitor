@@ -195,6 +195,37 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
     options: item?.options || {},
   })) as IWhereItem[];
 };
+export const equalWhere = (source: IWhereItem[], target: IWhereItem[]) => {
+  let result = true;
+  let index = -1;
+  if (target.length !== source.length) {
+    return false;
+  }
+  console.log(source, target);
+  for (const s of source) {
+    index += 1;
+    const sItem = s;
+    const tItem = target[index];
+    if (!tItem) {
+      result = false;
+      break;
+    }
+    if (
+      !(
+        sItem?.key === tItem?.key &&
+        sItem?.method === tItem?.method &&
+        sItem?.operator === tItem?.operator &&
+        sItem?.options?.is_wildcard === tItem?.options?.is_wildcard &&
+        sItem?.options?.group_relation === tItem?.options?.group_relation &&
+        JSON.stringify(sItem?.value || []) === JSON.stringify(tItem?.value || [])
+      )
+    ) {
+      result = false;
+      break;
+    }
+  }
+  return result;
+};
 
 export const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
 export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = ['trace_duration', 'resource.service.name', 'span_name'];

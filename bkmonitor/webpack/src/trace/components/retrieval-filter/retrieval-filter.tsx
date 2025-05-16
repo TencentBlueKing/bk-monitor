@@ -49,7 +49,7 @@ import {
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
+import { equalWhere, getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
 
 import './retrieval-filter.scss';
 
@@ -64,7 +64,7 @@ export default defineComponent({
     const showResidentSetting = shallowRef(false);
     const mode = shallowRef<EMode>(EMode.ui);
     const uiValue = shallowRef<IFilterItem[]>([]);
-    const cacheWhereStr = shallowRef('');
+    const cacheWhere = shallowRef([]);
     const qsValue = shallowRef('');
     const cacheCommonWhere = shallowRef<IWhereItem[]>([]);
     const qsSelectorOptionsWidth = shallowRef(0);
@@ -247,8 +247,7 @@ export default defineComponent({
           });
         }
       }
-      const whereStr = JSON.stringify(where);
-      cacheWhereStr.value = whereStr;
+      cacheWhere.value = structuredClone(where);
       const traceWhere = where.map(item => ({
         key: item.key,
         operator: item.method,
@@ -259,12 +258,11 @@ export default defineComponent({
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
-      const whereStr = JSON.stringify(where);
-      if (cacheWhereStr.value === whereStr) {
+      if (equalWhere(where, cacheWhere.value)) {
         /* 避免重复渲染 */
         return;
       }
-      cacheWhereStr.value = whereStr;
+      cacheWhere.value = structuredClone(where);
       const fieldsMap: Map<string, IFilterField> = new Map();
       for (const item of props.fields) {
         fieldsMap.set(item.name, item);

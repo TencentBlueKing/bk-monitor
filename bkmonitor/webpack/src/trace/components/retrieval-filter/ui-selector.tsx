@@ -65,7 +65,8 @@ export default defineComponent({
         const valueStr = JSON.stringify(val);
         const localValueStr = JSON.stringify(localValue.value);
         if (valueStr !== localValueStr) {
-          localValue.value = JSON.parse(valueStr);
+          console.log(props.value);
+          localValue.value = structuredClone(props.value);
         }
       },
       { immediate: true }
@@ -271,11 +272,13 @@ export default defineComponent({
       } else {
         hide = true;
       }
+      console.log(index);
       localValue.value.splice(index, 1, {
         ...localValue.value[index],
         hide,
       });
       triggerShallowRef(localValue);
+      console.log(JSON.stringify(localValue.value));
       handleChange();
     }
     function handleUpdateTag(event: MouseEvent, index: number) {

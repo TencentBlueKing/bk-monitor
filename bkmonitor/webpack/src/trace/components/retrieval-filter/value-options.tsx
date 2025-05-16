@@ -209,6 +209,7 @@ export default defineComponent({
       const clientHeight = container.clientHeight;
       const scrollHeight = container.scrollHeight;
       if (scrollTop + clientHeight >= scrollHeight - 3) {
+        console.log(isEnd.value);
         if (!scrollLoading.value && !isEnd.value) {
           scrollLoading.value = true;
           page.value += 1;
@@ -253,7 +254,7 @@ export default defineComponent({
           isInit__: isInit,
         });
         list = data.list;
-        isEnd.value = limit >= data.count;
+        isEnd.value = limit > data.count;
       }
       scrollLoading.value = false;
       loading.value = false;

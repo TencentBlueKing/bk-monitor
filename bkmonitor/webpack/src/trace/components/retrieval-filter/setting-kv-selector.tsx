@@ -271,6 +271,7 @@ export default defineComponent({
       if (!inputValue.value && localValue.value.length) {
         localValue.value.splice(localValue.value.length - 1, 1);
         triggerShallowRef(localValue);
+        handleChange();
       }
     }
 
