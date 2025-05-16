@@ -40,12 +40,12 @@ import {
   parseBigNumberList,
   setDefaultTableWidth,
   formatDate,
-  getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
+import { menuArr } from '../components/nav/complete-menu';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
@@ -305,6 +305,7 @@ const store = new Vuex.Store({
 
       localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
+
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },
@@ -335,10 +336,14 @@ const store = new Vuex.Store({
               ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
             );
           } else {
-            set(state.indexItem, key, payload[key]);
+            if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
+              set(state.indexItem, key, payload[key]);
+            }
           }
         } else {
-          set(state.indexItem, key, payload[key]);
+          if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
+            set(state.indexItem, key, payload[key]);
+          }
         }
       });
     },
@@ -884,6 +889,77 @@ const store = new Vuex.Store({
           space_uid: spaceUid,
         },
       });
+    },
+    requestMenuList({ commit }, spaceUid) {
+      const routeMap = {
+        // 后端返回的导航id映射
+        search: 'retrieve',
+        manage_access: 'manage',
+        manage_index_set: 'indexSet',
+        manage_data_link: 'linkConfiguration',
+        manage_user_group: 'permissionGroup',
+        manage_migrate: 'migrate',
+        manage_extract: 'manageExtract',
+      };
+
+      const replaceMenuId = list => {
+        list.forEach(item => {
+          if (item.id === 'search') {
+            item.id = 'retrieve';
+          }
+          item.id = item.id.replace(/_/g, '-');
+          if (item.children) {
+            replaceMenuId(item.children);
+          }
+        });
+        return list;
+      };
+
+      const deepUpdateMenu = (oldMenu, resMenu) => {
+        // resMenu结果返回的menu子级
+        resMenu.name = oldMenu.name;
+        resMenu.dropDown = oldMenu.dropDown;
+        resMenu.dropDown = oldMenu.dropDown;
+        resMenu.level = oldMenu.level;
+        resMenu.isDashboard = oldMenu.isDashboard;
+        if (resMenu.children) {
+          if (oldMenu.children) {
+            resMenu.children.forEach(item => {
+              item.id = routeMap[item.id] || item.id;
+              const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
+              if (menu) {
+                deepUpdateMenu(menu, item);
+              }
+            });
+          }
+        } else {
+          if (oldMenu.children) {
+            resMenu.children = oldMenu.children;
+          }
+        }
+      };
+
+      return http
+        .request('meta/menu', {
+          query: {
+            space_uid: spaceUid,
+          },
+        })
+        .then(res => {
+          const menuList = replaceMenuId(res.data || []);
+
+          menuList.forEach(child => {
+            child.id = routeMap[child.id] || child.id;
+            const menu = menuArr.find(menuItem => menuItem.id === child.id);
+            if (menu) {
+              deepUpdateMenu(menu, child);
+            }
+          });
+          commit('updateTopMenu', menuList);
+          commit('updateMenuProject', res.data || []);
+
+          return menuList;
+        });
     },
     getGlobalsData({ commit }) {
       return http.request('collect/globals', { query: {} }).then(response => {

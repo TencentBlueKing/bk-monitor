@@ -834,7 +834,6 @@ class NewMetricChart extends CommonSimpleChart {
     });
   }
   render() {
-    console.log(this.panel.dashboardId, 'this.panel.dashboardId');
     return (
       <div class='new-metric-chart'>
         <ChartHeader

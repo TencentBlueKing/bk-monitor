@@ -28,7 +28,7 @@ import VueRouter from 'vue-router';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import { RouteParams, BK_LOG_STORAGE } from './store.type';
+import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
 
 const DEFAULT_FIELDS_WIDTH = 200;
@@ -78,39 +78,71 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
-const getUrlArgs = () => {
-  const router = new VueRouter({
-    routes: [
-      {
-        path: '',
-        redirect: 'retrieve',
-        meta: {
-          title: '检索',
-          navId: 'retrieve',
+const getUrlArgs = (_route?) => {
+  let urlResolver: RouteUrlResolver = null;
+
+  if (!_route) {
+    const router = new VueRouter({
+      routes: [
+        {
+          path: '',
+          redirect: 'retrieve',
+          meta: {
+            title: '检索',
+            navId: 'retrieve',
+          },
         },
-      },
-      {
-        name: 'retrieve',
-        path: '/retrieve/:indexId?',
-      },
-    ],
-  });
+        {
+          name: 'retrieve',
+          path: '/retrieve/:indexId?',
+        },
+      ],
+    });
 
-  const hash = window.location.hash.replace(/^#/, '');
-  const route = router.resolve(hash);
-  const urlResulver = new RouteUrlResolver({ route: route.resolved });
-  urlResulver.setResolver('index_id', () => {
-    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-    return route.resolved.params.indexId ?? '';
-    // #else
-    // #code return route.resolved.query.indexId ?? '';
-    // #endif
-  });
-  return urlResulver.convertQueryToStore<RouteParams>();
+    const hash = window.location.hash.replace(/^#/, '');
+    const route = router.resolve(hash);
+    urlResolver = new RouteUrlResolver({ route: route.resolved });
+    urlResolver.setResolver('index_id', () => {
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+      return route.resolved.params.indexId ?? '';
+      // #else
+      // #code return route.resolved.query.indexId ?? '';
+      // #endif
+    });
+  } else {
+    urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('index_id', () => {
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+      return _route.params.indexId ?? '';
+      // #else
+      // #code return route.resolved.query.indexId ?? '';
+      // #endif
+    });
+  }
+
+  const routeParams = urlResolver.convertQueryToStore<RouteParams>();
+
+  // if (routeParams.bizId) {
+  //   // window.localStorage.setItem('bk_biz_id', routeParams.bizId);
+  //   // store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: routeParams.bizId });
+  // }
+
+  // if (routeParams.spaceUid) {
+  //   window.localStorage.setItem('space_uid', routeParams.spaceUid);
+  // }
+
+  return routeParams;
 };
-export const URL_ARGS = getUrlArgs();
 
-export const getDefaultRetrieveParams = () => {
+let URL_ARGS = getUrlArgs();
+const update_URL_ARGS = route => {
+  URL_ARGS = getUrlArgs(route);
+  return URL_ARGS;
+};
+
+export { URL_ARGS, update_URL_ARGS };
+
+export const getDefaultRetrieveParams = (defaultValue?) => {
   return {
     keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
@@ -122,6 +154,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    ...(defaultValue ?? {}),
     ...URL_ARGS,
   };
 };
@@ -230,6 +263,18 @@ export const getStorageOptions = () => {
         if (storage[k1] !== undefined) {
           storage[k2] = storage[k1];
           delete storage[k1];
+          update = true;
+        }
+      });
+
+      [
+        ['space_uid', BK_LOG_STORAGE.BK_SPACE_UID],
+        ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
+      ].forEach(([k1, k2]) => {
+        const oldVal = localStorage.getItem(k1);
+        if (oldVal !== undefined && oldVal !== null) {
+          storage[k2] = oldVal;
+          localStorage.removeItem(k1);
           update = true;
         }
       });

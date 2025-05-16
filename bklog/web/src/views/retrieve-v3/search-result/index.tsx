@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, defineComponent } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
 
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -41,8 +41,8 @@ import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import './index.scss';
 
 export default defineComponent({
-  name: 'V3Container',
-  setup(_, {}) {
+  name: 'v3-result-container',
+  setup() {
     const router = useRouter();
     const route = useRoute();
 
@@ -74,14 +74,14 @@ export default defineComponent({
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}
-        ></SearchResultTab>
+        />
         {showAnalysisTab.value ? (
-          <GraphAnalysis></GraphAnalysis>
+          <GraphAnalysis />
         ) : (
           <SearchResultPanel
             active-tab={activeTab.value}
             onUpdate:active-tab={handleTabChange}
-          ></SearchResultPanel>
+          />
         )}
       </div>
     );

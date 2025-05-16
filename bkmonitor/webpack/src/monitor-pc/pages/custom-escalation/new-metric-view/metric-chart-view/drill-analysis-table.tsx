@@ -66,9 +66,9 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   typeEnums = {
     '1h': this.$t('1小时前'),
-    '1d': this.$t('昨天'),
-    '7d': this.$t('上周'),
-    '30d': this.$t('1 月前'),
+    '1d': this.$t('1天前'),
+    '7d': this.$t('7天前'),
+    '30d': this.$t('30天前'),
   };
   /** 维度是否支持多选 */
   isMultiple = false;
@@ -339,6 +339,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
     const unitFormatter = getValueFormat(row.unit);
     const set: any = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
+    console.log(unitFormatter, set, 'set---', row.unit);
     return (
       <span>
         {set.text} {set.suffix}

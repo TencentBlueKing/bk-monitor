@@ -1113,8 +1113,8 @@ const getRoutes = (spaceId, bkBizId) => {
  * @param id 路由id
  * @returns 路由配置
  */
-export function getRouteConfigById(id) {
-  const flatConfig = getRoutes().flatMap(config => {
+export function getRouteConfigById(id, space_uid, bk_biz_id) {
+  const flatConfig = getRoutes(space_uid, bk_biz_id).flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
