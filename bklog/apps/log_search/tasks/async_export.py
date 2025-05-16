@@ -263,7 +263,6 @@ def union_async_export(
     async_task.export_status = ExportStatus.SUCCESS
     async_task.completed_at = timezone.now()
     async_task.save()
-    return
     async_export_util.clean_package()
     # 过$ASYNC_EXPORT_EXPIRED将对应状态置为ExportStatus.EXPIRED
     set_expired_status.apply_async(args=[async_task.id], countdown=ASYNC_EXPORT_EXPIRED)
