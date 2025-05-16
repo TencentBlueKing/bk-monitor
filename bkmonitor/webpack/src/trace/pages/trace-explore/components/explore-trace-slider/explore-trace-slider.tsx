@@ -29,7 +29,7 @@ import { Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
-import { QUERY_TRACE_RELATION_APP } from '../../../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../../../store/constant';
 import { useTraceStore } from '../../../../store/modules/trace';
 import TraceDetail from '../../../main/inquire-content/trace-detail';
 import TraceDetailHeader from '../../../main/inquire-content/trace-detail-header';
@@ -71,6 +71,7 @@ export default defineComponent({
           getTraceDetails();
         } else if (!val) {
           searchCancelFn?.();
+          store.setTraceData(JSON.parse(JSON.stringify(DEFAULT_TRACE_DATA)));
         }
       }
     );
@@ -105,6 +106,7 @@ export default defineComponent({
           await store.setTraceData({ ...data, appName: props.appName, trace_id: props.traceId });
           store.setTraceLoaidng(false);
         })
+
         .catch(() => null);
     }
 
