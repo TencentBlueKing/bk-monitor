@@ -137,8 +137,6 @@ export default defineComponent({
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
-    /** 表格行可用作 唯一主键值 的字段名 */
-    const tableRowKeyField = shallowRef('trace_id');
     /** 判断table数据是否还有数据可以获取 */
     const tableHasMoreData = shallowRef(false);
     /** table loading 配置 */
@@ -160,6 +158,8 @@ export default defineComponent({
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
+    /** 表格行可用作 唯一主键值 的字段名 */
+    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** table 列配置本地缓存时的 key */
     const displayColumnFieldsCacheKey = computed(() =>
       isSpanVisual.value ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
@@ -285,11 +285,10 @@ export default defineComponent({
 
     watch(
       () => isSpanVisual.value,
-      v => {
+      () => {
         tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
-        tableRowKeyField.value = v ? 'span_id' : 'trace_id';
         getDisplayColumnFields();
         sortContainer.sortBy = '';
         sortContainer.descending = null;
