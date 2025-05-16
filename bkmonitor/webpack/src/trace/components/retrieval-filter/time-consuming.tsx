@@ -90,7 +90,7 @@ export default defineComponent({
 
     const handleInputChangeDebounce = useDebounceFn((val: string, type: 'end' | 'start') => {
       handleInputChange(val, type);
-    }, 1000);
+    }, 300);
 
     function handleInputChange(val: string, type: 'end' | 'start') {
       const isError = !TIME_CONSUMING_REGEXP.test(val);

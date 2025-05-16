@@ -87,6 +87,7 @@ export const useCandidateValue = () => {
           },
           {
             signal: axiosController.signal,
+            needMessage: false,
           }
         )
           .then(res => {
@@ -94,7 +95,7 @@ export const useCandidateValue = () => {
             const values =
               data?.map(item => ({
                 id: item,
-                name: transformFieldName(params?.fields?.[0], item) || '',
+                name: transformFieldName(params?.fields?.[0], item) || item,
               })) || [];
             const isEnd = values.length < params.limit;
             const newMap = new Map();
@@ -107,8 +108,10 @@ export const useCandidateValue = () => {
             candidateValueMap = newMap;
             resolve(values);
           })
-          .catch(() => {
-            resolve([]);
+          .catch(err => {
+            if (err?.message !== 'canceled') {
+              resolve([]);
+            }
           });
       }
     });
