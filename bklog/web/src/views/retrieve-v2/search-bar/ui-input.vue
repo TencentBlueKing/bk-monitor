@@ -97,13 +97,7 @@
   const queryItem = ref('');
   const activeIndex = ref(null);
 
-  // 表示是否来自input输入的点击弹出
-  // 弹出组件依赖此属性展示内容会改变
-  const isInputFocus = ref(false);
   const showIpSelector = ref(false);
-
-  // // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
-  // let isInputTextFocus = false;
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
@@ -139,11 +133,9 @@
   const { getFieldName } = useFieldNameHook({ store });
   const {
     modelValue,
-    isDocumentMousedown,
     isInputTextFocus,
     setIsInputTextFocus,
     setIsDocumentMousedown,
-    getTippyInstance,
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
@@ -154,50 +146,21 @@
     refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    onShowFn: instance => {
+    onShowFn: () => {
       setIsDocumentMousedown(true);
-      const isTagItemClick =
-        instance.reference.classList.contains('search-item') && instance.reference.classList.contains('tag-item');
-      if (!isTagItemClick) {
-        refSearchInput.value?.focus?.();
-      }
-
       refPopInstance.value?.beforeShowndFn?.();
-      isInputFocus.value =
-        instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
       emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
       emit('popup-change', { isShow: false });
-
-      if (isDocumentMousedown.value || isInputTextFocus.value) {
-        setIsDocumentMousedown(false);
-        // 这里blur事件触发会比出发clickoutside收起弹出晚
-        // 所以在收起时，需要一个延迟检测
-        if (isInputTextFocus.value) {
-          requestAnimationFrame(() => {
-            if (!isInputTextFocus.value) {
-              hideTippyInstance();
-            }
-          });
-
-          return false;
-        }
-        return true;
-      }
-
       refPopInstance.value?.afterHideFn?.();
-      if (refSearchInput.value) {
-        isAutoFocus.value = true;
-        refSearchInput.value?.focus();
-        setTimeout(() => {
-          isAutoFocus.value = false;
-        });
-      }
-
       return true;
     },
     handleWrapperClick: handleWrapperClickCapture,
+    onInputFocus: () => {
+      queryItem.value = '';
+      activeIndex.value = null;
+    },
   });
 
   const debounceShowInstance = () => {
@@ -209,7 +172,7 @@
 
   const closeTippyInstance = () => {
     setIsDocumentMousedown(false);
-    getTippyInstance()?.hide();
+    hideTippyInstance();
   };
 
   /**
@@ -238,7 +201,7 @@
   };
 
   const handleAddItem = e => {
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
     const target = e.target.closest('.search-item');
     queryItem.value = '';
     activeIndex.value = null;
@@ -254,12 +217,13 @@
     const itemCopy = cloneDeep(item);
     itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
+
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
     if (!item.relation) item.relation = 'OR';
     Object.assign(queryItem.value, itemCopy);
     const target = e.target.closest('.search-item');
-    activeIndex.value = isInputFocus.value ? null : index;
+    activeIndex.value = index;
     showTagListItems(target);
   };
 
@@ -284,7 +248,7 @@
         modelValue.value.push({ ...copyValue, disabled: false });
       }
 
-      closeTippyInstance();
+      repositionTippyInstance();
       setTimeout(() => {
         showIpSelector.value = true;
       }, 100);
@@ -292,7 +256,7 @@
     }
 
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
+    const isFulltextEnterVlaue = isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
 
     const inputVal = getSearchInputValue();
     // 如果是全文检索，未输入任何内容就点击回车
@@ -303,20 +267,22 @@
 
     let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
 
-    if (isInputFocus.value) {
+    if (isInputTextFocus.value) {
       setSearchInputValue('');
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
       emitChange(modelValue.value);
-      closeTippyInstance();
+      hideTippyInstance();
+      activeIndex.value = null;
+
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
-    closeTippyInstance();
+    repositionTippyInstance();
   };
 
   // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
@@ -326,7 +292,7 @@
 
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
-    repositionTippyInstance();
+    // repositionTippyInstance();
     refSearchInput.value.style.setProperty('width', '12px');
     nextInputBlur?.();
     nextInputBlur = null;
@@ -347,29 +313,12 @@
   };
 
   const handleCancelClick = () => {
-    closeTippyInstance();
     setSearchInputValue('');
+    closeTippyInstance();
   };
 
   const handleInputTextClick = () => {
     if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
-      return;
-    }
-
-    debounceShowInstance();
-  };
-
-  const handleFocusInput = () => {
-    if (isInstanceShown()) {
-      return;
-    }
-
-    setIsInputTextFocus(true);
-    isInputFocus.value = true;
-    activeIndex.value = null;
-    queryItem.value = '';
-
-    if (isAutoFocus.value) {
       return;
     }
 
@@ -389,7 +338,7 @@
     };
 
     blurTimer = setTimeout(() => {
-      nextInputBlur();
+      nextInputBlur?.();
       nextInputBlur = null;
     }, 300);
   };
@@ -524,7 +473,6 @@
         type="text"
         @blur.stop="handleFullTextInputBlur"
         @click.stop="handleInputTextClick"
-        @focus.stop="handleFocusInput"
         @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
         @keyup.enter.stop="handleInputValueEnter"
@@ -533,7 +481,7 @@
     <div style="display: none">
       <UiInputOptions
         ref="refPopInstance"
-        :is-input-focus="isInputFocus"
+        :is-input-focus="isInputTextFocus"
         :value="queryItem"
         @cancel="handleCancelClick"
         @save="handleGlobalSaveQueryClick"

@@ -453,6 +453,10 @@
   };
 
   const handelSaveBtnClick = () => {
+    if (!isSaveBtnActive.value) {
+      return;
+    }
+
     const isIpSelect = activeFieldItem.value.field_name === '_ip-select_';
     if (isIpSelect) {
       resetParams();
@@ -953,20 +957,25 @@
     afterOperatorValueEnter();
   };
 
+  let isMountedEventAdded = false;
+
   const beforeShowndFn = () => {
-    setDefaultActiveIndex();
-    document.addEventListener('keydown', handleKeydownClick, { capture: true });
-    document.addEventListener('click', handleDocumentClick);
+    if (!isMountedEventAdded) {
+      isMountedEventAdded = true;
+      setDefaultActiveIndex();
+      document.addEventListener('keydown', handleKeydownClick, { capture: true });
+      document.addEventListener('click', handleDocumentClick);
 
-    restoreFieldAndCondition();
-    scrollActiveItemIntoView();
+      restoreFieldAndCondition();
+      scrollActiveItemIntoView();
 
-    nextTick(() => {
-      // 如果是外层检索输入，这里不能自动focus到搜索
-      if (!props.isInputFocus) {
-        refFilterInput.value?.focus();
-      }
-    });
+      nextTick(() => {
+        // 如果是外层检索输入，这里不能自动focus到搜索
+        if (!props.isInputFocus) {
+          refFilterInput.value?.focus();
+        }
+      });
+    }
 
     return true;
   };
@@ -974,7 +983,7 @@
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick, { capture: true });
     document.removeEventListener('click', handleDocumentClick);
-
+    isMountedEventAdded = false;
     resetParams();
   };
 
@@ -1382,7 +1391,7 @@
         </bk-button>
         <bk-button
           style="width: 64px"
-          @click.stop="handleCancelBtnClick"
+          @click="handleCancelBtnClick"
           >{{ $t('取消') }}</bk-button
         >
       </div>

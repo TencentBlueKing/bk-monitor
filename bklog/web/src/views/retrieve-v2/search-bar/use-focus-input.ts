@@ -45,6 +45,7 @@ export default (
     onHeightChange,
     addInputListener = true,
     handleWrapperClick = undefined,
+    onInputFocus = undefined,
   },
 ) => {
   const modelValue = ref([]);
@@ -95,6 +96,8 @@ export default (
     return input as HTMLInputElement;
   };
 
+  const isInstanceShown = () => popInstanceUtil.isShown();
+
   const handleContainerClick = (e?) => {
     const root = getRoot();
     if (root !== undefined && (e === undefined || root === e?.target)) {
@@ -102,11 +105,15 @@ export default (
 
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+
+      if (!isInstanceShown()) {
+        setIsInputTextFocus(true);
+        onInputFocus?.();
+        delayShowInstance(getPopTarget());
+      }
       return input;
     }
   };
-
-  const isInstanceShown = () => popInstanceUtil.isShown();
 
   const repositionTippyInstance = () => {
     if (isInstanceShown()) {
