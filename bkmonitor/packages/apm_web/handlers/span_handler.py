@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -94,7 +95,8 @@ class SpanHandler:
         )
 
         urls: set[str] = set()
-        for bucket in list(qs.add_query(q)):
+        buckets: list[dict[str, Any]] = list(qs.add_query(q))
+        for bucket in buckets:
             if bucket.get(field):
                 urls.add(bucket[field])
         return urls
