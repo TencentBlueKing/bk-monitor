@@ -24,18 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, defineComponent } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
+
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
-import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
-import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
-import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+// #if MONITOR_APP !== 'apm'
+import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+// #else
+// #code const SearchResultTab = () => null;
+// #endif
+
 import './index.scss';
 
 export default defineComponent({
   name: 'v3-result-container',
-  setup(_, {}) {
+  setup() {
     const router = useRouter();
     const route = useRoute();
 
@@ -67,14 +74,14 @@ export default defineComponent({
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}
-        ></SearchResultTab>
+        />
         {showAnalysisTab.value ? (
-          <GraphAnalysis></GraphAnalysis>
+          <GraphAnalysis />
         ) : (
           <SearchResultPanel
             active-tab={activeTab.value}
             onUpdate:active-tab={handleTabChange}
-          ></SearchResultPanel>
+          />
         )}
       </div>
     );
