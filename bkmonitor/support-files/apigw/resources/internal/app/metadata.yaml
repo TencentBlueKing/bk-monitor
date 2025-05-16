@@ -1947,7 +1947,7 @@ paths:
         matchSubpath: false
         backend:
           type: HTTP
-          method: post
+          method: get
           path: /api/v3/meta/query_meta_info_by_vmrt/
           matchSubpath: false
         authConfig:

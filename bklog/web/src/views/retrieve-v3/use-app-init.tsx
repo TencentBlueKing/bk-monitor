@@ -55,7 +55,10 @@ export default () => {
    */
   const reoverRouteParams = () => {
     update_URL_ARGS(route);
-    const routeParams = getDefaultRetrieveParams();
+    const routeParams = getDefaultRetrieveParams({
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+    });
     let activeTab = 'single';
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
@@ -173,8 +176,6 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    console.log('getIndexSetList', spaceUid.value, bkBizId.value);
-
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {
@@ -183,14 +184,18 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取第一个索引集
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const defaultId = `${resp[1][0].index_set_id}`;
-          store.commit('updateIndexItem', { ids: [defaultId], items: [resp[1][0]] });
-          store.commit('updateIndexId', defaultId);
+          const defaultId = resp[1][0]?.index_set_id;
 
-          router.replace({
-            params: { indexId: defaultId },
-            query: { ...route.query, unionList: undefined },
-          });
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+
+            router.replace({
+              params: { indexId: strId },
+              query: { ...route.query, unionList: undefined },
+            });
+          }
         }
 
         // 如果解析出来的索引集信息不为空
@@ -237,13 +242,13 @@ export default () => {
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
       datePickerValue: store.state.indexItem.datePickerValue,
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
     });
 
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
   };
 
   const beforeMounted = () => {
-    console.log('--before mounted');
     setDefaultRouteUrl();
     getIndexSetList();
   };
@@ -267,12 +272,13 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
+      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery(),
+          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },

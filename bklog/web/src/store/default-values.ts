@@ -108,13 +108,14 @@ const getUrlArgs = (_route?) => {
 
   const routeParams = urlResolver.convertQueryToStore<RouteParams>();
 
-  if (routeParams.bizId) {
-    window.localStorage.setItem('bk_biz_id', routeParams.bizId);
-  }
+  // if (routeParams.bizId) {
+  //   // window.localStorage.setItem('bk_biz_id', routeParams.bizId);
+  //   // store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: routeParams.bizId });
+  // }
 
-  if (routeParams.spaceUid) {
-    window.localStorage.setItem('space_uid', routeParams.spaceUid);
-  }
+  // if (routeParams.spaceUid) {
+  //   window.localStorage.setItem('space_uid', routeParams.spaceUid);
+  // }
 
   return routeParams;
 };
@@ -127,7 +128,7 @@ const update_URL_ARGS = route => {
 
 export { URL_ARGS, update_URL_ARGS };
 
-export const getDefaultRetrieveParams = () => {
+export const getDefaultRetrieveParams = (defaultValue?) => {
   return {
     keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
@@ -139,6 +140,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    ...(defaultValue ?? {}),
     ...URL_ARGS,
   };
 };
@@ -252,16 +254,17 @@ export const getStorageOptions = () => {
         }
       });
 
-      // [
-      //   ['space_uid', BK_LOG_STORAGE.SPACE_UID],
-      //   ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
-      // ].forEach(([k1, k2]) => {
-      //   const oldVal = localStorage.getItem(k1);
-      //   if (oldVal !== undefined) {
-      //     storage[k2] = oldVal;
-      //     localStorage.removeItem(k1);
-      //   }
-      // });
+      [
+        ['space_uid', BK_LOG_STORAGE.BK_SPACE_UID],
+        ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
+      ].forEach(([k1, k2]) => {
+        const oldVal = localStorage.getItem(k1);
+        if (oldVal !== undefined && oldVal !== null) {
+          storage[k2] = oldVal;
+          localStorage.removeItem(k1);
+          update = true;
+        }
+      });
 
       if (update) {
         window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
