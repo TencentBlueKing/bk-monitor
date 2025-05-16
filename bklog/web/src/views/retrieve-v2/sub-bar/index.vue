@@ -162,13 +162,17 @@
       foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
     }
 
+    const mode = ['ui', 'sql'].includes(search_mode) ? search_mode : 'ui';
+
     store.commit('updateIndexItemParams', {
       keyword,
       addition: foramtAddition,
       ip_chooser,
       begin: 0,
-      search_mode,
+      search_mode: mode,
     });
+
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
 
     setRouteQuery();
     setTimeout(() => {

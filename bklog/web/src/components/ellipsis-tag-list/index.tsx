@@ -212,7 +212,7 @@ export default defineComponent({
             return slots.item?.(item) ?? <span>{item}</span>;
           })}
         </div>
-        {showMoreItemNum.value ? (
+        {showMoreItemNum.value && props.list.length > 1 ? (
           <span
             class='bklog-v3-ellipsis-num'
             ref={refEllipsisNumElement}

@@ -61,7 +61,7 @@ export default defineComponent({
 
     const { $t } = useLocale();
 
-    const hiddenEmptyItem = ref(true);
+    const hiddenEmptyItem = ref(false);
     const searchText = ref('');
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
@@ -136,7 +136,7 @@ export default defineComponent({
      * @param item
      */
     const handleIndexSetItemClick = (e: MouseEvent, item: any, is_root_checked = false) => {
-      if (is_root_checked || !item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+      if (!item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
       }
 
@@ -146,6 +146,10 @@ export default defineComponent({
       }
 
       if (props.type === 'union') {
+        if (is_root_checked) {
+          return;
+        }
+
         const indexSetId = `${item.index_set_id}`;
         const isChecked = !(propValueStrList.value.includes(indexSetId) || disableList.value.includes(indexSetId));
         const list = [];

@@ -350,14 +350,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Watch('tableChartColumns')
   onTableChartColumnsChange() {
     this.tableLoading.loading = true;
+    this.initSortContainer(this.sortContainer);
     if (!this.tableChartColumns.ids?.length) {
       this.debounceGetK8sList();
       return;
     }
-    if (!this.tableChartColumns.ids?.includes(this.sortContainer.prop)) {
-      this.sortContainer.prop = this.tableChartColumns.ids[0];
-    }
-    this.sortContainer.initDone = false;
     this.debounceGetK8sList();
     this.refreshTable();
   }
@@ -545,10 +542,20 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {string} orderBy 排序字段
    */
   initSortContainer(sort: Partial<Omit<K8sTableSortContainer, 'initDone'>> = {}) {
+    let sortProp: K8sTableColumnChartKey | null = sort.prop;
+    if (!this.tableChartColumns.ids?.includes(sortProp)) {
+      if (this.tableChartColumns.ids.length) {
+        sortProp = this.tableChartColumns.ids[0];
+      } else {
+        sortProp = null;
+      }
+    }
     this.sortContainer = {
       ...this.sortContainer,
       ...sort,
+      prop: sortProp,
     };
+    this.routerParamChange();
     this.sortContainer.initDone = false;
   }
   /**
@@ -656,18 +663,23 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
     const { timeRange, ...filterCommonParams } = this.filterCommonParams;
     const formatTimeRange = handleTransformToTimestamp(timeRange);
+    const sortParams = this.sortContainer.prop
+      ? {
+          column: this.sortContainer.prop,
+          order_by: this.sortContainer.orderBy,
+        }
+      : {};
 
     /** 获取资源列表请求接口参数 */
     const requestParam = {
       ...filterCommonParams,
+      ...sortParams,
+      ...pageRequestParam,
       start_time: formatTimeRange[0],
       end_time: formatTimeRange[1],
-      ...pageRequestParam,
       resource_type: resourceType,
       with_history: true,
       page_type: this.pagination.pageType,
-      column: this.sortContainer.prop,
-      order_by: this.sortContainer.orderBy,
       method,
     };
 

@@ -249,6 +249,7 @@ export default class BatchOperationMenu extends tsc<BatchOperationMenuProps, Bat
                 <div
                   key={group.id}
                   class='group-item'
+                  v-bk-overflow-tips
                   onClick={() => {
                     this.handleBatchMoveToGroup(group.id);
                   }}

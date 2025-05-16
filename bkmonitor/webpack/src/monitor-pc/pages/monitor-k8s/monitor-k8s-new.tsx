@@ -225,7 +225,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   @Watch('groupFilters')
   watchGroupFiltersChange() {
-    this.setRouteParams();
+    this.setRouteParams({
+      tableSort: '',
+      tableOrder: '',
+      tableMethod: '',
+    });
   }
 
   @Watch('filterBy', { deep: true })

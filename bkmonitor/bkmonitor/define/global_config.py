@@ -362,6 +362,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
+        (
+            "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
+            slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
+        ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),

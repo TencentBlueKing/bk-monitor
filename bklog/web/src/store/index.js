@@ -88,7 +88,7 @@ const stateTpl = {
   indexItem: { ...IndexItem },
   operatorDictionary: {},
   /** 联合查询ID列表 */
-  unionIndexList: URL_ARGS.union_index_list ?? [],
+  unionIndexList: [...(URL_ARGS.unionList ?? [])] ?? [],
   /** 联合查询元素列表 */
   unionIndexItemList: [],
 
