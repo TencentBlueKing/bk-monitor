@@ -339,7 +339,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
     const unitFormatter = getValueFormat(row.unit);
     const set: any = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
-    console.log(unitFormatter, set, 'set---', row.unit);
     return (
       <span>
         {set.text} {set.suffix}
