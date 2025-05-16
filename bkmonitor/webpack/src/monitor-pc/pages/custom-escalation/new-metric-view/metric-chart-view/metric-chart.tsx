@@ -42,7 +42,7 @@ import {
 } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
-import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { COLOR_LIST_METRIC, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
@@ -222,7 +222,7 @@ class NewMetricChart extends CommonSimpleChart {
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
     const transformSeries = series.map((item, index) => {
-      const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
+      const colorList = COLOR_LIST_METRIC;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
@@ -560,7 +560,7 @@ class NewMetricChart extends CommonSimpleChart {
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: COLOR_LIST,
+            color: COLOR_LIST_METRIC,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
