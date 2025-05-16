@@ -85,28 +85,26 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
       this.$router.push({ name: this.backGotoItem.id, query: this.backGotoItem.query || {} });
       return;
     }
-    // 如果新窗口打开页面，点返回上一级跳转到策略列表
-    if (window.history.length <= 1) {
-      const routeFallbacks = {
-        // 点返回上一级跳转到策略列表
-        'strategy-config': '/strategy-config',
-        // 点返回上一级跳转到自定义指标列表
-        'custom-detail-timeseries': '/custom-metric',
-      };
+    // 如果新窗口打开页面
+    const historyLength = window.history.length;
 
-      // 查找匹配的路由规则
-      const matchedPath = Object.keys(routeFallbacks).find(routeName => this.$route.name.includes(routeName));
-      // 存在匹配规则则跳转
-      if (matchedPath) {
-        this.$router.push({ path: routeFallbacks[matchedPath] });
-      }
-      // if (this.$route.name.includes('strategy-config')) {
-      //   this.$router.push({ path: '/strategy-config' });
-      // }
-    } else {
+    if (historyLength > 1) {
       this.$router.back();
+      return;
+    }
+    const routeName = this.$route.name;
+    // 点返回上一级跳转到策略列表
+    if (routeName.includes('strategy-config')) {
+      this.$router.push({ name: 'strategy-config' });
+      return;
+    }
+    // 点返回上一级跳转到自定义指标列表
+    if (routeName.includes('custom-detail-timeseries')) {
+      this.$router.push({ name: 'custom-metric' });
+      return;
     }
   }
+
   render() {
     const len = this.routeList.length;
     return (
