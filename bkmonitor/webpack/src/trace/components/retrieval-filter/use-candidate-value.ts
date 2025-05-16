@@ -87,29 +87,26 @@ export const useCandidateValue = () => {
           },
           {
             signal: axiosController.signal,
+            needMessage: false,
           }
-        )
-          .then(res => {
-            const data = res?.[params?.fields?.[0]] || [];
-            const values =
-              data?.map(item => ({
-                id: item,
-                name: transformFieldName(params?.fields?.[0], item) || item,
-              })) || [];
-            const isEnd = values.length < params.limit;
-            const newMap = new Map();
-            if (!searchValue && isEnd) {
-              newMap.set(getMapKey(params), {
-                values,
-                isEnd: isEnd,
-              });
-            }
-            candidateValueMap = newMap;
-            resolve(values);
-          })
-          .catch(() => {
-            resolve([]);
-          });
+        ).then(res => {
+          const data = res?.[params?.fields?.[0]] || [];
+          const values =
+            data?.map(item => ({
+              id: item,
+              name: transformFieldName(params?.fields?.[0], item) || item,
+            })) || [];
+          const isEnd = values.length < params.limit;
+          const newMap = new Map();
+          if (!searchValue && isEnd) {
+            newMap.set(getMapKey(params), {
+              values,
+              isEnd: isEnd,
+            });
+          }
+          candidateValueMap = newMap;
+          resolve(values);
+        });
       }
     });
   }
