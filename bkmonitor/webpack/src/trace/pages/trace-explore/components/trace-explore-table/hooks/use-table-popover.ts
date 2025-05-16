@@ -39,7 +39,13 @@ type PopoverContent = HTMLElement | JSX.Element | number | string;
 
 export interface UseTablePopoverOptions {
   trigger: { selector: ICSSSelector; delay?: number };
-  getContent: (el: HTMLElement, event: MouseEvent) => null | string; // 自定义内容获取
+  getContentOptions: (
+    el: HTMLElement,
+    event: MouseEvent
+  ) => {
+    content: PopoverContent;
+    popoverTarget?: HTMLElement;
+  }; // 自定义内容获取
   popoverOptions?: Partial<$Popover>;
 }
 
@@ -96,9 +102,10 @@ export const useTablePopover = (
       const targetDom: HTMLElement = _target?.closest?.(options.trigger.selector);
       if (!targetDom) return;
 
-      const content = options.getContent(targetDom, e);
+      const { content, popoverTarget } = options.getContentOptions(targetDom, e) || {};
+
       if (content != null) {
-        handlePopoverShow(targetDom, content as string);
+        handlePopoverShow(popoverTarget || targetDom, content as string);
       }
     }, options.trigger.delay || 200);
   };
@@ -200,14 +207,14 @@ export const useTablePopover = (
  */
 export const useTableEllipsis = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContent'>
+  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || '.explore-text-ellipsis' },
-    getContent: triggerDom => {
+    getContentOptions: triggerDom => {
       const { isEllipsisActive, content } = isEllipsisActiveSingleLine(triggerDom);
       if (!isEllipsisActive) return;
-      return content;
+      return { content };
     },
     popoverOptions: {
       ...(options?.popoverOptions || {}),
@@ -220,14 +227,15 @@ export const useTableEllipsis = (
  */
 export const useTableHeaderDescription = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContent'>
+  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || '.explore-table-header-description' },
-    getContent: triggerDom => {
+    getContentOptions: triggerDom => {
       const content = triggerDom.dataset.colDescription;
       if (!content) return;
-      return content;
+      const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+      return { content, popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom };
     },
     popoverOptions: {
       theme: 'light',
