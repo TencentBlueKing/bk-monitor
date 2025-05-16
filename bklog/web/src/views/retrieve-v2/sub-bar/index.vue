@@ -170,6 +170,8 @@
       search_mode,
     });
 
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode) });
+
     setRouteQuery();
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
