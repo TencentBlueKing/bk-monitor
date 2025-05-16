@@ -96,8 +96,6 @@ export default class LogRetrieval extends Vue {
     // if (data._MONITOR_URL_ !== location.origin) return;
     // 获取来自iframe的内容
     if ('_LOG_TO_MONITOR_' in data) {
-      // 测试代码，验证成功后就删除
-      console.log(event.data, event.origin, location.origin);
       this.$router
         .replace({
           query: { ...data._MONITOR_URL_PARAMS_, ...data._MONITOR_URL_QUERY_ },
