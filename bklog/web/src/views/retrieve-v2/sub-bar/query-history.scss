@@ -55,6 +55,20 @@
   }
 }
 
+.input-box{
+  padding: 0 16px;
+
+  .control-icon.left-icon{
+    left: 5px;
+  }
+
+  .search-input{
+    .bk-form-input{
+      border-color:transparent transparent #3A84FF
+    }
+  }
+}
+
 .retrieve-history-list {
   min-height: 32px;
   max-height: 160px;
@@ -96,13 +110,25 @@
     }
 
     .item-text {
+      position: relative;
       display: flex;
       flex: 1;
       align-items: center;
       min-width: 150px;
-      padding: 0 16px;
+      padding: 0 32px 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       color: #63656e;
+
+      .bklog-lc-star-shape{
+       position: absolute;
+       right: 10px;
+       display: none;
+       color: #C4C6CC;
+      }
+
+      &:hover .bklog-lc-star-shape {
+        display: block;
+      }
     }
 
     &:hover,
