@@ -1,4 +1,36 @@
 @import '../index.scss';
+@import '../../retrieve-v2/segment-pop.scss';
 @import '../../../scss/theme/theme-light.scss';
 
 // 以下是监控页面样式
+
+.v3-bklog-root {
+  background: #f5f7fa;
+
+  .v3-bklog-content {
+  padding: 0 16px;
+
+    .v3-bklog-container {
+      .search-bar-wrapper {
+        padding: 0;
+        margin: 0 0 8px 0;
+      }
+    }
+
+    .v3-bklog-body {
+      width: 100%;
+      margin: 0;
+
+      .search-result-panel {
+        .search-result-content {
+          .monitor-echarts-container {
+            .title-wrapper-new {
+              width: 100%;
+            }
+          }
+        }
+      }
+    }
+
+  }
+}
