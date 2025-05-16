@@ -179,7 +179,7 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages, cluster_id: int = None):
+def manage_es_storage(storage_record_ids, cluster_id: int = None):
     """
     ES索引轮转异步任务
     @param es_storages: 待轮转采集项
@@ -193,6 +193,8 @@ def manage_es_storage(es_storages, cluster_id: int = None):
 
     logger.info("manage_es_storage: start to manage_es_storage")
     start_time = time.time()
+
+    es_storages = models.ESStorage.objects.filter(id__in=storage_record_ids)
 
     # 不再使用白名单，默认全量使用新方式轮转
     for es_storage in es_storages:
