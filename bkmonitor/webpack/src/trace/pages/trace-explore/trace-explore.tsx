@@ -293,7 +293,6 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        console.log(listType, query);
         where.value = JSON.parse((queryWhere as string) || '[]');
         commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
         queryString.value = (query || queryQueryString) as string;

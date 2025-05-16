@@ -86,7 +86,6 @@ export const useTraceExploreStore = defineStore('explore', {
       this.filterTableList = filterTableList;
     },
     init(data: Partial<ITraceExploreState>) {
-      console.log(data);
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;
       this.timezone = data.timezone || getDefaultTimezone();
       this.mode = data.mode || 'span';
