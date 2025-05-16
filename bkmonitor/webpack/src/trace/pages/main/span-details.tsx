@@ -612,7 +612,7 @@ export default defineComponent({
       const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
       const url = location.href.replace(
         location.hash,
-        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}`
+        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
       );
       window.open(url, '_blank');
     };

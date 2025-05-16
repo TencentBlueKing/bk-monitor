@@ -26,9 +26,10 @@
 import { defineComponent, ref as deepRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
-import { QUERY_TRACE_RELATION_APP } from '../../../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../../../store/constant';
 import { useTraceStore } from '../../../../store/modules/trace';
 import TraceDetail from '../../../main/inquire-content/trace-detail';
 import TraceDetailHeader from '../../../main/inquire-content/trace-detail-header';
@@ -58,6 +59,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useTraceStore();
 
+    let searchCancelFn = null;
+
     /** TraceDetail 组件实例 */
     const traceDetailRef = deepRef<InstanceType<typeof TraceDetail>>(null);
 
@@ -66,6 +69,9 @@ export default defineComponent({
       val => {
         if (val && props.traceId) {
           getTraceDetails();
+        } else if (!val) {
+          searchCancelFn?.();
+          store.setTraceData(JSON.parse(JSON.stringify(DEFAULT_TRACE_DATA)));
         }
       }
     );
@@ -75,10 +81,8 @@ export default defineComponent({
      *
      */
     async function getTraceDetails() {
-      // searchCancelFn();
       store.setTraceDetail(true);
       store.setTraceLoaidng(true);
-
       const params: any = {
         app_name: props.appName,
         trace_id: props.traceId,
@@ -95,11 +99,14 @@ export default defineComponent({
       if (traceDetailRef.value?.activePanel === 'timeline') {
         params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
-      await traceDetail(params)
+      await traceDetail(params, {
+        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
+      })
         .then(async data => {
           await store.setTraceData({ ...data, appName: props.appName, trace_id: props.traceId });
           store.setTraceLoaidng(false);
         })
+
         .catch(() => null);
     }
 
@@ -133,7 +140,6 @@ export default defineComponent({
         }}
         esc-close={false}
         is-show={isShow}
-        multi-instance
         transfer
         onClosed={handleSliderClose}
       >
