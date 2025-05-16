@@ -201,7 +201,11 @@ export default defineComponent({
     ) {
       checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
-      method.value = method$ || item?.supported_operations?.[0]?.value || '';
+      if (DURATION_KEYS.includes(checkedItem.value?.name)) {
+        method.value = 'between';
+      } else {
+        method.value = method$ || item?.supported_operations?.[0]?.value || '';
+      }
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || '';
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
@@ -250,6 +254,12 @@ export default defineComponent({
           condition: { id: ECondition.and, name: 'AND' },
           options: opt,
         };
+        if (DURATION_KEYS.includes(checkedItem.value?.name)) {
+          value.method = {
+            id: 'between',
+            name: 'between',
+          };
+        }
         emit('confirm', value);
       } else {
         emit('confirm', null);
@@ -262,10 +272,12 @@ export default defineComponent({
       values.value = v;
     }
     function handleTimeConsumingValueChange(v: number[]) {
-      values.value = v.map(item => ({
-        id: item,
-        name: item,
-      }));
+      if (v) {
+        values.value = v.map(item => ({
+          id: item,
+          name: item,
+        }));
+      }
     }
 
     function handleKeydownEvent(event: KeyboardEvent) {
@@ -491,31 +503,33 @@ export default defineComponent({
       }
       return this.checkedItem
         ? [
-            <div
-              key={'method'}
-              class='form-item mt-34'
-              // onClick={e => e.stopPropagation()}
-            >
-              <div class='form-item-label'>{this.$t('条件')}</div>
-              <div class='form-item-content mt-6'>
-                <Select
-                  ext-cls={'method-select'}
-                  v-model={this.method}
-                  popoverOptions={{
-                    boundary: 'parent',
-                  }}
-                  clearable={false}
-                >
-                  {this.checkedItem.supported_operations.map(item => (
-                    <Select.Option
-                      id={item.value}
-                      key={item.value}
-                      name={item.alias}
-                    />
-                  ))}
-                </Select>
+            !DURATION_KEYS.includes(this.checkedItem?.name) && (
+              <div
+                key={'method'}
+                class='form-item mt-34'
+                // onClick={e => e.stopPropagation()}
+              >
+                <div class='form-item-label'>{this.$t('条件')}</div>
+                <div class='form-item-content mt-6'>
+                  <Select
+                    ext-cls={'method-select'}
+                    v-model={this.method}
+                    popoverOptions={{
+                      boundary: 'parent',
+                    }}
+                    clearable={false}
+                  >
+                    {this.checkedItem.supported_operations.map(item => (
+                      <Select.Option
+                        id={item.value}
+                        key={item.value}
+                        name={item.alias}
+                      />
+                    ))}
+                  </Select>
+                </div>
               </div>
-            </div>,
+            ),
             <div
               key={'value'}
               class='form-item mt-16'
