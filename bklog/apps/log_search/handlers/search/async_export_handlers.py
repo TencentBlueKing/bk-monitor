@@ -348,8 +348,7 @@ class UnionAsyncExportHandlers:
         )
         url = self._get_url()
         search_url = self._get_search_url()
-        # union_async_export.delay(
-        union_async_export(
+        union_async_export.delay(
             union_search_handler=self.union_search_handler,
             sort_fields_mappings=sort_fields_mappings,
             async_task_id=async_task.id,
