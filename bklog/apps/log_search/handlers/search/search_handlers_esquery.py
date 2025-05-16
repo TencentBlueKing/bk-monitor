@@ -1484,7 +1484,7 @@ class SearchHandler:
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("-rank", "-created_at")
-                    .values("id", "params", "search_mode")
+                    .values("id", "params", "search_mode", "created_by", "created_at")
                 )
             else:
                 history_obj = (
