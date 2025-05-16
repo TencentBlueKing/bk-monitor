@@ -1,11 +1,11 @@
 .trace-detail-header {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   margin-top: 12px;
-  margin-right: 100px;
-  white-space: nowrap;
 
-  &.is-in-table {
-    margin: 0;
+  &.in-side-slider {
+    margin-top: 0;
   }
 
   .trace-id {
@@ -23,6 +23,17 @@
 
     &:hover {
       color: #3a84ff;
+    }
+  }
+
+  .ai-wrap {
+    margin-left: 12px;
+
+    .ai-img {
+      display: block;
+      width: 20px;
+      cursor: pointer;
+      object-fit: contain;
     }
   }
 }
