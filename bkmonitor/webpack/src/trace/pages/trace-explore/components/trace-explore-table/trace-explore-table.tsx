@@ -261,17 +261,17 @@ export default defineComponent({
     const tableSkeletonConfig = computed(() => {
       const loading = tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
       if (!loading) return null;
-      const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
-      let config = {
+      // const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
+      const config = {
         tableClass: 'explore-table-hidden-body',
         skeletonClass: 'explore-skeleton-show-body',
       };
-      if (headerLoading) {
-        config = {
-          tableClass: 'explore-table-hidden-all',
-          skeletonClass: 'explore-skeleton-show-all',
-        };
-      }
+      // if (headerLoading) {
+      //   config = {
+      //     tableClass: 'explore-table-hidden-all',
+      //     skeletonClass: 'explore-skeleton-show-all',
+      //   };
+      // }
       return config;
     });
 
