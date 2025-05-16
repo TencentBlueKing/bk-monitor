@@ -100,24 +100,15 @@ const getUrlArgs = (_route?) => {
     const hash = window.location.hash.replace(/^#/, '');
     const route = router.resolve(hash);
     urlResolver = new RouteUrlResolver({ route: route.resolved });
-    urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+    urlResolver.setResolver('index_id', () =>
+      route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '',
+    );
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
-    urlResolver.setResolver('index_id', () => _route.params.indexId ?? '');
+    urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
   }
 
-  const routeParams = urlResolver.convertQueryToStore<RouteParams>();
-
-  // if (routeParams.bizId) {
-  //   // window.localStorage.setItem('bk_biz_id', routeParams.bizId);
-  //   // store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: routeParams.bizId });
-  // }
-
-  // if (routeParams.spaceUid) {
-  //   window.localStorage.setItem('space_uid', routeParams.spaceUid);
-  // }
-
-  return routeParams;
+  return urlResolver.convertQueryToStore<RouteParams>();
 };
 
 let URL_ARGS = getUrlArgs();
@@ -204,7 +195,7 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
+  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
