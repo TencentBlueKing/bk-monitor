@@ -141,7 +141,7 @@ class FilterOperator:
             operator = cls.UNIFY_QUERY_OPERATOR_MAPPING[operator]
 
         # 处理组间关系查询
-        if operator.get("group_relation") == OperatorGroupRelation.AND:
+        if options.get("group_relation") == OperatorGroupRelation.AND:
             result_q = Q()
             for v in value:
                 result_q |= Q(**{f"{field}__{operator}": v})
@@ -320,8 +320,7 @@ class BaseQuery:
 
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
-            q = cls.operator_mapping[f["operator"]](q, key, f["value"], f.get("options", {}))
-
+            q = cls.operator_mapping[f["operator"]](q, f["operator"], key, f["value"], f.get("options", {}))
         return q
 
     @classmethod
