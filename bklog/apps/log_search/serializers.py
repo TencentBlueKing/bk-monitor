@@ -352,6 +352,33 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
         return attrs
 
 
+class UnionSearchExportSerializer(serializers.Serializer):
+    union_configs = serializers.ListField(
+        label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
+    )
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=False, default=[])
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    ip_chooser = serializers.DictField(default={}, required=False)
+    addition = serializers.ListField(allow_empty=True, required=False, default="")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
+    time_range = serializers.CharField(label=_("时间范围"), required=False)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    begin = serializers.IntegerField(required=False, default=0)
+    size = serializers.IntegerField(required=False, default=10)
+    is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
+    file_type = serializers.ChoiceField(
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
+    )
+    is_quick_export = serializers.BooleanField(label=_("是否快速下载"), required=False, default=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["index_set_ids"] = sorted([config["index_set_id"] for config in attrs.get("union_configs", [])])
+        return attrs
+
+
 class UnionSearchFieldsSerializer(serializers.Serializer):
     start_time = DateTimeFieldWithEpoch(required=False)
     end_time = DateTimeFieldWithEpoch(required=False)
