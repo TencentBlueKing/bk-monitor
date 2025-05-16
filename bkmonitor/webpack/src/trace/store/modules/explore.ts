@@ -46,7 +46,7 @@ export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
     timeRange: DEFAULT_TIME_RANGE,
     timezone: getDefaultTimezone(),
-    mode: 'trace',
+    mode: 'span',
     appName: null,
     refreshInterval: -1,
     refreshImmediate: '',
@@ -86,9 +86,10 @@ export const useTraceExploreStore = defineStore('explore', {
       this.filterTableList = filterTableList;
     },
     init(data: Partial<ITraceExploreState>) {
+      console.log(data);
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;
       this.timezone = data.timezone || getDefaultTimezone();
-      this.mode = data.mode || 'trace';
+      this.mode = data.mode || 'span';
       this.appName = data.appName || '';
       this.refreshInterval = data.refreshInterval || -1;
       this.refreshImmediate = data.refreshImmediate;

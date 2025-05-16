@@ -279,31 +279,39 @@ export default defineComponent({
         queryString: queryQueryString,
         selectedType,
         favorite_id,
+        trace_id,
+        /** 兼容一下老版本的listType和query参数 */
+        listType,
+        query,
       } = route.query;
       try {
         store.init({
           timeRange: start_time ? [start_time as string, end_time as string] : DEFAULT_TIME_RANGE,
           timezone: timezone as string,
-          mode: (sceneMode as 'span' | 'trace') || 'trace',
+          mode: ((listType || sceneMode) as 'span' | 'trace') || 'span',
           appName: app_name as string,
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
+        console.log(listType, query);
         where.value = JSON.parse((queryWhere as string) || '[]');
         commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
-        queryString.value = queryQueryString as string;
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
+        if (trace_id) {
+          where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
+        }
       } catch (error) {
         console.log('route query:', error);
       }
     }
 
     function setUrlParams() {
-      const { favorite_id, ...otherQuery } = route.query;
-      const query = {
+      const { favorite_id, trace_id, listType, query, ...otherQuery } = route.query;
+      const queryParams = {
         ...otherQuery,
         start_time: store.timeRange[0],
         end_time: store.timeRange[1],
@@ -320,12 +328,12 @@ export default defineComponent({
       };
 
       const targetRoute = router.resolve({
-        query,
+        query: queryParams,
       });
       // /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.fullPath !== route.fullPath) {
         router.replace({
-          query,
+          query: queryParams,
         });
       }
     }
@@ -450,7 +458,7 @@ export default defineComponent({
         queryString.value = favoriteConfig?.queryParams?.query || '';
         filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
         store.init({
-          mode: favoriteConfig?.queryParams?.mode || 'trace',
+          mode: favoriteConfig?.queryParams?.mode || 'span',
           appName: favoriteConfig?.queryParams?.app_name || store.appName,
           timeRange: favoriteConfig?.componentData?.timeRange || DEFAULT_TIME_RANGE,
           refreshInterval: favoriteConfig?.componentData?.refreshInterval || -1,

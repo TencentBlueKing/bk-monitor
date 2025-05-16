@@ -211,7 +211,7 @@ export default defineComponent({
         const index = statisticsList.list.findIndex(i => name === i.value) || 0;
         return {
           color: topKColorList[index],
-          name: transformFieldName(localField.value, name),
+          name: transformFieldName(localField.value, name) || name,
           ...item,
         };
       });
