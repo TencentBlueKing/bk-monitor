@@ -201,7 +201,6 @@ export const equalWhere = (source: IWhereItem[], target: IWhereItem[]) => {
   if (target.length !== source.length) {
     return false;
   }
-  console.log(source, target);
   for (const s of source) {
     index += 1;
     const sItem = s;

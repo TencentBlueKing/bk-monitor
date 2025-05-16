@@ -209,7 +209,6 @@ export default defineComponent({
       const clientHeight = container.clientHeight;
       const scrollHeight = container.scrollHeight;
       if (scrollTop + clientHeight >= scrollHeight - 3) {
-        console.log(isEnd.value);
         if (!scrollLoading.value && !isEnd.value) {
           scrollLoading.value = true;
           page.value += 1;
