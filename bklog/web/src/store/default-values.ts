@@ -195,7 +195,7 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
+  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
