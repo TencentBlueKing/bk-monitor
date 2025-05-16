@@ -297,5 +297,9 @@
         }
       }
     }
+
+    .t-table__affixed-header-elm {
+      overflow: hidden !important;
+    }
   }
 }

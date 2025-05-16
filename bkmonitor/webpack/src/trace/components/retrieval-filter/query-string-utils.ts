@@ -212,7 +212,8 @@ export function parseQueryString(query: string): IStrItem[] {
 
 // 获取光标全局字符偏移量
 function getGlobalOffset(editor) {
-  const selection = window.getSelection();
+  const ownerDocument = document.activeElement.shadowRoot || document;
+  const selection = ownerDocument.getSelection();
   if (!selection.rangeCount) return 0;
   const range = selection.getRangeAt(0);
   let offset = 0;
