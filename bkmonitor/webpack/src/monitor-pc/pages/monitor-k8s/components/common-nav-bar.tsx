@@ -87,9 +87,22 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
     }
     // 如果新窗口打开页面，点返回上一级跳转到策略列表
     if (window.history.length <= 1) {
-      if (this.$route.name.includes('strategy-config')) {
-        this.$router.push({ path: '/strategy-config' });
+      const routeFallbacks = {
+        // 点返回上一级跳转到策略列表
+        'strategy-config': '/strategy-config',
+        // 点返回上一级跳转到自定义指标列表
+        'custom-detail-timeseries': '/custom-metric',
+      };
+
+      // 查找匹配的路由规则
+      const matchedPath = Object.keys(routeFallbacks).find(routeName => this.$route.name.includes(routeName));
+      // 存在匹配规则则跳转
+      if (matchedPath) {
+        this.$router.push({ path: routeFallbacks[matchedPath] });
       }
+      // if (this.$route.name.includes('strategy-config')) {
+      //   this.$router.push({ path: '/strategy-config' });
+      // }
     } else {
       this.$router.back();
     }
