@@ -26,7 +26,7 @@ from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
-from apm.constants import AggregatedMethod
+from apm.constants import AggregatedMethod, OperatorGroupRelation
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
@@ -102,6 +102,53 @@ class FilterOperator:
     NOT_EQUAL = "not_equal"
     BETWEEN = "between"
     LIKE = "like"
+    NOT_LIKE = "not_like"
+    GT = "gt"
+    LT = "lt"
+    GTE = "gte"
+    LTE = "lte"
+
+    UNIFY_QUERY_OPERATOR_MAPPING = {
+        EXISTS: "exists",
+        NOT_EXISTS: "nexists",
+        EQUAL: "eq",
+        NOT_EQUAL: "neq",
+        LIKE: "include",
+        NOT_LIKE: "exclude",
+        GT: "gt",
+        LT: "lt",
+        GTE: "gte",
+        LTE: "lte",
+    }
+
+    UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING = {
+        LIKE: "wildcard",
+        NOT_LIKE: "nwildcard",
+    }
+
+    @classmethod
+    def between_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
+        return q & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]})
+
+    @classmethod
+    def default_handler(cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]) -> Q:
+        # 操作符映射，如果是通配符查询的话需要映射到特定操作符
+        if operator in cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING and options.get("is_wildcard"):
+            operator = cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING[operator]
+        else:
+            operator = cls.UNIFY_QUERY_OPERATOR_MAPPING[operator]
+
+        # 处理组间关系查询
+        if operator.get("group_relation") == OperatorGroupRelation.AND:
+            result_q = Q()
+            for v in value:
+                result_q |= Q(**{f"{field}__{operator}": v})
+        else:
+            result_q = Q(**{f"{field}__{operator}": value})
+
+        return q & result_q
 
 
 class LogicSupportOperator:
@@ -152,13 +199,17 @@ class BaseQuery:
     @classproperty
     def operator_mapping(self) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
         return {
-            FilterOperator.EXISTS: lambda q, field, value: q & Q(**{f"{field}__exists": value}),
-            FilterOperator.NOT_EXISTS: lambda q, field, value: q & Q(**{f"{field}__nexists": value}),
-            FilterOperator.EQUAL: lambda q, field, value: q & q & Q(**{f"{field}__eq": value}),
-            FilterOperator.NOT_EQUAL: lambda q, field, value: q & Q(**{f"{field}__neq": value}),
-            FilterOperator.BETWEEN: lambda q, field, value: q
-            & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]}),
-            FilterOperator.LIKE: lambda q, field, value: q & Q(**{f"{field}__include": value[0]}),
+            FilterOperator.EXISTS: FilterOperator.default_handler,
+            FilterOperator.NOT_EXISTS: FilterOperator.default_handler,
+            FilterOperator.EQUAL: FilterOperator.default_handler,
+            FilterOperator.NOT_EQUAL: FilterOperator.default_handler,
+            FilterOperator.LIKE: FilterOperator.default_handler,
+            FilterOperator.NOT_LIKE: FilterOperator.default_handler,
+            FilterOperator.GT: FilterOperator.default_handler,
+            FilterOperator.LT: FilterOperator.default_handler,
+            FilterOperator.GTE: FilterOperator.default_handler,
+            FilterOperator.LTE: FilterOperator.default_handler,
+            FilterOperator.BETWEEN: FilterOperator.between_operator_handler,
             LogicSupportOperator.LOGIC: lambda q, field, value: self._add_logic_filter(q, field, value),
         }
 
@@ -269,7 +320,7 @@ class BaseQuery:
 
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
-            q = cls.operator_mapping[f["operator"]](q, key, f["value"])
+            q = cls.operator_mapping[f["operator"]](q, key, f["value"], f.get("options", {}))
 
         return q
 

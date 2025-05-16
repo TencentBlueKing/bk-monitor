@@ -11,13 +11,20 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 from django.utils.translation import gettext as _
 
-from apm.constants import EnabledStatisticsDimension, QueryMode
+from apm.constants import EnabledStatisticsDimension, QueryMode, OperatorGroupRelation
 
 
 class FilterSerializer(serializers.Serializer):
+    class OptionsSerializer(serializers.Serializer):
+        is_wildcard = serializers.BooleanField(label="是否使用通配符", required=False)
+        group_relation = serializers.ChoiceField(
+            label="分组关系", choices=OperatorGroupRelation.choices(), required=False
+        )
+
     key = serializers.CharField(label="查询键")
     operator = serializers.CharField(label="操作符")
     value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
+    options = OptionsSerializer(label="操作符选项", default={})
 
 
 class BaseTraceRequestSerializer(serializers.Serializer):
