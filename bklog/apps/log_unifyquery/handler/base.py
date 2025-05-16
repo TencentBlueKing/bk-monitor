@@ -1003,12 +1003,6 @@ class UnifyQueryHandler:
 
         return user_sort_list
 
-    @property
-    def index_set(self):
-        if not hasattr(self, "_index_set"):
-            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_info_list[0]["index_set_id"]).first()
-        return self._index_set
-
     def fields(self, scope="default"):
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]

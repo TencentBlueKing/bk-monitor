@@ -831,6 +831,8 @@ class SearchViewSet(APIViewSet):
         @apiParam end_time [String] 结束时间
         @apiParam begin [Int] 检索开始 offset
         @apiParam size [Int]  检索结果大小
+        @apiParam addition [List]  搜索条件
+        @apiParam ip_chooser [Dict]  检索IP条件
         @apiParam is_quick_export [Bool] 是否快速导出 默认为False
         @apiParam {Array[Json]} union_configs 联合检索索引集配置
         @apiParam {Int} union_configs.index_set_id 索引集ID

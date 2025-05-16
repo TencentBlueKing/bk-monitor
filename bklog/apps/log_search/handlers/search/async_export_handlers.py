@@ -348,7 +348,8 @@ class UnionAsyncExportHandlers:
         )
         url = self._get_url()
         search_url = self._get_search_url()
-        union_async_export.delay(
+        # union_async_export.delay(
+        union_async_export(
             union_search_handler=self.union_search_handler,
             sort_fields_mappings=sort_fields_mappings,
             async_task_id=async_task.id,
@@ -388,6 +389,8 @@ class UnionAsyncExportHandlers:
             search_dict["bizId"] = search_dict["bk_biz_id"]
             search_dict["spaceUid"] = bk_biz_id_to_space_uid(search_dict["bk_biz_id"])
         search_dict["unionList"] = self.index_set_ids
+        if search_dict["keyword"] is None:
+            search_dict.pop("keyword")
         url_params = urlencode(search_dict)
         # 这里是为了拼接前端检索请求
         search_url = f"{request.scheme}://{request.get_host()}{settings.SITE_URL}#/retrieve?{url_params}"
