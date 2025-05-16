@@ -238,20 +238,11 @@ export default defineComponent({
         .filter(Boolean);
     });
 
-    /** 请求时间范围 */
-    const timestamp = computed(() => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
-      return {
-        start_time,
-        end_time,
-      };
-    });
-
     /** 请求参数 */
     const queryParams = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { mode, query_string, ...params } = props.commonParams;
+      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
 
       let sort = [];
       if (sortContainer.sortBy) {
@@ -260,7 +251,8 @@ export default defineComponent({
 
       return {
         ...params,
-        ...timestamp.value,
+        start_time,
+        end_time,
         query: query_string,
         sort,
       };
@@ -348,9 +340,7 @@ export default defineComponent({
       updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
-      const { scrollHeight } = target;
-      const { scrollTop } = target;
-      const { clientHeight } = target;
+      const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
       if (isEnd) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
