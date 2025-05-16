@@ -76,11 +76,15 @@ export default ({
 
     store.commit('updateSpace', space_uid);
 
-    if (!space_uid || !bkBizId) {
+    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
       store.commit('updateStorage', {
         [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
         [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
       });
+    }
+
+    if (!space) {
+      return;
     }
 
     if (isExternal) {

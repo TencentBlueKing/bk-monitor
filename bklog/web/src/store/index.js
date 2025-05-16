@@ -516,8 +516,8 @@ const store = new Vuex.Store({
     },
     updateSpace(state, spaceUid) {
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
-      state.bkBizId = state.space.bk_biz_id;
-      state.spaceUid = spaceUid;
+      state.bkBizId = state.space?.bk_biz_id;
+      state.spaceUid = state.space?.space_uid;
       state.isSetDefaultTableColumn = false;
       state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },

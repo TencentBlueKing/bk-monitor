@@ -7,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional
 
 from django.db import models
 from django.utils.translation import gettext as _
@@ -52,7 +52,7 @@ class GetCustomTsMetricGroups(Resource):
         bk_biz_id = serializers.IntegerField(label="业务")
         time_series_group_id = serializers.IntegerField(label="自定义指标ID")
 
-    def perform_request(self, params: Dict) -> List[Dict]:
+    def perform_request(self, params: dict) -> list[dict]:
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
             pk=params["time_series_group_id"],
@@ -127,9 +127,13 @@ class GetCustomTsDimensionValues(Resource):
         dimension = serializers.CharField(label="维度")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
-        metrics = serializers.ListField(label="指标", child=serializers.CharField(), allow_empty=False)
+        metrics = serializers.ListField(label="指标", child=serializers.CharField(), allow_empty=True)
 
-    def perform_request(self, params: Dict) -> List[Dict]:
+    def perform_request(self, params: dict) -> list[dict]:
+        # 如果指标为空，则返回空列表
+        if not params["metrics"]:
+            return []
+
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
             pk=params["time_series_group_id"],
@@ -180,7 +184,7 @@ class GetCustomTsGraphConfig(Resource):
 
         bk_biz_id = serializers.IntegerField(label="业务")
         time_series_group_id = serializers.IntegerField(label="自定义时序ID")
-        metrics = serializers.ListField(label="查询的指标", allow_empty=False)
+        metrics = serializers.ListField(label="查询的指标", allow_empty=True)
         where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
         common_conditions = serializers.ListField(label="常用维度过滤", default=list)
@@ -209,7 +213,7 @@ class GetCustomTsGraphConfig(Resource):
 
             panels = PanelSerializer(label="图表配置", many=True)
 
-        groups = GroupSerializer(label="分组", many=True)
+        groups = GroupSerializer(label="分组", many=True, allow_empty=True)
 
     UNITY_QUERY_OPERATOR_MAPPING = {
         "reg": "req",
@@ -311,8 +315,8 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def metric_compare(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict, dimension_names: dict[str, str]
-    ) -> List[Dict]:
+        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+    ) -> list[dict]:
         """
         指标对比
         """
@@ -469,6 +473,10 @@ class GetCustomTsGraphConfig(Resource):
         return {key: [metrics_dict[x] for x in sorted(list(value))] for key, value in series_metrics.items()}
 
     def perform_request(self, params: dict) -> dict:
+        # 如果指标为空，则返回空列表
+        if not params["metrics"]:
+            return {"groups": []}
+
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
             pk=params["time_series_group_id"],
@@ -576,7 +584,7 @@ class GraphDrillDownResource(Resource):
 
     many_response_data = True
 
-    def get_value(self, params: dict, datapoints: list[tuple[Optional[float], int]]) -> float:
+    def get_value(self, params: dict, datapoints: list[tuple[float | None, int]]) -> float:
         """
         计算平均值
         """
