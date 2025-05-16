@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
@@ -230,7 +230,7 @@ export default (
     resizeHeightObserver(instance?.proxy?.$el);
   });
 
-  onBeforeUnmount(() => {
+  onUnmounted(() => {
     uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
     if (addInputListener) {

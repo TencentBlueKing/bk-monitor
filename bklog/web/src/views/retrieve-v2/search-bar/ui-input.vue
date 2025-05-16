@@ -54,14 +54,6 @@
     return { disabled: false, ...(item ?? {}) };
   };
 
-  /**
-   * tag数量溢出是否展示所有
-   * @param {*} item
-   */
-  const handleShowAll = item => {
-    item.showAll = !item.showAll;
-  };
-
   const handleHeightChange = height => {
     emit('height-change', height);
   };
