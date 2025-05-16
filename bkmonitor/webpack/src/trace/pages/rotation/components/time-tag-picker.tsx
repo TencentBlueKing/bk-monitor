@@ -258,6 +258,7 @@ export default defineComponent({
                 <div class='time-tag-list'>
                   {this.localValue.map((item, ind) => (
                     <Tag
+                      key={`${item.join('_')}_${ind}`}
                       class='time-tag'
                       closable
                       onClick={e => this.handleShowTime(e, item, ind)}
