@@ -24,7 +24,7 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
-from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip
+from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
@@ -224,6 +224,10 @@ def application_create_check():
 
 @shared_task(ignore_result=True)
 def cache_application_scope_name():
+    """
+    1. 每次获取 5 分钟内的数据
+    2. 和已有的缓存数据做一个整合
+    """
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
     if "redis" not in caches:
         logger.info("[CACHE_APPLICATION_SCOPE_NAME] no redis cache, task stopped")
@@ -237,10 +241,13 @@ def cache_application_scope_name():
             result_table_id = application.fetch_datasource_info(
                 TelemetryDataType.METRIC.value, attr_name="result_table_id"
             )
-            collection = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
-            if collection and isinstance(collection, dict):
+            monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
+            if monitor_info and isinstance(monitor_info, dict):
                 cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
-                cache_agent.set(cache_key, compress_and_serialize(collection))
+                cached_data = cache_agent.get(cache_key)
+                old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
+                merged_monitor_info = MetricHelper.merge_monitor_info(monitor_info, old_monitor_info)
+                cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
                 cache_agent.expire(cache_key, 60 * 60 * 24)
         except Exception as e:  # noqa
             logger.warning(
