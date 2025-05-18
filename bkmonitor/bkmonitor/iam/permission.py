@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union
 
 from django.conf import settings
 from iam import (
@@ -50,6 +48,7 @@ from bkmonitor.iam.resource import Business as BusinessResource
 from bkmonitor.iam.resource import _all_resources, get_resource_by_id
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
+from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
@@ -81,22 +80,24 @@ ActionIdMap = {
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]
 
 
-class Permission(object):
+class Permission:
     """
     权限中心鉴权封装
     """
 
-    def __init__(self, username: str = "", request=None):
+    def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         self.bk_token = ""
-        if username:
+        if username and bk_tenant_id:
             # 指定用户
             self.username = username
+            self.bk_tenant_id = bk_tenant_id
         else:
             request = request or get_request(peaceful=True)
             # web请求
             if request:
                 self.bk_token = request.COOKIES.get("bk_token", "")
                 self.username = request.user.username
+                self.bk_tenant_id = request.user.tenant_id
             else:
                 # 后台设置
                 from bkmonitor.utils.user import get_local_username
@@ -104,8 +105,9 @@ class Permission(object):
                 self.username = get_local_username()
                 if self.username is None:
                     raise ValueError("must provide `username` or `request` param to init")
+                self.bk_tenant_id = DEFAULT_TENANT_ID
 
-        self.iam_client = self.get_iam_client()
+        self.iam_client = self.get_iam_client(bk_tenant_id)
         self.request = request
 
         # 是否跳过权限中心校验
@@ -115,7 +117,7 @@ class Permission(object):
             self.skip_check = True
 
     @classmethod
-    def get_iam_client(cls):
+    def get_iam_client(cls, bk_tenant_id: str):
         app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
@@ -126,7 +128,7 @@ class Permission(object):
             if settings.IAM_API_BASE_URL
             else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
         )
-        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_INNER_HOST, None, bk_apigateway_url)
+        return CompatibleIAM(app_code, secret_key, bk_apigateway_url, bk_tenant_id=bk_tenant_id)
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """
@@ -156,7 +158,7 @@ class Permission(object):
 
         return grant_result
 
-    def make_request(self, action: Union[ActionMeta, str], resources: List[Resource] = None) -> Request:
+    def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
         获取请求对象
         """
@@ -172,7 +174,7 @@ class Permission(object):
         return request
 
     def make_multi_action_request(
-        self, actions: List[Union[ActionMeta, str]], resources: List[Resource] = None
+        self, actions: list[ActionMeta | str], resources: list[Resource] = None
     ) -> MultiActionRequest:
         """
         获取多个动作请求对象
@@ -189,7 +191,7 @@ class Permission(object):
         return request
 
     def _make_application(
-        self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
+        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ) -> Application:
         resources = resources or []
         actions = []
@@ -232,7 +234,7 @@ class Permission(object):
         return application
 
     def get_apply_url(
-        self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
+        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ):
         """
         处理无权限 - 跳转申请列表
@@ -256,7 +258,7 @@ class Permission(object):
             return settings.BK_IAM_SAAS_HOST
         return url
 
-    def get_apply_data(self, actions: List[Union[ActionMeta, str]], resources: List[Resource] = None):
+    def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):
         """
         生成本系统无权限数据
         """
@@ -293,9 +295,7 @@ class Permission(object):
         url = self.get_apply_url(actions, resources)
         return data, url
 
-    def is_allowed(
-        self, action: Union[ActionMeta, str], resources: List[Resource] = None, raise_exception: bool = False
-    ):
+    def is_allowed(self, action: ActionMeta | str, resources: list[Resource] = None, raise_exception: bool = False):
         """
         校验用户是否有动作的权限
         :param action: 动作
@@ -378,7 +378,7 @@ class Permission(object):
         actions = [get_action_by_id(a_id) for a_id in MINI_ACTION_IDS]
         return actions, [BusinessResource.create_instance(bk_biz_id)]
 
-    def is_allowed_by_biz(self, bk_biz_id: int, action: Union[ActionMeta, str], raise_exception: bool = False):
+    def is_allowed_by_biz(self, bk_biz_id: int, action: ActionMeta | str, raise_exception: bool = False):
         """
         判断用户对当前动作在该业务下是否有权限
         """
@@ -388,7 +388,7 @@ class Permission(object):
         resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
         return self.is_allowed(action, resources, raise_exception)
 
-    def batch_is_allowed(self, actions: List[ActionMeta], resources: List[List[Resource]]):
+    def batch_is_allowed(self, actions: list[ActionMeta], resources: list[list[Resource]]):
         """
         查询某批资源某批操作是否有权限
         """
@@ -436,7 +436,7 @@ class Permission(object):
         return resource_meta.create_instance(instance_id)
 
     @classmethod
-    def batch_make_resource(cls, resources: List[Dict]):
+    def batch_make_resource(cls, resources: list[dict]):
         """
         批量构造resource对象
         """
@@ -450,12 +450,12 @@ class Permission(object):
         if not ok:
             raise BKAPIError(
                 system_name=settings.BK_IAM_APP_CODE,
-                url="/api/v1/model/systems/{system_id}/query".format(system_id=settings.BK_IAM_SYSTEM_ID),
+                url=f"/api/v1/model/systems/{settings.BK_IAM_SYSTEM_ID}/query",
                 result={"message": message},
             )
         return data["actions"]
 
-    def filter_space_list_by_action(self, action: Union[ActionMeta, str], using_cache=True) -> List[dict]:
+    def filter_space_list_by_action(self, action: ActionMeta | str, using_cache=True) -> list[dict]:
         """
         获取有对应action权限的空间列表
         """
