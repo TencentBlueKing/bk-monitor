@@ -217,6 +217,7 @@ def application_create_check():
     # 获取所有没有 traceDatasource && metricDatasource 的应用(证明是未进行 saas 数据源同步的应用)
     # 因创建失败是偶尔事件并且会发送通知所以这里可以一直尝试同步
     apps = Application.objects.filter(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
+    logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
     for app in apps:
         app.sync_datasource()
 
