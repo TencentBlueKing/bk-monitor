@@ -29,7 +29,6 @@ from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
-from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -85,16 +84,15 @@ def build_event_body(
 ):
     bk_biz_name = ""
     operator = (app.create_user if apm_event is APMEvent.APP_CREATE else app.update_user,)
-
     event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
-    response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
-    if response_biz_data:
-        biz_data = response_biz_data[0]
-        bk_biz_name = biz_data.bk_biz_name
 
-        from bkm_space.define import SpaceTypeEnum
+    from bkm_space.api import SpaceApi
+    from bkm_space.define import SpaceTypeEnum
 
-        if biz_data.space_type_id == SpaceTypeEnum.BKSAAS.value:
+    space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+    if space is not None:
+        bk_biz_name = space.space_name
+        if space.space_type_id == SpaceTypeEnum.BKSAAS.value:
             # 对于 PAAS 平台创建的 APM 应用，临时通过通知组<<应用成员>>来获取用户
             SAAS_NOTICE_GROUP_NAME = "应用成员"
             from bkmonitor.models import UserGroup
