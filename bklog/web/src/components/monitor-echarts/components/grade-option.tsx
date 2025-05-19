@@ -33,6 +33,19 @@ import $http from '@/api';
 
 import './grade-option.scss';
 
+type GradeOption = {
+  disabled: boolean;
+  type: string;
+  field: any;
+  settings: {
+    id: string;
+    color: string;
+    name: string;
+    regExp: string;
+    enable: boolean;
+  }[];
+};
+
 const getDefaultGradeOption = () => {
   return {
     disabled: false,
@@ -114,50 +127,60 @@ export default defineComponent({
     /**
      * 分级配置表单
      */
-    const gradeOptionForm = computed(() => {
-      return Object.assign({}, getDefaultGradeOption(), store.state.indexFieldInfo.custom_config.grade_options ?? {});
-    });
+    const gradeOptionForm = ref<GradeOption>(getDefaultGradeOption());
     const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
     const isLoading = ref(false);
 
     const handleSaveGradeSettingClick = (e: MouseEvent, isSave = true) => {
-      isLoading.value = true;
-      $http
-        .request('retrieve/setIndexSetCustomConfig', {
-          data: {
-            index_set_id: store.state.indexId,
-            index_set_ids: store.state.indexItem.ids,
-            index_set_type: store.state.indexItem.isUnionIndex ? 'union' : 'single',
-            index_set_config: {
-              grade_options: gradeOptionForm.value,
-            },
-          },
-        })
-        .then(resp => {
-          if (resp.result) {
-            emit('change', { event: e, isSave, data: gradeOptionForm.value });
-            return;
-          }
+      if (!isSave) {
+        gradeOptionForm.value = getDefaultGradeOption();
+        emit('change', { event: e, isSave, data: gradeOptionForm.value });
+        // store.commit('updateIndexSetCustomConfig', { grade_options: gradeOptionForm.value });
+        return;
+      }
 
-          bkMessage({
-            theme: 'error',
-            message: resp.message,
+      if (isSave) {
+        isLoading.value = true;
+
+        $http
+          .request('retrieve/setIndexSetCustomConfig', {
+            data: {
+              index_set_id: store.state.indexId,
+              index_set_ids: store.state.indexItem.ids,
+              index_set_type: store.state.indexItem.isUnionIndex ? 'union' : 'single',
+              index_set_config: {
+                grade_options: gradeOptionForm.value,
+              },
+            },
+          })
+          .then(resp => {
+            if (resp.result) {
+              emit('change', { event: e, isSave, data: gradeOptionForm.value });
+              store.commit('updateIndexSetCustomConfig', { grade_options: gradeOptionForm.value });
+              return;
+            }
+
+            bkMessage({
+              theme: 'error',
+              message: resp.message,
+            });
+          })
+          .finally(() => {
+            isLoading.value = false;
           });
-        })
-        .finally(() => {
-          isLoading.value = false;
-        });
+      }
     };
 
     const updateOptions = (cfg?) => {
       const target = cfg ?? getDefaultGradeOption();
-      if (!target.settings?.length) {
-        store.commit('updateIndexSetCustomConfig', {
-          grade_options: { ...gradeOptionForm.value, settings: getDefaultGradeOption().settings },
-        });
-      }
+      Object.assign(gradeOptionForm.value, target);
+      // if (!target.settings?.length) {
+      //   store.commit('updateIndexSetCustomConfig', {
+      //     grade_options: { ...gradeOptionForm.value, settings: getDefaultGradeOption().settings },
+      //   });
+      // }
 
-      store.commit('updateIndexSetCustomConfig', { grade_options: Object.assign({}, gradeOptionForm.value, target) });
+      // store.commit('updateIndexSetCustomConfig', { grade_options: Object.assign({}, gradeOptionForm.value, target) });
     };
 
     const handleTypeChange = type => {
@@ -165,8 +188,22 @@ export default defineComponent({
       if (type === 'normal') {
         target.settings = getDefaultGradeOption().settings;
       }
+      Object.assign(gradeOptionForm.value, target);
+      // store.commit('updateIndexSetCustomConfig', { grade_options: target });
+    };
 
-      store.commit('updateIndexSetCustomConfig', { grade_options: target });
+    const handleGradeOptionFormChange = (key: string, value: any) => {
+      // const target = Object.assign({}, gradeOptionForm.value, { [key]: value });
+      // Object.assign(gradeOptionForm.value, target);
+      gradeOptionForm.value[key] = value;
+      // store.commit('updateIndexSetCustomConfig', { grade_options: target });
+    };
+
+    const handleSettingItemChange = (index: number, key: string, value: any) => {
+      // const target = Object.assign({}, gradeOptionForm.value);
+      gradeOptionForm.value.settings[index][key] = value;
+      // Object.assign(gradeOptionForm.value, target);
+      // store.commit('updateIndexSetCustomConfig', { grade_options: target });
     };
 
     expose({
@@ -182,7 +219,7 @@ export default defineComponent({
             <bk-switcher
               theme='primary'
               value={!gradeOptionForm.value.disabled}
-              on-change={v => (gradeOptionForm.value.disabled = !v)}
+              on-change={v => handleGradeOptionFormChange('disabled', v)}
             ></bk-switcher>
             <span class='bklog-icon bklog-info-fill'></span>
             <span>指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段</span>
@@ -214,7 +251,7 @@ export default defineComponent({
                 value={gradeOptionForm.value.field}
                 searchable
                 disabled={gradeOptionForm.value.disabled}
-                on-change={val => (gradeOptionForm.value.field = val)}
+                on-change={val => handleGradeOptionFormChange('field', val)}
                 placeholder={$t('请选择字段')}
               >
                 {fieldList.value.map(option => (
@@ -258,7 +295,7 @@ export default defineComponent({
               </div>
             </div>
             <div class='grade-table-body'>
-              {gradeOptionForm.value.settings.map(item => (
+              {gradeOptionForm.value.settings.map((item, index) => (
                 <div
                   class={['grade-table-row', { readonly: item.id === 'others' }]}
                   key={item.id}
@@ -268,36 +305,6 @@ export default defineComponent({
                     class='grade-table-col col-color'
                   >
                     <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }}></span>
-
-                    {/* {item.id !== 'others' && (
-                      <bk-select
-                        style='width: 32px'
-                        class='bklog-v3-grade-color-select'
-                        value={item.color}
-                        clearable={false}
-                        behavior='simplicity'
-                        ext-popover-cls='bklog-v3-grade-color-list bklog-popover-stop'
-                        size='small'
-                        on-change={val => (item.color = val)}
-                      >
-                        {colorList.value.map(option => (
-                          <bk-option
-                            id={option.name}
-                            key={option.id}
-                            name={option.name}
-                          >
-                            <div
-                              class='bklog-popover-stop'
-                              style={{
-                                width: '100%',
-                                height: '16px',
-                                background: option.name,
-                              }}
-                            ></div>
-                          </bk-option>
-                        ))}
-                      </bk-select>
-                    )} */}
                   </div>
                   <div
                     style='width: 240px'
@@ -308,7 +315,7 @@ export default defineComponent({
                     !gradeOptionForm.value.disabled ? (
                       <bk-input
                         value={item.name}
-                        on-change={v => (item.name = v)}
+                        on-change={v => handleSettingItemChange(index, 'name', v)}
                       ></bk-input>
                     ) : (
                       item.name
@@ -323,7 +330,7 @@ export default defineComponent({
                     !gradeOptionForm.value.disabled ? (
                       <bk-input
                         value={item.regExp}
-                        on-change={v => (item.regExp = v)}
+                        on-change={v => handleSettingItemChange(index, 'regExp', v)}
                       ></bk-input>
                     ) : (
                       item.regExp
@@ -339,7 +346,7 @@ export default defineComponent({
                         theme='primary'
                         size='small'
                         disabled={gradeOptionForm.value.disabled}
-                        on-change={v => (item.enable = v)}
+                        on-change={v => handleSettingItemChange(index, 'enable', v)}
                       ></bk-switcher>
                     </div>
                   )}
