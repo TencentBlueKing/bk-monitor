@@ -298,8 +298,12 @@
       }
     }
 
-    .t-table__affixed-header-elm {
-      overflow: hidden !important;
+    .t-table__affixed-header-elm-wrap {
+      height: 34px !important;
+
+      .t-table__affixed-header-elm {
+        overflow: hidden !important;
+      }
     }
   }
 }
