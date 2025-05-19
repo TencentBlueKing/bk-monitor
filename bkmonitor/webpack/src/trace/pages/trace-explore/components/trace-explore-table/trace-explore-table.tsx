@@ -412,17 +412,14 @@ export default defineComponent({
             headerDescription: 'status_code',
             title: t('状态'),
             width: 100,
-            getRenderValue: row => {
-              const code = row?.['status.code'];
-              return SPAN_STATUS_CODE_MAP[code];
-            },
+            getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
           },
           kind: {
             renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
             colKey: 'kind',
             title: t('类型'),
             width: 100,
-            getRenderValue: row => SPAN_KIND_MAPS[row.kind],
+            getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
           },
           'resource.service.name': {
             renderType: ExploreTableColumnTypeEnum.LINK,
@@ -483,7 +480,7 @@ export default defineComponent({
           colKey: 'root_service_category',
           title: t('调用类型'),
           width: 120,
-          getRenderValue: row => SERVICE_CATEGORY_MAP[row.root_service_category],
+          getRenderValue: (row, column) => SERVICE_CATEGORY_MAP[row?.[column.colKey]],
         },
         root_service_status_code: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
@@ -519,6 +516,27 @@ export default defineComponent({
           colKey: 'service_count',
           title: t('服务数量'),
           width: 100,
+        },
+        kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'kind',
+          title: t('类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        root_span_kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'root_span_kind',
+          title: t('根 Span 类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        root_service_kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'root_service_kind',
+          title: t('入口服务类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
         },
       };
     }
