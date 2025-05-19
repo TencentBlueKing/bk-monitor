@@ -434,7 +434,7 @@ class BaseQuery:
         q: QueryConfigBuilder = (
             self.get_q_from_filters_and_query_string(filters, query_string)
             .interval(get_bar_interval_number(start_time, end_time))
-            .metric(field="_index", method=AggregatedMethod.COUNT.value, alias="a")
+            .metric(field=field, method=AggregatedMethod.COUNT.value, alias="a")
             .group_by(field)
         )
         return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
