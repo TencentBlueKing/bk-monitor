@@ -127,22 +127,6 @@ class FilterOperator:
     }
 
     @classproperty
-    def operator_set(cls) -> set[str]:
-        return {
-            cls.EXISTS,
-            cls.NOT_EXISTS,
-            cls.EQUAL,
-            cls.NOT_EQUAL,
-            cls.BETWEEN,
-            cls.LIKE,
-            cls.NOT_LIKE,
-            cls.GT,
-            cls.LT,
-            cls.GTE,
-            cls.LTE,
-        }
-
-    @classproperty
     def operator_handler_mapping(cls) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
         return {
             cls.BETWEEN: cls._between_operator_handler,
@@ -176,9 +160,9 @@ class FilterOperator:
 
     @classmethod
     def get_handler(cls, operator: str) -> Q:
-        if operator not in cls.operator_set:
-            raise ValueError(_(f"不支持的查询操作符: {operator}"))
-        return cls.operator_handler_mapping.get(operator, cls._default_operator_handler)
+        if operator in cls.UNIFY_QUERY_OPERATOR_MAPPING or operator in cls.operator_handler_mapping:
+            return cls.operator_handler_mapping.get(operator, cls._default_operator_handler)
+        raise ValueError(_(f"不支持的查询操作符: {operator}"))
 
 
 class LogicSupportOperator:
