@@ -215,12 +215,13 @@ export const IndexItem = {
   ...DEFAULT_DATETIME_PARAMS,
 };
 
-export const getStorageOptions = () => {
+export const getStorageOptions = (values?: any) => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
+      Object.assign(storage, values ?? []);
 
       let update = false;
       // 对旧版缓存进行还原操作
