@@ -56,6 +56,10 @@
       }
     }
 
+    .bg-fff0f0 {
+      background: #fff0f0;
+    }
+
     .filter-content {
       flex: 1;
     }
@@ -71,6 +75,7 @@
         flex-wrap: wrap;
         align-items: center;
 
+        .error-btn,
         .clear-btn,
         .copy-btn,
         .setting-btn,
@@ -118,6 +123,17 @@
           &.disabled {
             color: #dcdee5;
             cursor: not-allowed;
+          }
+
+          &.hide {
+            display: none;
+          }
+        }
+
+        .error-btn {
+          .icon-mind-fill {
+            font-size: 18px;
+            color: rgb(234, 54, 54);
           }
         }
       }
