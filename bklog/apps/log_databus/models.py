@@ -801,8 +801,8 @@ class LogSubscriptionConfig(models.Model):
     config = JsonField(_("订阅配置"))
 
     class Meta:
-        verbose_name = "自定义日志订阅"
-        verbose_name_plural = verbose_name
+        verbose_name = _("自定义日志订阅")
+        verbose_name_plural = _("自定义日志订阅")
 
     # Plugin Name
     PLUGIN_NAME = "bk-collector"
