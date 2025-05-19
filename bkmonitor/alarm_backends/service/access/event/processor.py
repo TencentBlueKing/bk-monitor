@@ -219,7 +219,6 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         # gse基础事件、自定义字符型、进程托管事件策略ID列表缓存
         gse_base_event_strategy = StrategyCacheManager.get_gse_alarm_strategy_ids()
         self.process_strategies(gse_base_event_strategy)
-        self.role = ""
 
     def process_strategies(self, strategies):
         """
