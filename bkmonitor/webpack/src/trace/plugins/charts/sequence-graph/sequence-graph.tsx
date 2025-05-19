@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
@@ -45,6 +45,12 @@ const boxStartId = 'box_';
 const MaxNoteTextLength = 88;
 const MaxImgWidth = 240;
 const MaxImgHeight = 240;
+// 最小缩放比例
+const MIN_SCALE = 10;
+// 最大缩放比例
+const MAX_SCALE = 200;
+// 缩放步长
+const SCALE_STEP = 10;
 mermaid.initialize(defaultConfig);
 export default defineComponent({
   name: 'SequenceGraph',
@@ -595,6 +601,36 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       toggleDataIdActive(undefined);
       emit('update:loading', false);
     });
+
+    /**
+     * @description: 键盘控制缩放
+     * @param e 键盘事件
+     */
+    function handleKeyDown(e: KeyboardEvent) {
+      // 使用 metaKey (Mac的Command键) 或 ctrlKey (Windows的Ctrl键)
+      if (e.metaKey || e.ctrlKey) {
+        let newScale: number;
+        e.preventDefault();
+        if (e.key === '+' || e.key === '=') {
+          newScale = Math.min(graphScale.value + SCALE_STEP, MAX_SCALE);
+        } else if (e.key === '-') {
+          newScale = Math.max(graphScale.value - SCALE_STEP, MIN_SCALE);
+        }
+        if (newScale !== undefined) {
+          handleScaleChange(newScale);
+        }
+      }
+    }
+
+    // 添加和移除事件监听器
+    onMounted(() => {
+      document.addEventListener('keydown', handleKeyDown);
+    });
+
+    onBeforeUnmount(() => {
+      document.removeEventListener('keydown', handleKeyDown);
+    });
+
     return {
       graphDefinition,
       svgString,
@@ -666,8 +702,9 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                   <GraphTools
                     class='sequence-graph-tools'
                     legendActive={this.showLegend}
-                    minScale={10}
-                    scaleStep={10}
+                    maxScale={MAX_SCALE}
+                    minScale={MIN_SCALE}
+                    scaleStep={SCALE_STEP}
                     scaleValue={this.graphScale}
                     thumbnailActive={this.showThumbnail}
                     onScaleChange={this.handleScaleChange}
