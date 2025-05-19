@@ -15,6 +15,7 @@ import hashlib
 import logging
 import os
 import re
+import shlex
 import shutil
 import tarfile
 import time
@@ -891,9 +892,9 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
             return save_resource.request(self.create_params)
 
 
-class ProcessDataFilterResource(Resource):
+class ProcessCollectorDebugResource(Resource):
     """
-    对外提供的接口， 用于过滤前端发送来的的进程数据
+    进程采集数据 debug 接口
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -932,10 +933,24 @@ class ProcessDataFilterResource(Resource):
         process_name = validated_request_data.get("process_name", "")
         processes = validated_request_data.get("processes", "")
 
+        # 参数转义
+        match = shlex.quote(match)
+        exclude = shlex.quote(exclude)
+        dimensions = shlex.quote(dimensions)
+        process_name = shlex.quote(process_name)
+        processes = shlex.quote(processes)
+
         # 执行命令
-        cmd = f'{cmd_path} --match={match} --exclude={exclude} --dimensions="{dimensions}" --process_name="{process_name}" --processes="{processes}"'
+        cmd_args = [
+            str(cmd_path),
+            f"--match={match}",
+            f"--exclude={exclude}",
+            f"--dimensions={dimensions}",
+            f"--process_name={process_name}",
+            f"--processes={processes}",
+        ]
         try:
-            result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(cmd_args, check=True, capture_output=True, text=True, timeout=15)
         except subprocess.TimeoutExpired as e:
             # 调用超时
             logger.error(f"Process matcher command timed out, error_message: {e}")
