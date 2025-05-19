@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, ProvideReactive } from 'vue-property-decorator';
+import { Component, Watch, ProvideReactive, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -52,7 +52,25 @@ export default class NewMetricView extends tsc<object> {
     showStatisticalValue: false,
     viewColumn: 2,
   };
+  cacheTimeRange = [];
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
+  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
+
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -151,7 +169,7 @@ export default class NewMetricView extends tsc<object> {
           <DashboardTools
             isSplitPanel={false}
             showListMenu={false}
-            timeRange={[this.startTime, this.endTime]}
+            timeRange={this.timeRange}
             onImmediateRefresh={this.handleImmediateRefresh}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
