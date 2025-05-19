@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
@@ -34,6 +34,7 @@ import { traceDiagram } from 'monitor-api/modules/apm_trace.js';
 import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
+import { useZoomKeyboard } from '../../hooks';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 import { defaultConfig } from './mermaid';
@@ -51,6 +52,7 @@ const MIN_SCALE = 10;
 const MAX_SCALE = 200;
 // 缩放步长
 const SCALE_STEP = 10;
+
 mermaid.initialize(defaultConfig);
 export default defineComponent({
   name: 'SequenceGraph',
@@ -94,6 +96,15 @@ export default defineComponent({
     });
     const graphScale = ref(100); // 缩放比例
     const rawSvgRect = ref({ width: 0, height: 0 }); // 原始svg尺寸
+
+    // 键盘缩放缩略图 hook
+    useZoomKeyboard(graphScale, {
+      minScale: MIN_SCALE,
+      maxScale: MAX_SCALE,
+      step: SCALE_STEP,
+      onScaleChange: handleScaleChange,
+    });
+
     function addId(data: Record<string, any>[]) {
       // 为数据添加id
       return data?.map(item => ({ ...item, id: random(10) })) || [];
@@ -600,35 +611,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       sequenceGraphWrapRef.value && removeListener(sequenceGraphWrapRef.value, handleResize);
       toggleDataIdActive(undefined);
       emit('update:loading', false);
-    });
-
-    /**
-     * @description: 键盘控制缩放
-     * @param e 键盘事件
-     */
-    function handleKeyDown(e: KeyboardEvent) {
-      // 使用 metaKey (Mac的Command键) 或 ctrlKey (Windows的Ctrl键)
-      if (e.metaKey || e.ctrlKey) {
-        let newScale: number;
-        e.preventDefault();
-        if (e.key === '+' || e.key === '=') {
-          newScale = Math.min(graphScale.value + SCALE_STEP, MAX_SCALE);
-        } else if (e.key === '-') {
-          newScale = Math.max(graphScale.value - SCALE_STEP, MIN_SCALE);
-        }
-        if (newScale !== undefined) {
-          handleScaleChange(newScale);
-        }
-      }
-    }
-
-    // 添加和移除事件监听器
-    onMounted(() => {
-      document.addEventListener('keydown', handleKeyDown);
-    });
-
-    onBeforeUnmount(() => {
-      document.removeEventListener('keydown', handleKeyDown);
     });
 
     return {
