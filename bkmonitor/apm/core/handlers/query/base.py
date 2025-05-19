@@ -126,14 +126,38 @@ class FilterOperator:
         NOT_LIKE: "nwildcard",
     }
 
+    @classproperty
+    def operator_set(cls) -> set[str]:
+        return {
+            cls.EXISTS,
+            cls.NOT_EXISTS,
+            cls.EQUAL,
+            cls.NOT_EQUAL,
+            cls.BETWEEN,
+            cls.LIKE,
+            cls.NOT_LIKE,
+            cls.GT,
+            cls.LT,
+            cls.GTE,
+            cls.LTE,
+        }
+
+    @classproperty
+    def operator_handler_mapping(cls) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
+        return {
+            cls.BETWEEN: cls._between_operator_handler,
+        }
+
     @classmethod
-    def between_operator_handler(
+    def _between_operator_handler(
         cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
     ) -> Q:
         return q & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]})
 
     @classmethod
-    def default_handler(cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]) -> Q:
+    def _default_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
         # 操作符映射，如果是通配符查询的话需要映射到特定操作符
         if operator in cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING and options.get("is_wildcard"):
             operator = cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING[operator]
@@ -144,11 +168,17 @@ class FilterOperator:
         if options.get("group_relation") == OperatorGroupRelation.AND:
             result_q = Q()
             for v in value:
-                result_q |= Q(**{f"{field}__{operator}": v})
+                result_q &= Q(**{f"{field}__{operator}": v})
         else:
             result_q = Q(**{f"{field}__{operator}": value})
 
         return q & result_q
+
+    @classmethod
+    def get_handler(cls, operator: str) -> Q:
+        if operator not in cls.operator_set:
+            raise ValueError(_(f"不支持的查询操作符: {operator}"))
+        return cls.operator_handler_mapping.get(operator, cls._default_operator_handler)
 
 
 class LogicSupportOperator:
@@ -195,23 +225,6 @@ class BaseQuery:
         self.app_name: str = app_name
         self.retention: int = retention
         self.overwrite_datasource_configs: dict[str, dict[str, Any]] = overwrite_datasource_configs or {}
-
-    @classproperty
-    def operator_mapping(self) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
-        return {
-            FilterOperator.EXISTS: FilterOperator.default_handler,
-            FilterOperator.NOT_EXISTS: FilterOperator.default_handler,
-            FilterOperator.EQUAL: FilterOperator.default_handler,
-            FilterOperator.NOT_EQUAL: FilterOperator.default_handler,
-            FilterOperator.LIKE: FilterOperator.default_handler,
-            FilterOperator.NOT_LIKE: FilterOperator.default_handler,
-            FilterOperator.GT: FilterOperator.default_handler,
-            FilterOperator.LT: FilterOperator.default_handler,
-            FilterOperator.GTE: FilterOperator.default_handler,
-            FilterOperator.LTE: FilterOperator.default_handler,
-            FilterOperator.BETWEEN: FilterOperator.between_operator_handler,
-            LogicSupportOperator.LOGIC: lambda q, field, value: self._add_logic_filter(q, field, value),
-        }
 
     @cached_property
     def _datasource_configs(self) -> dict[str, dict[str, Any]]:
@@ -315,12 +328,14 @@ class BaseQuery:
 
         q: Q = Q()
         for f in filters:
-            if f["operator"] not in cls.operator_mapping:
-                raise ValueError(_("不支持的查询操作符: %s") % (f["operator"]))
-
+            operator = f["operator"]
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
-            q = cls.operator_mapping[f["operator"]](q, f["operator"], key, f["value"], f.get("options", {}))
+            if operator == LogicSupportOperator.LOGIC:
+                cls._add_logic_filter(q, key, f["value"])
+            else:
+                q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
+        print("_build_filters:", q)
         return q
 
     @classmethod

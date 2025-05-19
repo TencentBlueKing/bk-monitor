@@ -16,9 +16,9 @@ from apm.constants import EnabledStatisticsDimension, QueryMode, OperatorGroupRe
 
 class FilterSerializer(serializers.Serializer):
     class OptionsSerializer(serializers.Serializer):
-        is_wildcard = serializers.BooleanField(label="是否使用通配符", required=False)
+        is_wildcard = serializers.BooleanField(label="是否使用通配符", default=False)
         group_relation = serializers.ChoiceField(
-            label="分组关系", choices=OperatorGroupRelation.choices(), required=False
+            label="分组关系", choices=OperatorGroupRelation.choices(), default=OperatorGroupRelation.OR
         )
 
     key = serializers.CharField(label="查询键")
