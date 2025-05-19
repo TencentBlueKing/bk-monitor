@@ -85,7 +85,9 @@ export default defineComponent({
         emptyStatus.value = 'search-empty';
         searchResultList.value = props.list.filter(item => item.pinyinStr.includes(searchVal.value.toLowerCase()));
       }
-      dimensionTreeList.value = convertToTree(searchResultList.value);
+      dimensionTreeList.value = convertToTree(
+        searchResultList.value.map(item => ({ ...item, expand: Boolean(searchVal.value) }))
+      );
     }, 100);
 
     /** 渲染维度列表项 */

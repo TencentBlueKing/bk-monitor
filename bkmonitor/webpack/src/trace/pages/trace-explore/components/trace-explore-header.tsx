@@ -167,6 +167,7 @@ export default defineComponent({
     }
 
     function handleSceneModelChange(mode: 'span' | 'trace') {
+      if (mode === store.mode) return;
       const oldMode = store.mode;
       store.updateMode(mode);
       emit('sceneModeChange', mode, oldMode);
