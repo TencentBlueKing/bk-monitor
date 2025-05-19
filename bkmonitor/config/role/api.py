@@ -62,11 +62,10 @@ INSTALLED_APPS += (
 )
 
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
-if IS_CONTAINER_MODE:
+if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
     LOGGER_HANDLERS = ["console"]
 else:
-    LOGGER_HANDLERS = ["file"]
-
+    LOGGER_HANDLERS = ["file", "console"]
 
 LOGGING = {
     "version": 1,
@@ -92,13 +91,8 @@ LOGGING = {
     },
     "loggers": {
         "": {
-            "level": "INFO",
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "django.request": {
-            "handlers": ["console"],
-            "level": "ERROR",
+            "level": LOGGER_LEVEL,
+            "handlers": LOGGER_HANDLERS,
             "propagate": False,
         },
     },
