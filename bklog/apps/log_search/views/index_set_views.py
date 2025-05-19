@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 from django.conf import settings
@@ -51,6 +51,7 @@ from apps.log_search.serializers import (
     StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
+    SpaceSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
@@ -76,7 +77,7 @@ class IndexSetViewSet(ModelViewSet):
                 return []
         except Exception:  # pylint: disable=broad-except
             pass
-        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite"]:
+        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite", "space"]:
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
@@ -299,11 +300,9 @@ class IndexSetViewSet(ModelViewSet):
         if params.get("space_uid", ""):
             qs = qs.filter(space_uid=params["space_uid"])
 
-        clustering_config_list = list(
-            clustered_qs.values("index_set_id", "clustered_rt")
-        )
+        clustering_config_list = list(clustered_qs.values("index_set_id", "clustered_rt"))
         total = qs.count() + len(clustering_config_list)
-        qs = qs[(params["page"] - 1) * params["pagesize"]: params["page"] * params["pagesize"]]
+        qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
 
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
         clustering_index_set_ids = [clustering_config["index_set_id"] for clustering_config in clustering_config_list]
@@ -315,7 +314,9 @@ class IndexSetViewSet(ModelViewSet):
             index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
         }
         clustering_index_set_dict = {
-            index_set["index_set_id"]: index_set for index_set in clustering_index_set_list if index_set.get("index_set_id")
+            index_set["index_set_id"]: index_set
+            for index_set in clustering_index_set_list
+            if index_set.get("index_set_id")
         }
         index_list = list(
             LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "result_table_id")
@@ -381,10 +382,10 @@ class IndexSetViewSet(ModelViewSet):
                     {
                         "cluster_id": index_set["storage_cluster_id"],
                         "index_set": clustered_rt,
-                        "source_type":  Scenario.BKDATA,
-                        "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"],
-                                                                         index_set_id,
-                                                                         clustered_rt),
+                        "source_type": Scenario.BKDATA,
+                        "data_label": BaseIndexSetHandler.get_data_label(
+                            index_set["scenario_id"], index_set_id, clustered_rt
+                        ),
                         "table_id": BaseIndexSetHandler.get_rt_id(
                             index_set_id, index_set["collector_config_id"], [], clustered_rt
                         ),
@@ -1321,3 +1322,35 @@ class IndexSetViewSet(ModelViewSet):
         """
         data = self.params_valid(StorageUsageSerializer)
         return Response(IndexSetHandler.get_storage_usage_info(data["bk_biz_id"], data["index_set_ids"]))
+
+    @list_route(methods=["POST"], url_path="space")
+    def space(self, request):
+        """
+        @api {post} /index_set/space/ 根据索引集ID获取空间信息
+        @apiDescription 根据索引集ID获取空间信息
+        @apiName space
+        @apiParam {Int} index_set_id 索引集ID
+        @apiParamExample {Json} 请求参数
+        {
+            "index_set_id": 1,
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "space_type_id": "bkcc",
+                "space_id": "2",
+                "space_name": "蓝鲸",
+                "space_uid": "bkcc__2",
+                "space_code": "2",
+                "bk_biz_id": 2,
+                "time_zone": "Asia/Shanghai",
+                "bk_tenant_id": "system"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(SpaceSerializer)
+        return Response(IndexSetHandler.get_space_info(data["index_set_id"]))

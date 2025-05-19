@@ -1306,6 +1306,30 @@ class Space(SoftDeleteModel):
 
         return default_tenant_id
 
+    @classmethod
+    def get_space_info(cls, space_uid):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id,
+                       space_type_id,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       bk_tenant_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+                WHERE space_uid = %s
+                """,
+                (space_uid,),
+            )
+            columns = [col[0] for col in cursor.description]
+            row = cursor.fetchone()
+            space_info = dict(zip(columns, row))
+        return space_info
+
 
 class SpaceApi(AbstractSpaceApi):
     """

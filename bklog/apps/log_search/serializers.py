@@ -1065,3 +1065,7 @@ class AlertRecordSerializer(StrategyRecordSerializer):
 
 class LogRelatedInfoSerializer(serializers.Serializer):
     alert_id = serializers.IntegerField(label=_("告警ID"))
+
+
+class SpaceSerializer(serializers.Serializer):
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
