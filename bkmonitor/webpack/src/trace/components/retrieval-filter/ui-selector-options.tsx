@@ -45,7 +45,15 @@ import {
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
-import { DURATION_KEYS, EXISTS_KEYS, fieldTypeMap, GROUP_RELATION_KEY, isNumeric, WILDCARD_KEY } from './utils';
+import {
+  DEFAULT_GROUP_RELATION,
+  DURATION_KEYS,
+  EXISTS_KEYS,
+  fieldTypeMap,
+  GROUP_RELATION_KEY,
+  isNumeric,
+  WILDCARD_KEY,
+} from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
@@ -83,7 +91,7 @@ export default defineComponent({
         ?.options?.find(item => item.name === GROUP_RELATION_KEY)
     );
     const isWildcard = shallowRef(wildcardItem.value?.default || false);
-    const groupRelation = shallowRef(groupRelationItem.value?.default || '');
+    const groupRelation = shallowRef(groupRelationItem.value?.default || DEFAULT_GROUP_RELATION);
     /* 是否为数字类型 */
     const isTypeInteger = computed(() => checkedItem.value?.type === EFieldType.integer);
     /* 是否输入了非数字 */
@@ -183,7 +191,7 @@ export default defineComponent({
       method.value = '';
       values.value = [];
       isWildcard.value = false;
-      groupRelation.value = '';
+      groupRelation.value = DEFAULT_GROUP_RELATION;
       rightFocus.value = false;
       cacheCheckedName.value = '';
       handleSearchChange();
@@ -207,7 +215,7 @@ export default defineComponent({
         method.value = method$ || item?.supported_operations?.[0]?.value || '';
       }
       isWildcard.value = options?.isWildcard || false;
-      groupRelation.value = options?.groupRelation || '';
+      groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
       if (checkedItem.value.name === '*') {
         queryString.value = value[0]?.id || '';
@@ -440,7 +448,7 @@ export default defineComponent({
     function defaultOptions() {
       return structuredClone({
         isWildcard: wildcardItem.value?.default || false,
-        groupRelation: groupRelationItem.value?.default || '',
+        groupRelation: groupRelationItem.value?.default || DEFAULT_GROUP_RELATION,
       }) as any;
     }
 

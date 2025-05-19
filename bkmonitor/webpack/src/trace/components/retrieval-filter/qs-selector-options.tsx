@@ -61,7 +61,7 @@ export default defineComponent({
     const favoriteOptions = shallowRef<{ title: string; content: string; keyword: string }[]>([]);
     const cursorIndex = shallowRef(-1);
     const loading = shallowRef(false);
-    const pageSize = shallowRef(5);
+    const pageSize = shallowRef(200);
     const page = shallowRef(1);
     const isEnd = shallowRef(false);
     const scrollLoading = shallowRef(false);
@@ -236,7 +236,7 @@ export default defineComponent({
      * @param method
      * @param value
      */
-    async function getValueData(isScroll = false, isDimensions = false) {
+    async function getValueData(isScroll = false, _isDimensions = false) {
       let list = [];
       if (isScroll) {
         scrollLoading.value = true;
@@ -247,11 +247,22 @@ export default defineComponent({
       if (props.field) {
         const limit = page.value * pageSize.value;
         const data = await props.getValueFn({
-          queryString: `${isDimensions ? 'dimensions.' : ''}${props.field} : ${props.search || '*'}`,
-          fields: [props.field],
+          // queryString: `${isDimensions ? 'dimensions.' : ''}${props.field} : ${props.search || '*'}`,
+          // fields: [props.field],
+          // limit: limit,
+          where: props.search
+            ? [
+                {
+                  key: props.field,
+                  operator: 'like',
+                  value: [props.search],
+                },
+              ]
+            : [],
           limit: limit,
+          fields: [props.field],
         });
-        isEnd.value = limit >= data.count;
+        isEnd.value = limit > data.count;
         list = data.list;
       }
       loading.value = false;
@@ -313,6 +324,18 @@ export default defineComponent({
     };
   },
   render() {
+    const optionName = (item: { id: string; name: string }) => {
+      if (item.id === '') {
+        return '--';
+      }
+      if (item.name) {
+        if (item.id === item.name) {
+          return item.id;
+        }
+        return `${item.name} (${item.id})`;
+      }
+      return item.id;
+    };
     return (
       <div
         ref='el'
@@ -352,7 +375,7 @@ export default defineComponent({
                     >
                       <span class={['icon-monitor', queryStringColorMap[this.type]?.icon || '']} />
                     </span>
-                    <span class='option-item-name'>{item.name}</span>
+                    <span class='option-item-name'>{optionName(item)}</span>
                     {this.getSubtitle(item.id)}
                   </div>
                 ))}

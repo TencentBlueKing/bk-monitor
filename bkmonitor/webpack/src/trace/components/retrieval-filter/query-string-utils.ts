@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { shallowRef } from 'vue';
+
+import { createGlobalState } from '@vueuse/core';
 import { Debounce } from 'monitor-common/utils';
 
 import { EFieldType, EQueryStringTokenType } from './typing';
@@ -590,3 +593,11 @@ export class QueryStringEditor {
     }
   }
 }
+
+export const useQueryStringParseErrorState = createGlobalState(() => {
+  const errorData = shallowRef(null);
+  const setErrorData = data => {
+    errorData.value = data;
+  };
+  return { errorData, setErrorData };
+});

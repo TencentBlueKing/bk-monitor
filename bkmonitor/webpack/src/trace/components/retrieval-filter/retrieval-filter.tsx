@@ -36,6 +36,7 @@ import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
 
 import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
 import QsSelector from './qs-selector';
+import { useQueryStringParseErrorState } from './query-string-utils';
 import ResidentSetting from './resident-setting';
 import {
   ECondition,
@@ -103,6 +104,15 @@ export default defineComponent({
       return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
     });
 
+    const { errorData } = useQueryStringParseErrorState();
+    const queryStringError = shallowRef({
+      show: true,
+      message: '',
+    });
+    const isShowQueryStringError = computed(() => {
+      return mode.value === EMode.queryString && queryStringError.value.show;
+    });
+
     init();
 
     watch(
@@ -144,6 +154,22 @@ export default defineComponent({
       },
       {
         immediate: true,
+      }
+    );
+    watch(
+      () => errorData.value,
+      val => {
+        if (mode.value === EMode.queryString && val?.error_details?.type === 'QueryStringParseError') {
+          queryStringError.value = {
+            show: true,
+            message: val?.error_details?.message || val?.message || '',
+          };
+        } else {
+          queryStringError.value = {
+            show: false,
+            message: '',
+          };
+        }
       }
     );
 
@@ -352,6 +378,10 @@ export default defineComponent({
 
     function handleQsValueChange(v: string) {
       qsValue.value = v;
+      queryStringError.value = {
+        show: false,
+        message: '',
+      };
       emit('queryStringInputChange', v);
     }
     function handleClickSearchBtn() {
@@ -419,6 +449,8 @@ export default defineComponent({
       qsSelectorOptionsWidth,
       isDefaultResidentSetting,
       localFields,
+      queryStringError,
+      isShowQueryStringError,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -459,7 +491,7 @@ export default defineComponent({
               </div>,
             ])}
           </div>
-          <div class='filter-content'>
+          <div class={['filter-content', { 'bg-fff0f0': this.isShowQueryStringError }]}>
             {this.mode === EMode.ui ? (
               <UiSelector
                 clearKey={this.clearKey}
@@ -481,8 +513,25 @@ export default defineComponent({
               />
             )}
           </div>
-          <div class='component-right'>
+          <div class={['component-right', { 'bg-fff0f0': this.isShowQueryStringError }]}>
             <div class='component-right-btns'>
+              <div
+                class={['error-btn', { hide: !this.isShowQueryStringError }]}
+                v-bk-tooltips={{
+                  placement: 'bottom',
+                  theme: 'light',
+                  content: (
+                    <div style='max-width: 280px;line-height: 20px;'>
+                      <div style='color: #313238; font-size: 12px;'>{this.$t('语法错误')}:</div>
+                      <div style='word-break: break-all; padding: 6px 8px; color: #e71818; background: #f5f7fa;border-radius: 2px;'>
+                        {this.queryStringError.message}
+                      </div>
+                    </div>
+                  ),
+                }}
+              >
+                <span class='icon-monitor icon-mind-fill' />
+              </div>
               <div
                 class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
@@ -518,6 +567,7 @@ export default defineComponent({
               {this.isShowFavorite && (
                 <Popover
                   extCls='retrieval-filter-favorite-btn-popover'
+                  clickContentAutoHide={true}
                   disabled={!this.selectFavorite}
                   placement='bottom'
                   theme='light padding-0'

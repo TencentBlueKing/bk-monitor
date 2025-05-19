@@ -26,6 +26,8 @@
 import { listFlattenTrace, listFlattenSpan } from 'monitor-api/modules/apm_trace';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 
+import { useQueryStringParseErrorState } from '../../../../../components/retrieval-filter/query-string-utils';
+
 export function getTableList(
   params,
   isSpanVisual: boolean,
@@ -45,9 +47,16 @@ export function getTableList(
  *
  */
 export function requestErrorMessage(err) {
+  const state = useQueryStringParseErrorState();
+  state.setErrorData(err);
   const message = makeMessage(err.error_details || err.message);
   let isAborted = false;
-  if (message && err?.message !== 'canceled') {
+  if (
+    message &&
+    err?.message !== 'canceled' &&
+    err?.message !== 'aborted' &&
+    err?.error_details?.type !== 'QueryStringParseError'
+  ) {
     bkMessage(message);
   } else {
     isAborted = true;
