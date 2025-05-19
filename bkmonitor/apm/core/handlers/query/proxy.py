@@ -121,10 +121,12 @@ class QueryProxy:
         filters: list[types.Filter] | None = None,
         es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
+        query_string: str | None = None,
+        sort: list[str] | None = None,
     ):
         """查询列表"""
         data, size = self.query_mode[query_mode].query_list(
-            start_time, end_time, offset, limit, filters, es_dsl, exclude_fields
+            start_time, end_time, offset, limit, filters, es_dsl, exclude_fields, query_string, sort
         )
         return asdict(TraceInfoList(total=size, data=data))
 
@@ -195,8 +197,20 @@ class QueryProxy:
             datasource_type, start_time, end_time, fields, limit, filters, query_string
         )
 
-    def query_statistics(self, query_mode, start_time, end_time, limit, offset, filters=None, es_dsl=None):
-        return self.statistics_query.query_statistics(query_mode, start_time, end_time, limit, offset, filters, es_dsl)
+    def query_statistics(
+        self,
+        query_mode,
+        start_time,
+        end_time,
+        limit,
+        offset,
+        filters=None,
+        es_dsl=None,
+        query_string=None,
+    ):
+        return self.statistics_query.query_statistics(
+            query_mode, start_time, end_time, limit, offset, filters, es_dsl, query_string
+        )
 
     def _get_trace_relation(self, trace_id: str):
         """获取 trace_id 的跨应用关联"""

@@ -45,13 +45,18 @@ class SpanQuery(BaseQuery):
         filters: list[types.Filter] | None = None,
         es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
+        query_string: str | None = None,
+        sort: list[str] | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         select_fields: list[str] = self._get_select_fields(exclude_fields)
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters)).order_by(
-            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+            *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
         q = self._add_filters_from_dsl(q, es_dsl)
+        if query_string:
+            q = q.query(query_string)
+
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.SPAN_ID, offset, limit)
         return page_data["data"], page_data["total"]
 

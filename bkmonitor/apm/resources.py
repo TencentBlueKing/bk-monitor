@@ -962,6 +962,8 @@ class QuerySerializer(serializers.Serializer):
         choices=TraceListQueryMode.choices(),
         default=TraceListQueryMode.PRE_CALCULATION,
     )
+    query_string = serializers.CharField(label="查询字符串", allow_blank=True, required=False)
+    sort = serializers.ListSerializer(label="排序字段", required=False, child=serializers.CharField())
 
 
 class QueryTraceListResource(Resource):
@@ -983,6 +985,9 @@ class QueryTraceListResource(Resource):
             validated_data["offset"],
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
+            None,
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1001,6 +1006,8 @@ class QuerySpanListResource(Resource):
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
             validated_data.get("exclude_field"),
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1582,6 +1589,7 @@ class QuerySpanStatisticsListResource(Resource):
             validated_data["offset"],
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
+            validated_data.get("query_string"),
         )
 
 
@@ -1597,6 +1605,7 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data["offset"],
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
+            validated_data.get("query_string"),
         )
 
 
