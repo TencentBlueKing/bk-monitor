@@ -13,6 +13,7 @@ import time
 from django.db import transaction
 from metadata import models
 from metadata.models import ClusterInfo
+from metadata.task.constants import BKBASE_RT_STORAGE_TYPES_OPTION_NAME
 
 logger = logging.getLogger("metadata")
 
@@ -103,7 +104,7 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
             result_table_options.append(
                 {
                     "table_id": bkmonitor_result_table_id,
-                    "name": "bkbase_rt_storage_types",
+                    "name": BKBASE_RT_STORAGE_TYPES_OPTION_NAME,
                     "value_type": "list",
                     "value": storage_types,
                     "creator": "system",
@@ -111,7 +112,7 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
             )
 
         existing_options = models.ResultTableOption.objects.filter(
-            name="bkbase_rt_storage_types", table_id__in=[opt["table_id"] for opt in result_table_options]
+            name=BKBASE_RT_STORAGE_TYPES_OPTION_NAME, table_id__in=[opt["table_id"] for opt in result_table_options]
         )
 
         existing_options_dict = {opt.table_id: opt for opt in existing_options}
