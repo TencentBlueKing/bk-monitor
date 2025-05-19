@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch, type PropType } from 'vue';
+import { computed, defineComponent, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
@@ -34,8 +34,10 @@ import { MONITOR_BAR_OPTIONS, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plug
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 
 import BaseEchart from '../../../plugins/base-echart';
+import PageLegend from '../../../plugins/components/page-legend';
 import { useChartResize } from '../../../plugins/hooks';
 
+import type { ILegendItem, LegendActionType } from '../../../plugins/typings';
 import type { IStatisticsGraph } from '../typing';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -59,7 +61,15 @@ export default defineComponent({
     const width = shallowRef(370);
     const height = shallowRef(136);
     const baseEchartRef = shallowRef();
+    const legendList = shallowRef<ILegendItem[]>([]);
     const options = shallowRef<MonitorEchartOptions>({});
+
+    const LegendShowMap = computed(() => {
+      return legendList.value.reduce((acc, cur) => {
+        acc[cur.name] = cur.show;
+        return acc;
+      }, {});
+    });
 
     useChartResize(chartContainer, chartContainer, width, height);
 
@@ -113,7 +123,8 @@ export default defineComponent({
 
     watch(
       () => props.data,
-      () => {
+      value => {
+        legendList.value = value.map(item => ({ name: item.name, color: item.color, show: true }));
         setOptions();
       },
       { immediate: true }
@@ -160,17 +171,19 @@ export default defineComponent({
         );
       } else {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(props.data);
-        const series: MonitorEchartOptions['series'] = props.data.map(item => ({
-          type: 'line',
-          name: item.name,
-          data: item.datapoints.map(point => [point[1], point[0]]),
-          symbol: 'none',
-          z: 6,
-          color: item.color,
-          lineStyle: {
+        const series: MonitorEchartOptions['series'] = props.data
+          .map(item => ({
+            type: 'line' as const,
+            name: item.name,
+            data: item.datapoints.map(point => [point[1], point[0]]),
+            symbol: 'none',
+            z: 6,
             color: item.color,
-          },
-        }));
+            lineStyle: {
+              color: item.color,
+            },
+          }))
+          .filter(item => LegendShowMap.value[item.name]);
         const xInterval = getTimeSeriesXInterval(maxXInterval, width.value, maxSeriesCount);
         const formatterFunc = handleSetFormatterFunc(series[0]?.data || []);
         options.value = deepmerge(
@@ -202,6 +215,26 @@ export default defineComponent({
       }
     }
 
+    function handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+      let list: ILegendItem[] = deepClone(legendList.value);
+      if (actionType === 'click') {
+        const hasHidden = list.some(legendItem => !legendItem.show);
+        list = list.map(legendItem => {
+          if (legendItem.name === item.name) {
+            legendItem.show = true;
+          } else {
+            legendItem.show = hasHidden && item.show;
+          }
+          return legendItem;
+        });
+      } else if (actionType === 'shift-click') {
+        const result = list.find(legendItem => legendItem.name === item.name);
+        result.show = !result.show;
+      }
+      legendList.value = list;
+      setOptions();
+    }
+
     return {
       t,
       chartContainer,
@@ -209,25 +242,38 @@ export default defineComponent({
       height,
       baseEchartRef,
       options,
+      LegendShowMap,
+      legendList,
       customTooltips,
+      handleSelectLegend,
     };
   },
   render() {
     return (
       <div
         ref='chartContainer'
-        class='trace-explore-dimension-echarts-e'
+        class={['trace-explore-dimension-echarts-e', { 'has-legend': this.seriesType === 'line' }]}
       >
         {this.data.length ? (
-          <BaseEchart
-            ref='baseEchartRef'
-            width={this.width}
-            height={this.height}
-            customTooltips={this.seriesType === 'histogram' ? this.customTooltips : null}
-            options={this.options}
-          />
+          <div class='event-explore-dimension-echarts-content'>
+            <BaseEchart
+              ref='baseEchartRef'
+              width={this.width}
+              height={this.height}
+              customTooltips={this.seriesType === 'histogram' ? this.customTooltips : null}
+              options={this.options}
+            />
+          </div>
         ) : (
           <div class='empty-chart'>{this.t('查无数据')}</div>
+        )}
+
+        {this.seriesType === 'line' && (
+          <PageLegend
+            legendData={this.legendList}
+            wrapHeight={40}
+            onSelectLegend={this.handleSelectLegend}
+          />
         )}
       </div>
     );

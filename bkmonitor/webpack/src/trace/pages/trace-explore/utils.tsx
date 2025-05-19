@@ -164,7 +164,7 @@ export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[
   for (const item of data) {
     const parts = item.name.split('.');
     if (parts.length < 2) {
-      root.push({ ...item, levelName: item.alias, expand: false });
+      root.push({ ...item, levelName: item.alias });
       continue;
     }
 
@@ -173,7 +173,7 @@ export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[
       const part = parts[i];
       let node = currentLevel.find(n => n.levelName === part);
       if (!node) {
-        node = { ...item, expand: false, levelName: part };
+        node = { ...item, levelName: part };
         // 若非末层节点，初始化
         if (i < parts.length - 1) {
           node.children = [];

@@ -171,9 +171,13 @@ export default defineComponent({
           cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
         }
       ).catch(() => []);
-      if (!info) return;
-      statisticsInfo.value = info;
 
+      /** topk没有数据且keyword类型不请求graph接口 */
+      if (!info || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
+        infoLoading.value = false;
+        return;
+      }
+      statisticsInfo.value = info;
       const { min, max } = statisticsInfo.value.value_analysis || {};
       const values = isInteger.value
         ? [min, max, statisticsInfo.value.distinct_count, 10]
