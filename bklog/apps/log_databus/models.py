@@ -188,7 +188,6 @@ class CollectorConfig(CollectorBase):
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
-    max_rate = models.IntegerField(_("上报速率限制"), default=-1)
 
     def get_name(self):
         return self.collector_config_name
@@ -795,11 +794,11 @@ class FieldDateFormat(OperateRecordModel):
 
 
 class LogSubscriptionConfig(models.Model):
-    max_rate = models.IntegerField(_("上报速率限制"), default=-1)
+    max_rate = models.IntegerField(_("上报速率限制"), default=LOG_REPORT_MAX_QPS)
     subscription_id = models.IntegerField(_("节点管理订阅ID"))
     collector_config_id = models.IntegerField(_("采集配置ID"))
     bk_biz_id = models.IntegerField(_("业务id"))
-    config = JsonField("订阅配置")
+    config = JsonField(_("订阅配置"))
 
     class Meta:
         verbose_name = "自定义日志订阅"
@@ -815,10 +814,7 @@ class LogSubscriptionConfig(models.Model):
         target_hosts = []
         proxy_list = NodeApi.get_host_biz_proxies({"bk_biz_id": collector_config.bk_biz_id})
         for p in proxy_list:
-            bk_cloud_id = p.get("bk_cloud_id", 0)
-            if bk_cloud_id == 0:
-                continue
-            target_hosts.append({"ip": p["inner_ip"], "bk_cloud_id": bk_cloud_id, "bk_supplier_id": 0})
+            target_hosts.append({"ip": p["inner_ip"], "bk_cloud_id": p["bk_cloud_id"], "bk_supplier_id": 0})
         return target_hosts
 
     @classmethod
@@ -835,7 +831,7 @@ class LogSubscriptionConfig(models.Model):
 
         # Initial Config
         log_group = TransferApi.get_log_group({"log_group_id": collector_config.log_group_id})
-        log_config = cls.get_log_config(log_group, collector_config)
+        log_config = cls.get_log_config(log_group)
 
         # Deploy Config
         try:
@@ -844,7 +840,7 @@ class LogSubscriptionConfig(models.Model):
             logger.exception("auto deploy bk-collector log config error")
 
     @classmethod
-    def get_log_config(cls, log_group, collector_config) -> dict:
+    def get_log_config(cls, log_group) -> dict:
         """
         Get Log Config
         """
@@ -853,11 +849,11 @@ class LogSubscriptionConfig(models.Model):
             "bk_data_token": log_group["bk_data_token"],
             "bk_biz_id": log_group["bk_biz_id"],
             "bk_app_name": log_group["log_group_name"],
-            "qps_config": cls.get_qps_config(collector_config),
+            "qps_config": cls.get_qps_config(),
         }
 
     @classmethod
-    def get_qps_config(cls, collector_config) -> dict:
+    def get_qps_config(cls) -> dict:
         """
         Log QPS
         """
@@ -865,7 +861,7 @@ class LogSubscriptionConfig(models.Model):
         return {
             "name": "rate_limiter/token_bucket",
             "type": "token_bucket",
-            "qps": collector_config.max_rate if collector_config.max_rate > 0 else LOG_REPORT_MAX_QPS,
+            "qps": LOG_REPORT_MAX_QPS,
         }
 
     @classmethod
@@ -903,6 +899,7 @@ class LogSubscriptionConfig(models.Model):
             try:
                 logger.info("custom log config subscription task already exists.")
                 sub_config_obj = log_subscription.first()
+                platform_config["qps_config"]["qps"] = sub_config_obj.max_rate
                 subscription_params["subscription_id"] = sub_config_obj.subscription_id
                 subscription_params["run_immediately"] = True
 
@@ -925,7 +922,6 @@ class LogSubscriptionConfig(models.Model):
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
                 LogSubscriptionConfig.objects.create(
-                    max_rate=collector_config.max_rate,
                     subscription_id=subscription_id,
                     collector_config_id=collector_config.collector_config_id,
                     bk_biz_id=log_group["bk_biz_id"],
@@ -934,13 +930,8 @@ class LogSubscriptionConfig(models.Model):
                 collector_config.subscription_id = subscription_id
                 collector_config.save()
 
-                params = {"subscription_id": subscription_id, "actions": {cls.PLUGIN_NAME: "INSTALL"}}
-
-                # 无scope.nodes时，节点管理默认对全部已配置的scope.nodes进行操作
-                # 有scope.nodes时，对指定scope.nodes进行操作
-                if scope:
-                    params["scope"] = scope
-                    params["scope"]["bk_biz_id"] = log_group["bk_biz_id"]
+                params = {"subscription_id": subscription_id, "actions": {cls.PLUGIN_NAME: "INSTALL"}, "scope": scope}
+                params["scope"]["bk_biz_id"] = log_group["bk_biz_id"]
 
                 result = NodeApi.run_subscription_task(params)
 
