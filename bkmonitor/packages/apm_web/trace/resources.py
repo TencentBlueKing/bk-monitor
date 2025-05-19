@@ -659,6 +659,7 @@ class ListSpanResource(Resource):
             "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]).es_dsl,
             "filters": data["filters"],
             "exclude_field": ["bk_app_code"],
+            "sort": data["sort"],
         }
 
         try:
@@ -701,6 +702,7 @@ class ListTraceResource(Resource):
             "limit": data["limit"],
             "filters": data["filters"],
             "exclude_field": ["bk_app_code", "biz_name"],
+            "sort": data["sort"],
         }
 
         is_contain_non_standard_fields = QueryHandler.has_field_not_in_fields(
