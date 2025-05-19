@@ -357,8 +357,8 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                 logger.info(f"[get service lock fail] access event dataid:({self.data_id}). will process later")
 
                 pass
-
-        result = self._pull_from_redis()
+        with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-[redis]"):
+            result = self._pull_from_redis()
         for m in result:
             if not m:
                 continue
