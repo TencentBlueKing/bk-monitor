@@ -274,6 +274,7 @@ class DataAccessHandler(BaseAiopsHandler):
                 "resource_type": "storage",
                 "service_type": "es",
                 "cluster_name": storage_config["es"]["storage_cluster"]["cluster_name"],
+                "bk_biz_id": bk_biz_id,
             }
         )
         cluster_resource_group, *_ = cluster_resource_groups
