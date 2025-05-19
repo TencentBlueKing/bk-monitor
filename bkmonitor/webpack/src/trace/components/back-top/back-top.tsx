@@ -82,8 +82,13 @@ export default defineComponent({
     /**
      * @description: 点击回到顶部
      */
-    function handleBackTop() {
+    function handleBackTop(enableAnimate = true) {
       return new Promise(resolve => {
+        if (!enableAnimate) {
+          parentEl?.value?.scrollTo?.({ top: 0, left: 0, behavior: 'instant' });
+          resolve(true);
+          return;
+        }
         animate(currentScrollTop.value, scroll => {
           parentEl?.value?.scrollTo?.(0, scroll);
           if (scroll <= 0) resolve(true);
@@ -119,7 +124,7 @@ export default defineComponent({
     return (
       <span
         class={['back-top-btn', { 'is-show': this.isShow }]}
-        onClick={this.handleBackTop}
+        onClick={() => this.handleBackTop()}
       >
         {this.$slots.default() ?? 'UP'}
       </span>

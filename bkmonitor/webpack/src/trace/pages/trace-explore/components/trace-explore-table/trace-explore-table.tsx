@@ -38,6 +38,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
+import { useDebounceFn } from '@vueuse/core';
 import { Loading } from 'bkui-vue';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -86,6 +87,10 @@ export default defineComponent({
     timeRange: {
       type: Array as PropType<string[]>,
     },
+    /** 是否立即刷新 */
+    refreshImmediate: {
+      type: String,
+    },
     /** 接口请求配置参数 */
     commonParams: {
       type: Object as PropType<ICommonParams>,
@@ -100,7 +105,10 @@ export default defineComponent({
       }),
     },
   },
-  setup(props) {
+  emits: {
+    backTop: () => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
     /** table 默认配置项 */
@@ -261,43 +269,48 @@ export default defineComponent({
     const tableSkeletonConfig = computed(() => {
       const loading = tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
       if (!loading) return null;
-      const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
-      let config = {
+      // const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
+      const config = {
         tableClass: 'explore-table-hidden-body',
         skeletonClass: 'explore-skeleton-show-body',
       };
-      if (headerLoading) {
-        config = {
-          tableClass: 'explore-table-hidden-all',
-          skeletonClass: 'explore-skeleton-show-all',
-        };
-      }
+      // if (headerLoading) {
+      //   config = {
+      //     tableClass: 'explore-table-hidden-all',
+      //     skeletonClass: 'explore-skeleton-show-all',
+      //   };
+      // }
       return config;
     });
 
     watch(
-      () => isSpanVisual.value,
-      () => {
+      [
+        () => isSpanVisual.value,
+        () => props.appName,
+        () => props.timeRange,
+        () => props.refreshImmediate,
+        () => sortContainer.sortBy,
+        () => sortContainer.descending,
+        () => props.commonParams.filters,
+        () => props.commonParams.query_string,
+      ],
+      (nVal, oVal) => {
         tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
-        getDisplayColumnFields();
-        sortContainer.sortBy = '';
-        sortContainer.descending = null;
-        getExploreList();
-      }
-    );
-
-    watch(
-      () => queryParams.value,
-      () => {
-        getExploreList();
+        emit('backTop');
+        if (nVal[0] !== oVal[0]) {
+          getDisplayColumnFields();
+          sortContainer.sortBy = '';
+          sortContainer.descending = null;
+        }
+        debouncedGetExploreList();
       }
     );
 
     onMounted(() => {
       getDisplayColumnFields();
-      getExploreList();
+      debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
         initEllipsisListeners();
@@ -412,17 +425,14 @@ export default defineComponent({
             headerDescription: 'status_code',
             title: t('状态'),
             width: 100,
-            getRenderValue: row => {
-              const code = row?.['status.code'];
-              return SPAN_STATUS_CODE_MAP[code];
-            },
+            getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
           },
           kind: {
             renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
             colKey: 'kind',
             title: t('类型'),
             width: 100,
-            getRenderValue: row => SPAN_KIND_MAPS[row.kind],
+            getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
           },
           'resource.service.name': {
             renderType: ExploreTableColumnTypeEnum.LINK,
@@ -483,7 +493,7 @@ export default defineComponent({
           colKey: 'root_service_category',
           title: t('调用类型'),
           width: 120,
-          getRenderValue: row => SERVICE_CATEGORY_MAP[row.root_service_category],
+          getRenderValue: (row, column) => SERVICE_CATEGORY_MAP[row?.[column.colKey]],
         },
         root_service_status_code: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
@@ -519,6 +529,27 @@ export default defineComponent({
           colKey: 'service_count',
           title: t('服务数量'),
           width: 100,
+        },
+        kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'kind',
+          title: t('类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        root_span_kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'root_span_kind',
+          title: t('根 Span 类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        root_service_kind: {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'root_service_kind',
+          title: t('入口服务类型'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
         },
       };
     }
@@ -586,6 +617,7 @@ export default defineComponent({
       updateTableDataFn(res.data);
       tableHasMoreData.value = res.data?.length === limit;
     }
+    const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
     /**
      * @description 获取新开页跳转至apm页 概览tab 的 LINK 类型表格列所需数据格式

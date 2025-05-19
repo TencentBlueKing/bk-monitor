@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, computed } from 'vue';
+import { defineComponent, type PropType, computed, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox } from 'bkui-vue';
@@ -71,11 +71,19 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
+    const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
 
-    const { mode, appName, timeRange } = storeToRefs(store);
+    const { mode, appName, timeRange, refreshImmediate } = storeToRefs(store);
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => mode.value === 'span');
+
+    /**
+     * @description 回到顶部按钮触发的回调
+     */
+    function handleScrollToTop() {
+      backTopRef.value?.handleBackTop?.(false);
+    }
 
     /**
      * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后触发的回调
@@ -131,12 +139,14 @@ export default defineComponent({
       mode,
       appName,
       timeRange,
+      refreshImmediate,
       filtersCheckBoxGroupRender,
+      handleScrollToTop,
     };
   },
   render() {
     const { commonParams, fieldListMap } = this.$props;
-    const { mode, appName, timeRange, filtersCheckBoxGroupRender } = this;
+    const { mode, appName, timeRange, refreshImmediate, filtersCheckBoxGroupRender } = this;
 
     return (
       <div class='trace-explore-view'>
@@ -153,7 +163,9 @@ export default defineComponent({
             commonParams={commonParams}
             fieldListMap={fieldListMap}
             mode={mode}
+            refreshImmediate={refreshImmediate}
             timeRange={timeRange}
+            onBackTop={this.handleScrollToTop}
           />
         </div>
         <BackTop

@@ -142,6 +142,7 @@ export default defineComponent({
 
     function handleApplicationChange(val: string) {
       const application = props.list.find(item => item.app_name === val);
+      if (application.app_name === store.appName) return;
       store.updateAppName(application.app_name);
       emit('appNameChange', val);
     }

@@ -1493,6 +1493,8 @@ export default {
   'SDK 版本': 'SDK Version',
   'ID 精准查询': 'ID Exact Query',
   服务入口Span: 'Service Entry Spans',
+  '根 Span 类型': 'Root Span Type',
+  入口服务类型: 'Entry Service Type',
   接口类型: 'Span Type',
   来源类型: 'Source Type',
   异步: 'Asynchronous',
