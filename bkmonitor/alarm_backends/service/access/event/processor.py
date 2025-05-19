@@ -291,6 +291,8 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                 metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "kafka").inc(len(result))
 
     def _push_message_to_redis(self, messages):
+        if not messages:
+            return
         redis_client = key.EVENT_LIST_KEY.client
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
         redis_client.lpush(data_channel, *messages)
