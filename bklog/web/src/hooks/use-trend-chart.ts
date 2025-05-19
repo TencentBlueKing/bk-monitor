@@ -289,7 +289,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     } else {
       options.series[0].data = data;
     }
-
+    options.color = COLOR_LIST;
     updateChart(isInit);
     opt_data.clear();
     opt_data = null;

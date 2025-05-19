@@ -114,8 +114,9 @@ export default defineComponent({
     /**
      * 分级配置表单
      */
-    const gradeOptionForm = ref(getDefaultGradeOption());
-
+    const gradeOptionForm = computed(() => {
+      return Object.assign({}, getDefaultGradeOption(), store.state.indexFieldInfo.custom_config.grade_options ?? {});
+    });
     const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
     const isLoading = ref(false);
 
@@ -134,7 +135,6 @@ export default defineComponent({
         })
         .then(resp => {
           if (resp.result) {
-            store.commit('updateIndexSetCustomConfig', { grade_options: gradeOptionForm.value });
             emit('change', { event: e, isSave, data: gradeOptionForm.value });
             return;
           }
@@ -152,16 +152,21 @@ export default defineComponent({
     const updateOptions = (cfg?) => {
       const target = cfg ?? getDefaultGradeOption();
       if (!target.settings?.length) {
-        gradeOptionForm.value.settings = getDefaultGradeOption().settings;
+        store.commit('updateIndexSetCustomConfig', {
+          grade_options: { ...gradeOptionForm.value, settings: getDefaultGradeOption().settings },
+        });
       }
-      Object.assign(gradeOptionForm.value, target);
+
+      store.commit('updateIndexSetCustomConfig', { grade_options: Object.assign({}, gradeOptionForm.value, target) });
     };
 
-    const handleTypeChange = val => {
-      gradeOptionForm.value.type = val;
-      if (val === 'normal') {
-        gradeOptionForm.value.settings = getDefaultGradeOption().settings;
+    const handleTypeChange = type => {
+      const target = Object.assign({}, gradeOptionForm.value, { type });
+      if (type === 'normal') {
+        target.settings = getDefaultGradeOption().settings;
       }
+
+      store.commit('updateIndexSetCustomConfig', { grade_options: target });
     };
 
     expose({
@@ -191,7 +196,7 @@ export default defineComponent({
               value={gradeOptionForm.value.type}
               ext-popover-cls='bklog-popover-stop'
               searchable
-              disabled={gradeOptionForm.value.disabled || true}
+              disabled={gradeOptionForm.value.disabled}
               on-change={handleTypeChange}
             >
               {gradeCategory.value.map(option => (
