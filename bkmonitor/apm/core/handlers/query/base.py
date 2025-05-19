@@ -214,7 +214,8 @@ class BaseQuery:
 
         # 为什么这里使用多线程，而不是构造多个 aggs？
         # 在性能差距不大的情况下，尽可能构造通用查询，便于后续屏蔽存储差异
-        option_values: dict[str, list[str]] = {}
+        # 默认构建字段的空列表，字段无候选项时候返回空列表
+        option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
@@ -231,7 +232,9 @@ class BaseQuery:
             q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 
         for bucket in queryset.add_query(q):
-            option_values.setdefault(field, []).append(bucket[field])
+            if bucket["_result_"] == 0:
+                continue
+            option_values[field].append(bucket[field])
 
     @classmethod
     def _get_data_page(
