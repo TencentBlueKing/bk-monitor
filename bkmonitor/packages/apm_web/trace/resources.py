@@ -140,6 +140,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -189,6 +190,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                 ],
@@ -252,6 +254,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                         "yAxisIndex": 0,
                         "chart_type": "bar",
@@ -332,6 +335,7 @@ class TraceChatsResource(Resource):
                                     },
                                 ],
                             },
+                            "fill_bar": True,
                         },
                         "yAxisIndex": 1,
                         "chart_type": "line",
