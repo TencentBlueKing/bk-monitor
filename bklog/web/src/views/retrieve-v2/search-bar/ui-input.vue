@@ -381,13 +381,29 @@
       set(item, 'showList', new Array(item.value.length).fill(false))
     }
     set(item.showList, childIndex, show)
+    // emitChange(modelValue.value);
+    updateModelValue(item);
   }
   const onlyOptionShow =  (childIndex,item)=>{
     if(!item.showList){
       set(item, 'showList', new Array(item.value.length).fill(true))
     }
     item.showList = item.showList.map((_, index) => index !== childIndex);
+    // emitChange(modelValue.value);
+    updateModelValue(item);
   }
+  const updateModelValue = (item) => {
+    const clonedModelValue = cloneDeep(modelValue.value);
+    clonedModelValue.forEach((modelItem) => {
+      if (modelItem.field === item.field) { 
+        modelItem.value = item.value.filter((_, index) => item.showList[index]);
+      }
+      delete  modelItem.showList
+    });
+    console.log(clonedModelValue);
+    
+    emitChange(clonedModelValue);
+  };
 </script>
 
 <template>
