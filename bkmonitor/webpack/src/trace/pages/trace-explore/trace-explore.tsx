@@ -180,6 +180,7 @@ export default defineComponent({
 
     /** 应用切换 */
     async function handleAppNameChange() {
+      where.value = [];
       await getViewConfig();
       handleQuery();
     }

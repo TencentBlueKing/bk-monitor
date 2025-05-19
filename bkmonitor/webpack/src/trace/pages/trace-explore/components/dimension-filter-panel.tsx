@@ -119,7 +119,7 @@ export default defineComponent({
               v-overflow-text
             >
               {item.levelName}
-              {item?.name ? <span class='subtitle'>({item.name})</span> : ''}
+              {item?.name && item.type !== 'object' ? <span class='subtitle'>({item.name})</span> : ''}
             </span>
             {item.children && [
               <span
