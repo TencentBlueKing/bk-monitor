@@ -74,7 +74,7 @@ export default ({
       space = spaceList?.[0];
     }
 
-    store.commit('updateSpace', space_uid);
+    store.commit('updateSpace', space?.space_uid);
 
     if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
       store.commit('updateStorage', {
