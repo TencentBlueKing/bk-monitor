@@ -38,6 +38,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
+import { useDebounceFn } from '@vueuse/core';
 import { Loading } from 'bkui-vue';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -86,6 +87,10 @@ export default defineComponent({
     timeRange: {
       type: Array as PropType<string[]>,
     },
+    /** 是否立即刷新 */
+    refreshImmediate: {
+      type: String,
+    },
     /** 接口请求配置参数 */
     commonParams: {
       type: Object as PropType<ICommonParams>,
@@ -100,7 +105,10 @@ export default defineComponent({
       }),
     },
   },
-  setup(props) {
+  emits: {
+    backTop: () => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
     /** table 默认配置项 */
@@ -276,28 +284,33 @@ export default defineComponent({
     });
 
     watch(
-      () => isSpanVisual.value,
-      () => {
+      [
+        () => isSpanVisual.value,
+        () => props.appName,
+        () => props.timeRange,
+        () => props.refreshImmediate,
+        () => sortContainer.sortBy,
+        () => sortContainer.descending,
+        () => props.commonParams.filters,
+        () => props.commonParams.query_string,
+      ],
+      (nVal, oVal) => {
         tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
-        getDisplayColumnFields();
-        sortContainer.sortBy = '';
-        sortContainer.descending = null;
-        getExploreList();
-      }
-    );
-
-    watch(
-      () => queryParams.value,
-      () => {
-        getExploreList();
+        emit('backTop');
+        if (nVal[0] !== oVal[0]) {
+          getDisplayColumnFields();
+          sortContainer.sortBy = '';
+          sortContainer.descending = null;
+        }
+        debouncedGetExploreList();
       }
     );
 
     onMounted(() => {
       getDisplayColumnFields();
-      getExploreList();
+      debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
         initEllipsisListeners();
@@ -604,6 +617,7 @@ export default defineComponent({
       updateTableDataFn(res.data);
       tableHasMoreData.value = res.data?.length === limit;
     }
+    const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
     /**
      * @description 获取新开页跳转至apm页 概览tab 的 LINK 类型表格列所需数据格式

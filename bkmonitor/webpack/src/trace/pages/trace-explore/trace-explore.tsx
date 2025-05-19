@@ -181,7 +181,7 @@ export default defineComponent({
     /** 应用切换 */
     async function handleAppNameChange() {
       where.value = [];
-      await getViewConfig();
+      getViewConfig();
       handleQuery();
     }
 
@@ -216,7 +216,7 @@ export default defineComponent({
       handleQueryStringChange(queryString.value ? `${queryString.value} AND ${endStr}` : `${endStr}`);
     }
 
-    const handleQuery = useDebounceFn(() => {
+    const handleQuery = () => {
       let query_string = '';
       let filters = mergeWhereList(where.value || [], commonWhere.value || []);
       if (filterMode.value === EMode.ui) {
@@ -237,7 +237,7 @@ export default defineComponent({
         filters,
       };
       setUrlParams();
-    }, 100);
+    };
 
     async function getViewConfig() {
       if (!store.appName) return;
