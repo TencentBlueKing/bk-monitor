@@ -176,7 +176,6 @@ COLLECTORS_LIST = {
                 "yaml_config_enabled": False,
                 "yaml_config": "",
                 "tags": [],
-                "max_rate": -1,
             }
         ],
     },
