@@ -335,7 +335,6 @@ class BaseQuery:
                 cls._add_logic_filter(q, key, f["value"])
             else:
                 q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
-        print("_build_filters:", q)
         return q
 
     @classmethod
