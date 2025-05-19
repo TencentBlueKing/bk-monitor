@@ -119,9 +119,13 @@
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       color: #63656e;
 
+      .bk-tooltip{
+        position: absolute;
+        right: 10px;
+      }
+          
+
       .bklog-lc-star-shape{
-       position: absolute;
-       right: 10px;
        display: none;
        color: #C4C6CC;
       }

@@ -39,17 +39,19 @@
                 <div
                   class="text"
                   v-bk-tooltips="{
-                    content: item.query_string,
+                    content: getContent(item),
                     disabled: item.query_string.length < 5,
                   }"
                 >
                   {{ item.query_string }}
                 </div>
-                <span
-                 class="bklog-icon bklog-lc-star-shape"
-                 @click.stop="openFavorite"
-                >
-                </span>
+                <BookmarkPop
+                :sql="item.query_string"
+                :addition="item.params.addition"
+                searchMode='sql'
+                active-favorite="history"
+                ref="bookmarkPop"
+                ></BookmarkPop>
               </div>
             </li>
           </template>
@@ -67,6 +69,7 @@
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
   import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  import dayjs from 'dayjs';
   export default {
     data() {
       return {
@@ -116,6 +119,9 @@
         };
         return textMap[searchMode] || '';
       },
+      getContent(item){
+        return dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')
+      },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
         const popoverWidth = '560px';
@@ -130,6 +136,11 @@
           interactive: true,
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
+          onHide: () => {
+            if(this.$refs.bookmarkPop[0].$refs.popoverContentRef.instance?.state.isShown){
+              return false
+            }
+          },
           onHidden: () => {
             this.historyRecords = [];
             this.isHistoryRecords = true;
@@ -176,10 +187,6 @@
             this.historyLoading = false;
           });
       },
-      openFavorite() {
-        console.log(2133);
-        
-      }
     },
   };
 </script>
