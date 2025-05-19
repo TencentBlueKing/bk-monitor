@@ -56,15 +56,15 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     },
     {
       id: '1d',
-      name: this.$t('昨天'),
+      name: this.$t('1天前'),
     },
     {
       id: '7d',
-      name: this.$t('上周'),
+      name: this.$t('7天前'),
     },
     {
       id: '30d',
-      name: this.$t('1 月前'),
+      name: this.$t('30天前'),
     },
   ]);
 

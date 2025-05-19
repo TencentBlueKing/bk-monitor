@@ -3523,3 +3523,28 @@ class UpdateMetricListByBizResource(Resource):
                 value=task_result.task_id,
             )
         return config.value
+
+
+class GetDevopsStrategyListResource(Resource):
+    """
+    蓝盾插件专用策略列表接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, allow_null=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # 获取指定业务下启用的策略
+        bk_biz_id: int = validated_request_data.get("bk_biz_id")
+        if not bk_biz_id:
+            return {"status": 0, "data": []}
+        strategies = (
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            .values("id", "name")
+            .order_by("-update_time")
+        )
+
+        strategy_list: list = [
+            {"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies
+        ]
+        return {"status": 0, "data": strategy_list}

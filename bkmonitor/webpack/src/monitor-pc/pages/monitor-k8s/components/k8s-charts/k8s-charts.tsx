@@ -531,8 +531,8 @@ export default class K8SCharts extends tsc<
     // const metric = metricId.replace('node_', '');
     const clusterId = this.filterCommonParams.bcs_cluster_id;
     switch (metricId) {
-      case 'node_cpu_seconds_total': // 节点 CPU 使用量
-        return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()}}[$interval])[$interval:] $time_shift))`;
+      case 'node_cpu_seconds_total': // 节点CPU使用量
+        return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()},mode!="idle"}[$interval])[$interval:] $time_shift))`;
       case 'node_cpu_capacity_ratio': // 节点CPU装箱率
         return `
         ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
@@ -595,62 +595,110 @@ export default class K8SCharts extends tsc<
     }
   }
   createPerformanceDetailPanel(metric: string) {
-    if (
-      this.resourceList.size !== 1 ||
-      !['container_cpu_usage_seconds_total', 'container_memory_working_set_bytes'].includes(metric)
-    )
-      return [];
-    if (metric === 'container_cpu_usage_seconds_total')
-      return [
-        {
-          data_source_label: 'prometheus',
-          data_type_label: 'time_series',
-          promql:
-            this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-              ? this.createWorkLoadRequestOrLimit(true, true)
-              : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`,
-          interval: '$interval_second',
-          alias: 'limit',
-          filter_dict: {},
-        },
-        {
-          data_source_label: 'prometheus',
-          data_type_label: 'time_series',
-          promql:
-            this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-              ? this.createWorkLoadRequestOrLimit(false, true)
-              : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`,
-          interval: '$interval_second',
-          alias: 'request',
-          filter_dict: {},
-        },
-      ];
-    if (metric === 'container_memory_working_set_bytes') {
-      return [
-        {
-          data_source_label: 'prometheus',
-          data_type_label: 'time_series',
-          promql:
-            this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-              ? this.createWorkLoadRequestOrLimit(true, false)
-              : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}})`,
-          interval: '$interval_second',
-          alias: 'limit',
-          filter_dict: {},
-        },
-        {
-          data_source_label: 'prometheus',
-          data_type_label: 'time_series',
-          promql:
-            this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-              ? this.createWorkLoadRequestOrLimit(false, false)
-              : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
-          interval: '$interval_second',
-          alias: 'request',
-          filter_dict: {},
-        },
-      ];
+    if (this.resourceList.size !== 1) return [];
+    switch (metric) {
+      case 'node_cpu_seconds_total': // node 节点CPU使用量
+        return [
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'limit',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'request',
+            filter_dict: {},
+          },
+        ];
+      case 'node_memory_working_set_bytes':
+        return [
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'limit',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'request',
+            filter_dict: {},
+          },
+        ];
+      case 'container_cpu_usage_seconds_total':
+        return [
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                ? this.createWorkLoadRequestOrLimit(true, true)
+                : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'limit',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                ? this.createWorkLoadRequestOrLimit(false, true)
+                : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'request',
+            filter_dict: {},
+          },
+        ];
+      case 'container_memory_working_set_bytes':
+        return [
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                ? this.createWorkLoadRequestOrLimit(true, false)
+                : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'limit',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                ? this.createWorkLoadRequestOrLimit(false, false)
+                : `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'request',
+            filter_dict: {},
+          },
+        ];
     }
+    return [];
   }
   async getResourceList() {
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([

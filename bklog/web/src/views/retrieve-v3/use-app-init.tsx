@@ -60,9 +60,10 @@ export default () => {
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
     });
     let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
-      Object.assign(routeParams, { ids: [routeParams.index_id], isUnionIndex: false, selectIsUnionSearch: false });
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
       activeTab = 'single';
     }
 
@@ -339,6 +340,13 @@ export default () => {
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
+    // 清理掉当前查询结果，避免下次进入空白展示
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      is_error: false,
+      exception_msg: '',
+    });
   });
 
   return {

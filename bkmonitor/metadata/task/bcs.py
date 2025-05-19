@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -53,7 +52,7 @@ def refresh_bcs_monitor_info():
         fed_cluster_id_list = list(fed_clusters.keys())
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
-        logger.error("get federation clusters failed: {}".format(e))
+        logger.error(f"get federation clusters failed: {e}")
 
     bcs_clusters = list(
         BCSClusterInfo.objects.filter(
@@ -70,25 +69,25 @@ def refresh_bcs_monitor_info():
             is_fed_cluster = cluster.cluster_id in fed_cluster_id_list
             # 刷新集群内置公共dataid resource
             cluster.refresh_common_resource(is_fed_cluster=is_fed_cluster)
-            logger.debug("refresh bcs common resource in cluster:{} done".format(cluster.cluster_id))
+            logger.debug(f"refresh bcs common resource in cluster:{cluster.cluster_id} done")
 
             # 查找新的monitor info并记录到数据库，删除已不存在的
             ServiceMonitorInfo.refresh_resource(cluster.cluster_id, cluster.CustomMetricDataID)
-            logger.debug("refresh bcs service monitor resource in cluster:{} done".format(cluster.cluster_id))
+            logger.debug(f"refresh bcs service monitor resource in cluster:{cluster.cluster_id} done")
             PodMonitorInfo.refresh_resource(cluster.cluster_id, cluster.CustomMetricDataID)
-            logger.debug("refresh bcs pod monitor resource in cluster:{} done".format(cluster.cluster_id))
+            logger.debug(f"refresh bcs pod monitor resource in cluster:{cluster.cluster_id} done")
 
             # 刷新配置了自定义dataid的dataid resource
             ServiceMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
-            logger.debug("refresh bcs service monitor custom resource in cluster:{} done".format(cluster.cluster_id))
+            logger.debug(f"refresh bcs service monitor custom resource in cluster:{cluster.cluster_id} done")
             PodMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
-            logger.debug("refresh bcs pod monitor custom resource in cluster:{} done".format(cluster.cluster_id))
+            logger.debug(f"refresh bcs pod monitor custom resource in cluster:{cluster.cluster_id} done")
             if is_fed_cluster:
                 # 更新联邦集群记录
                 try:
                     sync_federation_clusters(fed_clusters)
                 except Exception as e:  # pylint: disable=broad-except
-                    logger.error("sync_federation_clusters failed, error:{}".format(e))
+                    logger.error(f"sync_federation_clusters failed, error:{e}")
 
         except Exception:  # noqa
             logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
@@ -126,7 +125,7 @@ def refresh_bcs_metrics_label():
     logger.debug("start refresh bcs metrics label")
     # 获取所有bcs相关dataid
     data_ids, data_id_cluster_map = get_bcs_dataids()
-    logger.debug("get bcs dataids->{}".format(data_ids))
+    logger.debug(f"get bcs dataids->{data_ids}")
 
     # 基于dataid过滤出自定义指标group_id
     time_series_group_ids = [
@@ -135,7 +134,7 @@ def refresh_bcs_metrics_label():
             "time_series_group_id"
         )
     ]
-    logger.debug("get bcs time_series_group_ids->{}".format(time_series_group_ids))
+    logger.debug(f"get bcs time_series_group_ids->{time_series_group_ids}")
 
     # 基于group_id拿到对应的指标项
     bcs_metrics = [
@@ -144,7 +143,7 @@ def refresh_bcs_metrics_label():
             "field_name", "field_id", "label"
         )
     ]
-    logger.debug("get bcs metrics->{}".format(bcs_metrics))
+    logger.debug(f"get bcs metrics->{bcs_metrics}")
     # 遍历指标组
     label_result = {}
     label_prefix_map = settings.BCS_METRICS_LABEL_PREFIX.copy()
@@ -169,7 +168,7 @@ def refresh_bcs_metrics_label():
                 label_result[target_label] = [metric["field_id"]]
             else:
                 label_result[target_label].append(metric["field_id"])
-    logger.debug("will replace bcs label info->{}".format(label_result))
+    logger.debug(f"will replace bcs label info->{label_result}")
     # 每个label批量更新一下
     for label_name, field_ids in label_result.items():
         models.TimeSeriesMetric.objects.filter(field_id__in=field_ids).update(label=label_name)
@@ -203,7 +202,7 @@ def discover_bcs_clusters():
     try:
         bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("discover_bcs_clusters: get bcs clusters failed, error:{}".format(e))
+        logger.error(f"discover_bcs_clusters: get bcs clusters failed, error:{e}")
         return
     cluster_list = []
     # 获取所有联邦集群 ID
@@ -213,7 +212,7 @@ def discover_bcs_clusters():
         fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
-        logger.warning("discover_bcs_clusters: get federation clusters failed, error:{}".format(e))
+        logger.warning(f"discover_bcs_clusters: get federation clusters failed, error:{e}")
 
     # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
     bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
@@ -283,9 +282,9 @@ def discover_bcs_clusters():
                 try:
                     sync_federation_clusters(fed_clusters)
                 except Exception as e:  # pylint: disable=broad-except
-                    logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
+                    logger.warning(f"discover_bcs_clusters: sync_federation_clusters failed, error:{e}")
 
-            logger.info("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
+            logger.info(f"cluster_id:{cluster_id},project_id:{project_id} already exists,skip create it")
             continue
 
         cluster = BCSClusterInfo.register_cluster(
@@ -327,6 +326,12 @@ def discover_bcs_clusters():
 
     # 如果是不存在的集群列表则更新当前状态为删除，加上>0的判断防止误删
     if cluster_list:
+        logger.info(
+            "discover_bcs_clusters: enable always running fake clusters->[%s]",
+            settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST,
+        )
+        cluster_list.extend(settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST)
+
         BCSClusterInfo.objects.exclude(cluster_id__in=cluster_list).update(
             status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED
         )
@@ -452,7 +457,7 @@ def sync_federation_clusters(fed_clusters):
 
         # 获取数据库中现有的联邦集群 ID (排除软删除的记录)
         existing_fed_clusters = set(
-            models.BcsFederalClusterInfo.objects.filter(is_deleted=False).values_list('fed_cluster_id', flat=True)
+            models.BcsFederalClusterInfo.objects.filter(is_deleted=False).values_list("fed_cluster_id", flat=True)
         )
 
         # 删除不再归属的联邦集群记录
@@ -465,8 +470,8 @@ def sync_federation_clusters(fed_clusters):
         for fed_cluster_id, fed_cluster_data in fed_clusters.items():
             logger.info("sync_federation_clusters:Syncing federation cluster ->[%s]", fed_cluster_id)
 
-            host_cluster_id = fed_cluster_data['host_cluster_id']
-            sub_clusters = fed_cluster_data['sub_clusters']
+            host_cluster_id = fed_cluster_data["host_cluster_id"]
+            sub_clusters = fed_cluster_data["sub_clusters"]
 
             # 获取代理集群的对应 RT 信息
             cluster = models.BCSClusterInfo.objects.get(cluster_id=fed_cluster_id)
@@ -526,9 +531,9 @@ def sync_federation_clusters(fed_clusters):
                     host_cluster_id=host_cluster_id,
                     sub_cluster_id=sub_cluster_id,
                     defaults={
-                        'fed_namespaces': updated_namespaces,
-                        'fed_builtin_metric_table_id': fed_builtin_metric_table_id,
-                        'fed_builtin_event_table_id': fed_builtin_event_table_id,
+                        "fed_namespaces": updated_namespaces,
+                        "fed_builtin_metric_table_id": fed_builtin_metric_table_id,
+                        "fed_builtin_event_table_id": fed_builtin_event_table_id,
                     },
                 )
 
@@ -545,12 +550,12 @@ def sync_federation_clusters(fed_clusters):
         all_sub_clusters_in_fed_clusters = {
             (fed_cluster_id, sub_cluster_id)
             for fed_cluster_id, fed_cluster_data in fed_clusters.items()
-            for sub_cluster_id in fed_cluster_data['sub_clusters'].keys()
+            for sub_cluster_id in fed_cluster_data["sub_clusters"].keys()
         }
 
         # 获取数据库中所有子集群的记录（排除软删除的记录）
         existing_sub_clusters = models.BcsFederalClusterInfo.objects.filter(is_deleted=False).values_list(
-            'fed_cluster_id', 'sub_cluster_id'
+            "fed_cluster_id", "sub_cluster_id"
         )
 
         # 找出不再归属任何联邦集群的子集群记录
@@ -568,7 +573,7 @@ def sync_federation_clusters(fed_clusters):
                 ).update(is_deleted=True)
 
         logger.info(
-            "sync_federation_clusters:Start Creating federation data links for sub-clusters->[%s] " "asynchronously",
+            "sync_federation_clusters:Start Creating federation data links for sub-clusters->[%s] asynchronously",
             need_process_clusters,
         )
         # bulk_create_fed_data_link(need_process_clusters)

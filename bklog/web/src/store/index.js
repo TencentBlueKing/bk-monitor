@@ -88,7 +88,7 @@ const stateTpl = {
   indexItem: { ...IndexItem },
   operatorDictionary: {},
   /** 联合查询ID列表 */
-  unionIndexList: URL_ARGS.union_index_list ?? [],
+  unionIndexList: [...(URL_ARGS.unionList ?? [])] ?? [],
   /** 联合查询元素列表 */
   unionIndexItemList: [],
 
@@ -516,8 +516,8 @@ const store = new Vuex.Store({
     },
     updateSpace(state, spaceUid) {
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
-      state.bkBizId = state.space.bk_biz_id;
-      state.spaceUid = spaceUid;
+      state.bkBizId = state.space?.bk_biz_id;
+      state.spaceUid = state.space?.space_uid;
       state.isSetDefaultTableColumn = false;
       state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },
