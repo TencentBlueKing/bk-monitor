@@ -450,6 +450,13 @@ class OptionValues:
     def get_kind(self):
         return SpanKind.list()
 
+    def get_status_code(self):
+        return [
+            {"value": StatusCode.UNSET.value, "text": _("未设置")},
+            {"value": StatusCode.OK.value, "text": _("正常")},
+            {"value": StatusCode.ERROR.value, "text": _("异常")},
+        ]
+
 
 class TraceOptionValues(OptionValues):
     API = api.apm_api.query_trace_option_values
@@ -492,13 +499,6 @@ class SpanOptionValues(OptionValues):
         OptionValues.Field(id=field_info.field, value_source=field_info.value_source, label=field_info.value)
         for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
     ]
-
-    def get_status_code(self):
-        return [
-            {"value": StatusCode.UNSET.value, "text": _("未设置")},
-            {"value": StatusCode.OK.value, "text": _("正常")},
-            {"value": StatusCode.ERROR.value, "text": _("异常")},
-        ]
 
 
 class QueryHandler:
