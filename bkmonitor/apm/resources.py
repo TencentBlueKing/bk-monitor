@@ -953,7 +953,6 @@ class QuerySerializer(serializers.Serializer):
     end_time = serializers.IntegerField(required=True, label="数据开始时间")
     offset = serializers.IntegerField(required=False, label="偏移量", default=0)
     limit = serializers.IntegerField(required=False, label="每页数量", default=10)
-    es_dsl = serializers.DictField(required=False, label="DSL语句")
     filters = serializers.ListSerializer(required=False, label="查询条件", child=TraceFilterSerializer())
     exclude_field = serializers.ListSerializer(required=False, label="排除字段", child=serializers.CharField())
     query_mode = serializers.ChoiceField(
@@ -964,6 +963,19 @@ class QuerySerializer(serializers.Serializer):
     )
     query_string = serializers.CharField(label="查询字符串", allow_blank=True, required=False)
     sort = serializers.ListSerializer(label="排序字段", required=False, child=serializers.CharField())
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        processed_sort: list[str] = []
+        for ordering in attrs.get("sort") or []:
+            if not ordering:
+                continue
+            if ordering.startswith("-"):
+                processed_sort.append(ordering[1:] + " desc")
+            else:
+                processed_sort.append(ordering)
+
+        attrs["sort"] = processed_sort
+        return attrs
 
 
 class QueryTraceListResource(Resource):
@@ -984,7 +996,6 @@ class QueryTraceListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
             None,
             validated_data.get("query_string"),
             validated_data.get("sort"),
@@ -1004,7 +1015,6 @@ class QuerySpanListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
             validated_data.get("exclude_field"),
             validated_data.get("query_string"),
             validated_data.get("sort"),
@@ -1588,8 +1598,8 @@ class QuerySpanStatisticsListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
             validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1604,8 +1614,8 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
             validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1998,6 +2008,15 @@ class QueryFieldsTopkResource(Resource):
 class QueryFieldStatisticsInfoResource(Resource):
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
+    @classmethod
+    def _is_number_field(cls, field: dict[str, Any]) -> bool:
+        """判断一个字段是否为数值类型。"""
+        return field["field_type"] in [
+            EnabledStatisticsDimension.LONG.value,
+            EnabledStatisticsDimension.DOUBLE.value,
+            EnabledStatisticsDimension.INTEGER.value,
+        ]
+
     def perform_request(self, validated_data):
         proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
         statistics_properties = [
@@ -2005,12 +2024,9 @@ class QueryFieldStatisticsInfoResource(Resource):
             StatisticsProperty.FIELD_COUNT.value,
             StatisticsProperty.DISTINCT_COUNT.value,
         ]
+
         # 数值类型，补充数值类型统计信息
-        if validated_data["field"]["field_type"] in [
-            EnabledStatisticsDimension.LONG.value,
-            EnabledStatisticsDimension.DOUBLE.value,
-            EnabledStatisticsDimension.INTEGER.value,
-        ]:
+        if self._is_number_field(validated_data["field"]):
             statistics_properties.extend(
                 [
                     StatisticsProperty.MAX.value,
@@ -2051,16 +2067,25 @@ class QueryFieldStatisticsInfoResource(Resource):
         }
         if property_name not in query_property_method_map:
             raise ValueError(_(f"未知的字段统计属性: {property_name}"))
+
+        # 数值类型、不为字段计数时，需要计入空值。
+        field: dict[str, Any] = validated_data["field"]
+        filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
+        if property_name == StatisticsProperty.FIELD_COUNT.value:
+            exclude_empty_operator: str = FilterOperator.NOT_EQUAL
+            if cls._is_number_field(validated_data["field"]):
+                exclude_empty_operator: str = FilterOperator.EXISTS
+
+            filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
+
         statistics_info[property_name] = proxy.query_field_aggregated_value(
             validated_data["mode"],
             validated_data["start_time"],
             validated_data["end_time"],
-            validated_data["field"]["field_name"],
+            field["field_name"],
             query_property_method_map[property_name],
-            validated_data["filters"],
+            filters,
             validated_data["query_string"],
-            # 是否需要查询空字符
-            property_name != StatisticsProperty.FIELD_COUNT.value,
         )
 
     @classmethod

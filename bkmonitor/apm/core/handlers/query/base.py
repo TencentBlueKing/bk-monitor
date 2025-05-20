@@ -30,68 +30,10 @@ from apm.constants import AggregatedMethod, OperatorGroupRelation
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
-from bkmonitor.data_source import dict_to_q
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
-
-
-def dsl_to_filter_dict(query: dict[str, Any], depth=1, width=1) -> dict[str, Any]:
-    filter_dict: dict[str, Any] = {}
-
-    if "nested" in query:
-        nested_query = query["nested"]
-        if "query" in nested_query:
-            return dsl_to_filter_dict(nested_query["query"], depth + 1, width)
-    elif "bool" in query:
-        bool_query = query["bool"]
-        for clause in ["must", "should"]:
-            if clause not in bool_query:
-                continue
-
-            sub_filters = [
-                dsl_to_filter_dict(sub_query, depth + 1, idx) for idx, sub_query in enumerate(bool_query[clause])
-            ]
-            is_all_query_string: bool = all(
-                [len(sub_filter.keys()) == 1 and "__" in list(sub_filter.keys())[0] for sub_filter in sub_filters]
-            )
-            for sub_filter in sub_filters:
-                if clause == "must":
-                    for field, values in sub_filter.items():
-                        if is_all_query_string and (field.startswith("wildcard")):
-                            filter_dict.setdefault(field, []).extend(values)
-                        else:
-                            filter_dict[field] = values
-                elif clause == "should":
-                    filter_dict.setdefault("or", []).append(sub_filter)
-    else:
-        op: str = ""
-        lookup: str = ""
-        child_query: dict[str, Any] = {}
-        for op, lookup in {"query_string": "qs", "term": "eq", "wildcard": "include"}.items():
-            if op in query:
-                child_query = query[op]
-                break
-
-        if not op:
-            return filter_dict
-
-        if op == "query_string":
-            field: str = child_query["default_field"]
-            if field == "*":
-                filter_dict[f"{field}__*__{lookup}__nested"] = [child_query["query"]]
-            else:
-                if "." not in field:
-                    path = "*"
-                else:
-                    path, __ = field.split(".", 1)
-                filter_dict[f"{field}__{path}__{lookup}__nested"] = [child_query["query"]]
-        else:
-            for field, value in child_query.items():
-                path, __ = field.split(".", 1)
-                filter_dict[f"{field}__{path}__{lookup}__nested"] = [value["value"]]
-    return filter_dict
 
 
 class FilterOperator:
@@ -280,7 +222,8 @@ class BaseQuery:
             q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 
         for bucket in queryset.add_query(q):
-            if bucket["_result_"] == 0:
+            # 指标来源没有 _result_，需要先判断。
+            if "_result_" in bucket and bucket["_result_"] == 0:
                 continue
             option_values[field].append(bucket[field])
 
@@ -348,53 +291,6 @@ class BaseQuery:
         return start_time, end_time
 
     @classmethod
-    def _add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: dict[str, Any]) -> QueryConfigBuilder:
-        logger.info("[add_query_string] dsl -> %s", dsl)
-        try:
-            filter_dict: dict[str, Any] = dsl_to_filter_dict(dsl["query"])
-            logger.info("[add_query_string] filter_dict -> %s", filter_dict)
-            if filter_dict:
-                return q.filter(dict_to_q(filter_dict))
-        except Exception:  # pylint: disable=broad-except
-            # 可忽略异常，仅打印 warn 日志
-            logger.warning("[add_query_string] failed to parse dsl but skipped -> %s", dsl)
-
-        query_string, nested_paths = cls._parse_query_string_from_dsl(dsl)
-        logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)
-        return q.query_string(query_string, nested_paths)
-
-    @classmethod
-    def _parse_query_string_from_dsl(cls, dsl: dict[str, Any]) -> tuple[str, dict[str, str]]:
-        """
-        【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
-        :param dsl:
-        :return:
-        """
-        try:
-            return dsl["query"]["query_string"]["query"], {}
-        except KeyError:
-            pass
-
-        try:
-            should_list: list[dict[str, Any]] = dsl["query"]["bool"]["should"]
-        except KeyError:
-            return "*", {}
-
-        query_string: str = "*"
-        nested_paths: dict[str, str] = {}
-        for should in should_list:
-            try:
-                nested_paths[should["nested"]["path"]] = should["nested"]["query"]["query_string"]["query"]
-            except KeyError:
-                try:
-                    # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
-                    query_string = should["query_string"]["query"]
-                except KeyError:
-                    continue
-
-        return query_string, nested_paths
-
-    @classmethod
     def _parse_ordering_from_dsl(cls, dsl: dict[str, Any]) -> list[str]:
         """
         【待废弃】在 dsl 中提取字段排序信息
@@ -432,7 +328,7 @@ class BaseQuery:
             self.get_q_from_filters_and_query_string(filters, query_string)
             .metric(field=field, method="COUNT", alias="a")
             .group_by(field)
-            .order_by("-_value")
+            .order_by("_value desc")
         )
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
         try:

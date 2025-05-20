@@ -2028,6 +2028,16 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 if field_name.startswith(nested_field):
                     return True
 
+        for ordering in self.order_by or []:
+            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
+            field: str = ordering.split(maxsplit=1)[0]
+            if field == "_value":
+                return True
+
+        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
+        if self.query_string and self.query_string != "*":
+            return True
+
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 
     def _get_unify_query_table(self) -> str:

@@ -64,7 +64,6 @@ class TraceQuery(BaseQuery):
         offset: int,
         limit: int,
         filters: list[types.Filter] | None = None,
-        es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
@@ -74,7 +73,6 @@ class TraceQuery(BaseQuery):
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters) & self.build_app_filter()).order_by(
             *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self._add_filters_from_dsl(q, es_dsl)
         if query_string:
             q = q.query_string(query_string)
 
@@ -192,11 +190,8 @@ class TraceQuery(BaseQuery):
         method: str,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
-        need_empty: bool = True,
     ):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string)
-        if not need_empty:
-            q = q.filter(**{f"{field}__ne": ""})
         return self._query_field_aggregated_value(start_time, end_time, field, method, q)
 
     def query_option_values(
@@ -210,10 +205,7 @@ class TraceQuery(BaseQuery):
         query_string: str,
     ) -> dict[str, list[str]]:
         q: QueryConfigBuilder = (
-            self._get_q(datasource_type)
-            .filter(self._build_filters(filters))
-            .query_string(query_string)
-            .order_by("-_value")
+            self._get_q(datasource_type).filter(self._build_filters(filters)).query_string(query_string)
         )
         if datasource_type == ApmDataSourceConfigBase.TRACE_DATASOURCE:
             q = q.filter(self.build_app_filter())

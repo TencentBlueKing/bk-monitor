@@ -45,7 +45,6 @@ class SpanQuery(BaseQuery):
         offset: int,
         limit: int,
         filters: list[types.Filter] | None = None,
-        es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
@@ -55,9 +54,8 @@ class SpanQuery(BaseQuery):
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters)).order_by(
             *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self._add_filters_from_dsl(q, es_dsl)
         if query_string:
-            q = q.query(query_string)
+            q = q.query_string(query_string)
 
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.SPAN_ID, offset, limit)
         return page_data["data"], page_data["total"]
@@ -106,11 +104,8 @@ class SpanQuery(BaseQuery):
         method: str,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
-        need_empty: bool = True,
     ):
         q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string)
-        if not need_empty:
-            q = q.filter(**{f"{field}__ne": ""})
         return self._query_field_aggregated_value(start_time, end_time, field, method, q)
 
     def query_option_values(
@@ -124,9 +119,6 @@ class SpanQuery(BaseQuery):
         query_string: str,
     ) -> dict[str, list[str]]:
         q: QueryConfigBuilder = (
-            self._get_q(datasource_type)
-            .filter(self._build_filters(filters))
-            .query_string(query_string)
-            .order_by("-_value")
+            self._get_q(datasource_type).filter(self._build_filters(filters)).query_string(query_string)
         )
         return self._query_option_values(start_time, end_time, fields, q, limit)
