@@ -24,7 +24,7 @@ from bkmonitor.iam.action import ActionEnum
 from bkmonitor.iam.permission import Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.common_utils import logger
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
     localtime,
@@ -232,7 +232,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 raise ValidationError({"verify_user_permission": "无法获取当前用户"})
             if not request_data.get("bk_biz_id"):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
-            p = Permission(username=username)
+            p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
             p.skip_check = False
             p.is_allowed_by_biz(request_data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME)
             if not p.is_allowed:
@@ -572,7 +572,7 @@ class DisableShieldResource(Resource):
                 raise ValidationError({"verify_user_permission": "无法获取当前用户"})
             if not data.get("bk_biz_id"):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
-            p = Permission(username=username)
+            p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
             p.skip_check = False
             p.is_allowed_by_biz(data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME)
             if not p.is_allowed:
