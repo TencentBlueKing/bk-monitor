@@ -1342,18 +1342,18 @@ class IndexSetHandler(APIModel):
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not index_set_obj:
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
-        space = Space.get_space_info(space_uid=index_set_obj.space_uid)
+        space = SpaceApi.get_space_detail(space_uid=index_set_obj.space_uid)
 
         return {
-            "id": space["id"],
-            "space_type_id": space["space_type_id"],
-            "space_id": space["space_id"],
-            "space_name": space["space_name"],
-            "space_uid": space["space_uid"],
-            "space_code": space["space_code"],
-            "bk_biz_id": space["bk_biz_id"],
-            "time_zone": (space["time_zone"] or "Asia/Shanghai").strip('"'),
-            "bk_tenant_id": space["bk_tenant_id"],
+            "id": space.id,
+            "space_type_id": space.space_type_id,
+            "space_id": space.space_id,
+            "space_name": space.space_name,
+            "space_uid": space.space_uid,
+            "space_code": space.space_code,
+            "bk_biz_id": space.bk_biz_id,
+            "time_zone": (space.extend.get("time_zone") or "Asia/Shanghai").strip('"'),
+            "bk_tenant_id": space.bk_tenant_id,
         }
 
 

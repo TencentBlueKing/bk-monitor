@@ -51,7 +51,6 @@ from apps.log_search.serializers import (
     StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
-    SpaceSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
@@ -1323,17 +1322,12 @@ class IndexSetViewSet(ModelViewSet):
         data = self.params_valid(StorageUsageSerializer)
         return Response(IndexSetHandler.get_storage_usage_info(data["bk_biz_id"], data["index_set_ids"]))
 
-    @list_route(methods=["POST"], url_path="space")
-    def space(self, request):
+    @detail_route(methods=["GET"], url_path="space")
+    def space(self, request, index_set_id, *args, **kwargs):
         """
-        @api {post} /index_set/space/ 根据索引集ID获取空间信息
+        @api {GET} /index_set/$index_set_id/space/ 根据索引集ID获取空间信息
         @apiDescription 根据索引集ID获取空间信息
         @apiName space
-        @apiParam {Int} index_set_id 索引集ID
-        @apiParamExample {Json} 请求参数
-        {
-            "index_set_id": 1,
-        }
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
@@ -1352,5 +1346,4 @@ class IndexSetViewSet(ModelViewSet):
             "message": ""
         }
         """
-        data = self.params_valid(SpaceSerializer)
-        return Response(IndexSetHandler.get_space_info(data["index_set_id"]))
+        return Response(IndexSetHandler.get_space_info(int(index_set_id)))
