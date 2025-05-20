@@ -675,7 +675,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }

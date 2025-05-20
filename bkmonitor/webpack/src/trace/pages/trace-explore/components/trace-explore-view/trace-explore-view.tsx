@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, computed, useTemplateRef } from 'vue';
+import { defineComponent, type PropType, computed, useTemplateRef, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox } from 'bkui-vue';
@@ -64,6 +64,11 @@ export default defineComponent({
         span: [],
       }),
     },
+    /** 是否展示详情 */
+    showSlideDetail: {
+      type: Object as PropType<{ type: 'span' | 'trace'; id: string }>,
+      default: null,
+    },
   },
   emits: {
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
@@ -74,6 +79,8 @@ export default defineComponent({
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
 
     const { mode, appName, timeRange, refreshImmediate } = storeToRefs(store);
+
+    const traceExploreTable = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => mode.value === 'span');
@@ -135,11 +142,25 @@ export default defineComponent({
       );
     }
 
+    watch(
+      () => props.showSlideDetail,
+      val => {
+        if (!val) return;
+        nextTick(() => {
+          traceExploreTable.value?.handleSliderShowChange(val.type, val.id);
+        });
+      },
+      {
+        immediate: true,
+      }
+    );
+
     return {
       mode,
       appName,
       timeRange,
       refreshImmediate,
+      traceExploreTable,
       filtersCheckBoxGroupRender,
       handleScrollToTop,
     };
@@ -159,6 +180,7 @@ export default defineComponent({
         </div>
         <div class='trace-explore-view-table'>
           <TraceExploreTable
+            ref='traceExploreTable'
             appName={appName}
             commonParams={commonParams}
             fieldListMap={fieldListMap}

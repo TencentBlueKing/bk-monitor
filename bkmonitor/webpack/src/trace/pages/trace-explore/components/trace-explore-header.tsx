@@ -29,21 +29,17 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Badge, Select } from 'bkui-vue';
-import { detectOS, random } from 'monitor-common/utils';
+import { deepClone, detectOS, random } from 'monitor-common/utils';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
-import useUserConfig from '../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 import type { HideFeatures, IApplicationItem } from '../typing';
 
 import './trace-explore-header.scss';
-
-/** 置顶的data_id */
-const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
 
 export default defineComponent({
   name: 'TraceExploreHeader',
@@ -60,6 +56,10 @@ export default defineComponent({
       type: Array as PropType<HideFeatures>,
       default: () => [],
     },
+    thumbtackList: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: [
     'favoriteShowChange',
@@ -69,6 +69,7 @@ export default defineComponent({
     'immediateRefreshChange',
     'refreshChange',
     'appNameChange',
+    'thumbtackChange',
   ],
 
   setup(props, { emit }) {
@@ -76,7 +77,6 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const router = useRouter();
     const route = useRoute();
-    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const applicationSelectRef = shallowRef<InstanceType<typeof Select>>(null);
     const applicationToggle = shallowRef(false);
 
@@ -89,15 +89,12 @@ export default defineComponent({
       }
     }
 
-    /** 置顶的列表 */
-    const thumbtackList = shallowRef<string[]>([]);
-
     /** 置顶排序后的列表 */
     const sortList = computed<IApplicationItem[]>(() => {
       const thumbtack = [];
       const other = [];
       for (const item of props.list) {
-        if (thumbtackList.value.includes(item.app_name)) {
+        if (props.thumbtackList.includes(item.app_name)) {
           thumbtack.push({
             ...item,
             isTop: true,
@@ -159,12 +156,13 @@ export default defineComponent({
 
     async function handleThumbtack(e: Event, item: IApplicationItem) {
       e.stopPropagation();
+      let list = deepClone(props.thumbtackList);
       if (item.isTop) {
-        thumbtackList.value = thumbtackList.value.filter(appName => appName !== item.app_name);
+        list = list.filter(appName => appName !== item.app_name);
       } else {
-        thumbtackList.value = [item.app_name, ...thumbtackList.value];
+        list = [item.app_name, ...list];
       }
-      await handleSetUserConfig(JSON.stringify(thumbtackList.value));
+      emit('thumbtackChange', list);
     }
 
     function handleSceneModelChange(mode: 'span' | 'trace') {
@@ -176,9 +174,6 @@ export default defineComponent({
 
     onMounted(() => {
       window.addEventListener('keydown', handleDocumentClick);
-      handleGetUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
-        thumbtackList.value = res || [];
-      });
     });
 
     onUnmounted(() => {

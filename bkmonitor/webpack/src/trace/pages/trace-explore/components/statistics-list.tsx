@@ -118,6 +118,7 @@ export default defineComponent({
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
+          chartData.value = [];
           infoLoading.value = true;
         }
       }

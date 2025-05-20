@@ -60,7 +60,7 @@ export default defineComponent({
       } else {
         const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
           props.appName
-        }&search_type=accurate&trace_id=${traceId}`;
+        }&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
         text = location.href.replace(location.hash, hash);
       }
       copyText(text, (msg: string) => {

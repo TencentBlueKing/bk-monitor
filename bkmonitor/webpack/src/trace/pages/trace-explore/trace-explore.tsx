@@ -55,6 +55,7 @@ import {
   TRACE_NOT_SUPPORT_ENUM_KEYS,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
@@ -68,6 +69,11 @@ import { getFilterByCheckboxFilter } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
+/** trace检索默认选择的应用 */
+const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
+/** 应用置顶列表 */
+const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
+
 updateTimezone(window.timezone);
 
 import './trace-explore.scss';
@@ -75,6 +81,9 @@ export default defineComponent({
   name: 'TraceExplore',
   props: {},
   setup() {
+    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+    const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
+      useUserConfig();
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
@@ -89,8 +98,11 @@ export default defineComponent({
     /** 自动查询定时器 */
     let autoQueryTimer = null;
     const applicationLoading = shallowRef(false);
+    /** 默认选择的应用列表 */
+    const defaultApplication = shallowRef('');
     /** 应用列表 */
     const applicationList = shallowRef<IApplicationItem[]>([]);
+    const thumbtackList = shallowRef<string[]>([]);
     /** 是否展示收藏夹 */
     const isShowFavorite = shallowRef(true);
     /** 视角切换查询 */
@@ -111,6 +123,9 @@ export default defineComponent({
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
     });
+
+    /** 展示侧栏详情 */
+    const showSlideDetail = shallowRef(null);
 
     const commonParams = shallowRef<ICommonParams>({
       app_name: '',
@@ -184,9 +199,10 @@ export default defineComponent({
     }
 
     /** 应用切换 */
-    async function handleAppNameChange() {
+    function handleAppNameChange() {
       where.value = [];
       getViewConfig();
+      handleSetUserConfig(JSON.stringify(store.appName));
       handleQuery();
     }
 
@@ -198,8 +214,19 @@ export default defineComponent({
       applicationList.value = data;
       store.updateAppList(data);
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
-        store.updateAppName(data[0]?.app_name);
+        const defaultId = defaultApplication.value || thumbtackList.value?.[0];
+        if (data.find(item => item.app_name === defaultId)) {
+          store.updateAppName(defaultId);
+        } else {
+          store.updateAppName(data[0]?.app_name);
+        }
       }
+    }
+
+    /** 应用置顶 */
+    async function handleThumbtackChange(list: string[]) {
+      thumbtackList.value = list;
+      await handleSetThumbtackUserConfig(JSON.stringify(list));
     }
 
     /** 关闭维度列表 */
@@ -252,15 +279,32 @@ export default defineComponent({
       }).catch(() => ({ trace_config: [], span_config: [] }));
 
       fieldListMap.value = {
-        trace: trace_config.map(item => ({ ...item, pinyinStr: pinyin.convertToPinyin(item.alias, '', true) })),
-        span: span_config.map(item => ({ ...item, pinyinStr: pinyin.convertToPinyin(item.alias, '', true) })),
+        trace: trace_config.map(item => ({
+          ...item,
+          pinyinStr: pinyin.convertToPinyin(`${item.alias}(${item.name})`, '').toLocaleLowerCase(),
+        })),
+        span: span_config.map(item => ({
+          ...item,
+          pinyinStr: pinyin.convertToPinyin(`${item.alias}(${item.name})`, '').toLocaleLowerCase(),
+        })),
       };
       loading.value = false;
     }
 
-    onMounted(async () => {
+    /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
+    async function getAllUserConfig() {
       isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'true');
+      await Promise.all([
+        handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
+        handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
+          thumbtackList.value = res || [];
+        }),
+      ]);
+    }
+
+    onMounted(async () => {
       getUrlParams();
+      await getAllUserConfig();
       await getApplicationList();
       handleQuery();
       await getViewConfig();
@@ -308,6 +352,10 @@ export default defineComponent({
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
+          showSlideDetail.value = {
+            type: 'trace',
+            id: trace_id,
+          };
         }
       } catch (error) {
         console.log('route query:', error);
@@ -546,8 +594,10 @@ export default defineComponent({
     return {
       t,
       traceExploreLayoutRef,
+      defaultApplication,
       applicationLoading,
       applicationList,
+      thumbtackList,
       isShowFavorite,
       fieldListMap,
       where,
@@ -568,8 +618,10 @@ export default defineComponent({
       editFavoriteShow,
       editFavoriteData,
       notSupportEnumKeys,
+      showSlideDetail,
       handleQuery,
       handleAppNameChange,
+      handleThumbtackChange,
       handelSceneChange,
       handleFavoriteShowChange,
       handleCloseDimensionPanel,
@@ -611,9 +663,11 @@ export default defineComponent({
             <TraceExploreHeader
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
+              thumbtackList={this.thumbtackList}
               onAppNameChange={this.handleAppNameChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
               onSceneModeChange={this.handelSceneChange}
+              onThumbtackChange={this.handleThumbtackChange}
             />
           </div>
           <div class='trace-explore-content'>
@@ -682,6 +736,7 @@ export default defineComponent({
                         checkboxFilters={this.checkboxFilters}
                         commonParams={this.commonParams}
                         fieldListMap={this.fieldListMap}
+                        showSlideDetail={this.showSlideDetail}
                         onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
                       />
                     </div>
