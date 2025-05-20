@@ -984,6 +984,7 @@ export default defineComponent({
       handleSortChange,
       handleDataSourceConfigClick,
       handleDisplayColumnFieldsChange,
+      handleSliderShowChange,
     };
   },
 

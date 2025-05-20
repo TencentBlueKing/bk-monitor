@@ -83,7 +83,9 @@ export default defineComponent({
         emptyStatus.value = 'empty';
       } else {
         emptyStatus.value = 'search-empty';
-        searchResultList.value = props.list.filter(item => item.pinyinStr.includes(searchVal.value.toLowerCase()));
+        searchResultList.value = props.list.filter(item => {
+          return item.alias.includes(keyword) || item.name.includes(keyword) || item.pinyinStr.includes(keyword);
+        });
       }
       dimensionTreeList.value = convertToTree(
         searchResultList.value.map(item => ({ ...item, expand: Boolean(searchVal.value) }))
