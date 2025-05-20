@@ -83,13 +83,13 @@ export default defineComponent({
     }
 
     function handleEnter() {
-      const valueStr = props.value?.[0] || '';
+      const valueStr = props.value?.value?.[0] || '';
       if (valueStr !== localValue.value) {
         handleChange();
       }
     }
     function handleBlur() {
-      const valueStr = props.value?.[0] || '';
+      const valueStr = props.value?.value?.[0] || '';
       if (valueStr !== localValue.value) {
         handleChange();
       }

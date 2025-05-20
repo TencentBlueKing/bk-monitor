@@ -221,10 +221,18 @@ export default defineComponent({
         <span
           key={'02'}
           class='option-name-title'
+          v-overflow-text
         >
           {item.alias}
         </span>,
-        !!item.name && <span class='option-name-subtitle'>（{item.name}）</span>,
+        !!item.name && (
+          <span
+            class='option-name-subtitle'
+            v-overflow-text
+          >
+            （{item.name}）
+          </span>
+        ),
       ];
     };
     return (
