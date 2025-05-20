@@ -34,7 +34,7 @@ import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
-import type { ExploreFieldList, ICommonParams } from '../../typing';
+import type { ConditionChangeEvent, ExploreFieldList, ICommonParams } from '../../typing';
 
 import './trace-explore-view.scss';
 
@@ -72,6 +72,8 @@ export default defineComponent({
   },
   emits: {
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    conditionChange: (val: ConditionChangeEvent) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -90,6 +92,13 @@ export default defineComponent({
      */
     function handleScrollToTop() {
       backTopRef.value?.handleBackTop?.(false);
+    }
+
+    /**
+     * @description 筛选条件改变后触发的回调
+     */
+    function handleConditionChange(val: ConditionChangeEvent) {
+      emit('conditionChange', val);
     }
 
     /**
@@ -163,6 +172,7 @@ export default defineComponent({
       traceExploreTable,
       filtersCheckBoxGroupRender,
       handleScrollToTop,
+      handleConditionChange,
     };
   },
   render() {
@@ -188,6 +198,7 @@ export default defineComponent({
             refreshImmediate={refreshImmediate}
             timeRange={timeRange}
             onBackTop={this.handleScrollToTop}
+            onConditionChange={this.handleConditionChange}
           />
         </div>
         <BackTop

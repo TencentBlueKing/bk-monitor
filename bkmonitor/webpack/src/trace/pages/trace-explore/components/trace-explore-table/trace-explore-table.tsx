@@ -39,8 +39,10 @@ import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
-import { Loading } from 'bkui-vue';
+import { $bkPopover, Loading } from 'bkui-vue';
 
+import ChartFiltering from '../../../../components/chart-filtering/chart-filtering';
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
@@ -49,6 +51,7 @@ import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
 import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
+import StatisticsList from '../statistics-list';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
   SERVICE_CATEGORY_MAP,
@@ -68,7 +71,13 @@ import {
 } from './typing';
 import { getTableList } from './utils/api-utils';
 
-import type { ExploreFieldList, ICommonParams, IDimensionField } from '../../typing';
+import type {
+  ConditionChangeEvent,
+  ExploreFieldList,
+  ICommonParams,
+  IDimensionField,
+  IDimensionFieldTreeItem,
+} from '../../typing';
 
 import './trace-explore-table.scss';
 
@@ -109,6 +118,8 @@ export default defineComponent({
   },
   emits: {
     backTop: () => true,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    conditionChange: (val: ConditionChangeEvent) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -126,8 +137,13 @@ export default defineComponent({
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
+    /** 统计弹窗实例 */
+    let statisticsPopoverInstance = null;
 
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
+    const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
+    const durationPopover = useTemplateRef<HTMLDivElement>('durationPopoverRef');
+
     /** 表格功能单元格内容溢出弹出 popover 功能 */
     const { initListeners: initEllipsisListeners, handlePopoverHide: ellipsisPopoverHide } = useTableEllipsis(
       tableRef,
@@ -168,6 +184,12 @@ export default defineComponent({
       /** 排序顺序 */
       descending: null,
     });
+    /** 统计面板的 抽屉页展示状态 */
+    let statisticsSliderShow = false;
+    /** 字段分析弹窗 popover 显隐 */
+    const showStatisticsPopover = shallowRef(false);
+    /** 当前激活字段分析弹窗面板展示的字段 */
+    const activeStatisticsField = shallowRef('');
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
@@ -237,7 +259,7 @@ export default defineComponent({
           const tipText = column.headerDescription || column.colKey;
           column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
           // 表格列表头渲染方法
-          const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText);
+          const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText, column);
           // 表格单元格渲染方法
           const tableCell = (_, { row }) => handleSetFormatter(column, row);
 
@@ -744,6 +766,86 @@ export default defineComponent({
     }
 
     /**
+     * @description 字段分析统计弹窗改变filter条件回调
+     *
+     */
+    function handleConditionChange(value: ConditionChangeEvent) {
+      emit('conditionChange', value);
+    }
+
+    /**
+     * @description 打开字段分析统计弹窗
+     *
+     */
+    async function handleStatisticsPopoverShow(e: Event, item: IDimensionFieldTreeItem) {
+      e.stopPropagation();
+      handleStatisticsPopoverHide();
+      activeStatisticsField.value = item.name;
+      const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
+      if (!item.is_dimensions) return;
+      statisticsPopoverInstance = $bkPopover({
+        target: e.currentTarget as HTMLDivElement,
+        content: isDuration
+          ? durationPopover.value
+          : (statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement),
+        trigger: 'click',
+        placement: 'right',
+        theme: 'light',
+        arrow: true,
+        boundary: 'viewport',
+        extCls: isDuration ? 'duration-popover-cls' : 'statistics-dimension-popover-cls',
+        width: 405,
+        // @ts-ignore
+        distance: -5,
+        onHide() {
+          showStatisticsPopover.value = false;
+          if (!statisticsSliderShow) {
+            activeStatisticsField.value = '';
+          }
+        },
+      });
+      setTimeout(() => {
+        if (!isDuration) {
+          showStatisticsPopover.value = true;
+        }
+        statisticsPopoverInstance.show();
+      }, 100);
+    }
+
+    /**
+     * @description 关闭字段分析统计弹窗
+     * @param {boolean} resetActiveStatisticsField 是否重置当前激活字段分析弹窗面板展示的字段
+     *
+     */
+    function handleStatisticsPopoverHide(resetActiveStatisticsField = true) {
+      showStatisticsPopover.value = false;
+      statisticsPopoverInstance?.hide(0);
+      statisticsPopoverInstance?.close();
+      statisticsPopoverInstance = null;
+      if (resetActiveStatisticsField) {
+        activeStatisticsField.value = '';
+      }
+    }
+
+    /**
+     * @description 字段分析统计弹窗中 更多抽屉页 展示/消失 状态回调
+     */
+    function handleStatisticsSliderShow(sliderShow: boolean) {
+      statisticsSliderShow = sliderShow;
+      if (!sliderShow) {
+        handleStatisticsPopoverHide();
+      }
+    }
+
+    /**
+     * @description 耗时分析统计弹窗中 筛选时间范围列表数据 回调
+     *
+     */
+    function handleFilterListChange(list) {
+      store.updateFilterTableList(list);
+    }
+
+    /**
      * @description traceId详情抽屉 渲染方法
      *
      */
@@ -774,20 +876,76 @@ export default defineComponent({
     }
 
     /**
+     * @description 字段分析组件渲染方法
+     *
+     */
+    function statisticsDomRender() {
+      const fieldOptions = tableColumns.value?.fieldMap?.[activeStatisticsField.value];
+      return [
+        <StatisticsList
+          key='statisticsList'
+          ref='statisticsListRef'
+          commonParams={props.commonParams}
+          fieldType={fieldOptions?.type}
+          isDimensions={fieldOptions?.is_dimensions}
+          isShow={showStatisticsPopover.value}
+          selectField={fieldOptions?.name}
+          onConditionChange={handleConditionChange}
+          onShowMore={() => handleStatisticsPopoverHide(false)}
+          onSliderShowChange={handleStatisticsSliderShow}
+        />,
+        <div
+          key='chartFiltering'
+          style='display: none;'
+        >
+          <div
+            ref='durationPopoverRef'
+            class='duration-popover'
+          >
+            {tableData.value.length ? (
+              <ChartFiltering
+                filterList={store.filterTableList}
+                isShowSlider={false}
+                list={tableData.value}
+                listType={props.commonParams.mode}
+                onFilterListChange={handleFilterListChange}
+              />
+            ) : (
+              <EmptyStatus type='empty' />
+            )}
+          </div>
+        </div>,
+      ];
+    }
+
+    /**
      * @description table 带有列描述的表头渲染方法
      * @param title 列名
      * @param tipText 列描述
      *
      */
-    function tableDescriptionHeaderRender(title, tipText) {
+    function tableDescriptionHeaderRender(title, tipText, column) {
+      const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
+      const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
       return () => (
-        <div class='explore-header-col  explore-text-ellipsis'>
-          <span
-            class='th-label explore-table-header-description '
-            data-col-description={tipText}
-          >
-            {title}
-          </span>
+        <div
+          key={title}
+          class={`explore-header-col ${chartIconActive}`}
+        >
+          <div class='explore-text-ellipsis'>
+            <span
+              class='th-label explore-table-header-description '
+              data-col-description={tipText}
+            >
+              {title}
+            </span>
+          </div>
+          {fieldOptions?.is_dimensions ? (
+            <i
+              class='icon-monitor icon-Chart statistics-icon'
+              onClick={e => handleStatisticsPopoverShow(e, fieldOptions)}
+            />
+          ) : null}
         </div>
       );
     }
@@ -997,6 +1155,7 @@ export default defineComponent({
       handleSortChange,
       handleDataSourceConfigClick,
       handleDisplayColumnFieldsChange,
+      statisticsDomRender,
       handleSliderShowChange,
     };
   },
@@ -1077,6 +1236,7 @@ export default defineComponent({
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
         {this.traceSliderRender()}
         {this.spanSliderRender()}
+        {this.statisticsDomRender()}
       </div>
     );
   },

@@ -738,6 +738,7 @@ export default defineComponent({
                         fieldListMap={this.fieldListMap}
                         showSlideDetail={this.showSlideDetail}
                         onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                        onConditionChange={this.handleConditionChange}
                       />
                     </div>
                   ),
