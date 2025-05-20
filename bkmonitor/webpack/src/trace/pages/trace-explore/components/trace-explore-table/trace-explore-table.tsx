@@ -246,11 +246,11 @@ export default defineComponent({
                   // 扩大排序点击热区范围
                   onClick(e: MouseEvent & { target: Element; currentTarget: Element }) {
                     if (
+                      column.colKey &&
                       e.currentTarget.tagName.toLocaleLowerCase() === 'th' &&
                       !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                       e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                     ) {
-                      if (!column.colKey) return;
                       const sortDescValueList = [true, false, null];
                       const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
                       if (sortContainer.sortBy === column.colKey) {
