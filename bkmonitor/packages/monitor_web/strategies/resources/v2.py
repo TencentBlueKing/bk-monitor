@@ -3555,8 +3555,7 @@ class GetDevopsStrategyListResource(Resource):
         p = Permission(username=username)
         # 强制检查权限
         p.skip_check = False
-        p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_RULE)
-        if not p.is_allowed:
+        if not p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_RULE):
             return {"result": False, "status": 1, "data": [], "message": f"当前用户无权限查看{bk_biz_id}业务策略列表"}
 
         # 获取指定业务下启用的策略
