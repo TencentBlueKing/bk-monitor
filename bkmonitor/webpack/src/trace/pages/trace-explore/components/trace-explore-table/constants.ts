@@ -62,6 +62,9 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
   },
 } as const);
 
+/** trace检索table展示字段列配置缓存key后缀 */
+export const TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX = 'TRACE_EXPLORE_TABLE_DISPLAY_COLUMNS';
+
 /** 可以进行排序的字段类型 */
 export const CAN_TABLE_SORT_FIELD_TYPES = new Set(['integer', 'long', 'double', 'date']);
 
