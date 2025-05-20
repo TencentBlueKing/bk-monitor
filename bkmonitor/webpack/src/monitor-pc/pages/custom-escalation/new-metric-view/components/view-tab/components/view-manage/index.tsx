@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import draggable from 'vuedraggable';
 // import _ from 'lodash';
-import { updateSceneView } from 'monitor-api/modules/scene_view';
+import { updateSceneView, deleteSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
 
 import './index.scss';
@@ -47,7 +47,12 @@ interface IEmit {
   onSuccess: () => void;
 }
 
-@Component
+@Component({
+  name: 'ViewManage',
+  components: {
+    draggable,
+  },
+})
 export default class ViewManage extends tsc<IProps, IEmit> {
   @Prop({ type: String, required: true }) readonly sceneId: IProps['sceneId'];
   @Prop({ type: Array, required: true }) readonly viewList: IProps['viewList'];
@@ -59,27 +64,18 @@ export default class ViewManage extends tsc<IProps, IEmit> {
     from: null,
     to: null,
   };
-  drag = {
-    active: -1,
-  };
   pageList = [];
   isDragging = false;
   dragCount = 0;
   lastDragTime = null;
   @Watch('viewList')
-  viewListChange(val) {
-    console.log(val, '===');
+  viewListChange() {
     this.pageList = deepClone(this.viewList);
   }
   handleShowDialog() {
     this.isShowDialog = true;
   }
-  handleEdit(item) {
-    this.pageList = this.pageList.map(view => Object.assign(view, { edit: item.id === view.id }));
-  }
-  handleClose() {
-    this.pageList = this.pageList.map(view => Object.assign(view, { edit: false }));
-  }
+
   async handleSave(item) {
     await updateSceneView({
       scene_id: this.sceneId,
@@ -93,11 +89,11 @@ export default class ViewManage extends tsc<IProps, IEmit> {
       theme: 'success',
       message: this.$t('修改成功'),
     });
-    this.handleClose();
     this.$emit('success');
   }
+  /** 删除 */
   handleDel(item) {
-    console.log(item, 'item');
+    this.pageList = this.pageList.filter(view => view.id !== item.id);
   }
   dragStart() {
     this.isDragging = true;
@@ -124,70 +120,36 @@ export default class ViewManage extends tsc<IProps, IEmit> {
           scrollable={false}
           title={this.$t('视图管理')}
         >
-          <div class='metric-view-drag-item'>{this.$t('默认')}</div>
-          {/* <draggable
+          <draggable
             v-model={this.pageList}
-            animation='150'
-            disabled={true}
-            on-end={this.dragEnd}
-            on-start={this.dragStart}
+            options={{ animation: 200 }}
+            onEnd={this.dragEnd}
+            onStart={this.dragStart}
           >
             <transition-group
-              name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
+              name={this.dragData.from !== null ? 'flip-list' : 'flip-list-none'}
               tag='ul'
             >
               {this.pageList.map((item, index) => (
-                <div
-                  key={index}
-                  class='metric-view-drag-item'
+                <li
+                  key={`${item.edit}${index}`}
+                  class={['metric-view-drag-item']}
                 >
-                  <span class='font-medium'>{item.name}</span>
-                  <div class='flex items-center'>
-                    <span class='text-xs text-neutral/50 mr-2'>#{index + 1}</span>
-                    <i class='fa fa-arrows text-neutral/30' />
-                  </div>
-                </div>
-              ))} */}
-          {this.pageList.map((item, index) => (
-            <li
-              key={`${item.edit}${index}`}
-              class={['metric-view-drag-item']}
-            >
-              {item.edit && (
-                <bk-input
-                  class='drag-input'
-                  v-model={item.name}
-                />
-              )}
-              {!item.edit && <i class='icon-monitor icon-mc-tuozhuai drag-icon' />}
-              {!item.edit && <span class='label'>{item.name}</span>}
-              {item.edit ? (
-                <span class='edit-icon-group'>
-                  <i
-                    class='icon-monitor icon-mc-check-small save-icon'
-                    onClick={() => this.handleSave(item)}
+                  <i class='icon-monitor icon-mc-tuozhuai drag-icon' />
+                  <bk-input
+                    class='drag-input'
+                    v-model={item.name}
                   />
-                  <i
-                    class='icon-monitor icon-mc-close close-icon'
-                    onClick={() => this.handleClose()}
-                  />
-                </span>
-              ) : (
-                <span class='icon-group'>
-                  <i
-                    class='icon-monitor icon-bianji edit-icon'
-                    onClick={() => this.handleEdit(item)}
-                  />
-                  <i
-                    class='icon-monitor icon-mc-delete-line del-icon'
-                    onClick={() => this.handleDel(item)}
-                  />
-                </span>
-              )}
-            </li>
-          ))}
-          {/* </transition-group>
-          </draggable> */}
+                  <span class='icon-group'>
+                    <i
+                      class='icon-monitor icon-mc-delete-line del-icon'
+                      onClick={() => this.handleDel(item)}
+                    />
+                  </span>
+                </li>
+              ))}
+            </transition-group>
+          </draggable>
         </bk-dialog>
       </div>
     );
