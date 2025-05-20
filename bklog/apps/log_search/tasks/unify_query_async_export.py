@@ -283,11 +283,7 @@ def set_expired_status(async_task_id):
     async_task.save()
 
 
-class AsyncExportUtils:
-    """
-    async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
-    """
-
+class BaseExportUtils:
     def __init__(
         self,
         unify_query_handler: UnifyQueryHandler,
@@ -319,6 +315,75 @@ class AsyncExportUtils:
         self.storage = self.init_remote_storage()
         self.notify = self.init_notify_type()
         self.file_path_list = []
+
+    def export_upload(self):
+        """
+        文件上传
+        """
+        self.storage.export_upload(file_path=self.tar_file_path, file_name=self.tar_file_name)
+
+    def generate_download_url(self, url_path: str):
+        """
+        生成url
+        """
+        return self.storage.generate_download_url(url_path=url_path, file_name=self.tar_file_name)
+
+    def clean_package(self):
+        """
+        清空产生的临时文件
+        """
+        for file_path in self.file_path_list:
+            os.remove(file_path)
+        os.remove(self.tar_file_path)
+
+    def init_remote_storage(self):
+        if self.is_external:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_EXTERNAL).feature_config
+        else:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
+        storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
+        storage = StorageType.get_instance(storage_type)
+        if not storage_type or storage_type == RemoteStorageType.NFS.value:
+            return storage(settings.EXTRACT_SAAS_STORE_DIR)
+        if storage_type == RemoteStorageType.BKREPO.value:
+            return storage(expired=ASYNC_EXPORT_EXPIRED)
+        return storage(
+            toggle.get("qcloud_secret_id"),
+            toggle.get("qcloud_secret_key"),
+            toggle.get("qcloud_cos_region"),
+            toggle.get("qcloud_cos_bucket"),
+            ASYNC_EXPORT_EXPIRED,
+        )
+
+    def get_file_size(self):
+        """
+        获取文件大小 单位：m，保留小数2位
+        """
+        return max(round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2), 0.01)
+
+    @classmethod
+    def init_notify_type(cls):
+        notify_type = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(
+            FEATURE_ASYNC_EXPORT_NOTIFY_TYPE
+        )
+
+        return NotifyType.get_instance(notify_type=notify_type)()
+
+    @classmethod
+    def write_file(cls, f, result):
+        """
+        将对应数据写到文件中
+        """
+        for res in result:
+            origin_result_list = res.get("origin_log_list")
+            for item in origin_result_list:
+                f.write("%s\n" % ujson.dumps(item))
+
+
+class AsyncExportUtils(BaseExportUtils):
+    """
+    async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
+    """
 
     def export_package(self):
         """
@@ -381,18 +446,6 @@ class AsyncExportUtils:
             for file_path in self.file_path_list:
                 tar.add(file_path, arcname=os.path.basename(file_path))
 
-    def export_upload(self):
-        """
-        文件上传
-        """
-        self.storage.export_upload(file_path=self.tar_file_path, file_name=self.tar_file_name)
-
-    def generate_download_url(self, url_path: str):
-        """
-        生成url
-        """
-        return self.storage.generate_download_url(url_path=url_path, file_name=self.tar_file_name)
-
     def send_msg(
         self,
         index_set_id: int,
@@ -441,94 +494,11 @@ class AsyncExportUtils:
         }
         return title_template_map.get(title_model, title_template_map.get(MsgModel.NORMAL))
 
-    def clean_package(self):
-        """
-        清空产生的临时文件
-        """
-        for file_path in self.file_path_list:
-            os.remove(file_path)
-        os.remove(self.tar_file_path)
 
-    def init_remote_storage(self):
-        if self.is_external:
-            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_EXTERNAL).feature_config
-        else:
-            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
-        storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
-        storage = StorageType.get_instance(storage_type)
-        if not storage_type or storage_type == RemoteStorageType.NFS.value:
-            return storage(settings.EXTRACT_SAAS_STORE_DIR)
-        if storage_type == RemoteStorageType.BKREPO.value:
-            return storage(expired=ASYNC_EXPORT_EXPIRED)
-        return storage(
-            toggle.get("qcloud_secret_id"),
-            toggle.get("qcloud_secret_key"),
-            toggle.get("qcloud_cos_region"),
-            toggle.get("qcloud_cos_bucket"),
-            ASYNC_EXPORT_EXPIRED,
-        )
-
-    def get_file_size(self):
-        """
-        获取文件大小 单位：m，保留小数2位
-        """
-        return max(round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2), 0.01)
-
-    @classmethod
-    def init_notify_type(cls):
-        notify_type = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(
-            FEATURE_ASYNC_EXPORT_NOTIFY_TYPE
-        )
-
-        return NotifyType.get_instance(notify_type=notify_type)()
-
-    @classmethod
-    def write_file(cls, f, result):
-        """
-        将对应数据写到文件中
-        """
-        for res in result:
-            origin_result_list = res.get("origin_log_list")
-            for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item))
-
-
-class UnionAsyncExportUtils:
+class UnionAsyncExportUtils(BaseExportUtils):
     """
-    async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
+    union query async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
     """
-
-    def __init__(
-        self,
-        unify_query_handler: UnifyQueryHandler,
-        sorted_fields: list,
-        file_name: str,
-        tar_file_name: str,
-        is_external: bool = False,
-        is_quick_export: bool = False,
-        export_file_type: str = "txt",
-        external_user_email: str = "",
-    ):
-        """
-        @param unify_query_handler: the handler cls to search
-        @param sorted_fields: the fields to sort search result
-        @param file_name: the export file name
-        @param tar_file_name: the file name which will be tar
-        @param is_external: is external_request
-        """
-        self.unify_query_handler = unify_query_handler
-        self.sorted_fields = sorted_fields
-        self.file_name = file_name
-        self.tar_file_name = tar_file_name
-        self.is_external = is_external
-        self.is_quick_export = is_quick_export
-        self.export_file_type = export_file_type
-        self.external_user_email = external_user_email
-        self.file_path = f"{ASYNC_DIR}/{self.file_name}.{self.export_file_type}"
-        self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
-        self.storage = self.init_remote_storage()
-        self.notify = self.init_notify_type()
-        self.file_path_list = []
 
     def export_package(self):
         """
@@ -606,18 +576,6 @@ class UnionAsyncExportUtils:
 
         return file_path
 
-    def export_upload(self):
-        """
-        文件上传
-        """
-        self.storage.export_upload(file_path=self.tar_file_path, file_name=self.tar_file_name)
-
-    def generate_download_url(self, url_path: str):
-        """
-        生成url
-        """
-        return self.storage.generate_download_url(url_path=url_path, file_name=self.tar_file_name)
-
     def send_msg(
         self,
         index_set_ids: list,
@@ -666,54 +624,3 @@ class UnionAsyncExportUtils:
             MsgModel.ABNORMAL: _("【{platform}】【{index_set_names}】 检索导出失败"),
         }
         return title_template_map.get(title_model, title_template_map.get(MsgModel.NORMAL))
-
-    def clean_package(self):
-        """
-        清空产生的临时文件
-        """
-        for file_path in self.file_path_list:
-            os.remove(file_path)
-        os.remove(self.tar_file_path)
-
-    def init_remote_storage(self):
-        if self.is_external:
-            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_EXTERNAL).feature_config
-        else:
-            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
-        storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
-        storage = StorageType.get_instance(storage_type)
-        if not storage_type or storage_type == RemoteStorageType.NFS.value:
-            return storage(settings.EXTRACT_SAAS_STORE_DIR)
-        if storage_type == RemoteStorageType.BKREPO.value:
-            return storage(expired=ASYNC_EXPORT_EXPIRED)
-        return storage(
-            toggle.get("qcloud_secret_id"),
-            toggle.get("qcloud_secret_key"),
-            toggle.get("qcloud_cos_region"),
-            toggle.get("qcloud_cos_bucket"),
-            ASYNC_EXPORT_EXPIRED,
-        )
-
-    def get_file_size(self):
-        """
-        获取文件大小 单位：m，保留小数2位
-        """
-        return max(round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2), 0.01)
-
-    @classmethod
-    def init_notify_type(cls):
-        notify_type = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(
-            FEATURE_ASYNC_EXPORT_NOTIFY_TYPE
-        )
-
-        return NotifyType.get_instance(notify_type=notify_type)()
-
-    @classmethod
-    def write_file(cls, f, result):
-        """
-        将对应数据写到文件中
-        """
-        for res in result:
-            origin_result_list = res.get("origin_log_list")
-            for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item))

@@ -375,6 +375,8 @@ class UnionSearchExportSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if attrs.get("keyword") and attrs["keyword"].strip() == "":
+            attrs["keyword"] = WILDCARD_PATTERN
         attrs["index_set_ids"] = sorted([config["index_set_id"] for config in attrs.get("union_configs", [])])
         return attrs
 
