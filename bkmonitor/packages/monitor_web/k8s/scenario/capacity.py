@@ -34,7 +34,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_cpu_capacity_ratio",
                     name=_lazy("节点CPU装箱率"),
-                    unit="percent",
+                    unit="percentunit",
                     unsupported_resource=[],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
@@ -64,8 +64,8 @@ def get_metrics() -> list:
                 Metric(
                     id="node_memory_capacity_ratio",
                     name=_lazy("节点内存装箱率"),
-                    unit="percent",
-                    unsupported_resource=["namespace"],
+                    unit="percentunit",
+                    unsupported_resource=[],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
                 # sum(kube_pod_container_resource_requests{resource="memory"}) by (node)
@@ -75,7 +75,7 @@ def get_metrics() -> list:
                     id="node_memory_usage_ratio",
                     name=_lazy("节点内存使用率"),
                     unit="percent",
-                    unsupported_resource=["namespace"],
+                    unsupported_resource=[],
                 ),
                 # (1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))
             ],
@@ -88,21 +88,21 @@ def get_metrics() -> list:
                     id="master_node_count",
                     name=_lazy("集群Master节点计数"),
                     unit="none",
-                    unsupported_resource=["container","node"],
+                    unsupported_resource=["node"],
                 ),
                 # count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="worker_node_count",
                     name=_lazy("集群Worker节点计数"),
                     unit="none",
-                    unsupported_resource=["container","node"],
+                    unsupported_resource=["node"],
                 ),
                 # count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="node_pod_usage",
                     name=_lazy("节点Pod个数使用率"),
-                    unit="none",
-                    unsupported_resource=["container"],
+                    unit="percentunit",
+                    unsupported_resource=[],
                 ),
                 # sum by (node)(kubelet_running_pods) / sum by (node)(kube_node_status_capacity_pods)
             ],
