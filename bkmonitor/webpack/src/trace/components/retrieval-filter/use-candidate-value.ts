@@ -27,12 +27,14 @@
 import { getFieldsOptionValues } from 'monitor-api/modules/apm_trace';
 
 import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
+import { NULL_VALUE_ID, NULL_VALUE_NAME } from './utils';
 
 type ICandidateValueMap = Map<
   string,
   {
     values: { id: string; name: string }[];
     isEnd: boolean;
+    count: number;
   }
 >;
 interface IParams {
@@ -44,6 +46,20 @@ interface IParams {
   query_string: string;
   isInit__?: boolean; // 此字段判断是否需要初始化缓存候选值，不传给接口参数
 }
+interface IRes {
+  count: number;
+  list: { id: string; name: string }[];
+}
+
+function getNullValue() {
+  return JSON.parse(
+    JSON.stringify({
+      id: NULL_VALUE_ID,
+      name: NULL_VALUE_NAME,
+    })
+  );
+}
+
 export const useCandidateValue = () => {
   let candidateValueMap: ICandidateValueMap = new Map();
   let axiosController = new AbortController();
@@ -56,7 +72,7 @@ export const useCandidateValue = () => {
     2.-> 返回数量 < limit， 用户输入检索值由前端模糊检索（查询的数据量小于limit,检索值下拉框没有失焦用户继续输入检索值走前端的模糊检索）
     3.-> 来回切换字段、 检索值下拉框失焦再次点击，都要重新拉取候选项
   */
-  function getFieldsOptionValuesProxy(params: IParams): Promise<{ id: string; name: string }[]> {
+  function getFieldsOptionValuesProxy(params: IParams): Promise<IRes> {
     return new Promise((resolve, _reject) => {
       if (params?.isInit__) {
         candidateValueMap = new Map();
@@ -73,9 +89,16 @@ export const useCandidateValue = () => {
             const nameLower = item.name.toLocaleLowerCase();
             return idLower.includes(searchValueLower) || nameLower.includes(searchValueLower);
           });
-          resolve(filterValues);
+          resolve({
+            count: filterValues.length,
+            list: [getNullValue(), ...filterValues],
+          });
         } else {
-          resolve(candidateItem.values.slice(0, params.limit));
+          const list = candidateItem.values.slice(0, params.limit);
+          resolve({
+            count: list.length,
+            list: [getNullValue(), ...list],
+          });
         }
       } else {
         axiosController.abort();
@@ -93,24 +116,34 @@ export const useCandidateValue = () => {
           .then(res => {
             const data = res?.[params?.fields?.[0]] || [];
             const values =
-              data?.map(item => ({
-                id: item,
-                name: transformFieldName(params?.fields?.[0], item) || item,
-              })) || [];
+              data
+                .filter(item => (typeof item === 'string' ? !!item : true))
+                ?.map(item => ({
+                  id: item,
+                  name: transformFieldName(params?.fields?.[0], item) || item,
+                })) || [];
             const isEnd = values.length < params.limit;
             const newMap = new Map();
+
             if (!searchValue && isEnd) {
               newMap.set(getMapKey(params), {
-                values,
+                values: values,
                 isEnd: isEnd,
+                count: data.length,
               });
             }
             candidateValueMap = newMap;
-            resolve(values);
+            resolve({
+              list: [getNullValue(), ...values],
+              count: data.length,
+            });
           })
           .catch(err => {
             if (err?.message !== 'canceled') {
-              resolve([]);
+              resolve({
+                count: 0,
+                list: [getNullValue()],
+              });
             }
           });
       }

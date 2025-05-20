@@ -236,9 +236,8 @@ export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
 }
 
 export function getDurationDisplay(value: Array<number | string>) {
-  const start = value[0] ? `${Number(value[0]) / 1000}ms` : '0ms';
-  const end = value[1] ? `${Number(value[1]) / 1000}ms` : '0ms';
-  return `${start}~${end}`;
+  const str = value.map(v => (v ? `${Number(v) / 1000}ms` : '0ms')).join('~');
+  return str;
 }
 export function getTopDocument(node = document) {
   let currentRoot = node.getRootNode();
@@ -265,3 +264,6 @@ export const GROUP_RELATION_KEY = 'group_relation';
 export const EXISTS_KEYS = ['exists', 'not exists'];
 /* 默认组件关系 */
 export const DEFAULT_GROUP_RELATION = 'OR';
+/* 空值的id和name */
+export const NULL_VALUE_NAME = `- ${window.i18n.t('空')} -`;
+export const NULL_VALUE_ID = '';

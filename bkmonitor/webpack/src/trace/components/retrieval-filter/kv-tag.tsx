@@ -29,6 +29,7 @@ import { defineComponent, shallowRef, computed, watch } from 'vue';
 import { promiseTimeout } from '@vueuse/core';
 
 import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS } from './typing';
+import { NULL_VALUE_NAME } from './utils';
 
 import './kv-tag.scss';
 
@@ -57,22 +58,22 @@ export default defineComponent({
       () => props.value,
       val => {
         if (val && JSON.stringify(localValue.value || {}) !== JSON.stringify(val)) {
-          const $localValue = JSON.parse(JSON.stringify(val));
+          const localValueT = JSON.parse(JSON.stringify(val));
           let count = 0;
-          const $value = [];
+          const valueT = [];
           for (const item of val.value) {
             if (count === 3) {
               break;
             }
             count += 1;
-            $value.push({
+            valueT.push({
               ...item,
-              name: item.name.length > 20 ? `${item.name.slice(0, 20)}...` : item.name,
+              name: item?.name?.length > 20 ? `${item.name.slice(0, 20)}...` : item.name,
             });
           }
           localValue.value = {
-            ...$localValue,
-            $value,
+            ...localValueT,
+            valueT,
           };
           hideCount.value = val.value.length - 3;
           groupRelation.value = val?.options?.group_relation || 'OR';
@@ -146,7 +147,7 @@ export default defineComponent({
               this.$slots.value()
             ) : (
               <>
-                {this.localValue.value.map((item, index) => [
+                {this.localValue.value.slice(0, 3).map((item, index) => [
                   index > 0 && (
                     <span
                       key={`${index}_condition`}
@@ -159,7 +160,7 @@ export default defineComponent({
                     key={`${index}_key`}
                     class='value-name'
                   >
-                    {['string', 'number'].includes(typeof item.name) ? item.name : '""'}
+                    {['string', 'number'].includes(typeof item.name) ? item.name : NULL_VALUE_NAME}
                   </span>,
                 ])}
                 {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}

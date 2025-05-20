@@ -609,10 +609,22 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      // const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      // const url = location.href.replace(
+      //   location.hash,
+      //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
+      // );
+      // window.open(url, '_blank');
+      const where = JSON.stringify([
+        {
+          key: content.query_key,
+          operator: 'equal',
+          value: [String(content.query_value)?.replace(/\"/g, '\\"') ?? ''],
+        },
+      ]);
       const url = location.href.replace(
         location.hash,
-        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
+        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&where=${where}&filterMode=ui`
       );
       window.open(url, '_blank');
     };
