@@ -154,7 +154,7 @@ export default class CollectIndex extends tsc<IProps> {
   currentCollectionType = 'origin';
 
   // 勾选是否查看当前索引集
-  isShowCurrentIndexList = RetrieveHelper.isViewCurrentIndex
+  isShowCurrentIndexList = RetrieveHelper.isViewCurrentIndex;
 
   // 是否隐藏收藏
   isHidden = false;
@@ -250,14 +250,10 @@ export default class CollectIndex extends tsc<IProps> {
       };
     };
     if (this.currentCollectionType === 'origin') {
-      return this.originFavoriteList
-        .map(mapFn)
-        .filter(item => !this.isShowCurrentIndexList || item.favorites.length);
+      return this.originFavoriteList.map(mapFn).filter(item => !this.isShowCurrentIndexList || item.favorites.length);
     }
 
-    return this.chartFavoriteList
-      .map(mapFn)
-      .filter(item => !this.isShowCurrentIndexList || item.favorites.length);
+    return this.chartFavoriteList.map(mapFn).filter(item => !this.isShowCurrentIndexList || item.favorites.length);
   }
 
   get groupList() {
@@ -388,7 +384,7 @@ export default class CollectIndex extends tsc<IProps> {
     });
 
     Object.assign(query, resolver.resolveParamsToUrl(), {
-      tab: favoriteItem.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
+      tab: favoriteItem?.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
     });
 
     this.$router.replace({
@@ -884,8 +880,8 @@ export default class CollectIndex extends tsc<IProps> {
               <span>
                 <bk-checkbox
                   v-model={this.isShowCurrentIndexList}
-                  false-value= {false}
-                  true-value= {true}
+                  false-value={false}
+                  true-value={true}
                   onChange={this.handleShowCurrentChange}
                 >
                   仅查看当前索引集
