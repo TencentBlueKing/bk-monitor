@@ -78,6 +78,7 @@ from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
@@ -1960,7 +1961,12 @@ class QueryFieldsTopkResource(Resource):
                     {
                         "value": field_topk["field_value"],
                         "count": field_topk["count"],
-                        "proportions": round(100 * (field_topk["count"] / total), 2) if total > 0 else 0,
+                        "proportions": format_percent(
+                            100 * (field_topk["count"] / total) if total > 0 else 0,
+                            precision=3,
+                            sig_fig_cnt=3,
+                            readable_precision=3,
+                        ),
                     }
                     for field_topk in field_topk_map.get(field, [])
                 ],
