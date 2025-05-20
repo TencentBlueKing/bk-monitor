@@ -44,6 +44,7 @@ import { Loading } from 'bkui-vue';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
+import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
@@ -55,6 +56,7 @@ import {
   SPAN_KIND_MAPS,
   SPAN_STATUS_CODE_MAP,
   TABLE_DEFAULT_CONFIG,
+  TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from './constants';
 import ExploreTableEmpty from './explore-table-empty';
 import { useTableEllipsis, useTableHeaderDescription } from './hooks/use-table-popover';
@@ -111,6 +113,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
+
+    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+
     /** table 默认配置项 */
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
     /** 表格单页条数 */
@@ -169,8 +174,8 @@ export default defineComponent({
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** table 列配置本地缓存时的 key */
-    const displayColumnFieldsCacheKey = computed(() =>
-      isSpanVisual.value ? 'spanCheckedExploreSettings' : 'traceCheckedExploreSettings'
+    const displayColumnFieldsCacheKey = computed(
+      () => `${props.mode}_${props.appName}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
     );
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
@@ -309,6 +314,13 @@ export default defineComponent({
     });
 
     watch(
+      () => displayColumnFieldsCacheKey.value,
+      () => {
+        getDisplayColumnFields();
+      }
+    );
+
+    watch(
       [
         () => isSpanVisual.value,
         () => props.appName,
@@ -325,7 +337,6 @@ export default defineComponent({
         store.updateTableList([]);
         emit('backTop');
         if (nVal[0] !== oVal[0]) {
-          getDisplayColumnFields();
           sortContainer.sortBy = '';
           sortContainer.descending = null;
         }
@@ -583,9 +594,10 @@ export default defineComponent({
      * @description: 获取 table 表格列配置
      *
      */
-    function getDisplayColumnFields() {
+    async function getDisplayColumnFields() {
+      if (!props.appName || !props.mode) return;
       const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
-      const cacheColumns = JSON.parse(localStorage.getItem(displayColumnFieldsCacheKey.value)) as string[];
+      const cacheColumns = (await handleGetUserConfig<string[]>(displayColumnFieldsCacheKey.value)) || [];
       // 需要展示的字段列名数组
       displayColumnFields.value = cacheColumns?.length
         ? cacheColumns
@@ -704,7 +716,8 @@ export default defineComponent({
      */
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
       displayColumnFields.value = displayFields;
-      localStorage.setItem(displayColumnFieldsCacheKey.value, JSON.stringify(displayFields));
+      // 缓存列配置
+      handleSetUserConfig(JSON.stringify(displayFields), displayColumnFieldsCacheKey.value);
     }
 
     /**
