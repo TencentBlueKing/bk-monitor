@@ -37,7 +37,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-// import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
