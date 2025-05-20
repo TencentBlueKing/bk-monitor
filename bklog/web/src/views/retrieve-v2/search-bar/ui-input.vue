@@ -381,29 +381,15 @@
       set(item, 'showList', new Array(item.value.length).fill(false))
     }
     set(item.showList, childIndex, show)
-    // emitChange(modelValue.value);
-    updateModelValue(item);
+    emitChange(cloneDeep(modelValue.value));
   }
   const onlyOptionShow =  (childIndex,item)=>{
     if(!item.showList){
       set(item, 'showList', new Array(item.value.length).fill(true))
     }
     item.showList = item.showList.map((_, index) => index !== childIndex);
-    // emitChange(modelValue.value);
-    updateModelValue(item);
+    emitChange(cloneDeep(modelValue.value));
   }
-  const updateModelValue = (item) => {
-    const clonedModelValue = cloneDeep(modelValue.value);
-    clonedModelValue.forEach((modelItem) => {
-      if (modelItem.field === item.field) { 
-        modelItem.value = item.value.filter((_, index) => item.showList[index]);
-      }
-      delete  modelItem.showList
-    });
-    console.log(clonedModelValue);
-    
-    emitChange(clonedModelValue);
-  };
 </script>
 
 <template>
@@ -595,18 +581,20 @@
       }
     }
   }
+
   .bk-tooltip-content{
     .match-value-select{
-      align-items: center;
-      background-color: #fff;
       display: flex;
+      align-items: center;
       font-size: 12px;
       line-height: 32px;
       cursor: pointer;
+      background-color: #fff;
     }
+
     .delete-line{
-      text-decoration: line-through;
       color: #979ba5;
+      text-decoration: line-through;
     }
   }
 </style>
