@@ -68,7 +68,8 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     extensions: [
       keymap.of([
         {
-          key: 'Enter',
+          key: 'Ctrl-Enter',
+          mac: 'Cmd-Enter',
           run: view => {
             return onKeyEnter?.(view) ?? false;
           },

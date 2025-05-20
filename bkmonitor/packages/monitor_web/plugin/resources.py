@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -16,9 +15,13 @@ import hashlib
 import logging
 import os
 import re
+import shlex
 import shutil
 import tarfile
 import time
+import pathlib
+import subprocess
+import json
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -56,6 +59,9 @@ from core.errors.plugin import (
     RelatedItemsExist,
     SNMPMetricNumberError,
     UnsupportedPluginTypeError,
+    RegexParseError,
+    SubprocessCallError,
+    JsonParseError,
 )
 from monitor.models import GlobalConfig
 from monitor_web.commons.data_access import PluginDataAccessor
@@ -144,7 +150,9 @@ class DataDogPluginUploadResource(Resource):
 
 class SaveMetricResource(Resource):
     class RequestSerializer(MetricJsonBaseSerializer):
-        plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
+        plugin_id = serializers.RegexField(
+            required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID"
+        )
         plugin_type = serializers.ChoiceField(
             required=True, choices=[choice[0] for choice in CollectorPluginMeta.PLUGIN_TYPE_CHOICES], label="插件类型"
         )
@@ -218,7 +226,7 @@ class CreatePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(CreatePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, params):
         # 新建插件默认开启自动发现
@@ -256,7 +264,7 @@ class CreatePluginResource(Resource):
 
 class PluginRegisterResource(Resource):
     def __init__(self):
-        super(PluginRegisterResource, self).__init__()
+        super().__init__()
         self.plugin_manager = None
         self.RequestSerializer = PluginRegisterRequestSerializer
         self.plugin_id = None
@@ -326,7 +334,7 @@ class PluginRegisterResource(Resource):
             with open(file_name, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash.update(chunk)
-        except IOError:
+        except OSError:
             return "-1"
 
         return hash.hexdigest()
@@ -374,7 +382,7 @@ class PluginRegisterResource(Resource):
                 raise RegisterPackageError({"msg": result["message"]})
 
             if result["is_finish"]:
-                logger.info("register package task({}) result: {}".format(job_id, result))
+                logger.info(f"register package task({job_id}) result: {result}")
                 break
             time.sleep(1)
             to_be_continue -= 1
@@ -400,7 +408,7 @@ class PluginRegisterResource(Resource):
             for filename in filenames:
                 if not filename.endswith(".tpl"):
                     # 不以 .tpl 结尾的，不注册为模板
-                    logger.info("template name ({}) not endswith .tpl, skip".format(filename))
+                    logger.info(f"template name ({filename}) not endswith .tpl, skip")
                     continue
                 with open(os.path.join(root, filename), "rb") as f:
                     content = f.read()
@@ -416,7 +424,7 @@ class PluginImportResource(Resource):
     CollectorFile = namedtuple("CollectorFile", ["name", "data"])
 
     def __init__(self):
-        super(PluginImportResource, self).__init__()
+        super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
         self.filename_list = []
@@ -462,7 +470,7 @@ class PluginImportResource(Resource):
         try:
             with open(meta_yaml_path) as f:
                 meta_content = f.read()
-        except IOError:
+        except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
         meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -478,7 +486,9 @@ class PluginImportResource(Resource):
     def check_conflict_mes(self):
         self.create_params["conflict_ids"] = []
         if not self.current_version:
-            self.create_params["conflict_detail"] = """已经存在重名的插件, 上传的插件版本为: {}""".format(self.tmp_version.version)
+            self.create_params["conflict_detail"] = (
+                f"""已经存在重名的插件, 上传的插件版本为: {self.tmp_version.version}"""
+            )
             return
         if self.current_version.is_official:
             if self.tmp_version.is_official:
@@ -490,14 +500,18 @@ class PluginImportResource(Resource):
                     self.create_params["conflict_detail"] = ""
                     self.create_params["duplicate_type"] = None
             else:
-                self.create_params["conflict_detail"] = """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
                 self.check_conflict_title()
         else:
             if self.tmp_version.is_official:
-                self.create_params["conflict_detail"] = """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
             else:
                 self.create_params["conflict_detail"] = """导入插件包版本为: {}；当前插件版本为: {}""".format(
@@ -662,7 +676,7 @@ class SaveAndReleasePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(SaveAndReleasePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     @atomic
     def perform_request(self, validated_request_data):
@@ -876,7 +890,10 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
 
         # 1.首次导入
         # 2.数据库不存在，节点管理存在时
-        if not self.create_params["duplicate_type"] or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]:
+        if (
+            not self.create_params["duplicate_type"]
+            or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]
+        ):
             return save_resource.request(self.create_params)
         else:
             # 导入与原有插件完全一致
@@ -894,8 +911,91 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
             # 版本小于等于当前版本
             if StrictVersion(self.tmp_version.version) < StrictVersion(self.current_version.version):
                 # 将低版本的信息写入高版本,只需要将version信息，create_params中改为与当前版本一致即可
-                self.tmp_version.config_version = self.create_params[
-                    "config_version"
-                ] = self.current_version.config_version
+                self.tmp_version.config_version = self.create_params["config_version"] = (
+                    self.current_version.config_version
+                )
                 self.tmp_version.info_version = self.create_params["info_version"] = self.current_version.info_version
             return save_resource.request(self.create_params)
+
+
+class ProcessCollectorDebugResource(Resource):
+    """
+    进程采集数据 debug 接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        processes = serializers.CharField(required=True)
+        match = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        exclude = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        dimensions = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        process_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def perform_request(self, validated_request_data: dict):
+        # 参数正则校验
+        def _validate_regex(value_: str):
+            """通用正则表达式验证方法"""
+            if value_:
+                try:
+                    re.compile(value_)
+                except re.error:
+                    return False
+            return True
+
+        # 在此对参数进行正则校验
+        for field_name in ["exclude", "dimensions", "process_name"]:
+            value = validated_request_data.get(field_name, "")
+            if value:
+                if not _validate_regex(value):
+                    raise RegexParseError({"msg": f"对应字字段为 {field_name}"})
+
+        # 获取当前目录
+        current_dir = pathlib.Path(__file__).parent
+        cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
+
+        # 提取参数
+        match = validated_request_data.get("match", "")
+        exclude = validated_request_data.get("exclude", "")
+        dimensions = validated_request_data.get("dimensions", "")
+        process_name = validated_request_data.get("process_name", "")
+        processes = validated_request_data.get("processes", "")
+
+        # 参数转义
+        match = shlex.quote(match)
+        exclude = shlex.quote(exclude)
+        dimensions = shlex.quote(dimensions)
+        process_name = shlex.quote(process_name)
+        processes = shlex.quote(processes)
+
+        # 执行命令
+        cmd_args = [
+            str(cmd_path),
+            f"--match={match}",
+            f"--exclude={exclude}",
+            f"--dimensions={dimensions}",
+            f"--process_name={process_name}",
+            f"--processes={processes}",
+        ]
+        try:
+            result = subprocess.run(cmd_args, check=True, capture_output=True, text=True, timeout=15)
+        except subprocess.TimeoutExpired as e:
+            # 调用超时
+            logger.error(f"Process matcher command timed out, error_message: {e}")
+            raise SubprocessCallError({"msg": "Process matcher command timed out"})
+        except subprocess.CalledProcessError as e:
+            # 命令执行失败
+            logger.error(f"Process matcher failed with code {e.returncode}: {e.stderr}")
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e.stderr}"})
+        except Exception as e:
+            # 未知错误
+            logger.error(f"Unexpected error executing process matcher: {e}")
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e}"})
+
+        # 返回结果
+        try:
+            # 解析 JSON 输出并返回结构化数据
+            # 如果直接返回 result.stdout， 则会包含多余的转义字符， 所以这里先反序列化
+            json_result = json.loads(result.stdout.strip())
+            return json_result
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse process matcher output: {e}")
+            raise JsonParseError({"msg": f"json解析 stdout 失败: {e}"})

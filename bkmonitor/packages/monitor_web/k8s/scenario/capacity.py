@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,19 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
 
 from django.utils.translation import gettext_lazy as _lazy
 
 from monitor_web.k8s.scenario import Category, Metric
 
 """
-k8s 性能场景配置, 初版
+k8s 容量场景配置, 初版
 """
 
 
 # 每个场景需要配置一个 get_metrics函数 以返回指标列表
-def get_metrics() -> List:
+def get_metrics() -> list:
     return [
         Category(
             id="CPU",
@@ -36,7 +34,7 @@ def get_metrics() -> List:
                 Metric(
                     id="node_cpu_capacity_ratio",
                     name=_lazy("节点CPU装箱率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=[],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
@@ -46,7 +44,7 @@ def get_metrics() -> List:
                 Metric(
                     id="node_cpu_usage_ratio",
                     name=_lazy("节点CPU使用率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=[],
                 ),
                 # (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) by (node)) * 100
@@ -66,7 +64,7 @@ def get_metrics() -> List:
                 Metric(
                     id="node_memory_capacity_ratio",
                     name=_lazy("节点内存装箱率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=["namespace"],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
@@ -76,7 +74,7 @@ def get_metrics() -> List:
                 Metric(
                     id="node_memory_usage_ratio",
                     name=_lazy("节点内存使用率"),
-                    unit="percentunit",
+                    unit="percent",
                     unsupported_resource=["namespace"],
                 ),
                 # (1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))
@@ -90,14 +88,14 @@ def get_metrics() -> List:
                     id="master_node_count",
                     name=_lazy("集群Master节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["container","node"],
                 ),
                 # count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="worker_node_count",
                     name=_lazy("集群Worker节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["container","node"],
                 ),
                 # count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(

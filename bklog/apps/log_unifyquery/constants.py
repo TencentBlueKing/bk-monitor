@@ -67,9 +67,13 @@ BASE_OP_MAP = {
 ADVANCED_OP_MAP = {
     OperatorEnum.CONTAINS_MATCH_PHRASE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "ne", "condition": "or"},
-    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {"operator": "eq", "condition": "or", "is_wildcard": True},
+    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
+        "operator": "contains",
+        "condition": "or",
+        "is_wildcard": True
+    },
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
-        "operator": "ne",
+        "operator": "ncontains",
         "condition": "or",
         "is_wildcard": True,
     },
@@ -85,8 +89,8 @@ ADVANCED_OP_MAP = {
         "condition": "and",
         "is_wildcard": True,
     },
-    OperatorEnum.EXISTS["operator"]: {"operator": "eq", "condition": "or"},
-    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_TRUE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_FALSE["operator"]: {"operator": "eq", "condition": "or"},
 }

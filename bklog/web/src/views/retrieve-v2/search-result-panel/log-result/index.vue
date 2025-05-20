@@ -120,6 +120,8 @@
   import bklogTagChoice from '../../search-bar/bklog-tag-choice';
   import ResultStorage from '../../components/result-storage/index';
   import BkLogPopover from '../../../../components/bklog-popover/index';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+
   let logResultResizeObserver;
   let logResultResizeObserverFn;
 
@@ -160,6 +162,7 @@
         tippyOptions: {
           maxWidth: 1200,
           arrow: false,
+          hideOnClick: false,
         },
       };
     },
@@ -205,7 +208,7 @@
         return this.$store.state.showFieldsConfigPopoverNum;
       },
       jsonFormat() {
-        return this.$store.state.storage.tableJsonFormat;
+        return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
       },
       highlightStyle() {
         return {

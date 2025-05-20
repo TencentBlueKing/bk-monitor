@@ -42,7 +42,6 @@
    */
   const setEditorContext = (val, from = 0, to = undefined) => {
     editorInstance?.setValue(val, from, to);
-    // return editorInstance?.getValue();
   };
 
   /**
@@ -154,7 +153,7 @@
       },
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
-        closeAndRetrieve();
+        debounceRetrieve();
         return true;
       },
       onFocusChange: (_, isFocusing) => {

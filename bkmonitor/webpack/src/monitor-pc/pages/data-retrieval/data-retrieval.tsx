@@ -315,8 +315,6 @@ export default class DataRetrieval extends tsc<object> {
 
   // 自动刷新
   refreshInstance = null;
-  // 事件类型
-  eventType = 'custom_event';
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -2743,7 +2741,6 @@ export default class DataRetrieval extends tsc<object> {
    * @param data
    */
   handleEventDataChange(data) {
-    this.eventType = data.eventType || '';
     const targets = [
       {
         data: {
@@ -3540,7 +3537,7 @@ export default class DataRetrieval extends tsc<object> {
                       </div>
                     </div>
                   </div>
-                  {this.$route.name === 'event-retrieval' && this.eventType === 'custom_event' && (
+                  {this.$route.name === 'event-retrieval' && (
                     <bk-button
                       style={{ marginTop: '8px' }}
                       slot='center'

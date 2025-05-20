@@ -725,6 +725,7 @@ export default class AuthorizationList extends tsc<object> {
             <p class='page-title'>{this.$t('route-外部授权列表')}</p>
             <BizSelect
               bizList={this.bizIdList}
+              canSetDefaultSpace={false}
               isShowCommon={false}
               minWidth={310}
               theme='light'
@@ -946,8 +947,9 @@ export default class AuthorizationList extends tsc<object> {
 
         <AuthorizationDialog
           v-model={this.visible}
-          authorizer={this.memberSelect}
+          authorizer={this.memberSelect || '--'}
           bizId={this.bizId}
+          defaultResources={this.resourceList}
           rowData={this.rowData}
           viewType={this.angleType}
           onSuccess={this.handleSuccess}

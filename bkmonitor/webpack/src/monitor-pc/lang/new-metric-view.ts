@@ -117,4 +117,7 @@ export default {
     'Only letters, numbers, and underscores are allowed, and the name must start with a letter',
   无维度数据可下钻: 'No dimension data available for drilling down',
   维度下钻: '',
+  编辑范围: 'Edit Range',
+  全量: 'Full',
+  '新增 "{0}" 维度': 'Added "{0}" dimension',
 };

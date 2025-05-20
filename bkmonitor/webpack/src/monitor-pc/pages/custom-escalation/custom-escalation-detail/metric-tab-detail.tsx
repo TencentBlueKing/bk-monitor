@@ -27,9 +27,9 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AddGroupDialog from './add-group-dialog';
-import { ALL_LABEL, NULL_LABEL } from './custom-escalation-detail';
 import CustomGroupingList from './custom-grouping-list';
 import IndicatorTable from './metric-table';
+import { ALL_LABEL, NULL_LABEL } from './type';
 
 import './metric-tab-detail.scss';
 
@@ -83,7 +83,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   isSearchMode: boolean;
   delGroupName = '';
 
-  created() {}
+  created() { }
 
   // 过滤后的自定义分组
   get filteredCustomGroups() {
@@ -91,6 +91,13 @@ export default class MetricTabDetail extends tsc<any, any> {
     if (!this.searchGroupKeyword) return this.customGroups;
     const keyword = this.searchGroupKeyword.toLowerCase();
     return this.customGroups.filter(group => group.name.toLowerCase().includes(keyword));
+  }
+
+  /**
+   * 获取分组名称列表
+   */
+  get groupNameList(): string[] {
+    return this.customGroups.map(item => item.name);
   }
 
   // 搜索处理函数
@@ -279,6 +286,7 @@ export default class MetricTabDetail extends tsc<any, any> {
               <AddGroupDialog
                 groupInfo={this.currentGroupInfo}
                 isEdit={this.isEdit}
+                nameList={this.groupNameList}
                 show={this.showAddGroupDialog}
                 onCancel={this.handleCancel}
                 onGroupSubmit={this.submitGroup}

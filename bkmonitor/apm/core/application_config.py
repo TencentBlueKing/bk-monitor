@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import gzip
 import json
 import logging
 from collections import defaultdict
-from typing import List
 
 import jinja2
 from django.conf import settings
@@ -24,7 +23,8 @@ from apm.constants import (
     DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG,
     DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
-    ConfigTypes, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
+    ConfigTypes,
+    DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
 from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
@@ -83,7 +83,7 @@ class ApplicationConfig(BkCollectorConfig):
         from apm_ebpf.models import ClusterRelation
 
         cluster_ids = ClusterRelation.objects.filter(bk_biz_id=self._application.bk_biz_id).values_list(
-            'cluster_id', flat=True
+            "cluster_id", flat=True
         )
         need_deploy_cluster_ids = set(cluster_ids)
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
@@ -129,8 +129,7 @@ class ApplicationConfig(BkCollectorConfig):
         queue_config = self.get_queue_config()
         attribute_config = self.get_config(ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG)
         attribute_config_logs = self.get_config(
-            ConfigTypes.ATTRIBUTES_CONFIG_LOGS,
-            DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
+            ConfigTypes.ATTRIBUTES_CONFIG_LOGS, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
         )
         sdk_config, sdk_config_scope = self.get_probe_config()
         db_slow_command_config = self.get_config(
@@ -332,7 +331,7 @@ class ApplicationConfig(BkCollectorConfig):
         sampler_configs = self.get_random_sampler_config(config_level)
         keys = set(sampler_configs.keys()) | set(apdex_configs.keys())
         configs = []
-        for key in keys:
+        for key in sorted(keys):
             config = {}
             apdex_config = apdex_configs.get(key)
             sampler_config = sampler_configs.get(key)
@@ -451,7 +450,7 @@ class ApplicationConfig(BkCollectorConfig):
             res.append(tem_item)
         return {"name": "probe_filter/common", "rules": res}
 
-    def deploy(self, application_config, bk_host_ids: List[int]):
+    def deploy(self, application_config, bk_host_ids: list[int]):
         """
         下发bk-collector的应用配置
         """
@@ -493,18 +492,16 @@ class ApplicationConfig(BkCollectorConfig):
                 if old_subscription_params_md5 != new_subscription_params_md5:
                     logger.info("apm application config subscription task config has changed, update it.")
                     result = api.node_man.update_subscription(subscription_params)
-                    logger.info("update apm application config subscription successful, result:{}".format(result))
+                    logger.info(f"update apm application config subscription successful, result:{result}")
                     applicaiton_subscription.update(config=subscription_params)
                 return sub_config_obj.subscription_id
             except Exception as e:  # noqa
-                logger.exception(
-                    "update apm application config subscription error:{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"update apm application config subscription error:{e}, params:{subscription_params}")
         else:
             try:
                 logger.info("apm application config subscription task not exists, create it.")
                 result = api.node_man.create_subscription(subscription_params)
-                logger.info("create apm application config subscription successful, result:{}".format(result))
+                logger.info(f"create apm application config subscription successful, result:{result}")
 
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
@@ -518,11 +515,9 @@ class ApplicationConfig(BkCollectorConfig):
                 result = api.node_man.run_subscription(
                     subscription_id=subscription_id, actions={self.PLUGIN_NAME: "INSTALL"}
                 )
-                logger.info("run apm application config subscription result:{}".format(result))
+                logger.info(f"run apm application config subscription result:{result}")
             except Exception as e:  # noqa
-                logger.exception(
-                    "create apm application config subscription error{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"create apm application config subscription error{e}, params:{subscription_params}")
 
     def deploy_to_k8s(self, cluster_id: str, application_config: str):
         def secret_subconfig_name(app_id: int):
@@ -545,7 +540,7 @@ class ApplicationConfig(BkCollectorConfig):
                 if not isinstance(_sec.data, dict):
                     continue
 
-                splits = _sec.metadata.name.rsplit('-', 2)
+                splits = _sec.metadata.name.rsplit("-", 2)
                 if len(splits) != 3:
                     continue
 

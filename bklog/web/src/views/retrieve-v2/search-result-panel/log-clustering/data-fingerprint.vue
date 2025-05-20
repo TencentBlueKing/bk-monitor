@@ -237,7 +237,7 @@
             }"
           >
             <bk-user-selector
-             v-if="!isExternal"
+              v-if="!isExternal"
               style="margin-top: 4px"
               class="principal-input"
               :api="userApi"
@@ -256,7 +256,7 @@
               :allow-create="true"
               :clearable="false"
               :has-delete-icon="true"
-              @change="val => handleChangePrincipal(val, row)"
+              @blur="val => handleChangePrincipal(null, row)"
             >
             </bk-tag-input>
           </div>
@@ -446,6 +446,7 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {
@@ -564,7 +565,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -591,8 +592,8 @@
         return this.$store.state.userMeta?.username;
       },
       isExternal() {
-        return window.IS_EXTERNAL === true
-      }
+        return window.IS_EXTERNAL === true;
+      },
     },
     watch: {
       'fingerList.length': {
@@ -920,6 +921,11 @@
           });
           return;
         }
+
+        if (!row.owners.length) {
+          return;
+        }
+
         this.curEditUniqueVal = {
           signature: row.signature,
           group: row.group,
@@ -931,7 +937,7 @@
             },
             data: {
               signature: this.getHoverRowValue.signature,
-              owners: val,
+              owners: val ?? row.owners,
               origin_pattern: this.getHoverRowValue.origin_pattern,
               groups: this.getGroupsValue(row.group),
             },
@@ -1237,7 +1243,7 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
       },
       changeStrategy(val, row) {
@@ -1446,19 +1452,19 @@
         }
       }
 
-      :deep(.bk-tag-input){
+      :deep(.bk-tag-input) {
         background-color: transparent;
         border: none;
 
-        .input{
+        .input {
           background-color: transparent;
         }
       }
 
-      :deep(.bk-tag-input):hover{
+      :deep(.bk-tag-input):hover {
         background-color: #eaebf0;
 
-        .input{
+        .input {
           background-color: #eaebf0;
         }
       }

@@ -1300,6 +1300,10 @@ class AlertGraphQueryResource(ApiAuthResource):
             def validate(self, attrs: Dict) -> Dict:
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
+                for condition in attrs["where"]:
+                    if isinstance(condition["value"], list):
+                        if len(condition["value"]) == 1 and None in condition["value"]:
+                            condition["value"].remove(None)
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")

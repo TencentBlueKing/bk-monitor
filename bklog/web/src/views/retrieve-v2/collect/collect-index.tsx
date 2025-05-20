@@ -154,7 +154,7 @@ export default class CollectIndex extends tsc<IProps> {
   currentCollectionType = 'origin';
 
   // 勾选是否查看当前索引集
-  isShowCurrentIndexList = 'yes';
+  isShowCurrentIndexList = RetrieveHelper.isViewCurrentIndex
 
   // 是否隐藏收藏
   isHidden = false;
@@ -187,7 +187,7 @@ export default class CollectIndex extends tsc<IProps> {
 
   get favoriteList() {
     let data = this.$store.state.favoriteList ?? [];
-    if (this.isShowCurrentIndexList === 'yes') {
+    if (this.isShowCurrentIndexList) {
       data = (this.$store.state.favoriteList ?? []).map(({ group_id, group_name, group_type, favorites }) => {
         return {
           group_id,
@@ -252,12 +252,12 @@ export default class CollectIndex extends tsc<IProps> {
     if (this.currentCollectionType === 'origin') {
       return this.originFavoriteList
         .map(mapFn)
-        .filter(item => this.isShowCurrentIndexList !== 'yes' || item.favorites.length);
+        .filter(item => !this.isShowCurrentIndexList || item.favorites.length);
     }
 
     return this.chartFavoriteList
       .map(mapFn)
-      .filter(item => this.isShowCurrentIndexList !== 'yes' || item.favorites.length);
+      .filter(item => !this.isShowCurrentIndexList || item.favorites.length);
   }
 
   get groupList() {
@@ -390,12 +390,11 @@ export default class CollectIndex extends tsc<IProps> {
     Object.assign(query, resolver.resolveParamsToUrl(), {
       tab: favoriteItem.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
     });
-    if (!isEqual(params, this.$route.params) || !isEqual(query, this.$route.query)) {
-      this.$router.replace({
-        params,
-        query,
-      });
-    }
+
+    this.$router.replace({
+      params,
+      query,
+    });
   }
 
   // 点击收藏列表的收藏
@@ -811,6 +810,9 @@ export default class CollectIndex extends tsc<IProps> {
   handleFavoriteSetttingClick() {
     this.isShowManageDialog = true;
   }
+  handleShowCurrentChange() {
+    RetrieveHelper.setViewCurrentIndexn(this.isShowCurrentIndexList);
+  }
   render() {
     return (
       <div
@@ -882,8 +884,9 @@ export default class CollectIndex extends tsc<IProps> {
               <span>
                 <bk-checkbox
                   v-model={this.isShowCurrentIndexList}
-                  false-value='no'
-                  true-value='yes'
+                  false-value= {false}
+                  true-value= {true}
+                  onChange={this.handleShowCurrentChange}
                 >
                   仅查看当前索引集
                 </bk-checkbox>

@@ -3,6 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -13,7 +14,7 @@
   });
   const emit = defineEmits(['input', 'field-status-change']);
 
-  const showFieldAlias = computed(() => store.state.storage.showFieldAlias);
+  const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
     const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
@@ -38,10 +39,7 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] = showFieldAlias.value
-        ? item.field_name || item.field_alias
-        : item.query_alias || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = item.query_alias || item.field_alias || item.field_name;
     });
 
     return fieldAliasMap;

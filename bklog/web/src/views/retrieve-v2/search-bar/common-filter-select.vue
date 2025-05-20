@@ -13,6 +13,7 @@
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -30,17 +31,23 @@
     commonFilterAddition.value = getCommonFilterAddition(store.state);
   };
 
+  let resetTimer = null;
+
   watch(
     () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
     () => {
       const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
 
-      // indexId 变化时清除无效缓存
-      if (additionValue?.indexId !== store.state.indexId) {
-        localStorage.removeItem('commonFilterAddition');
-      }
+      // 增加延迟执行，避免页面跳转 indexId 清空再次赋值导致的错误清理
+      resetTimer && clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        // indexId 变化时清除无效缓存
+        if (additionValue?.indexId !== store.state.indexId) {
+          localStorage.removeItem('commonFilterAddition');
+        }
 
-      setCommonFilterAddition();
+        setCommonFilterAddition();
+      }, 300);
     },
     { immediate: true, deep: true },
   );
@@ -57,7 +64,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
