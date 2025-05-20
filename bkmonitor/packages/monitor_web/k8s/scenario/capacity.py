@@ -101,7 +101,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_pod_usage",
                     name=_lazy("节点Pod个数使用率"),
-                    unit="none",
+                    unit="percentunit",
                     unsupported_resource=[],
                 ),
                 # sum by (node)(kubelet_running_pods) / sum by (node)(kube_node_status_capacity_pods)
