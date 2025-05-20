@@ -66,7 +66,8 @@ class ExternalViewSet(ResourceViewSet):
 class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
     def _get_options(self, request):
         options = super()._get_options(request)
-        options["bk_tenant_id"] = request.META.get("HTTP_X_BK_TENANT_ID", DEFAULT_TENANT_ID)
+        if not options.get("bk_tenant_id"):
+            options["bk_tenant_id"] = DEFAULT_TENANT_ID
         return options
 
 
