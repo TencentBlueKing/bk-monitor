@@ -19,7 +19,6 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db.models import Q
 
-from alarm_backends.service.report.handler import ReportHandler
 from alarm_backends.service.report.render.dashboard import (
     RenderDashboardConfig,
     render_dashboard_panel,
@@ -170,7 +169,7 @@ def report_mail_detect():
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def render_mails(
-    mail_handler: ReportHandler,
+    mail_handler,
     report_item: ReportItems,
     report_item_contents,
     receivers,
