@@ -111,7 +111,7 @@ class EventLogsResource(Resource):
         for query in [
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
-            queryset = queryset.add_query(query.order_by("-time"))
+            queryset = queryset.add_query(query.order_by("time desc"))
         try:
             events: list[dict[str, Any]] = list(queryset)
         except Exception as exc:
@@ -353,7 +353,7 @@ class EventTopKResource(Resource):
             queryset = queryset.add_query(
                 q.metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
                 .group_by(field)
-                .order_by("-_value")
+                .order_by("_value desc")
             )
 
         queryset.expression(alias)

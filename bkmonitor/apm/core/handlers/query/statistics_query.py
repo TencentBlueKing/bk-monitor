@@ -78,6 +78,8 @@ class Deque:
 
 
 class StatisticsQuery(BaseQuery):
+    """TODO(crayon)：StatisticsQuery 已无页面功能引用，待删除。"""
+
     LOGIC_FILTER_ALLOW_KEYS = ["root_span", "root_service_span"]
     LOGIC_FILTER_KEY_MAPPING = {
         "root_span": {"span_name": "root_span_name", "service_name": "root_span_service", "kind": "root_span_kind"},
@@ -124,20 +126,19 @@ class StatisticsQuery(BaseQuery):
         limit: int,
         offset: int,
         filters: list[types.Filter] | None = None,
-        es_dsl: dict[str, Any] | None = None,
         query_string: str | None = None,
+        sort: list[str] | None = None,
     ):
         logic_fields, filters = self._parse_filters(filters)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters)).order_by(
-            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+            *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self._add_filters_from_dsl(q, es_dsl)
         if query_string:
             q = q.query_string(query_string)
 
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
-        k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}{es_dsl}"
+        k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}"
         params_key = str(hashlib.md5(k.encode()).hexdigest())
         queryset: UnifyQuerySet = queryset.after(self._get_after_key_param(offset, params_key))
         return self._query_data(query_mode, q, queryset, offset, params_key, logic_fields)

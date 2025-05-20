@@ -22,11 +22,9 @@ from dataclasses import dataclass
 from typing import Any
 from collections.abc import Callable
 
-from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Search
 from luqum.auto_head_tail import auto_head_tail
-from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
+from luqum.elasticsearch import ElasticsearchQueryBuilder
 from luqum.exceptions import ParseError
 from luqum.parser import lexer, parser
 from luqum.tree import SearchField, Word
@@ -58,10 +56,11 @@ class QueryStringBuilder:
 
     # Refer: https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
     # TraceId must be a 32-hex-character lowercase string
-    TRACE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+    # Add possible spaces and quotes.
+    TRACE_ID_PATTERN = re.compile(r"^\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*$")
 
     # SpanId must be a 16-hex-character lowercase string
-    SPAN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
+    SPAN_ID_PATTERN = re.compile(r"^\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*$")
 
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
@@ -83,20 +82,39 @@ class QueryStringBuilder:
         return cls.TRACE_ID_PATTERN.search(query_string) is not None
 
     @classmethod
+    def extract_keyword(cls, pattern: re.Pattern, query_string: str) -> str:
+        """提取关键字"""
+        match: re.Match = pattern.search(query_string)
+        if match:
+            return match.group(1)
+        return ""
+
+    @classmethod
     def _is_span_id(cls, query_string: str):
         return cls.SPAN_ID_PATTERN.search(query_string) is not None
+
+    @classmethod
+    def extract_span_id(cls, query_string: str) -> str:
+        return cls.extract_keyword(cls.SPAN_ID_PATTERN, query_string)
+
+    @classmethod
+    def extract_trace_id(cls, query_string: str) -> str:
+        return cls.extract_keyword(cls.TRACE_ID_PATTERN, query_string)
 
     def special_check(self, query_string: str) -> str:
         """特殊字符检查"""
         if query_string.strip() == "":
             return self.WILDCARD_PATTERN
 
+        # TraceID & SpanID 直接走精确查询
+        extract_funcs: list[Callable[[str], str]] = [self.extract_span_id, self.extract_trace_id]
+        for extract_func in extract_funcs:
+            keyword: str = extract_func(query_string)
+            if keyword:
+                return f'"{keyword}"'
+
         if self.NO_KEYWORD_QUERY_PATTERN.search(query_string):
             return query_string
-
-        # TraceID & SpanID 直接走精确查询
-        if self._is_span_id(query_string) or self._is_trace_id(query_string):
-            return f'"{query_string}"'
 
         # 关键字匹配加上通配符，解决页面检索 ${keyword} 被加上双引号当成精确查询的问题
         return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
@@ -112,15 +130,6 @@ class QueryBuilder(ElasticsearchQueryBuilder):
 
 
 class QueryTreeTransformer(BaseTreeTransformer):
-    # 需要转换的嵌套KV字段，key 为匹配前缀，value 为搜索字段
-    NESTED_KV_FIELDS = {}
-
-    # 嵌套字段配置 用于用户查询时进行DSL转换
-    NESTED_FIELDS_CONFIG = {}
-
-    # 需要动态获取 mapping
-    NESTED_NEED_REALTIME_MAPPING = False
-
     # 需要进行值转换的字段
     VALUE_TRANSLATE_FIELDS = {}
 
@@ -130,35 +139,6 @@ class QueryTreeTransformer(BaseTreeTransformer):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         super().__init__()
-
-    @cached_property
-    def doc_simple_schema(self):
-        try:
-            # 默认的 mapping 无法针对自定义字段生成 default_field，
-            # 查询真实的 mapping，解决自定义上报字段检索不到的问题
-            index__mappings: dict[str, dict] = api.apm_api.query_es_mapping(
-                bk_biz_id=self.bk_biz_id, app_name=self.app_name
-            )
-            latest_index: str = sorted(list(index__mappings.keys()))[-1]
-            mapping_properties: dict[str, dict] = index__mappings[latest_index]["mappings"]["properties"]
-        except Exception:
-            # 查询不到 mapping 不直接抛出异常，使用默认 Mapping 兜底
-            logger.exception(
-                "[QueryTreeTransformer] failed to get mapping, bk_biz_id -> %s, app_name -> %s",
-                self.bk_biz_id,
-                self.app_name,
-            )
-            return {"settings": {}, "mappings": {"properties": {**self.NESTED_FIELDS_CONFIG}}}
-
-        nested_mapping_properties: dict[str, dict] = {}
-        for nested_field in self.NESTED_KV_FIELDS.keys():
-            nested_field_properties: dict = mapping_properties.get(nested_field) or {}
-            if "properties" not in nested_field_properties:
-                nested_mapping_properties[nested_field] = self.NESTED_FIELDS_CONFIG[nested_field].copy()
-            else:
-                nested_mapping_properties[nested_field] = nested_field_properties.copy()
-
-        return {"settings": {}, "mappings": {"properties": nested_mapping_properties.copy()}}
 
     @classmethod
     def get_doc_schema(cls):
@@ -181,19 +161,14 @@ class QueryTreeTransformer(BaseTreeTransformer):
             yield from self.generic_visit(node, context)
         else:
             origin_node_name = node.name
-            for field, es_field in self.NESTED_KV_FIELDS.items():
-                if node.name.startswith(f"{field}."):
-                    self.has_nested_field = True
-                    break
-            else:
-                node = SearchField(self.transform_field_to_es_field(node.name), node.expr)
+            node = SearchField(self.transform_field_to_es_field(node.name), node.expr)
             yield from self.generic_visit(
                 node, {"search_field_name": node.name, "search_field_origin_name": origin_node_name}
             )
 
-    def generate_query(self, origin_search_object, query_string: str) -> Search:
+    def generate_query(self, query_string: str) -> str:
         if not query_string:
-            return origin_search_object
+            return ""
 
         try:
             query_tree = parser.parse(query_string, lexer=lexer)
@@ -202,50 +177,22 @@ class QueryTreeTransformer(BaseTreeTransformer):
 
         if str(query_tree) == "*":
             # 如果只有一个* es特殊符号不需要作为字符串处理
-            return origin_search_object.query("query_string", query="*")
+            return "*"
 
         transformer = self.__class__(self.bk_biz_id, self.app_name)
         query_tree = transformer.visit(query_tree)
 
-        if getattr(transformer, "has_nested_field", False):
-            if self.DOC_SCHEMA:
-                schema_analyzer = SchemaAnalyzer(self.DOC_SCHEMA)
-            else:
-                schema_analyzer = SchemaAnalyzer(self.doc_simple_schema)
-
-            es_builder = QueryBuilder(**schema_analyzer.query_builder_options())
-            return origin_search_object.query(es_builder(query_tree))
-
         # 手动修改后的语法数可能会有一些空格丢失的问题，因此需要对树的头尾进行重整
         query_tree = auto_head_tail(query_tree)
-        origin_search_object = origin_search_object.query("query_string", query=str(query_tree))
-        return origin_search_object
+
+        return QueryStringBuilder(str(query_tree)).query_string
 
 
 class SpanQueryTransformer(QueryTreeTransformer):
-    NESTED_KV_FIELDS = {"events": "events", "links": "links"}
-
-    NESTED_NEED_REALTIME_MAPPING = True
-
-    # 嵌套字段配置 用于用户查询时进行DSL转换
-    NESTED_FIELDS_CONFIG = {
-        "events": {
-            "properties": {
-                "exception": {"properties": {"message": {"type": "text"}, "stacktrace": {"type": "text"}}},
-                "timestamp": {"type": "long"},
-            },
-            "type": "nested",
-        },
-        "links": {"properties": {"span_id": {"type": "string"}}, "type": "nested"},
-    }
+    pass
 
 
 class TraceQueryTransformer(QueryTreeTransformer):
-    NESTED_KV_FIELDS = {}
-
-    # 嵌套字段配置 用于用户查询时进行DSL转换
-    NESTED_FIELDS_CONFIG = {}
-
     PRE_CALC_STANDARD_FIELD_PREFIX = "collections"
 
     DIRECT_FIELD_NAME_MAPPING = {
@@ -478,30 +425,11 @@ class SpanOptionValues(OptionValues):
 class QueryHandler:
     """查询语句处理"""
 
-    def __init__(
-        self,
-        transformer,
-        ordering,
-        query_string,
-    ):
-        self.transformer = transformer
-        self.query_string = query_string
-        self.ordering = ordering
-
-    @property
-    def es_dsl(self):
-        """
-        扫描全量符合条件的文档
-        """
-        search_object = Search()
-        # 添加排序
-        search_object = search_object.sort(*self.ordering)
-
-        # queryString处理
-        if self.query_string:
-            search_object = self.transformer.generate_query(search_object, self.query_string)
-
-        return search_object.to_dict()
+    @classmethod
+    def process_query_string(cls, transformer: QueryTreeTransformer, query_string: str | None) -> str | None:
+        if not query_string:
+            return ""
+        return transformer.generate_query(query_string)
 
     @classmethod
     def has_field_not_in_fields_in_query(cls, query, fields, opposite):

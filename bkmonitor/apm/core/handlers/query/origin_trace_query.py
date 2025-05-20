@@ -40,7 +40,6 @@ class OriginTraceQuery(BaseQuery):
         offset: int,
         limit: int,
         filters: list[types.Filter] | None = None,
-        es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
@@ -48,7 +47,6 @@ class OriginTraceQuery(BaseQuery):
         page_data: dict[str, int | list[str]] = {"total": 0}
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters))
-        q = self._add_filters_from_dsl(q, es_dsl)
         if query_string:
             q.query_string(query_string)
 

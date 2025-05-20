@@ -119,14 +119,13 @@ class QueryProxy:
         limit: int,
         offset: int,
         filters: list[types.Filter] | None = None,
-        es_dsl: dict[str, Any] | None = None,
         exclude_fields: list[str] | None = None,
         query_string: str | None = None,
         sort: list[str] | None = None,
     ):
         """查询列表"""
         data, size = self.query_mode[query_mode].query_list(
-            start_time, end_time, offset, limit, filters, es_dsl, exclude_fields, query_string, sort
+            start_time, end_time, offset, limit, filters, exclude_fields, query_string, sort
         )
         return asdict(TraceInfoList(total=size, data=data))
 
@@ -198,18 +197,10 @@ class QueryProxy:
         )
 
     def query_statistics(
-        self,
-        query_mode,
-        start_time,
-        end_time,
-        limit,
-        offset,
-        filters=None,
-        es_dsl=None,
-        query_string=None,
+        self, query_mode, start_time, end_time, limit, offset, filters=None, query_string=None, sort=None
     ):
         return self.statistics_query.query_statistics(
-            query_mode, start_time, end_time, limit, offset, filters, es_dsl, query_string
+            query_mode, start_time, end_time, limit, offset, filters, query_string, sort
         )
 
     def _get_trace_relation(self, trace_id: str):
@@ -289,10 +280,9 @@ class QueryProxy:
         method: str,
         filters: list[types.Filter],
         query_string: str,
-        need_empty: bool = True,
     ):
         return self.query_mode[query_mode].query_field_aggregated_value(
-            start_time, end_time, field, method, filters, query_string, need_empty
+            start_time, end_time, field, method, filters, query_string
         )
 
     def query_graph_config(
