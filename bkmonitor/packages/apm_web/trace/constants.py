@@ -27,75 +27,113 @@ class EnabledStatisticsDimension(Enum):
 class OperatorEnum:
     """操作符枚举"""
 
-    EQ = {"operator": "equal", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    NE = {"operator": "not_equal", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    class OperatorOptions:
+        """操作符选项"""
+
+        IS_WILDCARD = {"label": _("使用通配符"), "name": "is_wildcard", "default": False}
+        GROUP_RELATION = {
+            "label": _("组间关系"),
+            "name": "group_relation",
+            "default": "OR",
+            "children": [
+                {"label": "AND", "value": "AND"},
+                {"label": "OR", "value": "OR"},
+            ],
+        }
+
     EXISTS = {"operator": "exists", "label": _("存在"), "placeholder": _("确认字段已存在")}
     NOT_EXISTS = {"operator": "not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
-    INCLUDE = {"operator": "like", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
-    CONTAINS_MATCH_PHRASE = {
-        "operator": "equal",
+    EQUAL = {"operator": "equal", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    NOT_EQUAL = {"operator": "not_equal", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    LIKE = {"operator": "like", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    NOT_LIKE = {"operator": "not_like", "label": _("不包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    GT = {"operator": "gt", "label": ">", "placeholder": _("请选择或直接输入")}
+    LT = {"operator": "lt", "label": "<", "placeholder": _("请选择或直接输入")}
+    GTE = {"operator": "gte", "label": ">=", "placeholder": _("请选择或直接输入")}
+    LTE = {"operator": "lte", "label": "<=", "placeholder": _("请选择或直接输入")}
+
+    LIKE_WILDCARD = {
+        "operator": "like",
         "label": _("包含"),
         "placeholder": _("请选择或直接输入，Enter分隔"),
-        "options": [
-            {"label": _("使用通配符"), "name": "is_wildcard", "default": False},
-            {
-                "label": _("组间关系"),
-                "name": "group_relation",
-                "default": "OR",
-                "children": [
-                    {"label": "AND", "value": "AND"},
-                    {"label": "OR", "value": "OR"},
-                ],
-            },
-        ],
+        "options": [OperatorOptions.IS_WILDCARD, OperatorOptions.GROUP_RELATION],
+    }
+    NOT_LIKE_WOLDCARD = {
+        "operator": "not_like",
+        "label": _("不包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "options": [OperatorOptions.IS_WILDCARD, OperatorOptions.GROUP_RELATION],
     }
 
 
 OPERATORS = {
     "keyword": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
-        OperatorEnum.INCLUDE,
+        OperatorEnum.LIKE,
+        OperatorEnum.NOT_LIKE,
     ],
     "text": [
-        OperatorEnum.CONTAINS_MATCH_PHRASE,
+        OperatorEnum.LIKE_WILDCARD,
+        OperatorEnum.NOT_LIKE_WOLDCARD,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
     "integer": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
     "long": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
     "double": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
     "date": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
-    "boolean": [OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "boolean": [OperatorEnum.EQUAL, OperatorEnum.NOT_EQUAL, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
     "conflict": [
-        OperatorEnum.EQ,
-        OperatorEnum.NE,
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
 }
+
 
 TRACE_FIELD_ALIAS = {
     # Trace 视角
