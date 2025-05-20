@@ -504,7 +504,7 @@ class SpanStandardField:
             _("接口名称"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
-            ValueSource.METRIC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.STATUS,
