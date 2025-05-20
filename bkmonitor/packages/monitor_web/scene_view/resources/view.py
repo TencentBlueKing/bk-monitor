@@ -455,7 +455,7 @@ class BulkUpdateSceneViewOrderAndNameResource(Resource):
             return
 
         # 找到需要更新名称的视图
-        id_name_map = {view["id"]: view["name"] for view in params["config"] if view["name"]}
+        id_name_map = {view["id"]: view["name"] for view in params["config"] if view.get("name")}
         scene_views = SceneViewModel.objects.filter(
             bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"]
         )
