@@ -90,7 +90,7 @@ export default class NewMetricView extends tsc<object> {
         function: 'top', // top/bottom
         limit: 10, // 0不限制
       },
-      view_column: 1,
+      view_column: 2,
       ...this.dimenstionParams,
       // start_time: this.startTime,
       // end_time: this.endTime,
