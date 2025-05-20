@@ -117,6 +117,8 @@ TRACE_FIELD_ALIAS = {
     "min_start_time": _("开始时间"),
     "max_end_time": _("结束时间"),
     "trace_duration": _("耗时"),
+    "span_max_duration": _("最大 Span 耗时"),
+    "span_min_duration": _("最小 Span 耗时"),
     "category_statistics.async_backend": _("Async 后台数量"),
     "category_statistics.db": _("DB 数量"),
     "category_statistics.http": _("HTTP 数量"),
