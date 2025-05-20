@@ -987,9 +987,9 @@ export default defineComponent({
     async function handleTraceListScrollBottom() {
       let len = 0;
       if (store.listType === 'trace') {
-        len = store.traceList.length;
+        len = store.traceList.length + traceListPagination.limit;
       } else if (store.listType === 'span') {
-        len = store.spanList.length;
+        len = store.spanList.length + traceListPagination.limit;
       } else if (store.listType === 'interfaceStatistics') {
         len = store.interfaceStatisticsList.length;
       } else if (store.listType === 'serviceStatistics') {
