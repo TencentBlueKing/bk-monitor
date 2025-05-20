@@ -1352,7 +1352,7 @@ class IndexSetHandler(APIModel):
             "space_uid": space.space_uid,
             "space_code": space.space_code,
             "bk_biz_id": space.bk_biz_id,
-            "time_zone": (space.extend.get("time_zone") or "Asia/Shanghai").strip('"'),
+            "time_zone": space.extend.get("time_zone") or "Asia/Shanghai",
             "bk_tenant_id": space.bk_tenant_id,
         }
 
