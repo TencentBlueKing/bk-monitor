@@ -41,12 +41,26 @@ export { RetrieveEvent, GradeSetting, GradeConfiguration };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
+  scrollEventAdded = false;
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
     super({});
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
+  }
+
+  /**
+   * 添加滚动监听
+   */
+  private setContentScroll() {
+    if (!this.scrollEventAdded) {
+      const target = document.querySelector(this.globalScrollSelector);
+      if (target) {
+        target.addEventListener('scroll', this.handleScroll);
+        this.scrollEventAdded = true;
+      }
+    }
   }
 
   /**
@@ -270,7 +284,7 @@ class RetrieveHelper extends RetrieveBase {
     localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE, `${show}`);
     this.runEvent(RetrieveEvent.FAVORITE_VIEW_CURRENT_CHANGE, show);
   }
-  
+
   /**
    * 更新滚动条查询条件
    * @param selector
@@ -314,7 +328,7 @@ class RetrieveHelper extends RetrieveBase {
   };
 
   onMounted() {
-    document.querySelector(this.globalScrollSelector)?.addEventListener('scroll', this.handleScroll);
+    this.setContentScroll();
   }
 
   destroy() {
@@ -324,7 +338,7 @@ class RetrieveHelper extends RetrieveBase {
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false' ;
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
 export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

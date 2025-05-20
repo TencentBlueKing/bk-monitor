@@ -49,23 +49,18 @@ export default defineComponent({
 
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
-        return (
-          <div
-            style={contentStyle.value}
-            class='v3-bklog-content'
-          >
-            <V3Toolbar></V3Toolbar>
-            <V3Container>
-              <V3Searchbar
-                class={{
-                  'is-sticky-top': isSearchContextStickyTop.value,
-                  'is-sticky-top-result': isSearchResultStickyTop.value,
-                }}
-              ></V3Searchbar>
-              <V3SearchResult></V3SearchResult>
-            </V3Container>
-          </div>
-        );
+        return [
+          <V3Toolbar></V3Toolbar>,
+          <V3Container>
+            <V3Searchbar
+              class={{
+                'is-sticky-top': isSearchContextStickyTop.value,
+                'is-sticky-top-result': isSearchResultStickyTop.value,
+              }}
+            ></V3Searchbar>
+            <V3SearchResult></V3SearchResult>
+          </V3Container>,
+        ];
       }
 
       return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
@@ -82,7 +77,12 @@ export default defineComponent({
         ]}
       >
         <V3Collection></V3Collection>
-        {renderResultContent()}
+        <div
+          style={contentStyle.value}
+          class='v3-bklog-content'
+        >
+          {renderResultContent()}
+        </div>
       </div>
     );
   },
