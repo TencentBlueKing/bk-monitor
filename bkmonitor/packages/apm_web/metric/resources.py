@@ -79,6 +79,7 @@ from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
     fill_series,
+    fill_unify_query_series,
     get_bar_interval_number,
     handle_filter_fields,
 )
@@ -580,7 +581,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             )
             response = {
                 "metrics": response.get("metrics"),
-                "series": fill_series(response.get("series", []), start_time, end_time, interval),
+                "series": fill_unify_query_series(response.get("series", []), start_time, end_time, interval),
             }
 
         if validate_data.get("unit"):
