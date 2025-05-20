@@ -675,15 +675,19 @@ export const RESIDENT_SETTING_EMITS = {
   change: (_v: IWhereItem[]) => true,
 } as const;
 export const TIME_CONSUMING_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFieldItem>,
+    default: () => null,
+  },
   styleType: {
     type: String as PropType<'' | 'form'>,
     default: '',
   },
   value: {
-    type: Array as PropType<number[] | string[]>,
-    default: () => [],
+    type: Object as PropType<IWhereItem>,
+    default: () => null,
   },
 };
 export const TIME_CONSUMING_EMITS = {
-  change: (_v: number[] | string[]) => true,
+  change: (_v: IWhereItem) => true,
 } as const;

@@ -33,6 +33,8 @@ class SpanQuery(BaseQuery):
     @classmethod
     def _get_select_fields(cls, exclude_fields: list[str] | None) -> list[str]:
         all_fields: set[str] = {field_info["field_name"] for field_info in TraceDataSource.TRACE_FIELD_LIST}
+        # TraceDataSource.TRACE_FIELD_LIST 定义中缺失 time 字段的定义， time 属于平台内置字段，这里查询需要补充上
+        all_fields.add("time")
         select_fields: list[str] = list(all_fields - set(exclude_fields or ["attributes", "links", "events"]))
         return select_fields
 

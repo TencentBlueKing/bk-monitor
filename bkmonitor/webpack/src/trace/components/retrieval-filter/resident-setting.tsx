@@ -181,15 +181,15 @@ export default defineComponent({
       localValue.value[index].value = value;
       handleChange();
     }
-    function handleTimeConsumingValueChange(value: number[], index: number) {
-      const field = localValue.value[index].field;
-      localValue.value[index].value = {
-        key: field.name,
-        value: value as any[],
-        method: 'between',
-      };
-      handleChange();
-    }
+    // function handleTimeConsumingValueChange(value: number[], index: number) {
+    //   const field = localValue.value[index].field;
+    //   localValue.value[index].value = {
+    //     key: field.name,
+    //     value: value as any[],
+    //     method: 'between',
+    //   };
+    //   handleChange();
+    // }
 
     function handleChange() {
       emit(
@@ -296,7 +296,7 @@ export default defineComponent({
       getFieldInfo,
       getValueFnProxy,
       handleValueChange,
-      handleTimeConsumingValueChange,
+      // handleTimeConsumingValueChange,
       handleCancel,
       handleConfirm,
     };
@@ -322,8 +322,9 @@ export default defineComponent({
                   <TimeConsuming
                     key={index}
                     class='mb-4 mr-4'
-                    value={item.value.value as any}
-                    onChange={v => this.handleTimeConsumingValueChange(v, index)}
+                    fieldInfo={this.getFieldInfo(item.field)}
+                    value={item.value}
+                    onChange={v => this.handleValueChange(v, index)}
                   />
                 );
               }

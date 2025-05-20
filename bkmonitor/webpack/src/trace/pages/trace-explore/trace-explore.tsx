@@ -394,8 +394,8 @@ export default defineComponent({
       } as any)
         .then(res => {
           return {
-            count: res.length,
-            list: res,
+            count: res.count,
+            list: res.list,
           };
         })
         .catch(() => ({

@@ -338,7 +338,7 @@ export default defineComponent({
             options: w.options || {},
             value: w.value.map(v => ({
               id: v,
-              name: v,
+              name: transformFieldName(keyItem.id, v) || v,
             })),
           });
         }
