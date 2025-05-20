@@ -180,7 +180,12 @@ export default defineComponent({
 
     const handleFavoriteClick = (e: MouseEvent, item: any) => {
       e.stopPropagation();
-      emit('favorite-change', item, !item.is_favorite);
+
+      emit(
+        'favorite-change',
+        Object.assign(item, { id: item.id ?? item.index_set_id, index_set_type: 'single' }),
+        !item.is_favorite,
+      );
     };
 
     /**

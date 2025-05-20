@@ -266,16 +266,26 @@ export default (props, { emit }) => {
   /**
    *  取消收藏
    * @param favorite
+   * @param from: 'single' 'favorite'
    * @returns
    */
-  const cancelFavorite = (favorite: any) => {
+  const cancelFavorite = (favorite: any, from = 'single') => {
     favoriteLoading.value = true;
 
     if (favorite.index_set_type === 'single') {
       return cancelSingleFavorite(favorite)
         .then(resp => {
           if (resp.result) {
-            favorite.item.is_favorite = false;
+            if (from === 'single') {
+              favorite.is_favorite = false;
+            }
+
+            if (from === 'favorite') {
+              const target = singleFavoriteList.value.find(f => f.index_set_id === favorite.index_set_id);
+              if (target) {
+                target.is_favorite = false;
+              }
+            }
             return;
           }
 
