@@ -76,6 +76,17 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
+const updateLocalstorage = (val: any) => {
+  try {
+    const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+    const jsonVal = JSON.parse(storageValue);
+    Object.assign(jsonVal, val);
+    localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 const getUrlArgs = (_route?) => {
   let urlResolver: RouteUrlResolver = null;
 
@@ -108,7 +119,13 @@ const getUrlArgs = (_route?) => {
     urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
   }
 
-  return urlResolver.convertQueryToStore<RouteParams>();
+  const result = urlResolver.convertQueryToStore<RouteParams>();
+
+  if (result.search_mode) {
+    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
+  }
+
+  return result;
 };
 
 let URL_ARGS = getUrlArgs();
@@ -215,12 +232,13 @@ export const IndexItem = {
   ...DEFAULT_DATETIME_PARAMS,
 };
 
-export const getStorageOptions = () => {
+export const getStorageOptions = (values?: any) => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
+      Object.assign(storage, values ?? []);
 
       let update = false;
       // 对旧版缓存进行还原操作

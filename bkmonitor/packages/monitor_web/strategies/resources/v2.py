@@ -3525,9 +3525,9 @@ class UpdateMetricListByBizResource(Resource):
         return config.value
 
 
-class SimpleStrategyListV2Resource(Resource):
+class GetDevopsStrategyListResource(Resource):
     """
-    对外提供的接口，供apigw调用，蓝盾插件使用该apigw，返回策略列表，每个元素只包含id和name。
+    蓝盾插件专用策略列表接口
     """
 
     class RequestSerializer(serializers.Serializer):

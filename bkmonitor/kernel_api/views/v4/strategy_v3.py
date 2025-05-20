@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,7 +16,7 @@ from bkmonitor.strategy.new_strategy import Strategy
 from constants.data_source import DATA_CATEGORY
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.strategies.resources import GetStrategyListV2Resource
+from monitor_web.strategies.resources import GetStrategyListV2Resource, GetDevopsStrategyListResource
 
 
 class SearchStrategyWithoutBizResource(GetStrategyListV2Resource):
@@ -101,4 +100,5 @@ class AlarmStrategyV3ViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchStrategyWithoutBizResource, endpoint="search_without_biz"),
         ResourceRoute("POST", resource.strategies.bulk_switch_strategy, endpoint="switch_by_labels"),
         ResourceRoute("GET", QosCheckResource, endpoint="qos_check"),
+        ResourceRoute("GET", GetDevopsStrategyListResource, endpoint="get_devops_strategy_list"),
     ]
