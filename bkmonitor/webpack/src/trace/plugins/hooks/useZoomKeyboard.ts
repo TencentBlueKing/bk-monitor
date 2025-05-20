@@ -42,26 +42,26 @@ export function useZoomKeyboard(scale: Ref<number>, options: UseZoomKeyboardOpti
    */
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey) {
-      if (e.key === '+' || e.key === '=') {
-        e.preventDefault();
-        const newScale = Math.min(scale.value + step, maxScale);
-        scale.value = newScale;
-        onScaleChange(newScale);
-      } else if (e.key === '-') {
-        e.preventDefault();
-        const newScale = Math.max(scale.value - step, minScale);
-        scale.value = newScale;
-        onScaleChange(newScale);
+      const keyStrategy = {
+        '+': () => Math.min(scale.value + step, maxScale),
+        '-': () => Math.max(scale.value - step, minScale),
+      };
+
+      e.preventDefault();
+      const calculateScale = keyStrategy[e.key];
+      if (calculateScale) {
+        scale.value = calculateScale();
+        onScaleChange(scale.value);
       }
     }
   };
 
   onMounted(() => {
-    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
   });
 
   onBeforeUnmount(() => {
-    document.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keydown', handleKeyDown);
   });
 
   return {
