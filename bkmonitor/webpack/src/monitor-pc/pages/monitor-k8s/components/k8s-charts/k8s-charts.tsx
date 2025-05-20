@@ -562,11 +562,11 @@ export default class K8SCharts extends tsc<
           )
         )`;
       case 'master_node_count': // 集群Master节点计数
-        return `count by(bcs_cluster_id)($method by(bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+        return `count by(bcs_cluster_id)($method by(node, bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
       case 'worker_node_count': // 集群Worker节点计数
         return `count by(bcs_cluster_id)(kube_node_labels{bcs_cluster_id="${clusterId}"} $time_shift)
          -
-         count(sum by (node)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+         count(sum by (node, bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
 
       case 'node_pod_usage': // 节点Pod个数使用率
         return `${this.createCommonPromqlMethod()} (last_over_time(kubelet_running_pods{${this.createCommonPromqlContent()}}[$interval:] $time_shift))

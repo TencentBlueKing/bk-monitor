@@ -161,7 +161,7 @@ def report_mail_detect():
                 item.save()
                 # 发送邮件
                 logger.info("[mail_report] start process and render mails on run time(%s)...", run_time)
-                ReportHandler(item.id).process_and_render_mails()
+                ReportHandler(bk_tenant_id=item.bk_tenant_id, item_id=item.id).process_and_render_mails()
                 logger.info("[mail_report] end process and render mails...")
                 # 满足一次条件直接终止
                 break
@@ -191,6 +191,7 @@ def render_mails(
         return
     logger.info(f"[mail_report] report_item({report_item.id}) start...")
     status = {
+        "bk_tenant_id": report_item.bk_tenant_id,
         "report_item": mail_handler.item_id,
         "mail_title": report_item.mail_title,
         "create_time": datetime.datetime.now(tz=datetime.timezone.utc),

@@ -183,12 +183,13 @@ class ReportHandler:
     报表处理器
     """
 
-    def __init__(self, item_id=None):
+    def __init__(self, bk_tenant_id: str, item_id=None):
         self.image_size_mapper = {
             1: {"width": 800, "height": 270, "deviceScaleFactor": 2},
             2: {"width": 620, "height": 300, "deviceScaleFactor": 2},
         }
         self.item_id = item_id
+        self.bk_tenant_id = bk_tenant_id
 
     def fetch_receivers(self, item_receivers: list[dict] | None = None) -> list[str]:
         """
@@ -197,7 +198,7 @@ class ReportHandler:
         """
         receivers = []
         if not item_receivers:
-            item_receivers = ReportItems.objects.get(pk=self.item_id).receivers
+            item_receivers = ReportItems.objects.get(pk=self.item_id, bk_tenant_id=self.bk_tenant_id).receivers
         groups_data = api.monitor.group_list()
         # 先解析组，再解析人，去掉is_enabled=False的人员
         # 只有开启了订阅的人才需要接收邮件
@@ -626,8 +627,10 @@ class ReportHandler:
         """
         渲染HTML并发送邮件入库
         """
-        report_item = ReportItems.objects.get(pk=self.item_id)
-        report_item_contents = list(ReportContents.objects.filter(report_item=self.item_id).values())
+        report_item = ReportItems.objects.get(bk_tenant_id=self.bk_tenant_id, pk=self.item_id)
+        report_item_contents = list(
+            ReportContents.objects.filter(bk_tenant_id=self.bk_tenant_id, report_item=self.item_id).values()
+        )
 
         # 如果选择图表时选了'有权限的业务'
         all_user_different_graph = {
