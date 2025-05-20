@@ -334,6 +334,7 @@ class RetrieveHelper extends RetrieveBase {
   destroy() {
     this.events.clear();
     document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
+    this.scrollEventAdded = false;
   }
 }
 
