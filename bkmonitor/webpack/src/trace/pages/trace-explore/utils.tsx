@@ -177,7 +177,7 @@ export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[
         if (i < parts.length - 1) {
           node = { ...item, type: 'object', levelName: part, name: part, alias: part, children: [] };
         } else {
-          node = { ...node, levelName: item.alias };
+          node = { ...item, levelName: item.alias };
         }
         currentLevel.push(node);
       }
