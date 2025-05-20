@@ -267,3 +267,7 @@ export const DEFAULT_GROUP_RELATION = 'OR';
 /* 空值的id和name */
 export const NULL_VALUE_NAME = `- ${window.i18n.t('空')} -`;
 export const NULL_VALUE_ID = '';
+/* Span 不支持弹出枚举值的字段 */
+export const SPAN_NOT_SUPPORT_ENUM_KEYS = ['time', 'start_time', 'end_time', 'parent_span_id', 'span_id', 'trace_id'];
+/* Trace 不支持弹出枚举值的字段 */
+export const TRACE_NOT_SUPPORT_ENUM_KEYS = ['min_start_time', 'max_end_time', 'trace_id', 'root_span_id'];

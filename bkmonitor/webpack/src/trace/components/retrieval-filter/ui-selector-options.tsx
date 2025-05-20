@@ -106,7 +106,7 @@ export default defineComponent({
       return {
         field: checkedItem.value?.name,
         alias: checkedItem.value?.alias,
-        isEnableOptions: !!checkedItem.value?.is_dimensions,
+        isEnableOptions: !!checkedItem.value?.isEnableOptions,
         methods:
           checkedItem.value?.supported_operations?.map(item => ({
             id: item.value,

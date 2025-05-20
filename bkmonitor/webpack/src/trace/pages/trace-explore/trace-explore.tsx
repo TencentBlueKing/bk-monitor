@@ -50,7 +50,9 @@ import { useCandidateValue } from '../../components/retrieval-filter/use-candida
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
+  SPAN_NOT_SUPPORT_ENUM_KEYS,
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
+  TRACE_NOT_SUPPORT_ENUM_KEYS,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -156,6 +158,10 @@ export default defineComponent({
     const enableProfiling = computed(
       () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
     );
+    /* 过滤栏组件无需拉取枚举值的field */
+    const notSupportEnumKeys = computed(() => {
+      return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
+    });
     useIsEnabledProfilingProvider(enableProfiling);
 
     watch(
@@ -611,6 +617,7 @@ export default defineComponent({
       currentFavorite,
       editFavoriteShow,
       editFavoriteData,
+      notSupportEnumKeys,
       showSlideDetail,
       handleQuery,
       handleAppNameChange,
@@ -677,6 +684,7 @@ export default defineComponent({
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
                 isShowFavorite={true}
+                notSupportEnumKeys={this.notSupportEnumKeys}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={this.currentFavorite}
