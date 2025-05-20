@@ -303,14 +303,11 @@ export default defineComponent({
             label: t('服务'),
             content: (
               <span
+                style='max-width: 168px'
                 class='link'
                 onClick={() => handleToServiceName(serviceName)}
               >
-                <img
-                  class='span-icon'
-                  alt=''
-                  src={icon}
-                />
+                <i class='icon-monitor icon-wangye' />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
@@ -321,6 +318,7 @@ export default defineComponent({
             label: t('应用'),
             content: (
               <span
+                style='max-width: 168px'
                 class='link'
                 onClick={() => handleToAppName(appName)}
               >
@@ -753,7 +751,7 @@ export default defineComponent({
           class='expan-item-head'
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]} />
+          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpan }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>

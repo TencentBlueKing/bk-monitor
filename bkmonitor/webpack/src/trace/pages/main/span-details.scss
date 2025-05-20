@@ -131,14 +131,14 @@
     .bk-modal-content {
       width: 1280px;
       height: 100%;
-      background: #f5f7fa;
+      background: #f3f6fa;
 
       .tag {
-        height: 16px;
+        height: 14px;
         padding: 0 4px;
-        margin-left: 8px;
+        margin-left: 10px;
         font-size: 12px;
-        line-height: 16px;
+        line-height: 14px;
         color: #fff;
         background: #979ba5;
         border-radius: 2px;
@@ -166,7 +166,7 @@
 
   // padding: 24px 40px;
   .info-tab {
-    padding: 18px 40px 0 40px;
+    padding: 10px 16px 0;
 
     .bk-tab-content {
       padding: 0;
@@ -216,40 +216,45 @@
   }
 
   .header {
-    padding: 24px 40px 0 40px;
-
-    margin-right: 20px !important;
+    padding: 12px 16px 0;
   }
 
   .title {
     display: flex;
     align-items: center;
-    font-size: 20px;
-    line-height: 28px;
+    font-size: 16px;
+    line-height: 24px;
     color: #313238;
 
     .name {
       overflow: hidden;
       text-overflow: ellipsis;
+      font-family: ArialMT;
       white-space: nowrap;
+    }
+
+    .tag {
+      font-family: Arial-BoldMT;
+      line-height: 12px;
     }
   }
 
   .others {
     display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
+    column-gap: 24px;
+    margin-top: 8px;
 
     .other-item {
       display: flex;
-      flex-direction: column;
-      max-width: 120px;
+      column-gap: 4px;
+      align-items: center;
 
       &:last-child {
         margin-right: 0;
       }
 
       .label {
+        flex-shrink: 0;
         color: #979ba5;
       }
 
@@ -261,7 +266,7 @@
         white-space: normal;
 
         .icon-type {
-          margin: 0 4px 0 0 !important;
+          margin-left: 4px !important;
         }
 
         .link {
@@ -289,10 +294,11 @@
             color: #3a84ff;
           }
 
-          .span-icon {
-            width: 12px;
-            height: 12px;
+          .icon-wangye {
+            position: unset;
+            display: unset;
             margin-right: 4px;
+            margin-left: 0px;
           }
 
           &:hover {
@@ -308,8 +314,8 @@
   .content-list {
     box-sizing: border-box;
     // margin-top: 24px;
-    height: calc(100% - 166px);
-    padding: 0 40px 14px;
+    height: calc(100% - 112px);
+    padding: 0 16px 14px;
     overflow-y: auto;
     background: #fff;
 
@@ -370,12 +376,11 @@
     .expan-item-head {
       display: flex;
       align-items: center;
-      height: 54px;
-      padding: 0 24px;
+      padding: 12px 10px 16px;
       cursor: pointer;
 
-      .icon-mc-triangle-down {
-        font-size: 24px;
+      .icon-mc-arrow-down {
+        font-size: 14px;
         transform: rotate(-90deg);
         transition: transform 0.3s;
 
@@ -385,7 +390,7 @@
       }
 
       .expan-item-title {
-        margin-left: 8px;
+        margin-left: 6px;
         font-size: 14px;
         font-weight: Bold;
         color: #313238;
@@ -425,7 +430,7 @@
 
       &.active {
         height: auto;
-        padding: 0 24px 24px 24px;
+        padding: 0 24px 14px 24px;
       }
 
       /* kv结构 */
@@ -743,6 +748,7 @@
           flex: 1;
           overflow: hidden;
           text-overflow: ellipsis;
+          font-family: Roboto-Regular, 'PingFang SC', 'Microsoft Yahei', Helvetica, Aria, sans-serif;
           white-space: nowrap;
         }
 
@@ -773,6 +779,7 @@
         max-height: 480px;
         padding-right: 16px;
         overflow: auto;
+        font-family: oboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
         color: #63656e;
         word-break: break-all;
         white-space: pre-wrap;
