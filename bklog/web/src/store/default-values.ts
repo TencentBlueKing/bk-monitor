@@ -25,9 +25,118 @@
  */
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import VueRouter from 'vue-router';
+import RouteUrlResolver from './url-resolver';
+import { RouteParams, BK_LOG_STORAGE } from './store.type';
+
 const DEFAULT_FIELDS_WIDTH = 200;
 
-export const getDefaultRetrieveParams = () => {
+export const logSourceField = () => {
+  return {
+    description: null,
+    es_doc_values: false,
+    field_alias: '',
+    field_name: window.mainComponent.$t('日志来源'),
+    field_operator: [],
+    field_type: 'union',
+    filterExpand: false,
+    filterVisible: false,
+    is_analyzed: false,
+    is_display: false,
+    is_editable: false,
+    minWidth: 0,
+    tag: 'union-source',
+    width: 230,
+  };
+};
+
+export const indexSetClusteringData = {
+  // 日志聚类参数
+  name: '',
+  is_active: true,
+  extra: {
+    collector_config_id: null,
+    signature_switch: false,
+    clustering_field: '',
+  },
+};
+
+export const routeQueryKeys = [
+  'addition',
+  'bizId',
+  'end_time',
+  'keyword',
+  'spaceUid',
+  'start_time',
+  'timezone',
+  'unionList',
+];
+
+const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
+
+export { BkLogGlobalStorageKey };
+
+const updateLocalstorage = (val: any) => {
+  try {
+    const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+    const jsonVal = JSON.parse(storageValue);
+    Object.assign(jsonVal, val);
+    localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const getUrlArgs = (_route?) => {
+  let urlResolver: RouteUrlResolver = null;
+
+  if (!_route) {
+    const router = new VueRouter({
+      routes: [
+        {
+          path: '',
+          redirect: 'retrieve',
+          meta: {
+            title: '检索',
+            navId: 'retrieve',
+          },
+        },
+        {
+          name: 'retrieve',
+          path: '/retrieve/:indexId?',
+        },
+      ],
+    });
+
+    const hash = window.location.hash.replace(/^#/, '');
+    const route = router.resolve(hash);
+    urlResolver = new RouteUrlResolver({ route: route.resolved });
+    urlResolver.setResolver('index_id', () =>
+      route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '',
+    );
+  } else {
+    urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
+  }
+
+  const result = urlResolver.convertQueryToStore<RouteParams>();
+
+  if (result.search_mode) {
+    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
+  }
+
+  return result;
+};
+
+let URL_ARGS = getUrlArgs();
+const update_URL_ARGS = route => {
+  URL_ARGS = getUrlArgs(route);
+  return URL_ARGS;
+};
+
+export { URL_ARGS, update_URL_ARGS };
+
+export const getDefaultRetrieveParams = (defaultValue?) => {
   return {
     keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
@@ -39,6 +148,8 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    ...(defaultValue ?? {}),
+    ...URL_ARGS,
   };
 };
 
@@ -101,11 +212,11 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: [],
-  isUnionIndex: false,
+  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
+  isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
-  selectIsUnionSearch: false,
+  selectIsUnionSearch: URL_ARGS.unionList?.length ?? false,
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',
@@ -121,91 +232,82 @@ export const IndexItem = {
   ...DEFAULT_DATETIME_PARAMS,
 };
 
-export const logSourceField = () => {
-  return {
-    description: null,
-    es_doc_values: false,
-    field_alias: '',
-    field_name: window.mainComponent.$t('日志来源'),
-    field_operator: [],
-    field_type: 'union',
-    filterExpand: false,
-    filterVisible: false,
-    is_analyzed: false,
-    is_display: false,
-    is_editable: false,
-    minWidth: 0,
-    tag: 'union-source',
-    width: 230,
-  };
-};
-
-export const indexSetClusteringData = {
-  // 日志聚类参数
-  name: '',
-  is_active: true,
-  extra: {
-    collector_config_id: null,
-    signature_switch: false,
-    clustering_field: '',
-  },
-};
-
-export const routeQueryKeys = [
-  'addition',
-  'bizId',
-  'end_time',
-  'keyword',
-  'spaceUid',
-  'start_time',
-  'timezone',
-  'unionList',
-];
-
-export const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
-
-export const getStorageOptions = () => {
+export const getStorageOptions = (values?: any) => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
+      Object.assign(storage, values ?? []);
+
+      let update = false;
+      // 对旧版缓存进行还原操作
+      // 映射旧版配置到新版key，同时移除旧版key
+      [
+        ['fieldSetting', BK_LOG_STORAGE.FIELD_SETTING],
+        ['indexSetActiveTab', BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB],
+        ['isLimitExpandView', BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+        ['searchType', BK_LOG_STORAGE.SEARCH_TYPE],
+        ['showFieldAlias', BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+        ['tableAllowEmptyField', BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
+        ['tableJsonFormat', BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        ['tableJsonFormatDepth', BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH],
+        ['tableLineIsWrap', BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+        ['tableShowRowIndex', BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX],
+        ['textEllipsisDir', BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR],
+      ].forEach(([k1, k2]) => {
+        if (storage[k1] !== undefined) {
+          storage[k2] = storage[k1];
+          delete storage[k1];
+          update = true;
+        }
+      });
+
+      [
+        ['space_uid', BK_LOG_STORAGE.BK_SPACE_UID],
+        ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
+      ].forEach(([k1, k2]) => {
+        const oldVal = localStorage.getItem(k1);
+        if (oldVal !== undefined && oldVal !== null) {
+          storage[k2] = oldVal;
+          localStorage.removeItem(k1);
+          update = true;
+        }
+      });
+
+      if (update) {
+        window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
+      }
     } catch (e) {
       console.error(e);
     }
   }
 
+  let activeTab = 'single';
+
+  if (URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID]) {
+    activeTab = 'favorite';
+  }
+
+  if (URL_ARGS[BK_LOG_STORAGE.HISTORY_ID]) {
+    activeTab = 'history';
+  }
+
   return Object.assign(
     {
-      // 是否换行
-      tableLineIsWrap: false,
-
-      // 是否展示json解析
-      tableJsonFormat: false,
-
-      // json解析展示层级
-      tableJsonFormatDepth: 1,
-
-      // 是否展示行号
-      tableShowRowIndex: false,
-
-      // 是否展示空字段
-      tableAllowEmptyField: false,
-
-      // 是否展开长字段
-      isLimitExpandView: false,
-
-      // 是否展示字段别名
-      showFieldAlias: true,
-
-      // 文本溢出（省略设置）start | end | center
-      textEllipsisDir: 'end',
-
-      // 日志检索当前使用的检索类型： 0 - ui模式 1 - 语句模式
-      searchType: 0,
-
-      // 左侧字段设置缓存配置
-      fieldSetting: {
+      [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
+      [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
+      [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
+      [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
+      [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
+      [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
+      [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+      [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
+      [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
+      [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,
       },

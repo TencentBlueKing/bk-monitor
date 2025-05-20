@@ -15,6 +15,7 @@
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -179,15 +180,6 @@
     return 0;
   };
 
-  const isConditionValEmptyShow = computed(() => {
-    return (
-      isValidateEgges(activeFieldItem.value) &&
-      !activeItemMatchList.value.length &&
-      !isRequesting.value &&
-      !conditionValueInputVal.value.length
-    );
-  });
-
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -205,7 +197,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage.textEllipsisDir;
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -461,6 +453,10 @@
   };
 
   const handelSaveBtnClick = () => {
+    if (!isSaveBtnActive.value) {
+      return;
+    }
+
     const isIpSelect = activeFieldItem.value.field_name === '_ip-select_';
     if (isIpSelect) {
       resetParams();
@@ -961,20 +957,25 @@
     afterOperatorValueEnter();
   };
 
+  let isMountedEventAdded = false;
+
   const beforeShowndFn = () => {
-    setDefaultActiveIndex();
-    document.addEventListener('keydown', handleKeydownClick, { capture: true });
-    document.addEventListener('click', handleDocumentClick);
+    if (!isMountedEventAdded) {
+      isMountedEventAdded = true;
+      setDefaultActiveIndex();
+      document.addEventListener('keydown', handleKeydownClick, { capture: true });
+      document.addEventListener('click', handleDocumentClick);
 
-    restoreFieldAndCondition();
-    scrollActiveItemIntoView();
+      restoreFieldAndCondition();
+      scrollActiveItemIntoView();
 
-    nextTick(() => {
-      // 如果是外层检索输入，这里不能自动focus到搜索
-      if (!props.isInputFocus) {
-        refFilterInput.value?.focus();
-      }
-    });
+      nextTick(() => {
+        // 如果是外层检索输入，这里不能自动focus到搜索
+        if (!props.isInputFocus) {
+          refFilterInput.value?.focus();
+        }
+      });
+    }
 
     return true;
   };
@@ -982,7 +983,7 @@
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick, { capture: true });
     document.removeEventListener('click', handleDocumentClick);
-
+    isMountedEventAdded = false;
     resetParams();
   };
 
@@ -1390,7 +1391,7 @@
         </bk-button>
         <bk-button
           style="width: 64px"
-          @click.stop="handleCancelBtnClick"
+          @click="handleCancelBtnClick"
           >{{ $t('取消') }}</bk-button
         >
       </div>
@@ -1399,8 +1400,4 @@
 </template>
 <style scoped lang="scss">
   @import './ui-input-option.scss';
-</style>
-<style lang="scss">
-  @import './theme-light.scss';
-  @import './theme-dark.scss';
 </style>

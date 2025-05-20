@@ -24,9 +24,9 @@ from django.core.cache import cache
 from django.db.models import Count, Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Search
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
+from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
 from api.cmdb.define import Business
@@ -112,8 +112,9 @@ from apm_web.service.serializers import (
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import get_interval, span_time_strft
+from apm_web.utils import span_time_strft, get_interval_number
 from bkm_space.api import SpaceApi
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
@@ -135,7 +136,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
-from constants.data_source import ApplicationsResultTableLabel
+from constants.data_source import ApplicationsResultTableLabel, DataTypeLabel, DataSourceLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
@@ -2693,140 +2694,53 @@ class QueryExceptionTypeGraphResource(Resource):
 
     def perform_request(self, validated_data):
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
-        query = Search().query()
-        query = query.update_from_dict(
-            {
-                "aggs": {
-                    "events_over_time": {
-                        "date_histogram": {
-                            "field": "time",
-                            "interval": get_interval(validated_data["start_time"], validated_data["end_time"]),
-                            "format": "epoch_millis",
-                        }
-                    }
-                },
-            }
-        )
-        musts = [
-            {
-                "match": {
-                    "status.code": 2,
-                },
-            },
-            {
-                "range": {
-                    "end_time": {
-                        # 往前 / 往后对齐至 0 秒 防止数据看上去出现了波动
-                        "gt": int(
-                            datetime.datetime.fromtimestamp(validated_data["start_time"]).replace(second=0).timestamp()
-                        )
-                        * 1000
-                        * 1000,
-                        "lt": int(
-                            (
-                                datetime.datetime.fromtimestamp(validated_data["end_time"])
-                                + datetime.timedelta(minutes=1)
-                            )
-                            .replace(second=0)
-                            .timestamp()
-                        )
-                        * 1000
-                        * 1000,
-                    }
-                }
-            },
-        ]
-        # Step1: 根据错误类型过滤
-        if validated_data["exception_type"] and validated_data["exception_type"] != "unknown":
-            musts.append(
-                {
-                    "nested": {
-                        "path": "events",
-                        "query": {
-                            "bool": {
-                                "must": [
-                                    {"match": {"events.name": "exception"}},
-                                    {"match": {"events.attributes.exception.type": validated_data["exception_type"]}},
-                                ]
-                            }
-                        },
-                    }
-                }
-            )
-        query = query.update_from_dict(
-            {
-                "query": {
-                    "bool": {
-                        "must": musts,
-                    }
-                }
-            }
+        q: QueryConfigBuilder = (
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
+            .metric(method="COUNT", field="_index", alias="a")
+            .table(app.trace_result_table_id)
+            .filter(**{OtlpKey.STATUS_CODE: StatusCode.ERROR.value})
+            .interval(get_interval_number(validated_data["start_time"], validated_data["end_time"]))
         )
 
-        # Step3: 根据组件类服务过滤
+        # Step1: 根据错误类型过滤
+        if validated_data["exception_type"] and validated_data["exception_type"] != "unknown":
+            q = q.filter(
+                **{
+                    f"{OtlpKey.EVENTS}.name": "exception",
+                    f"{OtlpKey.EVENTS}.attributes.exception.type": validated_data["exception_type"],
+                }
+            )
+
+        # Step2: 区分服务和组件，生成对应查询条件
         filter_params, service_name = self.build_filter_params(validated_data["filter_params"])
         if service_name:
-            node = ServiceHandler.get_node(
-                validated_data["bk_biz_id"],
-                validated_data["app_name"],
-                service_name,
-            )
+            node = ServiceHandler.get_node(validated_data["bk_biz_id"], validated_data["app_name"], service_name)
             if ComponentHandler.is_component_by_node(node):
-                query = ComponentHandler.build_component_filter_es_query_dict(
-                    query,
-                    validated_data["bk_biz_id"],
-                    validated_data["app_name"],
-                    service_name,
-                    filter_params,
-                    validated_data.get("component_instance_id"),
+                q = q.filter(
+                    ComponentHandler.build_component_filter(
+                        validated_data["bk_biz_id"],
+                        validated_data["app_name"],
+                        service_name,
+                        filter_params,
+                        validated_data.get("component_instance_id"),
+                    )
                 )
             else:
                 if ServiceHandler.is_remote_service_by_node(node):
-                    query = ServiceHandler.build_remote_service_es_query_dict(query, service_name, filter_params)
+                    q = q.filter(ServiceHandler.build_remote_service_filter(service_name, filter_params))
                 else:
-                    query = ServiceHandler.build_service_es_query_dict(query, service_name, filter_params)
+                    q = q.filter(ServiceHandler.build_service_filter(service_name, filter_params))
 
-        response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query.to_dict())
-        buckets = response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])
-        if not buckets:
-            return {"metrics": [], "series": []}
-
-        if len(buckets) > 2:
-            # 去除头尾未统计完整的元素
-            buckets.pop(0)
-            buckets.pop()
-
-        return {
-            "metrics": [],
-            "series": [
-                {
-                    "alias": "_result_",
-                    "datapoints": [[i["doc_count"], i["key"]] for i in buckets],
-                    "dimensions": {},
-                    "metric_field": "_result_",
-                    "target": "",
-                    "type": "line",
-                    "unit": "",
-                }
-            ],
-        }
-
-    def convert_timestamp(self, timestamp, interval):
-        """
-        将时间戳向 interval 对齐 防止图表时间点过于密集或过小
-        例如:
-        8:30:12 interval=60 -> 8:30:00
-                interval=3600 -> 8:00:00
-        """
-        timestamp_seconds = timestamp / 1000000
-
-        dt = datetime.datetime.fromtimestamp(timestamp_seconds)
-
-        aligned_dt = dt - datetime.timedelta(
-            seconds=(dt.second % interval) + (dt.minute * 60 % interval) + (dt.hour * 3600 % interval)
+        qs: UnifyQuerySet = (
+            UnifyQuerySet()
+            .scope(app.bk_biz_id)
+            .add_query(q)
+            .start_time(validated_data["start_time"])
+            .end_time(validated_data["end_time"])
         )
-
-        return int(aligned_dt.timestamp()) * 1000
+        return resource.grafana.graph_unify_query(
+            **{**qs.config, "time_alignment": False, "query_method": "query_reference"}
+        )
 
 
 class InstanceDiscoverKeysResource(Resource):

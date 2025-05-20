@@ -66,6 +66,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Prop({ type: Object, default: null }) popoverInstance: any;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+
   @InjectReactive('timeRange') timeRange;
   @InjectReactive('commonParams') commonParams;
 
@@ -134,7 +135,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
                 <span
                   class='field-name'
                   onMouseenter={e => this.topKItemMouseenter(e, item.alias)}
-                  onMouseleave={this.hiddenSliderPopover}
+                  onMouseleave={this.topKItemMouseLeave}
                 >
                   {item.alias}
                 </span>
@@ -346,7 +347,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     }
   }
 
-  hiddenSliderPopover() {
+  topKItemMouseLeave() {
     this.slideOverflowPopoverInstance?.hide(0);
     this.slideOverflowPopoverInstance?.destroy();
   }

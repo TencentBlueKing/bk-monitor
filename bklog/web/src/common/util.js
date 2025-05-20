@@ -513,7 +513,7 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  */
 export function formatDateNanos(val) {
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
-  const nanoseconds = val.slice(23, -1);
+  const nanoseconds = `${val}`.slice(23, -1);
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
   const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');

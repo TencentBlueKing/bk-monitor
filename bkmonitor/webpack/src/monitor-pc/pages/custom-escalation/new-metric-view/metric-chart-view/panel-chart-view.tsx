@@ -26,8 +26,9 @@
 import { Component, Watch, Prop, ProvideReactive, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { connect, disconnect } from 'echarts/core';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -50,6 +51,11 @@ interface IPanelChartViewProps {
   viewColumn?: number;
 }
 
+interface IGroups {
+  name: string;
+  panels: IPanelModel[];
+}
+
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 相关配置
@@ -66,7 +72,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   };
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   activeName = [];
-  groupList = [];
+  /** 分组数据 */
+  groupList: IGroups[] = [];
+  /** connectId set 列表 */
+  connectIdSet = new Set();
+  /** 折叠面板的高度 */
   collapseRefsHeight: number[][] = [];
   /** 是否展示维度下钻view */
   showDrillDown = false;
@@ -115,6 +125,34 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.viewColumn)] = this.baseHeight));
     });
   }
+
+  /**
+   *  处理group数据
+   * @param groups 分组数据
+   * @returns 处理后的group数据
+   */
+  handleGroup(groups: IGroups[]) {
+    groups.map(group => {
+      const groupId = group.name || random(10);
+      // 多图表链接
+      if (this.connectIdSet.has(groupId)) {
+        disconnect(groupId);
+      }
+      this.connectIdSet.add(groupId);
+      connect(groupId);
+      group.panels.map(chart => {
+        chart.groupId = groupId;
+        chart.options = {
+          ...chart.options,
+          time_series: {
+            hoverAllTooltips: true,
+          },
+        };
+      });
+    });
+    return groups;
+  }
+
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
@@ -143,6 +181,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
+        this.handleGroup(this.groupList);
         this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
       })
@@ -267,5 +306,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         )}
       </div>
     );
+  }
+
+  destroyed() {
+    for (const id of this.connectIdSet) {
+      disconnect(id as string);
+    }
   }
 }

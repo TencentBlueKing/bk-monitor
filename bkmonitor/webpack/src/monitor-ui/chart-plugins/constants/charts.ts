@@ -106,6 +106,31 @@ export const COLOR_LIST_OUTLIER = [
   ...COLOR_LIST,
 ];
 
+/** 自定义指标图表颜色组 */
+export const COLOR_LIST_METRIC = [
+  '#FFB43D',
+  '#3A96FF',
+  '#8CC97D',
+  '#F67056',
+  '#6562DF',
+  '#FF669B',
+  '#7FC4E7',
+  '#C75548',
+  '#46A390',
+  '#FFA065',
+  '#4D59FF',
+  '#8EB6A5',
+  '#C793E6',
+  '#7EC2BD',
+  '#F1CE1A',
+  '#F68772',
+  '#55C193',
+  '#C3798F',
+  '#3754B0',
+  '#EB768F',
+  ...COLOR_LIST,
+];
+
 /** 线性图配置 */
 export const MONITOR_LINE_OPTIONS: MonitorEchartOptions = {
   useUTC: false,

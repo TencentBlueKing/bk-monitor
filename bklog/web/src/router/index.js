@@ -293,13 +293,21 @@ const MonitorTraceLog = () =>
   );
 // #endif
 
-const getRoutes = () => {
+const getRoutes = (spaceId, bkBizId) => {
   const defRouteName = window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true' ? 'manage' : 'retrieve';
 
   return [
     {
       path: '',
-      redirect: defRouteName,
+      redirect: () => {
+        return {
+          name: defRouteName,
+          query: {
+            spaceUid: spaceId,
+            bizId: bkBizId,
+          },
+        };
+      },
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -309,6 +317,7 @@ const getRoutes = () => {
       path: '/retrieve/:indexId?',
       name: 'retrieve',
       component: retrieve,
+
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -1104,8 +1113,8 @@ const getRoutes = () => {
  * @param id 路由id
  * @returns 路由配置
  */
-export function getRouteConfigById(id) {
-  const flatConfig = getRoutes().flatMap(config => {
+export function getRouteConfigById(id, space_uid, bk_biz_id) {
+  const flatConfig = getRoutes(space_uid, bk_biz_id).flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
@@ -1120,8 +1129,8 @@ export function getRouteConfigById(id) {
   return flatConfig.find(item => item.meta?.navId === id);
 }
 
-export default () => {
-  const routes = getRoutes();
+export default (spaceId, bkBizId) => {
+  const routes = getRoutes(spaceId, bkBizId);
   const router = new VueRouter({
     routes,
   });

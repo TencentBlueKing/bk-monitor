@@ -79,6 +79,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
+    BaseSearchIndexSetException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -1333,6 +1334,28 @@ class IndexSetHandler(APIModel):
             index_set_data = index_set_data[: int(limit)]
         return index_set_data
 
+    @staticmethod
+    def get_space_info(index_set_id):
+        """
+        根据索引集ID获取空间信息
+        """
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+        space = SpaceApi.get_space_detail(space_uid=index_set_obj.space_uid)
+
+        return {
+            "id": space.id,
+            "space_type_id": space.space_type_id,
+            "space_id": space.space_id,
+            "space_name": space.space_name,
+            "space_uid": space.space_uid,
+            "space_code": space.space_code,
+            "bk_biz_id": space.bk_biz_id,
+            "time_zone": space.extend.get("time_zone") or "Asia/Shanghai",
+            "bk_tenant_id": space.bk_tenant_id,
+        }
+
 
 class BaseIndexSetHandler:
     scenario_id = None
@@ -1518,7 +1541,7 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_es_router(
+            TransferApi.create_or_update_log_router(
                 {
                     "cluster_id": index_set.storage_cluster_id,
                     "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
