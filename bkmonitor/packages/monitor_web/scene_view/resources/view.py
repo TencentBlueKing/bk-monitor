@@ -450,16 +450,16 @@ class BulkUpdateSceneViewOrderAndNameResource(Resource):
         type = serializers.ChoiceField(label="视图类型", choices=("overview", "detail"))
         config = ConfigSerializer(label="视图配置", default=[], many=True)
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict):
         if not params["config"]:
             return
 
         # 找到需要更新名称的视图
-        id_name_map = {view["id"]: view["name"] for view in params["config"] if view.get("name")}
+        id_name_map: dict[str, str] = {view["id"]: view["name"] for view in params["config"] if view.get("name")}
         scene_views = SceneViewModel.objects.filter(
             bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"]
         )
-        updated_scene_views = []
+        updated_scene_views: list[SceneViewModel] = []
         for scene_view in scene_views:
             if scene_view.id in id_name_map and scene_view.name != id_name_map[scene_view.id]:
                 scene_view.name = id_name_map[scene_view.id]
