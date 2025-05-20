@@ -566,6 +566,7 @@ class DisableShieldResource(Resource):
 
     def perform_request(self, data):
         username = get_request_username()
+        # 额外验证用户权限，用于apigw 场景
         if data.get("verify_user_permission"):
             if not username:
                 raise ValidationError({"verify_user_permission": "无法获取当前用户"})
