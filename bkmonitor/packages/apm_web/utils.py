@@ -153,6 +153,24 @@ def split_by_size(start_time, end_time, size=30):
     return segments
 
 
+def split_by_interval_number(start_time: int, end_time: int, interval: int = 60):
+    """根据 interval 对开始时间和结束时间进行分割
+
+    补最开始的点，丢弃最后一个覆盖不全的点
+    start_time,end_time: 10位时间戳
+    interval: 单位秒
+    """
+    segments = []
+    # 左边最近的整数分钟时间戳
+    start_time = start_time // 60 * 60
+    while start_time <= end_time:
+        segments.append((start_time, start_time + interval))
+        start_time += interval
+
+    # 遗弃最后一个覆盖不全的点，因为unify_query也是这么处理的
+    return segments[:-1]
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
     if interval[-1] == "s":
@@ -275,6 +293,40 @@ def fill_series(series, start_time, end_time, interval):
         )
 
     return res
+
+
+def fill_unify_query_series(series: list, start_time: int, end_time: int, interval: int):
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
+
+    # 转换为 13 位毫秒时间戳
+    timestamp_range = [
+        (t_s * 1000, t_e * 1000) for t_s, t_e in split_by_interval_number(start_time, end_time, interval)
+    ]
+    first_start_time_ms = timestamp_range and timestamp_range[0][0]
+
+    res = []
+
+    for i in series:
+        dps = [[None, t_s] for t_s, t_e in timestamp_range]
+        dps_len = len(dps)
+        for dp, dp_timestamp_ms in i["datapoints"]:
+            # 计算列表 index 位置
+            result_index = (dp_timestamp_ms - first_start_time_ms) // (interval * 1000)
+            # 确保不超过边界
+            if 0 <= result_index < dps_len:
+                dps_result_data = dps[result_index][0]
+                dps[result_index][0] = dp if dps_result_data is None else dps_result_data + (dp or 0)
+
+        res.append(
+            {
+                **i,
+                "datapoints": dps,
+            }
+        )
+
+    return res or [{"datapoints": [[None, t_s] for t_s, t_e in timestamp_range]}]
 
 
 def generate_csv_file_download_response(file_name: str, file_content: Iterable[Iterable[Any]]) -> HttpResponse:
