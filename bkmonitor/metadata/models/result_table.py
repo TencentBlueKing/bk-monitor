@@ -1695,7 +1695,7 @@ class ResultTable(models.Model):
             "bk_biz_id": self.bk_biz_id,
             "option": ResultTableOption.get_option(self.table_id),
             "label": self.label,
-            "bk_data_id": self.data_source.bk_data_id,
+            "bk_data_id": self.data_source.bk_data_id if self.default_storage != ClusterInfo.TYPE_BKDATA else None,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
         }
