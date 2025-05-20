@@ -235,9 +235,12 @@ def fill_series(series, start_time, end_time, interval):
     """
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
     """
+    interval = interval * 1000
+    default_size = 30
+    c = int(math.ceil((end_time - start_time) / 60))
+    size = default_size if c > default_size else c
 
-    # 转换为 13 位毫秒时间戳
-    timestamp_range = [(a * 1000, b * 1000) for a, b in split_by_interval_number(start_time, end_time, interval)]
+    timestamp_range = [(a * 1000, b * 1000) for a, b in split_by_size(start_time, end_time, size=size)]
 
     if not series:
         return [{"datapoints": [[None, int((s + e) / 2)] for s, e in timestamp_range]}]
@@ -245,15 +248,42 @@ def fill_series(series, start_time, end_time, interval):
     res = []
 
     for i in series:
-        result = [[None, t_s] for t_s, t_e in timestamp_range]
+        result = [[None, int((t_e + t_s) / 2)] for t_e, t_s in timestamp_range]
         dps = i["datapoints"]
 
         for j, (value, timestamp) in enumerate(dps):
             # 如果当前数据点落在此 time_range 区间 补充数据点
             for k, (start, end) in enumerate(timestamp_range):
-                if start <= timestamp < end:
+                if start <= timestamp <= end:
                     result[k] = [value, timestamp]
                     break
+
+            # 检查前一个时间点是否存在且与当前时间点之间的间隔大于 interval 如果不是则不补充空数据避免图表出现断点
+            if j > 0:
+                prev_timestamp = dps[j - 1][1]
+                if timestamp - prev_timestamp > interval:
+                    # 插入空数据点
+                    empty_count = (timestamp - prev_timestamp) // interval - 1
+                    for m in range(1, empty_count + 1):
+                        missing_timestamp = prev_timestamp + m * interval
+                        for n, (start, end) in enumerate(timestamp_range):
+                            if start <= missing_timestamp <= end:
+                                result[n] = [None, missing_timestamp]
+                                break
+
+        if len(result) < default_size:
+            first_timestamp = result[0][1] if result[0][0] is not None else start_time
+            last_timestamp = result[-1][1] if result[-1][0] is not None else end_time
+
+            # 头部插入
+            while len(result) < default_size and first_timestamp > start_time:
+                first_timestamp -= interval
+                result.insert(0, [None, first_timestamp])
+
+            # 尾部插入
+            while len(result) < default_size and last_timestamp < end_time:
+                last_timestamp += interval
+                result.append([None, last_timestamp])
 
         res.append(
             {
