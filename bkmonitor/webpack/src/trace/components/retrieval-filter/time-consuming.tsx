@@ -148,19 +148,13 @@ export default defineComponent({
     }
 
     function handleInputChange(val: string, type: 'end' | 'start') {
-      const isError = !TIME_CONSUMING_REGEXP.test(val);
+      const isError = val?.trim()?.length ? !TIME_CONSUMING_REGEXP.test(val) : false;
       if (type === 'start') {
         startError.value = isError;
       } else {
         endError.value = isError;
       }
-      if (!startError.value || !endError.value) {
-        errMsg.value = '';
-        if (startValue.value.trim() !== '' || endValue.value.trim() !== '') {
-          // 起始时间均有值
-          handleSetSlider();
-        }
-      } else if (!startValue.value && !endValue.value) {
+      if (!startValue.value && !endValue.value) {
         errMsg.value = '';
         startError.value = false;
         endError.value = false;
@@ -170,6 +164,12 @@ export default defineComponent({
           method: BETWEEN,
           value: [],
         });
+      } else if (!startError.value || !endError.value) {
+        errMsg.value = '';
+        if (startValue.value.trim() !== '' || endValue.value.trim() !== '') {
+          // 起始时间均有值
+          handleSetSlider();
+        }
       } else {
         errMsg.value = t('单位仅支持ns, μs, ms, s, m, h, d');
       }

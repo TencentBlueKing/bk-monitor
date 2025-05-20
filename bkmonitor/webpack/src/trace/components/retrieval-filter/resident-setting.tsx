@@ -178,7 +178,6 @@ export default defineComponent({
       handleSetUserConfig(JSON.stringify(fields.map(item => item.name)), props.residentSettingOnlyId);
     }
     function handleValueChange(value: IWhereItem, index: number) {
-      console.log(value);
       localValue.value[index].value = value;
       handleChange();
     }

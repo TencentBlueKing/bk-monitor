@@ -78,7 +78,7 @@ export default defineComponent({
         ...props.value,
         key: props.fieldInfo.field,
         method: localMethod.value,
-        value: [localValue.value],
+        value: localValue.value?.trim().length ? [localValue.value.trim()] : [],
       });
     }
 
