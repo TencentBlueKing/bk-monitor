@@ -1975,7 +1975,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: sync bkbase rt meta by biz_id
-    /app/metadata/sync_bk_base_rt_meta_by_biz_id/:
+    /app/metadata/list_bk_base_rt_info_by_biz_id/:
       get:
         operationId: metadata_list_bk_base_rt_info_by_biz_id
         description: 拉取单业务的计算平台RT元信息
