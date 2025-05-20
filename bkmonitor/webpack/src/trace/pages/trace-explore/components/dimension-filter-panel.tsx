@@ -277,7 +277,7 @@ export default defineComponent({
             v-bk-tooltips={{ content: this.t('收起') }}
             onClick={this.handleClose}
           />
-          <div class='title'>{this.t('维度过滤')}</div>
+          <div class='title'>{this.t('维度分析')}</div>
         </div>
         <div class='search-input'>
           <Input
