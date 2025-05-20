@@ -433,7 +433,6 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         alias_settings: list = None,
-        total_shards_per_node: int = None,
     ):
         """
         创建或更新结果表
@@ -452,7 +451,6 @@ class EtlStorage:
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param alias_settings: 别名配置
-        :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -511,9 +509,6 @@ class EtlStorage:
                 "slice_gap": slice_gap,
                 "mapping_settings": param_mapping,
                 "index_settings": {
-                    "index.routing.allocation.total_shards_per_node": total_shards_per_node
-                    if total_shards_per_node
-                    else 0,
                     "number_of_shards": instance.storage_shards_nums,
                     "number_of_replicas": instance.storage_replies,
                     "analysis": analysis,

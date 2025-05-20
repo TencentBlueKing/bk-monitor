@@ -130,7 +130,9 @@ class TransferEtlHandler(EtlHandler):
             sort_fields=sort_fields,
             target_fields=target_fields,
             alias_settings=alias_settings,
-            total_shards_per_node=total_shards_per_node,
+            index_settings={
+                "index.routing.allocation.total_shards_per_node": total_shards_per_node if total_shards_per_node else 0,
+            },
         )
 
         if not view_roles:
