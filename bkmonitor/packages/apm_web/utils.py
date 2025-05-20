@@ -316,7 +316,8 @@ def fill_unify_query_series(series: list, start_time: int, end_time: int, interv
             result_index = (dp_timestamp_ms - first_start_time_ms) // (interval * 1000)
             # 确保不超过边界
             if 0 <= result_index < dps_len:
-                dps[result_index][0] = dp if dps[result_index][0] is None else dps[result_index][0] + dp
+                dps_result_data = dps[result_index][0]
+                dps[result_index][0] = dp if dps_result_data is None else dps_result_data + (dp or 0)
 
         res.append(
             {
