@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
 from pathlib import Path
-from typing import Dict, List
 
 import yaml
 
@@ -19,16 +18,17 @@ def merge_resources(resources_dir: Path):
     for public_dir in public_dirs:
         for verify_dir in verify_dirs:
             for file in resources_dir.glob(f"{public_dir}/{verify_dir}/*.yaml"):
-                data: List[Dict] = yaml.safe_load(file.read_text())["paths"]
+                data: list[dict] = yaml.safe_load(file.read_text())["paths"]
                 for _, path_data in data.items():
                     for _, method_data in path_data.items():
                         # 覆盖 authConfig
                         method_data["x-bk-apigateway-resource"].setdefault("authConfig", {})
-                        method_data["x-bk-apigateway-resource"]["authConfig"].update(
+                        auth_config = method_data["x-bk-apigateway-resource"]["authConfig"]
+                        auth_config.update(
                             {
-                                "appVerifiedRequired": True,
+                                "appVerifiedRequired": auth_config.get("appVerifiedRequired", True),
                                 "userVerifiedRequired": verify_dir == "user",
-                                "resourcePermissionRequired": True,
+                                "resourcePermissionRequired": auth_config.get("resourcePermissionRequired", True),
                             }
                         )
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from collections import OrderedDict
-from typing import List
 
 from django.core.cache import cache
 from django.db.models import Q
@@ -138,7 +136,9 @@ class CreateSpaceResource(Resource):
                 Q(space_type_id=data["space_type_id"], space_id=data["space_id"])
                 | Q(space_type_id=data["space_type_id"], space_name=data["space_name"])
             ).exists():
-                raise ValidationError(_("空间中文名称:{}或者 ID :{}已经存在").format(data["space_name"], data["space_id"]))
+                raise ValidationError(
+                    _("空间中文名称:{}或者 ID :{}已经存在").format(data["space_name"], data["space_id"])
+                )
 
             return data
 
@@ -200,9 +200,13 @@ class UpdateSpaceResource(Resource):
 class MergeSpaceResource(Resource):
     class RequestSerializer(serializers.Serializer):
         src_space_type_id = serializers.CharField(label="源空间类型")
-        src_space_id = serializers.CharField(label="源空间 ID", help_text="要合并的空间，合并后，源空间仅允许在空间管理处操作")
+        src_space_id = serializers.CharField(
+            label="源空间 ID", help_text="要合并的空间，合并后，源空间仅允许在空间管理处操作"
+        )
         dst_space_type_id = serializers.CharField(label="目的空间类型")
-        dst_space_id = serializers.CharField(label="目的空间 ID", help_text="合并后的空间，合并后，当前空间会关联所属的资源及data id")
+        dst_space_id = serializers.CharField(
+            label="目的空间 ID", help_text="合并后的空间，合并后，当前空间会关联所属的资源及data id"
+        )
 
         def validate(self, data: OrderedDict) -> OrderedDict:
             # 校验空间必须存在，并且允许合并
@@ -273,10 +277,7 @@ class StickSpaceResource(Resource):
     class RequestSerializer(serializers.Serializer):
         space_uid = serializers.CharField(label="空间uid", default="")
         action = serializers.ChoiceField(label="置顶动作", choices=(("on", _("置顶")), ("off", _("取消置顶"))))
-
-        def validate(self, attrs):
-            attrs["username"] = get_request_username() or get_local_username()
-            return attrs
+        username = serializers.CharField(label="用户名", required=True)
 
         def validate_space_uid(self, value):
             space_type_id, space_id = space.Space.objects.split_space_uid(value)
@@ -357,8 +358,7 @@ class GetBizRelatedBkciSpacesResource(Resource):
         spaces = get_related_spaces(space_type, space_id, target_space_type_id=target_space_type_id)
 
         logger.info(
-            "GetBizRelatedBkciSpacesResource: space_type->[%s] space_id->[%s] get related spaces->[%s] of "
-            "type->[%s]",
+            "GetBizRelatedBkciSpacesResource: space_type->[%s] space_id->[%s] get related spaces->[%s] of type->[%s]",
             space_type,
             space_id,
             spaces,
@@ -412,7 +412,7 @@ class RefreshMetricForKihan(Resource):
         # 记录超时配置
         cache.set(self.RATE_LIMIT_KEY, 1, self.RATE_LIMIT_TIMEOUT)
 
-    def _check_metric_count(self, metric_list: List):
+    def _check_metric_count(self, metric_list: list):
         # 当指标超过 `1000`, 不允许写入
         if len(metric_list) < self.MAX_METRIC_COUNT:
             return

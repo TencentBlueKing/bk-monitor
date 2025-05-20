@@ -198,6 +198,8 @@ class ListStickySpacesResource(Resource):
 
 class StickSpaceResource(Resource):
     def perform_request(self, validated_request_data):
+        username = get_request_username() or get_local_username()
+        validated_request_data["username"] = username
         return api.metadata.stick_space(validated_request_data)
 
 

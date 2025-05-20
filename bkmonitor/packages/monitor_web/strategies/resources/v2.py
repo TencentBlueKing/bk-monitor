@@ -31,6 +31,8 @@ from bkmonitor.dataflow.constant import (
 )
 from bkmonitor.dataflow.flow import DataFlow
 from bkmonitor.documents import AlertDocument
+from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.permission import Permission
 from bkmonitor.models import (
     ActionConfig,
     ActionSignal,
@@ -55,7 +57,7 @@ from bkmonitor.strategy.new_strategy import (
     parse_metric_id,
 )
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.request import get_source_app
+from bkmonitor.utils.request import get_request_username, get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.aiops import SDKDetectStatus
@@ -3525,26 +3527,41 @@ class UpdateMetricListByBizResource(Resource):
         return config.value
 
 
-class SimpleStrategyListV2Resource(Resource):
+class GetDevopsStrategyListResource(Resource):
     """
-    对外提供的接口，供apigw调用，蓝盾插件使用该apigw，返回策略列表，每个元素只包含id和name。
+    蓝盾插件专用策略列表接口
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=False, allow_null=True)
+        bk_biz_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
-    def perform_request(self, validated_request_data: dict) -> dict:
+    def perform_request(self, params: dict[str, str]) -> dict[str, Any]:
+        # bk_biz_id 必须是数字
+        try:
+            bk_biz_id = int(params["bk_biz_id"])
+        except (ValueError, TypeError):
+            return {"result": False, "status": 1, "data": [], "message": "bk_biz_id必须是数字"}
+
+        # bk_biz_id 不能为0
+        if bk_biz_id == 0:
+            return {"result": False, "status": 1, "data": [], "message": "bk_biz_id不能为0"}
+
+        # 用户名不能为空
+        username = get_request_username()
+        if not username:
+            return {"result": False, "status": 1, "data": [], "message": "无法获取当前用户"}
+
+        # 检查用户是否有权限访问指定业务
+        p = Permission(username=username)
+        # 强制检查权限
+        p.skip_check = False
+        p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_STRATEGY)
+        if not p.is_allowed:
+            return {"result": False, "status": 1, "data": [], "message": f"当前用户无权限查看{bk_biz_id}业务策略列表"}
+
         # 获取指定业务下启用的策略
-        bk_biz_id: int = validated_request_data.get("bk_biz_id")
-        if not bk_biz_id:
-            return {"status": 0, "data": []}
-        strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
-            .values("id", "name")
-            .order_by("-update_time")
-        )
-
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values("id", "name").order_by("-update_time")
         strategy_list: list = [
             {"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies
         ]
-        return {"status": 0, "data": strategy_list}
+        return {"result": True, "status": 0, "data": strategy_list, "message": "success"}

@@ -252,6 +252,8 @@
       setTimeout(() => {
         showIpSelector.value = true;
       }, 100);
+
+      refSearchInput.value?.focus();
       return;
     }
 
@@ -262,6 +264,7 @@
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
     if (isFulltextEnterVlaue && !inputVal.length) {
+      refSearchInput.value?.focus();
       return;
     }
 
@@ -283,19 +286,15 @@
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
     repositionTippyInstance();
+    refSearchInput.value?.focus();
   };
 
   // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
   const isGlobalKeyEnter = ref(false);
   const handleGlobalSaveQueryClick = payload => {
-    blurTimer && clearTimeout(blurTimer);
-
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
-    // repositionTippyInstance();
     refSearchInput.value.style.setProperty('width', '12px');
-    nextInputBlur?.();
-    nextInputBlur = null;
   };
 
   /**
@@ -325,22 +324,12 @@
     debounceShowInstance();
   };
 
-  let blurTimer = null;
-  let nextInputBlur = null;
-
   const handleFullTextInputBlur = e => {
-    nextInputBlur = () => {
-      setIsInputTextFocus(false);
-      inputValueLength.value = 0;
-      e.target.style.setProperty('width', '12px');
-      e.target.value = '';
-      queryItem.value = '';
-    };
-
-    blurTimer = setTimeout(() => {
-      nextInputBlur?.();
-      nextInputBlur = null;
-    }, 300);
+    setIsInputTextFocus(false);
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
+    queryItem.value = '';
   };
 
   const handleInputValueChange = e => {

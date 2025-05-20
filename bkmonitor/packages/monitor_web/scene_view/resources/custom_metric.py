@@ -150,8 +150,8 @@ class GetCustomTsDimensionValues(Resource):
             "match": [match],
             "label": params["dimension"],
             "bk_biz_ids": [params["bk_biz_id"]],
-            "start_time": params["start_time"],
-            "end_time": params["end_time"],
+            "start": params["start_time"],
+            "end": params["end_time"],
         }
         result = api.unify_query.get_promql_label_values(request_params)
         values = result.get("values", {}).get(params["dimension"], [])
