@@ -76,6 +76,7 @@ export default defineComponent({
         .filter(item => item?.is_searched)
         .map(item => ({
           ...item,
+          isEnableOptions: props.notSupportEnumKeys.includes(item.name) ? false : !!item?.is_dimensions,
           supported_operations:
             item?.supported_operations?.map(s => ({
               ...s,

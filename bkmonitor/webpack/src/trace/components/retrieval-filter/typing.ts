@@ -71,6 +71,7 @@ export interface IFilterField {
   is_dimensions?: boolean;
   is_searched?: boolean;
   can_displayed?: boolean;
+  isEnableOptions?: boolean;
   supported_operations: {
     alias: string;
     value: EMethod;
@@ -294,6 +295,10 @@ export const RETRIEVAL_FILTER_PROPS = {
     default: true,
   },
   defaultResidentSetting: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
+  notSupportEnumKeys: {
     type: Array as PropType<string[]>,
     default: () => [],
   },

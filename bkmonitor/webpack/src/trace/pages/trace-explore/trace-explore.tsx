@@ -37,7 +37,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { useDebounceFn } from '@vueuse/core';
+// import { useDebounceFn } from '@vueuse/core';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
@@ -51,7 +51,9 @@ import { useCandidateValue } from '../../components/retrieval-filter/use-candida
 import {
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
+  SPAN_NOT_SUPPORT_ENUM_KEYS,
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
+  TRACE_NOT_SUPPORT_ENUM_KEYS,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { updateTimezone } from '../../i18n/dayjs';
@@ -142,6 +144,10 @@ export default defineComponent({
     const enableProfiling = computed(
       () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
     );
+    /* 过滤栏组件无需拉取枚举值的field */
+    const notSupportEnumKeys = computed(() => {
+      return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
+    });
     useIsEnabledProfilingProvider(enableProfiling);
 
     watch(
@@ -562,6 +568,7 @@ export default defineComponent({
       currentFavorite,
       editFavoriteShow,
       editFavoriteData,
+      notSupportEnumKeys,
       handleQuery,
       handleAppNameChange,
       handelSceneChange,
@@ -624,6 +631,7 @@ export default defineComponent({
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
                 isShowFavorite={true}
+                notSupportEnumKeys={this.notSupportEnumKeys}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={this.currentFavorite}

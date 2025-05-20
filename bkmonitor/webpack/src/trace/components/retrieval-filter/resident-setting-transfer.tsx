@@ -110,10 +110,10 @@ export default defineComponent({
     );
 
     function handleCheck(index: number) {
-      if (selectedFields.value.length >= 20) {
+      if (selectedFields.value.length >= 10) {
         Message({
           theme: 'error',
-          message: t('添加失败， 最多仅支持添加20个常驻筛选项'),
+          message: t('添加失败， 最多仅支持添加10个常驻筛选项'),
         });
         return;
       }
