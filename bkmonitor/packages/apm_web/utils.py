@@ -19,6 +19,7 @@ from collections import deque
 from django.http import HttpResponse
 
 from core.drf_resource import api
+from bkmonitor.utils.time_tools import time_interval_align
 
 
 def list_remote_service_callers(bk_biz_id, app_name, remote_service_name):
@@ -156,13 +157,11 @@ def split_by_size(start_time, end_time, size=30):
 def split_by_interval_number(start_time: int, end_time: int, interval: int = 60):
     """根据 interval 对开始时间和结束时间进行分割
 
-    补最开始的点，丢弃最后一个覆盖不全的点
+    丢弃最后一个覆盖不全的点
     start_time,end_time: 10位时间戳
     interval: 单位秒
     """
     segments = []
-    # 左边最近的整数分钟时间戳
-    start_time = start_time // 60 * 60
     while start_time <= end_time:
         segments.append((start_time, start_time + interval))
         start_time += interval
@@ -300,6 +299,8 @@ def fill_unify_query_series(series: list, start_time: int, end_time: int, interv
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
     """
 
+    start_time = time_interval_align(start_time, interval)
+    end_time = time_interval_align(end_time, interval)
     # 转换为 13 位毫秒时间戳
     timestamp_range = [
         (t_s * 1000, t_e * 1000) for t_s, t_e in split_by_interval_number(start_time, end_time, interval)
