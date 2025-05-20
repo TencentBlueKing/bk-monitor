@@ -46,6 +46,11 @@ const DEFAULT_SLIDER_VALUE = {
   disable: false,
 };
 
+const GTE = 'gte'; // 大于等于
+const LTE = 'lte'; // 小于等于
+const EQUAL = 'equal'; // 等于
+const BETWEEN = 'between'; // 范围
+
 export default defineComponent({
   name: 'TimeConsuming',
   props: TIME_CONSUMING_PROPS,
@@ -60,15 +65,33 @@ export default defineComponent({
     const errMsg = shallowRef('');
 
     let stopWatch = false;
+    let sliderInit = false;
+
+    setTimeout(() => {
+      sliderInit = true;
+    }, 1000);
 
     watch(
       () => props.value,
       val => {
-        if (val.length > 1 && !stopWatch) {
-          const [start, end] = val;
-          startValue.value = `${Number(start) / 1000}ms`;
-          endValue.value = `${Number(end) / 1000}ms`;
-          handleSetSlider(false);
+        if (val && val?.value?.length >= 1 && !stopWatch) {
+          const value = val.value;
+          if (value.length === 1) {
+            if (val?.method === GTE) {
+              startValue.value = `${Number(value[0]) / 1000}ms`;
+              endValue.value = '';
+              handleSetSlider(false);
+            } else if (val?.method === LTE) {
+              endValue.value = `${Number(value[0]) / 1000}ms`;
+              startValue.value = '';
+              handleSetSlider(false);
+            }
+          } else {
+            const [start, end] = value;
+            startValue.value = `${Number(start) / 1000}ms`;
+            endValue.value = `${Number(end) / 1000}ms`;
+            handleSetSlider(false);
+          }
           stopWatch = true;
         }
       },
@@ -76,8 +99,11 @@ export default defineComponent({
     );
 
     const handleChangeDebounce = useDebounceFn(() => {
-      const value = durationSlider.value.curValue.map(val => Number(val * 1000));
-      emit('change', value);
+      const where = getWhere();
+      emit('change', {
+        key: props.fieldInfo.field,
+        ...where,
+      });
     }, 300);
     const handleSliderChange = useDebounceFn((rangeValue: number[] = []) => {
       const [start, end] = rangeValue;
@@ -92,6 +118,35 @@ export default defineComponent({
       handleInputChange(val, type);
     }, 300);
 
+    function getWhere() {
+      const start = formatToMs(startValue.value);
+      const end = formatToMs(endValue.value);
+      if (startValue.value || endValue.value) {
+        if (startValue.value && !endValue.value) {
+          return {
+            method: GTE,
+            value: [Number(start * 1000)],
+          };
+        }
+        if (!startValue.value && endValue.value) {
+          return {
+            method: LTE,
+            value: [Number(end * 1000)],
+          };
+        }
+        if (startValue.value === endValue.value) {
+          return {
+            method: EQUAL,
+            value: [Number(start * 1000)],
+          };
+        }
+      }
+      return {
+        method: BETWEEN,
+        value: [Number(start * 1000), Number(end * 1000)],
+      };
+    }
+
     function handleInputChange(val: string, type: 'end' | 'start') {
       const isError = !TIME_CONSUMING_REGEXP.test(val);
       if (type === 'start') {
@@ -99,9 +154,9 @@ export default defineComponent({
       } else {
         endError.value = isError;
       }
-      if (!startError.value && !endError.value) {
+      if (!startError.value || !endError.value) {
         errMsg.value = '';
-        if (startValue.value.trim() !== '' && endValue.value.trim() !== '') {
+        if (startValue.value.trim() !== '' || endValue.value.trim() !== '') {
           // 起始时间均有值
           handleSetSlider();
         }
@@ -110,7 +165,11 @@ export default defineComponent({
         startError.value = false;
         endError.value = false;
         durationSlider.value = { ...DEFAULT_SLIDER_VALUE };
-        emit('change', null);
+        emit('change', {
+          key: props.fieldInfo.field,
+          method: BETWEEN,
+          value: [],
+        });
       } else {
         errMsg.value = t('单位仅支持ns, μs, ms, s, m, h, d');
       }
@@ -119,10 +178,12 @@ export default defineComponent({
     function handleSetSlider(isUpdate = true) {
       const start = formatToMs(startValue.value);
       const end = formatToMs(endValue.value);
-      if (start > end) {
-        // 当最小耗时大于最大耗时
-        errMsg.value = t('最小耗时不能大于最大耗时，');
-      } else {
+      // if (start > end) {
+      //   // 当最小耗时大于最大耗时
+      //   errMsg.value = t('最小耗时不能大于最大耗时，');
+      // } else {
+      // }
+      if (startValue.value && endValue.value) {
         durationSlider.value = {
           ...durationSlider.value,
           curValue: [start, end],
@@ -132,11 +193,14 @@ export default defineComponent({
           disable: start === end,
         };
         errMsg.value = '';
-        isUpdate && handleChangeDebounce();
       }
+      isUpdate && handleChangeDebounce();
     }
     /** 将输入框内容转化为 ms 单位 */
     function formatToMs(str: string) {
+      if (!str) {
+        return 0;
+      }
       let totalMs = 0;
       const unitMap = {
         ns: 1 / 10 ** 6,
@@ -156,6 +220,9 @@ export default defineComponent({
     }
 
     function handleRangeChange(value: number[]) {
+      if (!sliderInit) {
+        return;
+      }
       const [start, end] = value;
       // 默认不赋值 解决组件api初始化问题
       if (startValue.value === '' && endValue.value === '' && start === 0 && end === 1000) return;
@@ -206,7 +273,7 @@ export default defineComponent({
               placeholder={'0ns'}
               size={this.styleType !== 'form' ? 'small' : 'default'}
               onBlur={() => this.handleInputChange(this.startValue as string, 'start')}
-              onInput={val => this.handleInputChangeDebounce(val, 'start')}
+              // onInput={val => this.handleInputChangeDebounce(val, 'start')}
             />
           ) : (
             <TInput
@@ -214,7 +281,7 @@ export default defineComponent({
               autoWidth={true}
               placeholder={'0ns'}
               size={'small'}
-              onChange={val => this.handleInputChange(val as string, 'start')}
+              onBlur={val => this.handleInputChangeDebounce(val as string, 'start')}
             />
           )}
         </div>
@@ -246,18 +313,18 @@ export default defineComponent({
           {this.styleType === 'form' ? (
             <BkInput
               v-model={this.endValue}
-              placeholder={'1s'}
+              placeholder={'+∞'}
               size={this.styleType !== 'form' ? 'small' : 'default'}
               onBlur={() => this.handleInputChange(this.endValue as string, 'end')}
-              onInput={val => this.handleInputChangeDebounce(val, 'end')}
+              // onInput={val => this.handleInputChangeDebounce(val, 'end')}
             />
           ) : (
             <TInput
               v-model={this.endValue}
               autoWidth={true}
-              placeholder={'1s'}
+              placeholder={'+∞'}
               size={'small'}
-              onChange={val => this.handleInputChange(val as string, 'end')}
+              onBlur={val => this.handleInputChangeDebounce(val as string, 'end')}
             />
           )}
         </div>

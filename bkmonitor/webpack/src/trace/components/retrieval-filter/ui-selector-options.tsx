@@ -27,7 +27,7 @@
 import { defineComponent, shallowRef, computed, watch, useTemplateRef, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useEventListener, useDebounceFn } from '@vueuse/core';
+import { useEventListener, useDebounceFn, promiseTimeout } from '@vueuse/core';
 import { Select, Checkbox, Input, Button, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
@@ -92,6 +92,12 @@ export default defineComponent({
     );
     const isWildcard = shallowRef(wildcardItem.value?.default || false);
     const groupRelation = shallowRef(groupRelationItem.value?.default || DEFAULT_GROUP_RELATION);
+    /* 耗时字段数据 */
+    const timeConsumingValue = shallowRef({
+      key: '',
+      method: '',
+      value: [],
+    });
     /* 是否为数字类型 */
     const isTypeInteger = computed(() => checkedItem.value?.type === EFieldType.integer);
     /* 是否输入了非数字 */
@@ -114,7 +120,10 @@ export default defineComponent({
     const placeholderStr = computed(() => {
       return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
     });
-    const timeConsumingRange = computed(() => values.value.map(item => item.id));
+    /* 是否选择了耗时 */
+    const isDurationKey = computed(() => {
+      return DURATION_KEYS.includes(checkedItem.value?.name);
+    });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
       enterSelection(isFocus);
@@ -194,12 +203,17 @@ export default defineComponent({
       groupRelation.value = DEFAULT_GROUP_RELATION;
       rightFocus.value = false;
       cacheCheckedName.value = '';
+      timeConsumingValue.value = {
+        key: '',
+        method: 'between',
+        value: [],
+      };
       handleSearchChange();
     }
 
     function handleCheck(
       item: IFilterField,
-      method$ = '',
+      methodP = '',
       value = [],
       options = {
         isWildcard: false,
@@ -209,10 +223,16 @@ export default defineComponent({
     ) {
       checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
-      if (DURATION_KEYS.includes(checkedItem.value?.name)) {
-        method.value = 'between';
+      /* 耗时字段特殊处理 */
+      if (isDurationKey.value) {
+        // method.value = 'between';
+        timeConsumingValue.value = {
+          key: item.name,
+          method: methodP || 'between',
+          value: (value || []).map(item => item.id),
+        };
       } else {
-        method.value = method$ || item?.supported_operations?.[0]?.value || '';
+        method.value = methodP || item?.supported_operations?.[0]?.value || '';
       }
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
@@ -234,7 +254,10 @@ export default defineComponent({
       cursorIndex.value = index;
     }
 
-    function handleConfirm() {
+    async function handleConfirm() {
+      if (isDurationKey.value) {
+        await promiseTimeout(300);
+      }
       if (checkedItem.value.name === '*' && queryString.value) {
         const value: IFilterItem = {
           key: { id: checkedItem.value.name, name: t('全文') },
@@ -246,7 +269,11 @@ export default defineComponent({
 
         return;
       }
-      if (EXISTS_KEYS.includes(method.value) || values.value.length) {
+      if (
+        EXISTS_KEYS.includes(method.value) ||
+        values.value.length ||
+        (isDurationKey.value && timeConsumingValue.value.value.length)
+      ) {
         const methodName = checkedItem.value.supported_operations.find(item => item.value === method.value)?.alias;
         const opt = {};
         if (isWildcard.value) {
@@ -262,11 +289,14 @@ export default defineComponent({
           condition: { id: ECondition.and, name: 'AND' },
           options: opt,
         };
-        if (DURATION_KEYS.includes(checkedItem.value?.name)) {
-          value.method = {
-            id: 'between',
-            name: 'between',
-          };
+        /* 耗时字段特殊处理 */
+        if (isDurationKey.value) {
+          if (timeConsumingValue.value.value.length) {
+            value.method = { id: timeConsumingValue.value.method as EMethod, name: timeConsumingValue.value.method };
+            value.value = timeConsumingValue.value.value.map(item => ({ id: item, name: item }));
+            emit('confirm', value);
+          }
+          return;
         }
         emit('confirm', value);
       } else {
@@ -279,13 +309,8 @@ export default defineComponent({
     function handleValueChange(v: IValue[]) {
       values.value = v;
     }
-    function handleTimeConsumingValueChange(v: number[]) {
-      if (v) {
-        values.value = v.map(item => ({
-          id: item,
-          name: item,
-        }));
-      }
+    function handleTimeConsumingValueChange(v) {
+      timeConsumingValue.value = v;
     }
 
     function handleKeydownEvent(event: KeyboardEvent) {
@@ -474,7 +499,7 @@ export default defineComponent({
       cursorIndex,
       isMacSystem,
       placeholderStr,
-      timeConsumingRange,
+      timeConsumingValue,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -540,7 +565,7 @@ export default defineComponent({
             ),
             <div
               key={'value'}
-              class='form-item mt-16'
+              class={['form-item', DURATION_KEYS.includes(this.checkedItem.name) ? 'mt-34' : 'mt-16']}
             >
               <div class='form-item-label'>
                 <span class='left'>{this.$t('检索值')}</span>
@@ -559,8 +584,13 @@ export default defineComponent({
                 {DURATION_KEYS.includes(this.checkedItem.name) ? (
                   <TimeConsuming
                     key={this.rightRefreshKey}
+                    fieldInfo={
+                      {
+                        field: this.checkedItem.name,
+                      } as any
+                    }
                     styleType={'form'}
-                    value={this.timeConsumingRange}
+                    value={this.timeConsumingValue}
                     onChange={this.handleTimeConsumingValueChange}
                   />
                 ) : (

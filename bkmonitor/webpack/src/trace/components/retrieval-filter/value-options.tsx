@@ -350,33 +350,27 @@ export default defineComponent({
                   this.handleCheck(item);
                 }}
               >
-                {item.id === '' ? (
-                  '--'
+                <TextHighlighter
+                  class='title__text'
+                  v-overflow-text={{
+                    content: item.name,
+                    placement: 'top',
+                  }}
+                  content={item.name}
+                  keyword={this.search}
+                />
+                {item.id !== item.name ? (
+                  <TextHighlighter
+                    class={item.name ? 'subtitle__text' : 'title__text'}
+                    v-overflow-text={{
+                      content: item.id,
+                      placement: 'top',
+                    }}
+                    content={item.name && item.id !== '' ? `（${item.id}）` : item.id}
+                    keyword={this.search}
+                  />
                 ) : (
-                  <>
-                    <TextHighlighter
-                      class='title__text'
-                      v-overflow-text={{
-                        content: item.name,
-                        placement: 'top',
-                      }}
-                      content={item.name}
-                      keyword={this.search}
-                    />
-                    {item.id !== item.name ? (
-                      <TextHighlighter
-                        class={item.name ? 'subtitle__text' : 'title__text'}
-                        v-overflow-text={{
-                          content: item.id,
-                          placement: 'top',
-                        }}
-                        content={item.name ? `（${item.id}）` : item.id}
-                        keyword={this.search}
-                      />
-                    ) : (
-                      ''
-                    )}
-                  </>
+                  ''
                 )}
               </div>
             ))}
