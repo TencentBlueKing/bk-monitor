@@ -1,0 +1,162 @@
+.grep-cli-container {
+  display: flex;
+  border: 1px solid #e6e9ea;
+  border-radius: 2px;
+  background: #fff;
+  padding: 8px 12px;
+  min-width: 400px;
+  height: 40px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 4px 0 #19192914;
+}
+.grep-cli-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  height: 32px;
+}
+.grep-cli-label {
+  margin-right: 8px;
+  color: #63656e;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.grep-cli-select {
+  margin-right: 12px;
+  min-width: 80px;
+  height: 32px;
+  font-size: 14px;
+  width: 80px !important;
+}
+.grep-cli-mode-switch {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+.grep-cli-mode-btn {
+  background: #f5f7fa;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  padding: 2px 8px;
+  font-size: 14px;
+  color: #63656e;
+  cursor: pointer;
+  margin-left: 0;
+  height: 28px;
+  line-height: 24px;
+}
+.grep-cli-mode-btn.active {
+  background: #3a84ff;
+  color: #fff;
+  border-color: #3a84ff;
+}
+.grep-cli-body {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 36px;
+}
+.grep-cli-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.grep-cli-search,
+.grep-cli-cli-input {
+  flex: 1;
+  height: 36px;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  padding: 0 8px;
+  font-size: 14px;
+  background: #fff;
+  box-sizing: border-box;
+}
+.grep-cli-cli-input {
+  resize: none;
+  padding-top: 7px;
+}
+.grep-cli-insert-placeholder {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  color: #c4c6cc;
+  font-size: 12px;
+  line-height: 36px;
+  pointer-events: none;
+  font-family: monospace;
+}
+.grep-cli-ui-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  width: 240px;
+  background: #f0f1f5;
+  border-radius: 2px;
+}
+.grep-cli-tool-btn {
+  background: #f5f7fa;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 14px;
+  color: #63656e;
+  cursor: pointer;
+  height: 28px;
+  line-height: 24px;
+}
+.grep-cli-no-result {
+  margin-left: 8px;
+  color: #c4c6cc;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.grep-cli-flex {
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+.grep-cli-left {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  width: 128px;
+  min-width: 128px;
+  max-width: 128px;
+}
+.grep-cli-center {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+}
+.grep-cli-textarea {
+  width: 100%;
+  height: 36px;
+  /* border: 1px solid #c4c6cc; */
+  border: none;
+  border-radius: 2px;
+  padding: 6px 8px;
+  font-size: 14px;
+  resize: none;
+  background: #fff;
+  box-sizing: border-box;
+}
+.grep-cli-right {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  height: 40px;
+  width: 366px;
+  min-width: 366px;
+  max-width: 366px;
+  background: #fff;
+  box-shadow: 0 2px 4px 0 #19192914;
+  border-radius: 2px;
+  padding-left: 12px;
+}

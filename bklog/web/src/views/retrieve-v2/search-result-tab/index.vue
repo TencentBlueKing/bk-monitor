@@ -41,6 +41,7 @@
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+      { name: 'grep', label: $t('Grep模式'), disabled: false },
     ];
   });
 
