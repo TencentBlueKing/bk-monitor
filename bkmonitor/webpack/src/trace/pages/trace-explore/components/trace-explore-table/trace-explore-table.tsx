@@ -251,9 +251,9 @@ export default defineComponent({
                       !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                       e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                     ) {
-                      const sortDescValueList = [true, false, null];
-                      const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
                       if (sortContainer.sortBy === column.colKey) {
+                        const sortDescValueList = [true, false, null];
+                        const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
                         sortContainer.descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
                         if (sortContainer.descending === null) {
                           sortContainer.sortBy = '';
