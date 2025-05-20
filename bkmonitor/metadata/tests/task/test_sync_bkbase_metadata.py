@@ -205,6 +205,14 @@ def create_or_delete_records(mocker):
         cluster_id=1000,
         is_deleted=False,
     )
+
+    # 计算平台元数据RT同步
+    models.ResultTableOption.objects.create(
+        table_id="2_test_ss_entry_61_INPUT.__default__",
+        name="bkbase_rt_storage_types",
+        value_type="list",
+        value=json.dumps(["hdfs"]),
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.all().delete()
@@ -213,6 +221,7 @@ def create_or_delete_records(mocker):
     models.AccessVMRecord.objects.all().delete()
     models.ClusterInfo.objects.all().delete()
     models.Space.objects.all().delete()
+    models.ResultTableOption.objects.all().delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -586,13 +595,20 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
         models.ResultTableField.objects.get(
             table_id="test_treat_diversion_plan_1.__default__", field_name="_startTime_"
         ).tag
-        == "metric"
+        == "dimension"
     )
     assert (
         models.ResultTableField.objects.get(
             table_id="test_treat_diversion_plan_1.__default__", field_name="_endTime_"
         ).tag
-        == "metric"
+        == "dimension"
+    )
+
+    assert (
+        models.ResultTableOption.objects.get(
+            table_id="test_treat_diversion_plan_1.__default__", name="bkbase_rt_storage_types"
+        ).value
+        == "['pulsar', 'tspider']"
     )
 
     rt_ins_2 = models.ResultTable.objects.get(table_id="2_test_ss_entry_61_INPUT.__default__")
@@ -604,17 +620,24 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
         models.ResultTableField.objects.get(
             table_id="2_test_ss_entry_61_INPUT.__default__", field_name="_startTime_"
         ).tag
-        == "metric"
+        == "dimension"
     )
     assert (
         models.ResultTableField.objects.get(table_id="2_test_ss_entry_61_INPUT.__default__", field_name="_endTime_").tag
-        == "metric"
+        == "dimension"
     )
     assert (
         models.ResultTableField.objects.get(table_id="2_test_ss_entry_61_INPUT.__default__", field_name="value").tag
         == "metric"
     )
     # 不同步is_dimension为False的字段
-    assert not models.ResultTableField.objects.filter(
+    assert models.ResultTableField.objects.filter(
         table_id="2_test_ss_entry_61_INPUT.__default__", field_name="timestamp"
     ).exists()
+
+    assert (
+        models.ResultTableOption.objects.get(
+            table_id="2_test_ss_entry_61_INPUT.__default__", name="bkbase_rt_storage_types"
+        ).value
+        == "['pulsar', 'hdfs']"
+    )

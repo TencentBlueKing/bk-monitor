@@ -261,7 +261,7 @@ export default class K8SCharts extends tsc<
                 api: 'grafana.graphUnifyQuery',
               },
             ].concat(
-              this.createPerformanceDetailPanel(panel.id).map(item => ({
+              this.createSpecialPanel(panel.id).map(item => ({
                 data: {
                   expression: 'A',
                   query_configs: [
@@ -594,7 +594,7 @@ export default class K8SCharts extends tsc<
         return '';
     }
   }
-  createPerformanceDetailPanel(metric: string) {
+  createSpecialPanel(metric: string) {
     if (this.resourceList.size !== 1) return [];
     switch (metric) {
       case 'node_cpu_seconds_total': // node 节点CPU使用量
@@ -621,6 +621,17 @@ export default class K8SCharts extends tsc<
             alias: 'request',
             filter_dict: {},
           },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_node_status_allocatable{resource="cpu",${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_node_status_allocatable{resource="cpu",${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'capacity',
+            filter_dict: {},
+          },
         ];
       case 'node_memory_working_set_bytes':
         return [
@@ -644,6 +655,17 @@ export default class K8SCharts extends tsc<
                 : `sum by(bcs_cluster_id)(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
             interval: '$interval_second',
             alias: 'request',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_node_status_allocatable{resource="memory",${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_node_status_allocatable{resource="memory",${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'capacity',
             filter_dict: {},
           },
         ];
