@@ -74,7 +74,7 @@ def get_metrics() -> list:
                 Metric(
                     id="node_memory_usage_ratio",
                     name=_lazy("节点内存使用率"),
-                    unit="percent",
+                    unit="percentunit",
                     unsupported_resource=[],
                 ),
                 # (1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))
