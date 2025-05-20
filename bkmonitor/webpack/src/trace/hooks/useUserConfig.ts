@@ -64,7 +64,7 @@ export default function useUserConfig() {
    */
   async function handleSetUserConfig(value: string, configId?: string): Promise<boolean> {
     if (!hasBusinessAuth.value) return false;
-    return await partialUpdateUserConfig(storeId.value || configId, { value }, { reject403: true })
+    return await partialUpdateUserConfig(configId || storeId.value, { value }, { reject403: true })
       .then(() => true)
       .catch(() => false);
   }
