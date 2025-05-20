@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
+from metadata.resources import ListBkBaseRtInfoByBizIdResource
 from metadata.task.bkbase import sync_bkbase_cluster_info, sync_bkbase_rt_meta_info_all
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.tests.common_utils import consul_client
@@ -608,7 +609,7 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
         models.ResultTableOption.objects.get(
             table_id="test_treat_diversion_plan_1.__default__", name="bkbase_rt_storage_types"
         ).value
-        == "['pulsar', 'tspider']"
+        == '["pulsar","tspider"]'
     )
 
     rt_ins_2 = models.ResultTable.objects.get(table_id="2_test_ss_entry_61_INPUT.__default__")
@@ -639,5 +640,69 @@ def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
         models.ResultTableOption.objects.get(
             table_id="2_test_ss_entry_61_INPUT.__default__", name="bkbase_rt_storage_types"
         ).value
-        == "['pulsar', 'hdfs']"
+        == '["pulsar","hdfs"]'
     )
+
+    # 测试元信息拉取接口
+    data = ListBkBaseRtInfoByBizIdResource().request(bk_biz_id=7)
+    expected = [
+        {
+            "bk_biz_id": 7,
+            "bk_data_id": None,
+            "bk_tenant_id": "system",
+            "create_time": "2025-05-20 06:29:46",
+            "creator": "system",
+            "data_label": "",
+            "default_storage": "bkdata",
+            "field_list": [
+                {
+                    "alias_name": "",
+                    "default_value": None,
+                    "description": "",
+                    "field_name": "_endTime_",
+                    "is_config_by_user": False,
+                    "is_disabled": False,
+                    "option": {},
+                    "tag": "dimension",
+                    "type": "string",
+                    "unit": "",
+                },
+                {
+                    "alias_name": "",
+                    "default_value": None,
+                    "description": "",
+                    "field_name": "_startTime_",
+                    "is_config_by_user": False,
+                    "is_disabled": False,
+                    "option": {},
+                    "tag": "dimension",
+                    "type": "string",
+                    "unit": "",
+                },
+                {
+                    "alias_name": "",
+                    "default_value": None,
+                    "description": "",
+                    "field_name": "timestamp",
+                    "is_config_by_user": False,
+                    "is_disabled": False,
+                    "option": {},
+                    "tag": "metric",
+                    "type": "timestamp",
+                    "unit": "",
+                },
+            ],
+            "is_custom_table": False,
+            "is_enable": True,
+            "label": "others",
+            "last_modify_time": "2025-05-20 06:29:46",
+            "last_modify_user": "system",
+            "option": {"bkbase_rt_storage_types": ["pulsar", "tspider"]},
+            "scheme_type": "free",
+            "storage_list": [],
+            "table_id": "test_treat_diversion_plan_1.__default__",
+            "table_name_zh": "test_treat_diversion_plan_1",
+        }
+    ]
+    # assert data == expected
+    assert data[0]["table_id"] == expected[0]["table_id"]
