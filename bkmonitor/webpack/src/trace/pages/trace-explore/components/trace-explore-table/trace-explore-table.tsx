@@ -463,6 +463,12 @@ export default defineComponent({
             title: t('接口名称'),
             width: 200,
           },
+          time: {
+            renderType: ExploreTableColumnTypeEnum.TIME,
+            colKey: 'time',
+            title: t('时间'),
+            width: 140,
+          },
           start_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'start_time',
