@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import time
 from django.db import transaction
@@ -100,13 +101,13 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
                     )
 
             # 3. 记录结果表的存储类型,记录为列表
-            storage_types = str(list(data.get("storages", {}).keys()))
+            storage_types = list(data.get("storages", {}).keys())
             result_table_options.append(
                 {
                     "table_id": bkmonitor_result_table_id,
                     "name": BKBASE_RT_STORAGE_TYPES_OPTION_NAME,
                     "value_type": "list",
-                    "value": storage_types,
+                    "value": json.dumps(storage_types),
                     "creator": "system",
                 }
             )

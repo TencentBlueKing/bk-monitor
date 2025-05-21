@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,6 +12,7 @@ import operator
 import time
 from collections import defaultdict
 from functools import reduce
+from typing import Any
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
@@ -20,6 +20,8 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
+from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.permission import Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_username
@@ -70,7 +72,7 @@ class ShieldListResource(Resource):
     """
 
     def __init__(self):
-        super(ShieldListResource, self).__init__()
+        super().__init__()
 
     RequestSerializer = ShieldListSerializer
 
@@ -109,7 +111,7 @@ class ShieldListResource(Resource):
         enabled_fields = [field for field, value in Shield.__dict__.items() if isinstance(value, DeferredAttribute)]
         for condition in conditions:
             # 支持多条件匹配
-            key = condition['key'].lower()
+            key = condition["key"].lower()
             if key not in enabled_fields:
                 # 不在里面的，直接忽略
                 continue
@@ -222,7 +224,21 @@ class AddShieldResource(Resource, EventDimensionMixin):
     新增屏蔽（通用）
     """
 
-    def validate_request_data(self, request_data):
+    def validate_request_data(self, request_data: dict[str, Any]):
+        # 额外验证用户权限，用于apigw 场景
+        if request_data.get("verify_user_permission"):
+            username = get_request_username()
+            if not username:
+                raise ValidationError({"verify_user_permission": "无法获取当前用户"})
+            if not request_data.get("bk_biz_id"):
+                raise ValidationError({"verify_user_permission": "业务id不能为空"})
+            p = Permission(username=username)
+            p.skip_check = False
+            if not p.is_allowed_by_biz(request_data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
+                raise ValidationError(
+                    {"verify_user_permission": f"当前用户无权限新增{request_data['bk_biz_id']}业务屏蔽配置"}
+                )
+
         if "category" not in request_data:
             raise ValidationError(detail={"request_data_invalid": "category not exist"})
         self.RequestSerializer = SHIELD_SERIALIZER[request_data["category"]]
@@ -326,7 +342,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
         dimension_string_list = []
 
         for key, value in display_dimensions.items():
-            dimension_string_list.append("{}={}".format(key, value))
+            dimension_string_list.append(f"{key}={value}")
 
         dimension_string = ",".join(dimension_string_list)
 
@@ -533,7 +549,11 @@ class DisableShieldResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务id")
         id = serializers.ListField(required=True, child=serializers.IntegerField(), min_length=1, label="屏蔽id列表")
+        verify_user_permission = serializers.BooleanField(
+            required=False, default=True, label="是否额外验证用户权限(apigw)"
+        )
 
         def to_internal_value(self, data):
             data["id"] = data.get("id", [])
@@ -544,8 +564,24 @@ class DisableShieldResource(Resource):
             return super().to_internal_value(data)
 
     def perform_request(self, data):
-        username = get_global_user() or "unknown"
+        username = get_request_username()
+        # 额外验证用户权限，用于apigw 场景
+        if data.get("verify_user_permission"):
+            if not username:
+                raise ValidationError({"verify_user_permission": "无法获取当前用户"})
+            if not data.get("bk_biz_id"):
+                raise ValidationError({"verify_user_permission": "业务id不能为空"})
+            p = Permission(username=username)
+            p.skip_check = False
+            if not p.is_allowed_by_biz(data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
+                raise ValidationError({"verify_user_permission": f"当前用户无权限解除{data['bk_biz_id']}业务屏蔽配置"})
+        else:
+            username = get_global_user() or "unknown"
+
         shields = Shield.objects.filter(pk__in=data["id"])
+        if data.get("bk_biz_id"):
+            shields = shields.filter(bk_biz_id=data["bk_biz_id"])
+
         update_shields = []
         for shield in shields:
             if shield.is_enabled:
@@ -560,7 +596,7 @@ class DisableShieldResource(Resource):
         missing_ids = set(data["id"]) - existing_ids
 
         if missing_ids:
-            logger.warning("Alarm shield ids does not exist: {}".format(list(missing_ids)))
+            logger.warning(f"Alarm shield ids does not exist: {list(missing_ids)}")
         return "success"
 
 

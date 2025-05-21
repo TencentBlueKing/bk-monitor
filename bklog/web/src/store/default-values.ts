@@ -238,7 +238,12 @@ export const getStorageOptions = (values?: any) => {
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
-      Object.assign(storage, values ?? []);
+
+      Object.keys(values ?? {}).forEach(key => {
+        if (values[key] !== undefined && values[key] !== null) {
+          Object.assign(storage, { [key]: values[key] });
+        }
+      });
 
       let update = false;
       // 对旧版缓存进行还原操作

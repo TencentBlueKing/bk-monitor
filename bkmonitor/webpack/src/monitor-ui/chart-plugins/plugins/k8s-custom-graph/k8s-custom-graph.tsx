@@ -389,6 +389,7 @@ class K8SCustomChart extends CommonSimpleChart {
             return {
               ...item,
               minBase: this.minBase,
+              color: isSpecialSeries ? color : undefined,
               data: item.data.map((set: any) => {
                 if (set?.length) {
                   return [set[0], set[1] !== null ? set[1] + this.minBase : null];
@@ -600,9 +601,10 @@ class K8SCustomChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
+    const specialSeriesCount = series.filter(item => item.name in SpecialSeriesColorMap)?.length || 0;
     const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
-      const color = item.color || (colors || colorList)[index % colorList.length];
+      const color = item.color || (colors || colorList)[Math.max(index - specialSeriesCount, 0) % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
         name: String(item.name),

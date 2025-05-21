@@ -51,14 +51,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
 
-  // const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() =>
     (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable),
   );
 
   let runningInterval = '1m';
-  // let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
@@ -141,8 +139,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return { interval: runningInterval };
   };
 
-  // const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
-
   // 时间向下取整
   const getIntegerTime = time => {
     if (runningInterval === '1d') {
@@ -154,16 +150,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const intervalTimestamp = getIntervalValue(runningInterval);
     return Math.floor(time / intervalTimestamp) * intervalTimestamp;
   };
-
-  // const updateSerieData = (data = [], buckets?) => {
-  //   if (buckets?.length) {
-  //     buckets.forEach(bucket => {
-  //       if (!data.some(d => d[0] === bucket.key)) {
-  //         data.push([bucket.key, 0, bucket.key_as_string]);
-  //       }
-  //     });
-  //   }
-  // };
 
   const getDefData = (buckets?) => {
     if (buckets?.length) {

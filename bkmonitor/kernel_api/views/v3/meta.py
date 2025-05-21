@@ -492,3 +492,7 @@ class GetDataLabelsMapViewSet(MetaViewSet):
 
 class SyncBkBaseRtMetaByBizIdResourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.SyncBkBaseRtMetaByBizIdResource)]
+
+
+class ListBkBaseRtInfoByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBkBaseRtInfoByBizIdResource)]
