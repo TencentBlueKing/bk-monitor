@@ -513,19 +513,19 @@ export default defineComponent({
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'time',
             title: t('时间'),
-            width: 140,
+            width: 160,
           },
           start_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'start_time',
             title: t('开始时间'),
-            width: 140,
+            width: 180,
           },
           end_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
             colKey: 'end_time',
             title: t('结束时间'),
-            width: 140,
+            width: 180,
           },
           elapsed_time: {
             renderType: ExploreTableColumnTypeEnum.DURATION,
@@ -1095,11 +1095,8 @@ export default defineComponent({
      */
     function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
       const timestamp = getTableCellRenderValue(row, column);
-      const alias = formatTraceTableDate(timestamp, 'YYYY-MM-DD HH:ss');
+      const alias = formatTraceTableDate(timestamp);
       const value = row?.[column.colKey];
-      if (column.colKey === 'time') {
-        console.info(timestamp, value, alias);
-      }
       return (
         <div class={`explore-col explore-time-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span

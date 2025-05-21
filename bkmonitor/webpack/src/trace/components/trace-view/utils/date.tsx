@@ -74,8 +74,10 @@ export function getPercentageOfDuration(duration: number, totalDuration: number)
 const quantizeDuration = (duration: number, floatPrecision: number, conversionFactor: number) =>
   toFloatPrecision(duration / conversionFactor, floatPrecision) * conversionFactor;
 
-export function formatTraceTableDate(duration: number | string, template = 'YYYY-MM-DD HH:mm:ss') {
-  return dayjs.tz(+duration.toString().slice(0, 13).padEnd(13, '0')).format(template);
+export function formatTraceTableDate(duration: number | string) {
+  return dayjs
+    .tz(+duration.toString().slice(0, 13).padEnd(13, '0'))
+    .format(duration.toString().length > 13 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss');
 }
 /**
  * @param {number} duration (in microseconds)
