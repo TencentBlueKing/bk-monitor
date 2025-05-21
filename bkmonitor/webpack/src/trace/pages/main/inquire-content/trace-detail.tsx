@@ -878,6 +878,7 @@ export default defineComponent({
         {!this.isInTable && (
           <TraceDetailHeader
             appName={appName}
+            hasFullscreen={false}
             traceId={traceId}
           />
         )}

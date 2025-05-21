@@ -44,12 +44,21 @@ const traceHeaderProps = {
     type: String,
     default: '',
   },
+  fullscreen: {
+    type: Boolean,
+    default: false,
+  },
+  hasFullscreen: {
+    type: Boolean,
+    default: true,
+  },
 };
 
 export default defineComponent({
   name: 'TraceDetailHeader',
   props: traceHeaderProps,
-  setup(props) {
+  emits: ['fullscreenChange'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     // 复制操作
     const handleCopy = (content: string) => {
@@ -76,8 +85,15 @@ export default defineComponent({
         width: 200,
       });
     };
+
+    const handleFullScreen = (flag: boolean) => {
+      emit('fullscreenChange', flag);
+    };
+
     return {
+      t,
       handleCopy,
+      handleFullScreen,
     };
   },
 
@@ -86,27 +102,43 @@ export default defineComponent({
 
     return (
       <div class={`trace-detail-header ${isInTable ? 'is-in-table' : ''}`}>
-        <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
-        <Popover
-          content={this.$t('复制 TraceID')}
-          placement='right'
-          theme='light'
-        >
-          <span
-            class='icon-monitor icon-mc-copy'
-            onClick={() => this.handleCopy('text')}
-          />
-        </Popover>
-        <Popover
-          content={this.$t('复制链接')}
-          placement='right'
-          theme='light'
-        >
-          <span
-            class='icon-monitor icon-copy-link'
-            onClick={() => this.handleCopy('link')}
-          />
-        </Popover>
+        <div class='trace-header-title'>
+          <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
+          <Popover
+            content={this.$t('复制 TraceID')}
+            placement='right'
+            theme='light'
+          >
+            <span
+              class='icon-monitor icon-mc-copy'
+              onClick={() => this.handleCopy('text')}
+            />
+          </Popover>
+          <Popover
+            content={this.$t('复制链接')}
+            placement='right'
+            theme='light'
+          >
+            <span
+              class='icon-monitor icon-copy-link'
+              onClick={() => this.handleCopy('link')}
+            />
+          </Popover>
+        </div>
+
+        <div class='header-tool'>
+          {this.hasFullscreen && (
+            <div class='tool-item'>
+              <div
+                class='tool-item-content'
+                onClick={() => this.handleFullScreen(!this.fullscreen)}
+              >
+                <i class='icon-monitor icon-fullscreen' />
+                <span>{this.t(this.fullscreen ? '退出全屏' : '全屏')}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   },
