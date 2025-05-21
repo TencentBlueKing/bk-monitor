@@ -1258,6 +1258,7 @@ export default defineComponent({
       tableHasScrollLoading,
       sortContainer,
       tableDisplayColumns,
+      tableData,
       tableViewData,
       tableSkeletonConfig,
       sliderMode,
@@ -1276,7 +1277,13 @@ export default defineComponent({
 
   render() {
     return (
-      <div class='trace-explore-table'>
+      <div
+        style={{
+          // 消除表格组件实现吸底效果时候吸底虚拟滚动条组件marginTop 多处理了 1px 的副作用
+          marginTop: this.tableData?.length ? 0 : '-1px',
+        }}
+        class='trace-explore-table'
+      >
         <PrimaryTable
           ref='tableRef'
           class={this.tableSkeletonConfig?.tableClass}
