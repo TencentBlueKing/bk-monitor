@@ -631,6 +631,15 @@ class PreCalculateSpecificField(TextChoices):
         """获取隐藏字段"""
         return [cls.BIZ_ID, cls.BIZ_NAME, cls.APP_ID, cls.APP_NAME, cls.TIME, cls.COLLECTIONS]
 
+    @classmethod
+    def specific_fields(cls):
+        """获取可供搜索的字段中预计算表特有的字段"""
+        from apm.models.datasource import TraceDataSource
+
+        # span 表的顶层字段
+        trace_top_fields = {field_dict["field_name"] for field_dict in TraceDataSource.TRACE_FIELD_LIST}
+        return list(set(cls.search_fields()) - trace_top_fields)
+
 
 class TraceListQueryMode:
     """trace检索查询模式"""
