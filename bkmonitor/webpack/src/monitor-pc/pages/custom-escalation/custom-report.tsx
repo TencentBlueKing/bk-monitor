@@ -654,14 +654,14 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       {!row.is_edit && row?.is_platform ? (
                         <span class='platform-tag'>{this.$t('公共')}</span>
                       ) : undefined}
-                      {!row.is_edit && (
+                      {/* {!row.is_edit && (
                         <i
                           class='icon-monitor icon-bianji edit-btn'
                           onClick={() => {
                             row.is_edit = !row.is_edit;
                           }}
                         />
-                      )}
+                      )} */}
                     </span>
                   ),
                   related: (row: IEventItem) => (

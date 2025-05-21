@@ -83,6 +83,19 @@
       .drill-main-chart {
         width: 100%;
         padding: 12px;
+        .chart-title {
+          padding-right: 100px;
+          .strategy-icon {
+            position: absolute;
+            right: 56px;
+            top: 20px;
+            font-size: 13px;
+          }
+          .more-icon {
+            position: absolute;
+            right: 20px;
+          }
+        }
       }
       .drill-main-table {
         width: 100%;
