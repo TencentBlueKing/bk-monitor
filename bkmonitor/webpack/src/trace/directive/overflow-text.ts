@@ -29,14 +29,17 @@ import type { ObjectDirective } from 'vue';
 
 import 'tippy.js/dist/tippy.css';
 type OverflowElement = HTMLElement & { mouseEnterFunc?: (event: MouseEvent) => void; unObserverFunc: () => void };
-
+type MouseEnterFunc = (e: MouseEvent) => void;
 const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; text: string }> = {
   mounted(el, binding) {
     let instance = null;
-    function mouseenter(event: MouseEvent) {
+    function mouseenter(event: MouseEvent & { target: Element }) {
       event.stopPropagation();
+      if (event.target.scrollWidth <= event.target.clientWidth) {
+        return;
+      }
       if (!instance) {
-        instance = tippy((event as MouseEvent & { target: Element }).target, {
+        instance = tippy(event.target, {
           trigger: 'mouseenter',
           allowHTML: true,
           placement: binding.value?.placement || 'top',
@@ -48,10 +51,8 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
             instance = null;
           },
         });
-        instance?.show();
-      } else {
-        instance?.show();
       }
+      instance.show?.();
     }
     function observeElementVisibility(el: OverflowElement, callback: (isVisible: boolean) => void) {
       const observer = new IntersectionObserver(
@@ -72,17 +73,17 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
     }
     observeElementVisibility(el, isVisible => {
       if (isVisible) {
-        if (el.scrollWidth > el.clientWidth) {
-          el.addEventListener('mouseenter', mouseenter);
-        }
-      } else {
-        el.removeEventListener('mouseenter', mouseenter);
+        el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
+        return;
       }
+      el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
     });
   },
   beforeUnmount(el) {
     el.removeEventListener('mouseenter', el.mouseEnterFunc);
     el?.unObserverFunc();
+    el.mouseEnterFunc = undefined;
+    el.unObserverFunc = undefined;
   },
 };
 export default OverflowText;
