@@ -36,9 +36,17 @@ import type { $Popover } from 'bkui-vue/lib/popover/plugin-popover';
 
 type ICSSSelector = string;
 type PopoverContent = HTMLElement | JSX.Element | number | string;
+type PopoverTriggerEventType = 'click' | 'mouseenter';
 
 export interface UseTablePopoverOptions {
-  trigger: { selector: ICSSSelector; delay?: number };
+  trigger: {
+    /** 触发元素 */
+    selector: ICSSSelector;
+    /** 延迟触发/防抖 时间 */
+    delay?: number;
+    /** 需要监听的触发类型（默认为 'mouseenter'） */
+    eventType?: PopoverTriggerEventType;
+  };
   getContentOptions: (
     el: HTMLElement,
     event: MouseEvent
@@ -46,6 +54,8 @@ export interface UseTablePopoverOptions {
     content: PopoverContent;
     popoverTarget?: HTMLElement;
   }; // 自定义内容获取
+  // popover 隐藏回调
+  onHide?: () => void;
   popoverOptions?: Partial<$Popover>;
 }
 
@@ -74,8 +84,15 @@ export const useTablePopover = (
       );
       return;
     }
-    rootDom.addEventListener('mouseenter', handleMouseenter, true);
-    rootDom.addEventListener('mouseleave', handleMouseleave, true);
+    switch (options.trigger.eventType) {
+      case 'click':
+        rootDom.addEventListener('click', handleEventTrigger, true);
+        break;
+      default:
+        rootDom.addEventListener('mouseenter', handleEventTrigger, true);
+        rootDom.addEventListener('mouseleave', handleMouseleave, true);
+        break;
+    }
   };
 
   /**
@@ -85,8 +102,15 @@ export const useTablePopover = (
   const destroyDelegationListeners = () => {
     const rootDom = get(delegationRoot)?.$el;
     if (!rootDom) return;
-    rootDom?.removeEventListener?.('mouseenter', handleMouseenter, true);
-    rootDom?.removeEventListener?.('mouseleave', handleMouseleave, true);
+    switch (options.trigger.eventType) {
+      case 'click':
+        rootDom.removeEventListener('click', handleEventTrigger, true);
+        break;
+      default:
+        rootDom?.removeEventListener?.('mouseenter', handleEventTrigger, true);
+        rootDom?.removeEventListener?.('mouseleave', handleMouseleave, true);
+        break;
+    }
   };
 
   /**
@@ -94,11 +118,12 @@ export const useTablePopover = (
    * @param {MouseEvent} e 鼠标事件对象
    *
    */
-  const handleMouseenter = (e: MouseEvent) => {
+  const handleEventTrigger = (e: MouseEvent) => {
     handlePopoverHide();
+
     // 兼容微前端环境下，e.target 在异步任务中会被置空的场景
     const _target = e.target as HTMLElement;
-    mouseenterDebouncedTimer = setTimeout(() => {
+    const handleFn = () => {
       const targetDom: HTMLElement = _target?.closest?.(options.trigger.selector);
       if (!targetDom) return;
 
@@ -107,7 +132,14 @@ export const useTablePopover = (
       if (content != null) {
         handlePopoverShow(popoverTarget || targetDom, content as string);
       }
-    }, options.trigger.delay || 200);
+    };
+    if (options.trigger.delay === 0) {
+      handleFn();
+    } else {
+      mouseenterDebouncedTimer = setTimeout(() => {
+        handleFn();
+      }, options.trigger.delay || 200);
+    }
   };
 
   /**
@@ -162,6 +194,7 @@ export const useTablePopover = (
       immediate: false,
       // @ts-ignore
       onHide: () => {
+        options?.onHide?.();
         handlePopoverHide();
       },
       ...options.popoverOptions,

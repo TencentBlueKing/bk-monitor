@@ -55,8 +55,13 @@ import ExploreFieldSetting from '../explore-field-setting/explore-field-setting'
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 import StatisticsList from '../statistics-list';
+import ExploreConditionMenu from './components/explore-condition-menu';
+import ExploreTableEmpty from './components/explore-table-empty';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
+  ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
+  ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME,
+  ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
   SERVICE_CATEGORY_MAP,
   SERVICE_STATUS_COLOR_MAP,
   SPAN_KIND_MAPS,
@@ -64,8 +69,7 @@ import {
   TABLE_DEFAULT_CONFIG,
   TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from './constants';
-import ExploreTableEmpty from './explore-table-empty';
-import { useTableEllipsis, useTableHeaderDescription } from './hooks/use-table-popover';
+import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
 import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
@@ -145,6 +149,7 @@ export default defineComponent({
     let statisticsPopoverInstance = null;
 
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
+    const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
     const durationPopover = useTemplateRef<HTMLDivElement>('durationPopoverRef');
 
@@ -153,7 +158,7 @@ export default defineComponent({
       tableRef,
       {
         trigger: {
-          selector: '.explore-text-ellipsis',
+          selector: `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`,
         },
       }
     );
@@ -161,9 +166,39 @@ export default defineComponent({
     const { initListeners: initHeaderDescritionListeners, handlePopoverHide: descriptionPopoverHide } =
       useTableHeaderDescription(tableRef, {
         trigger: {
-          selector: '.explore-table-header-description',
+          selector: `.${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`,
         },
       });
+
+    const { initListeners: initConditionMenuListeners, handlePopoverHide: conditionMenuPopoverHide } = useTablePopover(
+      tableRef,
+      {
+        trigger: {
+          selector: `.${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`,
+          eventType: 'click',
+          delay: 0,
+        },
+        getContentOptions: triggerDom => {
+          if (
+            triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
+            triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
+          ) {
+            handleSetActiveConditionMenu();
+            return;
+          }
+          handleSetActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+          return { content: conditionMenuRef.value.$el };
+        },
+        onHide: () => {
+          handleSetActiveConditionMenu();
+        },
+        popoverOptions: {
+          theme: 'light padding-0',
+          placement: 'bottom',
+        },
+      }
+    );
+
     /** table 显示列配置 */
     const displayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
@@ -194,6 +229,11 @@ export default defineComponent({
     const showStatisticsPopover = shallowRef(false);
     /** 当前激活字段分析弹窗面板展示的字段 */
     const activeStatisticsField = shallowRef('');
+    /** click弹出 conditionMenu popover组件所需参数 */
+    const activeConditionMenuTarget = reactive({
+      conditionKey: '',
+      conditionValue: '',
+    });
 
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
@@ -377,6 +417,7 @@ export default defineComponent({
       setTimeout(() => {
         initEllipsisListeners();
         initHeaderDescritionListeners();
+        initConditionMenuListeners();
       }, 300);
     });
 
@@ -411,10 +452,14 @@ export default defineComponent({
      *
      */
     function handleScroll(event: Event) {
+      if (!tableData.value?.length) {
+        return;
+      }
       const target = event.target as HTMLElement;
       updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
+      conditionMenuPopoverHide();
       const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
       if (
@@ -462,6 +507,12 @@ export default defineComponent({
             colKey: 'span_name',
             title: t('接口名称'),
             width: 200,
+          },
+          time: {
+            renderType: ExploreTableColumnTypeEnum.TIME,
+            colKey: 'time',
+            title: t('时间'),
+            width: 140,
           },
           start_time: {
             renderType: ExploreTableColumnTypeEnum.TIME,
@@ -524,6 +575,12 @@ export default defineComponent({
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'min_start_time',
           title: t('开始时间'),
+          width: 140,
+        },
+        max_end_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+          colKey: 'max_end_time',
+          title: t('结束时间'),
           width: 140,
         },
         root_span_name: {
@@ -612,6 +669,14 @@ export default defineComponent({
           title: t('入口服务类型'),
           width: 100,
           getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        'status.code': {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'status.code',
+          headerDescription: 'status_code',
+          title: t('状态'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
         },
       };
     }
@@ -716,6 +781,11 @@ export default defineComponent({
       };
     }
 
+    function handleSetActiveConditionMenu(colKey = '', cellSource = '') {
+      activeConditionMenuTarget.conditionKey = colKey;
+      activeConditionMenuTarget.conditionValue = cellSource;
+    }
+
     /**
      * @description 表格排序回调
      * @param {string} sortEvent.sortBy 排序字段名
@@ -743,7 +813,7 @@ export default defineComponent({
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
       displayColumnFields.value = displayFields;
       // 缓存列配置
-      handleSetUserConfig(JSON.stringify(displayFields), displayColumnFieldsCacheKey.value);
+      handleSetUserConfig(JSON.stringify(displayFields));
     }
 
     /**
@@ -936,9 +1006,9 @@ export default defineComponent({
           key={title}
           class={`explore-header-col ${chartIconActive}`}
         >
-          <div class='explore-text-ellipsis'>
+          <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <span
-              class='th-label explore-table-header-description '
+              class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
               data-col-description={tipText}
             >
               {title}
@@ -976,7 +1046,7 @@ export default defineComponent({
     function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
       const alias = getTableCellRenderValue(row, column);
       return (
-        <div class='explore-col explore-click-col explore-text-ellipsis'>
+        <div class={`explore-col explore-click-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class='explore-click-text '
             onClick={event => column?.clickCallback?.(row, column, event)}
@@ -1002,11 +1072,17 @@ export default defineComponent({
         };
         return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
       }
-
+      const value = row?.[column.colKey];
       return (
         <div class='explore-col explore-prefix-icon-col'>
           <i class={`prefix-icon ${prefixIcon}`} />
-          <span>{alias}</span>
+          <span
+            class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
+            {alias}
+          </span>
         </div>
       );
     }
@@ -1018,10 +1094,17 @@ export default defineComponent({
      */
     function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
       const timestamp = getTableCellRenderValue(row, column);
-      const value = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
+      const alias = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
+      const value = row?.[column.colKey];
       return (
-        <div class='explore-col explore-time-col explore-text-ellipsis'>
-          <span class='explore-time-text '>{value}</span>
+        <div class={`explore-col explore-time-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
+            {alias}
+          </span>
         </div>
       );
     }
@@ -1033,10 +1116,17 @@ export default defineComponent({
      */
     function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row) {
       const timestamp = getTableCellRenderValue(row, column);
-      const value = formatDuration(+timestamp);
+      const alias = formatDuration(+timestamp);
+      const value = row?.[column.colKey];
       return (
-        <div class='explore-col explore-duration-col explore-text-ellipsis'>
-          <span class='explore-duration-text'>{value}</span>
+        <div class={`explore-col explore-duration-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
+            {alias}
+          </span>
         </div>
       );
     }
@@ -1058,7 +1148,7 @@ export default defineComponent({
       }
       return (
         <div class='explore-col explore-link-col '>
-          <div class='explore-link-text explore-text-ellipsis'>
+          <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <a
               style={{ color: 'inherit' }}
               href={item.url}
@@ -1098,7 +1188,13 @@ export default defineComponent({
               }}
               class='tag-item'
             >
-              <span>{tag.alias}</span>
+              <span
+                class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                data-cell-source={tag.alias}
+                data-col-key={column.colKey}
+              >
+                {tag.alias}
+              </span>
             </div>
           ))}
         </div>
@@ -1112,9 +1208,14 @@ export default defineComponent({
      */
     function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
       const alias = getTableCellRenderValue(row, column);
+      const value = row?.[column.colKey];
       return (
-        <div class='explore-col explore-text-col explore-text-ellipsis'>
-          <span class='explore-col-text'>
+        <div class={`explore-col explore-text-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
             {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
           </span>
         </div>
@@ -1157,22 +1258,32 @@ export default defineComponent({
       tableHasScrollLoading,
       sortContainer,
       tableDisplayColumns,
+      tableData,
       tableViewData,
       tableSkeletonConfig,
       sliderMode,
       activeSliderId,
+      activeConditionMenuTarget,
       handleSortChange,
       handleDataSourceConfigClick,
       handleDisplayColumnFieldsChange,
       statisticsDomRender,
       handleSliderShowChange,
       handleClearRetrievalFilter,
+      conditionMenuPopoverHide,
+      handleConditionChange,
     };
   },
 
   render() {
     return (
-      <div class='trace-explore-table'>
+      <div
+        style={{
+          // 消除表格组件实现吸底效果时候吸底虚拟滚动条组件marginTop 多处理了 1px 的副作用
+          marginTop: this.tableData?.length ? 0 : '-1px',
+        }}
+        class='trace-explore-table'
+      >
         <PrimaryTable
           ref='tableRef'
           class={this.tableSkeletonConfig?.tableClass}
@@ -1225,7 +1336,7 @@ export default defineComponent({
                     mode='spin'
                     size='mini'
                     theme='primary'
-                    title={window.i18n.t('加载中…')}
+                    title={window.i18n.t('加载中...')}
                   />
                 )
               : undefined
@@ -1269,6 +1380,15 @@ export default defineComponent({
             )}
           </div>
         </KeepAlive>
+        <div style='display: none'>
+          <ExploreConditionMenu
+            ref='conditionMenuRef'
+            conditionKey={this.activeConditionMenuTarget.conditionKey}
+            conditionValue={this.activeConditionMenuTarget.conditionValue}
+            onConditionChange={this.handleConditionChange}
+            onOnMenuClick={this.conditionMenuPopoverHide}
+          />
+        </div>
         {this.statisticsDomRender()}
       </div>
     );
