@@ -83,9 +83,16 @@ export default defineComponent({
         emptyStatus.value = 'empty';
       } else {
         emptyStatus.value = 'search-empty';
-        searchResultList.value = props.list.filter(item => {
-          return item.alias.includes(keyword) || item.name.includes(keyword) || item.pinyinStr.includes(keyword);
+        const aliasNameList: IDimensionField[] = [];
+        const pinyinList: IDimensionField[] = [];
+        props.list.map(item => {
+          if (item.alias.includes(keyword) || item.name.includes(keyword)) {
+            aliasNameList.push(item);
+          } else if (item.pinyinStr.includes(keyword)) {
+            pinyinList.push(item);
+          }
         });
+        searchResultList.value = [...aliasNameList, ...pinyinList];
       }
       dimensionTreeList.value = convertToTree(
         searchResultList.value.map(item => ({ ...item, expand: Boolean(searchVal.value) }))
