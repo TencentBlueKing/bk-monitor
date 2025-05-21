@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,19 +9,23 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import Optional
 
+from django.conf import settings
 from django.http import HttpRequest
 
 from bkmonitor.utils.local import local
 from constants.cmdb import BIZ_ID_FIELD_NAMES
-from constants.common import SourceApp
+from constants.common import DEFAULT_TENANT_ID, SourceApp
 
 
-def get_request_tenant_id(peaceful=False) -> Optional[str]:
+def get_request_tenant_id(peaceful=False) -> str | None:
     """
     获取当前请求的租户id
     """
+    # 单租户模式下，租户id为默认租户id
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return DEFAULT_TENANT_ID
+
     request = get_request(peaceful=True)
     if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
         if peaceful:
@@ -33,7 +36,7 @@ def get_request_tenant_id(peaceful=False) -> Optional[str]:
     return request.user.tenant_id
 
 
-def get_request(peaceful=False) -> Optional[HttpRequest]:
+def get_request(peaceful=False) -> HttpRequest | None:
     if hasattr(local, "current_request"):
         return local.current_request
     elif peaceful:
@@ -125,4 +128,4 @@ def is_ajax_request(request):
     """
     断是否是ajax请求
     """
-    return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    return request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"

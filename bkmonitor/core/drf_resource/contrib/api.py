@@ -162,7 +162,7 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
         else:
-            user_info = make_userinfo()
+            user_info = make_userinfo(bk_tenant_id=self.bk_tenant_id)
             self.bk_username = user_info.get("bk_username")
             validated_request_data.update(user_info)
         return validated_request_data
@@ -186,7 +186,7 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            auth_params.update(make_userinfo())
+            auth_params.update(make_userinfo(bk_tenant_id=self.bk_tenant_id))
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         # 多租户模式下添加租户ID
@@ -210,7 +210,6 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         发起http请求
         """
         validated_request_data = dict(validated_request_data)
-        validated_request_data = self.full_request_data(validated_request_data)
 
         # 获取租户ID
         if not self.bk_tenant_id:
@@ -227,6 +226,9 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
                 )
                 if space:
                     self.bk_tenant_id = space.bk_tenant_id
+
+        # 补充用户字段
+        validated_request_data = self.full_request_data(validated_request_data)
 
         # 拼接最终请求的url
         request_url = self.get_request_url(validated_request_data)
