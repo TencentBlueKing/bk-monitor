@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -55,6 +55,7 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         alias_settings=None,
+        total_shards_per_node=None,
         *args,
         **kwargs,
     ):
@@ -129,6 +130,7 @@ class TransferEtlHandler(EtlHandler):
             sort_fields=sort_fields,
             target_fields=target_fields,
             alias_settings=alias_settings,
+            total_shards_per_node=total_shards_per_node,
         )
 
         if not view_roles:
