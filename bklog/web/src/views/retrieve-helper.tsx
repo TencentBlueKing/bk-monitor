@@ -28,7 +28,7 @@ import { Ref } from 'vue';
 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
+import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
 
 export enum STORAGE_KEY {
@@ -121,6 +121,15 @@ class RetrieveHelper extends RetrieveBase {
     this.markInstance.incrementalUpdate();
   }
 
+  isMatchedGroup(group, fieldValue, isGradeMatchValue) {
+    if (isGradeMatchValue) {
+      return group.fieldValue?.includes(fieldValue) ?? false;
+    }
+
+    const regExp = new RegExp(group.regExp);
+    return regExp.test(fieldValue);
+  }
+
   /**
    * 解析日志级别
    * @param str
@@ -180,7 +189,8 @@ class RetrieveHelper extends RetrieveBase {
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
+            levels.push(item.id);
         }
       });
 

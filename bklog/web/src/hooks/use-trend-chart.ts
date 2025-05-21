@@ -56,6 +56,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable),
   );
 
+  /**
+   * 匹配规则是否为值匹配
+   * 可选值：value、regex
+   */
+  const isGradeMatchValue = computed(() => {
+    return store.state.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
+  });
+
   let runningInterval = '1m';
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
@@ -177,6 +185,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const dataset = new Map<string, any>();
   let sortKeys = ['level_1', 'level_2', 'level_3', 'level_4', 'level_5', 'level_6', 'others'];
+
+  const isMatchedGroup = (group, fieldValue) => {
+    return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
+  };
+
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
 
@@ -222,13 +235,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         let isMatched = false;
 
         sortKeys.forEach(dstKey => {
-          const { group, dst, dataMap } = dataset.get(dstKey);
+          const { group, dataMap } = dataset.get(dstKey);
 
           let count = dataMap.get(key)?.[1] ?? 0;
 
           if (!isMatched) {
-            const regExp = new RegExp(group.regExp);
-            if (dstKey === 'others' || regExp.test(fieldValue)) {
+            if (dstKey === 'others' || isMatchedGroup(group, fieldValue)) {
               isMatched = true;
               count += d.doc_count ?? 0;
             }
