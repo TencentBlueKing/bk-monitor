@@ -48,12 +48,13 @@ import ChartFiltering from '../../../../components/chart-filtering/chart-filteri
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { formatDate, formatDuration, formatTime } from '../../../../components/trace-view/utils/date';
+import { formatDuration, formatTraceTableDate } from '../../../../components/trace-view/utils/date';
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
+
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
@@ -1094,8 +1095,11 @@ export default defineComponent({
      */
     function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
       const timestamp = getTableCellRenderValue(row, column);
-      const alias = `${formatDate(+timestamp)} ${formatTime(+timestamp)}`;
+      const alias = formatTraceTableDate(timestamp, 'YYYY-MM-DD HH:ss');
       const value = row?.[column.colKey];
+      if (column.colKey === 'time') {
+        console.info(timestamp, value, alias);
+      }
       return (
         <div class={`explore-col explore-time-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span

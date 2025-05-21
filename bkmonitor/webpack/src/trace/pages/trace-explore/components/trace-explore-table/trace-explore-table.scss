@@ -19,7 +19,7 @@
       }
 
       .icon-monitor.icon-Chart.statistics-icon {
-        display: none;
+        display: block;
         margin-left: 6px;
         color: #4d4f56;
 
@@ -29,11 +29,11 @@
       }
     }
 
-    th:hover {
-      .icon-monitor.icon-Chart.statistics-icon {
-        display: block;
-      }
-    }
+    // th:hover {
+    //   .icon-monitor.icon-Chart.statistics-icon {
+    //     display: block;
+    //   }
+    // }
   }
 
   .t-table__th-cell-inner {

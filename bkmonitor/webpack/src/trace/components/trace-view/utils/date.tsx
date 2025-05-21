@@ -74,6 +74,9 @@ export function getPercentageOfDuration(duration: number, totalDuration: number)
 const quantizeDuration = (duration: number, floatPrecision: number, conversionFactor: number) =>
   toFloatPrecision(duration / conversionFactor, floatPrecision) * conversionFactor;
 
+export function formatTraceTableDate(duration: number | string, template = 'YYYY-MM-DD HH:mm:ss') {
+  return dayjs.tz(+duration.toString().slice(0, 13).padEnd(13, '0')).format(template);
+}
 /**
  * @param {number} duration (in microseconds)
  * @return {string} formatted, unit-labelled string with time in milliseconds
