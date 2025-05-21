@@ -27,7 +27,7 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector import BaseCollectorHandler, HostCollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler, HostCollectorHandler, K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
@@ -1456,7 +1456,7 @@ namespaceSelector:
   - test-cluster-share-test1
   - test-cluster-share-test2
         """
-        result = BaseCollectorHandler().validate_container_config_yaml(
+        result = K8sCollectorHandler().validate_container_config_yaml(
             bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID, yaml_config=yaml_config
         )
         self.assertTrue(result["parse_status"])

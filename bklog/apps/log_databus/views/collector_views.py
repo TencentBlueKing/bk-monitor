@@ -39,7 +39,7 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
-from apps.log_databus.handlers.collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler, K8sCollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
@@ -657,7 +657,7 @@ class CollectorViewSet(ModelViewSet):
         """
         if request.data.get("environment") == Environment.CONTAINER:
             data = self.params_valid(CreateContainerCollectorSerializer)
-            return Response(BaseCollectorHandler().create_container_config(data))
+            return Response(K8sCollectorHandler().create_container_config(data))
 
         data = self.params_valid(CollectorCreateSerializer)
         return Response(BaseCollectorHandler().update_or_create(data))
@@ -820,7 +820,7 @@ class CollectorViewSet(ModelViewSet):
         """
         if request.data.get("environment") == Environment.CONTAINER:
             data = self.params_valid(UpdateContainerCollectorSerializer)
-            return Response(BaseCollectorHandler(collector_config_id=collector_config_id).update_container_config(data))
+            return Response(K8sCollectorHandler(collector_config_id=collector_config_id).update_container_config(data))
 
         data = self.params_valid(CollectorUpdateSerializer)
         return Response(BaseCollectorHandler(collector_config_id=collector_config_id).update_or_create(data))
@@ -2129,7 +2129,7 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(ListBCSCollectorWithoutRuleSerializer)
         return Response(
-            BaseCollectorHandler.list_bcs_collector_without_rule(
+            K8sCollectorHandler.list_bcs_collector_without_rule(
                 bcs_cluster_id=data["bcs_cluster_id"],
                 bk_biz_id=data.get("bk_biz_id"),
             )
@@ -2141,7 +2141,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
-        handler = BaseCollectorHandler()
+        handler = K8sCollectorHandler()
         result = handler.create_bcs_container_config(data=data, bk_app_code=auth_info["bk_app_code"])
         handler.sync_bcs_container_bkdata_id(result)
         handler.sync_bcs_container_task(result)
@@ -2155,7 +2155,7 @@ class CollectorViewSet(ModelViewSet):
         data = self.params_valid(BCSCollectorSerializer)
         rule_id = int(collector_config_id)
         return Response(
-            BaseCollectorHandler().update_bcs_container_config(
+            K8sCollectorHandler().update_bcs_container_config(
                 data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
             )
         )
@@ -2166,7 +2166,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         rule_id = int(collector_config_id)
-        return Response(BaseCollectorHandler().retry_bcs_config(rule_id=rule_id))
+        return Response(K8sCollectorHandler().retry_bcs_config(rule_id=rule_id))
 
     @detail_route(methods=["DELETE"], url_path="delete_bcs_collector")
     def delete_bcs_collector(self, request, collector_config_id=None):
@@ -2310,7 +2310,7 @@ class CollectorViewSet(ModelViewSet):
     def validate_container_config_yaml(self, request):
         data = self.params_valid(ValidateContainerCollectorYamlSerializer)
         return Response(
-            BaseCollectorHandler().validate_container_config_yaml(
+            K8sCollectorHandler().validate_container_config_yaml(
                 data["bk_biz_id"], data["bcs_cluster_id"], data["yaml_config"]
             )
         )
@@ -2395,7 +2395,7 @@ class CollectorViewSet(ModelViewSet):
         """
         if request.data.get("environment") == Environment.CONTAINER:
             data = self.params_valid(FastContainerCollectorCreateSerializer)
-            return Response(BaseCollectorHandler().fast_contain_create(data))
+            return Response(K8sCollectorHandler().fast_contain_create(data))
 
         data = self.params_valid(FastCollectorCreateSerializer)
         return Response(BaseCollectorHandler().fast_create(data))
@@ -2472,7 +2472,7 @@ class CollectorViewSet(ModelViewSet):
         """
         if request.data.get("environment") == Environment.CONTAINER:
             data = self.params_valid(FastContainerCollectorUpdateSerializer)
-            return Response(BaseCollectorHandler(collector_config_id).fast_contain_update(data))
+            return Response(K8sCollectorHandler(collector_config_id).fast_contain_update(data))
         data = self.params_valid(FastCollectorUpdateSerializer)
         return Response(BaseCollectorHandler(collector_config_id).fast_update(data))
 
