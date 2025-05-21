@@ -182,7 +182,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
             public_key = cache.get(cache_key)
             if public_key is None:
                 try:
-                    public_key = api.bk_apigateway.get_public_key(api_name=api_name)["public_key"]
+                    public_key = api.bk_apigateway.get_public_key(api_name=api_name, bk_tenant_id=DEFAULT_TENANT_ID)[
+                        "public_key"
+                    ]
                 except BKAPIError as e:
                     logger.error(f"获取{api_name} apigw public_key失败，%s" % e)
                     public_key = ""
