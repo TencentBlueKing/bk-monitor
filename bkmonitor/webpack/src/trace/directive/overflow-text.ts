@@ -23,19 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import tippy from 'tippy.js';
+import tippy, { type Placement } from 'tippy.js';
 
-import type { DirectiveBinding } from 'vue';
-interface IElement extends HTMLElement {
-  [prop: string]: any;
-}
-export default {
-  mounted(el: IElement, binding: DirectiveBinding) {
+import type { ObjectDirective } from 'vue';
+
+import 'tippy.js/dist/tippy.css';
+type OverflowElement = HTMLElement & { mouseEnterFunc?: (event: MouseEvent) => void; unObserverFunc: () => void };
+type MouseEnterFunc = (e: MouseEvent) => void;
+const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; text: string }> = {
+  mounted(el, binding) {
     let instance = null;
-    function mouseenter(event: MouseEvent) {
+    function mouseenter(event: MouseEvent & { target: Element }) {
       event.stopPropagation();
+      if (event.target.scrollWidth <= event.target.clientWidth) {
+        return;
+      }
       if (!instance) {
-        instance = tippy(event.target as any, {
+        instance = tippy(event.target, {
           trigger: 'mouseenter',
           allowHTML: true,
           placement: binding.value?.placement || 'top',
@@ -47,13 +51,10 @@ export default {
             instance = null;
           },
         });
-        instance?.show();
-      } else {
-        instance?.show();
       }
+      instance.show?.();
     }
-
-    function observeElementVisibility(el, callback) {
+    function observeElementVisibility(el: OverflowElement, callback: (isVisible: boolean) => void) {
       const observer = new IntersectionObserver(
         entries => {
           for (const entry of entries) {
@@ -65,17 +66,24 @@ export default {
         }
       );
       observer.observe(el);
-      return observer; // 返回observer以便后续取消监听
+      const unObserve = () => {
+        observer.unobserve(el);
+      };
+      el.unObserverFunc = unObserve;
     }
-
     observeElementVisibility(el, isVisible => {
       if (isVisible) {
-        if (el.scrollWidth > el.clientWidth) {
-          el.addEventListener('mouseenter', mouseenter);
-        }
-      } else {
-        el.removeEventListener('mouseenter', mouseenter);
+        el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
+        return;
       }
+      el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
     });
   },
+  beforeUnmount(el) {
+    el.removeEventListener('mouseenter', el.mouseEnterFunc);
+    el?.unObserverFunc();
+    el.mouseEnterFunc = undefined;
+    el.unObserverFunc = undefined;
+  },
 };
+export default OverflowText;

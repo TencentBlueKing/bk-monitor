@@ -46,6 +46,7 @@ import {
 import { defaultWhereItem, DURATION_KEYS, EXISTS_KEYS, INPUT_TAG_KEYS } from './utils';
 
 import './resident-setting.scss';
+import 'tippy.js/dist/tippy.css';
 
 export interface IResidentSetting {
   field: IFilterField;

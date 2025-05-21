@@ -172,7 +172,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
 export const useTimeRangeProvider = (timeRange: Ref<TimeRangeType>) => {
   provide(TIME_RANGE_KEY, timeRange);
 };
-export const useTimeRangeInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
+export const useTimeRangeInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KEY, undefined);
 
 export const useTimezoneProvider = (timezone: Ref<string>) => {
   provide(TIMEZONE_KEY, timezone);

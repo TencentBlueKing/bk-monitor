@@ -34,6 +34,9 @@ import {
   watch,
   onBeforeUnmount,
   useTemplateRef,
+  // KeepAlive,
+  defineAsyncComponent,
+  KeepAlive,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -49,8 +52,8 @@ import { formatDate, formatDuration, formatTime } from '../../../../components/t
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
-import ExploreSpanSlider from '../explore-span-slider/async-slider';
-import ExploreTraceSlider from '../explore-trace-slider/async-slider';
+const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
+const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 import StatisticsList from '../statistics-list';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
@@ -1246,24 +1249,26 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
-        {/* <KeepAlive> */}
-        {this.sliderMode === 'trace' && (
-          <ExploreTraceSlider
-            appName={this.appName}
-            isShow={this.sliderMode === 'trace'}
-            traceId={this.activeSliderId}
-            onSliderClose={() => this.handleSliderShowChange('', '')}
-          />
-        )}
-        {this.sliderMode === 'span' && (
-          <ExploreSpanSlider
-            appName={this.appName}
-            isShow={this.sliderMode === 'span'}
-            spanId={this.activeSliderId}
-            onSliderClose={() => this.handleSliderShowChange('', '')}
-          />
-        )}
-        {/* </KeepAlive> */}
+        <KeepAlive include={['ExploreTraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
+          <div>
+            {this.sliderMode === 'trace' && (
+              <ExploreTraceSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'trace'}
+                traceId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+            {this.sliderMode === 'span' && (
+              <ExploreSpanSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'span'}
+                spanId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+          </div>
+        </KeepAlive>
         {this.statisticsDomRender()}
       </div>
     );
