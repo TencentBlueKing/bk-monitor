@@ -266,6 +266,7 @@ LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
     LOGGING = {
         "version": 1,
+        "disable_existing_loggers": False,
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",

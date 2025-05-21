@@ -366,6 +366,7 @@ else:
 
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,
     "loggers": {
         "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
         **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},
