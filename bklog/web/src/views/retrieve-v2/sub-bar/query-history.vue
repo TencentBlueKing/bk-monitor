@@ -28,7 +28,14 @@
               class="list-item"
               @click="handleClickHistory(item)"
             >
-              <div class="item-text">
+              <div class="item-text"
+                v-bk-tooltips="{
+                  allowHTML:true,
+                  placement:'right',
+                  content: getContent(item),
+                  disabled: item.query_string.length < 5,
+                }"
+              >
                 <span
                   class="bklog-icon"
                   :class="getClass(item.search_mode)"
@@ -38,10 +45,6 @@
 
                 <div
                   class="text"
-                  v-bk-tooltips="{
-                    content: getContent(item),
-                    disabled: item.query_string.length < 5,
-                  }"
                 >
                   {{ item.query_string }}
                 </div>
@@ -120,7 +123,8 @@
         return textMap[searchMode] || '';
       },
       getContent(item){
-        return dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')
+        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>语句：${item.query_string}</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
