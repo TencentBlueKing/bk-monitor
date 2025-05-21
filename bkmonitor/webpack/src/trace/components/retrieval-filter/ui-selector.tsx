@@ -39,7 +39,7 @@ import UiSelectorOptions from './ui-selector-options';
 import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
-
+import 'tippy.js/dist/tippy.css';
 export default defineComponent({
   name: 'UiSelector',
   props: UI_SELECTOR_PROPS,
