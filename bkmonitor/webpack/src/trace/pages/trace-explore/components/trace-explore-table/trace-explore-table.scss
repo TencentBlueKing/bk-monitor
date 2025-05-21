@@ -185,6 +185,14 @@
     }
   }
 
+  .explore-table-condition-menu {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
   .explore-text-ellipsis {
     overflow: hidden;
     text-overflow: ellipsis;

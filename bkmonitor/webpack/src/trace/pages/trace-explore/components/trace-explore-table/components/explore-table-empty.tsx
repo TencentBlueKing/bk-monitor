@@ -26,7 +26,7 @@
 
 import { defineComponent } from 'vue';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
+import EmptyStatus from '../../../../../components/empty-status/empty-status';
 
 import './explore-table-empty.scss';
 

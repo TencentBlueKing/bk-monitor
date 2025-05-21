@@ -62,6 +62,15 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
   },
 } as const);
 
+/** 启用文本省略hover弹出 popover 内容的单元格类名 */
+export const ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME = 'explore-text-ellipsis';
+
+/** 启用表格表头hover弹出列描述 popover 列的类名 */
+export const ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME = 'explore-table-header-description';
+
+/** 启用表格单元格内容点击能够打开条件设置 conditionMenu 弹窗类名 */
+export const ENABLED_TABLE_CONDITION_MENU_CLASS_NAME = 'explore-table-condition-menu';
+
 /** trace检索table展示字段列配置缓存key后缀 */
 export const TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX = 'TRACE_EXPLORE_TABLE_DISPLAY_COLUMNS';
 
