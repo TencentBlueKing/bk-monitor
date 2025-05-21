@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import tippy, { type Props, type Instance } from 'tippy.js';
 
+import type { noop } from '@vueuse/core';
 import type { ObjectDirective } from 'vue';
 
 import 'tippy.js/dist/tippy.css';
@@ -32,10 +34,10 @@ type MouseEnterFunc = (e?: MouseEvent) => void;
 type OverflowElement = HTMLElement & {
   mouseEnterFunc?: MouseEnterFunc;
   mouseLeaveFunc?: MouseEnterFunc;
-  unObserverFunc: () => void;
+  unObserverFunc: typeof noop;
 };
 const DelayMs = 300;
-const OverflowText: ObjectDirective<OverflowElement, { disabled: boolean; text?: string } & Props> = {
+const OverflowTips: ObjectDirective<OverflowElement, { disabled: boolean; text?: string } & Props> = {
   mounted(el, binding) {
     let instance: Instance<Props> = null;
     let isMouseenter = false;
@@ -56,10 +58,9 @@ const OverflowText: ObjectDirective<OverflowElement, { disabled: boolean; text?:
           content: binding.value?.text || binding.value?.content || el.innerText,
           placement: binding.value?.placement || 'auto',
           onShow: () => {
-            if (getIsEllipsis(el)) {
-              return;
+            if (!getIsEllipsis(el)) {
+              return false;
             }
-            return false;
           },
           onHidden: () => {
             instance?.hide();
@@ -112,4 +113,4 @@ const OverflowText: ObjectDirective<OverflowElement, { disabled: boolean; text?:
     el.unObserverFunc = undefined;
   },
 };
-export default OverflowText;
+export default OverflowTips;
