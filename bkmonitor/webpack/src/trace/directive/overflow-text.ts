@@ -23,45 +23,70 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import tippy, { type Placement } from 'tippy.js';
+import tippy, { type Props, type Placement, type Instance } from 'tippy.js';
 
 import type { ObjectDirective } from 'vue';
 
 import 'tippy.js/dist/tippy.css';
-type OverflowElement = HTMLElement & { mouseEnterFunc?: (event: MouseEvent) => void; unObserverFunc: () => void };
-type MouseEnterFunc = (e: MouseEvent) => void;
+type MouseEnterFunc = (e?: MouseEvent) => void;
+type OverflowElement = HTMLElement & {
+  mouseEnterFunc?: MouseEnterFunc;
+  mouseLeaveFunc?: MouseEnterFunc;
+  unObserverFunc: () => void;
+};
+const DelayMs = 300;
 const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; text: string }> = {
   mounted(el, binding) {
-    let instance = null;
+    let instance: Instance<Props> = null;
+    let isMouseenter = false;
     function mouseenter(event: MouseEvent & { target: Element }) {
       event.stopPropagation();
-      if (event.target.scrollWidth <= event.target.clientWidth) {
+      if (el.scrollWidth <= el.clientWidth) {
         return;
       }
+      isMouseenter = true;
       if (!instance) {
         instance = tippy(event.target, {
           trigger: 'mouseenter',
           allowHTML: true,
-          placement: binding.value?.placement || 'top',
-          delay: [300, 0],
+          placement: binding.value?.placement || 'auto',
+          delay: [DelayMs, 0],
           content: `<span style="font-size: 12px;">${binding.value?.text || el.innerText}</span>`,
+          onShow: () => {
+            if (el.scrollWidth > el.clientWidth) {
+              return;
+            }
+            return false;
+          },
           onHidden: () => {
             instance?.hide();
             instance?.destroy();
             instance = null;
           },
         });
+        setTimeout(() => {
+          if (instance && isMouseenter && el.scrollWidth > el.clientWidth && !instance.state.isShown) {
+            instance.clearDelayTimeouts();
+            instance.show();
+          }
+        }, DelayMs);
       }
-      instance.show?.();
+    }
+    function mouseleave() {
+      isMouseenter = false;
     }
     const observer = new IntersectionObserver(
       entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
+            el.addEventListener('mouseleave', mouseleave);
+            el.mouseEnterFunc = mouseenter as MouseEnterFunc;
+            el.mouseLeaveFunc = mouseleave;
             return;
           }
           el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
+          el.removeEventListener('mouseleave', mouseleave);
         }
       },
       {
@@ -75,8 +100,10 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
   },
   beforeUnmount(el) {
     el.removeEventListener('mouseenter', el.mouseEnterFunc);
-    el?.unObserverFunc();
+    el.removeEventListener('mouseleave', el.mouseLeaveFunc);
+    el.unObserverFunc?.();
     el.mouseEnterFunc = undefined;
+    el.mouseLeaveFunc = undefined;
     el.unObserverFunc = undefined;
   },
 };
