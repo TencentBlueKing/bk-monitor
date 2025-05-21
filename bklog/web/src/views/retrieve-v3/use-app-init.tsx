@@ -105,6 +105,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
@@ -112,6 +113,7 @@ export default () => {
       '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
+      '--header-height': fromMonitor.value ? '0px' : '52px',
     };
   });
 
