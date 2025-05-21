@@ -92,7 +92,14 @@ import {
   type SearchType,
   type eventPanelType,
 } from './typings/event';
-import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
+import {
+  INIT_COMMON_FILTER_DATA,
+  getOperatorDisabled,
+  ALERT_FIELD_LIST,
+  INCIDENT_FIELD_LIST,
+  EVENT_FIELD_LIST,
+  ACTION_FIELD_LIST,
+} from './utils';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
 
@@ -481,6 +488,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   };
   listOpenId = '';
 
+  spaceListMap = {
+    alert: ALERT_FIELD_LIST,
+    action: ACTION_FIELD_LIST,
+    event: EVENT_FIELD_LIST,
+    incident: INCIDENT_FIELD_LIST,
+  };
+
   get panelList(): IPanelItem[] {
     return this.searchType === 'action' ? this.actionPanelList : this.alertPanelList;
   }
@@ -683,6 +697,32 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     return queryData[key] ?? null;
   }
+  /** 处理路由里的queryStr */
+  handleRouteQueryStr(val) {
+    const searchType = this.$route.query?.searchType || this.searchType;
+    const fieldMapping = this.spaceListMap[searchType];
+    // 使用正则表达式根据 AND 或 OR 拆分字符串，并保留分隔符
+    const splitContent = val.split(/(\sAND\s|\sOR\s)/);
+
+    // 遍历每个元素，替换第一个字段名
+    const replacedContent = splitContent.map(segment => {
+      // 查找第一个 ：，忽略引号内的内容
+      const match = segment.match(/([^:"]+)\s*:/);
+      if (match) {
+        const fieldName = match[1].trim();
+        if ((isEn && /[\u4e00-\u9fa5]/.test(fieldName)) || (!isEn && !/[\u4e00-\u9fa5]/.test(fieldName))) {
+          // 查找字段映射
+          const field = fieldMapping.find(item => (isEn ? item.zhId : item.id) === fieldName) || {};
+          const englishFieldName = (isEn ? field.id : field.name) || fieldName;
+          // 替换字段名
+          segment = segment.replace(fieldName, englishFieldName);
+        }
+      }
+      return segment;
+    });
+    const resultContent = replacedContent.join('');
+    return resultContent;
+  }
   /**
    * @description: 获取路由query参数
    * @param {*}
@@ -699,6 +739,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     }
     const query = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.$route.query).forEach(key => {
       if (!['data', 'key'].includes(key)) {
         const val = this.$route.query[key];
@@ -716,6 +757,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           query[key] = val;
         } else if (key === 'promql') {
           query[key] = decodeURIComponent((val as string) || '');
+        } else if (key === 'queryString') {
+          if (val) {
+            query[key] = this.handleRouteQueryStr(val);
+          }
         } else {
           query[key] = val;
         }
