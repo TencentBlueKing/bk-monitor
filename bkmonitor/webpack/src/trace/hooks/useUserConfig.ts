@@ -58,13 +58,13 @@ export default function useUserConfig() {
   }
   /**
    * @description: 设置用户配置
-   * @param {string} key
-   * @param {string} value
+   * @param {string} value 用户配置值
+   * @param {string} configId 用户配置ID 不是key
    * @return {*}
    */
   async function handleSetUserConfig(value: string, configId?: string): Promise<boolean> {
     if (!hasBusinessAuth.value) return false;
-    return await partialUpdateUserConfig(configId || storeId.value, { value }, { reject403: true })
+    return await partialUpdateUserConfig(storeId.value || configId, { value }, { reject403: true })
       .then(() => true)
       .catch(() => false);
   }

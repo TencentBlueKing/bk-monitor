@@ -194,7 +194,7 @@ export default defineComponent({
       }));
       handleChange();
       destroyPopoverInstance();
-      handleSetUserConfig(JSON.stringify(fields.map(item => item.name)), props.residentSettingOnlyId);
+      handleSetUserConfig(JSON.stringify(fields.map(item => item.name)));
     }
     function handleValueChange(value: IWhereItem, index: number) {
       localValue.value[index].value = value;
