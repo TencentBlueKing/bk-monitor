@@ -15,6 +15,7 @@ import ntpath
 import os
 import sys
 from urllib.parse import urljoin
+import warnings
 
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
@@ -28,10 +29,10 @@ from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
-from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
+    IS_CONTAINER_MODE,  # noqa
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -854,8 +855,10 @@ if not os.path.exists(LOG_PATH):
 LOG_LEVEL_MAP = {
     "iam": "ERROR",
     "bk_dataview": "ERROR",
-    "django.db.models.fields": "ERROR",
 }
+
+warnings.filterwarnings('ignore', r"DateTimeField .* received a naive datetime",
+                      RuntimeWarning, r'django\.db\.models\.fields')
 
 #
 # 数据平台接入配置
