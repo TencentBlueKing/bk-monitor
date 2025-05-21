@@ -95,7 +95,6 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
-  const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -279,6 +278,8 @@
 
     if (addition.value.length > 0 || (keyword.value !== '*' && keyword.value !== '')) {
       handleBtnQueryClick();
+    } else {
+      setRouteParams();
     }
   };
 
