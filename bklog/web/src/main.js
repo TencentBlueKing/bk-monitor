@@ -47,6 +47,9 @@ import preload from './preload';
 
 import './static/style.css';
 import './static/font-face/index.css';
+import './scss/theme/theme-dark.scss';
+import './scss/theme/theme-light.scss';
+import { BK_LOG_STORAGE } from './store/store.type';
 
 Vue.prototype.$renderHeader = renderHeader;
 
@@ -66,13 +69,20 @@ Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
-const mountedVueInstance = router => {
+const mountedVueInstance = () => {
   window.mainComponent = {
     $t: function (key, params) {
       return i18n.t(key, params);
     },
   };
   preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
+    const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+
+    store.commit('requestMenuList', spaceUid);
+    const router = getRouter(spaceUid, bkBizId);
+    setRouterErrorHandle(router);
+
     window.mainComponent = new Vue({
       el: '#app',
       router,
@@ -85,6 +95,7 @@ const mountedVueInstance = router => {
     });
   });
 };
+window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
   http.request('meta/getEnvConstant').then(res => {
@@ -96,19 +107,11 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.bus = bus;
-    const router = getRouter();
-
-    setRouterErrorHandle(router);
-    mountedVueInstance(router);
+    mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
-  window.bus = bus;
-  const router = getRouter();
-
-  setRouterErrorHandle(router);
-  mountedVueInstance(router);
+  mountedVueInstance();
   Vue.config.devtools = true;
 }
 

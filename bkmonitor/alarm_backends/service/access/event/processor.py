@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import json
 import logging
@@ -23,7 +21,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.core.storage.kafka import KafkaQueue
+from alarm_backends.core.storage.kafka_v2 import KafkaQueueV2 as KafkaQueue
 from alarm_backends.service.access.base import BaseAccessProcess
 from alarm_backends.service.access.data.filters import HostStatusFilter, RangeFilter
 from alarm_backends.service.access.event.filters import ConditionFilter, ExpireFilter
@@ -51,7 +49,7 @@ logger = logging.getLogger("access.event")
 
 class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
     def __init__(self):
-        super(BaseAccessEventProcess, self).__init__()
+        super().__init__()
         self.strategies = {}
 
         self.add_filter(ExpireFilter())
@@ -67,7 +65,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         """
         Pull raw data and generate record.
         """
-        raise NotImplementedError("pull must be implemented " "by BaseAccessEventProcess subclasses")
+        raise NotImplementedError("pull must be implemented by BaseAccessEventProcess subclasses")
 
     def push_to_check_result(self):
         redis_pipeline = None
@@ -88,7 +86,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
 
                 try:
                     # 1. 缓存数据（检测结果缓存）
-                    name = "{}|{}".format(timestamp, ANOMALY_LABEL)
+                    name = f"{timestamp}|{ANOMALY_LABEL}"
                     kwargs = {name: event_record.event_time}
                     check_result.add_check_result_cache(**kwargs)
 
@@ -153,7 +151,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
             for item_id, event_list in list(item_to_event_record.items()):
                 queue_key = key.ANOMALY_LIST_KEY.get_key(strategy_id=strategy_id, item_id=item_id)
                 pipeline.lpush(queue_key, *event_list)
-                anomaly_signal_list.append("{}.{}".format(strategy_id, item_id))
+                anomaly_signal_list.append(f"{strategy_id}.{item_id}")
                 pipeline.expire(queue_key, key.ANOMALY_LIST_KEY.ttl)
         pipeline.execute()
 
@@ -206,7 +204,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         return cls._kafka_queues[queue_key]
 
     def __init__(self, data_id=None, topic=None):
-        super(AccessCustomEventGlobalProcess, self).__init__()
+        super().__init__()
 
         self.data_id = data_id
         if not topic:
@@ -280,13 +278,64 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             elif alarm_type == self.TYPE_GSE_PROCESS_EVENT:
                 return GseProcessEventRecord(raw_data, self.strategies)
 
+    def _pull_from_kafka(self, kafka_queue):
+        with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-{kafka_queue.pod_id}"):
+            while not kafka_queue.has_reassigned_partitions():
+                result = kafka_queue.take(count=MAX_RETRIEVE_NUMBER, timeout=1)
+                if not result:
+                    continue
+                logger.info(
+                    "data_id(%s) topic(%s) poll alarm list from kafka(%s)", self.data_id, self.topic, len(result)
+                )
+                self._push_message_to_redis(result)
+                metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "kafka").inc(len(result))
+
+    def _push_message_to_redis(self, messages):
+        if not messages:
+            return
+        redis_client = key.EVENT_LIST_KEY.client
+        data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
+        redis_client.lpush(data_channel, *messages)
+        logger.info(
+            "data_id(%s) topic(%s) push alarm list(%s) to redis %s",
+            self.data_id,
+            self.topic,
+            len(messages),
+            data_channel,
+        )
+
+    def _pull_from_redis(self):
+        data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
+        client = key.DATA_LIST_KEY.client
+
+        total_events = client.llen(data_channel)
+        offset = min([total_events, 10000])
+        if offset == 0:
+            logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
+            return []
+
+        records = client.lrange(data_channel, -offset, -1)
+
+        logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
+        if records:
+            client.ltrim(data_channel, 0, -offset - 1)
+        return records
+
+    def get_pull_type(self):
+        # group_prefix
+        cluster_name = get_cluster().name
+        if cluster_name == "default":
+            group_prefix = f"access.event.{self.data_id}"
+        else:
+            group_prefix = f"{cluster_name}.access.event.{self.data_id}"
+
+        kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
+        return "kafka" if kafka_queue.has_assigned_partitions() else "redis"
+
     def pull(self):
         """
         Pull raw data and generate event_record.
         """
-
-        from alarm_backends.service.access.tasks import run_access_event_handler
-
         record_list = []
 
         if not self.topic:
@@ -299,44 +348,32 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             group_prefix = f"access.event.{self.data_id}"
         else:
             group_prefix = f"{cluster_name}.access.event.{self.data_id}"
-
-        try:
-            kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
+        kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
+        pull_type = "kafka" if kafka_queue.has_assigned_partitions() else "redis"
+        if pull_type == "kafka":
             try:
-                with service_lock(ACCESS_EVENT_LOCKS, data_id=self.data_id):
-                    # 加锁成功，拉取数据
-                    result = kafka_queue.take(count=MAX_RETRIEVE_NUMBER, timeout=1)
-                    # 数据拉取结束，释放锁
+                self._pull_from_kafka(kafka_queue)
+                self.record_list = []
+                return
             except LockError:
-                # 加锁失败，重新发布任务
-                logger.info("[get service lock fail] access event dataid:({}). will process later".format(self.data_id))
-                return
+                logger.info(f"[get service lock fail] access event dataid:({self.data_id}). will process later")
+
+                pass
+        with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-[redis]"):
+            result = self._pull_from_redis()
+        for m in result:
+            if not m:
+                continue
+            try:
+                # GSE格式变动的临时兼容方案：判断一下结尾是否多了\n符号，多了先去掉
+                data = json.loads(m[:-1] if m[-1] == "\x00" or m[-1] == "\n" else m)
+                event_record = self._instantiate_by_event_type(data)
+                if event_record and event_record.check():
+                    record_list.extend(event_record.flat())
             except Exception as e:
-                logger.exception(
-                    "[process error] access event dataid:({data_id}) reason：{msg}".format(data_id=self.data_id, msg=e)
-                )
-                return
-
-            if len(result) == MAX_RETRIEVE_NUMBER:
-                # 数据大小刚好等于上限，说明可能还有数据，继续将此 data_id 重新发布任务
-                run_access_event_handler.delay(data_id=self.data_id, topic=self.topic)
-
-            for m in result:
-                if not m:
-                    continue
-                try:
-                    # GSE格式变动的临时兼容方案：判断一下结尾是否多了\n符号，多了先去掉
-                    data = json.loads(m[:-1] if m[-1] == "\x00" or m[-1] == "\n" else m)
-                    event_record = self._instantiate_by_event_type(data)
-                    if event_record and event_record.check():
-                        record_list.extend(event_record.flat())
-                except Exception as e:
-                    logger.exception("topic(%s) loads alarm(%s) failed, %s", self.topic, m, e)
-            self.record_list.extend(record_list)
-        except Exception as e:
-            logger.exception("topic(%s) poll alarm failed, %s", self.topic, e)
-        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id).inc(len(record_list))
-        logger.info("topic(%s) poll alarm list(%s)", self.topic, len(record_list))
+                logger.exception("topic(%s) loads alarm(%s) failed, %s", self.topic, m, e)
+        self.record_list.extend(record_list)
+        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "redis").inc(len(record_list))
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():
@@ -344,7 +381,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                 logger.info("no strategy to process")
                 exc = None
             else:
-                exc = super(AccessCustomEventGlobalProcess, self).process()
+                exc = super().process()
 
         metrics.ACCESS_EVENT_PROCESS_COUNT.labels(
             data_id=self.data_id,

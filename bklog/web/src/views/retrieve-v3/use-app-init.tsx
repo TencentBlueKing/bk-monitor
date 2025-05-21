@@ -26,12 +26,14 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../hooks/use-resize-observe';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
+import { BK_LOG_STORAGE, RouteParams } from '../../store/store.type';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
   const store = useStore();
@@ -45,6 +47,38 @@ export default () => {
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
+
+  /**
+   * 解析地址栏参数
+   * 在其他模块跳转过来时，这里需要解析路由参数
+   * 更新相关参数到store
+   */
+  const reoverRouteParams = () => {
+    update_URL_ARGS(route);
+    const routeParams = getDefaultRetrieveParams({
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+    });
+    let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
+
+    if (/^-?\d+$/.test(routeParams.index_id)) {
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      activeTab = 'single';
+    }
+
+    if (routeParams.unionList?.length) {
+      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      activeTab = 'union';
+    }
+
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateSpace', routeParams.spaceUid);
+    store.commit('updateIndexId', routeParams.index_id);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+  };
+
+  reoverRouteParams();
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -69,6 +103,9 @@ export default () => {
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+
+  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
@@ -101,7 +138,7 @@ export default () => {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
         const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
-        const target = resolver.convertQueryToStore();
+        const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
           $http
@@ -135,49 +172,57 @@ export default () => {
   };
 
   setSearchMode();
-  // 解析默认URL为前端参数
-  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
-
-  const setDefaultIndexsetId = () => {
-    if (!route.params.indexId) {
-      const routeParams = store.getters.retrieveParams;
-
-      const resolver = new RetrieveUrlResolver({
-        ...routeParams,
-        datePickerValue: store.state.indexItem.datePickerValue,
-      });
-
-      if (store.getters.isUnionSearch) {
-        router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
-        return;
-      }
-
-      if (store.state.indexId) {
-        router.replace({
-          params: { indexId: store.state.indexId },
-          query: {
-            ...route.query,
-            ...resolver.resolveParamsToUrl(),
-          },
-        });
-      }
-    }
-  };
 
   /**
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
     return store
-      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
+      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {
         isPreApiLoaded.value = true;
-        RetrieveHelper.setSearchingValue(true);
 
-        // 拉取完毕根据当前路由参数回填默认选中索引集
-        store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-          setDefaultIndexsetId();
+        // 如果当前地址参数没有indexSetId，则默认取第一个索引集
+        // 同时，更新索引信息到store中
+        if (!indexSetIdList.value.length) {
+          const defaultId = resp[1][0]?.index_set_id;
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+
+            router.replace({
+              params: { indexId: strId },
+              query: { ...route.query, unionList: undefined },
+            });
+          }
+        }
+
+        // 如果解析出来的索引集信息不为空
+        // 需要检查索引集列表中是否包含解析出来的索引集信息
+        // 避免索引信息不存在导致的频繁错误请求和异常提示
+        const emptyIndexSetList = [];
+        if (indexSetIdList.value.length) {
+          indexSetIdList.value.forEach(id => {
+            if (!resp[1].some(item => `${item.index_set_id}` === `${id}`)) {
+              emptyIndexSetList.push(id);
+            }
+          });
+
+          if (emptyIndexSetList.length) {
+            store.commit('updateIndexItem', { ids: [], items: [] });
+            store.commit('updateIndexId', '');
+            store.commit('updateIndexSetQueryResult', {
+              is_error: true,
+              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            });
+          }
+        }
+
+        if (emptyIndexSetList.length === 0) {
+          RetrieveHelper.setSearchingValue(true);
+
           const type = route.params.indexId ? 'single' : 'union';
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
 
@@ -187,9 +232,29 @@ export default () => {
             });
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
-        });
+        }
       });
   };
+
+  // 解析默认URL为前端参数
+  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
+  const setDefaultRouteUrl = () => {
+    const routeParams = store.getters.retrieveParams;
+    const resolver = new RetrieveUrlResolver({
+      ...routeParams,
+      datePickerValue: store.state.indexItem.datePickerValue,
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+    });
+
+    router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+  };
+
+  const beforeMounted = () => {
+    setDefaultRouteUrl();
+    getIndexSetList();
+  };
+
+  beforeMounted();
 
   const handleSpaceIdChange = () => {
     store.commit('resetIndexsetItemParams');
@@ -201,8 +266,6 @@ export default () => {
     store.dispatch('requestFavoriteList');
   };
 
-  handleSpaceIdChange();
-
   watch(spaceUid, () => {
     handleSpaceIdChange();
     const routeQuery = route.query ?? {};
@@ -210,12 +273,13 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
+      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery(),
+          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },
@@ -271,21 +335,18 @@ export default () => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
-
-    const bkBizId = store.state.bkBizId;
-    const spaceUid = store.state.spaceUid;
-
-    router.replace({
-      query: {
-        bizId: bkBizId,
-        spaceUid: spaceUid,
-        ...route.query,
-      },
-    });
+    store.dispatch('requestFavoriteList');
   });
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
+    // 清理掉当前查询结果，避免下次进入空白展示
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      is_error: false,
+      exception_msg: '',
+    });
   });
 
   return {

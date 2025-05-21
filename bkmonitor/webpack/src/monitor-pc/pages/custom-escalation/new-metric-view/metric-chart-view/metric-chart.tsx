@@ -42,7 +42,7 @@ import {
 } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
-import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { COLOR_LIST_METRIC, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
@@ -157,6 +157,11 @@ class NewMetricChart extends CommonSimpleChart {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get viewWidth() {
+    const viewColumn = Number(this.$route.query?.viewColumn) || 2;
+    return this.width / (viewColumn + 1) - 40;
+  }
+
   /** 操作的icon列表 */
   get handleIconList() {
     return [
@@ -167,6 +172,10 @@ class NewMetricChart extends CommonSimpleChart {
   // /** 更多里的操作列表 */
   get menuList() {
     return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
+  }
+  /** hover展示多个tooltips */
+  get hoverAllTooltips() {
+    return this.panel.options?.time_series?.hoverAllTooltips;
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -213,7 +222,7 @@ class NewMetricChart extends CommonSimpleChart {
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
     const transformSeries = series.map((item, index) => {
-      const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
+      const colorList = COLOR_LIST_METRIC;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
@@ -551,7 +560,7 @@ class NewMetricChart extends CommonSimpleChart {
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: COLOR_LIST,
+            color: COLOR_LIST_METRIC,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
@@ -850,7 +859,7 @@ class NewMetricChart extends CommonSimpleChart {
         >
           <span class='status-tab-view'>
             <StatusTab
-              maxWidth={this.width - 300}
+              maxWidth={this.viewWidth}
               statusList={this.methodList}
               value={this.method}
               onChange={this.handleMethodChange}
@@ -876,7 +885,8 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
-                  groupId={this.groupId}
+                  groupId={this.panel.groupId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -25,6 +25,8 @@
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition } from '../../../store/helper';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
+
   const props = defineProps({
     // activeFavorite: {
     //   default: null,
@@ -67,7 +69,7 @@
     },
   });
 
-  const activeIndex = computed(() => store.state.storage.searchType ?? 0);
+  const activeIndex = computed(() => store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0);
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
@@ -141,38 +143,41 @@
   const setRouteParams = () => {
     const query = { ...route.query };
 
+    const nextMode = queryParams[activeIndex.value];
     const resolver = new RetrieveUrlResolver({
       keyword: keyword.value,
       addition: store.getters.retrieveParams.addition,
+      search_mode: nextMode,
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());
-
     router.replace({
       query,
     });
   };
 
   const beforeQueryBtnClick = () => {
-    return $http
-      .request('favorite/checkKeywords', {
-        data: {
-          keyword: sqlQueryValue.value,
-          fields: totalFields.value.map(item => ({
-            field_name: item.field_name,
-            is_analyzed: item.is_analyzed,
-            field_type: item.field_type,
-          })),
-        },
-      })
-      .then(resp => {
-        if (resp.result) {
-          Object.assign(inspectResponse.value, resp.data);
-          return resp.data;
-        }
+    // 功能完善后再放开
+    return Promise.resolve(true);
+    // return $http
+    //   .request('favorite/checkKeywords', {
+    //     data: {
+    //       keyword: sqlQueryValue.value,
+    //       fields: totalFields.value.map(item => ({
+    //         field_name: item.field_name,
+    //         is_analyzed: item.is_analyzed,
+    //         field_type: item.field_type,
+    //       })),
+    //     },
+    //   })
+    //   .then(resp => {
+    //     if (resp.result) {
+    //       Object.assign(inspectResponse.value, resp.data);
+    //       return resp.data;
+    //     }
 
-        return Promise.reject(resp);
-      });
+    //     return Promise.reject(resp);
+    //   });
   };
 
   const getBtnQueryResult = () => {
@@ -192,7 +197,7 @@
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
       if (searchMode.value === 'sql') {
-        beforeQueryBtnClick().then(resp => {
+        beforeQueryBtnClick().then(() => {
           getBtnQueryResult();
           RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         });
@@ -207,7 +212,7 @@
 
   const handleSqlRetrieve = value => {
     if (value !== '*') {
-      beforeQueryBtnClick().then(resp => {
+      beforeQueryBtnClick().then(() => {
         store.commit('updateIndexItemParams', {
           keyword: value,
         });
@@ -261,17 +266,12 @@
   };
 
   const handleQueryTypeChange = () => {
-    store.commit('updateStorage', { searchType: activeIndex.value === 0 ? 1 : 0 });
-    store.commit('updateIndexItemParams', {
-      search_mode: queryParams[activeIndex.value],
-    });
+    const nextType = activeIndex.value === 0 ? 1 : 0;
+    const nextMode = queryParams[nextType];
 
-    router.replace({
-      params: { ...route.params },
-      query: {
-        ...(route.query ?? {}),
-        search_mode: queryParams[activeIndex.value],
-      },
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
+    store.commit('updateIndexItemParams', {
+      search_mode: nextMode,
     });
 
     inspectResponse.value.is_legal = true;
@@ -482,11 +482,6 @@
     inspectResponse.is_resolved = false;
     inspectPopInstance.hide(300);
   };
-
-  onBeforeUnmount(() => {
-    // popToolInstance.onBeforeUnmount();
-    // popToolInstance.uninstallInstance();
-  });
 </script>
 <template>
   <div

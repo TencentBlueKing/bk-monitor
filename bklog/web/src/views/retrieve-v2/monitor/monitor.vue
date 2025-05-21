@@ -80,7 +80,7 @@
 
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   const setDefaultIndexsetId = () => {
     if (!route.query.indexId) {
@@ -149,12 +149,12 @@
     getApmIndexSetList().then(res => {
       if (!res?.length) return;
       // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
-        setDefaultIndexsetId();
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery');
-        });
-      });
+      // store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
+      //   setDefaultIndexsetId();
+      //   store.dispatch('requestIndexSetFieldInfo').then(() => {
+      //     store.dispatch('requestIndexSetQuery');
+      //   });
+      // });
     });
   };
 

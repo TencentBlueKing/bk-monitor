@@ -72,7 +72,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
           <router-link
             style='color: #3a84ff;'
             to={{
-              name: 'new-custom-detail-timeseries',
+              name: 'custom-detail-timeseries',
               params: {
                 id: this.$route.params.id,
                 activeTab: 'dimension',
@@ -91,7 +91,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             <router-link
               style='color: #3a84ff;'
               to={{
-                name: 'new-custom-detail-timeseries',
+                name: 'custom-detail-timeseries',
                 params: {
                   id: this.$route.params.id,
                   activeTab: 'dimension',

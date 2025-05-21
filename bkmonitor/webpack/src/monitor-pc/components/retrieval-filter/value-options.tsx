@@ -307,7 +307,7 @@ export default class ValueOptions extends tsc<IProps> {
                   this.handleCheck({ id: this.search, name: this.search });
                 }}
               >
-                <i18n path='生成 "{0}" Tag'>
+                <i18n path='直接输入 "{0}"'>
                   <span class='highlight'>{this.search}</span>
                 </i18n>
               </div>

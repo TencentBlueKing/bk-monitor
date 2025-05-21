@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import logging
+
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.access import ACCESS_TYPE_TO_CLASS
@@ -17,6 +19,9 @@ from alarm_backends.service.access.event.processor import AccessCustomEventGloba
 from alarm_backends.service.access.incident import AccessIncidentProcess
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
+
+
+logger = logging.getLogger(__name__)
 
 
 @app.task(ignore_result=True, queue="celery_service")
@@ -48,7 +53,7 @@ def run_access_event(access_type):
 
 
 @app.task(ignore_result=True, queue="celery_service_access_event")
-def run_access_event_handler(data_id):
+def run_access_event_handler(data_id, **kwargs):
     """
     事件处理器
     1. 处理任务，对DataID加锁
@@ -56,6 +61,8 @@ def run_access_event_handler(data_id):
     3. 拉取数据成功后，如果数据大小刚好等于上限，说明可能还有数据，继续将此 DataID 发布给下个Worker
     4. 解锁DataID，处理数据。
     """
+    if kwargs:
+        logger.warning(f"run_access_event_handler() got an unexpected keyword argument {kwargs}")
     processor = AccessCustomEventGlobalProcess(data_id=data_id)
     processor.process()
     metrics.report_all()

@@ -25,7 +25,7 @@
  */
 
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { updateFavorite } from 'monitor-api/modules/model';
@@ -47,6 +47,7 @@ interface IProps {
   favoriteType?: string;
   groups?: IGroup[];
   onSuccess?: (data: IFavList.favList) => void;
+  onClose?: () => void;
 }
 
 @Component
@@ -54,6 +55,7 @@ export default class FavoriteDetail extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) value: IFavList.favList;
   @Prop({ type: Array, default: () => [] }) groups: IGroup[];
   @Prop({ default: 'event' }) favoriteType: string;
+  @Ref('nameInputWrap') nameInputWrapRef: HTMLInputElement;
 
   showNameInput = false;
   nameInput = '';
@@ -61,6 +63,9 @@ export default class FavoriteDetail extends tsc<IProps> {
   showGroupInput = false;
   groupInput: number | object | string = '';
   groupLoading = false;
+
+  @Emit('close')
+  handleCloseDialog() {}
 
   @Watch('value')
   handleWatchValue() {
@@ -77,6 +82,9 @@ export default class FavoriteDetail extends tsc<IProps> {
     this.showNameInput = true;
     this.showGroupInput = false;
     this.nameInput = this.value.name;
+    this.$nextTick(() => {
+      this.nameInputWrapRef?.focus();
+    })
   }
 
   /**
@@ -202,7 +210,13 @@ export default class FavoriteDetail extends tsc<IProps> {
     }
     return (
       <div class='favorite-manage___favorite-detail-component'>
-        <div class='header-title'>{this.$t('收藏详情')}</div>
+        <div class='header-title'>
+          {this.$t('收藏详情')}
+          <i
+            class='icon-monitor icon-mc-close'
+            onClick={this.handleCloseDialog}
+          />
+        </div>
         <div class={['detail-items-wrap', { 'is-en': isEn }]}>
           {formItem(
             this.$t('收藏名称'),
@@ -217,6 +231,7 @@ export default class FavoriteDetail extends tsc<IProps> {
                 </span>
               ) : (
                 <bk-input
+                  ref='nameInputWrap'
                   class='edit-input-wrap'
                   v-model={this.nameInput}
                   onBlur={() => this.handleUpdateName()}

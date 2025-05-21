@@ -572,6 +572,10 @@ APM_PROFILING_AGG_METHOD_MAPPING = {
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
 
+# RUM config
+RUM_ENABLED = False
+RUM_ACCESS_URL = ""
+
 # ==============================================================================
 # elasticsearch for fta
 # 自愈的 ES 连接信息
@@ -1453,6 +1457,9 @@ BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
+
+# 特殊的可以不被禁用的BCS集群ID
+ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False
