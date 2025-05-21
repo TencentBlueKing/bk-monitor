@@ -113,8 +113,8 @@ class TraceFieldsInfoHandler:
 
         fields_info = {}
         if mode == QueryMode.TRACE:
-            fields_info.update(copy.deepcopy(self.trace_collections_fields_info))
             fields_info.update(copy.deepcopy(self.pre_calculate_fields_info))
+            fields_info.update(copy.deepcopy(self.trace_collections_fields_info))
         elif mode == QueryMode.SPAN:
             fields_info.update(copy.deepcopy(self.es_mapping_fields_info))
         return fields_info
@@ -209,6 +209,6 @@ class TraceFieldsHandler:
 
         all_fields_names = self.get_all_fields_names_by_mode(mode)
         fields = self.get_fields_info(mode, all_fields_names)
-        # 顶层字段排前面，二级排序按字母排序
-        fields.sort(key=lambda field: ("." in field["name"], field["name"]))
+        # 尽可能顶层字段排前面，同层级按原有定义顺序不变
+        fields.sort(key=lambda field: "." in field["name"])
         return fields

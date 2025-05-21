@@ -595,12 +595,14 @@ class PreCalculateSpecificField(TextChoices):
     APP_ID = "app_id"
     APP_NAME = "app_name"
     TRACE_ID = "trace_id"
-    HIERARCHY_COUNT = "hierarchy_count"
+    TRACE_DURATION = "trace_duration"
     SERVICE_COUNT = "service_count"
     SPAN_COUNT = "span_count"
+    HIERARCHY_COUNT = "hierarchy_count"
+    ERROR = "error"
+    ERROR_COUNT = "error_count"
     MIN_START_TIME = "min_start_time"
     MAX_END_TIME = "max_end_time"
-    TRACE_DURATION = "trace_duration"
     SPAN_MAX_DURATION = "span_max_duration"
     SPAN_MIN_DURATION = "span_min_duration"
     ROOT_SERVICE = "root_service"
@@ -613,8 +615,6 @@ class PreCalculateSpecificField(TextChoices):
     ROOT_SPAN_NAME = "root_span_name"
     ROOT_SPAN_SERVICE = "root_span_service"
     ROOT_SPAN_KIND = "root_span_kind"
-    ERROR = "error"
-    ERROR_COUNT = "error_count"
     TIME = "time"
     CATEGORY_STATISTICS = "category_statistics"
     KIND_STATISTICS = "kind_statistics"
@@ -623,7 +623,7 @@ class PreCalculateSpecificField(TextChoices):
     @classmethod
     def search_fields(cls):
         """获取可供搜索的字段"""
-        return list(set(list(cls.values)) - set(cls.hidden_fields()))
+        return [v for v in cls.values if v not in cls.hidden_fields()]
 
     @classmethod
     def hidden_fields(cls):
