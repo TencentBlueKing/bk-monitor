@@ -28,7 +28,7 @@
     },
     activeFavorite: {
       default: true,
-      type: Boolean,
+      type: Boolean | String,
     },
     matchSQLStr: {
       default: false,
@@ -306,7 +306,7 @@
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
     nextTick(() => {
-      popoverContentRef.value.clearError();
+      popoverContentRef.value?.clearError();
     });
   };
   // popover组件Ref
@@ -337,7 +337,7 @@
   };
   const tippyOptions = {
     theme: 'light',
-    placement: 'bottom-end',
+    placement: props.activeFavorite === 'history'? 'right' : 'bottom-end',
     offset: '22',
     interactive: true,
     trigger: 'manual',
@@ -358,8 +358,15 @@
     :on-show="handlePopoverShow"
     :tippy-options="tippyOptions"
   >
+    <span v-if="activeFavorite === 'history'">
+      <span
+        class="bklog-icon bklog-lc-star-shape"
+        @click.stop="handleCollection"
+      >
+      </span>
+    </span>
     <span
-      v-if="activeFavorite"
+      v-else-if="activeFavorite"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"

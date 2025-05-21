@@ -261,7 +261,7 @@ export default class K8SCharts extends tsc<
                 api: 'grafana.graphUnifyQuery',
               },
             ].concat(
-              this.createPerformanceDetailPanel(panel.id).map(item => ({
+              this.createSpecialPanel(panel.id).map(item => ({
                 data: {
                   expression: 'A',
                   query_configs: [
@@ -535,9 +535,9 @@ export default class K8SCharts extends tsc<
         return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()},mode!="idle"}[$interval])[$interval:] $time_shift))`;
       case 'node_cpu_capacity_ratio': // 节点CPU装箱率
         return `
-        ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()},resource="cpu"}[$interval:] $time_shift))
         /
-        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
+        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()},resource="cpu"}[$interval:] $time_shift))
       `;
       case 'node_cpu_usage_ratio': // 节点CPU使用率
         if (this.groupByField === K8sTableColumnKeysEnum.NODE) {
@@ -562,11 +562,11 @@ export default class K8SCharts extends tsc<
           )
         )`;
       case 'master_node_count': // 集群Master节点计数
-        return `count by(bcs_cluster_id)($method by(bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+        return `count by(bcs_cluster_id)($method by(node, bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
       case 'worker_node_count': // 集群Worker节点计数
         return `count by(bcs_cluster_id)(kube_node_labels{bcs_cluster_id="${clusterId}"} $time_shift)
          -
-         count(sum by (node)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
+         count(sum by (node, bcs_cluster_id)(kube_node_role{bcs_cluster_id="${clusterId}",role=~"master|control-plane"} $time_shift))`;
 
       case 'node_pod_usage': // 节点Pod个数使用率
         return `${this.createCommonPromqlMethod()} (last_over_time(kubelet_running_pods{${this.createCommonPromqlContent()}}[$interval:] $time_shift))
@@ -594,7 +594,7 @@ export default class K8SCharts extends tsc<
         return '';
     }
   }
-  createPerformanceDetailPanel(metric: string) {
+  createSpecialPanel(metric: string) {
     if (this.resourceList.size !== 1) return [];
     switch (metric) {
       case 'node_cpu_seconds_total': // node 节点CPU使用量
@@ -621,6 +621,17 @@ export default class K8SCharts extends tsc<
             alias: 'request',
             filter_dict: {},
           },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_node_status_allocatable{resource="cpu",${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_node_status_allocatable{resource="cpu",${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'capacity',
+            filter_dict: {},
+          },
         ];
       case 'node_memory_working_set_bytes':
         return [
@@ -644,6 +655,17 @@ export default class K8SCharts extends tsc<
                 : `sum by(bcs_cluster_id)(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
             interval: '$interval_second',
             alias: 'request',
+            filter_dict: {},
+          },
+          {
+            data_source_label: 'prometheus',
+            data_type_label: 'time_series',
+            promql:
+              this.groupByField === K8sTableColumnKeysEnum.NODE
+                ? `sum by(node)(kube_node_status_allocatable{resource="memory",${this.createCommonPromqlContent()}})`
+                : `sum by(bcs_cluster_id)(kube_node_status_allocatable{resource="memory",${this.createCommonPromqlContent()}})`,
+            interval: '$interval_second',
+            alias: 'capacity',
             filter_dict: {},
           },
         ];
