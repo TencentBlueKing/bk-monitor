@@ -39,21 +39,24 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
   mounted(el, binding) {
     let instance: Instance<Props> = null;
     let isMouseenter = false;
-    function mouseenter(event: MouseEvent & { target: Element }) {
+    function getIsEllipsis(el: Element) {
+      return el.scrollWidth > el.clientWidth;
+    }
+    function mouseenter(event: MouseEvent) {
       event.stopPropagation();
-      if (el.scrollWidth <= el.clientWidth) {
+      if (!getIsEllipsis(el)) {
         return;
       }
       isMouseenter = true;
       if (!instance) {
-        instance = tippy(event.target, {
+        instance = tippy(el, {
           trigger: 'mouseenter',
           allowHTML: true,
           placement: binding.value?.placement || 'auto',
           delay: [DelayMs, 0],
           content: `<span style="font-size: 12px;">${binding.value?.text || el.innerText}</span>`,
           onShow: () => {
-            if (el.scrollWidth > el.clientWidth) {
+            if (getIsEllipsis(el)) {
               return;
             }
             return false;
@@ -66,7 +69,7 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
         });
         // 初始化第一次进入时 tippy 可能出现不展示的情况 这里直接延时处理
         setTimeout(() => {
-          if (instance && isMouseenter && el.scrollWidth > el.clientWidth && !instance.state.isShown) {
+          if (instance && isMouseenter && getIsEllipsis(el) && !instance.state.isShown) {
             instance.clearDelayTimeouts();
             instance.show();
           }
@@ -80,13 +83,13 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
       entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
+            el.addEventListener('mouseenter', mouseenter);
             el.addEventListener('mouseleave', mouseleave);
-            el.mouseEnterFunc = mouseenter as MouseEnterFunc;
+            el.mouseEnterFunc = mouseenter;
             el.mouseLeaveFunc = mouseleave;
             return;
           }
-          el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
+          el.removeEventListener('mouseenter', mouseenter);
           el.removeEventListener('mouseleave', mouseleave);
         }
       },
