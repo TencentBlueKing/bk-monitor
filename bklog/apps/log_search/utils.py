@@ -21,10 +21,8 @@ the project delivered to anyone in the future.
 
 import functools
 import operator
-import re
 from io import BytesIO
 from typing import Any
-from urllib import parse
 
 from django.http import FileResponse
 
@@ -180,22 +178,12 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     # 重置指针回到流的开始位置
     buffer.seek(0)
 
-    # 使用UTF-8 URL 编码文件名
-    utf8_encoded_file_name = parse.quote(file_name, encoding="utf8")
-
-    # 编码为 ISO8859_1，并替换不兼容字符
-    iso_encoded_file_name = file_name.encode("ISO8859_1", errors="replace").decode("ISO8859_1")
-    prohibited_chars = r"\\/:*?\"<>|';="
-    iso_encoded_file_name = re.sub(f"[{prohibited_chars}]", "_", iso_encoded_file_name)
-
     # 创建文件下载响应
     response = FileResponse(
         buffer,
         as_attachment=True,  # 将内容作为附件下载而不是直接打开
+        filename=file_name,
         content_type=content_type,
-    )
-    response["Content-Disposition"] = (
-        f"attachment; filename=\"{iso_encoded_file_name}\"; filename*=UTF-8''{utf8_encoded_file_name}"
     )
 
     return response

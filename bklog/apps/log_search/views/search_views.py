@@ -643,7 +643,6 @@ class SearchViewSet(APIViewSet):
             result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            # 当我们需要写入字节流，需要 encode 字符串到 bytes
             json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
             output.write(json_data + b"\n")
         file_name = f"bk_log_search_{index}.log"
@@ -1598,7 +1597,6 @@ class SearchViewSet(APIViewSet):
         result = search_handler.union_search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            # 当我们需要写入字节流，需要 encode 字符串到 bytes
             json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
             output.write(json_data + b"\n")
         file_name = "bk_log_union_search_{}.log".format("_".join([str(i) for i in index_set_ids]))
