@@ -709,11 +709,11 @@ class QueryMode:
 
 # Span 顶层字段展示顺序
 SPAN_SORTED_FIELD = [
-    "span_id",
     "trace_id",
+    "span_id",
     "elapsed_time",
-    "span_name",
     "kind",
+    "span_name",
     "start_time",
     "end_time",
     "parent_span_id",
