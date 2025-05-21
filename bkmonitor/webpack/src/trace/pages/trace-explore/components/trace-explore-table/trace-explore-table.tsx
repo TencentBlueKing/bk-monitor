@@ -532,6 +532,12 @@ export default defineComponent({
           title: t('开始时间'),
           width: 140,
         },
+        max_end_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+          colKey: 'max_end_time',
+          title: t('结束时间'),
+          width: 140,
+        },
         root_span_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_span_name',
@@ -618,6 +624,14 @@ export default defineComponent({
           title: t('入口服务类型'),
           width: 100,
           getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
+        },
+        'status.code': {
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          colKey: 'status.code',
+          headerDescription: 'status_code',
+          title: t('状态'),
+          width: 100,
+          getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
         },
       };
     }
