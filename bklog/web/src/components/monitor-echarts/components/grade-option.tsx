@@ -128,9 +128,13 @@ export default defineComponent({
     const isLoading = ref(false);
 
     const fieldSearchValueList = computed(() => {
-      if (gradeOptionForm.value.field) {
+      if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE && gradeOptionForm.value.field) {
+        const storedValues = gradeOptionForm.value.settings.map(item => item.fieldValue ?? []).flat();
         return Array.from(
-          new Set(store.state.indexSetQueryResult.list.map(item => item[gradeOptionForm.value.field])),
+          new Set([
+            ...store.state.indexSetQueryResult.list.map(item => item[gradeOptionForm.value.field]),
+            ...storedValues,
+          ]),
         ).map(f => ({ id: `${f}`, name: `${f}` }));
       }
 
