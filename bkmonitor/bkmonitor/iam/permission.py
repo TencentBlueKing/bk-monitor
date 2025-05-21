@@ -252,7 +252,7 @@ class Permission:
         # application = self._make_application(related_actions, resources, system_id)
 
         application = self._make_application(action_ids, resources, system_id)
-        ok, message, url = self.iam_client.get_apply_url(application, self.bk_token, self.username)
+        ok, message, url = self.iam_client.get_apply_url(application)
         if not ok:
             logger.error("iam generate apply url fail: %s", message)
             return settings.BK_IAM_SAAS_HOST
