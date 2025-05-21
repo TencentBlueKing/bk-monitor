@@ -203,10 +203,19 @@ export default () => {
         // 需要检查索引集列表中是否包含解析出来的索引集信息
         // 避免索引信息不存在导致的频繁错误请求和异常提示
         const emptyIndexSetList = [];
+        const indexSetItems = [];
+        const indexSetIds = [];
+
         if (indexSetIdList.value.length) {
           indexSetIdList.value.forEach(id => {
-            if (!resp[1].some(item => `${item.index_set_id}` === `${id}`)) {
+            const item = resp[1].find(item => `${item.index_set_id}` === `${id}`);
+            if (!item) {
               emptyIndexSetList.push(id);
+            }
+
+            if (item) {
+              indexSetItems.push(item);
+              indexSetIds.push(id);
             }
           });
 
@@ -217,6 +226,10 @@ export default () => {
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
             });
+          }
+
+          if (indexSetItems.length) {
+            store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
           }
         }
 
