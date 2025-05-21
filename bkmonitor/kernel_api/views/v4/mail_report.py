@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError
@@ -26,7 +26,7 @@ from bkmonitor.iam.permission import Permission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import RenderImageTask, ReportItems
 from bkmonitor.utils.common_utils import to_dict
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -86,8 +86,10 @@ class TestReportMail(Resource):
         frequency = FrequencySerializer(required=False)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
+
         # 测试邮件只发送给当前用户
-        report_handler = ReportHandler()
+        report_handler = ReportHandler(bk_tenant_id=bk_tenant_id)
 
         # 是否超管
         is_superuser = False
@@ -101,6 +103,7 @@ class TestReportMail(Resource):
 
         # 获取当前用户有权限的业务列表
         item = ReportItems(
+            bk_tenant_id=bk_tenant_id,
             mail_title=params["mail_title"],
             receivers=[{"id": params["creator"], "is_enabled": True, type: "user"}],
             channels=params["channels"],
@@ -134,8 +137,9 @@ class SendReportMail(Resource):
         id = serializers.IntegerField(required=True)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         try:
-            report_item = ReportItems.objects.get(id=params["id"])
+            report_item = ReportItems.objects.get(id=params["id"], bk_tenant_id=bk_tenant_id)
         except ReportItems.DoesNotExist:
             raise ValidationError(f"ReportItems id({params['id']}) does not exist")
 
@@ -152,7 +156,7 @@ class SendReportMail(Resource):
         if username not in manager_users:
             raise ValidationError("You have no permission to send this report")
 
-        ReportHandler(report_item.id).process_and_render_mails()
+        ReportHandler(bk_tenant_id=bk_tenant_id, item_id=report_item.id).process_and_render_mails()
 
 
 class MailReportViewSet(ResourceViewSet):
@@ -227,6 +231,7 @@ class RenderImageResource(Resource):
             username = "admin"
 
         task = RenderImageTask.objects.create(
+            bk_tenant_id=get_request_tenant_id(),
             type=params["type"],
             options=params["options"],
             status=RenderImageTask.Status.PENDING,
@@ -252,7 +257,7 @@ class GetRenderImageResource(Resource):
         else:
             username = "admin"
 
-        task = RenderImageTask.objects.get(task_id=params["task_id"])
+        task = RenderImageTask.objects.get(bk_tenant_id=get_request_tenant_id(), task_id=params["task_id"])
 
         if task.username != username:
             raise ValidationError("You have no permission to visit this task")

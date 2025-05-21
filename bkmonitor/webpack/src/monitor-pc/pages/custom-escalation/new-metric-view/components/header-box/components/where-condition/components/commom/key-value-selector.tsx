@@ -27,6 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import _ from 'lodash';
 import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-selector';
 
@@ -47,34 +48,36 @@ interface IEmit {
 export default class FilterConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
 
-  valueList: Readonly<{ id: string; name: string }[]> = [];
+  valueListMemo: Readonly<{ id: string; name: string }[]> = [];
 
   @Watch('data', { immediate: true })
   dataChange() {
-    this.valueList = Object.freeze(
-      this.data.value.map(item => ({
-        id: item,
-        name: item,
-      }))
-    );
+    this.valueListMemo = [];
   }
 
-  async getValueCallback() {
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
-    const result = await getCustomTsDimensionValues({
-      time_series_group_id: Number(this.$route.params.id),
-      dimension: this.data.key,
-      start_time: startTime || 0,
-      end_time: endTime || 0,
-      metrics: customEscalationViewStore.currentSelectedMetricList.map(item => item.metric_name),
-    });
+  async getValueCallback({ search }: { search: string }) {
+    if (this.valueListMemo.length < 1) {
+      const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+      const result = await getCustomTsDimensionValues({
+        time_series_group_id: Number(this.$route.params.id),
+        dimension: this.data.key,
+        start_time: startTime || 0,
+        end_time: endTime || 0,
+        metrics: customEscalationViewStore.currentSelectedMetricList.map(item => item.metric_name),
+      });
+      this.valueListMemo = result.map(item => ({
+        id: item.name,
+        name: item.name,
+      }));
+    }
+
+    const list = _.filter(this.valueListMemo, item =>
+      item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())
+    );
 
     return {
       count: 0 as const,
-      list: result.map(item => ({
-        id: item.name,
-        name: item.name,
-      })),
+      list,
     };
   }
 

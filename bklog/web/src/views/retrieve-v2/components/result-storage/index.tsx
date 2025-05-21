@@ -50,7 +50,7 @@ export default defineComponent({
     const handleJsonFormatDeepChange = val => {
       const value = Number(val);
       const target = value > 15 ? 15 : value < 1 ? 1 : value;
-      store.commit('updateStorage', { tableJsonFormatDepth: target });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
     return () => (
@@ -60,7 +60,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={showRowIndex.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, 'tableShowRowIndex')}
+          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX)}
         >
           <span class='switch-label'>{$t('显示行号')}</span>
         </bk-checkbox>
@@ -69,7 +69,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={expandTextView.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, 'isLimitExpandView')}
+          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW)}
         >
           <span class='switch-label'>{$t('展开长字段')}</span>
         </bk-checkbox>
@@ -88,7 +88,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={isJsonFormat.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, 'tableJsonFormat')}
+          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_JSON_FORMAT)}
         >
           <span class='switch-label'>{$t('JSON 解析')}</span>
         </bk-checkbox>
@@ -110,7 +110,7 @@ export default defineComponent({
           class='bklog-option-item'
           value={isAllowEmptyField.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, 'tableAllowEmptyField')}
+          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD)}
         >
           <span class='switch-label'>{$t('展示空字段')}</span>
         </bk-checkbox>

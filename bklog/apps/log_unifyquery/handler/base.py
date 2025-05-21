@@ -95,6 +95,9 @@ class UnifyQueryHandler:
         # 初始化索引信息（包括索引类型）
         self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
         self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
+        # 单索引集属性
+        self.index_set = self.index_info_list[0]
+        self.scenario_id = self.index_set["scenario_id"]
 
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
@@ -999,12 +1002,6 @@ class UnifyQueryHandler:
             user_sort_list.append([sorted_field, ASYNC_SORTED])
 
         return user_sort_list
-
-    @property
-    def index_set(self):
-        if not hasattr(self, "_index_set"):
-            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_info_list[0]["index_set_id"]).first()
-        return self._index_set
 
     def fields(self, scope="default"):
         # self = self.unify_query_handler

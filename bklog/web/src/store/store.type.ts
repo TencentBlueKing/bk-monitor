@@ -63,6 +63,16 @@ enum BK_LOG_STORAGE {
    * 当前激活的历史记录 id
    */
   HISTORY_ID = 'h_12',
+
+  /**
+   * 当前space_uid
+   */
+  BK_SPACE_UID = '_13',
+
+  /**
+   * 当前 bk_biz_id
+   */
+  BK_BIZ_ID = '_14',
 }
 
 export { BK_LOG_STORAGE };

@@ -27,11 +27,10 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
-import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
-import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
 import CompareType from '../components/header-box/components/compare-type';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 // import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
 import WhereCondition from '../components/header-box/components/where-condition';
@@ -98,22 +97,6 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
     this.$emit('conditionChange', value);
   }
 
-  handleTimeRangeChange(value: TimeRangeType) {
-    this.$emit('timeRangeChange', value);
-  }
-
-  handleTimezoneChange(value: string) {
-    this.$emit('timezoneChange', value);
-  }
-
-  handleRefreshInterval(value: number) {
-    this.$emit('refreshInterval', value);
-  }
-
-  handleImmediateRefresh() {
-    this.$emit('immediateRefresh');
-  }
-
   handleGroupByChange(value: IResultItem['group_by']) {
     this.$emit('groupByChange', value);
   }
@@ -162,38 +145,11 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
         class='drill-analysis-filter'
       >
         <div class='filter-confition-wrapper'>
-          <div class='filter-left'>
-            <WhereCondition
-              customData={this.filterConfig.commonConditions}
-              value={this.filterConfig.where}
-              onChange={this.handleConditionChange}
-            />
-          </div>
-          <div class='filter-right'>
-            {/* 时间工具栏 */}
-            {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-              <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
-            ) : (
-              <TimeRange
-                class='filter-tools-timerange'
-                timezone={this.timezone}
-                value={this.timeRange}
-                onChange={this.handleTimeRangeChange}
-                onTimezoneChange={this.handleTimezoneChange}
-              />
-            )}
-            <span class='right-line' />
-            <MonitorDropdown
-              class='filter-tools-interval'
-              icon='icon-zidongshuaxin'
-              isRefreshInterval={true}
-              list={this.refreshList}
-              text-active={this.refreshInterval !== -1}
-              value={this.refreshInterval}
-              on-change={this.handleRefreshInterval}
-              on-on-icon-click={this.handleImmediateRefresh}
-            />
-          </div>
+          <WhereCondition
+            customData={this.filterConfig.commonConditions}
+            value={this.filterConfig.where}
+            onChange={this.handleConditionChange}
+          />
         </div>
         <div class='filter-compare-view'>
           {/* <GroupBy
