@@ -1225,7 +1225,7 @@ export default defineComponent({
                     mode='spin'
                     size='mini'
                     theme='primary'
-                    title={window.i18n.t('加载中…')}
+                    title={window.i18n.t('加载中...')}
                   />
                 )
               : undefined
