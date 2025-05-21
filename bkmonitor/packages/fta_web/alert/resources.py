@@ -1898,7 +1898,8 @@ class ValidateQueryString(Resource):
     @staticmethod
     def process_metric_id(validated_request_data):
         """
-        当指定指标ID时，需要对查询字符串进行转义
+        当指定指标ID时，且指标ID不是正常的数据格式，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
+        此时需要对指标ID进行转义
 
         '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
         参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
@@ -1908,7 +1909,6 @@ class ValidateQueryString(Resource):
         target_type, query_string = validated_request_data["query_string"].split(":", 1)
         target_type = target_type.strip()
 
-        # 当指定指标ID时，需要对查询字符串进行转义
         if target_type in ["指标ID", "event.metric"]:
 
             # 检查是否为有效的指标ID，如果是则不进行转义
