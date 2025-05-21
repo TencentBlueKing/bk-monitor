@@ -878,7 +878,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
-    total_shards_per_node = serializers.IntegerField(label=_("每个节点的分片总数"), required=False)
+    total_shards_per_node = serializers.IntegerField(label=_("每个节点的分片总数"), required=False, allow_null=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

@@ -113,6 +113,11 @@ class TransferEtlHandler(EtlHandler):
         if sort_fields is None and index_set_obj:
             target_fields = index_set_obj.target_fields
 
+        if total_shards_per_node is not None:
+            index_settings = {"total_shards_per_node": total_shards_per_node}
+        else:
+            index_settings = {}
+
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
         etl_storage.update_or_create_result_table(
@@ -130,9 +135,7 @@ class TransferEtlHandler(EtlHandler):
             sort_fields=sort_fields,
             target_fields=target_fields,
             alias_settings=alias_settings,
-            index_settings={
-                "index.routing.allocation.total_shards_per_node": total_shards_per_node if total_shards_per_node else 0,
-            },
+            index_settings=index_settings,
         )
 
         if not view_roles:
