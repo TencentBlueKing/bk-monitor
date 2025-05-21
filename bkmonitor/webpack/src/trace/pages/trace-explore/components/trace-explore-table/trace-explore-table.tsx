@@ -123,6 +123,7 @@ export default defineComponent({
     backTop: () => true,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     conditionChange: (val: ConditionChangeEvent) => true,
+    clearRetrievalFilter: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -1143,6 +1144,11 @@ export default defineComponent({
           return textColumnFormatter(column, row);
       }
     }
+
+    function handleClearRetrievalFilter() {
+      emit('clearRetrievalFilter');
+    }
+
     return {
       tableRowKeyField,
       displayColumnFields,
@@ -1160,6 +1166,7 @@ export default defineComponent({
       handleDisplayColumnFieldsChange,
       statisticsDomRender,
       handleSliderShowChange,
+      handleClearRetrievalFilter,
     };
   },
 
@@ -1170,7 +1177,12 @@ export default defineComponent({
           ref='tableRef'
           class={this.tableSkeletonConfig?.tableClass}
           v-slots={{
-            empty: () => <ExploreTableEmpty onDataSourceConfigClick={this.handleDataSourceConfigClick} />,
+            empty: () => (
+              <ExploreTableEmpty
+                onClearFilter={this.handleClearRetrievalFilter}
+                onDataSourceConfigClick={this.handleDataSourceConfigClick}
+              />
+            ),
           }}
           columns={[
             ...this.tableDisplayColumns,

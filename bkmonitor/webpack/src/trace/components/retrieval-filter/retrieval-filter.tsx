@@ -275,12 +275,14 @@ export default defineComponent({
         }
       }
       cacheWhere.value = structuredClone(where);
-      const traceWhere = where.map(item => ({
-        key: item.key,
-        operator: item.method,
-        value: item.value,
-        options: item?.options || undefined,
-      }));
+      const traceWhere = where
+        .filter(item => !!item)
+        .map(item => ({
+          key: item.key,
+          operator: item.method,
+          value: item.value,
+          options: item?.options || undefined,
+        }));
       emit('whereChange', props.isTraceRetrieval ? traceWhere : where);
     }
 

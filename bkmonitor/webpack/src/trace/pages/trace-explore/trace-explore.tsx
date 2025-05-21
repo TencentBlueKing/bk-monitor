@@ -429,22 +429,25 @@ export default defineComponent({
 
     function getRetrievalFilterValueData(params: IGetValueFnParams) {
       const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
-      return getFieldsOptionValuesProxy({
-        app_name: store.appName,
-        start_time: startTime,
-        end_time: endTime,
-        fields: params?.fields || [],
-        limit: params?.limit || 5,
-        filters:
-          params?.where?.map(item => ({
-            key: item.key,
-            operator: 'like',
-            value: item.value || [],
-          })) || [],
-        query_string: params?.queryString || '',
-        mode: store.mode,
-        isInit__: params?.isInit__ || false,
-      } as any)
+      return getFieldsOptionValuesProxy(
+        {
+          app_name: store.appName,
+          start_time: startTime,
+          end_time: endTime,
+          fields: params?.fields || [],
+          limit: params?.limit || 5,
+          filters:
+            params?.where?.map(item => ({
+              key: item.key,
+              operator: 'like',
+              value: item.value || [],
+            })) || [],
+          query_string: params?.queryString || '',
+          mode: store.mode,
+          isInit__: params?.isInit__ || false,
+        } as any,
+        fieldList.value
+      )
         .then(res => {
           return {
             count: res.count,
@@ -590,6 +593,14 @@ export default defineComponent({
       const url = location.href.replace(location.hash, '#/apm/home');
       window.open(url, '_blank');
     }
+    function handleClearRetrievalFilter() {
+      commonWhere.value = [];
+      where.value = [];
+      queryString.value = '';
+      defaultFavoriteId.value = null;
+      currentFavorite.value = null;
+      handleQuery();
+    }
 
     return {
       t,
@@ -640,6 +651,7 @@ export default defineComponent({
       handleFavoriteSave,
       handleEditFavoriteShow,
       handleCreateApp,
+      handleClearRetrievalFilter,
     };
   },
   render() {
@@ -738,6 +750,7 @@ export default defineComponent({
                         fieldListMap={this.fieldListMap}
                         showSlideDetail={this.showSlideDetail}
                         onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                        onClearRetrievalFilter={this.handleClearRetrievalFilter}
                         onConditionChange={this.handleConditionChange}
                       />
                     </div>

@@ -138,4 +138,6 @@ export default {
   一个或多个参数: 'One or more parameters',
   全文检索: 'Full-text Search',
   全部来源: 'All Sources',
+  分享: 'Share',
+  从分组中移除: 'Remove from Group',
 };

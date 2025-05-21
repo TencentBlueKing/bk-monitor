@@ -34,6 +34,7 @@ export default defineComponent({
   name: 'ExploreTableEmpty',
   emits: {
     dataSourceConfigClick: () => true,
+    clearFilter: () => true,
   },
   render() {
     return (
@@ -42,7 +43,17 @@ export default defineComponent({
         type='search-empty'
       >
         <div class='search-empty-content'>
-          <div class='tips'>{this.$t('您可以按照以下方式优化检索结果')}</div>
+          <div class='tips'>
+            <span>{this.$t('请调整关键字')}</span>&nbsp;
+            <span>{this.$t('或')}</span>&nbsp;
+            <span
+              class='link'
+              onClick={() => this.$emit('clearFilter')}
+            >
+              {this.$t('清空检索条件')}
+            </span>
+          </div>
+          {/* <div class='tips'>{this.$t('您可以按照以下方式优化检索结果')}</div>
           <div class='description'>
             1. {this.$t('检查')}
             <span
@@ -70,7 +81,7 @@ export default defineComponent({
           >
             {this.$t('查看更多语法规则')}
             <span class='icon-monitor icon-fenxiang' />
-          </div>
+          </div> */}
         </div>
       </EmptyStatus>
     );

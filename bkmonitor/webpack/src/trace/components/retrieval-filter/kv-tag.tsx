@@ -68,12 +68,12 @@ export default defineComponent({
             count += 1;
             valueT.push({
               ...item,
-              name: item?.name?.length > 20 ? `${item.name.slice(0, 20)}...` : item.name,
+              name: nameStr(item),
             });
           }
           localValue.value = {
             ...localValueT,
-            valueT,
+            value: valueT,
           };
           hideCount.value = val.value.length - 3;
           groupRelation.value = val?.options?.group_relation || 'OR';
@@ -106,6 +106,15 @@ export default defineComponent({
     function handleHide(event: MouseEvent) {
       event.stopPropagation();
       emit('hide');
+    }
+
+    function nameStr(item: { id: string; name: string }) {
+      if (item.id === '') {
+        return NULL_VALUE_NAME;
+      }
+      if (item.name) {
+        return item?.name?.length > 20 ? `${item.name.slice(0, 20)}...` : item.name;
+      }
     }
 
     return {
@@ -147,7 +156,7 @@ export default defineComponent({
               this.$slots.value()
             ) : (
               <>
-                {this.localValue.value.slice(0, 3).map((item, index) => [
+                {this.localValue.value.map((item, index) => [
                   index > 0 && (
                     <span
                       key={`${index}_condition`}
