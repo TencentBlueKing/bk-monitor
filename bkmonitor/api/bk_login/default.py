@@ -18,6 +18,8 @@ from core.drf_resource import APIResource
 
 
 class BkUserApiResource(APIResource):
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
     def use_apigw(self):
         """
         是否使用apigw
