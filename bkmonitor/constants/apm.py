@@ -590,6 +590,7 @@ class PreCalculateSpecificField(TextChoices):
     预计算存储字段
     """
 
+    # 下面字段的顺序调整，会影响页面展示，需尽可能把最常用的字段放最前面
     BIZ_ID = "biz_id"
     BIZ_NAME = "biz_name"
     APP_ID = "app_id"

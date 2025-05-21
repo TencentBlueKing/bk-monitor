@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from functools import lru_cache
 
 from django.utils.functional import cached_property
@@ -702,9 +702,29 @@ class QueryMode:
     @classmethod
     def choices(cls):
         return [
-            (cls.TRACE, "Trace视角"),
-            (cls.SPAN, "span视角"),
+            (cls.TRACE, "Trace 视角"),
+            (cls.SPAN, "Span 视角"),
         ]
+
+
+# Span 顶层字段展示顺序
+SPAN_SORTED_FIELD = [
+    "span_id",
+    "trace_id",
+    "elapsed_time",
+    "span_name",
+    "kind",
+    "start_time",
+    "end_time",
+    "parent_span_id",
+    "trace_state",
+    "time",
+    "status",
+    "resource",
+    "attributes",
+    "events",
+    "links",
+]
 
 
 class SpanSourceCategory:
@@ -1006,7 +1026,9 @@ class ApdexCachedEnum(CachedEnum):
     @cached_property
     def label(self):
         return str(
-            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(
+                self, self.value
+            )
         )
 
     @cached_property

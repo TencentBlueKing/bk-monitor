@@ -21,7 +21,7 @@ from django.utils.functional import cached_property
 
 from apm.constants import KindCategory
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm_web.constants import CategoryEnum, QueryMode
+from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
 from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.trace.constants import OPERATORS, TRACE_FIELD_ALIAS
 from bkmonitor.utils.request import get_request_username
@@ -198,17 +198,28 @@ class TraceFieldsHandler:
     def get_all_fields_names_by_mode(self, mode: QueryMode) -> list[str]:
         """获取 trace / span 视角下可用的所有字段名称"""
 
+        field_names = []
         if mode == QueryMode.TRACE:
-            return list(self.trace_fields_info)
+            field_names = list(self.trace_fields_info)
+            # 尽可能顶层字段排前面，同层级按原有定义顺序不变
+            field_names.sort(key=lambda field_name: "." in field_name)
         elif mode == QueryMode.SPAN:
-            return list(self.span_fields_info)
-        return []
+            field_names = list(self.span_fields_info)
+            field_names.sort(
+                key=lambda field_name: (
+                    # 顶层字段优先
+                    "." in field_name,
+                    # 顶层字段按给定的顺序排序
+                    SPAN_SORTED_FIELD.index(field_name) if field_name in SPAN_SORTED_FIELD else 0,
+                    # 非顶层字段按字母排序
+                    field_name,
+                )
+            )
+        return field_names
 
     def get_fields_by_mode(self, mode: QueryMode) -> list[dict]:
         """获取 trace / span 视角下可用的字段信息"""
 
         all_fields_names = self.get_all_fields_names_by_mode(mode)
         fields = self.get_fields_info(mode, all_fields_names)
-        # 尽可能顶层字段排前面，同层级按原有定义顺序不变
-        fields.sort(key=lambda field: "." in field["name"])
         return fields
