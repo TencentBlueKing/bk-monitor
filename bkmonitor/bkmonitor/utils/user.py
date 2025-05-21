@@ -53,7 +53,7 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
     from core.drf_resource import api
 
     result = api.bk_login.batch_lookup_virtual_user(
-        bk_tenant_id=bk_tenant_id, lookup_field="bk_username", lookup_value="admin", bk_username="admin"
+        bk_tenant_id=bk_tenant_id, lookup_field="bk_username", lookups="admin", bk_username="admin"
     )
     if result:
         return result[0].get("bk_username")
@@ -61,15 +61,17 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
         raise ValueError(_("get_admin_username: 获取管理员用户失败"))
 
 
-def get_backend_username(bk_tenant_id: str = "") -> str | None:
+def get_backend_username(peaceful=True, bk_tenant_id: str = "") -> str | None:
     """从配置中获取用户信息"""
 
     if settings.ENABLE_MULTI_TENANT_MODE:
         if not bk_tenant_id:
-            bk_tenant_id = get_request_tenant_id()
+            bk_tenant_id = get_request_tenant_id(peaceful=peaceful)
 
         if not bk_tenant_id:
-            raise ValueError(_("get_backend_username: 获取租户ID失败"))
+            if not peaceful:
+                raise ValueError(_("get_backend_username: 获取租户ID失败"))
+            return None
 
         return get_admin_username(bk_tenant_id)
     else:
@@ -82,7 +84,11 @@ def get_global_user(peaceful=True, bk_tenant_id: str = ""):
     # 1.2 local获取用户名
     # 1.3 系统配置的后台用户
 
-    username = get_request_username() or get_local_username() or get_backend_username(bk_tenant_id=bk_tenant_id)
+    username = (
+        get_request_username()
+        or get_local_username()
+        or get_backend_username(peaceful=peaceful, bk_tenant_id=bk_tenant_id)
+    )
 
     if username:
         return username
