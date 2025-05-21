@@ -39,9 +39,8 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION
+from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION, TraceDataSourceConfig
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata import models as metadata_models
@@ -395,33 +394,19 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     STORAGE_TYPE = "elasticsearch"
 
-    ES_KEYWORD_OPTION = {"es_type": "keyword"}
+    ES_KEYWORD_OPTION = TraceDataSourceConfig.ES_KEYWORD_OPTION
 
     # object 字段配置
-    ES_OBJECT_OPTION = {"es_type": "object", "es_dynamic": True}
+    ES_OBJECT_OPTION = TraceDataSourceConfig.ES_OBJECT_OPTION
 
     # NESTED 配置
-    ES_NESTED_OPTION = {"es_type": "nested"}
+    ES_NESTED_OPTION = TraceDataSourceConfig.ES_NESTED_OPTION
 
     # OTLP status 配置
-    TRACE_STATUS_OPTION = {
-        **ES_OBJECT_OPTION,
-        "es_properties": {"message": {"type": "text"}, "code": {"type": "integer"}},
-    }
+    TRACE_STATUS_OPTION = TraceDataSourceConfig.TRACE_STATUS_OPTION
 
     # OTLP events 配置
-    TRACE_EVENT_OPTION = {
-        **ES_NESTED_OPTION,
-        "es_properties": {
-            "attributes": {
-                "properties": {
-                    "exception": {"properties": {"message": {"type": "text"}, "stacktrace": {"type": "text"}}},
-                    "message": {"type": "object"},
-                }
-            },
-            "timestamp": {"type": "long"},
-        },
-    }
+    TRACE_EVENT_OPTION = TraceDataSourceConfig.TRACE_EVENT_OPTION
 
     # 默认的动态维度发现配置
     ES_DYNAMIC_CONFIG = {
@@ -449,120 +434,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
     }
 
     # TRACE 存储字段信息
-    TRACE_FIELD_LIST = [
-        {
-            "field_name": "attributes",
-            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_OBJECT_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Attributes",
-        },
-        {
-            "field_name": "resource",
-            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_OBJECT_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Resources",
-        },
-        {
-            "field_name": "events",
-            "field_type": ResultTableField.FIELD_TYPE_NESTED,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": TRACE_EVENT_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Events",
-        },
-        {
-            "field_name": "elapsed_time",
-            "field_type": ResultTableField.FIELD_TYPE_LONG,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": {"es_type": "long"},
-            "is_config_by_user": True,
-            "description": "Span Elapsed Time",
-        },
-        {
-            "field_name": "end_time",
-            "field_type": ResultTableField.FIELD_TYPE_LONG,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": {"es_type": "long"},
-            "is_config_by_user": True,
-            "description": "Span End Time",
-        },
-        {
-            "field_name": "start_time",
-            "field_type": ResultTableField.FIELD_TYPE_LONG,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": {"es_type": "long"},
-            "is_config_by_user": True,
-            "description": "Span Start Time",
-        },
-        {
-            "field_name": "kind",
-            "field_type": ResultTableField.FIELD_TYPE_INT,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": {"es_type": "integer"},
-            "is_config_by_user": True,
-            "description": "Span Kind",
-        },
-        {
-            "field_name": "links",
-            "field_type": ResultTableField.FIELD_TYPE_NESTED,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_NESTED_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Links",
-        },
-        {
-            "field_name": "parent_span_id",
-            "field_type": ResultTableField.FIELD_TYPE_STRING,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_KEYWORD_OPTION,
-            "is_config_by_user": True,
-            "description": "Parent Span ID",
-        },
-        {
-            "field_name": "span_id",
-            "field_type": ResultTableField.FIELD_TYPE_STRING,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_KEYWORD_OPTION,
-            "is_config_by_user": True,
-            "description": "Span ID",
-        },
-        {
-            "field_name": "span_name",
-            "field_type": ResultTableField.FIELD_TYPE_STRING,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_KEYWORD_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Name",
-        },
-        {
-            "field_name": "status",
-            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": TRACE_STATUS_OPTION,
-            "is_config_by_user": True,
-            "description": "Span Status",
-        },
-        {
-            "field_name": "trace_id",
-            "field_type": ResultTableField.FIELD_TYPE_STRING,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_KEYWORD_OPTION,
-            "is_config_by_user": True,
-            "description": "Trace ID",
-        },
-        {
-            "field_name": "trace_state",
-            "field_type": ResultTableField.FIELD_TYPE_STRING,
-            "tag": ResultTableField.FIELD_TAG_DIMENSION,
-            "option": ES_KEYWORD_OPTION,
-            "is_config_by_user": True,
-            "description": "Trace State",
-        },
-    ]
+    TRACE_FIELD_LIST = TraceDataSourceConfig.TRACE_FIELD_LIST
 
     FILTER_KIND = {
         "exists": lambda field_name, _, q: q & Q(**{f"{field_name}__exists": ""}),
