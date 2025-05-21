@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import logging
-from typing import Union
 
 from django.db import IntegrityError, transaction
 from django.utils.module_loading import import_string
@@ -31,7 +29,7 @@ from apps.log_databus.exceptions import (
     CollectorPluginNameDuplicateException,
     CollectorPluginNotExistException,
 )
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin, DataLinkConfig
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
@@ -45,7 +43,7 @@ def get_collector_plugin_handler(etl_processor, collector_plugin_id=None):
     }
     try:
         collector_plugin_handler = import_string(
-            "apps.log_databus.handlers.collector_plugin.{}.{}".format(etl_processor, mapping.get(etl_processor))
+            f"apps.log_databus.handlers.collector_plugin.{etl_processor}.{mapping.get(etl_processor)}"
         )
         return collector_plugin_handler(collector_plugin_id)
     except ImportError as error:
@@ -111,12 +109,12 @@ class CollectorPluginHandler:
 
         raise NotImplementedError
 
-    def _create_data_id(self, instance: Union[CollectorConfig, CollectorPlugin]) -> int:
+    def _create_data_id(self, instance: CollectorConfig | CollectorPlugin) -> int:
         """
         创建数据源
         """
 
-        return CollectorHandler.update_or_create_data_id(instance)
+        return BaseCollectorHandler.update_or_create_data_id(instance)
 
     @transaction.atomic()
     def _update_or_create(self, params: dict) -> bool:
@@ -222,7 +220,7 @@ class CollectorPluginHandler:
 
             # DATA_ID
             if not is_allow_alone_data_id or is_create_public_data_id:
-                self.collector_plugin.bk_data_id = CollectorHandler.update_or_create_data_id(self.collector_plugin)
+                self.collector_plugin.bk_data_id = BaseCollectorHandler.update_or_create_data_id(self.collector_plugin)
 
             is_create = False
 
@@ -363,7 +361,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 创建采集项
-        return CollectorHandler().update_or_create(params)
+        return BaseCollectorHandler().update_or_create(params)
 
     def update_instance(self, params: dict) -> dict:
         """
@@ -374,7 +372,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 更新采集项
-        return CollectorHandler(params["collector_config_id"]).update_or_create(params)
+        return BaseCollectorHandler(params["collector_config_id"]).update_or_create(params)
 
     def create_instance_etl(self, instance: CollectorConfig, params: dict) -> dict:
         """

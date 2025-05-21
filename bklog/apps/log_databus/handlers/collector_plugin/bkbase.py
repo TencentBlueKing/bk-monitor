@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -17,10 +16,9 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
-from typing import Union
 
 from apps.log_databus.constants import ETLProcessorChoices
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.handlers.collector_plugin import CollectorPluginHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -33,15 +31,15 @@ class BKBaseCollectorPluginHandler(CollectorPluginHandler):
     数据平台
     """
 
-    def _create_data_id(self, instance: Union[CollectorConfig, CollectorPlugin]) -> int:
+    def _create_data_id(self, instance: CollectorConfig | CollectorPlugin) -> int:
         """
         创建metadata后赋值给数据平台
         """
 
-        metadata_bk_data_id = CollectorHandler.update_or_create_data_id(
+        metadata_bk_data_id = BaseCollectorHandler.update_or_create_data_id(
             self.collector_plugin, etl_processor=ETLProcessorChoices.TRANSFER.value
         )
-        return CollectorHandler.update_or_create_data_id(self.collector_plugin, bk_data_id=metadata_bk_data_id)
+        return BaseCollectorHandler.update_or_create_data_id(self.collector_plugin, bk_data_id=metadata_bk_data_id)
 
     def _create_metadata_result_table(self) -> None:
         """

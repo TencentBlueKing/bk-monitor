@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -27,7 +27,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl import EtlHandler
@@ -171,7 +171,7 @@ class TransferEtlHandler(EtlHandler):
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
 
-        CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
+        BaseCollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
             {
                 "clean_type": etl_config,
                 "etl_params": etl_params,

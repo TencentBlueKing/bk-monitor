@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -17,15 +16,16 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+
 from apps.log_databus.constants import CollectorBatchOperationType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 
 
-class CollectorBatchHandler(object):
+class CollectorBatchHandler:
     def __init__(self, collector_ids, operation):
         self.collector_ids = collector_ids
         self.operation = operation
@@ -60,11 +60,11 @@ class CollectorBatchHandler(object):
                 "description": f"{self.operation} operation executed successfully",
             }
             try:
-                handler = CollectorHandler(collector_config_id=collector.collector_config_id)
+                handler = BaseCollectorHandler(collector_config_id=collector.collector_config_id)
                 if self.operation == CollectorBatchOperationType.STOP.value:
-                    handler.stop()
+                    handler.get_instance().stop()
                 else:
-                    handler.start()
+                    handler.get_instance().start()
 
             except Exception as e:
                 collector_info.update(
@@ -92,8 +92,8 @@ class CollectorBatchHandler(object):
                 "status": "SUCCESS",
                 "description": f"{self.operation} operation executed successfully",
             }
-            handler = CollectorHandler(collector.collector_config_id)
-            collect_config = handler.retrieve()
+            handler = BaseCollectorHandler(collector.collector_config_id)
+            collect_config = handler.get_instance().retrieve()
             clean_stash = handler.get_clean_stash()
 
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]

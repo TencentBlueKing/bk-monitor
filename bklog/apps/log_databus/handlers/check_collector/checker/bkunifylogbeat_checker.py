@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 from django.conf import settings
@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectStatus,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.utils.bcs import Bcs
 
@@ -54,7 +54,7 @@ class Pod:
     node: str = ""
     node_ip: str = ""
     main_config: str = ""
-    sub_config_list: List[str] = field(default_factory=list)
+    sub_config_list: list[str] = field(default_factory=list)
     pod: v1_pod.V1Pod = field(default_factory=v1_pod.V1Pod)
 
 
@@ -72,7 +72,7 @@ class BkunifylogbeatChecker(Checker):
         super().__init__(*args, **kwargs)
         self.collector_config = collector_config
         # target_server, 获取NodeIP, 作为target_server传递到agent_checker中
-        self.target_server: Dict[str, Any] = {}
+        self.target_server: dict[str, Any] = {}
         # 初始化bcs_client
         self.k8s_client: Bcs = Bcs(cluster_id=collector_config.bcs_cluster_id)
         self.namespace: str = BK_LOG_COLLECTOR_NAMESPACE
@@ -93,7 +93,7 @@ class BkunifylogbeatChecker(Checker):
         self.cr_list = []
 
         # 匹配到的pod列表
-        self.pod_list: List[Pod] = []
+        self.pod_list: list[Pod] = []
 
     def _run(self):
         self.check_task_status()
@@ -111,7 +111,10 @@ class BkunifylogbeatChecker(Checker):
             self.append_normal_info(_("自定义容器采集, 不检查采集任务状态"))
             return
         task_status_contents = (
-            CollectorHandler(self.collector_config.collector_config_id).get_task_status(id_list=[]).get("contents", [])
+            BaseCollectorHandler(self.collector_config.collector_config_id)
+            .get_instance()
+            .get_task_status(id_list=[])
+            .get("contents", [])
         )
         # contents为空不正常, 需提示
         if not task_status_contents:
@@ -282,7 +285,7 @@ class BkunifylogbeatChecker(Checker):
             for sub_config in pod.sub_config_list:
                 self._check_sub_config(pod_name=pod.name, sub_config=sub_config)
 
-    def _match_sub_config(self, pod_name: str) -> List[str]:
+    def _match_sub_config(self, pod_name: str) -> list[str]:
         """
         匹配子配置文件, CR会成为配置文件的后缀, 所以认定Pod中有该后缀的配置文件的才是实际采集的Pod
         """
@@ -410,7 +413,9 @@ class BkunifylogbeatChecker(Checker):
                 size = int(size) / 1024 / 1024
                 continue
         self.append_normal_info(
-            _("子配置文件中路径: {filepath}, 最后修改时间: {mtime}, 文件大小: {size}MB").format(filepath=filepath, mtime=mtime, size=size)
+            _("子配置文件中路径: {filepath}, 最后修改时间: {mtime}, 文件大小: {size}MB").format(
+                filepath=filepath, mtime=mtime, size=size
+            )
         )
 
     def filter_target_server(self):

@@ -84,6 +84,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TopoType,
     WorkLoadType,
+    RETRIEVE_CHAIN,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -166,10 +167,11 @@ from bkm_space.define import SpaceTypeEnum
 COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
 
-class CollectorHandler:
+class BaseCollectorHandler:
     data: CollectorConfig
 
     def __init__(self, collector_config_id=None):
+        print("---2")
         super().__init__()
         self.collector_config_id = collector_config_id
         self.data = None
@@ -178,6 +180,12 @@ class CollectorHandler:
                 self.data = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
             except CollectorConfig.DoesNotExist:
                 raise CollectorConfigNotExistException()
+
+    def get_instance(self):
+        print("----11")
+        if self.data.is_container_environment:
+            return K8sCollectorHandler(self.collector_config_id)
+        return HostCollectorHandler(self.collector_config_id)
 
     def _multi_info_get(self, use_request=True):
         """
@@ -215,20 +223,6 @@ class CollectorHandler:
             )
         return multi_execute_func.run()
 
-    RETRIEVE_CHAIN = [
-        "set_itsm_info",
-        "set_split_rule",
-        "set_target",
-        "set_default_field",
-        "set_categorie_name",
-        "complement_metadata_info",
-        "complement_nodeman_info",
-        "fields_is_empty",
-        "deal_time",
-        "add_container_configs",
-        "encode_yaml_config",
-    ]
-
     def encode_yaml_config(self, collector_config, context):
         """
         encode_yaml_config
@@ -239,23 +233,6 @@ class CollectorHandler:
         if not collector_config["yaml_config"]:
             return collector_config
         collector_config["yaml_config"] = base64.b64encode(collector_config["yaml_config"].encode("utf-8"))
-        return collector_config
-
-    def add_container_configs(self, collector_config, context):
-        """
-        add_container_configs
-        @param collector_config:
-        @param context:
-        @return:
-        """
-        if not self.data.is_container_environment:
-            return collector_config
-
-        container_configs = []
-        for config in ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id):
-            container_configs.append(model_to_dict(config))
-
-        collector_config["configs"] = container_configs
         return collector_config
 
     def set_itsm_info(self, collector_config, context):  # noqa
@@ -430,32 +407,6 @@ class CollectorHandler:
         time_zone = get_local_param("time_zone", settings.TIME_ZONE)
         collector_config["updated_at"] = format_user_time_zone(collector_config["updated_at"], time_zone=time_zone)
         collector_config["created_at"] = format_user_time_zone(collector_config["created_at"], time_zone=time_zone)
-        return collector_config
-
-    def retrieve(self, use_request=True):
-        """
-        获取采集配置
-        @param use_request:
-        @return:
-        """
-        context = self._multi_info_get(use_request)
-        collector_config = model_to_dict(self.data)
-        for process in self.RETRIEVE_CHAIN:
-            collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
-            logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
-        if self.data.table_id:
-            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
-            alias_dict = result_table.get("query_alias_settings", dict())
-            if alias_dict:
-                collector_config.update({"alias_settings": alias_dict})
-
-        # 添加索引集相关信息
-        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
-        if log_index_set_obj:
-            collector_config.update(
-                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
-            )
-
         return collector_config
 
     @staticmethod
@@ -1061,110 +1012,9 @@ class CollectorHandler:
                 )
             )
 
-    @transaction.atomic
-    def destroy(self, **kwargs):
-        """
-        删除采集配置
-        :return: task_id
-        """
-        # 1. 重新命名采集项名称
-        collector_config_name = (
-            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        )
-
-        # 2. 停止采集（删除配置文件）
-        self.stop()
-
-        if self.data.is_container_environment:
-            ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).delete()
-
-        # 3. 节点管理-删除订阅配置
-        self._delete_subscription()
-
-        # 4. 删除索引集
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
-            index_set_handler.delete(self.data.collector_config_name)
-
-        # 5. 删除CollectorConfig记录
-        self.data.collector_config_name = collector_config_name
-        self.data.save()
-        self.data.delete()
-
-        # 6. 删除META采集项：直接重命名采集项名称
-        collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
-        if self.data.bk_data_id:
-            collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
-
-        # 7. 如果存在归档使用了当前采集项, 则删除归档
-        qs = ArchiveConfig.objects.filter(
-            instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
-        )
-        if qs.exists():
-            qs.delete()
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.DESTROY,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        return True
-
     def run(self, action, scope):
         if self.data.subscription_id:
             return self._run_subscription_task(action=action, scope=scope)
-        return True
-
-    @transaction.atomic
-    def start(self, **kwargs):
-        """
-        启动采集配置
-        :return: task_id
-        """
-        self._itsm_start_judge()
-
-        self.data.is_active = True
-        self.data.save()
-
-        # 启用采集项
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.start()
-
-        if self.data.is_container_environment:
-            container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
-            for container_config in container_configs:
-                self.create_container_release(container_config)
-
-        # 启动节点管理订阅功能
-        if self.data.subscription_id:
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
-
-        # 存在RT则启用RT
-        if self.data.table_id:
-            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
-            etl_storage = EtlStorage.get_instance(self.data.etl_config)
-            etl_storage.switch_result_table(collector_config=self.data, is_enable=True)
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.START,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        if self.data.subscription_id:
-            return self._run_subscription_task()
         return True
 
     def _itsm_start_judge(self):
@@ -1172,50 +1022,6 @@ class CollectorHandler:
             return
         if self.data.itsm_has_appling() and FeatureToggleObject.switch(name=FEATURE_COLLECTOR_ITSM):
             raise CollectNotSuccessNotCanStart
-
-    @transaction.atomic
-    def stop(self, **kwargs):
-        """
-        停止采集配置
-        :return: task_id
-        """
-        self.data.is_active = False
-        self.data.save()
-
-        # 停止采集项
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
-
-        if self.data.is_container_environment:
-            container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
-            for container_config in container_configs:
-                self.delete_container_release(container_config)
-
-        if self.data.subscription_id:
-            # 停止节点管理订阅功能
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
-
-        # 存在RT则停止RT
-        if self.data.table_id:
-            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
-            etl_storage = EtlStorage.get_instance(self.data.etl_config)
-            etl_storage.switch_result_table(collector_config=self.data, is_enable=False)
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.STOP,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        if self.data.subscription_id:
-            return self._run_subscription_task("STOP")
-        return True
 
     @classmethod
     def _get_kafka_broker(cls, broker_url):
@@ -1250,11 +1056,6 @@ class CollectorHandler:
             return_data.append({"etl": etl_message, "origin": _message})
 
         return return_data
-
-    def retry_instances(self, instance_id_list):
-        if self.data.is_container_environment:
-            return self.retry_container_collector(instance_id_list)
-        return self.retry_target_nodes(instance_id_list)
 
     def retry_container_collector(self, container_collector_config_id_list=None, **kwargs):
         """
@@ -1385,11 +1186,6 @@ class CollectorHandler:
         ]
         return add_nodes + delete_nodes
 
-    def get_task_status(self, id_list):
-        if self.data.is_container_environment:
-            return self.get_container_collect_status(container_collector_config_id_list=id_list)
-        return self.get_subscription_task_status(task_id_list=id_list)
-
     def get_container_collect_status(self, container_collector_config_id_list):
         """
         查询容器采集任务状态
@@ -1418,6 +1214,7 @@ class CollectorHandler:
             ]
         }
 
+    # 查询物理机采集任务状态
     def get_subscription_task_status(self, task_id_list):
         """
         查询采集任务状态
@@ -1766,6 +1563,7 @@ class CollectorHandler:
             target_mapping[key] = target["type"]
         return target_mapping
 
+    # 详情接口查询，原始日志
     def get_subscription_task_detail(self, instance_id, task_id=None):
         """
         采集任务实例日志详情
@@ -1792,6 +1590,7 @@ class CollectorHandler:
                     return {"log_detail": "\n".join(log), "log_result": detail_result}
         return {"log_detail": "\n".join(log), "log_result": detail_result}
 
+    # 接口调用批量获取采集项订阅状态
     def get_subscription_status_by_list(self, collector_id_list: list) -> list:
         """
         批量获取采集项订阅状态
@@ -1968,122 +1767,6 @@ class CollectorHandler:
             )
         return return_data, subscription_id_list
 
-    def get_subscription_status(self):
-        """
-        查看订阅的插件运行状态
-        :return:
-        """
-        if self.data.is_container_environment:
-            # 容器采集特殊处理
-            container_configs = ContainerCollectorConfig.objects.filter(
-                collector_config_id=self.data.collector_config_id
-            )
-
-            contents = []
-            for container_config in container_configs:
-                contents.append(
-                    {"status": container_config.status, "container_collector_config_id": container_config.id}
-                )
-            return {
-                "contents": [
-                    {
-                        "collector_config_id": self.data.collector_config_id,
-                        "collector_config_name": self.data.collector_config_name,
-                        "child": contents,
-                    }
-                ]
-            }
-
-        if not self.data.subscription_id and not self.data.target_nodes:
-            return {
-                "contents": [
-                    {
-                        "is_label": False,
-                        "label_name": "",
-                        "bk_obj_name": _("主机"),
-                        "node_path": _("主机"),
-                        "bk_obj_id": "host",
-                        "bk_inst_id": "",
-                        "bk_inst_name": "",
-                        "child": [],
-                    }
-                ]
-            }
-        instance_data = NodeApi.get_subscription_task_status.bulk_request(
-            params={
-                "subscription_id": self.data.subscription_id,
-                "need_detail": False,
-                "need_aggregate_all_tasks": True,
-                "need_out_of_scope_snapshots": False,
-            },
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
-        )
-
-        bk_host_ids = []
-        for item in instance_data:
-            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
-
-        plugin_data = NodeApi.plugin_search.batch_request(
-            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
-            chunk_values=bk_host_ids,
-            chunk_key="bk_host_id",
-        )
-
-        instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
-
-        # 如果采集目标是HOST-INSTANCE
-        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            content_data = [
-                {
-                    "is_label": False,
-                    "label_name": "",
-                    "bk_obj_name": _("主机"),
-                    "node_path": _("主机"),
-                    "bk_obj_id": "host",
-                    "bk_inst_id": "",
-                    "bk_inst_name": "",
-                    "child": instance_status,
-                }
-            ]
-            return {"contents": content_data}
-
-        # 如果采集目标是HOST-TOPO
-        # 从数据库target_nodes获取采集目标，查询业务TOPO，按采集目标节点进行分类
-        target_nodes = self.data.target_nodes
-        biz_topo = self._get_biz_topo()
-
-        node_mapping = self.get_node_mapping(biz_topo)
-        template_mapping = self._get_template_mapping(target_nodes)
-        total_host_result = self._get_host_result(node_collect=target_nodes)
-
-        content_data = list()
-        for node_obj in target_nodes:
-            map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
-            host_result = total_host_result.get(map_key, [])
-            node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
-                node_obj=node_obj, template_mapping=template_mapping, node_mapping=node_mapping, map_key=map_key
-            )
-            content_obj = {
-                "is_label": False,
-                "label_name": "",
-                "bk_obj_name": bk_obj_name,
-                "node_path": node_path,
-                "bk_obj_id": node_obj["bk_obj_id"],
-                "bk_inst_id": node_obj["bk_inst_id"],
-                "bk_inst_name": bk_inst_name,
-                "child": [],
-            }
-
-            for instance_obj in instance_status:
-                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
-                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
-                    "host_id"
-                ] in host_result:
-                    content_obj["child"].append(instance_obj)
-            content_data.append(content_obj)
-        return {"contents": content_data}
-
     @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):
         """
@@ -2180,6 +1863,7 @@ class CollectorHandler:
         }
         return internal_topo
 
+    # 接口调用 获取采集项物理索引信息
     def indices_info(self):
         result_table_id = self.data.table_id
         if not result_table_id:
@@ -2187,6 +1871,7 @@ class CollectorHandler:
         result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()
         return StorageHandler.sort_indices(result)
 
+    # 接口调用 获取主机采集项列表
     def list_collectors_by_host(self, params):
         bk_biz_id = params.get("bk_biz_id")
         node_result = []
@@ -2323,6 +2008,7 @@ class CollectorHandler:
         logger.info(f"delete clean stash {self.collector_config_id}")
         return model_to_dict(CleanStash.objects.create(**model_fields))
 
+    # 接口调用 采集项-下拉列表
     def list_collector(self, bk_biz_id):
         return [
             {
@@ -2348,6 +2034,7 @@ class CollectorHandler:
 
         return resp
 
+    # 接口调用 自定义上报-创建自定义采集配置
     def custom_create(
         self,
         bk_biz_id=None,
@@ -2487,109 +2174,7 @@ class CollectorHandler:
 
         return ret
 
-    def custom_update(
-        self,
-        collector_config_name=None,
-        category_id=None,
-        description=None,
-        etl_config=None,
-        etl_params=None,
-        fields=None,
-        storage_cluster_id=None,
-        retention=7,
-        allocation_min_days=0,
-        storage_replies=1,
-        es_shards=settings.ES_SHARDS,
-        is_display=True,
-        sort_fields=None,
-        target_fields=None,
-    ):
-        collector_config_update = {
-            "collector_config_name": collector_config_name,
-            "category_id": category_id,
-            "description": description or collector_config_name,
-            "is_display": is_display,
-        }
-
-        _collector_config_name = self.data.collector_config_name
-        bk_data_name = build_bk_data_name(
-            bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
-        )
-        if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
-            TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
-            self.data.bk_data_name = bk_data_name
-            logger.info(
-                "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                    self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                )
-            )
-
-        for key, value in collector_config_update.items():
-            setattr(self.data, key, value)
-        try:
-            self.data.save()
-        except IntegrityError:
-            logger.warning(f"collector config name duplicate => [{collector_config_name}]")
-            raise CollectorConfigNameDuplicateException()
-
-        # collector_config_name更改后更新索引集名称
-        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
-            index_set_name = _("[采集项]") + self.data.collector_config_name
-            LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
-
-        custom_config = get_custom(self.data.custom_type)
-        if etl_params and fields:
-            # 1. 传递了清洗参数，则优先级最高
-            etl_params, etl_config, fields = etl_params, etl_config, fields
-        elif self.data.etl_config:
-            # 2. 如果本身配置过清洗，则直接使用
-            collector_detail = self.retrieve()
-            # need drop built in field
-            collector_detail["fields"] = map_if(
-                collector_detail["fields"], if_func=lambda field: not field["is_built_in"]
-            )
-            etl_params = collector_detail["etl_params"]
-            etl_config = collector_detail["etl_config"]
-            fields = collector_detail["fields"]
-        else:
-            # 3. 默认清洗规则，根据自定义类型来
-            etl_params = custom_config.etl_params
-            etl_config = custom_config.etl_config
-            fields = custom_config.fields
-
-        # 仅在传入集群ID时更新
-        if storage_cluster_id:
-            from apps.log_databus.handlers.etl import EtlHandler
-
-            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-            etl_params = {
-                "table_id": self.data.collector_config_name_en,
-                "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
-                "es_shards": es_shards,
-                "allocation_min_days": allocation_min_days,
-                "storage_replies": storage_replies,
-                "etl_params": etl_params,
-                "etl_config": etl_config,
-                "fields": fields,
-                "sort_fields": sort_fields,
-                "target_fields": target_fields,
-            }
-            etl_handler.update_or_create(**etl_params)
-
-        custom_config.after_hook(self.data)
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.UPDATE,
-            "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
-        }
-        user_operation_record.delay(operation_record)
-
+    # 接口调用  预检查创建采集项的参数
     def pre_check(self, params: dict):
         data = {"allowed": False, "message": _("该数据名已重复")}
         bk_biz_id = params.get("bk_biz_id")
@@ -2671,6 +2256,7 @@ class CollectorHandler:
                     NamespaceNotValidException.MESSAGE.format(namespaces=", ".join(invalid_namespaces))
                 )
 
+    # 类内调用和接口调用
     def create_container_config(self, data):
         # 使用采集插件补全参数
         collector_plugin_id = data.get("collector_plugin_id")
@@ -2843,6 +2429,7 @@ class CollectorHandler:
             "task_id_list": self.data.task_id_list,
         }
 
+    # 类内调用和接口调用
     def update_container_config(self, data):
         bk_biz_id = data["bk_biz_id"]
         collector_config_update = {
@@ -2916,6 +2503,7 @@ class CollectorHandler:
             "bk_data_id": self.data.bk_data_id,
         }
 
+    # 接口调用
     @classmethod
     def list_bcs_collector_without_rule(cls, bcs_cluster_id: str, bk_biz_id: int):
         """
@@ -3005,6 +2593,7 @@ class CollectorHandler:
             ],
         }
 
+    # 接口调用
     def list_bcs_collector(self, bcs_cluster_id, bk_biz_id=None, bk_app_code="bk_bcs"):
         queryset = CollectorConfig.objects.filter(bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code)
         if bk_biz_id:
@@ -3137,6 +2726,7 @@ class CollectorHandler:
             result.append(rule)
         return result
 
+    # 接口调用
     def get_bcs_collector_storage(self, bcs_cluster_id, bk_biz_id=None):
         bcs_storage_config = BcsStorageClusterConfig.objects.filter(
             bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
@@ -3155,6 +2745,7 @@ class CollectorHandler:
 
         return storage_cluster_id
 
+    # 接口调用
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
         conf = self.get_bcs_config(
@@ -3332,6 +2923,7 @@ class CollectorHandler:
             "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
+    # 接口调用
     def sync_bcs_container_task(self, data: dict[str, Any]):
         """
         同步bcs容器采集项任务
@@ -3360,6 +2952,7 @@ class CollectorHandler:
                 container_config=container_config,
             )
 
+    # 接口调用
     @staticmethod
     def sync_bcs_container_bkdata_id(data: dict[str, Any]):
         """同步bcs容器采集项bkdata_id"""
@@ -3471,6 +3064,7 @@ class CollectorHandler:
                 CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=result_table_id)
             )
 
+    # 接口调用
     @transaction.atomic
     def update_bcs_container_config(self, data, rule_id, bk_app_code="bk_bcs"):
         conf = self.get_bcs_config(
@@ -3701,6 +3295,7 @@ class CollectorHandler:
                 )
         return path_container_config, std_container_config
 
+    # 接口调用
     def retry_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
@@ -3711,6 +3306,7 @@ class CollectorHandler:
             )
         return {"rule_id": rule_id}
 
+    # 接口调用
     def delete_bcs_config(self, rule_id):
         try:
             bcs_rule = BcsRule.objects.get(id=rule_id)
@@ -3720,29 +3316,41 @@ class CollectorHandler:
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
         for collector in collectors:
+            # 此处定义self.data是让self.get_instance()不报错
+            self.data = collector
             self.deal_self_call(
-                collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy
+                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().destroy
             )
         bcs_rule.delete()
         return {"rule_id": rule_id}
 
+    # 接口调用
     def start_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
-            self.deal_self_call(collector_config_id=collector.collector_config_id, collector=collector, func=self.start)
+            # 此处定义self.data是让self.get_instance()不报错
+            self.data = collector
+            self.deal_self_call(
+                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().start
+            )
         return {"rule_id": rule_id}
 
+    # 接口调用
     def stop_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
-            self.deal_self_call(collector_config_id=collector.collector_config_id, collector=collector, func=self.stop)
+            # 此处定义self.data是让self.get_instance()不报错
+            self.data = collector
+            self.deal_self_call(
+                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().stop
+            )
         return {"rule_id": rule_id}
 
-    def delete_collector_bcs_config(self, **kwargs):
-        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
-        for config in container_configs:
-            self.delete_container_release(config)
-        self.destroy()
+    # def delete_collector_bcs_config(self, **kwargs):
+    #     container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
+    #     for config in container_configs:
+    #         self.delete_container_release(config)
+    #     self.destroy()
 
     @staticmethod
     def get_bcs_config(bk_biz_id: int, bcs_cluster_id: str, storage_cluster_id: int = None):
@@ -3906,6 +3514,7 @@ class CollectorHandler:
             delete_config=delete_config,
         )
 
+    # 接口调用
     def list_bcs_clusters(self, bk_biz_id):
         if not bk_biz_id:
             return []
@@ -3915,6 +3524,7 @@ class CollectorHandler:
             cluster["id"] = cluster["cluster_id"]
         return bcs_clusters
 
+    # 接口调用
     def list_workload_type(self):
         toggle = FeatureToggleObject.toggle(BCS_DEPLOYMENT_TYPE)
         return (
@@ -3985,6 +3595,7 @@ class CollectorHandler:
             for namespace in namespaces["items"]
         ]
 
+    # 接口调用
     def list_topo(self, topo_type, bk_biz_id, bcs_cluster_id, namespace):
         namespace_list = [ns for ns in namespace.split(",") if ns]
 
@@ -4029,6 +3640,7 @@ class CollectorHandler:
                 result["children"].append({"id": namespace, "name": namespace, "type": "namespace", "children": pod})
             return result
 
+    # 接口调用
     def get_labels(self, topo_type, bcs_cluster_id, namespace, name):
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         if topo_type == TopoType.NODE.value:
@@ -4181,6 +3793,7 @@ class CollectorHandler:
             metadata=pods.metadata,
         )
 
+    # 接口调用
     def preview_containers(
         self,
         topo_type,
@@ -4286,6 +3899,7 @@ class CollectorHandler:
                 result.append(item["metadata"]["name"])
         return result
 
+    # 接口调用
     def get_workload(self, workload_type, bcs_cluster_id, namespace):
         bcs = Bcs(cluster_id=bcs_cluster_id)
 
@@ -4315,6 +3929,7 @@ class CollectorHandler:
 
         return self.generate_objs(workload_handler().to_dict(), namespaces=namespaces)
 
+    # 内部和接口调用
     def validate_container_config_yaml(self, bk_biz_id, bcs_cluster_id, yaml_config: str):
         """
         解析容器日志yaml配置
@@ -4505,6 +4120,7 @@ class CollectorHandler:
             },
         }
 
+    # 接口调用
     def fast_contain_create(self, params: dict) -> dict:
         # 补充缺少的容器参数
         container_configs = params["configs"]
@@ -4548,6 +4164,7 @@ class CollectorHandler:
             "index_set_id": index_set_id,
         }
 
+    # 外部调用和接口调用
     def fast_create(self, params: dict) -> dict:
         params["params"]["encoding"] = params["data_encoding"]
         # 如果没传入集群ID, 则随机给一个公共集群
@@ -4573,6 +4190,7 @@ class CollectorHandler:
             "index_set_id": index_set_id,
         }
 
+    # 接口调用
     def fast_contain_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -4584,6 +4202,7 @@ class CollectorHandler:
         self.create_or_update_clean_config(True, params)
         return {"collector_config_id": self.data.collector_config_id}
 
+    # 接口调用和外部调用
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -4808,6 +4427,7 @@ class CollectorHandler:
         # validated_data 含有 OrderedDict ，后面 yaml.safe_dump 不支持 OrderedDict，需要转换为原生 dict
         return json.loads(json.dumps(slz.validated_data))
 
+    # 接口调用
     @classmethod
     def container_dict_configs_to_yaml(
         cls, container_configs: list[dict], add_pod_label: bool, add_pod_annotation: bool, extra_labels: list
@@ -4918,6 +4538,698 @@ class CollectorHandler:
 
         update_alias_settings.delay(self.collector_config_id, alias_settings)
         return
+
+
+class HostCollectorHandler(BaseCollectorHandler):
+    # 统一调用
+    def add_container_configs(self, collector_config, context):
+        """
+        add_container_configs
+        @param collector_config:
+        @param context:
+        @return:
+        """
+        return collector_config
+
+    def retrieve(self, use_request=True):
+        """
+        获取采集配置
+        @param use_request:
+        @return:
+        """
+        context = self._multi_info_get(use_request)
+        collector_config = model_to_dict(self.data)
+        for process in RETRIEVE_CHAIN:
+            collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
+            logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
+        if self.data.table_id:
+            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
+            alias_dict = result_table.get("query_alias_settings", dict())
+            if alias_dict:
+                collector_config.update({"alias_settings": alias_dict})
+
+        # 添加索引集相关信息
+        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
+        if log_index_set_obj:
+            collector_config.update(
+                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
+            )
+
+        return collector_config
+
+    # 接口调用 自定义上报-更新自定义采集配置--里面有self.retrieve()必须要放这里
+    def custom_update(
+        self,
+        collector_config_name=None,
+        category_id=None,
+        description=None,
+        etl_config=None,
+        etl_params=None,
+        fields=None,
+        storage_cluster_id=None,
+        retention=7,
+        allocation_min_days=0,
+        storage_replies=1,
+        es_shards=settings.ES_SHARDS,
+        is_display=True,
+        sort_fields=None,
+        target_fields=None,
+    ):
+        collector_config_update = {
+            "collector_config_name": collector_config_name,
+            "category_id": category_id,
+            "description": description or collector_config_name,
+            "is_display": is_display,
+        }
+
+        _collector_config_name = self.data.collector_config_name
+        bk_data_name = build_bk_data_name(
+            bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
+        )
+        if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
+            TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
+            self.data.bk_data_name = bk_data_name
+            logger.info(
+                "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
+                    self.data.bk_data_id, self.data.bk_data_name, bk_data_name
+                )
+            )
+
+        for key, value in collector_config_update.items():
+            setattr(self.data, key, value)
+        try:
+            self.data.save()
+        except IntegrityError:
+            logger.warning(f"collector config name duplicate => [{collector_config_name}]")
+            raise CollectorConfigNameDuplicateException()
+
+        # collector_config_name更改后更新索引集名称
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
+            index_set_name = _("[采集项]") + self.data.collector_config_name
+            LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
+
+        custom_config = get_custom(self.data.custom_type)
+        if etl_params and fields:
+            # 1. 传递了清洗参数，则优先级最高
+            etl_params, etl_config, fields = etl_params, etl_config, fields
+        elif self.data.etl_config:
+            # 2. 如果本身配置过清洗，则直接使用
+            collector_detail = self.retrieve()
+            # need drop built in field
+            collector_detail["fields"] = map_if(
+                collector_detail["fields"], if_func=lambda field: not field["is_built_in"]
+            )
+            etl_params = collector_detail["etl_params"]
+            etl_config = collector_detail["etl_config"]
+            fields = collector_detail["fields"]
+        else:
+            # 3. 默认清洗规则，根据自定义类型来
+            etl_params = custom_config.etl_params
+            etl_config = custom_config.etl_config
+            fields = custom_config.fields
+
+        # 仅在传入集群ID时更新
+        if storage_cluster_id:
+            from apps.log_databus.handlers.etl import EtlHandler
+
+            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+            etl_params = {
+                "table_id": self.data.collector_config_name_en,
+                "storage_cluster_id": storage_cluster_id,
+                "retention": retention,
+                "es_shards": es_shards,
+                "allocation_min_days": allocation_min_days,
+                "storage_replies": storage_replies,
+                "etl_params": etl_params,
+                "etl_config": etl_config,
+                "fields": fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
+            }
+            etl_handler.update_or_create(**etl_params)
+
+        custom_config.after_hook(self.data)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.UPDATE,
+            "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
+        }
+        user_operation_record.delay(operation_record)
+
+    @transaction.atomic
+    def destroy(self, **kwargs):
+        """
+        删除采集配置
+        :return: task_id
+        """
+        # 1. 重新命名采集项名称
+        collector_config_name = (
+            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        )
+
+        # 2. 停止采集（删除配置文件）
+        self.stop()
+
+        # 3. 节点管理-删除订阅配置
+        self._delete_subscription()
+
+        # 4. 删除索引集
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
+            index_set_handler.delete(self.data.collector_config_name)
+
+        # 5. 删除CollectorConfig记录
+        self.data.collector_config_name = collector_config_name
+        self.data.save()
+        self.data.delete()
+
+        # 6. 删除META采集项：直接重命名采集项名称
+        collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
+        if self.data.bk_data_id:
+            collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
+
+        # 7. 如果存在归档使用了当前采集项, 则删除归档
+        qs = ArchiveConfig.objects.filter(
+            instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
+        )
+        if qs.exists():
+            qs.delete()
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.DESTROY,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        return True
+
+    @transaction.atomic
+    def start(self, **kwargs):
+        """
+        启动采集配置
+        :return: task_id
+        """
+        self._itsm_start_judge()
+
+        self.data.is_active = True
+        self.data.save()
+
+        # 启用采集项
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(self.data.index_set_id)
+            index_set_handler.start()
+
+        # 启动节点管理订阅功能
+        if self.data.subscription_id:
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+
+        # 存在RT则启用RT
+        if self.data.table_id:
+            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
+            etl_storage = EtlStorage.get_instance(self.data.etl_config)
+            etl_storage.switch_result_table(collector_config=self.data, is_enable=True)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.START,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        if self.data.subscription_id:
+            return self._run_subscription_task()
+        return True
+
+    @transaction.atomic
+    def stop(self, **kwargs):
+        """
+        停止采集配置
+        :return: task_id
+        """
+        self.data.is_active = False
+        self.data.save()
+
+        # 停止采集项
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(self.data.index_set_id)
+            index_set_handler.stop()
+
+        if self.data.subscription_id:
+            # 停止节点管理订阅功能
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
+
+        # 存在RT则停止RT
+        if self.data.table_id:
+            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
+            etl_storage = EtlStorage.get_instance(self.data.etl_config)
+            etl_storage.switch_result_table(collector_config=self.data, is_enable=False)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.STOP,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        if self.data.subscription_id:
+            return self._run_subscription_task("STOP")
+        return True
+
+    def retry_instances(self, instance_id_list):
+        return self.retry_target_nodes(instance_id_list)
+
+    def get_task_status(self, id_list):
+        return self.get_subscription_task_status(task_id_list=id_list)
+
+    def get_subscription_status(self):
+        """
+        查看订阅的插件运行状态
+        :return:
+        """
+        if not self.data.subscription_id and not self.data.target_nodes:
+            return {
+                "contents": [
+                    {
+                        "is_label": False,
+                        "label_name": "",
+                        "bk_obj_name": _("主机"),
+                        "node_path": _("主机"),
+                        "bk_obj_id": "host",
+                        "bk_inst_id": "",
+                        "bk_inst_name": "",
+                        "child": [],
+                    }
+                ]
+            }
+        instance_data = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
+
+        bk_host_ids = []
+        for item in instance_data:
+            bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
+
+        plugin_data = NodeApi.plugin_search.batch_request(
+            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            chunk_values=bk_host_ids,
+            chunk_key="bk_host_id",
+        )
+
+        instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
+
+        # 如果采集目标是HOST-INSTANCE
+        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
+            content_data = [
+                {
+                    "is_label": False,
+                    "label_name": "",
+                    "bk_obj_name": _("主机"),
+                    "node_path": _("主机"),
+                    "bk_obj_id": "host",
+                    "bk_inst_id": "",
+                    "bk_inst_name": "",
+                    "child": instance_status,
+                }
+            ]
+            return {"contents": content_data}
+
+        # 如果采集目标是HOST-TOPO
+        # 从数据库target_nodes获取采集目标，查询业务TOPO，按采集目标节点进行分类
+        target_nodes = self.data.target_nodes
+        biz_topo = self._get_biz_topo()
+
+        node_mapping = self.get_node_mapping(biz_topo)
+        template_mapping = self._get_template_mapping(target_nodes)
+        total_host_result = self._get_host_result(node_collect=target_nodes)
+
+        content_data = list()
+        for node_obj in target_nodes:
+            map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+            host_result = total_host_result.get(map_key, [])
+            node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
+                node_obj=node_obj, template_mapping=template_mapping, node_mapping=node_mapping, map_key=map_key
+            )
+            content_obj = {
+                "is_label": False,
+                "label_name": "",
+                "bk_obj_name": bk_obj_name,
+                "node_path": node_path,
+                "bk_obj_id": node_obj["bk_obj_id"],
+                "bk_inst_id": node_obj["bk_inst_id"],
+                "bk_inst_name": bk_inst_name,
+                "child": [],
+            }
+
+            for instance_obj in instance_status:
+                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
+                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                    "host_id"
+                ] in host_result:
+                    content_obj["child"].append(instance_obj)
+            content_data.append(content_obj)
+        return {"contents": content_data}
+
+
+class K8sCollectorHandler(BaseCollectorHandler):
+    # 统一调用
+    def add_container_configs(self, collector_config, context):
+        """
+        add_container_configs
+        @param collector_config:
+        @param context:
+        @return:
+        """
+        container_configs = []
+        for config in ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id):
+            container_configs.append(model_to_dict(config))
+
+        collector_config["configs"] = container_configs
+        return collector_config
+
+    def retrieve(self, use_request=True):
+        """
+        获取采集配置
+        @param use_request:
+        @return:
+        """
+        context = self._multi_info_get(use_request)
+        collector_config = model_to_dict(self.data)
+        for process in RETRIEVE_CHAIN:
+            collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
+            logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
+        if self.data.table_id:
+            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
+            alias_dict = result_table.get("query_alias_settings", dict())
+            if alias_dict:
+                collector_config.update({"alias_settings": alias_dict})
+
+        # 添加索引集相关信息
+        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
+        if log_index_set_obj:
+            collector_config.update(
+                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
+            )
+
+        return collector_config
+
+    # 接口调用 自定义上报-更新自定义采集配置-里面有self.retrieve()必须要放这里
+    def custom_update(
+        self,
+        collector_config_name=None,
+        category_id=None,
+        description=None,
+        etl_config=None,
+        etl_params=None,
+        fields=None,
+        storage_cluster_id=None,
+        retention=7,
+        allocation_min_days=0,
+        storage_replies=1,
+        es_shards=settings.ES_SHARDS,
+        is_display=True,
+        sort_fields=None,
+        target_fields=None,
+    ):
+        collector_config_update = {
+            "collector_config_name": collector_config_name,
+            "category_id": category_id,
+            "description": description or collector_config_name,
+            "is_display": is_display,
+        }
+
+        _collector_config_name = self.data.collector_config_name
+        bk_data_name = build_bk_data_name(
+            bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
+        )
+        if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
+            TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
+            self.data.bk_data_name = bk_data_name
+            logger.info(
+                "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
+                    self.data.bk_data_id, self.data.bk_data_name, bk_data_name
+                )
+            )
+
+        for key, value in collector_config_update.items():
+            setattr(self.data, key, value)
+        try:
+            self.data.save()
+        except IntegrityError:
+            logger.warning(f"collector config name duplicate => [{collector_config_name}]")
+            raise CollectorConfigNameDuplicateException()
+
+        # collector_config_name更改后更新索引集名称
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
+            index_set_name = _("[采集项]") + self.data.collector_config_name
+            LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
+
+        custom_config = get_custom(self.data.custom_type)
+        if etl_params and fields:
+            # 1. 传递了清洗参数，则优先级最高
+            etl_params, etl_config, fields = etl_params, etl_config, fields
+        elif self.data.etl_config:
+            # 2. 如果本身配置过清洗，则直接使用
+            collector_detail = self.retrieve()
+            # need drop built in field
+            collector_detail["fields"] = map_if(
+                collector_detail["fields"], if_func=lambda field: not field["is_built_in"]
+            )
+            etl_params = collector_detail["etl_params"]
+            etl_config = collector_detail["etl_config"]
+            fields = collector_detail["fields"]
+        else:
+            # 3. 默认清洗规则，根据自定义类型来
+            etl_params = custom_config.etl_params
+            etl_config = custom_config.etl_config
+            fields = custom_config.fields
+
+        # 仅在传入集群ID时更新
+        if storage_cluster_id:
+            from apps.log_databus.handlers.etl import EtlHandler
+
+            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+            etl_params = {
+                "table_id": self.data.collector_config_name_en,
+                "storage_cluster_id": storage_cluster_id,
+                "retention": retention,
+                "es_shards": es_shards,
+                "allocation_min_days": allocation_min_days,
+                "storage_replies": storage_replies,
+                "etl_params": etl_params,
+                "etl_config": etl_config,
+                "fields": fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
+            }
+            etl_handler.update_or_create(**etl_params)
+
+        custom_config.after_hook(self.data)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.UPDATE,
+            "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
+        }
+        user_operation_record.delay(operation_record)
+
+    @transaction.atomic
+    def destroy(self, **kwargs):
+        """
+        删除采集配置
+        :return: task_id
+        """
+        # 1. 重新命名采集项名称
+        collector_config_name = (
+            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        )
+
+        # 2. 停止采集（删除配置文件）
+        self.stop()
+
+        ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).delete()
+
+        # 3. 节点管理-删除订阅配置
+        self._delete_subscription()
+
+        # 4. 删除索引集
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
+            index_set_handler.delete(self.data.collector_config_name)
+
+        # 5. 删除CollectorConfig记录
+        self.data.collector_config_name = collector_config_name
+        self.data.save()
+        self.data.delete()
+
+        # 6. 删除META采集项：直接重命名采集项名称
+        collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
+        if self.data.bk_data_id:
+            collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
+
+        # 7. 如果存在归档使用了当前采集项, 则删除归档
+        qs = ArchiveConfig.objects.filter(
+            instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
+        )
+        if qs.exists():
+            qs.delete()
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.DESTROY,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        return True
+
+    @transaction.atomic
+    def start(self, **kwargs):
+        """
+        启动采集配置
+        :return: task_id
+        """
+        self._itsm_start_judge()
+
+        self.data.is_active = True
+        self.data.save()
+
+        # 启用采集项
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(self.data.index_set_id)
+            index_set_handler.start()
+
+        # 创建容器采集配置
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
+        for container_config in container_configs:
+            self.create_container_release(container_config)
+
+        # 启动节点管理订阅功能
+        if self.data.subscription_id:
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+
+        # 存在RT则启用RT
+        if self.data.table_id:
+            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
+            etl_storage = EtlStorage.get_instance(self.data.etl_config)
+            etl_storage.switch_result_table(collector_config=self.data, is_enable=True)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.START,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        if self.data.subscription_id:
+            return self._run_subscription_task()
+        return True
+
+    @transaction.atomic
+    def stop(self, **kwargs):
+        """
+        停止采集配置
+        :return: task_id
+        """
+        self.data.is_active = False
+        self.data.save()
+
+        # 停止采集项
+        if self.data.index_set_id:
+            index_set_handler = IndexSetHandler(self.data.index_set_id)
+            index_set_handler.stop()
+
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
+        for container_config in container_configs:
+            self.delete_container_release(container_config)
+
+        if self.data.subscription_id:
+            # 停止节点管理订阅功能
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
+
+        # 存在RT则停止RT
+        if self.data.table_id:
+            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
+            etl_storage = EtlStorage.get_instance(self.data.etl_config)
+            etl_storage.switch_result_table(collector_config=self.data, is_enable=False)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.STOP,
+            "params": "",
+        }
+        user_operation_record.delay(operation_record)
+
+        if self.data.subscription_id:
+            return self._run_subscription_task("STOP")
+        return True
+
+    def retry_instances(self, instance_id_list):
+        return self.retry_container_collector(instance_id_list)
+
+    def get_task_status(self, id_list):
+        return self.get_container_collect_status(container_collector_config_id_list=id_list)
+
+    def get_subscription_status(self):
+        """
+        查看订阅的插件运行状态
+        :return:
+        """
+        # 容器采集特殊处理
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
+
+        contents = []
+        for container_config in container_configs:
+            contents.append({"status": container_config.status, "container_collector_config_id": container_config.id})
+        return {
+            "contents": [
+                {
+                    "collector_config_id": self.data.collector_config_id,
+                    "collector_config_name": self.data.collector_config_name,
+                    "child": contents,
+                }
+            ]
+        }
 
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:

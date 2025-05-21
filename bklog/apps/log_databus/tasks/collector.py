@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import time
 import traceback
@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectItsmStatus,
     ContainerCollectStatus,
 )
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import BaseCollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import (
     BcsStorageClusterConfig,
@@ -70,7 +70,7 @@ def shutdown_collector_warm_storage_config(cluster_id):
     if not result_table_list:
         return
 
-    cluster_infos = CollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
+    cluster_infos = BaseCollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
     for collector in CollectorConfig.objects.all():
         try:
             if not collector.table_id:
@@ -112,7 +112,7 @@ def collector_status():
             and BkDataDatabusApi.get_cleans(params={"raw_data_id": _collector.bkdata_data_id})
         ):
             continue
-        CollectorHandler(collector_config_id=_collector.collector_config_id).stop()
+        BaseCollectorHandler(collector_config_id=_collector.collector_config_id).get_instance().stop()
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -305,7 +305,7 @@ def create_custom_log_group():
     otlp_logs = CollectorConfig.objects.filter(custom_type=CustomTypeEnum.OTLP_LOG.value, log_group_id__isnull=True)
     for log in otlp_logs:
         try:
-            CollectorHandler.create_custom_log_group(log)
+            BaseCollectorHandler.create_custom_log_group(log)
             log.refresh_from_db(fields=["log_group_id"])
             logger.info(
                 "[CreateCustomLogGroupSuccess] Collector => %s; LogGroupID => %s",
@@ -337,7 +337,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
 
     for collector in collectors:
         try:
-            collect_config = CollectorHandler(collector.collector_config_id).retrieve()
+            collect_config = BaseCollectorHandler(collector.collector_config_id).get_instance().retrieve()
             if collect_config["storage_cluster_id"] == storage_cluster_id:
                 logger.info(
                     "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
@@ -363,9 +363,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
                 )
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
-            )
+            logger.exception(f"switch collector->[{collector.collector_config_id}] storage cluster error: {e}")
 
 
 @high_priority_task(ignore_result=True)
@@ -380,8 +378,8 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
-            handler = CollectorHandler(collector.collector_config_id)
-            collect_config = handler.retrieve()
+            handler = BaseCollectorHandler(collector.collector_config_id)
+            collect_config = handler.get_instance().retrieve()
             clean_stash = handler.get_clean_stash()
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
             etl_fields = (
@@ -421,8 +419,8 @@ def update_alias_settings(collector_config_id, alias_settings):
     更新别名配置
     """
     try:
-        handler = CollectorHandler(collector_config_id)
-        collect_config = handler.retrieve()
+        handler = BaseCollectorHandler(collector_config_id)
+        collect_config = handler.get_instance().retrieve()
         clean_stash = handler.get_clean_stash()
 
         etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]

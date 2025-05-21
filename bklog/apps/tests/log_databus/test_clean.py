@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -27,7 +27,7 @@ from .test_collectorhandler import TestCollectorHandler
 from ..log_search.test_indexset import Dummy
 from ...log_databus.constants import AsyncStatus
 from ...log_databus.handlers.clean import CleanHandler
-from ...log_databus.handlers.collector import CollectorHandler
+from ...log_databus.handlers.collector import BaseCollectorHandler
 from ...log_databus.utils.bkdata_clean import BKDataCleanUtils
 from ...log_databus.utils.clean import CleanFilterUtils
 from ...log_search.models import ProjectInfo, Space
@@ -38,8 +38,8 @@ CREATE_CLEAN_STASH_PARAMS = {
     "etl_params": {
         "retain_original_text": True,
         "separator": " ",
-        'original_text_is_case_sensitive': False,
-        'original_text_tokenize_on_chars': ''
+        "original_text_is_case_sensitive": False,
+        "original_text_tokenize_on_chars": "",
     },
     "etl_fields": [
         {
@@ -52,7 +52,7 @@ CREATE_CLEAN_STASH_PARAMS = {
             "is_dimension": True,
             "is_time": True,
             "is_delete": True,
-            "tokenize_on_chars": ""
+            "tokenize_on_chars": "",
         }
     ],
     "bk_biz_id": 0,
@@ -129,12 +129,12 @@ SPACE_INFO = {
 }
 
 
-class PermissionTest(object):
+class PermissionTest:
     def grant_creator_action(self, resource):
         return True
 
 
-class IndexSet(object):
+class IndexSet:
     index_set_id = 1
     bkdata_auth_url = "test"
 
@@ -160,7 +160,7 @@ class TestClean(TestCase):
 
     def test_get_stash(self, *args, **kwargs):
         collector_config_id, _ = self._create_clean_stash()
-        get_stash_result = CollectorHandler(collector_config_id=collector_config_id).get_clean_stash()
+        get_stash_result = BaseCollectorHandler(collector_config_id=collector_config_id).get_clean_stash()
         self.assertEqual(get_stash_result["clean_type"], CREATE_CLEAN_STASH_PARAMS["clean_type"])
         self.assertEqual(get_stash_result["etl_params"], CREATE_CLEAN_STASH_PARAMS["etl_params"])
         self.assertEqual(get_stash_result["etl_fields"], CREATE_CLEAN_STASH_PARAMS["etl_fields"])
@@ -197,7 +197,7 @@ class TestClean(TestCase):
         self._init_project_info()
         _, create_collector_result = TestCollectorHandler.create()
         collector_config_id = create_collector_result["collector_config_id"]
-        self.collector = CollectorHandler(collector_config_id=collector_config_id)
+        self.collector = BaseCollectorHandler(collector_config_id=collector_config_id)
         result_table_names = CleanHandler(collector_config_id=collector_config_id).refresh(
             raw_data_id=self.collector.data.bk_data_id, bk_biz_id=self.collector.data.bk_biz_id
         )
@@ -214,7 +214,7 @@ class TestClean(TestCase):
     def _create_clean_stash(cls):
         _, create_collector_result = TestCollectorHandler.create()
         collector_config_id = create_collector_result["collector_config_id"]
-        create_stash_result = CollectorHandler(collector_config_id=collector_config_id).create_clean_stash(
+        create_stash_result = BaseCollectorHandler(collector_config_id=collector_config_id).create_clean_stash(
             CREATE_CLEAN_STASH_PARAMS
         )
         return collector_config_id, create_stash_result
