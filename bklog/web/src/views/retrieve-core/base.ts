@@ -47,6 +47,9 @@ export default class {
   // 收藏栏是否展示
   isFavoriteShown: boolean;
 
+  // 收藏栏是否仅查看当前索引集
+  isViewCurrentIndex: boolean;
+
   // 趋势图添加随机类名
   // 用于监听趋势图高度变化
   randomTrendGraphClassName: string;

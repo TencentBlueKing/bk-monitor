@@ -26,12 +26,14 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../hooks/use-resize-observe';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
+import { BK_LOG_STORAGE, RouteParams } from '../../store/store.type';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
   const store = useStore();
@@ -45,6 +47,38 @@ export default () => {
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
+
+  /**
+   * 解析地址栏参数
+   * 在其他模块跳转过来时，这里需要解析路由参数
+   * 更新相关参数到store
+   */
+  const reoverRouteParams = () => {
+    update_URL_ARGS(route);
+    const routeParams = getDefaultRetrieveParams({
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+    });
+    let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
+
+    if (/^-?\d+$/.test(routeParams.index_id)) {
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      activeTab = 'single';
+    }
+
+    if (routeParams.unionList?.length) {
+      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      activeTab = 'union';
+    }
+
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateSpace', routeParams.spaceUid);
+    store.commit('updateIndexId', routeParams.index_id);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+  };
+
+  reoverRouteParams();
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -104,7 +138,7 @@ export default () => {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
         const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
-        const target = resolver.convertQueryToStore();
+        const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
           $http
@@ -151,14 +185,18 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取第一个索引集
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const defaultId = `${resp[1][0].index_set_id}`;
-          store.commit('updateIndexItem', { ids: [defaultId], items: [resp[1][0]] });
-          store.commit('updateIndexId', defaultId);
+          const defaultId = resp[1][0]?.index_set_id;
 
-          router.replace({
-            params: { indexId: defaultId },
-            query: { ...route.query, unionList: undefined },
-          });
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+
+            router.replace({
+              params: { indexId: strId },
+              query: { ...route.query, unionList: undefined },
+            });
+          }
         }
 
         // 如果解析出来的索引集信息不为空
@@ -205,6 +243,7 @@ export default () => {
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
       datePickerValue: store.state.indexItem.datePickerValue,
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
     });
 
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
@@ -234,12 +273,13 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
+      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery(),
+          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },
@@ -300,6 +340,13 @@ export default () => {
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
+    // 清理掉当前查询结果，避免下次进入空白展示
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      is_error: false,
+      exception_msg: '',
+    });
   });
 
   return {

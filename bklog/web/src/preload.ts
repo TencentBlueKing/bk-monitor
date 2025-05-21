@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { BK_LOG_STORAGE } from './store/store.type';
+
 /** 外部版根据空间授权权限显示菜单 */
 const updateExternalMenuBySpace = curSpace => {
   const list = [];
@@ -56,15 +58,34 @@ export default ({
 
     store.commit('updateMySpaceList', spaceList);
 
-    const space_uid = localStorage.getItem('space_uid');
+    const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+    let space = null;
 
-    const space = space_uid
-      ? (spaceList ?? []).find(item => item.space_uid === space_uid) ?? spaceList?.[0]
-      : spaceList?.[0];
+    if (space_uid) {
+      space = (spaceList ?? []).find(item => item.space_uid === space_uid);
+    }
 
-    localStorage.setItem('space_uid', space.space_uid);
-    localStorage.setItem('bk_biz_id', space.bk_biz_id);
-    store.commit('updateSpace', space_uid);
+    if (!space && bkBizId) {
+      space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
+    }
+
+    if (!space) {
+      space = spaceList?.[0];
+    }
+
+    store.commit('updateSpace', space?.space_uid);
+
+    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+        [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+      });
+    }
+
+    if (!space) {
+      return;
+    }
 
     if (isExternal) {
       const list = updateExternalMenuBySpace(space);
