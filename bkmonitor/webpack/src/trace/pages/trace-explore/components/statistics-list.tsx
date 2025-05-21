@@ -39,6 +39,7 @@ import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { topKColorList } from '../utils';
@@ -216,7 +217,7 @@ export default defineComponent({
         const index = statisticsList.list.findIndex(i => name === i.value) || 0;
         return {
           color: topKColorList[index],
-          name: transformFieldName(localField.value, name) || name,
+          name: transformFieldName(localField.value, name) || name || NULL_VALUE_NAME,
           ...item,
         };
       });
@@ -353,7 +354,7 @@ export default defineComponent({
                     onMouseenter={e => topKItemMouseenter(e, item.value)}
                     onMouseleave={hiddenSliderPopover}
                   >
-                    <span>{item.alias || item.value}</span>
+                    <span>{item.alias || item.value || NULL_VALUE_NAME}</span>
                     {item.alias && <span class='sub-name'>（{item.value}）</span>}
                   </span>
 

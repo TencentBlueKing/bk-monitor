@@ -120,6 +120,18 @@ export default defineComponent({
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
 
+    const spanStatus = computed<{ alias: string; icon: string }>(() => {
+      const statusMap = {
+        0: { alias: t('未设置'), icon: 'warning' },
+        1: { alias: t('正常'), icon: 'normal' },
+        2: { alias: t('异常'), icon: 'failed' },
+      };
+      const status = props.spanDetails?.attributes?.find(item => item.query_key === 'status.code')?.query_value;
+      return statusMap[status];
+    });
+
+    const fullscreen = shallowRef(false);
+
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
     const bizId = computed(() => useAppStore().bizId || 0);
@@ -133,7 +145,7 @@ export default defineComponent({
 
     // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
-    const activeTab = ref<TabName>('BasicInfo');
+    const activeTab = shallowRef<TabName>('BasicInfo');
 
     /** 主机和容器的自定义时间，不走右上角的时间选择器 */
     const customTimeProvider = computed(() => {
@@ -210,6 +222,7 @@ export default defineComponent({
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
           // countOfInfo.value = {};
+          fullscreen.value = false;
         }
       },
       {
@@ -297,7 +310,7 @@ export default defineComponent({
       } = originalData.value as Record<string, any>;
       traceId.value = originTraceId;
 
-      info.title = `Span ID：${originalSpanId}`;
+      info.title = originalSpanId;
       /** 头部基本信息 */
       info.header = {
         title: operationName,
@@ -395,68 +408,6 @@ export default defineComponent({
           },
         });
       }
-      /** Events信息 来源：status_message & events */
-      if (error || events?.length) {
-        const eventList = [];
-        if (error) {
-          eventList.push({
-            isExpan: false,
-            header: {
-              date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message',
-            },
-            content: [
-              {
-                label: 'span.status_message',
-                content: message || '--',
-                type: 'string',
-                isFormat: false,
-                // 这里固定写死
-                query_key: 'status.message',
-                query_value: message,
-              },
-            ],
-          });
-        }
-        if (events?.length) {
-          eventList.push(
-            ...events
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(
-                (item: {
-                  timestamp: number;
-                  duration: number;
-                  name: any;
-                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-                }) => ({
-                  isExpan: false,
-                  header: {
-                    timestamp: item.timestamp,
-                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                    duration: formatDuration(item.duration),
-                    name: item.name,
-                  },
-                  content: item.attributes.map(attribute => ({
-                    label: attribute.key,
-                    content: attribute.value || '--',
-                    type: attribute.type,
-                    isFormat: false,
-                    query_key: attribute?.query_key || '',
-                    query_value: attribute?.query_value || '',
-                  })),
-                })
-              )
-          );
-        }
-        info.list.push({
-          type: EListItemType.events,
-          isExpan: true,
-          title: 'Events',
-          [EListItemType.events]: {
-            list: eventList,
-          },
-        });
-      }
       /** 阶段耗时信息 */
       if (stage_duration) {
         const active = stage_duration[stage_duration.target].type;
@@ -547,6 +498,68 @@ export default defineComponent({
                   query_value: item.query_value,
                 })
               ) || [],
+          },
+        });
+      }
+      /** Events信息 来源：status_message & events */
+      if (error || events?.length) {
+        const eventList = [];
+        if (error) {
+          eventList.push({
+            isExpan: false,
+            header: {
+              date: `${formatDate(startTime)} ${formatTime(startTime)}`,
+              name: 'status_message',
+            },
+            content: [
+              {
+                label: 'span.status_message',
+                content: message || '--',
+                type: 'string',
+                isFormat: false,
+                // 这里固定写死
+                query_key: 'status.message',
+                query_value: message,
+              },
+            ],
+          });
+        }
+        if (events?.length) {
+          eventList.push(
+            ...events
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map(
+                (item: {
+                  timestamp: number;
+                  duration: number;
+                  name: any;
+                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
+                }) => ({
+                  isExpan: false,
+                  header: {
+                    timestamp: item.timestamp,
+                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                    duration: formatDuration(item.duration),
+                    name: item.name,
+                  },
+                  content: item.attributes.map(attribute => ({
+                    label: attribute.key,
+                    content: attribute.value || '--',
+                    type: attribute.type,
+                    isFormat: false,
+                    query_key: attribute?.query_key || '',
+                    query_value: attribute?.query_value || '',
+                  })),
+                })
+              )
+          );
+        }
+        info.list.push({
+          type: EListItemType.events,
+          isExpan: true,
+          title: 'Events',
+          [EListItemType.events]: {
+            list: eventList,
           },
         });
       }
@@ -685,6 +698,10 @@ export default defineComponent({
     /** 切换原始数据 */
     function handleOriginalDataChange(val: boolean) {
       showOriginalData.value = val;
+    }
+
+    function handleFullScreen(status = false) {
+      fullscreen.value = status;
     }
 
     // 复制操作
@@ -980,10 +997,10 @@ export default defineComponent({
         label: t('基础信息'),
         name: 'BasicInfo',
       },
-      {
-        label: t('事件'),
-        name: 'Event',
-      },
+      // {
+      //   label: t('事件'),
+      //   name: 'Event',
+      // },
       {
         label: t('日志'),
         name: 'Log',
@@ -1387,15 +1404,17 @@ export default defineComponent({
                           isExpan => handleExpanChange(isExpan, index)
                         );
                       }
-                      if (item.type === EListItemType.events && activeTab.value === 'Event') {
+                      if (item.type === EListItemType.events && activeTab.value === 'BasicInfo') {
                         const content = item[EListItemType.events];
                         const isException =
                           content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                        return (
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
                           <div>
                             {isException && (
                               <Button
-                                style='margin-top: 16px;'
+                                style='margin: 16px 0;'
                                 onClick={handleEventErrLink}
                               >
                                 {t('错误分析')}
@@ -1412,10 +1431,7 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
-                                <div
-                                  key={childIndex}
-                                  style='margin-top: 16px;'
-                                >
+                                <div key={childIndex}>
                                   {expanItemSmall(
                                     child.isExpan,
                                     child.header.name,
@@ -1451,7 +1467,9 @@ export default defineComponent({
                                 </div>
                               );
                             })}
-                          </div>
+                          </div>,
+                          '',
+                          isExpan => handleExpanChange(isExpan, index)
                         );
                       }
                       if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
@@ -1584,14 +1602,18 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={1280}
+        width={fullscreen.value ? '100%' : 1280}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
               <div class={['sideslider-hd', { 'show-flip-button': props.isShowPrevNextButtons }]}>
-                <span class='sideslider-title'>{info.title}</span>
+                <span class='sideslider-title'>
+                  <span class='text'>Span ID: </span>
+                  <span class={['status', spanStatus.value?.icon]} />
+                  <span class='name'>{info.title}</span>
+                </span>
                 {props.isShowPrevNextButtons ? (
                   <>
                     <div
@@ -1605,7 +1627,7 @@ export default defineComponent({
                         }
                       }}
                     >
-                      <span class='icon-monitor icon-arrow-up' />
+                      <span class='icon-monitor icon-a-mini-arrowxiaojiantou top' />
                     </div>
                     <div
                       class={['arrow-wrap', { disabled: isDisabledNext.value }]}
@@ -1618,27 +1640,42 @@ export default defineComponent({
                         }
                       }}
                     >
-                      <span class='icon-monitor icon-arrow-down' />
+                      <span class='icon-monitor icon-a-mini-arrowxiaojiantou' />
                     </div>
                   </>
                 ) : null}
               </div>
               <div class='header-tool'>
-                <Switcher
-                  class='switcher'
-                  v-model={showOriginalData.value}
-                  theme='primary'
-                  onChange={handleOriginalDataChange}
-                />
-                <span>{t('原始数据')}</span>
-                <Button
-                  class='download-btn'
-                  size='small'
-                  onClick={handleExportOriginData}
-                >
-                  <i class='icon-monitor icon-xiazai1' />
-                  <span>{t('下载')}</span>
-                </Button>
+                <div class='tool-item'>
+                  <div class='tool-item-content'>
+                    <Switcher
+                      class='switcher'
+                      v-model={showOriginalData.value}
+                      size='small'
+                      theme='primary'
+                      onChange={handleOriginalDataChange}
+                    />
+                    <span>{t('原始数据')}</span>
+                  </div>
+                </div>
+                <div class='tool-item'>
+                  <div
+                    class='tool-item-content'
+                    onClick={() => handleFullScreen(!fullscreen.value)}
+                  >
+                    <i class='icon-monitor icon-fullscreen' />
+                    <span>{t(fullscreen.value ? '退出全屏' : '全屏')}</span>
+                  </div>
+                </div>
+                <div class='tool-item'>
+                  <div
+                    class='tool-item-content'
+                    onClick={handleExportOriginData}
+                  >
+                    <i class='icon-monitor icon-xiazai2' />
+                    <span>{t('下载')}</span>
+                  </div>
+                </div>
               </div>
             </div>
           ),
