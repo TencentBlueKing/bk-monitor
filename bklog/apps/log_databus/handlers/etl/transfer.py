@@ -113,10 +113,11 @@ class TransferEtlHandler(EtlHandler):
         if sort_fields is None and index_set_obj:
             target_fields = index_set_obj.target_fields
 
-        if total_shards_per_node is not None:
-            index_settings = {"total_shards_per_node": total_shards_per_node}
-        else:
+        if total_shards_per_node is None:
+            # total_shards_per_node 没有设置的时候,不设置在settings上
             index_settings = {}
+        else:
+            index_settings = {"total_shards_per_node": total_shards_per_node}
 
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
