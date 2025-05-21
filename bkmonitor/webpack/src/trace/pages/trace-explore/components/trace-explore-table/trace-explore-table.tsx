@@ -49,8 +49,8 @@ import { formatDate, formatDuration, formatTime } from '../../../../components/t
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
-import ExploreSpanSlider from '../explore-span-slider/explore-span-slider';
-import ExploreTraceSlider from '../explore-trace-slider/explore-trace-slider';
+import ExploreSpanSlider from '../explore-span-slider/async-slider';
+import ExploreTraceSlider from '../explore-trace-slider/async-slider';
 import StatisticsList from '../statistics-list';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
@@ -849,31 +849,31 @@ export default defineComponent({
      * @description traceId详情抽屉 渲染方法
      *
      */
-    function traceSliderRender() {
-      return (
-        <ExploreTraceSlider
-          appName={props.appName}
-          isShow={sliderMode.value === 'trace'}
-          traceId={activeSliderId.value}
-          onSliderClose={() => handleSliderShowChange('', '')}
-        />
-      );
-    }
+    // function traceSliderRender() {
+    //   return (
+    //     <ExploreTraceSlider
+    //       appName={props.appName}
+    //       isShow={sliderMode.value === 'trace'}
+    //       traceId={activeSliderId.value}
+    //       onSliderClose={() => handleSliderShowChange('', '')}
+    //     />
+    //   );
+    // }
 
-    /**
-     * @description spanId详情抽屉 渲染方法
-     *
-     */
-    function spanSliderRender() {
-      return (
-        <ExploreSpanSlider
-          appName={props.appName}
-          isShow={sliderMode.value === 'span'}
-          spanId={activeSliderId.value}
-          onSliderClose={() => handleSliderShowChange('', '')}
-        />
-      );
-    }
+    // /**
+    //  * @description spanId详情抽屉 渲染方法
+    //  *
+    //  */
+    // function spanSliderRender() {
+    //   return (
+    //     <ExploreSpanSlider
+    //       appName={props.appName}
+    //       isShow={sliderMode.value === 'span'}
+    //       spanId={activeSliderId.value}
+    //       onSliderClose={() => handleSliderShowChange('', '')}
+    //     />
+    //   );
+    // }
 
     /**
      * @description 字段分析组件渲染方法
@@ -1150,8 +1150,8 @@ export default defineComponent({
       tableDisplayColumns,
       tableViewData,
       tableSkeletonConfig,
-      traceSliderRender,
-      spanSliderRender,
+      sliderMode,
+      activeSliderId,
       handleSortChange,
       handleDataSourceConfigClick,
       handleDisplayColumnFieldsChange,
@@ -1234,8 +1234,24 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
-        {this.traceSliderRender()}
-        {this.spanSliderRender()}
+        {/* <KeepAlive> */}
+        {this.sliderMode === 'trace' && (
+          <ExploreTraceSlider
+            appName={this.appName}
+            isShow={this.sliderMode === 'trace'}
+            traceId={this.activeSliderId}
+            onSliderClose={() => this.handleSliderShowChange('', '')}
+          />
+        )}
+        {this.sliderMode === 'span' && (
+          <ExploreSpanSlider
+            appName={this.appName}
+            isShow={this.sliderMode === 'span'}
+            spanId={this.activeSliderId}
+            onSliderClose={() => this.handleSliderShowChange('', '')}
+          />
+        )}
+        {/* </KeepAlive> */}
         {this.statisticsDomRender()}
       </div>
     );

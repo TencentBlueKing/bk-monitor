@@ -133,6 +133,8 @@ export default defineComponent({
 
     // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
+    const activeTab = ref<TabName>('BasicInfo');
+
     /** 主机和容器的自定义时间，不走右上角的时间选择器 */
     const customTimeProvider = computed(() => {
       if (activeTab.value === 'Container' || activeTab.value === 'Host' || activeTab.value === 'Log') {
@@ -209,6 +211,9 @@ export default defineComponent({
           activeTab.value = 'BasicInfo';
           // countOfInfo.value = {};
         }
+      },
+      {
+        immediate: true,
       }
     );
 
@@ -266,7 +271,6 @@ export default defineComponent({
         attributes,
         events,
         process,
-        icon,
         source,
         error,
         message,
@@ -963,8 +967,6 @@ export default defineComponent({
         </div>
       </div>
     );
-
-    const activeTab = ref<TabName>('BasicInfo');
 
     watch(
       () => props.activeTab,

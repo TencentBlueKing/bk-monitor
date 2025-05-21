@@ -32,7 +32,6 @@ import { useTraceStore } from '../../../../store/modules/trace';
 import SpanDetails from '../../../main/span-details';
 
 import type { Span } from '../../../../components/trace-view/typings';
-
 export default defineComponent({
   name: 'ExploreSpanSlider',
   props: {
@@ -62,9 +61,13 @@ export default defineComponent({
     watch(
       () => props.isShow,
       val => {
+        console.info(props, '=========');
         if (val && props.spanId) {
           getSpanDetails();
         }
+      },
+      {
+        immediate: true,
       }
     );
 
@@ -110,8 +113,7 @@ export default defineComponent({
     };
   },
   render() {
-    const { isShow } = this.$props;
-    const { spanDetails, spanDetailLoading, handleSliderShowChange } = this;
+    const { isShow, spanDetails, spanDetailLoading, handleSliderShowChange } = this;
 
     return (
       <SpanDetails
