@@ -433,6 +433,7 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         alias_settings: list = None,
+        total_shards_per_node: int = None,
     ):
         """
         创建或更新结果表
@@ -451,6 +452,7 @@ class EtlStorage:
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param alias_settings: 别名配置
+        :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -523,6 +525,8 @@ class EtlStorage:
             "warm_phase_settings": {},
         }
         index_settings = index_settings or {}
+        if total_shards_per_node is not None and total_shards_per_node > 0:
+            index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
         params["default_storage_config"]["index_settings"].update(index_settings)
 
         # 是否启用冷热集群

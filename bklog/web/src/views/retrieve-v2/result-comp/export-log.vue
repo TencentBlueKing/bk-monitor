@@ -34,7 +34,6 @@
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div
-      v-if="!isUnionSearch"
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
@@ -95,7 +94,7 @@
             v-model="downloadType"
           >
             <bk-radio
-              v-for="[key, val] in Object.entries(downloadTypeRadioMap)"
+              v-for="[key, val] in Object.entries(filteredRadioMap)"
               :key="key"
               :value="key"
             >
@@ -317,6 +316,14 @@
       routerIndexSet() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
+      filteredRadioMap() {
+        if (this.isUnionSearch) {
+          return Object.fromEntries(
+            Object.entries(this.downloadTypeRadioMap).filter(([key]) => key !== 'sampling')
+          );
+        }
+        return this.downloadTypeRadioMap;
+      }
     },
     watch: {
       totalCount(val) {
