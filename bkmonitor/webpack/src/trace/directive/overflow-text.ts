@@ -54,30 +54,24 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
       }
       instance.show?.();
     }
-    function observeElementVisibility(el: OverflowElement, callback: (isVisible: boolean) => void) {
-      const observer = new IntersectionObserver(
-        entries => {
-          for (const entry of entries) {
-            callback(entry.isIntersecting);
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
+            return;
           }
-        },
-        {
-          threshold: 0.1, // 当10%的元素可见时触发
+          el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
         }
-      );
-      observer.observe(el);
-      const unObserve = () => {
-        observer.unobserve(el);
-      };
-      el.unObserverFunc = unObserve;
-    }
-    observeElementVisibility(el, isVisible => {
-      if (isVisible) {
-        el.addEventListener('mouseenter', mouseenter as MouseEnterFunc);
-        return;
+      },
+      {
+        threshold: 0.1, // 当10%的元素可见时触发
       }
-      el.removeEventListener('mouseenter', mouseenter as MouseEnterFunc);
-    });
+    );
+    observer.observe(el);
+    el.unObserverFunc = () => {
+      observer.unobserve(el);
+    };
   },
   beforeUnmount(el) {
     el.removeEventListener('mouseenter', el.mouseEnterFunc);
