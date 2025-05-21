@@ -20,7 +20,6 @@ export default defineComponent({
 
     return () => (
       <div class='grep-cli-container grep-cli-flex'>
-        {/* 左侧字段选择栏 */}
         <div class='grep-cli-left'>
           <span class='grep-cli-label'>字段：</span>
           <bk-select
@@ -28,7 +27,7 @@ export default defineComponent({
             value={field.value}
             onChange={handleFieldChange}
             size='small'
-            style='width: 80px;'
+            style='min-width: 80px; border: none;'
           >
             {fieldList.map(option => (
               <bk-option
@@ -38,16 +37,15 @@ export default defineComponent({
               />
             ))}
           </bk-select>
-        </div>
-        {/* 中间检索输入区 */}
-        <div class='grep-cli-center'>
-          <textarea
-            class='grep-cli-textarea'
-            placeholder='-- INSERT --'
-            value={value.value}
-            onInput={handleInput}
-            style='height: 36px; font-size: 14px; border-radius: 2px; resize: none;'
-          />
+          <div class='grep-cli-editor'>
+            <textarea
+              class='grep-cli-textarea'
+              placeholder='-- INSERT --'
+              value={value.value}
+              onInput={handleInput}
+              style='height: 36px; font-size: 14px; border-radius: 2px; resize: none;'
+            />
+          </div>
         </div>
         {/* 右侧匹配栏 */}
         <div class='grep-cli-right'>
