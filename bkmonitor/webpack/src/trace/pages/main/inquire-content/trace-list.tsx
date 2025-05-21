@@ -37,6 +37,7 @@ import {
   watch,
   KeepAlive,
   onUnmounted,
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -176,7 +177,8 @@ export default defineComponent({
     const columnFilters = ref<Record<string, string[]>>({});
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
-
+    /** 侧栏全屏 */
+    const slideFullScreen = shallowRef(false);
     const timeRange = useTimeRangeInject();
     provide('isFullscreen', isFullscreen);
 
@@ -714,6 +716,10 @@ export default defineComponent({
       listOptionCancelFn();
     });
 
+    const handleFullscreenChange = (flag: boolean) => {
+      slideFullScreen.value = flag;
+    };
+
     watch(
       () => route.query,
       () => {
@@ -845,6 +851,8 @@ export default defineComponent({
 
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
+
+      handleFullscreenChange(false);
 
       // 弹窗关闭时重置路由
       route.query?.incident_query &&
@@ -1391,6 +1399,8 @@ export default defineComponent({
       isSpanDetailLoading,
       isShowSpanDetail,
       spanDetails,
+      slideFullScreen,
+      handleFullscreenChange,
       handleTraceColumnSort,
       handleDialogClose,
       traceListFilter,
@@ -1649,14 +1659,16 @@ export default defineComponent({
           </div>
         </Dialog> */}
         <Sideslider
-          width='80%'
+          width={this.slideFullScreen ? '100%' : '80%'}
           class='trace-info-sideslider'
           v-slots={{
             header: () => (
               <TraceDetailHeader
                 appName={appName}
+                fullscreen={this.slideFullScreen}
                 traceId={this.curTraceId}
                 isInTable
+                onFullscreenChange={this.handleFullscreenChange}
               />
             ),
           }}

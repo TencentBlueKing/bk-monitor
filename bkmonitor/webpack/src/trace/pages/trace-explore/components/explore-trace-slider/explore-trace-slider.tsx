@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, watch } from 'vue';
+import { defineComponent, ref as deepRef, watch, shallowRef } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
@@ -79,6 +79,11 @@ export default defineComponent({
       }
     );
 
+    const fullscreen = shallowRef(false);
+    function handleFullscreenChange(flag: boolean) {
+      fullscreen.value = flag;
+    }
+
     /**
      * @description 获取 Trace 详情数据
      *
@@ -119,10 +124,13 @@ export default defineComponent({
      */
     function handleSliderClose() {
       emit('sliderClose');
+      fullscreen.value = false;
     }
 
     return {
+      fullscreen,
       handleSliderClose,
+      handleFullscreenChange,
     };
   },
   render() {
@@ -130,14 +138,16 @@ export default defineComponent({
     const { handleSliderClose } = this;
     return (
       <Sideslider
-        width='80%'
+        width={this.fullscreen ? '100%' : '80%'}
         class='explore-trace-slider'
         v-slots={{
           header: () => (
             <TraceDetailHeader
               appName={appName}
+              fullscreen={this.fullscreen}
               traceId={traceId}
               isInTable
+              onFullscreenChange={this.handleFullscreenChange}
             />
           ),
         }}
