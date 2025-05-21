@@ -21,7 +21,7 @@ paths:
           path: /api/v4/alarm_strategy_v3/get_devops_strategy_list/
           matchSubpath: false
         authConfig:
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           userVerifiedRequired: true
-          resourcePermissionRequired: true
+          resourcePermissionRequired: false
         descriptionEn: get_devops_strategy_list

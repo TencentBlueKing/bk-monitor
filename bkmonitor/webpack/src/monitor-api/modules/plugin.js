@@ -7,6 +7,7 @@ export const saveAndReleasePlugin = request('POST', 'rest/v2/save_and_release_pl
 export const getReservedWord = request('GET', 'rest/v2/get_reserved_word/');
 export const pluginUpgradeInfo = request('GET', 'rest/v2/plugin_upgrade_info/');
 export const pluginType = request('GET', 'rest/v2/plugin_type/');
+export const processCollectorDebug = request('POST', 'rest/v2/process_collector_debug/');
 
 export default {
   dataDogPluginUpload,
@@ -16,4 +17,5 @@ export default {
   getReservedWord,
   pluginUpgradeInfo,
   pluginType,
+  processCollectorDebug,
 };

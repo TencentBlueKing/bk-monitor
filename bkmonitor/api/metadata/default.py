@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -726,7 +725,7 @@ class StickSpaceResource(MetaDataAPIGWResource):
     class RequestSerializer(UsernameSerializer):
         action = serializers.CharField(label="置顶动作", default="on")
         space_uid = serializers.CharField(label="空间uid")
-        username = serializers.CharField(label="用户名", required=False)
+        username = serializers.CharField(label="用户名", required=True)
 
 
 class CreateSpaceResource(MetaDataAPIGWResource):

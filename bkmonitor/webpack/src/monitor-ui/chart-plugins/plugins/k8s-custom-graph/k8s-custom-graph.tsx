@@ -64,7 +64,23 @@ import type {
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 
 import './k8s-custom-graph.scss';
-
+const SpecialSeriesColorMap = {
+  request: {
+    color: '#FEA56B',
+    labelColor: '#E38B02',
+    itemColor: '#FDEED8',
+  },
+  limit: {
+    color: '#FF5656',
+    labelColor: '#E71818',
+    itemColor: '#FFEBEB',
+  },
+  capacity: {
+    color: '#4DA6FF', // 明亮的蓝色
+    labelColor: '#0073E6', // 稍深的蓝色，用于标签
+    itemColor: '#E6F2FF', // 非常浅的蓝色，用于背景
+  },
+};
 interface IProps {
   panel: PanelModel;
 }
@@ -260,7 +276,7 @@ class K8SCustomChart extends CommonSimpleChart {
                         if (this.timeOffset.length) {
                           timeShiftName = this.handleTransformTimeShift(timeShift || 'current');
                           name = `${timeShiftName}-${name}`;
-                        } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
+                        } else if (['limit', 'request', 'capacity'].includes(newParams.query_configs?.[0]?.alias)) {
                           name = newParams.query_configs?.[0]?.alias;
                         }
                         name = name.replace(/\|/, ':');
@@ -323,25 +339,30 @@ class K8SCustomChart extends CommonSimpleChart {
           );
           let limitFirstY = 0;
           let requestFirstY = 0;
+          let capacityFirstY = 0;
           seriesList = seriesList.map((item: any) => {
             const isSpecialSeries = this.isSpecialSeries(item.name);
             let color = item.lineStyle?.color;
             let markPoint = {};
             if (isSpecialSeries) {
               const isLimit = item.name === 'limit';
-              color = !isLimit ? '#FEA56B' : '#FF5656';
-              const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
-              const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
+              const isCapacity = item.name === 'capacity';
+              const colorMap = SpecialSeriesColorMap[item.name];
+              color = colorMap.color;
+              const labelColor = colorMap.labelColor;
+              const itemColor = colorMap.itemColor;
               const firstValue = item.data?.find(item => item.value?.[1]);
               const firstValueY = firstValue?.value?.[1] || 0;
               if (isLimit) {
                 limitFirstY = firstValueY;
+              } else if (item.name === 'capacity') {
+                capacityFirstY = firstValueY;
               } else {
                 requestFirstY = firstValueY;
               }
               markPoint = {
                 symbol: 'rect',
-                symbolSize: [isLimit ? 30 : 46, 16],
+                symbolSize: [isLimit ? 30 : isCapacity ? 52 : 46, 16],
                 symbolOffset: ['50%', 0],
                 label: {
                   show: true,
@@ -368,6 +389,7 @@ class K8SCustomChart extends CommonSimpleChart {
             return {
               ...item,
               minBase: this.minBase,
+              color: isSpecialSeries ? color : undefined,
               data: item.data.map((set: any) => {
                 if (set?.length) {
                   return [set[0], set[1] !== null ? set[1] + this.minBase : null];
@@ -405,9 +427,12 @@ class K8SCustomChart extends CommonSimpleChart {
               max = maxValue;
             }
           }
-          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          const limitEqualRequest =
+            Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26) ||
+            Math.abs(capacityFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          const capacityEqualRequest = Math.abs(limitFirstY - capacityFirstY) / (max - min) < 16 / (this.height - 26);
           seriesList = seriesList.map(item => {
-            if (limitEqualRequest && item.name === 'request') {
+            if ((limitEqualRequest && item.name === 'request') || (capacityEqualRequest && item.name === 'capacity')) {
               return {
                 ...item,
                 markPoint: {},
@@ -519,7 +544,7 @@ class K8SCustomChart extends CommonSimpleChart {
     this.unregisterObserver();
   }
   isSpecialSeries(name: string) {
-    return ['request', 'limit'].includes(name);
+    return ['request', 'limit', 'capacity'].includes(name);
   }
   // 转换time_shift显示
   handleTransformTimeShift(val: string) {
@@ -576,9 +601,10 @@ class K8SCustomChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
+    const specialSeriesCount = series.filter(item => item.name in SpecialSeriesColorMap)?.length || 0;
     const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
-      const color = item.color || (colors || colorList)[index % colorList.length];
+      const color = item.color || (colors || colorList)[Math.max(index - specialSeriesCount, 0) % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
         name: String(item.name),

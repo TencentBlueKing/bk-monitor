@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,15 +18,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import functools
 import operator
-from typing import Any, Dict, List
+from io import BytesIO
+from typing import Any
+
+from django.http import FileResponse
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.utils.local import get_request_external_username, get_request_username
 
 
-def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=lambda x: x) -> List[Dict[str, Any]]:
+def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
     """
     排序函数 提供复杂嵌套的数据结构排序能力
     params data 源数据  [{"a": {"b": 3}}, {"a": {"b": 7}}, {"a": {"b": 2}}]
@@ -35,11 +38,11 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
     params key_func 排序字段值获取函数
     """
 
-    def _sort_compare(x: Dict[str, Any], y: Dict[str, Any]) -> int:
+    def _sort_compare(x: dict[str, Any], y: dict[str, Any]) -> int:
         x = key_func(x)
         y = key_func(y)
 
-        def _get_value(keys: str, _data: Dict[str, Any]) -> Any:
+        def _get_value(keys: str, _data: dict[str, Any]) -> Any:
             try:
                 _value = functools.reduce(operator.getitem, keys.split("."), _data)
             except (KeyError, TypeError):
@@ -149,15 +152,38 @@ def fetch_request_username():
     return request_username
 
 
-def split_object_fields(fields_list: List[str]):
+def split_object_fields(fields_list: list[str]):
     """
     把列表中包含逗号的字符串进行分割
     """
     result_list = []
     for field in fields_list:
         result_list.append(field)
-        parts = field.split('.')
+        parts = field.split(".")
         for i in range(1, len(parts)):
-            result_list.append('.'.join(parts[:i]))
+            result_list.append(".".join(parts[:i]))
 
     return result_list
+
+
+def create_download_response(buffer: BytesIO, file_name: str, content_type: str = "text/plain") -> FileResponse:
+    """
+    创建一个通用的文件下载响应。
+
+    :param buffer: 一个包含文件内容的 BytesIO 对象。
+    :param file_name: 文件的名称。
+    :param content_type: 文件的 MIME 类型，默认为 "text/plain"。
+    :return: 配置完毕的 FileResponse 对象。
+    """
+    # 重置指针回到流的开始位置
+    buffer.seek(0)
+
+    # 创建文件下载响应
+    response = FileResponse(
+        buffer,
+        as_attachment=True,  # 将内容作为附件下载而不是直接打开
+        filename=file_name,
+        content_type=content_type,
+    )
+
+    return response
