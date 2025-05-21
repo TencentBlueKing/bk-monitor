@@ -75,18 +75,29 @@ export class DurationDataModal {
     this.durationStep = Math.ceil((this.maxDuration - this.minDuration) / DURATION_AVERAGE_COUNT); // 耗时区间间隔
 
     let curVal = this.minDuration;
-    while (curVal < this.maxDuration) {
-      const start = curVal;
-      const end = curVal + this.durationStep;
+    if (this.maxDuration === this.minDuration) {
       const rangeData = list.filter(item => {
         const target = this.listType === 'trace' ? item.trace_duration : item.elapsed_time;
-        return target >= start && target < end;
+        return target === this.minDuration;
       });
-      curVal = end;
       this.chartData.push({
-        xAxis: [start, end].join('-'),
+        xAxis: [this.minDuration, this.maxDuration].join('-'),
         yAxis: rangeData,
       });
+    } else {
+      while (curVal < this.maxDuration) {
+        const start = curVal;
+        const end = curVal + this.durationStep;
+        const rangeData = list.filter(item => {
+          const target = this.listType === 'trace' ? item.trace_duration : item.elapsed_time;
+          return target >= start && target < end;
+        });
+        curVal = end;
+        this.chartData.push({
+          xAxis: [start, end].join('-'),
+          yAxis: rangeData,
+        });
+      }
     }
 
     this.xAxisData = this.chartData.map((val: IChartItem) => val.xAxis);
