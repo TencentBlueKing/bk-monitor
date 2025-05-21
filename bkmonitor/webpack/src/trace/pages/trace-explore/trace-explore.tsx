@@ -237,7 +237,18 @@ export default defineComponent({
     function handleConditionChange(item: ConditionChangeEvent) {
       const { key, method: operator, value } = item;
       if (filterMode.value === EMode.ui) {
-        const newWhere = mergeWhereList(where.value, [{ key, operator, value: [value || ''] }]);
+        let whereValue = value;
+        try {
+          whereValue = JSON.parse(value);
+          if (!Array.isArray(whereValue)) {
+            whereValue = typeof value === 'string' ? whereValue : value;
+          }
+        } catch {
+          whereValue = value;
+        }
+        const newWhere = mergeWhereList(where.value, [
+          { key, operator, value: Array.isArray(whereValue) ? whereValue : [whereValue || ''] },
+        ]);
         handleWhereChange(newWhere);
         return;
       }

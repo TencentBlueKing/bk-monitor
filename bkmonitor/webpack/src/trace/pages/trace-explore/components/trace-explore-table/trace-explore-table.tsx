@@ -1213,7 +1213,7 @@ export default defineComponent({
         <div class={`explore-col explore-text-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
+            data-cell-source={JSON.stringify(value || '')}
             data-col-key={column.colKey}
           >
             {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
