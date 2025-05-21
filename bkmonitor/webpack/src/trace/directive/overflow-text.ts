@@ -35,7 +35,7 @@ type OverflowElement = HTMLElement & {
   unObserverFunc: () => void;
 };
 const DelayMs = 300;
-const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; text: string }> = {
+const OverflowText: ObjectDirective<OverflowElement, { placement?: Placement; text?: string }> = {
   mounted(el, binding) {
     let instance: Instance<Props> = null;
     let isMouseenter = false;
