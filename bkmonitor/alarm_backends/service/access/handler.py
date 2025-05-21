@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import os
@@ -157,7 +157,7 @@ class AccessHandler(base.BaseHandler):
         self.access_type = access_type
         self.targets = targets or []
         self.option = option
-        super(AccessHandler, self).__init__(*args, **option)
+        super().__init__(*args, **option)
 
     def handle_data(self):
         assert self.service is not None, "access data handler missing required argument: 'service'"
@@ -198,6 +198,12 @@ class AccessHandler(base.BaseHandler):
                 logger.info(f"dataid: {data_id} has been disabled in env[DISABLE_EVENT_DATAID]: {DISABLE_EVENT_DATAID}")
                 continue
             self.run_access(run_access_event_handler, data_id)
+
+    def handle_event_v2(self):
+        # 直接在这里拉事件，并推送给worker处理
+        from alarm_backends.service.access.event.event_poller import EventPoller
+
+        EventPoller().start()
 
     def handle_incident(self) -> None:
         run_access_incident_handler(
