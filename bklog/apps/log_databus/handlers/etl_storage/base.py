@@ -525,7 +525,7 @@ class EtlStorage:
             "warm_phase_settings": {},
         }
         index_settings = index_settings or {}
-        if total_shards_per_node is not None:
+        if total_shards_per_node is not None and total_shards_per_node > 0:
             index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
         params["default_storage_config"]["index_settings"].update(index_settings)
 
