@@ -90,11 +90,8 @@ LOGGING = {
         },
     },
     "loggers": {
-        "": {
-            "level": LOGGER_LEVEL,
-            "handlers": LOGGER_HANDLERS,
-            "propagate": False,
-        },
+        "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS, "propagate": False} for k, v in LOG_LEVEL_MAP.items()},
     },
 }
 

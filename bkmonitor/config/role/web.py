@@ -280,11 +280,8 @@ if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
             },
         },
         "loggers": {
-            "": {
-                "level": "INFO",
-                "handlers": ["console"],
-                "propagate": False,
-            },
+            "": {"level": LOGGER_LEVEL, "handlers": ["console"]},
+            **{k: {"level": v, "handlers": ["console"], "propagate": False} for k, v in LOG_LEVEL_MAP.items()},
         },
     }
 else:

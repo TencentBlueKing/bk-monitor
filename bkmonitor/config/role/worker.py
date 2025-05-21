@@ -360,16 +360,15 @@ LOG_LOGFILE_BACKUP_GZIP = True
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
     LOGGER_HANDLERS = ["console"]
-    LOGGER_METADATA_HANDLERS = ["console"]
 else:
     LOGGER_HANDLERS = ["file", "console"]
-    LOGGER_METADATA_HANDLERS = ["metadata", "console"]
+
 
 LOGGING = {
     "version": 1,
     "loggers": {
         "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
-        "metadata": {"level": LOGGER_LEVEL, "handlers": LOGGER_METADATA_HANDLERS, "propagate": False},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "level": LOGGER_LEVEL, "formatter": "standard"},
@@ -378,13 +377,6 @@ LOGGING = {
             "level": LOGGER_LEVEL,
             "formatter": "standard",
             "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log"),
-            "encoding": "utf-8",
-        },
-        "metadata": {
-            "class": "logging.handlers.WatchedFileHandler",
-            "level": LOGGER_LEVEL,
-            "formatter": "standard",
-            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_metadata.log"),
             "encoding": "utf-8",
         },
     },

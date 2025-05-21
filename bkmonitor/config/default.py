@@ -10,6 +10,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import importlib
 import ntpath
 import os
 import sys
@@ -22,7 +23,7 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
+from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -758,11 +759,12 @@ else:
 ) = get_grafana_mysql_settings()
 
 try:
-    from dj_db_conn_pool.backends import mysql
+    # 判断 dj_db_conn_pool 是否存在
+    importlib.import_module("dj_db_conn_pool")
 
     assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
-except (ImportError, AssertionError):
+except (AssertionError, ModuleNotFoundError):
     default_db_engine = "django.db.backends.mysql"
 
 DATABASES = {
@@ -847,6 +849,13 @@ if not os.path.exists(LOG_PATH):
         os.makedirs(LOG_PATH)
     except Exception:
         pass
+
+# 单独配置部分模块日志级别
+LOG_LEVEL_MAP = {
+    "iam": "ERROR",
+    "bk_dataview": "ERROR",
+    "django.db.models.fields": "ERROR",
+}
 
 #
 # 数据平台接入配置
