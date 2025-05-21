@@ -6,10 +6,9 @@ import time
 from multiprocessing.pool import IMapIterator
 from typing import Any
 from collections.abc import Generator
-
+from datetime import timedelta
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from future.backports.datetime import timedelta
 
 from apm.models import DataLink
 from apm_web.models import Application
