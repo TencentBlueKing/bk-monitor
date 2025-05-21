@@ -17,6 +17,13 @@
       line-height: 20px;
       color: #979ba5;
       text-align: left;
+
+      .link {
+        margin: 0;
+        line-height: 20px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
 
     .description {

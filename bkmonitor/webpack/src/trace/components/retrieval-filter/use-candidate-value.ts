@@ -72,11 +72,17 @@ export const useCandidateValue = () => {
     2.-> 返回数量 < limit， 用户输入检索值由前端模糊检索（查询的数据量小于limit,检索值下拉框没有失焦用户继续输入检索值走前端的模糊检索）
     3.-> 来回切换字段、 检索值下拉框失焦再次点击，都要重新拉取候选项
   */
-  function getFieldsOptionValuesProxy(params: IParams): Promise<IRes> {
+  function getFieldsOptionValuesProxy(
+    params: IParams,
+    fields: Array<{ type: string; [key: string]: any }>
+  ): Promise<IRes> {
     return new Promise((resolve, _reject) => {
       if (params?.isInit__) {
         candidateValueMap = new Map();
       }
+      const field = params?.fields?.[0];
+      const fieldType = fields?.find(item => item?.name === field)?.type || '';
+      const isKeyword = fieldType === 'keyword';
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
@@ -91,13 +97,13 @@ export const useCandidateValue = () => {
           });
           resolve({
             count: filterValues.length,
-            list: [getNullValue(), ...filterValues],
+            list: isKeyword ? [getNullValue(), ...filterValues] : filterValues,
           });
         } else {
           const list = candidateItem.values.slice(0, params.limit);
           resolve({
             count: list.length,
-            list: [getNullValue(), ...list],
+            list: isKeyword ? [getNullValue(), ...list] : list,
           });
         }
       } else {
@@ -134,7 +140,7 @@ export const useCandidateValue = () => {
             }
             candidateValueMap = newMap;
             resolve({
-              list: [getNullValue(), ...values],
+              list: isKeyword ? [getNullValue(), ...values] : values,
               count: data.length,
             });
           })
@@ -142,7 +148,7 @@ export const useCandidateValue = () => {
             if (err?.message !== 'canceled') {
               resolve({
                 count: 0,
-                list: [getNullValue()],
+                list: isKeyword ? [getNullValue()] : [],
               });
             }
           });
