@@ -201,7 +201,15 @@ class TraceQueryTransformer(QueryTreeTransformer):
     }
 
     @classmethod
-    def transform_field_to_es_field(cls, field: str, for_agg=False):
+    def to_common_field(cls, field: str) -> str:
+        """去掉前缀，转为标准字段"""
+        if field.startswith(f"{cls.PRE_CALC_STANDARD_FIELD_PREFIX}."):
+            return field[len(cls.PRE_CALC_STANDARD_FIELD_PREFIX) + 1 :]
+        return field
+
+    @classmethod
+    def to_pre_cal_field(cls, field: str) -> str:
+        """转换为预字段的字段"""
         if field in cls.DIRECT_FIELD_NAME_MAPPING:
             return cls.DIRECT_FIELD_NAME_MAPPING[field]
 
@@ -210,6 +218,10 @@ class TraceQueryTransformer(QueryTreeTransformer):
             return f"{cls.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
 
         return field
+
+    @classmethod
+    def transform_field_to_es_field(cls, field: str, for_agg=False):
+        return cls.to_pre_cal_field(field)
 
 
 class FieldTransformer(TreeTransformer):
@@ -236,11 +248,12 @@ class FieldTransformer(TreeTransformer):
         all_fields = self.FILTERS_IGNORE_FIELDS + self.fields
 
         for i in filters:
+            key: str = TraceQueryTransformer.to_common_field(i["key"])
             if not self.opposite:
-                if i["key"] not in all_fields:
+                if key not in all_fields:
                     return True
             else:
-                if i["key"] in all_fields:
+                if key in all_fields:
                     return True
         return False
 
@@ -394,6 +407,8 @@ class TraceOptionValues(OptionValues):
     @classmethod
     def _transform_field_to_log_field(cls, field: str) -> str:
         if field in PreCalculateSpecificField.search_fields():
+            return field
+        if field.startswith(TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX):
             return field
         return f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
 

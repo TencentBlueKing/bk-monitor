@@ -1386,8 +1386,6 @@ class ListFlattenTraceResource(Resource):
         response = ListTraceResource().get_trace_list_api_data(data)
         data_list = []
         for trace_data_dict in response["data"]:
-            if PreCalculateSpecificField.COLLECTIONS in trace_data_dict:
-                trace_data_dict.update(trace_data_dict.pop(PreCalculateSpecificField.COLLECTIONS))
             data_list.append(flatten_es_dict_data(trace_data_dict))
         response["data"] = data_list
         return response

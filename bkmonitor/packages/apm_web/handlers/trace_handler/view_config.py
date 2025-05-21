@@ -23,6 +23,7 @@ from apm.constants import KindCategory
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
 from apm_web.handlers.es_handler import ESMappingHandler
+from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.trace.constants import OPERATORS, TRACE_FIELD_ALIAS
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField
@@ -105,7 +106,9 @@ class TraceFieldsInfoHandler:
         standard_fields_info = {}
         for field_name in field_names:
             if field_name in self.es_mapping_fields_info:
-                standard_fields_info.setdefault(field_name, {}).update(self.es_mapping_fields_info[field_name])
+                standard_fields_info.setdefault(TraceQueryTransformer.to_pre_cal_field(field_name), {}).update(
+                    self.es_mapping_fields_info[field_name]
+                )
         return standard_fields_info
 
     def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict]:
@@ -163,7 +166,7 @@ class TraceFieldsHandler:
 
     def get_field_alias(self, field_name: str) -> str:
         """获取字段别名"""
-
+        field_name: str = TraceQueryTransformer.to_common_field(field_name)
         return TRACE_FIELD_ALIAS.get(field_name) or field_name
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:

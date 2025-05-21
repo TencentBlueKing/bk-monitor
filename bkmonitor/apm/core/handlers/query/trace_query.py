@@ -54,6 +54,10 @@ class TraceQuery(BaseQuery):
     def build_app_filter(self) -> Q:
         return Q(biz_id__eq=self.bk_biz_id, app_name__eq=self.app_name)
 
+    def build_query_q(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
+        q: QueryConfigBuilder = super().build_query_q(filters, query_string)
+        return q.filter(self.build_app_filter())
+
     def _get_ebpf_application(self) -> ApmApplication | None:
         return EbpfHandler.get_ebpf_application(self.bk_biz_id)
 
@@ -70,11 +74,9 @@ class TraceQuery(BaseQuery):
     ) -> tuple[list[dict[str, Any]], int]:
         select_fields: list[str] = self._get_select_fields(exclude_fields)
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = self.q.filter(self._build_filters(filters) & self.build_app_filter()).order_by(
+        q: QueryConfigBuilder = self.build_query_q(filters, query_string).order_by(
             *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        if query_string:
-            q = q.query_string(query_string)
 
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
@@ -171,7 +173,7 @@ class TraceQuery(BaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
     ):
-        return self._query_field_topk(start_time, end_time, field, limit, filters, query_string)
+        return self._query_field_topk(self.build_query_q(filters, query_string), start_time, end_time, field, limit)
 
     def query_total(
         self,
@@ -180,7 +182,7 @@ class TraceQuery(BaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
     ):
-        return self._query_total(start_time, end_time, filters, query_string)
+        return self._query_total(self.build_query_q(filters, query_string), start_time, end_time)
 
     def query_field_aggregated_value(
         self,
@@ -191,8 +193,9 @@ class TraceQuery(BaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
     ):
-        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string)
-        return self._query_field_aggregated_value(start_time, end_time, field, method, q)
+        return self._query_field_aggregated_value(
+            self.build_query_q(filters, query_string), start_time, end_time, field, method
+        )
 
     def query_option_values(
         self,

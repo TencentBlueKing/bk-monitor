@@ -997,7 +997,7 @@ class QueryTraceListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            None,
+            validated_data.get("exclude_field"),
             validated_data.get("query_string"),
             validated_data.get("sort"),
         )
@@ -2099,9 +2099,7 @@ class QueryFieldStatisticsInfoResource(Resource):
         processed_statistics_info = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
-            # 平均值取两位小数
-            if statistics_property == StatisticsProperty.AVG.value:
-                value = round(value, 2)
+            value = format_percent(value, 3, 3, 3)
             if statistics_property in [
                 StatisticsProperty.MAX.value,
                 StatisticsProperty.MIN.value,
