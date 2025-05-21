@@ -158,7 +158,9 @@
     @include flex-center;
   }
 }
-
+.collection-favorite-popover{
+  left: 15px !important
+}
 #retrieve-help-tips-content {
   max-width: 264px;
   color: #63656e;
