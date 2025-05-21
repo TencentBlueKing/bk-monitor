@@ -74,6 +74,7 @@ export default defineComponent({
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     conditionChange: (val: ConditionChangeEvent) => true,
+    clearRetrievalFilter: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -164,6 +165,10 @@ export default defineComponent({
       }
     );
 
+    function handleClearRetrievalFilter() {
+      emit('clearRetrievalFilter');
+    }
+
     return {
       mode,
       appName,
@@ -173,6 +178,7 @@ export default defineComponent({
       filtersCheckBoxGroupRender,
       handleScrollToTop,
       handleConditionChange,
+      handleClearRetrievalFilter,
     };
   },
   render() {
@@ -198,6 +204,7 @@ export default defineComponent({
             refreshImmediate={refreshImmediate}
             timeRange={timeRange}
             onBackTop={this.handleScrollToTop}
+            onClearRetrievalFilter={this.handleClearRetrievalFilter}
             onConditionChange={this.handleConditionChange}
           />
         </div>

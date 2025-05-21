@@ -72,12 +72,6 @@ export default defineComponent({
         return pre;
       }, {});
     });
-    const valueNameMap = computed(() => {
-      return props.value.reduce((pre, cur) => {
-        pre[cur.key] = cur;
-        return pre;
-      }, {});
-    });
 
     watch(
       () => props.residentSettingOnlyId,
@@ -86,15 +80,16 @@ export default defineComponent({
         userConfigLoading.value = true;
         const defaultConfig = (await handleGetUserConfig<string[]>(val)) || [];
         userConfigLoading.value = false;
+        const valueNameMap = getValueNameMap();
         const pushFields = (config: string[]) => {
           for (const key of config) {
             if (fieldNameMap.value[key]) {
               fields.push({
                 field: fieldNameMap.value[key],
                 value: defaultWhereItem(
-                  valueNameMap.value[key] || {
+                  valueNameMap[key] || {
                     key: fieldNameMap.value[key]?.name,
-                    value: valueNameMap.value[key]?.value || [],
+                    value: valueNameMap[key]?.value || [],
                     method: fieldNameMap.value[key]?.supported_operations?.[0]?.value || EMethod.eq,
                   }
                 ),
@@ -122,6 +117,28 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    watch(
+      () => props.value,
+      () => {
+        if (!props.value?.length) {
+          localValue.value = localValue.value.map(item => ({
+            ...item,
+            value: {
+              ...item.value,
+              value: [],
+            },
+          }));
+        }
+      }
+    );
+
+    function getValueNameMap() {
+      return props.value.reduce((pre, cur) => {
+        pre[cur.key] = cur;
+        return pre;
+      }, {});
+    }
 
     async function handleShowSelect(event: MouseEvent) {
       if (popoverInstance.value) {
@@ -163,10 +180,11 @@ export default defineComponent({
       destroyPopoverInstance();
     }
     function handleConfirm(fields: IFilterField[]) {
+      const valueNameMap = getValueNameMap();
       localValue.value = fields.map(item => ({
         field: item,
         value: defaultWhereItem(
-          valueNameMap.value[item.name] || {
+          valueNameMap[item.name] || {
             key: item.name,
             value: [],
             method: fieldNameMap.value[item.name]?.supported_operations?.[0]?.value || EMethod.eq,
