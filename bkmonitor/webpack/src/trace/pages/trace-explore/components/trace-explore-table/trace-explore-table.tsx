@@ -763,7 +763,7 @@ export default defineComponent({
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
       displayColumnFields.value = displayFields;
       // 缓存列配置
-      handleSetUserConfig(JSON.stringify(displayFields), displayColumnFieldsCacheKey.value);
+      handleSetUserConfig(JSON.stringify(displayFields));
     }
 
     /**
