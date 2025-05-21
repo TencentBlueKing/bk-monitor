@@ -73,6 +73,9 @@ export default defineComponent({
           searchCancelFn?.();
           store.setTraceData(JSON.parse(JSON.stringify(DEFAULT_TRACE_DATA)));
         }
+      },
+      {
+        immediate: true,
       }
     );
 
