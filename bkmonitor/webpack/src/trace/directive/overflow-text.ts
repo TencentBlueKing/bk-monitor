@@ -64,12 +64,13 @@ const OverflowText: ObjectDirective<OverflowElement, { placement: Placement; tex
             instance = null;
           },
         });
+        // 初始化第一次进入时 tippy 可能出现不展示的情况 这里直接延时处理
         setTimeout(() => {
           if (instance && isMouseenter && el.scrollWidth > el.clientWidth && !instance.state.isShown) {
             instance.clearDelayTimeouts();
             instance.show();
           }
-        }, DelayMs);
+        }, DelayMs + 16);
       }
     }
     function mouseleave() {
