@@ -117,7 +117,7 @@ export default defineComponent({
               <div class='key-method-wrap'>
                 <span
                   class='key-wrap'
-                  v-bk-overflow-tips={{
+                  v-overflow-tips={{
                     content: this.fieldInfo?.alias || this.value?.key,
                     placement: 'top',
                   }}

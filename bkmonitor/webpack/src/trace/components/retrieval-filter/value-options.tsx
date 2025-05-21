@@ -352,7 +352,7 @@ export default defineComponent({
               >
                 <TextHighlighter
                   class='title__text'
-                  v-overflow-text={{
+                  v-overflow-tips={{
                     content: item.name,
                     placement: 'top',
                   }}
@@ -362,7 +362,7 @@ export default defineComponent({
                 {item.id !== item.name ? (
                   <TextHighlighter
                     class={item.name ? 'subtitle__text' : 'title__text'}
-                    v-overflow-text={{
+                    v-overflow-tips={{
                       content: item.id,
                       placement: 'top',
                     }}

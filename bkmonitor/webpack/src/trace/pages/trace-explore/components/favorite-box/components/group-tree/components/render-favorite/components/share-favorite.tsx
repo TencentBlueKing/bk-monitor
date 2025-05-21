@@ -202,7 +202,7 @@ export default defineComponent({
                     {item.space_name}
                     <span
                       class='space-id'
-                      v-bk-overflow-tips
+                      v-overflow-tips
                     >
                       ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                     </span>

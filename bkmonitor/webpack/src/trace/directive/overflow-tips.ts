@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import tippy, { type Props, type Placement, type Instance } from 'tippy.js';
+import tippy, { type Props, type Instance } from 'tippy.js';
 
 import type { ObjectDirective } from 'vue';
 
@@ -35,7 +35,7 @@ type OverflowElement = HTMLElement & {
   unObserverFunc: () => void;
 };
 const DelayMs = 300;
-const OverflowText: ObjectDirective<OverflowElement, { placement?: Placement; text?: string }> = {
+const OverflowText: ObjectDirective<OverflowElement, { disabled: boolean; text?: string } & Props> = {
   mounted(el, binding) {
     let instance: Instance<Props> = null;
     let isMouseenter = false;
@@ -44,6 +44,7 @@ const OverflowText: ObjectDirective<OverflowElement, { placement?: Placement; te
     }
     function mouseenter(event: MouseEvent) {
       event.stopPropagation();
+      if (binding.value?.disabled) return;
       if (!getIsEllipsis(el)) {
         return;
       }
@@ -51,10 +52,9 @@ const OverflowText: ObjectDirective<OverflowElement, { placement?: Placement; te
       if (!instance) {
         instance = tippy(el, {
           trigger: 'mouseenter',
-          allowHTML: true,
-          placement: binding.value?.placement || 'auto',
           delay: [DelayMs, 0],
-          content: `<span style="font-size: 12px;">${binding.value?.text || el.innerText}</span>`,
+          content: binding.value?.text || binding.value?.content || el.innerText,
+          placement: binding.value?.placement || 'auto',
           onShow: () => {
             if (getIsEllipsis(el)) {
               return;
@@ -66,6 +66,7 @@ const OverflowText: ObjectDirective<OverflowElement, { placement?: Placement; te
             instance?.destroy();
             instance = null;
           },
+          ...binding.value,
         });
         // 初始化第一次进入时 tippy 可能出现不展示的情况 这里直接延时处理
         setTimeout(() => {

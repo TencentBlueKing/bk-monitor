@@ -266,7 +266,7 @@ export default defineComponent({
                     {this.store.currentApp && (
                       <span
                         class='application-name'
-                        v-overflow-text
+                        v-overflow-tips
                       >
                         {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
                       </span>
@@ -297,7 +297,7 @@ export default defineComponent({
                           />
                           <span
                             class='name-text'
-                            v-overflow-text
+                            v-overflow-tips
                           >
                             {item.app_alias}({item.app_name})
                           </span>

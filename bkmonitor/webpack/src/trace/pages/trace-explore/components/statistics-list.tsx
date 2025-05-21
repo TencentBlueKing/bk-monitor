@@ -513,7 +513,7 @@ export default defineComponent({
                 <div class='dimension-top-k-title'>
                   <span
                     class='field-name'
-                    v-overflow-text
+                    v-overflow-tips
                   >
                     {this.localField}
                   </span>
@@ -570,7 +570,7 @@ export default defineComponent({
                 <div class='dimension-top-k-title'>
                   <span
                     class='field-name'
-                    v-overflow-text
+                    v-overflow-tips
                   >
                     {this.localField}
                   </span>

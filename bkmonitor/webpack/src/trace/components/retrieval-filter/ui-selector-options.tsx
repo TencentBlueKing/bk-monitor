@@ -683,14 +683,14 @@ export default defineComponent({
                       </span>
                       <span
                         class='option-name-title'
-                        v-overflow-text
+                        v-overflow-tips
                       >
                         {title}
                       </span>
                       {!!subtitleStr && (
                         <span
                           class='option-name-subtitle'
-                          v-overflow-text
+                          v-overflow-tips
                         >
                           （{subtitleStr}）
                         </span>

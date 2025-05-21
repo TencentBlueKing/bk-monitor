@@ -598,7 +598,7 @@ export default defineComponent({
           )}
           <span
             class='btn-text'
-            v-overflowTitle
+            v-overflow-tips
             onClick={this.handleToDetail.bind(this, node)}
           >
             {name}

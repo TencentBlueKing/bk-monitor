@@ -125,7 +125,7 @@ export default defineComponent({
             <FieldTypeIcon type={item.type} />
             <span
               class='dimension-name'
-              v-overflow-text
+              v-overflow-tips
             >
               {item.levelName}
               {item?.name && item.type !== 'object' ? <span class='subtitle'>({item.name})</span> : ''}

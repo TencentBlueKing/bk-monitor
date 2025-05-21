@@ -134,7 +134,7 @@ export default defineComponent({
                 <div
                   style={{ color: legend.show ? '#63656e' : '#ccc' }}
                   class='legend-name'
-                  v-overflow-text
+                  v-overflow-tips
                 >
                   {legend.name}
                 </div>
