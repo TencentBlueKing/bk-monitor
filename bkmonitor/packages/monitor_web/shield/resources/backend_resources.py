@@ -234,8 +234,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
             p = Permission(username=username)
             p.skip_check = False
-            p.is_allowed_by_biz(request_data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME)
-            if not p.is_allowed:
+            if not p.is_allowed_by_biz(request_data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
                 raise ValidationError(
                     {"verify_user_permission": f"当前用户无权限新增{request_data['bk_biz_id']}业务屏蔽配置"}
                 )
@@ -574,8 +573,7 @@ class DisableShieldResource(Resource):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
             p = Permission(username=username)
             p.skip_check = False
-            p.is_allowed_by_biz(data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME)
-            if not p.is_allowed:
+            if not p.is_allowed_by_biz(data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
                 raise ValidationError({"verify_user_permission": f"当前用户无权限解除{data['bk_biz_id']}业务屏蔽配置"})
         else:
             username = get_global_user() or "unknown"
