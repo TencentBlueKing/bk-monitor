@@ -73,6 +73,7 @@ class KafkaQueueV2:
                     group_id=group_name,
                     client_id=f"{group_name}-{self.pod_id}",
                     enable_auto_commit=settings.KAFKA_AUTO_COMMIT,
+                    max_poll_interval_ms=3,
                     session_timeout_ms=30000,
                     max_partition_fetch_bytes=1024 * 1024 * 5,  # 增大分区拉取量
                     partition_assignment_strategy=[kafka.coordinator.assignors.roundrobin.RoundRobinPartitionAssignor],
@@ -117,6 +118,7 @@ class KafkaQueueV2:
         """检查当前消费组是否已分配分区"""
         try:
             consumer = self.get_consumer()
+            consumer._coordinator.poll()
             # 检查消费者是否已分配分区且不为空集合
             return bool(consumer.assignment())
         except Exception as e:
