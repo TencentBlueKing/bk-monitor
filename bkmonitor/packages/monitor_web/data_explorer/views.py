@@ -80,7 +80,7 @@ def order_records_by_type(records: list[dict], order_type: str) -> list[dict]:
             return x["update_time"]
 
     elif order_type in ["asc", "desc"]:
-        reverse = order_type == "desc"
+        reverse = order_type == "asc"
 
         def key_func(x):
             return tuple(lazy_pinyin(x["name"]))
