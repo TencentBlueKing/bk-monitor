@@ -350,6 +350,13 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             group_prefix = f"{cluster_name}.access.event.{self.data_id}"
         kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
         pull_type = "kafka" if kafka_queue.has_assigned_partitions() else "redis"
+        logger.info(
+            "[access event] group_prefix(%s) dataid(%s) topic(%s) pull type(%s)",
+            group_prefix,
+            self.data_id,
+            self.topic,
+            pull_type,
+        )
         if pull_type == "kafka":
             try:
                 self._pull_from_kafka(kafka_queue)
