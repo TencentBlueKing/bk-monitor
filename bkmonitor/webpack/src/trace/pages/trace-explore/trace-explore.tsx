@@ -65,7 +65,7 @@ import FavoriteBox, { EditFavorite, type IFavoriteGroup } from './components/fav
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
-import { getFilterByCheckboxFilter } from './utils';
+import { getFilterByCheckboxFilter, safeParseJsonValueForWhere } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
@@ -243,18 +243,7 @@ export default defineComponent({
     function handleConditionChange(item: ConditionChangeEvent) {
       const { key, method: operator, value } = item;
       if (filterMode.value === EMode.ui) {
-        let whereValue = value;
-        try {
-          whereValue = JSON.parse(value);
-          if (!Array.isArray(whereValue)) {
-            whereValue = typeof value === 'string' ? whereValue : value;
-          }
-        } catch {
-          whereValue = value;
-        }
-        const newWhere = mergeWhereList(where.value, [
-          { key, operator, value: Array.isArray(whereValue) ? whereValue : [whereValue || ''] },
-        ]);
+        const newWhere = mergeWhereList(where.value, [{ key, operator, value: safeParseJsonValueForWhere(value) }]);
         handleWhereChange(newWhere);
         return;
       }

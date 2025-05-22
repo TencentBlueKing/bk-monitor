@@ -111,51 +111,27 @@ const checkboxFilterMapByMode = {
  * @param val 需要获取对应filter配置的checkbox值
  *
  */
-export const getFilterByCheckboxFilter = (mode: 'span' | 'trace', val: string) => {
+export function getFilterByCheckboxFilter(mode: 'span' | 'trace', val: string) {
   const filterMap = checkboxFilterMapByMode[mode];
   return filterMap[val];
-};
-
-/**
- * @description 简易观察者模式
- */
-export class ExploreSubject {
-  name: string;
-  set: Set<ExploreObserver>;
-  constructor(name: string) {
-    this.name = name;
-    this.set = new Set();
-  }
-
-  addObserver(observer: ExploreObserver) {
-    this.set.add(observer);
-  }
-
-  notifyObservers(...args) {
-    for (const observer of this.set) {
-      if (observer) {
-        observer.notify(...args);
-      }
-    }
-  }
-  deleteObserver(observer: ExploreObserver) {
-    this.set.delete(observer);
-  }
-
-  destroy() {
-    this.set.clear();
-  }
 }
 
-export class ExploreObserver {
-  constructor(
-    private $vm,
-    private fn
-  ) {}
-
-  notify(...args): void {
-    this.fn.call(this.$vm, ...args);
+/**
+ * 安全解析where条件JSON值
+ * @param value 要解析的where条件
+ * @returns 解析后的值或原值
+ */
+export function safeParseJsonValueForWhere(value: string): any {
+  let parsedValue = value;
+  try {
+    parsedValue = JSON.parse(value);
+    if (!Array.isArray(parsedValue)) {
+      parsedValue = typeof parsedValue === 'string' ? parsedValue : value;
+    }
+  } catch {
+    parsedValue = value;
   }
+  return Array.isArray(parsedValue) ? parsedValue : [parsedValue || ''];
 }
 
 /** 维度列表转换tree结构 */
