@@ -857,8 +857,9 @@ LOG_LEVEL_MAP = {
     "bk_dataview": "ERROR",
 }
 
-warnings.filterwarnings('ignore', r"DateTimeField .* received a naive datetime",
-                      RuntimeWarning, r'django\.db\.models\.fields')
+warnings.filterwarnings(
+    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 #
 # 数据平台接入配置
@@ -1583,9 +1584,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
-# 事件检索新版灰度列表
-EVENT_V2_BIZ_LIST = []
-
 # Trace 检索新版灰度配置
 TRACE_V2_BIZ_LIST = []
 
@@ -1617,6 +1615,9 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 IS_GLOBAL_TENANT = True
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+
+# 是否开启新版 Tracing 检索
+ENABLE_TRACE_V2_BIZ_LIST = []
 
 # 新版自定义时序灰度业务列表
 ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
