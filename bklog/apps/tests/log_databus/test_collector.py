@@ -1483,6 +1483,6 @@ namespaceSelector:
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 
-        result = BaseCollectorHandler().list_namespace(bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID)
+        result = K8sCollectorHandler().list_namespace(bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID)
         result_ns = {r["id"] for r in result}
         self.assertSetEqual(expect_namespace_list, result_ns)

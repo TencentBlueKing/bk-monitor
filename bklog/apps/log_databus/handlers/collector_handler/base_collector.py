@@ -30,9 +30,8 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import gettext as _
 from django.utils.module_loading import import_string
-from kubernetes import client
 
-from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
+from apps.api import BkDataAccessApi, CCApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -70,7 +69,6 @@ from apps.log_databus.constants import (
     STORAGE_CLUSTER_TYPE,
     CmdbFieldType,
     CollectStatus,
-    ContainerCollectorType,
     ContainerCollectStatus,
     EtlConfig,
     ETLProcessorChoices,
@@ -79,12 +77,8 @@ from apps.log_databus.constants import (
     RunStatus,
     TargetNodeTypeEnum,
     TopoType,
-    WorkLoadType,
 )
 from apps.log_databus.exceptions import (
-    AllNamespaceNotAllowedException,
-    BCSApiException,
-    BcsClusterIdNotValidException,
     CollectNotSuccess,
     CollectNotSuccessNotCanStart,
     CollectorActiveException,
@@ -98,14 +92,11 @@ from apps.log_databus.exceptions import (
     CollectorResultTableIDDuplicateException,
     MissedNamespaceException,
     ModifyCollectorConfigException,
-    NamespaceNotValidException,
-    NodeNotAllowedException,
     PublicESClusterNotExistException,
     RegexInvalidException,
     RegexMatchException,
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
-    VclusterNodeNotAllowedException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -152,7 +143,6 @@ from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
-from bkm_space.define import SpaceTypeEnum
 
 COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
@@ -2169,40 +2159,6 @@ class BaseCollectorHandler:
 
         return None
 
-    def check_cluster_config(self, bk_biz_id, collector_type, bcs_cluster_id, namespace_list):
-        """
-        检测共享集群相关配置是否合法
-        1. 集群在项目下可见
-        2. 不允许配置Node节点日志采集
-        3. 不允许设置为all，也不允许为空(namespace设置)
-        4. 不允许设置不可见的namespace
-
-        检测虚拟集群相关配置是否合法
-        1. 集群在项目下可见
-        2. 不允许配置Node节点日志采集
-        """
-        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-
-        if cluster_info["is_virtual"]:
-            if collector_type == ContainerCollectorType.NODE:
-                raise VclusterNodeNotAllowedException()
-
-        if cluster_info["is_shared"]:
-            if collector_type == ContainerCollectorType.NODE:
-                raise NodeNotAllowedException()
-
-            if not namespace_list:
-                raise AllNamespaceNotAllowedException()
-
-            allowed_namespaces = {ns["id"] for ns in self.list_namespace(bk_biz_id, bcs_cluster_id)}
-
-            invalid_namespaces = set(namespace_list) - allowed_namespaces
-
-            if invalid_namespaces:
-                raise NamespaceNotValidException(
-                    NamespaceNotValidException.MESSAGE.format(namespaces=", ".join(invalid_namespaces))
-                )
-
     def list_bcs_collector(self, bcs_cluster_id, bk_biz_id=None, bk_app_code="bk_bcs"):
         queryset = CollectorConfig.objects.filter(bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code)
         if bk_biz_id:
@@ -2546,112 +2502,6 @@ class BaseCollectorHandler:
             cluster["id"] = cluster["cluster_id"]
         return bcs_clusters
 
-    def get_cluster_info(self, bk_biz_id, bcs_cluster_id):
-        bcs_clusters = BcsHandler().list_bcs_cluster(bk_biz_id=bk_biz_id)
-        cluster_info = None
-        for c in bcs_clusters:
-            if c["cluster_id"] == bcs_cluster_id:
-                cluster_info = c
-                break
-
-        if cluster_info is None:
-            raise BcsClusterIdNotValidException()
-        return cluster_info
-
-    @staticmethod
-    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> list[Any]:
-        """
-        获取共享集群有权限的namespace
-        """
-        if not bk_biz_id or not bcs_cluster_id:
-            return []
-
-        space = Space.objects.get(bk_biz_id=bk_biz_id)
-
-        if space.space_type_id == SpaceTypeEnum.BCS.value:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
-        elif space.space_type_id == SpaceTypeEnum.BKCC.value:
-            # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
-            bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
-            project_ids = {p["projectID"] for p in bcs_projects}
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-            namespaces = set()
-            for project_id, ns_list in project_id_to_ns.items():
-                if project_id not in project_ids:
-                    continue
-                for ns in ns_list:
-                    namespaces.add(ns)
-            return [{"id": n, "name": n} for n in namespaces]
-        elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
-            return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
-        else:
-            return []
-
-    def list_namespace(self, bk_biz_id, bcs_cluster_id):
-        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
-        if cluster_info["is_shared"]:
-            return self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
-
-        api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
-        try:
-            namespaces = api_instance.list_namespace().to_dict()
-        except Exception as e:  # pylint:disable=broad-except
-            logger.error(f"call list_namespace{e}")
-            raise BCSApiException(BCSApiException.MESSAGE.format(error=e))
-        if not namespaces.get("items"):
-            return []
-
-        return [
-            {"id": namespace["metadata"]["name"], "name": namespace["metadata"]["name"]}
-            for namespace in namespaces["items"]
-        ]
-
-    def list_topo(self, topo_type, bk_biz_id, bcs_cluster_id, namespace):
-        namespace_list = [ns for ns in namespace.split(",") if ns]
-
-        collector_type = (
-            ContainerCollectorType.NODE if topo_type == TopoType.NODE.value else ContainerCollectorType.CONTAINER
-        )
-        self.check_cluster_config(bk_biz_id, collector_type, bcs_cluster_id, namespace_list)
-
-        api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
-        result = {"id": bcs_cluster_id, "name": bcs_cluster_id, "type": "cluster"}
-        if topo_type == TopoType.NODE.value:
-            node_result = []
-            nodes = api_instance.list_node().to_dict()
-            items = nodes.get("items", [])
-            for node in items:
-                node_result.append({"id": node["metadata"]["name"], "name": node["metadata"]["name"], "type": "node"})
-            result["children"] = node_result
-            return result
-        if topo_type == TopoType.POD.value:
-            result["children"] = []
-            if namespace_list:
-                for namespace_item in namespace_list:
-                    namespace_result = {"id": namespace_item, "name": namespace_item, "type": "namespace"}
-                    pods = api_instance.list_namespaced_pod(namespace=namespace_item).to_dict()
-                    pod_result = []
-                    items = pods.get("items", [])
-                    for pod in items:
-                        pod_result.append(
-                            {"id": pod["metadata"]["name"], "name": pod["metadata"]["name"], "type": "pod"}
-                        )
-                    namespace_result["children"] = pod_result
-                    result["children"].append(namespace_result)
-                return result
-            pods = api_instance.list_pod_for_all_namespaces().to_dict()
-            namespaced_dict = defaultdict(list)
-            items = pods.get("items", [])
-            for pod in items:
-                namespaced_dict[pod["metadata"]["namespace"]].append(
-                    {"id": pod["metadata"]["name"], "name": pod["metadata"]["name"], "type": "pod"}
-                )
-            for namespace, pod in namespaced_dict.items():
-                result["children"].append({"id": namespace, "name": namespace, "type": "namespace", "children": pod})
-            return result
-
     def get_labels(self, topo_type, bcs_cluster_id, namespace, name):
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         if topo_type == TopoType.NODE.value:
@@ -2677,77 +2527,6 @@ class BaseCollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    def filter_pods(
-        self,
-        pods,
-        namespaces=None,
-        namespaces_exclude=None,
-        workload_type="",
-        workload_name="",
-        container_name="",
-        container_name_exclude="",
-        is_shared_cluster=False,
-        shared_cluster_namespace=None,
-    ):
-        namespaces_exclude = namespaces_exclude or []
-        container_names = container_name.split(",") if container_name else []
-        container_names_exclude = container_name_exclude.split(",") if container_name_exclude else []
-        pattern = re.compile(workload_name)
-        filtered_pods = []
-        shared_cluster_namespace = shared_cluster_namespace or []
-        for pod in pods.items:
-            # 命名空间匹配
-            if namespaces and pod.metadata.namespace not in namespaces:
-                continue
-
-            if namespaces_exclude and pod.metadata.namespace in namespaces_exclude:
-                continue
-
-            # 共享集群命名空间匹配
-            if is_shared_cluster and pod.metadata.namespace not in shared_cluster_namespace:
-                continue
-
-            # 工作负载匹配
-            if workload_type and not pod.metadata.owner_references:
-                continue
-
-            if pod.metadata.owner_references:
-                pod_workload_type = pod.metadata.owner_references[0].kind
-                pod_workload_name = pod.metadata.owner_references[0].name
-
-                if pod_workload_type == "ReplicaSet":
-                    # ReplicaSet 需要做特殊处理
-                    pod_workload_name = pod_workload_name.rsplit("-", 1)[0]
-                    pod_workload_type = "Deployment"
-
-                if workload_type and workload_type != pod_workload_type:
-                    continue
-
-                if workload_name and not pattern.match(pod_workload_name):
-                    continue
-
-            # 容器名匹配
-            if container_names:
-                for container in pod.spec.containers:
-                    if container.name in container_names:
-                        break
-                else:
-                    continue
-
-            if container_names_exclude:
-                is_break = True
-                for container in pod.spec.containers:
-                    if container.name not in container_names_exclude:
-                        is_break = False
-                        break
-
-                if is_break:
-                    break
-
-            filtered_pods.append(pod)
-
-        return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
-
     def get_expr_list(self, match_expressions):
         expr_list = []
         for expression in match_expressions:
@@ -2763,86 +2542,6 @@ class BaseCollectorHandler:
                 expr = "{} = {}".format(expression["key"], expression["value"])
             expr_list.append(expr)
         return expr_list
-
-    @staticmethod
-    def filter_pods_by_annotations(pods, match_annotations):
-        """
-        通过annotation过滤pod信息
-        """
-        # 用于存储符合条件的 pods
-        filtered_pods = []
-        # 遍历 pods，检查每个 pod 的 annotations
-        for pod in pods.items:
-            annotations = pod.metadata.annotations
-            if not annotations:
-                continue
-
-            is_matched = True
-            # 遍历match_annotations条件,如果不满足条件,is_matched设置为False
-            for _match in match_annotations:
-                key = _match["key"]
-                op = _match["operator"]
-                value = _match["value"].strip("()").split(",")
-                if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
-                    is_matched = False
-                elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):
-                    is_matched = False
-                elif op == LabelSelectorOperator.EXISTS and key not in annotations:
-                    is_matched = False
-                elif op == LabelSelectorOperator.DOES_NOT_EXIST and key in annotations:
-                    is_matched = False
-
-            if is_matched:
-                # 满足匹配条件时,加入到结果列表中
-                filtered_pods.append(pod)
-
-        # 把返回的数据重新构建为V1PodList类型
-        return client.models.V1PodList(
-            api_version=pods.api_version,
-            kind=pods.kind,
-            items=filtered_pods,
-            metadata=pods.metadata,
-        )
-
-    @classmethod
-    def generate_objs(cls, objs_dict, namespaces=None):
-        result = []
-        if not objs_dict.get("items"):
-            return result
-        for item in objs_dict["items"]:
-            if not namespaces or item["metadata"]["namespace"] in namespaces:
-                # 有指定命名空间的，按命名空间过滤
-                result.append(item["metadata"]["name"])
-        return result
-
-    def get_workload(self, workload_type, bcs_cluster_id, namespace):
-        bcs = Bcs(cluster_id=bcs_cluster_id)
-
-        namespaces = [ns for ns in namespace.split(",") if ns]
-
-        if len(namespaces) == 1:
-            workload_type_handler_dict = {
-                WorkLoadType.DEPLOYMENT: bcs.api_instance_apps_v1.list_namespaced_deployment,
-                WorkLoadType.STATEFUL_SET: bcs.api_instance_apps_v1.list_namespaced_stateful_set,
-                WorkLoadType.JOB: bcs.api_instance_batch_v1.list_namespaced_job,
-                WorkLoadType.DAEMON_SET: bcs.api_instance_apps_v1.list_namespaced_daemon_set,
-            }
-            workload_handler = workload_type_handler_dict.get(workload_type)
-            if not workload_handler:
-                return []
-            return self.generate_objs(workload_handler(namespace=namespace).to_dict())
-
-        workload_type_handler_dict = {
-            WorkLoadType.DEPLOYMENT: bcs.api_instance_apps_v1.list_deployment_for_all_namespaces,
-            WorkLoadType.STATEFUL_SET: bcs.api_instance_apps_v1.list_stateful_set_for_all_namespaces,
-            WorkLoadType.JOB: bcs.api_instance_batch_v1.list_job_for_all_namespaces,
-            WorkLoadType.DAEMON_SET: bcs.api_instance_apps_v1.list_daemon_set_for_all_namespaces,
-        }
-        workload_handler = workload_type_handler_dict.get(workload_type)
-        if not workload_handler:
-            return []
-
-        return self.generate_objs(workload_handler().to_dict(), namespaces=namespaces)
 
     def fast_create(self, params: dict) -> dict:
         params["params"]["encoding"] = params["data_encoding"]
