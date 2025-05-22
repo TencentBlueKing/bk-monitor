@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Model, Prop } from 'vue-property-decorator';
+import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getVariableValue } from 'monitor-api/modules/grafana';
@@ -64,6 +64,8 @@ interface IConditionInputProps {
     [propName: string]: string[];
   };
   title?: string;
+  /* 是否默认展示'+'按钮 */
+  isNeedShowAddBtn?: boolean;
 }
 export interface IVarOption {
   id: string;
@@ -82,6 +84,7 @@ export default class ConditionInput extends tsc<
   @Prop({ required: true, type: Array }) readonly dimensionsList: any[];
   @Prop({ required: false, type: Object }) readonly metricMeta: IMetricMeta;
   @Prop({ type: String, default: window.i18n.tc('条件') }) readonly title: string;
+  @Prop({ default: false, type: Boolean }) isNeedShowAddBtn: boolean;
   /** 自定义的请求接口，传入时候不传指标数据metricMeta */
   @Prop({ type: Function }) readonly getDataApi: GetVarApiType;
   @Prop({ default: () => ({}), type: Object }) defaultValue: IConditionInputProps['defaultValue'];
@@ -95,6 +98,7 @@ export default class ConditionInput extends tsc<
   curSelectTarget = null;
   curConditionIndex = -1;
   curConditionProp = '';
+  showAddIcon = true;
   dimensionsValueMap: Record<string, { id: string; name: string }[]> = {};
   dimensionsValueMapLoading: Record<string, boolean> = {};
   get showAdd() {
@@ -119,6 +123,13 @@ export default class ConditionInput extends tsc<
     return item;
   }
 
+  @Watch('conditions', { deep: true })
+  handleConditionsChange(val) {
+    if (this.isNeedShowAddBtn) {
+      this.showAddIcon = val.length === 0 || (val.length === 1 && !val[0].key);
+    }
+  }
+
   async created() {
     const conditionList = this.conditionList.filter(item => item.key);
     conditionList.length &&
@@ -135,6 +146,15 @@ export default class ConditionInput extends tsc<
     const len = this.conditions.push(this.handleGetDefaultCondition());
     await this.$nextTick();
     (this.$refs[`key-${len - 1}`] as any).show();
+  }
+
+  /**
+   * @description: 展示选择框
+   */
+  async handleShowSelect() {
+    this.showAddIcon = false;
+    await this.$nextTick();
+    (this.$refs['key-0'] as any).show();
   }
 
   handleMenuDelete() {}
@@ -357,81 +377,92 @@ export default class ConditionInput extends tsc<
   render() {
     return (
       <span class='condition'>
-        {this.title && <span class='condition-item condition-item-label'>{this.title}</span>}
-        {this.conditions.map((item, index) => [
-          item.condition && item.key && index > 0 ? (
-            <input
-              key={`condition-${index}-${item.key}`}
-              style={{ display: item.condition ? 'block' : 'none' }}
-              class='condition-item condition-item-condition'
-              value={item.condition.toLocaleUpperCase()}
-              readonly
-              on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
-            />
-          ) : undefined,
-          <bk-select
-            key={`key-${index}-${item.key}`}
-            ref={`key-${index}`}
-            class='condition-item condition-item-key'
-            v-bk-tooltips={{
-              content: item.key,
-              trigger: 'mouseenter',
-              zIndex: 9999,
-              disabled: !item.key,
-              boundary: document.body,
-              allowHTML: false,
-            }}
-            clearable={false}
-            popover-min-width={200}
-            popover-width={getPopoverWidth(this.dimensionsList)}
-            value={item.key}
-            searchable
-            on-change={v => this.handleKeyChange(item, v)}
-            on-toggle={e => this.handleToggleKey(e, index)}
+        {this.title && (!this.isNeedShowAddBtn || !this.showAddIcon) && (
+          <span class='condition-item condition-item-label'>{this.title}</span>
+        )}
+        {this.isNeedShowAddBtn && this.showAddIcon ? (
+          <span
+            class='filter-add-btn'
+            on-click={this.handleShowSelect}
           >
-            {this.dimensionsList.map(dimension => this.handleRenderDimensionList(dimension))}
-            <div
-              style={{ display: item.key ? 'flex' : 'none' }}
-              class='extension'
-              slot='extension'
-              on-click={() => this.handleDeleteKey(index)}
-            >
-              <i class='icon-monitor icon-chahao' />
-              <span>{this.$t('删除')}</span>
-            </div>
-          </bk-select>,
-          item.key && [
-            <span
-              key={`method-${index}-${item.key}`}
-              class='condition-item condition-item-method'
-              on-click={e => this.handleToggleMethod(e, { index, prop: 'method' })}
-            >
-              {this.handleGetMethodNameById(item.method)}
-            </span>,
-            this.getValueOptionsLoading(item) ? (
-              <span
-                key={`value-${index}-${item.key}`}
-                class='condition-item condition-item-value-loading'
-              >
-                <div class='spinner' />
-              </span>
-            ) : (
-              <bk-tag-input
-                key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
-                class='condition-item condition-item-value'
-                content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
-                list={this.getValueOptions(item)}
-                paste-fn={v => this.handlePaste(v, item)}
-                trigger='focus'
-                value={item.value}
-                allow-auto-match
-                allow-create
-                has-delete-icon
-                on-change={(v: string[]) => this.handleValueChange(item, v)}
+            <i class='icon-monitor icon-mc-add' />
+          </span>
+        ) : (
+          this.conditions.map((item, index) => [
+            item.condition && item.key && index > 0 ? (
+              <input
+                key={`condition-${index}-${item.key}`}
+                style={{ display: item.condition ? 'block' : 'none' }}
+                class='condition-item condition-item-condition'
+                value={item.condition.toLocaleUpperCase()}
+                readonly
+                on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
               />
-            ),
-          ],
-        ])}
+            ) : undefined,
+            <bk-select
+              key={`key-${index}-${item.key}`}
+              ref={`key-${index}`}
+              class='condition-item condition-item-key'
+              v-bk-tooltips={{
+                content: item.key,
+                trigger: 'mouseenter',
+                zIndex: 9999,
+                disabled: !item.key,
+                boundary: document.body,
+                allowHTML: false,
+              }}
+              clearable={false}
+              popover-min-width={200}
+              popover-width={getPopoverWidth(this.dimensionsList)}
+              value={item.key}
+              searchable
+              on-change={v => this.handleKeyChange(item, v)}
+              on-toggle={e => this.handleToggleKey(e, index)}
+            >
+              {this.dimensionsList.map(dimension => this.handleRenderDimensionList(dimension))}
+              <div
+                style={{ display: item.key ? 'flex' : 'none' }}
+                class='extension'
+                slot='extension'
+                on-click={() => this.handleDeleteKey(index)}
+              >
+                <i class='icon-monitor icon-chahao' />
+                <span>{this.$t('删除')}</span>
+              </div>
+            </bk-select>,
+            item.key && [
+              <span
+                key={`method-${index}-${item.key}`}
+                class='condition-item condition-item-method'
+                on-click={e => this.handleToggleMethod(e, { index, prop: 'method' })}
+              >
+                {this.handleGetMethodNameById(item.method)}
+              </span>,
+              this.getValueOptionsLoading(item) ? (
+                <span
+                  key={`value-${index}-${item.key}`}
+                  class='condition-item condition-item-value-loading'
+                >
+                  <div class='spinner' />
+                </span>
+              ) : (
+                <bk-tag-input
+                  key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
+                  class='condition-item condition-item-value'
+                  content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
+                  list={this.getValueOptions(item)}
+                  paste-fn={v => this.handlePaste(v, item)}
+                  trigger='focus'
+                  value={item.value}
+                  allow-auto-match
+                  allow-create
+                  has-delete-icon
+                  on-change={(v: string[]) => this.handleValueChange(item, v)}
+                />
+              ),
+            ],
+          ])
+        )}
         <span
           style={{ display: this.showAdd ? 'flex' : 'none' }}
           class='condition-item condition-add'
