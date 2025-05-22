@@ -327,4 +327,6 @@ export default {
   Profiling: 'Profiling',
   搜索分组名: 'Search group name',
   仅个人可见: 'Only visible to me',
+  '生成 "{0}" Tag': 'Generate "{0}" Tag',
+  取消全屏: 'Cancel full screen',
 };
