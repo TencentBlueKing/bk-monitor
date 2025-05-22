@@ -159,7 +159,6 @@ class ClusteringMonitorHandler:
                         "index_set_id": self.index_set_id,
                         "query_string": "*",
                         "functions": [],
-                        "intelligent_detect": {},
                         "time_field": "dtEventTimeStamp",
                     }
                 ],
@@ -187,6 +186,7 @@ class ClusteringMonitorHandler:
                     "time_delay": 0,
                 }
             )
+            items[0]["query_configs"][0].update({"intelligent_detect": {}})
         else:
             items[0]["query_configs"][0].update(
                 {
