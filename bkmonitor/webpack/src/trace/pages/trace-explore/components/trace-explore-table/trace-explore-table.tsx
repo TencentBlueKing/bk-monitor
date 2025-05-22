@@ -1035,7 +1035,14 @@ export default defineComponent({
       row,
       column: ExploreTableColumn<T>
     ): GetTableCellRenderValue<T> {
-      const getRenderValue = column?.getRenderValue || (row => row?.[column.colKey]);
+      const defaultGetRenderValue = row => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      };
+      const getRenderValue = column?.getRenderValue || defaultGetRenderValue;
       return getRenderValue(row, column);
     }
 
