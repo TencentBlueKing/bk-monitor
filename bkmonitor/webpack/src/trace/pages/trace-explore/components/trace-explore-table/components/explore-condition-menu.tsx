@@ -150,10 +150,19 @@ export default defineComponent({
         actualMethod === EMethod.ne && (endStr = `NOT ${endStr}`);
         queryString = queryString ? `${queryString} AND ${endStr}` : `${endStr}`;
       } else {
+        let whereValue = value;
+        try {
+          whereValue = JSON.parse(value);
+          if (!Array.isArray(whereValue)) {
+            whereValue = typeof value === 'string' ? whereValue : value;
+          }
+        } catch {
+          whereValue = value;
+        }
         where.push({
           key: props.conditionKey,
           operator: actualMethod,
-          value: [value || '""'],
+          value: Array.isArray(whereValue) ? whereValue : [whereValue || ''],
         });
       }
       const query = {

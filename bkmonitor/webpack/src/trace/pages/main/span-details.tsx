@@ -630,11 +630,21 @@ export default defineComponent({
       //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
       // );
       // window.open(url, '_blank');
+      const value = content.query_value;
+      let whereValue = value;
+      try {
+        whereValue = JSON.parse(value);
+        if (!Array.isArray(whereValue)) {
+          whereValue = typeof value === 'string' ? whereValue : value;
+        }
+      } catch {
+        whereValue = value;
+      }
       const where = JSON.stringify([
         {
           key: content.query_key,
           operator: 'equal',
-          value: [String(content.query_value)?.replace(/\"/g, '\\"') ?? ''],
+          value: Array.isArray(whereValue) ? whereValue : [whereValue || ''],
         },
       ]);
       const url = location.href.replace(
