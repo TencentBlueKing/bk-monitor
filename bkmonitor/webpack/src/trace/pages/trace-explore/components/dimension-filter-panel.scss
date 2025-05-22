@@ -176,10 +176,6 @@
       .object-count {
         background: #fff;
       }
-
-      .object-arrow {
-        display: inline-block;
-      }
     }
 
     &.active {
@@ -218,7 +214,7 @@
     }
 
     .object-arrow {
-      display: none;
+      display: inline-block;
       font-size: 12px;
     }
 

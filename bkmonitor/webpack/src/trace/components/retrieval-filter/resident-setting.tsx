@@ -339,7 +339,7 @@ export default defineComponent({
               if (DURATION_KEYS.includes(item.field.name)) {
                 return (
                   <TimeConsuming
-                    key={index}
+                    key={item.field.name}
                     class='mb-4 mr-4'
                     fieldInfo={this.getFieldInfo(item.field)}
                     value={item.value}
@@ -350,7 +350,7 @@ export default defineComponent({
               if (INPUT_TAG_KEYS.includes(item.field.name)) {
                 return (
                   <SettingKvInput
-                    key={index}
+                    key={item.field.name}
                     class='mb-4 mr-4'
                     fieldInfo={this.getFieldInfo(item.field)}
                     value={item.value}
@@ -360,7 +360,7 @@ export default defineComponent({
               }
               return (
                 <SettingKvSelector
-                  key={index}
+                  key={item.field.name}
                   class='mb-4 mr-4'
                   fieldInfo={this.getFieldInfo(item.field)}
                   getValueFn={this.getValueFnProxy}

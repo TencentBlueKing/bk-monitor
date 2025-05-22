@@ -316,11 +316,11 @@ export default defineComponent({
           <span
             class='key-wrap'
             v-overflow-tips={{
-              content: `${this.fieldInfo?.alias} (${this.fieldInfo?.field})`,
+              content: this.fieldInfo?.alias || this.fieldInfo?.field,
               placement: 'top',
             }}
           >
-            {`${this.fieldInfo?.alias} (${this.fieldInfo?.field})`}
+            {this.fieldInfo?.alias || this.fieldInfo?.field}
           </span>
           <span class='method-wrap'>
             <Dropdown
