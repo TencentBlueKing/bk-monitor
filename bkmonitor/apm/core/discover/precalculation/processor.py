@@ -89,7 +89,7 @@ class PrecalculateProcessor:
         sorted_spans = sorted(spans, key=lambda s: s[OtlpKey.START_TIME])
         nodes = set()
         edges = set()
-        services = set()
+        services = {}
         start_times = []
         end_times = []
         durations = []
@@ -125,7 +125,9 @@ class PrecalculateProcessor:
 
             service_name = i[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
             if service_name:
-                services.add(service_name)
+                if service_name not in services:
+                    services[service_name] = 0
+                services[service_name] += 1
 
             start_times.append(i[OtlpKey.START_TIME])
             end_times.append(i[OtlpKey.END_TIME])
@@ -202,6 +204,9 @@ class PrecalculateProcessor:
         # 是否出错
         error = bool(error_count)
 
+        # 计算trace下span的服务分布
+        service_distribution = self.compute_service_distribution(services)
+
         return {
             PreCalculateSpecificField.BIZ_ID.value: self.bk_biz_id,
             PreCalculateSpecificField.BIZ_NAME.value: self.bk_biz_name,
@@ -232,6 +237,7 @@ class PrecalculateProcessor:
             PreCalculateSpecificField.CATEGORY_STATISTICS.value: category_statistics,
             PreCalculateSpecificField.KIND_STATISTICS.value: kind_statistics,
             PreCalculateSpecificField.COLLECTIONS.value: collections,
+            PreCalculateSpecificField.SERVICE_DISTRIBUTION.value: service_distribution,
         }
 
     def init_collections(self):
@@ -270,3 +276,24 @@ class PrecalculateProcessor:
             }
 
         return res
+
+    @classmethod
+    def compute_service_distribution(cls, services: dict):
+        """计算trace下span的服务分布"""
+        total = sum(services.values())
+        # 计算初步的百分比并四舍五入
+        percentages = {key: round((value / total) * 100) for key, value in services.items()}
+
+        # 调整总和为100%
+        difference = 100 - sum(percentages.values())
+
+        # 如果四舍五入后的总和不为100，进行调整
+        # 按照绝对误差最大的值进行调整
+        if difference != 0:
+            key_to_adjust = max(percentages, key=lambda k: (percentages[k] - (services[k] / total * 100)))
+            percentages[key_to_adjust] += difference
+
+        # 创建结果字典
+        distribution = {key: {"value": services[key], "percentage": percentages[key]} for key in services}
+
+        return distribution
