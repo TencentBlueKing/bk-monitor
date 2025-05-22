@@ -290,46 +290,13 @@ class BaseQuery:
 
         return start_time, end_time
 
-    @classmethod
-    def _parse_ordering_from_dsl(cls, dsl: dict[str, Any]) -> list[str]:
-        """
-        【待废弃】在 dsl 中提取字段排序信息
-        :param dsl:
-        :return:
-        """
+    def build_query_q(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
+        return self.q.filter(self._build_filters(filters)).query_string(query_string)
 
-        ordering: list[str] = []
-        try:
-            for sort_item in dsl["sort"]:
-                if isinstance(sort_item, str):
-                    # handle case: 'start_time'
-                    ordering.append(sort_item)
-
-                elif isinstance(sort_item, dict):
-                    for field, option in sort_item.items():
-                        if isinstance(option, str):
-                            # handle case: {'end_time': 'desc'}
-                            ordering.append(f"{field} {option}")
-                        elif isinstance(option, dict):
-                            # handle case: {'hierarchy_count': {'order': 'desc'}}
-                            ordering.append(f"{field} {option['order']}")
-        except (KeyError, TypeError, IndexError):
-            pass
-
-        return ordering
-
-    def get_q_from_filters_and_query_string(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
-        return (
-            self.q.filter(self._build_filters(filters)).time_field(self.DEFAULT_TIME_FIELD).query_string(query_string)
-        )
-
-    def _query_field_topk(self, start_time, end_time, field, limit, filters: list[types.Filter], query_string: str):
-        q: QueryConfigBuilder = (
-            self.get_q_from_filters_and_query_string(filters, query_string)
-            .metric(field=field, method="COUNT", alias="a")
-            .group_by(field)
-            .order_by("_value desc")
-        )
+    def _query_field_topk(
+        self, q: QueryConfigBuilder, start_time: int, end_time: int, field: str, limit: int
+    ) -> list[dict[str, Any]]:
+        q: QueryConfigBuilder = q.metric(field=field, method="COUNT", alias="a").group_by(field).order_by("_value desc")
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
         try:
             field_topk_values = list(queryset)
@@ -343,10 +310,8 @@ class BaseQuery:
             reverse=True,
         )
 
-    def _query_total(self, start_time, end_time, filters: list[types.Filter], query_string: str):
-        q: QueryConfigBuilder = self.get_q_from_filters_and_query_string(filters, query_string).metric(
-            field="_index", method="COUNT", alias="a"
-        )
+    def _query_total(self, q: QueryConfigBuilder, start_time: int, end_time: int) -> int:
+        q: QueryConfigBuilder = q.metric(field="_index", method="COUNT", alias="a")
         queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
         try:
             return list(queryset)[0]["_result_"]
@@ -354,7 +319,9 @@ class BaseQuery:
             logger.warning("failed to query total, err -> %s", exc)
             raise ValueError(_("总记录数查询出错"))
 
-    def _query_field_aggregated_value(self, start_time, end_time, field, method, q: QueryConfigBuilder):
+    def _query_field_aggregated_value(
+        self, q: QueryConfigBuilder, start_time: int, end_time: int, field: str, method: str
+    ) -> int | float:
         """
         查询字段聚合值
         """
@@ -376,7 +343,7 @@ class BaseQuery:
         获取查询配置
         """
         q: QueryConfigBuilder = (
-            self.get_q_from_filters_and_query_string(filters, query_string)
+            self.build_query_q(filters, query_string)
             .interval(get_bar_interval_number(start_time, end_time))
             .metric(field=field, method=AggregatedMethod.COUNT.value, alias="a")
             .group_by(field)
