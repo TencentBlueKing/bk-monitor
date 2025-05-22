@@ -78,6 +78,7 @@ import {
   type GetTableCellRenderValue,
 } from './typing';
 import { getTableList } from './utils/api-utils';
+import { isEllipsisActiveSingleLine } from './utils/dom-helper';
 
 import type {
   ConditionChangeEvent,
@@ -188,7 +189,11 @@ export default defineComponent({
             return;
           }
           handleSetActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
-          return { content: conditionMenuRef.value.$el };
+          const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+          return {
+            content: conditionMenuRef.value.$el,
+            popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
+          };
         },
         onHide: () => {
           handleSetActiveConditionMenu();
@@ -1035,7 +1040,14 @@ export default defineComponent({
       row,
       column: ExploreTableColumn<T>
     ): GetTableCellRenderValue<T> {
-      const getRenderValue = column?.getRenderValue || (row => row?.[column.colKey]);
+      const defaultGetRenderValue = row => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      };
+      const getRenderValue = column?.getRenderValue || defaultGetRenderValue;
       return getRenderValue(row, column);
     }
 

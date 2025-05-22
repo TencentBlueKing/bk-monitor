@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { Popover } from 'bkui-vue';
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
 
@@ -50,6 +51,8 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
+
+    const menuRef = useTemplateRef<HTMLElement>('menuRef');
 
     const menuList = [
       {
@@ -90,11 +93,19 @@ export default defineComponent({
     function menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }) {
       const { method, hasClick = true } = config;
       return () => (
-        <i
-          class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
-          v-bk-tooltips={{ content: '新开标签页', disabled: !hasClick }}
-          onClick={e => handleNewExplorePage(e, method)}
-        />
+        <Popover
+          arrow={true}
+          boundary={menuRef.value}
+          content={t('新开标签页')}
+          disabled={!hasClick}
+          placement='top'
+          theme='dark'
+        >
+          <i
+            class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
+            onClick={e => handleNewExplorePage(e, method)}
+          />
+        </Popover>
       );
     }
 
@@ -139,10 +150,19 @@ export default defineComponent({
         actualMethod === EMethod.ne && (endStr = `NOT ${endStr}`);
         queryString = queryString ? `${queryString} AND ${endStr}` : `${endStr}`;
       } else {
+        let whereValue = value;
+        try {
+          whereValue = JSON.parse(value);
+          if (!Array.isArray(whereValue)) {
+            whereValue = typeof value === 'string' ? whereValue : value;
+          }
+        } catch {
+          whereValue = value;
+        }
         where.push({
           key: props.conditionKey,
           operator: actualMethod,
-          value: [value || '""'],
+          value: Array.isArray(whereValue) ? whereValue : [whereValue || ''],
         });
       }
       const query = {
@@ -183,7 +203,7 @@ export default defineComponent({
   render() {
     return (
       <ul
-        ref='menu'
+        ref='menuRef'
         class='explore-condition-menu'
       >
         {this.menuList.map(item => (

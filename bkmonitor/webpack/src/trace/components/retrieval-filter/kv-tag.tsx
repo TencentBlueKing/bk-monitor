@@ -141,7 +141,7 @@ export default defineComponent({
             delay: [300, 0],
             allowHTML: true,
             content: (
-              <div style='max-width: 600px;'>
+              <div style='max-width: 600px; word-break: break-all; word-wrap: break-word; white-space: normal'>
                 {`${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' OR ')}`}
               </div>
             ),

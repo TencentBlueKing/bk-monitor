@@ -256,6 +256,16 @@ body {
   &.padding-0 {
     padding: 0;
   }
+
+  &.max-width-50vw {
+    max-width: 50vw;
+  }
+
+  &.text-wrap {
+    word-break: break-all;
+    word-wrap: break-word;
+    white-space: normal;
+  }
 }
 
 .tippy-box[data-theme~='padding-0'] {
