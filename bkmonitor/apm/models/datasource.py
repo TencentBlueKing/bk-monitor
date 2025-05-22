@@ -394,20 +394,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     STORAGE_TYPE = "elasticsearch"
 
-    ES_KEYWORD_OPTION = TraceDataSourceConfig.ES_KEYWORD_OPTION
-
-    # object 字段配置
-    ES_OBJECT_OPTION = TraceDataSourceConfig.ES_OBJECT_OPTION
-
-    # NESTED 配置
-    ES_NESTED_OPTION = TraceDataSourceConfig.ES_NESTED_OPTION
-
-    # OTLP status 配置
-    TRACE_STATUS_OPTION = TraceDataSourceConfig.TRACE_STATUS_OPTION
-
-    # OTLP events 配置
-    TRACE_EVENT_OPTION = TraceDataSourceConfig.TRACE_EVENT_OPTION
-
     # 默认的动态维度发现配置
     ES_DYNAMIC_CONFIG = {
         "dynamic_templates": [
