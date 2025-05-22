@@ -2285,7 +2285,7 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(PreviewContainersSerializer)
         return Response(
-            BaseCollectorHandler().preview_containers(
+            K8sCollectorHandler().preview_containers(
                 topo_type=data["type"],
                 bk_biz_id=data["bk_biz_id"],
                 bcs_cluster_id=data["bcs_cluster_id"],

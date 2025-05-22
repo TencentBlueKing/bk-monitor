@@ -20,7 +20,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import copy
 import datetime
 from typing import Any
-
+from collections import defaultdict
 import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -41,6 +41,7 @@ from apps.log_databus.constants import (
     ContainerCollectStatus,
     Environment,
     ETLProcessorChoices,
+    TopoType,
     WorkLoadType,
     RETRIEVE_CHAIN,
 )
@@ -88,6 +89,7 @@ from apps.log_search.models import (
     LogIndexSet,
 )
 from apps.models import model_to_dict
+from apps.utils.bcs import Bcs
 from apps.utils.function import map_if
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
@@ -1645,3 +1647,97 @@ class K8sCollectorHandler(BaseCollectorHandler):
             if toggle
             else [WorkLoadType.DEPLOYMENT, WorkLoadType.JOB, WorkLoadType.DAEMON_SET, WorkLoadType.STATEFUL_SET]
         )
+
+    def preview_containers(
+        self,
+        topo_type,
+        bk_biz_id,
+        bcs_cluster_id,
+        namespaces=None,
+        namespaces_exclude=None,
+        label_selector=None,
+        annotation_selector=None,
+        container=None,
+    ):
+        """
+        预览匹配到的 nodes 或 pods
+        """
+        container = container or {}
+        namespaces = namespaces or []
+        namespaces_exclude = namespaces_exclude or []
+        label_selector = label_selector or {}
+        annotation_selector = annotation_selector or {}
+
+        # 将标签匹配条件转换为表达式
+        match_expressions = label_selector.get("match_expressions", [])
+
+        # match_labels 本质上是个字典，需要去重
+        match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
+        match_labels_list = [f"{label[0]} = {label[1]}" for label in match_labels.items()]
+
+        match_labels_list.extend(self.get_expr_list(match_expressions))
+        label_expression = ", ".join(match_labels_list)
+
+        # annotation selector expr解析
+        match_annotations = annotation_selector.get("match_annotations", [])
+
+        api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
+        previews = []
+
+        # Node 预览
+        if topo_type == TopoType.NODE.value:
+            if label_expression:
+                # 如果有多条表达式，需要拆分为多个去请求，以获取每个表达式实际匹配的数量
+                nodes = api_instance.list_node(label_selector=label_expression)
+            else:
+                nodes = api_instance.list_node()
+            previews.append(
+                {"group": "node", "total": len(nodes.items), "items": [item.metadata.name for item in nodes.items]}
+            )
+            return previews
+
+        # Pod 预览
+        # 当存在标签表达式时，以标签表达式维度展示
+        # 当不存在标签表达式时，以namespace维度展示
+        if label_expression:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
+                pods = api_instance.list_pod_for_all_namespaces(label_selector=label_expression)
+            else:
+                pods = api_instance.list_namespaced_pod(label_selector=label_expression, namespace=namespaces[0])
+        else:
+            if not namespaces or len(namespaces) > 1 or namespaces_exclude:
+                pods = api_instance.list_pod_for_all_namespaces()
+            else:
+                pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
+
+        if match_annotations:
+            # 根据annotation过滤
+            pods = self.filter_pods_by_annotations(pods, match_annotations)
+
+        is_shared_cluster = False
+        shared_cluster_namespace = list()
+        cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+        if cluster_info.get("is_shared"):
+            is_shared_cluster = True
+            namespace_info = self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            shared_cluster_namespace = [info["name"] for info in namespace_info]
+
+        pods = self.filter_pods(
+            pods,
+            namespaces=namespaces,
+            namespaces_exclude=namespaces_exclude,
+            is_shared_cluster=is_shared_cluster,
+            shared_cluster_namespace=shared_cluster_namespace,
+            **container,
+        )
+
+        # 按 namespace进行分组
+        namespace_pods = defaultdict(list)
+        for pod in pods:
+            namespace = pod[0]
+            namespace_pods[namespace].append(pod[1])
+
+        for namespace, ns_pods in namespace_pods.items():
+            previews.append({"group": f"namespace = {namespace}", "total": len(ns_pods), "items": ns_pods})
+
+        return previews
