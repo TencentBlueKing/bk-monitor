@@ -147,5 +147,5 @@ class StrategiesViewSet(ResourceViewSet):
             "POST", resource.strategies.dashboard_panel_to_query_config, endpoint="dashboard_panel_to_query_config"
         ),
         # 返回简易版本的策略列表
-        ResourceRoute("GET", resource.strategies.simple_strategy_list_v2, endpoint="simple_strategy_list_v2"),
+        ResourceRoute("GET", resource.strategies.get_devops_strategy_list, endpoint="get_devops_strategy_list"),
     ]

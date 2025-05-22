@@ -19,20 +19,19 @@
   }
 
   .favorite-group-dialog-header {
-    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     width: 100%;
     height: 48px;
+    padding-left: 12px;
     font-size: 16px;
     line-height: 48px;
     color: #313238;
-    text-align: center;
     background: #ffffff;
     box-shadow: 0 1px 4px 0 #00000014;
 
-    .close-icon {
-      position: absolute;
-      top: 8px;
-      right: 8px;
+    .icon-back-left {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -40,7 +39,7 @@
       height: 32px;
       overflow: hidden;
       font-size: 32px;
-      color: #63656e;
+      color: #3b84ff;
       cursor: pointer;
     }
   }
@@ -106,8 +105,11 @@
 
         .group-name {
           margin: 0 auto 0 6px;
+          overflow: hidden;
           font-size: 13px;
           color: #4d4f56;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .favorite-count {

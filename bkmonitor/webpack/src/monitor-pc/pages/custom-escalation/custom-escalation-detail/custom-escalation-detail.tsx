@@ -1519,6 +1519,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                     <div class='mt10'>
                       {this.$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}
                     </div>
+                    <div class='mt10'>
+                      {this.$t('如果上报渠道不支持加入自定义 headers, 也可以使用 BasicAuth 进行验证, user: bkmonitor, password: $TOKEN')}
+                    </div>
                   </div>
 
                   {/* Golang 示例部分 */}

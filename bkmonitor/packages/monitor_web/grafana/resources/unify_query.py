@@ -1365,8 +1365,8 @@ class DimensionPromqlQueryResource(Resource):
             }
 
             if start_time and end_time:
-                params["start_time"] = start_time
-                params["end_time"] = end_time
+                params["start"] = start_time
+                params["end"] = end_time
 
             result = api.unify_query.get_promql_label_values(params)
             return result["values"].get(label, [])
