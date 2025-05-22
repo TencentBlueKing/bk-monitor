@@ -86,7 +86,6 @@ class Permission:
     """
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
-        self.bk_token = ""
         if username and bk_tenant_id:
             # 指定用户
             self.username = username
@@ -95,7 +94,6 @@ class Permission:
             request = request or get_request(peaceful=True)
             # web请求
             if request:
-                self.bk_token = request.COOKIES.get("bk_token", "")
                 self.username = request.user.username
                 self.bk_tenant_id = request.user.tenant_id
             else:
@@ -145,7 +143,7 @@ class Permission:
         grant_result = None
 
         try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application, self.bk_token, self.username)
+            grant_result = self.iam_client.grant_resource_creator_actions(application)
             logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
