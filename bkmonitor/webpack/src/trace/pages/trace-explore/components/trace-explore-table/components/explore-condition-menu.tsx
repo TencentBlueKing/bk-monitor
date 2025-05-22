@@ -33,6 +33,7 @@ import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod, EMode } from '../../../../../components/retrieval-filter/typing';
+import { safeParseJsonValueForWhere } from '../../../utils';
 
 import './explore-condition-menu.scss';
 
@@ -150,19 +151,10 @@ export default defineComponent({
         actualMethod === EMethod.ne && (endStr = `NOT ${endStr}`);
         queryString = queryString ? `${queryString} AND ${endStr}` : `${endStr}`;
       } else {
-        let whereValue = value;
-        try {
-          whereValue = JSON.parse(value);
-          if (!Array.isArray(whereValue)) {
-            whereValue = typeof value === 'string' ? whereValue : value;
-          }
-        } catch {
-          whereValue = value;
-        }
         where.push({
           key: props.conditionKey,
           operator: actualMethod,
-          value: Array.isArray(whereValue) ? whereValue : [whereValue || ''],
+          value: safeParseJsonValueForWhere(value),
         });
       }
       const query = {

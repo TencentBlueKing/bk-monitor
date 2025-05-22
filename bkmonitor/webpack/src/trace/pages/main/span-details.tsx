@@ -58,6 +58,7 @@ import {
   type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -630,21 +631,12 @@ export default defineComponent({
       //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
       // );
       // window.open(url, '_blank');
-      const value = content.query_value;
-      let whereValue = value;
-      try {
-        whereValue = JSON.parse(value);
-        if (!Array.isArray(whereValue)) {
-          whereValue = typeof value === 'string' ? whereValue : value;
-        }
-      } catch {
-        whereValue = value;
-      }
+
       const where = JSON.stringify([
         {
           key: content.query_key,
           operator: 'equal',
-          value: Array.isArray(whereValue) ? whereValue : [whereValue || ''],
+          value: safeParseJsonValueForWhere(content.query_value),
         },
       ]);
       const url = location.href.replace(
