@@ -29,7 +29,8 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_metric_string, process_stage_string
+from fta_web.alert.utils import process_metric_string, process_stage_string, is_include_promql
+import re
 
 
 class QueryField:
@@ -142,6 +143,10 @@ class BaseQueryTransformer(BaseTreeTransformer):
         if not query_string:
             return ""
         transform_obj = cls()
+
+        if is_include_promql(query_string):
+            # 包含promql语句，可能会报语法错误，需要尝试转换
+            query_string = cls.convert_metric_id(query_string)
         query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
@@ -155,6 +160,73 @@ class BaseQueryTransformer(BaseTreeTransformer):
         query_tree = auto_head_tail(query_tree)
 
         return str(query_tree)
+
+    @classmethod
+    def convert_metric_id(cls, query_string: str) -> str:
+        """
+        当指定了指标ID时，且指标ID值是一个promql，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
+        此时需要对指标ID进行转义，并加上“*”，用于支持模糊匹配
+
+        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
+        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
+        """
+
+
+        def replace(match):
+            value = match.group(0)
+            value = value.split(":", 1)[1].replace('"', '').replace("'", '')
+            # 如果是promql，需要进行转义
+            if is_include_promql(value):
+                # 匹配query string中的特殊字符
+                value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: '\\' + match.group(0), value.strip())
+            # 给末尾加上“*”，用于支持模糊匹配
+            return f'{target_type} : {value}*'
+
+        query_string = cls.process_label_filter(query_string)
+
+        # 使用正则表达式匹配指标ID
+        pattern = r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)'
+        target_type = "指标ID"
+
+        # 多个指标ID出现时，应该使用双引号比如：指标ID : “sum(aaa.bb.cc[1m])) or vector(0)” AND 指标ID : “sum(aaa.bb.cc[1m]))”
+        # 如果没有匹配到，则指标ID单个出现，此时外围没有加双引号，比如：指标ID : sum(aaa.bb.cc[1m])) or vector(0)
+        if not re.search(pattern, query_string):
+            if ":" not in query_string:
+                return query_string
+            metric_id = query_string.split(":", 1)[1]
+
+            # 再去一次引号
+            for i in ["'", '"']:
+                if metric_id.startswith(i):
+                    metric_id = metric_id.strip(i)
+
+            # 将引号加上
+            query_string = f'{target_type} : "{metric_id}"'
+
+        # 进行转义
+        query_string = re.sub(pattern, replace, query_string)
+
+        # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("##", r'\=\"')
+        query_string = query_string.replace("#", r'\"')
+
+        return query_string
+
+    @classmethod
+    def process_label_filter(cls, query_string: str) -> str:
+        """处理promql语句中的过滤条件，对双引号进行提前处理，否则会导致转义失败
+        """
+
+        def replace(match):
+            value = match.group(0)
+            # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
+            value = value.replace('="', '##').replace('"', "#")
+            return value
+
+        # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
+        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        query_string = re.sub(pattern, replace, query_string)
+        return query_string
 
     @classmethod
     def get_field_info(cls, field: str) -> Optional[QueryField]:
