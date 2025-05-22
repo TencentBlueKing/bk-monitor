@@ -162,10 +162,22 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
         else:
-            user_info = make_userinfo(bk_tenant_id=self.bk_tenant_id)
+            user_info = make_userinfo(bk_tenant_id=self._get_tenant_id())
             self.bk_username = user_info.get("bk_username")
             validated_request_data.update(user_info)
         return validated_request_data
+
+    def _get_tenant_id(self) -> str:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            if self.bk_tenant_id:
+                return self.bk_tenant_id
+            request = get_request(peaceful=True)
+            if request and request.user.tenant_id:
+                return request.user.tenant_id
+            logger.warning(f"get_tenant_id: 获取租户ID失败，使用默认租户ID, {self.module_name} {self.action}")
+            return DEFAULT_TENANT_ID
+        else:
+            return DEFAULT_TENANT_ID
 
     def before_request(self, kwargs):
         return kwargs
@@ -186,23 +198,13 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            auth_params.update(make_userinfo(bk_tenant_id=self.bk_tenant_id))
+            auth_params.update(make_userinfo(bk_tenant_id=self._get_tenant_id()))
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         # 多租户模式下添加租户ID
         # 如果是web请求，通过用户名获取租户ID
         # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            request = get_request(peaceful=True)
-            if self.bk_tenant_id:
-                headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
-            elif request and request.user.tenant_id:
-                headers["X-Bk-Tenant-Id"] = request.user.tenant_id
-            else:
-                headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
-        else:
-            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
-            headers["X-Bk-Tenant-Id"] = "default"
+        headers["X-Bk-Tenant-Id"] = self._get_tenant_id()
         return headers
 
     def perform_request(self, validated_request_data):
