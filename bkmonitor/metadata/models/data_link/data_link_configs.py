@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,14 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
-from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.db import models
-from jinja2 import Template
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
 
@@ -38,7 +37,9 @@ class DataLinkResourceConfigBase(models.Model):
 
     kind = models.CharField(verbose_name="配置类型", max_length=64, choices=CONFIG_KIND_CHOICES)
     name = models.CharField(verbose_name="实例名称", max_length=64)
-    namespace = models.CharField(verbose_name="命名空间", max_length=64, default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE)
+    namespace = models.CharField(
+        verbose_name="命名空间", max_length=64, default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE
+    )
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField(verbose_name="状态", max_length=64)
@@ -83,7 +84,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self) -> Dict:
+    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -93,6 +94,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    "tenant": "{{tenant}}",
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -112,6 +114,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
                 "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
                 "maintainers": json.dumps(maintainer),
+                "tenant": bk_tenant_id,
             },
             err_msg_prefix="compose data_id config",
         )
@@ -130,7 +133,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
         verbose_name = "VM结果表配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self) -> Dict:
+    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
         """
         组装数据源结果表配置
         """
@@ -140,6 +143,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    "tenant": "{{tenant}}",
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -152,7 +156,6 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        labels = {"bk_biz_id": self.bk_biz_id}
         return utils.compose_config(
             tpl=tpl,
             render_params={
@@ -162,6 +165,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
                 "data_type": self.data_type,
                 "maintainers": json.dumps(maintainer),
+                "tenant": bk_tenant_id,
             },
             err_msg_prefix="compose bkdata table_id config",
         )
@@ -180,9 +184,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(
-        self,
-    ) -> Dict:
+    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -192,6 +194,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    "tenant": "{{tenant}}",
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -219,6 +222,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "rt_name": self.name,
                 "vm_name": self.vm_cluster_name,
                 "maintainers": json.dumps(maintainer),
+                "tenant": bk_tenant_id,
             },
             err_msg_prefix="compose vm storage binding config",
         )
@@ -239,11 +243,12 @@ class DataBusConfig(DataLinkResourceConfigBase):
 
     def compose_config(
         self,
-        sinks: List,
-        transform_kind: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
-        transform_name: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER,
-        transform_format: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
-    ) -> Dict:
+        sinks: list,
+        transform_kind: str | None = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
+        transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
+        transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
+        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+    ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
         需要注意：DataBusConfig和Sink的name需要相同
@@ -259,6 +264,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "name": "{{name}}",
                 "namespace": "{{namespace}}",
+                "tenant": "{{tenant}}",
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
@@ -295,6 +301,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "transform_name": transform_name,
                 "transform_format": transform_format,
                 "maintainers": json.dumps(maintainer),
+                "tenant": bk_tenant_id,
             },
             err_msg_prefix="compose vm databus config",
         )
@@ -312,7 +319,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         verbose_name = "条件处理配置"
         verbose_name_plural = verbose_name
 
-    def compose_conditional_sink_config(self, conditions: List) -> Dict:
+    def compose_conditional_sink_config(self, conditions: list) -> dict:
         """
         组装条件处理配置
         @param conditions: 条件列表

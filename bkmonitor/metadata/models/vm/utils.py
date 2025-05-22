@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,9 +11,9 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import random
-from typing import Dict, Optional
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
@@ -30,7 +29,7 @@ from metadata.models import (
     DataSourceOption,
 )
 from metadata.models.data_link import DataLink
-from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.data_link.constants import DataLinkResourceStatus, BASEREPORT_USAGES
 from metadata.models.data_link.service import create_vm_data_link
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
@@ -212,7 +211,7 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
             )
 
 
-def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, timestamp_len: int) -> Dict:
+def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, timestamp_len: int) -> dict:
     """通过 kafka 配置接入 vm"""
     from metadata.models import BkDataStorage, KafkaStorage, ResultTable
 
@@ -289,7 +288,7 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
         return {"err_msg": f"request vm storage api error, {e}"}
 
 
-def get_data_type_cluster(data_id: int) -> Dict:
+def get_data_type_cluster(data_id: int) -> dict:
     from metadata.models import AccessVMRecord, BCSClusterInfo
 
     # NOTE: data id 不允许跨集群
@@ -353,8 +352,8 @@ def report_metadata_data_link_status_info(data_link_name: str, biz_id: str, kind
 
 
 def get_vm_cluster_id_name(
-    space_type: Optional[str] = "", space_id: Optional[str] = "", vm_cluster_name: Optional[str] = ""
-) -> Dict:
+    space_type: str | None = "", space_id: str | None = "", vm_cluster_name: str | None = ""
+) -> dict:
     """获取 vm 集群 ID 和名称
 
     1. 如果 vm 集群名称存在，则需要查询到对应的ID，如果查询不到，则需要抛出异常
@@ -401,10 +400,10 @@ def get_vm_cluster_id_name(
 
 def get_storage_cluster_id_name_for_space(
     storage_type=ClusterInfo.TYPE_VM,
-    space_type: Optional[str] = "",
-    space_id: Optional[str] = "",
-    cluster_name: Optional[str] = "",
-) -> Dict:
+    space_type: str | None = "",
+    space_id: str | None = "",
+    cluster_name: str | None = "",
+) -> dict:
     """
     TODO 待数据与SpaceVMInfo打平后,将原先选择逻辑切换至SpaceRelatedStorageInfo
     获取指定空间关联的指定存储类型的集群ID和名称
@@ -460,14 +459,14 @@ def get_storage_cluster_id_name_for_space(
     return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
-def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
+def get_bkbase_data_name_and_topic(table_id: str) -> dict:
     """获取 bkbase 的结果表名称"""
     # 如果以 '__default__'结尾，则取前半部分
     if table_id.endswith("__default__"):
         table_id = table_id.split(".__default__")[0]
     name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 清洗结果表不能出现双下划线
-    vm_name = f"vm_{name}".replace('__', '_')
+    vm_name = f"vm_{name}".replace("__", "_")
     # 兼容部分场景中划线和下划线允许同时存在的情况
     is_exist = AccessVMRecord.objects.filter(vm_result_table_id__contains=vm_name).exists()
     if is_exist:
@@ -478,7 +477,7 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     return {"data_name": vm_name, "topic_name": f"{vm_name}{settings.DEFAULT_BKDATA_BIZ_ID}"}
 
 
-def get_bcs_convergence_data_name_and_dp_id(table_id: str) -> Dict:
+def get_bcs_convergence_data_name_and_dp_id(table_id: str) -> dict:
     """获取 bcs 合流对应的结果表及数据处理 ID"""
     if table_id.endswith("__default__"):
         table_id = table_id.split(".__default__")[0]
@@ -487,7 +486,7 @@ def get_bcs_convergence_data_name_and_dp_id(table_id: str) -> Dict:
     return {"data_name": f"dp_{name}", "dp_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{name}_dp_metric_all"}
 
 
-def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] = None) -> int:
+def get_timestamp_len(data_id: int | None = None, etl_config: str | None = None) -> int:
     """通过 data id 或者 etl config 获取接入 vm 是清洗时间的长度
 
     1. 如果 data id 在指定的白名单中，则为 纳米
@@ -672,8 +671,8 @@ def create_bkbase_data_link(
     monitor_table_id: str,
     storage_cluster_name: str,
     data_link_strategy: str = DataLink.BK_STANDARD_V2_TIME_SERIES,
-    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-    bcs_cluster_id: Optional[str] = None,
+    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    bcs_cluster_id: str | None = None,
 ):
     """
     申请计算平台链路
@@ -792,7 +791,7 @@ def create_fed_bkbase_data_link(
     data_source: DataSource,
     storage_cluster_name: str,
     bcs_cluster_id: str,
-    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
 ):
     """
     创建联邦集群汇聚链路（子集群->代理集群）
@@ -896,15 +895,100 @@ def check_create_fed_vm_data_link(cluster):
         try:
             ds = DataSource.objects.get(bk_data_id=cluster.K8sMetricDataID)
             table_id = DataSourceResultTable.objects.get(bk_data_id=cluster.K8sMetricDataID).table_id
-            vm_cluster = get_vm_cluster_id_name(space_type='bkcc', space_id=str(cluster.bk_biz_id))
+            vm_cluster = get_vm_cluster_id_name(space_type="bkcc", space_id=str(cluster.bk_biz_id))
             create_fed_bkbase_data_link(
                 monitor_table_id=table_id,
                 data_source=ds,
                 storage_cluster_name=vm_cluster.get("cluster_name"),
                 bcs_cluster_id=cluster.cluster_id,
             )
-            logger.info("check_create_fed_vm_data_link:success cluster_id->{}".format(cluster.cluster_id))
+            logger.info(f"check_create_fed_vm_data_link:success cluster_id->{cluster.cluster_id}")
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "check_create_fed_vm_data_link:error occurs cluster_id->{},error->{}".format(cluster.cluster_id, str(e))
-            )
+            logger.error(f"check_create_fed_vm_data_link:error occurs cluster_id->{cluster.cluster_id},error->{str(e)}")
+
+
+def create_basereport_data_link(
+    data_source: DataSource,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_cluster_name: str,
+    namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+) -> None:
+    """
+    创建基础采集数据链路
+    :param data_source: 数据源
+    :param bk_tenant_id: 租户ID
+    :param bk_biz_id: 业务ID
+    :param storage_cluster_name: 存储集群名称
+    :param namespace: 命名空间 默认为bkmonitor
+    :return:
+    """
+    from metadata import models
+
+    # TODO: BkBase元数据长度问题,目前限制为不能超过50个字符
+    data_link_name = f"{bk_tenant_id}_{bk_biz_id}_basereport"
+    logger.info(
+        "create_basereport_data_link:data_id->[%s] of bk_tenant_id->[%s] start to create "
+        "basereport_data_link,will use data_link_name->[%s],namespace->[%s]",
+        data_source.bk_data_id,
+        data_source.bk_tenant_id,
+        data_link_name,
+        namespace,
+    )
+
+    try:
+        with transaction.atomic():
+            # 1. 创建监控平台元数据：逻辑结果表 ResultTable , 数据源-结果表映射关系 DataSourceResultTable
+            for usage in BASEREPORT_USAGES:
+                result_table_id = f"{bk_tenant_id}_{bk_biz_id}.{usage}"
+
+                rt, _ = models.ResultTable.objects.get_or_create(
+                    table_id=result_table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_{usage}",
+                    is_custom_table=False,
+                    schema_type="fixed",
+                    default_storage=models.ClusterInfo.TYPE_VM,
+                    creator="admin",
+                    bk_biz_id=bk_biz_id,
+                    label="os",
+                )
+
+                dsrt, _ = models.DataSourceResultTable.objects.get_or_create(
+                    bk_data_id=data_source.bk_data_id, bk_tenant_id=bk_tenant_id, table_id=result_table_id
+                )
+                logger.info(
+                    "create_basereport_data_link:result_table_id->[%s] of bk_tenant_id->[%s] metadata records created",
+                    result_table_id,
+                    bk_tenant_id,
+                )
+
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("create_basereport_data_link:create result table failed,error->[%s]", e)
+
+    # 2. 创建链路实例
+    data_link_ins, _ = DataLink.objects.get_or_create(
+        data_link_name=data_link_name, namespace=namespace, data_link_strategy=DataLink.BASEREPORT_TIME_SERIES_V1
+    )
+
+    # 3. 创建链路
+    try:
+        data_link_ins.apply_data_link(
+            data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
+        )
+        logger.info(
+            "create_basereport_data_link:data_id->[%s] of bk_tenant_id->[%s] create basereport data link success",
+            data_source.bk_data_id,
+            bk_tenant_id,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "create_basereport_data_link:access bkdata error,data_id->[%s],data_link_name->[%s],error->[%s]",
+            data_source.bk_data_id,
+            data_link_name,
+            e,
+        )
+        raise e
+
+    # 4. 更新元数据,创建接入计算平台记录信息
+    data_link_ins.sync_metadata()

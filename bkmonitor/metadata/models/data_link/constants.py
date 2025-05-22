@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -86,6 +85,10 @@ class DataLinkResourceStatus(Enum):
         return -1
 
 
+# 基础采集链路用途
+BASEREPORT_USAGES = ["cpu_summary", "cpu_detail", "disk", "env", "inode", "io", "load", "mem", "net", "netstat", "swap"]
+BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+
 # 默认转换器及对应的处理格式
 DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
@@ -93,7 +96,6 @@ DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
 
 # 针对数据源名称需要替换的正则
 MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"
-
 
 BKBASE_NAMESPACE_BK_MONITOR = "bkmonitor"
 BKBASE_NAMESPACE_BK_LOG = "bklog"
