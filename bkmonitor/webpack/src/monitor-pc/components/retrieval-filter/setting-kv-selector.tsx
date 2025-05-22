@@ -184,7 +184,7 @@ export default class SettingKvSelector extends tsc<IProps> {
       interactive: true,
       boundary: 'window',
       distance: 15,
-      zIndex: 998,
+      zIndex: 1002,
       animation: 'slide-toggle',
       followCursor: false,
       sticky: true,

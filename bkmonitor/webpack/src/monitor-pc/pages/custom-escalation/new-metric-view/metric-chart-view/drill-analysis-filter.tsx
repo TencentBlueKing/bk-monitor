@@ -29,14 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import CompareType from '../components/header-box/components/compare-type';
-
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-// import GroupBy from '../components/header-box/components/group-by';
+import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
 import WhereCondition from '../components/header-box/components/where-condition';
 import { refreshList } from './utils';
 
 import type { IRefreshItem, IResultItem } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './drill-analysis-filter.scss';
 
@@ -68,6 +67,7 @@ interface IProps {
   };
   timeRange: TimeRangeType;
   refreshInterval: number;
+  isHaveGroupBy?: boolean;
 }
 
 interface IEmit {
@@ -85,6 +85,7 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly filterConfig: IProps['filterConfig'];
   @Prop({ type: Array, required: true }) readonly timeRange: IProps['timeRange'];
   @Prop({ type: Number, required: true }) readonly refreshInterval: IProps['refreshInterval'];
+  @Prop({ type: Boolean, required: false }) readonly isHaveGroupBy: boolean;
 
   @Ref('rootRef') rootRef: HTMLElement;
 
@@ -132,6 +133,7 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
 
   mounted() {
     const resizeObserver = new ResizeObserver(this.calcLableWidth);
+    console.log(resizeObserver, 'resizeObserver');
     resizeObserver.observe(this.rootRef);
     this.$once('hook:beforeDestroy', () => {
       resizeObserver.disconnect();
@@ -152,10 +154,12 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
           />
         </div>
         <div class='filter-compare-view'>
-          {/* <GroupBy
-            value={this.filterConfig.group_by}
-            onChange={this.handleGroupByChange}
-          /> */}
+          {this.isHaveGroupBy && (
+            <GroupBy
+              value={this.filterConfig.group_by}
+              onChange={this.handleGroupByChange}
+            />
+          )}
           {this.filterConfig.group_by.length > 0 && (
             <LimitFunction
               value={this.filterConfig.limit}

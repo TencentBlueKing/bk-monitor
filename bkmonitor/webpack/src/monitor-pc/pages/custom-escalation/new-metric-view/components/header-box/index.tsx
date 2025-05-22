@@ -64,6 +64,8 @@ interface IResult {
 
 interface IProps {
   dimenstionParams?: Record<string, any>;
+  isShowExpand?: boolean;
+  exclude?: string[];
 }
 
 interface IEmit {
@@ -88,7 +90,8 @@ export const createDefaultParams = (): IResult => ({
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
-
+  @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
+  @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
   @Ref('rootRef') rootRef: HTMLElement;
 
   isExpaned = true;
@@ -200,6 +203,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
                 />
               )}
               <CompareType
+                exclude={this.exclude}
                 value={this.params.compare}
                 onChange={this.handleComparTypeChange}
               />
@@ -207,15 +211,17 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             </div>
           </div>
         </bk-transition>
-        <div
-          class={{
-            'toggle-btn': true,
-            'is-expaned': this.isExpaned,
-          }}
-          onClick={this.handleToogleExpand}
-        >
-          <i class='bk-icon icon-angle-left' />
-        </div>
+        {this.isShowExpand && (
+          <div
+            class={{
+              'toggle-btn': true,
+              'is-expaned': this.isExpaned,
+            }}
+            onClick={this.handleToogleExpand}
+          >
+            <i class='bk-icon icon-angle-left' />
+          </div>
+        )}
       </div>
     );
   }

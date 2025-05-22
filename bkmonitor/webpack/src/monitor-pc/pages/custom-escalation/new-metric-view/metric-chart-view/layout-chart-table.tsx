@@ -34,6 +34,7 @@ import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collect
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
+import CheckViewDetail from '../components/check-view';
 import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
@@ -189,11 +190,13 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    * @param {boolean} loading
    */
   handleFullScreen(config: IPanelModel, compareValue?: any) {
+    this.showViewDetail = true;
+    console.log('===', compareValue, this.showViewDetail, this.compareValue, this.filterOption);
     this.viewQueryConfig = {
       config: JSON.parse(JSON.stringify(config)),
       compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
+      filterOption: this.filterOption,
     };
-    this.showViewDetail = true;
   }
   /**
    * @description: 关闭查看大图弹窗
@@ -409,6 +412,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           >
             <div slot='aside'>{renderChart()}</div>
             <div
+              style={{ height: `${this.drag.height - 20}px` }}
               class='main-table'
               slot='main'
             >
@@ -434,10 +438,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         )}
         {/* 全屏查看大图 */}
         {this.showViewDetail && (
-          <ViewDetail
-            show={this.showViewDetail}
-            viewConfig={this.viewQueryConfig}
-            on-close-modal={this.handleCloseViewDetail}
+          <CheckViewDetail
+            currentMethod={this.currentMethod}
+            panel={this.viewQueryConfig}
+            timeRangeData={this.timeRange}
+            onClose={() => (this.showViewDetail = false)}
           />
         )}
         {/* 收藏到仪表盘 */}
