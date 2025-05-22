@@ -80,7 +80,8 @@
     }
 
     .vue3_auto-width-input-component {
-      min-width: 100px;
+      // min-width: 100px;
+      min-width: 260px;
 
       input {
         position: relative;
@@ -95,7 +96,7 @@
 
     &.is-en {
       .vue3_auto-width-input-component {
-        min-width: 145px;
+        min-width: 360px;
       }
     }
   }

@@ -302,6 +302,10 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  placeholder: {
+    type: String,
+    default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -333,6 +337,10 @@ export const UI_SELECTOR_PROPS = {
   clearKey: {
     type: String,
     default: '',
+  },
+  placeholder: {
+    type: String,
+    default: window.i18n.t('快捷键 / ，可直接输入'),
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -523,6 +531,10 @@ export const QS_SELECTOR_PROPS = {
   clearKey: {
     type: String,
     default: '',
+  },
+  placeholder: {
+    type: String,
+    default: window.i18n.t('快捷键 / ，可直接输入'),
   },
 };
 export const QS_SELECTOR_EMITS = {

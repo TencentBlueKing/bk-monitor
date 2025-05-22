@@ -500,6 +500,7 @@ export default defineComponent({
                 clearKey={this.clearKey}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                placeholder={this.placeholder}
                 value={this.uiValue}
                 onChange={this.handleUiValueChange}
               />
@@ -509,6 +510,7 @@ export default defineComponent({
                 favoriteList={this.favoriteList}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                placeholder={this.placeholder}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
                 onChange={this.handleQsValueChange}

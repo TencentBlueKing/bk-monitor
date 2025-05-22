@@ -162,6 +162,12 @@ export default defineComponent({
     const notSupportEnumKeys = computed(() => {
       return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
     });
+    const retrievalFilterPlaceholder = computed(() => {
+      return t('快捷键 / ，可直接输入TraceID/SpanID快捷检索');
+      // return store.mode === 'trace'
+      //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
+      //   : t('快捷键 / ，可直接输入SpanID快捷检索');
+    });
     useIsEnabledProfilingProvider(enableProfiling);
 
     watch(
@@ -641,6 +647,7 @@ export default defineComponent({
       editFavoriteData,
       notSupportEnumKeys,
       showSlideDetail,
+      retrievalFilterPlaceholder,
       handleQuery,
       handleAppNameChange,
       handleThumbtackChange,
@@ -708,6 +715,7 @@ export default defineComponent({
                 getValueFn={this.getRetrievalFilterValueData}
                 isShowFavorite={true}
                 notSupportEnumKeys={this.notSupportEnumKeys}
+                placeholder={this.retrievalFilterPlaceholder}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={this.currentFavorite}

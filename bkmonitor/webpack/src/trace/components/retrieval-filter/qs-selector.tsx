@@ -291,9 +291,7 @@ export default defineComponent({
         ref='elRef'
         class='vue3_retrieval-filter__qs-selector-component-wrap'
         data-placeholder={
-          !this.inputValue && !this.localValue
-            ? `/ ${this.$t('快速定位到搜索，请输入关键词，')}log:error AND "name=bklog"`
-            : ''
+          !this.inputValue && !this.localValue ? `${this.placeholder || this.$t('快速定位到搜索，请输入关键词')}` : ''
         }
       >
         <div class='retrieval-filter__qs-selector-component' />
