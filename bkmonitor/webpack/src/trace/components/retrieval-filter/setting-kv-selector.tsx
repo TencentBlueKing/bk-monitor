@@ -239,7 +239,7 @@ export default defineComponent({
       } else {
         localValue.value.push(item.id);
       }
-      localValue.value = JSON.parse(JSON.stringify(localValue.value));
+      localValue.value = structuredClone(localValue.value);
       handleChange();
     }
     function handleMethodChange(item: { id: string; name: string }) {

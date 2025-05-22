@@ -56,7 +56,7 @@ export default defineComponent({
     watch(
       () => props.value,
       val => {
-        localValue.value = JSON.parse(JSON.stringify(val));
+        localValue.value = structuredClone(val);
       },
       { immediate: true }
     );
@@ -151,6 +151,7 @@ export default defineComponent({
      * @returns {Promise<void>}
      */
     async function handleBlur() {
+      handleEnter();
       await promiseTimeout(300);
       inputValue.value = '';
     }

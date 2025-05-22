@@ -155,7 +155,7 @@ export default defineComponent({
             for (const item of props.fields) {
               index += 1;
               if (item.name === id) {
-                const checkedItem = JSON.parse(JSON.stringify(item));
+                const checkedItem = structuredClone(item);
                 handleCheck(
                   checkedItem,
                   props.value.method.id,
@@ -221,7 +221,7 @@ export default defineComponent({
       },
       isFocus = false
     ) {
-      checkedItem.value = JSON.parse(JSON.stringify(item));
+      checkedItem.value = structuredClone(item);
       values.value = value || [];
       /* 耗时字段特殊处理 */
       if (isDurationKey.value) {
@@ -257,6 +257,8 @@ export default defineComponent({
     async function handleConfirm() {
       if (isDurationKey.value) {
         await promiseTimeout(300);
+      } else {
+        await promiseTimeout(50);
       }
       if (checkedItem.value.name === '*' && queryString.value) {
         const value: IFilterItem = {
