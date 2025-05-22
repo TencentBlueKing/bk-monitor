@@ -34,7 +34,7 @@ export default defineComponent({
   name: 'QsSelectorHelp',
   setup() {
     function handleClick() {
-      skipToDocsLink('queryString');
+      skipToDocsLink('bkLogQueryString');
     }
     return {
       handleClick,
