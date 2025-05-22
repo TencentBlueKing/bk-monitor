@@ -33,7 +33,7 @@ import './qs-selector-help.scss';
 @Component
 export default class QsSelectorHelp extends tsc<object> {
   handleClick() {
-    skipToDocsLink('queryString');
+    skipToDocsLink('bkLogQueryString');
   }
   render() {
     return (
