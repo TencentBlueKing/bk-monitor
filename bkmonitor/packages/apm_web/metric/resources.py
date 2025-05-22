@@ -3752,3 +3752,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
         if validated_request_data.get("with_filter_dict"):
             result["extra_filter_dict"] = self._get_extra_filter_dict(records)
         return result
+
+
+class QueryDimensionsByLimitTestResource(Resource):
+    pass
