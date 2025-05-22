@@ -57,7 +57,7 @@
       .icon-all {
         margin-right: 3px;
         font-size: 14px;
-        color: #2F567D;
+        color: #2f567d;
       }
 
       .icon-mc-arrow-down {
@@ -69,23 +69,22 @@
         width: 16px;
         height: 16px;
         vertical-align: middle;
-  
+
         &.icon-host {
           background-image: url('../../../../monitor-common/svg/svg/host.svg');
         }
-  
+
         &.icon-bcs {
           background-image: url('../../../../monitor-common/svg/svg/bcs.svg');
         }
-  
+
         &.icon-landun {
           background-image: url('../../../../monitor-common/svg/svg/landun.svg');
         }
-  
+
         &.icon-default {
           background-image: url('../../../../monitor-common/svg/svg/default.svg');
         }
-      
       }
 
       .source-count-icon {
@@ -93,13 +92,11 @@
         height: 16px;
         font-size: 12px;
         line-height: 16px;
-        color: #FFFFFF;
+        color: #ffffff;
         text-align: center;
-        background: #2F567D;
+        background: #2f567d;
         border-radius: 50%;
-
       }
-      
     }
   }
 
@@ -112,7 +109,7 @@
       &:hover {
         background-color: #f5f7fa;
       }
-  
+
       &.is-selected {
         background-color: #f0f1f5;
       }
@@ -123,7 +120,6 @@
     }
   }
 
- 
   .dimension-list {
     flex: 1;
     margin-right: 1px;
@@ -144,7 +140,7 @@
         width: 1px;
         height: 100%;
         content: '';
-        background-color: #DCDEE5;
+        background-color: #dcdee5;
       }
     }
   }
@@ -163,7 +159,7 @@
         .dimension-count {
           display: none;
         }
-  
+
         .statistics-icon {
           display: block;
         }
@@ -190,15 +186,14 @@
       }
     }
 
-    
     &.disabled {
       cursor: not-allowed;
 
       .dimension-name {
-        color: #C4C6CC;
+        color: #c4c6cc;
 
         .subtitle {
-          color: #C4C6CC;
+          color: #c4c6cc;
         }
       }
     }
@@ -211,14 +206,19 @@
       font-size: 12px;
       font-weight: 700;
       line-height: 14px;
-      color: #979BA5;
+      color: #979ba5;
       text-align: center;
-      background: #F0F1F5;
+      background: #f0f1f5;
       border-radius: 7px;
     }
 
     .object-arrow {
-      display: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 12px;
+      // display: none;
       font-size: 12px;
     }
 
@@ -242,7 +242,7 @@
       margin-left: auto;
       font-weight: 700;
       line-height: 14px;
-      color: #A3B1CC;
+      color: #a3b1cc;
       text-align: center;
     }
 
@@ -274,6 +274,6 @@
 
 .bk-popover.statistics-dimension-popover-cls {
   padding: 12px 16px;
-  border: 1px solid #DCDEE5;
+  border: 1px solid #dcdee5;
   box-shadow: 0 2px 12px 0 #00000033;
 }
