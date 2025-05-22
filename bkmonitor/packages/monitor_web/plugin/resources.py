@@ -15,7 +15,6 @@ import hashlib
 import logging
 import os
 import re
-import shlex
 import shutil
 import tarfile
 import time
@@ -958,13 +957,6 @@ class ProcessCollectorDebugResource(Resource):
         dimensions = validated_request_data.get("dimensions", "")
         process_name = validated_request_data.get("process_name", "")
         processes = validated_request_data.get("processes", "")
-
-        # 参数转义
-        match = shlex.quote(match)
-        exclude = shlex.quote(exclude)
-        dimensions = shlex.quote(dimensions)
-        process_name = shlex.quote(process_name)
-        processes = shlex.quote(processes)
 
         # 执行命令
         cmd_args = [

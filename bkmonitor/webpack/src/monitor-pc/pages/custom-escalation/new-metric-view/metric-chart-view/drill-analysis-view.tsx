@@ -29,7 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
+import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
+import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 
 import DrillAnalysisFilter from './drill-analysis-filter';
@@ -38,7 +41,6 @@ import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
@@ -348,11 +350,36 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         class='drill-analysis-view'
       >
         <div class='drill-analysis-head'>
-          {this.$t('维度下钻')}
           <i
-            class='icon-monitor icon-mc-close close-btn'
+            class='icon-monitor icon-back-left close-btn'
             onClick={this.handleClose}
           />
+          {this.$t('维度下钻')}
+          <div class='filter-head-right'>
+            {/* 时间工具栏 */}
+            {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
+              <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
+            ) : (
+              <TimeRange
+                class='filter-tools-timerange'
+                timezone={this.timezone}
+                value={this.timeRange}
+                onChange={this.handleTimeRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
+              />
+            )}
+            <span class='right-line' />
+            <MonitorDropdown
+              class='filter-tools-interval'
+              icon='icon-zidongshuaxin'
+              isRefreshInterval={true}
+              list={this.refreshList}
+              text-active={this.refreshInterval !== -1}
+              value={this.refreshInterval}
+              on-change={this.handleRefreshInterval}
+              on-on-icon-click={this.handleImmediateRefresh}
+            />
+          </div>
         </div>
         <DrillAnalysisFilter
           filterConfig={this.filterConfig}
@@ -361,11 +388,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
           onComparTypeChange={this.handleComparTypeChange}
           onConditionChange={this.handleConditionChange}
           onGroupByChange={this.handleGroupByChange}
-          onImmediateRefresh={this.handleImmediateRefresh}
           onLimitChange={this.handleLimitChange}
-          onRefreshInterval={this.handleRefreshInterval}
-          onTimeRangeChange={this.handleTimeRangeChange}
-          onTimezoneChange={this.handleTimezoneChange}
         />
         <div
           ref='drillMain'

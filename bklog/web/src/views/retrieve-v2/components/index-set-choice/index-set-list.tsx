@@ -230,7 +230,7 @@ export default defineComponent({
 
     const handleNodeOpenClick = (e: MouseEvent, node) => {
       e.stopPropagation();
-      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'closed' ? 'opened' : 'closed';
+      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'opened' ? 'closed' : 'opened';
       set(listNodeOpenManager.value, node.index_set_id, nextStatus);
     };
 
@@ -287,7 +287,7 @@ export default defineComponent({
               class={[
                 'node-open-arrow',
                 {
-                  'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed',
+                  'is-closed': listNodeOpenManager.value[item.index_set_id] !== 'opened',
                 },
               ]}
               onClick={e => handleNodeOpenClick(e, item)}
@@ -342,7 +342,7 @@ export default defineComponent({
             const result = [];
             const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
-            if (listNodeOpenManager.value[item.index_set_id] !== 'closed') {
+            if (listNodeOpenManager.value[item.index_set_id] === 'opened') {
               (item.children ?? []).forEach(child => {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
                   result.push(renderNodeItem(child, true, false, is_root_checked));
@@ -359,19 +359,7 @@ export default defineComponent({
     };
 
     const getSingleBody = () => {
-      return [
-        getMainRender(),
-        // <div class='bklog-v3-item-info'>
-        //   {activeValueItems.value.map((item: any) => (
-        //     <ObjectView
-        //       object={item}
-        //       showList={objectShowList}
-        //       labelWidth={100}
-        //       class='item-row'
-        //     ></ObjectView>
-        //   ))}
-        // </div>,
-      ];
+      return [getMainRender()];
     };
 
     /**

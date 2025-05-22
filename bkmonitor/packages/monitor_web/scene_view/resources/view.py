@@ -417,19 +417,22 @@ class DeleteSceneViewResource(Resource):
         type = serializers.ChoiceField(label="视图类型", choices=("overview", "detail"))
 
         def validate(self, params):
-            if not params["id"] and not params["ids"]:
+            if not params.get("id") and not params.get("ids"):
                 raise ValidationError("视图ID不能为空")
             return validate_scene_type(params)
 
     def perform_request(self, params):
+        if not params["ids"]:
+            params["ids"] = [params["id"]]
+
         SceneViewModel.objects.filter(
-            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"], id=params["id"]
+            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"], id__in=params["ids"]
         ).delete()
 
         # 删除对应的排序配置
         try:
             scene = SceneModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["scene_id"])
-            scene.view_order = [_id for _id in scene.view_order if _id != params["id"]]
+            scene.view_order = [_id for _id in scene.view_order if _id not in params["ids"]]
             scene.save()
         except SceneModel.DoesNotExist:
             pass
