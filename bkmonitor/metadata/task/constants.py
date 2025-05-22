@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -47,3 +46,5 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
         "cluster_type": models.ClusterInfo.TYPE_DORIS,
     },
 ]
+
+BKBASE_RT_STORAGE_TYPES_OPTION_NAME = "bkbase_rt_storage_types"

@@ -76,6 +76,17 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
+const updateLocalstorage = (val: any) => {
+  try {
+    const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+    const jsonVal = JSON.parse(storageValue);
+    Object.assign(jsonVal, val);
+    localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 const getUrlArgs = (_route?) => {
   let urlResolver: RouteUrlResolver = null;
 
@@ -100,24 +111,23 @@ const getUrlArgs = (_route?) => {
     const hash = window.location.hash.replace(/^#/, '');
     const route = router.resolve(hash);
     urlResolver = new RouteUrlResolver({ route: route.resolved });
-    urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
+    urlResolver.setResolver('index_id', () =>
+      route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '',
+    );
+    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
-    urlResolver.setResolver('index_id', () => _route.params.indexId ?? '');
+    urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
+    urlResolver.setResolver('search_mode', () => _route.query.search_mode);
   }
 
-  const routeParams = urlResolver.convertQueryToStore<RouteParams>();
+  const result = urlResolver.convertQueryToStore<RouteParams>();
 
-  // if (routeParams.bizId) {
-  //   // window.localStorage.setItem('bk_biz_id', routeParams.bizId);
-  //   // store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: routeParams.bizId });
-  // }
+  if (result.search_mode) {
+    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
+  }
 
-  // if (routeParams.spaceUid) {
-  //   window.localStorage.setItem('space_uid', routeParams.spaceUid);
-  // }
-
-  return routeParams;
+  return result;
 };
 
 let URL_ARGS = getUrlArgs();
@@ -204,7 +214,7 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
+  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
@@ -224,14 +234,35 @@ export const IndexItem = {
   ...DEFAULT_DATETIME_PARAMS,
 };
 
-export const getStorageOptions = () => {
+/**
+ * 获取缓存配置
+ * @param values 默认填充值
+ * @returns
+ */
+export const getStorageOptions = (values?: any) => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
-
       let update = false;
+
+      // 如果传入了默认值，判定是否为SpaceUid或BizId
+      // 如果是，则将其赋值到storage中，并删除传入的值
+      // bizId 和 spaceUid通过iframe传入
+      if (values?.[BK_LOG_STORAGE.BK_SPACE_UID] || values?.[BK_LOG_STORAGE.BK_BIZ_ID]) {
+        Object.assign(storage, values);
+        delete values[BK_LOG_STORAGE.BK_SPACE_UID];
+        delete values[BK_LOG_STORAGE.BK_BIZ_ID];
+      }
+
+      Object.keys(values ?? {}).forEach(key => {
+        if (values[key] !== undefined && values[key] !== null) {
+          update = true;
+          Object.assign(storage, { [key]: values[key] });
+        }
+      });
+
       // 对旧版缓存进行还原操作
       // 映射旧版配置到新版key，同时移除旧版key
       [

@@ -42,7 +42,6 @@
    */
   const setEditorContext = (val, from = 0, to = undefined) => {
     editorInstance?.setValue(val, from, to);
-    // return editorInstance?.getValue();
   };
 
   /**

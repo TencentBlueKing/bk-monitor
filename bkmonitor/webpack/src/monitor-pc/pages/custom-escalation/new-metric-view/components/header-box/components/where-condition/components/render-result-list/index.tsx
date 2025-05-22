@@ -185,6 +185,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
               <div
                 key={index}
                 class='dimension-tag-box'
+                v-bk-tooltips={{ content: formatTipsContent(item.key, this.dimensionAliasNameMap[item.key]) }}
               >
                 {index > 0 && (
                   <div
@@ -196,7 +197,6 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                 )}
                 <div
                   class='tag-wrapper'
-                  v-bk-tooltips={{ content: formatTipsContent(item.key, this.dimensionAliasNameMap[item.key]) }}
                   onClick={(event: Event) => this.handleShowEditPanel(item, event)}
                 >
                   <div class='dimension-header'>

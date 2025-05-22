@@ -10,10 +10,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import importlib
 import ntpath
 import os
 import sys
 from urllib.parse import urljoin
+import warnings
 
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
@@ -22,15 +24,15 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
+from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
-from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
+    IS_CONTAINER_MODE,  # noqa
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -758,11 +760,12 @@ else:
 ) = get_grafana_mysql_settings()
 
 try:
-    from dj_db_conn_pool.backends import mysql
+    # 判断 dj_db_conn_pool 是否存在
+    importlib.import_module("dj_db_conn_pool")
 
     assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
-except (ImportError, AssertionError):
+except (AssertionError, ModuleNotFoundError):
     default_db_engine = "django.db.backends.mysql"
 
 DATABASES = {
@@ -847,6 +850,15 @@ if not os.path.exists(LOG_PATH):
         os.makedirs(LOG_PATH)
     except Exception:
         pass
+
+# 单独配置部分模块日志级别
+LOG_LEVEL_MAP = {
+    "iam": "ERROR",
+    "bk_dataview": "ERROR",
+}
+
+warnings.filterwarnings('ignore', r"DateTimeField .* received a naive datetime",
+                      RuntimeWarning, r'django\.db\.models\.fields')
 
 #
 # 数据平台接入配置
@@ -1457,6 +1469,9 @@ BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
+
+# 特殊的可以不被禁用的BCS集群ID
+ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False
