@@ -148,6 +148,28 @@ export default [
     },
   },
   {
+    path: '/trace/old',
+    name: 'trace-retrieval',
+    components: {
+      noCache: TraceRetrieval,
+    },
+    meta: {
+      title: 'Tracing 检索',
+      navId: 'trace-retrieval',
+      navClass: 'trace-retrieval-nav',
+      noChangeLoading: true,
+      noNavBar: true,
+      needClearQuery: true, // 需要清空query搜索条件
+      route: {
+        parent: 'data',
+      },
+      authority: {
+        map: traceAuth,
+        page: traceAuth.VIEW_AUTH,
+      },
+    },
+  },
+  {
     path: '/trace/profiling',
     name: 'profiling',
     components: {
