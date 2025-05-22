@@ -164,7 +164,7 @@ export const useTablePopover = (
       content: content,
       trigger: 'click',
       placement: 'top',
-      theme: 'dark',
+      theme: 'dark max-width-50vw text-wrap',
       arrow: true,
       boundary: 'viewport',
       popoverDelay: 0,
@@ -271,7 +271,7 @@ export const useTableHeaderDescription = (
       return { content, popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom };
     },
     popoverOptions: {
-      theme: 'light',
+      theme: 'light max-width-50vw text-wrap',
       placement: 'right',
       ...(options?.popoverOptions || {}),
     },
