@@ -857,8 +857,9 @@ LOG_LEVEL_MAP = {
     "bk_dataview": "ERROR",
 }
 
-warnings.filterwarnings('ignore', r"DateTimeField .* received a naive datetime",
-                      RuntimeWarning, r'django\.db\.models\.fields')
+warnings.filterwarnings(
+    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 #
 # 数据平台接入配置
@@ -1582,9 +1583,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
-
-# 事件检索新版灰度列表
-EVENT_V2_BIZ_LIST = []
 
 # Trace 检索新版灰度配置
 TRACE_V2_BIZ_LIST = []

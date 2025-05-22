@@ -138,14 +138,9 @@ class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
 
 
 class EventStatisticsFieldSerializer(serializers.Serializer):
-    field_type = serializers.CharField(label="字段类型")
+    field_type = serializers.ChoiceField(label="字段类型", choices=EventDimensionTypeEnum.choices())
     field_name = serializers.CharField(label="字段名称")
     values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
-
-    def validate(self, attrs):
-        if attrs["field_type"] not in [EventDimensionTypeEnum.INTEGER.value, EventDimensionTypeEnum.KEYWORD.value]:
-            raise ValueError(_("不支持的字段类型"))
-        return attrs
 
 
 class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):

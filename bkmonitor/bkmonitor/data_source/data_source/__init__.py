@@ -403,6 +403,7 @@ def _parse_conditions(
         if conditions["field_list"]:
             conditions["condition_list"].append(condition.get("condition", "and"))
 
+        options: dict[str, Any] = condition.get("options") or {}
         value: list[Any] = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
         value = [str(v) for v in value]
         operator: str = operator_mapping.get(condition["method"], condition["method"])
@@ -415,7 +416,12 @@ def _parse_conditions(
             # 强制 value 为 ""。
             value = [""]
 
-        options: dict[str, Any] = condition.get("options") or {}
+        # UnifyQuery 模糊检索通过 options.is_wildcard=true 的查询配置进行启用。
+        # 在 ORM 场景传递 options 并不优雅，于是抽象 wildcard / nwildcard 作为新 lookup。
+        if operator in ["wildcard", "nwildcard"]:
+            operator = {"wildcard": "contains", "nwildcard": "ncontains"}[operator]
+            options["is_wildcard"] = True
+
         conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator, **options})
     return conditions
 
@@ -1987,6 +1993,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         "lt": "lt",
         "gte": "gte",
         "lte": "lte",
+        "wildcard": "wildcard",
+        "nwildcard": "nwildcard",
     }
 
     # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
@@ -2019,6 +2027,16 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             for nested_field in self.NESTED_FIELDS:
                 if field_name.startswith(nested_field):
                     return True
+
+        for ordering in self.order_by or []:
+            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
+            field: str = ordering.split(maxsplit=1)[0]
+            if field == "_value":
+                return True
+
+        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
+        if self.query_string and self.query_string != "*":
+            return True
 
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 

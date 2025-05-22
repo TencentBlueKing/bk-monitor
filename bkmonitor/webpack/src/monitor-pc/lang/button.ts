@@ -507,4 +507,5 @@ export default {
   常驻筛选: 'Permanent Filter',
   加载更多: 'Load More',
   设置筛选: 'Set Filter',
+  退出全屏: 'Exit Full Screen',
 };

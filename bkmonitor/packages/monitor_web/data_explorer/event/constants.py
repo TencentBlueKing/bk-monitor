@@ -193,6 +193,10 @@ class EventDimensionTypeEnum(Enum):
     INTEGER: str = "integer"
     DATE: str = "date"
 
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
 
 # 事件字段别名
 EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
@@ -295,7 +299,7 @@ class Operation:
 TYPE_OPERATION_MAPPINGS = {
     "date": [Operation.EQ, Operation.NE],
     "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE],
-    "text": [Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
+    "text": [Operation.EQ, Operation.NE, Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
     "integer": [Operation.EQ, Operation.NE, Operation.GT, Operation.GTE, Operation.LT, Operation.LTE],
 }
 
