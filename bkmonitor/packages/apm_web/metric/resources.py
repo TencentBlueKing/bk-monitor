@@ -79,6 +79,7 @@ from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
     fill_series,
+    fill_unify_query_series,
     get_bar_interval_number,
     handle_filter_fields,
 )
@@ -289,7 +290,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 self.fill_custom_metric_method(config, custom_metric_methods)
 
         if validate_data.get("fill_bar"):
-            interval = get_bar_interval_number(
+            interval = self.get_bar_interval(
                 validate_data["start_time"],
                 validate_data["end_time"],
             )
@@ -574,13 +575,13 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         end_time = validate_data["end_time"]
 
         if require_fill_series:
-            interval = get_bar_interval_number(
+            interval = cls.get_bar_interval(
                 validate_data["start_time"],
                 validate_data["end_time"],
             )
             response = {
                 "metrics": response.get("metrics"),
-                "series": fill_series(response.get("series", []), start_time, end_time, interval),
+                "series": fill_unify_query_series(response.get("series", []), start_time, end_time, interval),
             }
 
         if validate_data.get("unit"):
@@ -618,6 +619,15 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 metric["method"] = custom_method_config["method"]
                 metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
         config["functions"] = list(metric_functions.values())
+
+    @classmethod
+    def get_bar_interval(cls, start_time: int, end_time: int) -> int:
+        """获取时间间隔
+
+        因为数据是以一分钟的间隔聚合的，所以返回的间隔需要是 60 的倍数
+        柱子数在默认值 30 的上下浮动
+        """
+        return round(get_bar_interval_number(start_time, end_time) / 60) * 60
 
 
 class ServiceListResource(PageListResource):

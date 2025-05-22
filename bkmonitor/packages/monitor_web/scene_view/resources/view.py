@@ -417,7 +417,7 @@ class DeleteSceneViewResource(Resource):
         type = serializers.ChoiceField(label="视图类型", choices=("overview", "detail"))
 
         def validate(self, params):
-            if not params["id"] and not params["ids"]:
+            if not params.get("id") and not params.get("ids"):
                 raise ValidationError("视图ID不能为空")
             return validate_scene_type(params)
 

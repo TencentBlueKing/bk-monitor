@@ -356,6 +356,17 @@ class GetResourceDetail(Resource):
                 "value": value,
             }
         )
+    
+    def remove_items_with_keys(self, items: list[dict], keys: list[str]) -> list[dict]:
+        """
+        删除 items 中的指定 key 的 item
+        """
+        key_set = set(keys)
+        return [
+            item 
+            for item in items 
+            if "key" in item and item["key"] not in key_set
+        ]
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -389,7 +400,7 @@ class GetResourceDetail(Resource):
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
 
         # 调用对应的资源类型的接口，返回对应的接口数据
-        items = resource_router[resource_type][0](
+        items:list[dict] = resource_router[resource_type][0](
             **{
                 "bk_biz_id": bk_biz_id,
                 "bcs_cluster_id": bcs_cluster_id,
@@ -400,6 +411,19 @@ class GetResourceDetail(Resource):
         # 获取 pod 关于 service 和 ingress 的联系
         if resource_type == "pod":
             self.add_pod_service_ingress_relation(items, validated_request_data)
+        elif resource_type == "node":
+            """
+            删除不需要的属性
+            """
+            ignore_keys = [
+                "system_cpu_summary_usage",
+                "system_mem_pct_used",
+                "system_io_util",
+                "system_disk_in_use",
+                "system_load_load15",
+            ]
+            items = self.remove_items_with_keys(items, ignore_keys)
+
 
         for item in items:
             self.link_to_string(item)

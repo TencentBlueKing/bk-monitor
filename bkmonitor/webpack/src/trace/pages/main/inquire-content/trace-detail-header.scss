@@ -1,11 +1,42 @@
 .trace-detail-header {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   margin-top: 12px;
   margin-right: 100px;
   white-space: nowrap;
 
   &.is-in-table {
     margin: 0;
+  }
+
+  .header-tool {
+    display: flex;
+    height: 100%;
+    font-size: 14px;
+    color: #63656e;
+
+    .tool-item {
+      padding: 0 24px;
+      font-size: 12px;
+      line-height: 20px;
+      border-left: 1px solid #f5f7fa;
+
+      .tool-item-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        cursor: pointer;
+      }
+
+      .icon-monitor {
+        margin: 0;
+      }
+    }
   }
 
   .trace-id {
@@ -26,4 +57,3 @@
     }
   }
 }
-
