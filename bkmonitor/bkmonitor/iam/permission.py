@@ -123,12 +123,7 @@ class Permission:
             # 后台api模式下使用SaaS身份
             app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
 
-        bk_apigateway_url = (
-            settings.IAM_API_BASE_URL
-            if settings.IAM_API_BASE_URL
-            else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-        )
-        return CompatibleIAM(app_code, secret_key, bk_apigateway_url, bk_tenant_id=bk_tenant_id)
+        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id)
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """
