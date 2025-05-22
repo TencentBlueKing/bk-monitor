@@ -76,6 +76,8 @@ OPERATORS = {
         OperatorEnum.NOT_LIKE,
     ],
     "text": [
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
         OperatorEnum.LIKE_WILDCARD,
         OperatorEnum.NOT_LIKE_WOLDCARD,
         OperatorEnum.EXISTS,

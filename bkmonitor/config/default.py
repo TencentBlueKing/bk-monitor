@@ -1616,9 +1616,6 @@ IS_GLOBAL_TENANT = True
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 是否开启新版 Tracing 检索
-ENABLE_TRACE_V2_BIZ_LIST = []
-
 # 新版自定义时序灰度业务列表
 ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
 

@@ -299,7 +299,7 @@ class Operation:
 TYPE_OPERATION_MAPPINGS = {
     "date": [Operation.EQ, Operation.NE],
     "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE],
-    "text": [Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
+    "text": [Operation.EQ, Operation.NE, Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
     "integer": [Operation.EQ, Operation.NE, Operation.GT, Operation.GTE, Operation.LT, Operation.LTE],
 }
 
