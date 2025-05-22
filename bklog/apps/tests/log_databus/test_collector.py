@@ -27,7 +27,9 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector import BaseCollectorHandler, HostCollectorHandler, K8sCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
+from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
@@ -1469,7 +1471,7 @@ namespaceSelector:
         self.assertEqual(BCS_CLUSTER_ID, clusters[0]["id"])
 
     def test_list_workload_type(self, *args, **kwargs):
-        workload_type_list = BaseCollectorHandler().list_workload_type()
+        workload_type_list = K8sCollectorHandler().list_workload_type()
         self.assertEqual(
             workload_type_list,
             [WorkLoadType.DEPLOYMENT, WorkLoadType.JOB, WorkLoadType.DAEMON_SET, WorkLoadType.STATEFUL_SET],

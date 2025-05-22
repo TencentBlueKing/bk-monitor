@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectStatus,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from apps.log_databus.handlers.collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.utils.bcs import Bcs
 

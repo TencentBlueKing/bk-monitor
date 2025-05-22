@@ -6,7 +6,7 @@ from typing import Any
 
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_databus.handlers.collector import (
+from apps.log_databus.handlers.collector_handler.base_collector import (
     BaseCollectorHandler,
     get_random_public_cluster_id,
 )

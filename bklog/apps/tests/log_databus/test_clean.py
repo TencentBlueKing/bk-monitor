@@ -27,7 +27,7 @@ from .test_collectorhandler import TestCollectorHandler
 from ..log_search.test_indexset import Dummy
 from ...log_databus.constants import AsyncStatus
 from ...log_databus.handlers.clean import CleanHandler
-from ...log_databus.handlers.collector import BaseCollectorHandler
+from ...log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
 from ...log_databus.utils.bkdata_clean import BKDataCleanUtils
 from ...log_databus.utils.clean import CleanFilterUtils
 from ...log_search.models import ProjectInfo, Space

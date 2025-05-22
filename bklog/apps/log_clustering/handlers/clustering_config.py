@@ -49,7 +49,7 @@ from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
-from apps.log_databus.handlers.collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TimeEnum

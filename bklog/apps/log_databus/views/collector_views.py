@@ -39,7 +39,9 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
-from apps.log_databus.handlers.collector import BaseCollectorHandler, K8sCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
+from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
@@ -2199,7 +2201,7 @@ class CollectorViewSet(ModelViewSet):
 
     @list_route(methods=["GET"], url_path="list_workload_type")
     def list_workload_type(self, request):
-        return Response(BaseCollectorHandler().list_workload_type())
+        return Response(K8sCollectorHandler().list_workload_type())
 
     @list_route(methods=["GET"], url_path="list_namespace")
     def list_namespace(self, request):
@@ -2507,7 +2509,7 @@ class CollectorViewSet(ModelViewSet):
 
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
-        return Response(BaseCollectorHandler.search_object_attribute())
+        return Response(HostCollectorHandler.search_object_attribute())
 
     @list_route(methods=["GET"], url_path="proxy_host_info")
     def get_proxy_host_info(self, request):

@@ -141,7 +141,7 @@ class CleanFilterUtils:
 
     @staticmethod
     def delete(collector_config_id: int):
-        from apps.log_databus.handlers.collector import BaseCollectorHandler
+        from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
         from apps.log_databus.serializers import FastCollectorUpdateSerializer
 
         params = {"etl_config": EtlConfig.BK_LOG_TEXT, "etl_params": {}}

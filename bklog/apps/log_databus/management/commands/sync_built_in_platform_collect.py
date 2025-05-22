@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -36,7 +35,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TargetObjectTypeEnum,
 )
-from apps.log_databus.handlers.collector import build_bk_data_name
+from apps.log_databus.handlers.collector_handler.base_collector import build_bk_data_name
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
