@@ -21,13 +21,18 @@
 
   .grep-cli-label {
     min-width: 42px;
+    padding-left: 6px;
+    margin-right: 8px;
+    font-size: 12px;
+    color: #979ba5;
   }
 
   .grep-cli-editor {
-    padding: 10px 6px;
+    padding: 0 6px;
     border-left: solid 1px #eaebf0;
     max-width: calc(100% - 128px);
     width: 100%;
+    min-height: 40px;
   }
 }
 
@@ -35,21 +40,18 @@
 .grep-cli-right {
   display: flex;
   align-items: center;
-  padding: 10px 6px;
+  padding: 0 6px;
   background: #ffffff;
+  min-height: 40px;
 }
 
 .grep-cli-right {
   margin-left: 4px;
   width: 366px;
+  background: #ffffff;
   box-shadow: 0 2px 4px 0 #19192914;
   border-radius: 2px;
-}
-
-.grep-cli-label {
-  margin-right: 8px;
-  font-size: 12px;
-  color: #979ba5;
+  padding: 6px;
 }
 
 .grep-cli-select {
@@ -65,14 +67,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
+  background: #f0f1f5;
 
-.grep-cli-tool-btn {
-  padding: 4px 8px;
-  border: none;
-  background: #f0f0f0;
-  border-radius: 2px;
-  cursor: pointer;
+  .bk-input-text {
+    input {
+      background-color: transparent;
+      border-color: transparent;
+    }
+  }
+
+  .grep-cli-tool-btn {
+    padding: 4px 8px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 2px;
+    cursor: pointer;
+  }
 }
 
 .grep-cli-no-result {

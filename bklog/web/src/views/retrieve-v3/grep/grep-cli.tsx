@@ -55,9 +55,9 @@ export default defineComponent({
               size='small'
               style='width: 160px;'
             ></bk-input>
-            <button class='grep-cli-tool-btn'>Aa</button>
-            <button class='grep-cli-tool-btn'>ab</button>
-            <button class='grep-cli-tool-btn'>*</button>
+            <span class='grep-cli-tool-btn'>Aa</span>
+            <span class='grep-cli-tool-btn'>ab</span>
+            <span class='grep-cli-tool-btn'>*</span>
           </div>
           <span class='grep-cli-no-result'>无结果</span>
         </div>
