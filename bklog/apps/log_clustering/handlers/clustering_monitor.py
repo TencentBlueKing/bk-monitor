@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
@@ -28,11 +28,15 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.constants import (
     AGG_CONDITION,
+    AGG_CONDITION_NORMAL,
     AGG_DIMENSION,
+    AGG_DIMENSION_NORMAL,
     ALARM_INTERVAL_CLUSTERING,
     DEFAULT_AGG_METHOD,
     DEFAULT_ALGORITHMS,
+    DEFAULT_DATA_SOURCE_LABEL,
     DEFAULT_DATA_SOURCE_LABEL_BKDATA,
+    DEFAULT_DATA_TYPE_LABEL,
     DEFAULT_DATA_TYPE_LABEL_BKDATA,
     DEFAULT_EXPRESSION,
     DEFAULT_LABEL,
@@ -60,7 +64,7 @@ from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_external_app_code
 
 
-class ClusteringMonitorHandler(object):
+class ClusteringMonitorHandler:
     def __init__(self, index_set_id):
         self.index_set_id = index_set_id
         self.index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
@@ -111,8 +115,15 @@ class ClusteringMonitorHandler(object):
                 "$alert_down": "1",
                 "$sensitivity": params.get("sensitivity", 5),
                 "$alert_upward": "1",
+                "$alert_slight_shake": "0",
             }
-
+            agg_dimension = AGG_DIMENSION_NORMAL
+            agg_condition = AGG_CONDITION_NORMAL
+            data_source_label = DEFAULT_DATA_SOURCE_LABEL
+            data_type_label = DEFAULT_DATA_TYPE_LABEL
+            item_name = f"COUNT({self.index_set.index_set_name})"
+            metric_id = self.index_set.index_set_name
+            visual_type = "none"
         else:
             name = _("{} - 日志新类异常告警").format(self.index_set.index_set_name)
             args = {
@@ -120,9 +131,16 @@ class ClusteringMonitorHandler(object):
                 "$new_class_interval": params.get("interval", 30),
                 "$new_class_alert_th": params.get("threshold", 1),
             }
+            agg_dimension = AGG_DIMENSION
+            agg_condition = AGG_CONDITION
+            data_source_label = DEFAULT_DATA_SOURCE_LABEL_BKDATA
+            data_type_label = DEFAULT_DATA_TYPE_LABEL_BKDATA
+            item_name = ITEM_NAME_CLUSTERING
+            metric_id = f"bk_data.{table_id}.{metric}"
+            visual_type = "score"
         items = [
             {
-                "name": ITEM_NAME_CLUSTERING,
+                "name": item_name,
                 "no_data_config": DEFAULT_NO_DATA_CONFIG,
                 "target": [],
                 "expression": DEFAULT_EXPRESSION,
@@ -130,24 +148,19 @@ class ClusteringMonitorHandler(object):
                 "origin_sql": "",
                 "query_configs": [
                     {
-                        "data_source_label": DEFAULT_DATA_SOURCE_LABEL_BKDATA,
-                        "data_type_label": DEFAULT_DATA_TYPE_LABEL_BKDATA,
+                        "data_source_label": data_source_label,
+                        "data_type_label": data_type_label,
                         "alias": DEFAULT_EXPRESSION,
                         "result_table_id": table_id,
-                        "agg_method": DEFAULT_AGG_METHOD,
                         "agg_interval": self.conf.get("agg_interval", 60),
-                        "agg_dimension": AGG_DIMENSION,
-                        "agg_condition": AGG_CONDITION,
-                        "metric_field": metric,
-                        "unit": "",
-                        "metric_id": "bk_data.{table_id}.{metric}".format(table_id=table_id, metric=metric),
-                        "index_set_id": "",
+                        "agg_dimension": agg_dimension,
+                        "agg_condition": agg_condition,
+                        "metric_id": metric_id,
+                        "index_set_id": self.index_set_id,
                         "query_string": "*",
-                        "custom_event_name": "log_count",
                         "functions": [],
+                        "intelligent_detect": {},
                         "time_field": "dtEventTimeStamp",
-                        "bkmonitor_strategy_id": "log_count",
-                        "alert_name": "log_count",
                     }
                 ],
                 "algorithms": [
@@ -158,7 +171,7 @@ class ClusteringMonitorHandler(object):
                             "plan_id": self.conf.get("normal_plan_id")
                             if strategy_type == StrategiesType.NORMAL_STRATEGY
                             else self.conf.get("algorithm_plan_id"),
-                            "visual_type": "score",
+                            "visual_type": visual_type,
                             "args": args,
                         },
                         "unit_prefix": "",
@@ -166,6 +179,26 @@ class ClusteringMonitorHandler(object):
                 ],
             }
         ]
+        # 补充数量突增告警或新类告警特有的参数
+        if strategy_type == StrategiesType.NORMAL_STRATEGY:
+            items[0].update(
+                {
+                    "metric_type": "log",
+                    "time_delay": 0,
+                }
+            )
+        else:
+            items[0]["query_configs"][0].update(
+                {
+                    "agg_method": DEFAULT_AGG_METHOD,
+                    "metric_field": metric,
+                    "unit": "",
+                    "custom_event_name": "log_count",
+                    "bkmonitor_strategy_id": "log_count",
+                    "alert_name": "log_count",
+                }
+            )
+
         detects = [
             {
                 "level": 2,
@@ -397,7 +430,7 @@ class ClusteringMonitorHandler(object):
 
         items = [
             {
-                "name": "COUNT({})".format(self.index_set.index_set_name),
+                "name": f"COUNT({self.index_set.index_set_name})",
                 "no_data_config": DEFAULT_NO_DATA_CONFIG,
                 "target": [],
                 "expression": DEFAULT_EXPRESSION,
@@ -415,7 +448,7 @@ class ClusteringMonitorHandler(object):
                         "agg_condition": agg_condition,
                         "metric_field": "_index",
                         "unit": "",
-                        "metric_id": "bk_log_search.index_set.{}".format(label_index_set_id),
+                        "metric_id": f"bk_log_search.index_set.{label_index_set_id}",
                         "index_set_id": label_index_set_id,
                         "query_string": "*",
                         "custom_event_name": "",
