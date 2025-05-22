@@ -419,9 +419,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
         },
     }
 
-    # TRACE 存储字段信息
-    TRACE_FIELD_LIST = TraceDataSourceConfig.TRACE_FIELD_LIST
-
     FILTER_KIND = {
         "exists": lambda field_name, _, q: q & Q(**{f"{field_name}__exists": ""}),
         "does not exists": lambda field_name, _, q: q & Q(**{f"{field_name}__nexists": ""}),
@@ -580,7 +577,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                     "number_of_replicas": option.get("es_number_of_replicas", settings.APM_APP_DEFAULT_ES_REPLICAS),
                 },
             },
-            "field_list": self.TRACE_FIELD_LIST,
+            "field_list": TraceDataSourceConfig.TRACE_FIELD_LIST,
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",

@@ -65,8 +65,6 @@ class RendezvousHash:
 class PrecalculateStorage:
     """预计算存储类"""
 
-    TABLE_SCHEMA = PrecalculateStorageConfig.TABLE_SCHEMA
-
     MAPPING_SETTINGS = {
         "dynamic_templates": [
             {
@@ -292,7 +290,7 @@ class PrecalculateStorage:
                         "number_of_replicas": 0,
                     },
                 },
-                "field_list": cls.TABLE_SCHEMA,
+                "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,
                 "is_time_field_only": True,
                 "label": "application_check",
                 "option": PRECALCULATE_RESULT_TABLE_OPTION,
@@ -353,7 +351,9 @@ class PrecalculateStorage:
                     pre_res = cls._exact_unique_data(
                         info["field_list"], cls.RESULT_TABLE_FIELD_MAPPING, key_field="field_name", remove_field="time"
                     )
-                    cur_res = cls._exact_unique_data(cls.TABLE_SCHEMA, cls.CHECK_UPDATE_FIELDS, "field_name")
+                    cur_res = cls._exact_unique_data(
+                        PrecalculateStorageConfig.TABLE_SCHEMA, cls.CHECK_UPDATE_FIELDS, "field_name"
+                    )
 
                     # 如果字段有更新 或者 存储集群变动 则更新
                     if (
@@ -399,7 +399,7 @@ class PrecalculateStorage:
             "table_id": table_name,
             "operator": get_global_user(),
             "label": "application_check",
-            "field_list": cls.TABLE_SCHEMA,
+            "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,
             "external_storage": {
                 "elasticsearch": {
                     "cluster_id": storage_cluster_id,
