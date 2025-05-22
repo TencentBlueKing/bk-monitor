@@ -414,7 +414,7 @@ export default defineComponent({
                 />
               </span>
             </span>
-            {node?.entity?.entity_type}(
+            {node?.entity?.properties?.entity_category}(
             <OverflowTitle
               key={node?.entity?.entity_id}
               class={['node-name', this.canJumpByType(node) && 'node-link-name']}

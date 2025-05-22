@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -38,7 +37,7 @@ DEPLOYMENT = DeploymentNotSet
 
 def refresh_deployment():
     try:
-        with open('/etc/hostname', 'r') as f:
+        with open("/etc/hostname") as f:
             hostname = f.read().strip()
         if hostname.count("-") < 2:
             return ""
@@ -1194,7 +1193,7 @@ METADATA_CRON_TASK_STATUS_TOTAL = Counter(
 METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
-    labelnames=("version", "biz_id", 'strategy', 'status'),
+    labelnames=("version", "biz_id", "strategy", "status"),
 )
 
 API_REQUESTS_TOTAL = Counter(

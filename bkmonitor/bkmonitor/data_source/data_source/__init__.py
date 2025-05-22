@@ -383,7 +383,7 @@ def _filter_dict_to_conditions(filter_dict: dict, conditions: list[dict]) -> lis
         new_condition = copy.deepcopy(new_condition)
         for condition in new_condition:
             condition["condition"] = "and"
-        if result:
+        if result and new_condition:
             new_condition[0]["condition"] = "or"
         result.extend(new_condition)
 

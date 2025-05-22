@@ -94,13 +94,13 @@
         /* stylelint-disable-next-line declaration-no-important */
         padding: 14px !important;
       }
-      .table-name-cell {
-        &:hover {
-          .edit-btn {
-            visibility: inherit;
-          }
-        }
-      }
+      // .table-name-cell {
+      //   &:hover {
+      //     .edit-btn {
+      //       visibility: inherit;
+      //     }
+      //   }
+      // }
 
       .platform-tag {
         display: inline-flex;
@@ -115,17 +115,17 @@
         background: #979ba5;
         border-radius: 2px;
       }
-      .edit-btn {
-        visibility: hidden;
-        font-size: 24px;
-        color: #979ba5;
-        margin-left: 2px;
-        cursor: pointer;
-        vertical-align: middle;
-        &:hover {
-          color: #3a84ff;
-        }
-      }
+      // .edit-btn {
+      //   visibility: hidden;
+      //   font-size: 24px;
+      //   color: #979ba5;
+      //   margin-left: 2px;
+      //   cursor: pointer;
+      //   vertical-align: middle;
+      //   &:hover {
+      //     color: #3a84ff;
+      //   }
+      // }
     }
   }
 

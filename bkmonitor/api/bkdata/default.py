@@ -1446,3 +1446,17 @@ class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
         kind = serializers.CharField(required=True, label="资源类型")
+
+
+class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    计算平台V4链路清洗调试接口
+    """
+
+    action = "/v3/databus/clean/debug/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        input = serializers.JSONField(required=True, label="输入数据")
+        rules = serializers.JSONField(required=True, label="清洗规则")
+        filter_rules = serializers.ListField(required=False, label="过滤规则")
