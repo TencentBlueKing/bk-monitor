@@ -215,7 +215,7 @@ export default defineComponent({
      * 6. 触发变更回调
      */
     function handleConfirm(value: IFilterItem) {
-      const localValueV = JSON.parse(JSON.stringify(localValue.value));
+      const localValueV = structuredClone(localValue.value);
       if (value) {
         if (updateActive.value > -1) {
           localValueV.splice(updateActive.value, 1, value);

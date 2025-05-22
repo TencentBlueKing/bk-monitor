@@ -58,7 +58,7 @@ export default defineComponent({
       () => props.value,
       val => {
         if (val && JSON.stringify(localValue.value || {}) !== JSON.stringify(val)) {
-          const localValueT = JSON.parse(JSON.stringify(val));
+          const localValueT = structuredClone(val);
           let count = 0;
           const valueT = [];
           for (const item of val.value) {
@@ -142,7 +142,7 @@ export default defineComponent({
             allowHTML: true,
             content: (
               <div style='max-width: 600px; word-break: break-all; word-wrap: break-word; white-space: normal'>
-                {`${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' OR ')}`}
+                {`${this.value.key.id} ${this.value.method.id} ${this.value.value.map(v => v.id).join(` ${this.groupRelation || 'OR'} `)}`}
               </div>
             ),
           }}

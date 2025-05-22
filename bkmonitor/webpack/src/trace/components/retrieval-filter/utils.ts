@@ -90,7 +90,13 @@ export function setCacheUIData(v: IFilterItem[]) {
 export function getCacheUIData(): IFilterItem[] {
   const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
   try {
-    return JSON.parse(uiDataSrt) || [];
+    return (JSON.parse(uiDataSrt) || []).map(item => ({
+      ...item,
+      value: item.value.map(v => ({
+        id: typeof v.id === 'object' ? JSON.stringify(v.id) : v.id,
+        name: typeof v.name === 'object' ? JSON.stringify(v.name) : v.name,
+      })),
+    }));
   } catch (err) {
     console.log(err);
     return [];
