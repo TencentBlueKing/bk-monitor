@@ -99,6 +99,7 @@ class Permission:
                 self.username = request.user.username
                 self.bk_tenant_id = request.user.tenant_id
             else:
+                logger.warning("IAM Permission init with local username, use default bk_tenant_id")
                 # 后台设置
                 from bkmonitor.utils.user import get_local_username
 
