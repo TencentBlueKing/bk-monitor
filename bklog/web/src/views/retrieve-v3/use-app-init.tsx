@@ -193,7 +193,6 @@ export default () => {
             const strId = `${defaultId}`;
             store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
             store.commit('updateIndexId', strId);
-
             router.replace({
               params: { indexId: strId },
               query: { ...route.query, unionList: undefined },
@@ -248,6 +247,17 @@ export default () => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         }
+
+        const queryTab = RetrieveHelper.routeQueryTabValueFix(
+          store.state.indexItem.items?.[0],
+          route.query.tab,
+          store.getters.isUnionSearch,
+        );
+
+        router.replace({
+          params: { ...route.params },
+          query: { ...route.query, ...queryTab },
+        });
       });
   };
 
