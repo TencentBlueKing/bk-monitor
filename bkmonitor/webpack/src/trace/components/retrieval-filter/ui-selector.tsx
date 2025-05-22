@@ -339,7 +339,7 @@ export default defineComponent({
           <AutoWidthInput
             height={40}
             isFocus={this.inputFocus}
-            placeholder={`${this.$t('快捷键 / ，请输入...')}`}
+            placeholder={this.placeholder || `${this.$t('快捷键 / ，可直接输入')}`}
             value={this.inputValue}
             onBlur={this.handleBlur}
             onEnter={this.handleEnter}
