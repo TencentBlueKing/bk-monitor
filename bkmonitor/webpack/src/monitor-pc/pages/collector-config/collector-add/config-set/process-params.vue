@@ -122,6 +122,51 @@
         />
       </div>
     </div>
+    <div
+      v-if="params.match_type === 'command'"
+      class="form-item"
+    >
+      <label class="item-label">{{ $t('调试') }}</label>
+      <div class="item-content debug-content">
+        <bk-input
+          ext-cls="debug-control"
+          v-model="debugProcesses"
+          :maxlength="100"
+          :placeholder="$t('输入示例文本查看匹配结果')"
+          type="textarea"
+        />
+        <bk-button
+          :disabled="!debugProcesses"
+          :outline="true"
+          theme="primary"
+          @click="handleDebug"
+        >
+          {{ $t('调试') }}
+        </bk-button>
+        <div
+          v-if="debugResult.processName"
+          class="debug-result"
+        >
+          <div class="result">
+            <span>{{ $t('匹配进程') }}: </span>
+            <span class="text-danger">{{ debugResult.processName }}</span>
+          </div>
+          <div class="result match-dimension">
+            <span>{{ $t('匹配维度') }}: </span>
+            <div class="dimensions">
+              <div
+                v-for="[key, value] in Object.entries(debugResult.dimensions)"
+                class="dimension"
+                :key="key"
+              >
+                <span class="dimension-key">{{ key }} = </span>
+                <span class="dimension-value">{{ value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="form-item">
       <label class="item-label">{{ $t('端口探测') }}</label>
       <div class="item-content">
@@ -138,6 +183,8 @@
   </div>
 </template>
 <script>
+import { processCollectorDebug } from 'monitor-api/modules/plugin';
+
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 export default {
@@ -171,6 +218,13 @@ export default {
         match_pattern: false,
       },
       pluginDisplayName: this.$t('进程采集插件'),
+      /** 调试文本 */
+      debugProcesses: '',
+      /** 调试结果 */
+      debugResult: {
+        processName: '',
+        dimensions: {},
+      },
     };
   },
   watch: {
@@ -190,6 +244,30 @@ export default {
       }
       this.rules.match_pattern = !this.params.match_pattern;
       return !!this.params.match_pattern;
+    },
+    /** 调试
+     * @param {String} debug 调试文本
+     * @return {Boolean}
+     */
+    async handleDebug() {
+      try {
+        const data = await processCollectorDebug({
+          match: this.params.match_pattern,
+          exclude: this.params.exclude_pattern,
+          processes: this.debugProcesses,
+          dimensions: this.params.extract_pattern,
+          process_name: this.params.process_name,
+        });
+        if (!data) {
+          this.debugResult.dimensions = {};
+          this.debugResult.processName = '';
+          return;
+        }
+        this.debugResult.dimensions = data?.[0].dimensions;
+        this.debugResult.processName = data?.[0].process_name;
+      } catch (error) {
+        console.log('error', error);
+      }
     },
   },
 };
@@ -234,6 +312,60 @@ export default {
 
     :deep(.bk-radio-text) {
       font-size: 12px;
+    }
+
+    &.debug-content {
+      padding: 12px;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      .debug-control {
+        margin-bottom: 8px;
+        background: #fff;
+
+        .bk-textarea-wrapper {
+          height: 80px;
+        }
+      }
+
+      .debug-result {
+        .result {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #63656e;
+
+          &.match-dimension {
+            display: flex;
+
+            .dimensions {
+              display: flex;
+              flex: 1;
+              flex-wrap: wrap;
+              margin-left: 4px;
+
+              .dimension {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                padding: 4px;
+                margin-right: 4px;
+                margin-bottom: 4px;
+                font-size: 12px;
+                background: #eaebf0;
+                border-radius: 2px;
+
+                .dimension-key {
+                  color: #757880;
+                }
+
+                .dimension-value {
+                  color: #313238;
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
