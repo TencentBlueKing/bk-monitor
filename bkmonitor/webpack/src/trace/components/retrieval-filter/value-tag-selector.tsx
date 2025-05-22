@@ -141,7 +141,6 @@ export default defineComponent({
       if (!isShowDropDown.value) {
         handleShowShowDropDown(true);
       }
-      console.log(value);
       emit('selectorFocus');
       isChecked.value = false;
     }
@@ -151,7 +150,7 @@ export default defineComponent({
      * @returns {Promise<void>}
      */
     async function handleBlur() {
-      handleEnter();
+      // handleEnter();
       await promiseTimeout(300);
       inputValue.value = '';
     }
