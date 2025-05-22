@@ -717,7 +717,7 @@ class ListTraceResource(Resource):
         )
 
         is_has_specific_fields = QueryHandler.has_field_not_in_fields(
-            data["query"], data["filters"], fields=PreCalculateSpecificField.search_fields(), opposite=True
+            data["query"], data["filters"], fields=PreCalculateSpecificField.specific_fields(), opposite=True
         )
 
         if is_contain_non_standard_fields:

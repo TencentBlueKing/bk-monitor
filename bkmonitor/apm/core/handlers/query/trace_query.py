@@ -21,12 +21,11 @@ from typing import Any
 from django.db.models import Q
 
 from apm import types
-from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.ebpf.base import EbpfHandler
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmApplication, ApmDataSourceConfigBase
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, PrecalculateStorageConfig
 
 logger = logging.getLogger("apm")
 
@@ -45,7 +44,7 @@ class TraceQuery(BaseQuery):
 
     @classmethod
     def _get_select_fields(cls, exclude_fields: list[str] | None) -> list[str]:
-        all_fields: set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
+        all_fields: set[str] = {field_info["field_name"] for field_info in PrecalculateStorageConfig.TABLE_SCHEMA}
         select_fields: list[str] = list(
             all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
         )

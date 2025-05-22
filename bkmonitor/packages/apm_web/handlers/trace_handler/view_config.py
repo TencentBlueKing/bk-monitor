@@ -20,12 +20,11 @@ import copy
 from django.utils.functional import cached_property
 
 from apm.constants import KindCategory
-from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
 from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.trace.constants import OPERATORS, TRACE_FIELD_ALIAS
 from bkmonitor.utils.request import get_request_username
-from constants.apm import PreCalculateSpecificField, SpanStandardField
+from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
 from core.drf_resource import api
 from packages.apm_web.trace.constants import EnabledStatisticsDimension
 
@@ -80,7 +79,7 @@ class TraceFieldsInfoHandler:
 
         # 预计算的所有字段信息
         pre_storage_dict = {}
-        for field_info in PrecalculateStorage.TABLE_SCHEMA:
+        for field_info in PrecalculateStorageConfig.TABLE_SCHEMA:
             pre_storage_dict[field_info["field_name"]] = dict(type=field_info.get("option", {}).get("es_type", ""))
 
         # 返回 search_fields 中的字段信息
