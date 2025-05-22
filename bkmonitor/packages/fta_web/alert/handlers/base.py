@@ -171,40 +171,27 @@ class BaseQueryTransformer(BaseTreeTransformer):
         参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
         """
 
-
-        def replace(match):
+        def convert(match):
             value = match.group(0)
             value = value.split(":", 1)[1].replace('"', '').replace("'", '')
             # 如果是promql，需要进行转义
             if is_include_promql(value):
-                # 匹配query string中的特殊字符
                 value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: '\\' + match.group(0), value.strip())
+
             # 给末尾加上“*”，用于支持模糊匹配
             return f'{target_type} : {value}*'
 
-        query_string = cls.process_label_filter(query_string)
+        def replace(match):
+            value = match.group('value')
+            value = f'"{value}"' if value else value
+            return f'{target_type} : {value}'
 
-        # 使用正则表达式匹配指标ID
-        pattern = r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)'
         target_type = "指标ID"
 
-        # 多个指标ID出现时，应该使用双引号比如：指标ID : “sum(aaa.bb.cc[1m])) or vector(0)” AND 指标ID : “sum(aaa.bb.cc[1m]))”
-        # 如果没有匹配到，则指标ID单个出现，此时外围没有加双引号，比如：指标ID : sum(aaa.bb.cc[1m])) or vector(0)
-        if not re.search(pattern, query_string):
-            if ":" not in query_string:
-                return query_string
-            metric_id = query_string.split(":", 1)[1]
-
-            # 再去一次引号
-            for i in ["'", '"']:
-                if metric_id.startswith(i):
-                    metric_id = metric_id.strip(i)
-
-            # 将引号加上
-            query_string = f'{target_type} : "{metric_id}"'
-
-        # 进行转义
-        query_string = re.sub(pattern, replace, query_string)
+        query_string = cls.process_label_filter(query_string) # 处理promql语句中的过滤条件
+        # 处理不带引号的指标ID值，
+        query_string = re.sub(r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', replace, query_string, re.IGNORECASE)
+        query_string = re.sub( r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert, query_string)
 
         # 还原process_label_filter函数中处理的双引号，并做转义
         query_string = query_string.replace("##", r'\=\"')
