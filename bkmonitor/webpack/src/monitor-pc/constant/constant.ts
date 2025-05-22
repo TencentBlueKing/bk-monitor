@@ -242,7 +242,7 @@ export const CHART_INTERVAL = [
 export const IPV4 =
   /((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?/;
 
-export const NO_BUSSINESS_PAGE_HASH = 'NO_BUSSINESS_PAGE_HASH';
+export const NO_BUSINESS_PAGE_HASH = 'NO_BUSINESS_PAGE_HASH';
 export const PANEL_INTERVAL_LIST = [
   {
     name: 'auto',

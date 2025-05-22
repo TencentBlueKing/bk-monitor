@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { DirectiveBinding } from 'vue';
+
+import type { ObjectDirective } from 'vue';
 
 interface IElement extends HTMLElement {
   [prop: string]: any;
@@ -41,7 +42,7 @@ const DEFAULT_OPTIONS: IOptions = {
 };
 
 function init(el: IElement, options: IOptions) {
-  el.mouseEnterHandler = function () {
+  el.mouseEnterHandler = () => {
     const element = document.createElement('div');
     element.id = 'directive-ele';
     element.style.position = 'fixed';
@@ -52,14 +53,14 @@ function init(el: IElement, options: IOptions) {
     element.classList.add(options.cls || DEFAULT_OPTIONS.cls);
     el.addEventListener('mousemove', el.mouseMoveHandler);
   };
-  el.mouseMoveHandler = function (event: MouseEvent) {
+  el.mouseMoveHandler = (event: MouseEvent) => {
     const { pageX, pageY } = event;
     const elLeft = pageX + DEFAULT_OPTIONS.offset[0];
     const elTop = pageY + DEFAULT_OPTIONS.offset[1];
     el.element.style.left = `${elLeft}px`;
     el.element.style.top = `${elTop}px`;
   };
-  el.mouseLeaveHandler = function () {
+  el.mouseLeaveHandler = () => {
     el.element?.remove();
     document.querySelector('#directive-ele')?.remove();
     el.element = null;
@@ -77,18 +78,18 @@ function destroy(el: IElement) {
   el.removeEventListener('mousemove', el.mouseMoveHandler);
   el.removeEventListener('mouseleave', el.mouseLeaveHandler);
 }
-
-export default {
-  beforeMount(el: IElement, binding: DirectiveBinding) {
+const Authority: ObjectDirective<HTMLElement, IOptions> = {
+  beforeMount(el, binding) {
     const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
     init(el, options);
   },
-  updated(el: IElement, binding: DirectiveBinding) {
+  updated(el, binding) {
     const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
     destroy(el);
     init(el, options);
   },
-  unmounted(el: IElement) {
+  unmounted(el) {
     destroy(el);
   },
 };
+export default Authority;

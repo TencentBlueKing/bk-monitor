@@ -51,7 +51,7 @@ export type Process = {
 export type SpanReference = {
   refType: 'CHILD_OF' | 'FOLLOWS_FROM';
 
-  span: Span | null | undefined;
+  span: null | Span | undefined;
   spanID: string;
   traceID: string;
 };
@@ -71,6 +71,14 @@ export type GroupInfo = {
   duration: number;
 };
 
+export type SpanAttributesItem = {
+  key: string;
+  query_key: string;
+  query_value: string;
+  type: string;
+  value: string;
+};
+
 export type SpanData = {
   span_id: string;
   spanID: string;
@@ -84,6 +92,7 @@ export type SpanData = {
   tags?: Array<KeyValuePair>;
   references?: Array<SpanReference>;
   warnings?: Array<string> | null;
+  attributes?: Array<SpanAttributesItem>;
   error?: boolean;
   icon?: string;
   service_name: string;

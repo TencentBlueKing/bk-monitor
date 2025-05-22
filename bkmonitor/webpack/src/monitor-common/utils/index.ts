@@ -258,5 +258,6 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
 
 export * from './colorHelpers';
 export * from './constant';
+export * from './equal';
 export * from './utils';
 export * from './xss';
