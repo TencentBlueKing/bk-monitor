@@ -145,8 +145,8 @@
       appendTo: document.body,
       hideOnClick: false,
       onShown: () => {
-        const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options;
-        this.$refs.refGradeOption?.updateOptions?.(cfg);
+        const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+        (this.$refs.refGradeOption as any)?.updateOptions?.(cfg);
       },
     };
 
