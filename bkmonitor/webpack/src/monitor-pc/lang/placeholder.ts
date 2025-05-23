@@ -319,7 +319,5 @@ export default {
   '仅查看当前数据 ID': 'Only view current data ID',
   '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
   '快捷键 / ，请输入...': 'Quick key/, please enter...',
-  '快捷键 / ，可直接输入TraceID/SpanID快捷检索': 'Shortcut key/, can directly enter TraceID/SpanID for quick retrieval',
-  '快捷键 / ，可直接输入TraceID快捷检索': 'Shortcut key/, can directly enter TraceID for quick retrieval',
-  '快捷键 / ，可直接输入SpanID快捷检索': 'Shortcut key/, can directly enter SpanID for quick retrieval',
+  '快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索': 'Quick key/, can directly enter Trace ID / Span ID to search',
 };

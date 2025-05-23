@@ -163,7 +163,7 @@ export default defineComponent({
       return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
     });
     const retrievalFilterPlaceholder = computed(() => {
-      return t('快捷键 / ，可直接输入TraceID/SpanID快捷检索');
+      return t('快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索');
       // return store.mode === 'trace'
       //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
       //   : t('快捷键 / ，可直接输入SpanID快捷检索');

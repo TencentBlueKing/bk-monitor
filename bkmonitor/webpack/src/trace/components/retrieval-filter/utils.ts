@@ -233,7 +233,14 @@ export const equalWhere = (source: IWhereItem[], target: IWhereItem[]) => {
 };
 
 export const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
-export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = ['trace_id', 'trace_duration', 'resource.service.name', 'span_name'];
+export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
+  'trace_id',
+  'trace_duration',
+  'resource.service.name',
+  'collections.resource.service.name',
+  'span_name',
+  'collections.span_name',
+];
 export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['trace_id', 'elapsed_time', 'resource.service.name', 'span_name'];
 export const INPUT_TAG_KEYS = ['span_id', 'trace_id'];
 

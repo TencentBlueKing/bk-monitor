@@ -249,9 +249,9 @@ export default defineComponent({
         triggerShallowRef(localValue);
         inputValue.value = '';
         destroyPopoverInstance();
-        setTimeout(() => {
-          handleClickComponent();
-        }, 50);
+        // setTimeout(() => {
+        //   handleClickComponent();
+        // }, 50);
         handleChange();
       }
     }
