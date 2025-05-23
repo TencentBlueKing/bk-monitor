@@ -27,7 +27,7 @@ from .test_collectorhandler import TestCollectorHandler
 from ..log_search.test_indexset import Dummy
 from ...log_databus.constants import AsyncStatus
 from ...log_databus.handlers.clean import CleanHandler
-from ...log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from ...log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from ...log_databus.utils.bkdata_clean import BKDataCleanUtils
 from ...log_databus.utils.clean import CleanFilterUtils
 from ...log_search.models import ProjectInfo, Space
@@ -160,7 +160,7 @@ class TestClean(TestCase):
 
     def test_get_stash(self, *args, **kwargs):
         collector_config_id, _ = self._create_clean_stash()
-        get_stash_result = BaseCollectorHandler(collector_config_id=collector_config_id).get_clean_stash()
+        get_stash_result = CollectorHandler(collector_config_id=collector_config_id).get_clean_stash()
         self.assertEqual(get_stash_result["clean_type"], CREATE_CLEAN_STASH_PARAMS["clean_type"])
         self.assertEqual(get_stash_result["etl_params"], CREATE_CLEAN_STASH_PARAMS["etl_params"])
         self.assertEqual(get_stash_result["etl_fields"], CREATE_CLEAN_STASH_PARAMS["etl_fields"])
@@ -197,7 +197,7 @@ class TestClean(TestCase):
         self._init_project_info()
         _, create_collector_result = TestCollectorHandler.create()
         collector_config_id = create_collector_result["collector_config_id"]
-        self.collector = BaseCollectorHandler(collector_config_id=collector_config_id)
+        self.collector = CollectorHandler(collector_config_id=collector_config_id)
         result_table_names = CleanHandler(collector_config_id=collector_config_id).refresh(
             raw_data_id=self.collector.data.bk_data_id, bk_biz_id=self.collector.data.bk_biz_id
         )
@@ -214,7 +214,7 @@ class TestClean(TestCase):
     def _create_clean_stash(cls):
         _, create_collector_result = TestCollectorHandler.create()
         collector_config_id = create_collector_result["collector_config_id"]
-        create_stash_result = BaseCollectorHandler(collector_config_id=collector_config_id).create_clean_stash(
+        create_stash_result = CollectorHandler(collector_config_id=collector_config_id).create_clean_stash(
             CREATE_CLEAN_STASH_PARAMS
         )
         return collector_config_id, create_stash_result

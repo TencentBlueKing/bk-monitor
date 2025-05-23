@@ -17,56 +17,63 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-import datetime
-
+import copy
 
 from collections import defaultdict
 from django.conf import settings
-from django.db import IntegrityError, transaction
 from django.utils.translation import gettext as _
 
 
-from apps.api import CCApi, NodeApi, TransferApi
+from apps.api import CCApi, NodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.exceptions import ApiRequestError, ApiResultError
 
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
-    ArchiveInstanceType,
     TargetNodeTypeEnum,
-    RETRIEVE_CHAIN,
+    LogPluginInfo,
+    CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
+    CollectStatus,
+    BIZ_TOPO_INDEX,
+    INTERNAL_TOPO_INDEX,
+    SEARCH_BIZ_INST_TOPO_LEVEL,
+    BK_SUPPLIER_ACCOUNT,
+    RunStatus,
 )
 
 
-from apps.log_databus.exceptions import (
-    CollectorConfigNameDuplicateException,
-)
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
-from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 
-from apps.log_databus.handlers.etl_storage import EtlStorage
 
 from apps.log_databus.handlers.collector_handler.base_collector import (
-    BaseCollectorHandler,
-    build_bk_data_name,
+    CollectorHandler,
 )
 
-from apps.log_databus.models import (
-    ArchiveConfig,
-)
+from apps.log_search.handlers.biz import BizHandler
 
-from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import (
-    LogIndexSet,
-)
-from apps.models import model_to_dict
 
-from apps.utils.function import map_if
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 
 
-class HostCollectorHandler(BaseCollectorHandler):
+class HostCollectorHandler(CollectorHandler):
+    def _pre_start(self):
+        # 启动节点管理订阅功能
+        if self.data.subscription_id:
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+
+    def _pre_stop(self):
+        if self.data.subscription_id:
+            # 停止节点管理订阅功能
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
+
+    def _pre_destroy(self):
+        if self.data.subscription_id:
+            subscription_params = {"subscription_id": self.data.subscription_id}
+            return NodeApi.delete_subscription(subscription_params)
+        return None
+
     # 统一调用
     def add_container_configs(self, collector_config, context):
         """
@@ -77,124 +84,21 @@ class HostCollectorHandler(BaseCollectorHandler):
         """
         return collector_config
 
-    def retrieve(self, use_request=True):
+    def _retry_subscription(self, instance_id_list):
+        params = {"subscription_id": self.data.subscription_id, "instance_id_list": instance_id_list}
+
+        task_id = str(NodeApi.retry_subscription(params)["task_id"])
+        self.data.task_id_list.append(task_id)
+        self.data.save()
+        return self.data.task_id_list
+
+    def retry_target_nodes(self, instance_id_list):
         """
-        获取采集配置
-        @param use_request:
+        重试部分实例或主机
+        @param instance_id_list:
         @return:
         """
-        context = self._multi_info_get(use_request)
-        collector_config = model_to_dict(self.data)
-        for process in RETRIEVE_CHAIN:
-            collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
-            logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
-        if self.data.table_id:
-            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
-            alias_dict = result_table.get("query_alias_settings", dict())
-            if alias_dict:
-                collector_config.update({"alias_settings": alias_dict})
-
-        # 添加索引集相关信息
-        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
-        if log_index_set_obj:
-            collector_config.update(
-                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
-            )
-
-        return collector_config
-
-    # 接口调用 自定义上报-更新自定义采集配置--里面有self.retrieve()必须要放这里
-    def custom_update(
-        self,
-        collector_config_name=None,
-        category_id=None,
-        description=None,
-        etl_config=None,
-        etl_params=None,
-        fields=None,
-        storage_cluster_id=None,
-        retention=7,
-        allocation_min_days=0,
-        storage_replies=1,
-        es_shards=settings.ES_SHARDS,
-        is_display=True,
-        sort_fields=None,
-        target_fields=None,
-    ):
-        collector_config_update = {
-            "collector_config_name": collector_config_name,
-            "category_id": category_id,
-            "description": description or collector_config_name,
-            "is_display": is_display,
-        }
-
-        _collector_config_name = self.data.collector_config_name
-        bk_data_name = build_bk_data_name(
-            bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
-        )
-        if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
-            TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
-            self.data.bk_data_name = bk_data_name
-            logger.info(
-                "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                    self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                )
-            )
-
-        for key, value in collector_config_update.items():
-            setattr(self.data, key, value)
-        try:
-            self.data.save()
-        except IntegrityError:
-            logger.warning(f"collector config name duplicate => [{collector_config_name}]")
-            raise CollectorConfigNameDuplicateException()
-
-        # collector_config_name更改后更新索引集名称
-        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
-            index_set_name = _("[采集项]") + self.data.collector_config_name
-            LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
-
-        custom_config = get_custom(self.data.custom_type)
-        if etl_params and fields:
-            # 1. 传递了清洗参数，则优先级最高
-            etl_params, etl_config, fields = etl_params, etl_config, fields
-        elif self.data.etl_config:
-            # 2. 如果本身配置过清洗，则直接使用
-            collector_detail = self.retrieve()
-            # need drop built in field
-            collector_detail["fields"] = map_if(
-                collector_detail["fields"], if_func=lambda field: not field["is_built_in"]
-            )
-            etl_params = collector_detail["etl_params"]
-            etl_config = collector_detail["etl_config"]
-            fields = collector_detail["fields"]
-        else:
-            # 3. 默认清洗规则，根据自定义类型来
-            etl_params = custom_config.etl_params
-            etl_config = custom_config.etl_config
-            fields = custom_config.fields
-
-        # 仅在传入集群ID时更新
-        if storage_cluster_id:
-            from apps.log_databus.handlers.etl import EtlHandler
-
-            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-            etl_params = {
-                "table_id": self.data.collector_config_name_en,
-                "storage_cluster_id": storage_cluster_id,
-                "retention": retention,
-                "es_shards": es_shards,
-                "allocation_min_days": allocation_min_days,
-                "storage_replies": storage_replies,
-                "etl_params": etl_params,
-                "etl_config": etl_config,
-                "fields": fields,
-                "sort_fields": sort_fields,
-                "target_fields": target_fields,
-            }
-            etl_handler.update_or_create(**etl_params)
-
-        custom_config.after_hook(self.data)
+        res = self._retry_subscription(instance_id_list=instance_id_list)
 
         # add user_operation_record
         operation_record = {
@@ -202,148 +106,445 @@ class HostCollectorHandler(BaseCollectorHandler):
             "biz_id": self.data.bk_biz_id,
             "record_type": UserOperationTypeEnum.COLLECTOR,
             "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.UPDATE,
-            "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
+            "action": UserOperationActionEnum.RETRY,
+            "params": {"instance_id_list": instance_id_list},
         }
         user_operation_record.delay(operation_record)
 
-    @transaction.atomic
-    def destroy(self, **kwargs):
-        """
-        删除采集配置
-        :return: task_id
-        """
-        # 1. 重新命名采集项名称
-        collector_config_name = (
-            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        )
-
-        # 2. 停止采集（删除配置文件）
-        self.stop()
-
-        # 3. 节点管理-删除订阅配置
-        self._delete_subscription()
-
-        # 4. 删除索引集
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
-            index_set_handler.delete(self.data.collector_config_name)
-
-        # 5. 删除CollectorConfig记录
-        self.data.collector_config_name = collector_config_name
-        self.data.save()
-        self.data.delete()
-
-        # 6. 删除META采集项：直接重命名采集项名称
-        collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
-        if self.data.bk_data_id:
-            collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
-
-        # 7. 如果存在归档使用了当前采集项, 则删除归档
-        qs = ArchiveConfig.objects.filter(
-            instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
-        )
-        if qs.exists():
-            qs.delete()
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.DESTROY,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        return True
-
-    @transaction.atomic
-    def start(self, **kwargs):
-        """
-        启动采集配置
-        :return: task_id
-        """
-        self._itsm_start_judge()
-
-        self.data.is_active = True
-        self.data.save()
-
-        # 启用采集项
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.start()
-
-        # 启动节点管理订阅功能
-        if self.data.subscription_id:
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
-
-        # 存在RT则启用RT
-        if self.data.table_id:
-            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
-            etl_storage = EtlStorage.get_instance(self.data.etl_config)
-            etl_storage.switch_result_table(collector_config=self.data, is_enable=True)
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.START,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        if self.data.subscription_id:
-            return self._run_subscription_task()
-        return True
-
-    @transaction.atomic
-    def stop(self, **kwargs):
-        """
-        停止采集配置
-        :return: task_id
-        """
-        self.data.is_active = False
-        self.data.save()
-
-        # 停止采集项
-        if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
-
-        if self.data.subscription_id:
-            # 停止节点管理订阅功能
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
-
-        # 存在RT则停止RT
-        if self.data.table_id:
-            _, table_id = self.data.table_id.split(".")  # pylint: disable=unused-variable
-            etl_storage = EtlStorage.get_instance(self.data.etl_config)
-            etl_storage.switch_result_table(collector_config=self.data, is_enable=False)
-
-        # add user_operation_record
-        operation_record = {
-            "username": get_request_username(),
-            "biz_id": self.data.bk_biz_id,
-            "record_type": UserOperationTypeEnum.COLLECTOR,
-            "record_object_id": self.data.collector_config_id,
-            "action": UserOperationActionEnum.STOP,
-            "params": "",
-        }
-        user_operation_record.delay(operation_record)
-
-        if self.data.subscription_id:
-            return self._run_subscription_task("STOP")
-        return True
+        return res
 
     def retry_instances(self, instance_id_list):
         return self.retry_target_nodes(instance_id_list)
 
+    @classmethod
+    def _check_task_ready_exception(cls, error: BaseException):
+        """
+        处理task_ready_exception 返回error
+        @param error {BaseException} 返回错误
+        """
+        task_ready = True
+        if isinstance(error, ApiRequestError):
+            return task_ready
+        if isinstance(error, ApiResultError) and str(error.code) == CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE:
+            return task_ready
+        logger.error(f"Call NodeApi check_task_ready error: {error}")
+        raise error
+
+    def _check_task_ready(self, param: dict):
+        """
+        查询任务是否下发: 兼容节点管理未发布的情况
+        @param param {Dict} NodeApi.check_subscription_task_ready 请求
+        """
+        try:
+            task_ready = NodeApi.check_subscription_task_ready(param)
+        # 如果节点管理路由不存在或服务异常等request异常情况
+        except BaseException as e:  # pylint: disable=broad-except
+            task_ready = self._check_task_ready_exception(e)
+        return task_ready
+
+    @staticmethod
+    def get_instance_log(instance_obj):
+        """
+        获取采集实例日志
+        :param  [dict] instance_obj: 实例状态日志
+        :return: [string]
+        """
+        for step_obj in instance_obj.get("steps", []):
+            if step_obj == CollectStatus.SUCCESS:
+                continue
+            for sub_step_obj in step_obj["target_hosts"][0]["sub_steps"]:
+                if sub_step_obj["status"] != CollectStatus.SUCCESS:
+                    return "{}-{}".format(step_obj["node_name"], sub_step_obj["node_name"])
+        return ""
+
+    def format_task_instance_status(self, instance_data):
+        """
+        格式化任务状态数据
+        :param  [list] instance_data: 任务状态data数据
+        :return: [list]
+        """
+        instance_list = list()
+        host_list = list()
+        latest_id = self.data.task_id_list[-1]
+        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
+            for node in self.data.target_nodes:
+                if "bk_host_id" in node:
+                    host_list.append(node["bk_host_id"])
+                else:
+                    host_list.append((node["ip"], node["bk_cloud_id"]))
+
+        for instance_obj in instance_data:
+            bk_cloud_id = instance_obj["instance_info"]["host"]["bk_cloud_id"]
+            if isinstance(bk_cloud_id, list):
+                bk_cloud_id = bk_cloud_id[0]["bk_inst_id"]
+            bk_host_innerip = instance_obj["instance_info"]["host"]["bk_host_innerip"]
+            bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
+
+            # 静态节点：排除订阅任务历史IP（不是最新订阅且不在当前节点范围的ip）
+            if (
+                self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value
+                and str(instance_obj["task_id"]) != latest_id
+                and ((bk_host_innerip, bk_cloud_id) not in host_list and bk_host_id not in host_list)
+            ):
+                continue
+            instance_list.append(
+                {
+                    "host_id": bk_host_id,
+                    "status": instance_obj["status"],
+                    "ip": bk_host_innerip,
+                    "ipv6": instance_obj["instance_info"]["host"].get("bk_host_innerip_v6", ""),
+                    "host_name": instance_obj["instance_info"]["host"]["bk_host_name"],
+                    "cloud_id": bk_cloud_id,
+                    "log": self.get_instance_log(instance_obj),
+                    "instance_id": instance_obj["instance_id"],
+                    "instance_name": bk_host_innerip,
+                    "task_id": instance_obj.get("task_id", ""),
+                    "bk_supplier_id": instance_obj["instance_info"]["host"].get("bk_supplier_account"),
+                    "create_time": instance_obj["create_time"],
+                    "steps": {i["id"]: i["action"] for i in instance_obj.get("steps", []) if i["action"]},
+                }
+            )
+        return instance_list
+
+    def _get_collect_node(self):
+        """
+        获取target_nodes和target_subscription_diff集合之后组成的node_collect
+        """
+        node_collect = copy.deepcopy(self.data.target_nodes)
+        for target_obj in self.data.target_subscription_diff:
+            node_dic = {"bk_inst_id": target_obj["bk_inst_id"], "bk_obj_id": target_obj["bk_obj_id"]}
+            if node_dic not in node_collect:
+                node_collect.append(node_dic)
+        return node_collect
+
+    def get_biz_internal_module(self):
+        internal_module = CCApi.get_biz_internal_module(
+            {"bk_biz_id": self.data.bk_biz_id, "bk_supplier_account": BK_SUPPLIER_ACCOUNT}
+        )
+        internal_topo = {
+            "host_count": 0,
+            "default": 0,
+            "bk_obj_name": _("集群"),
+            "bk_obj_id": "set",
+            "child": [
+                {
+                    "host_count": 0,
+                    "default": _module.get("default", 0),
+                    "bk_obj_name": _("模块"),
+                    "bk_obj_id": "module",
+                    "child": [],
+                    "bk_inst_id": _module["bk_module_id"],
+                    "bk_inst_name": _module["bk_module_name"],
+                }
+                for _module in internal_module.get("module", [])
+            ],
+            "bk_inst_id": internal_module["bk_set_id"],
+            "bk_inst_name": internal_module["bk_set_name"],
+        }
+        return internal_topo
+
+    def _get_biz_topo(self):
+        """
+        查询业务TOPO，按采集目标节点进行分类
+        """
+        biz_topo = CCApi.search_biz_inst_topo({"bk_biz_id": self.data.bk_biz_id, "level": SEARCH_BIZ_INST_TOPO_LEVEL})
+        try:
+            internal_topo = self.get_biz_internal_module()
+            if internal_topo:
+                biz_topo[BIZ_TOPO_INDEX]["child"].insert(INTERNAL_TOPO_INDEX, internal_topo)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"call CCApi.search_biz_inst_topo error: {e}")
+            pass
+        return biz_topo
+
+    def get_node_mapping(self, topo_tree):
+        """
+        节点映射关系
+        :param  [list] topo_tree: 拓扑树
+        :return: [dict]
+        """
+        node_mapping = {}
+
+        def mapping(node, node_link, node_mapping):
+            node.update(node_link=node_link)
+            node_mapping[node_link[-1]] = node
+
+        BizHandler().foreach_topo_tree(topo_tree, mapping, node_mapping=node_mapping)
+        return node_mapping
+
+    def _get_template_mapping(self, node_collect):
+        """
+        获取模板dict
+        @param node_collect {List} _get_collect_node处理后组成的node_collect
+        """
+        service_template_mapping = {}
+        set_template_mapping = {}
+        bk_boj_id_set = {node_obj["bk_obj_id"] for node_obj in node_collect}
+
+        if TargetNodeTypeEnum.SERVICE_TEMPLATE.value in bk_boj_id_set:
+            service_templates = CCApi.list_service_template.bulk_request({"bk_biz_id": self.data.bk_biz_id})
+            service_template_mapping = {
+                "{}|{}".format(TargetNodeTypeEnum.SERVICE_TEMPLATE.value, str(template.get("id", ""))): {
+                    "name": template.get("name")
+                }
+                for template in service_templates
+            }
+
+        if TargetNodeTypeEnum.SET_TEMPLATE.value in bk_boj_id_set:
+            set_templates = CCApi.list_set_template.bulk_request({"bk_biz_id": self.data.bk_biz_id})
+            set_template_mapping = {
+                "{}|{}".format(TargetNodeTypeEnum.SET_TEMPLATE.value, str(template.get("id", ""))): {
+                    "name": template.get("name")
+                }
+                for template in set_templates
+            }
+
+        return {**service_template_mapping, **set_template_mapping}
+
+    def _get_mapping(self, node_collect):
+        """
+        查询业务TOPO，按采集目标节点进行分类
+        node_collect {List} _get_collect_node处理后组成的node_collect
+        """
+        biz_topo = self._get_biz_topo()
+        node_mapping = self.get_node_mapping(biz_topo)
+        template_mapping = self._get_template_mapping(node_collect=node_collect)
+
+        return node_mapping, template_mapping
+
+    def get_target_mapping(self) -> dict:
+        """
+        节点和标签映射关系
+        :return: [dict] {"module|33": "modify", "set|6": "add", "set|7": "delete"}
+        """
+        target_mapping = dict()
+        for target in self.data.target_subscription_diff:
+            key = "{}|{}".format(target["bk_obj_id"], target["bk_inst_id"])
+            target_mapping[key] = target["type"]
+        return target_mapping
+
+    def _get_host_result(self, node_collect):
+        """
+        根据业务、节点查询主机
+        node_collect {List} _get_collect_node处理后组成的node_collect
+        """
+        conditions = [
+            {"bk_obj_id": node_obj["bk_obj_id"], "bk_inst_id": node_obj["bk_inst_id"]} for node_obj in node_collect
+        ]
+        host_result = BizHandler(self.data.bk_biz_id).search_host(conditions)
+        host_result_dict = defaultdict(list)
+        for host in host_result:
+            for inst_id in host["parent_inst_id"]:
+                key = "{}|{}".format(str(host["bk_obj_id"]), str(inst_id))
+                host_result_dict[key].append((host["bk_host_innerip"], host["bk_cloud_id"]))
+                host_result_dict[key].append(host["bk_host_id"])
+        return host_result_dict
+
+    @classmethod
+    def _get_node_obj(cls, node_obj, template_mapping, node_mapping, map_key):
+        """
+        获取node_path, bk_obj_name, bk_inst_name
+        @param node_obj {dict} _get_collect_node处理后组成的node_collect对应元素
+        @param template_mapping {dict} 模板集合
+        @param node_mapping {dict} 拓扑节点集合
+        @param map_key {str} 集合对应key
+        """
+
+        if node_obj["bk_obj_id"] in [
+            TargetNodeTypeEnum.SET_TEMPLATE.value,
+            TargetNodeTypeEnum.SERVICE_TEMPLATE.value,
+        ]:
+            node_path = template_mapping.get(map_key, {}).get("name", "")
+            bk_obj_name = TargetNodeTypeEnum.get_choice_label(node_obj["bk_obj_id"])
+            bk_inst_name = template_mapping.get(map_key, {}).get("name", "")
+            return node_path, bk_obj_name, bk_inst_name
+
+        node_path = "_".join(
+            [node_mapping.get(node).get("bk_inst_name") for node in node_mapping.get(map_key, {}).get("node_link", [])]
+        )
+        bk_obj_name = node_mapping.get(map_key, {}).get("bk_obj_name", "")
+        bk_inst_name = node_mapping.get(map_key, {}).get("bk_inst_name", "")
+
+        return node_path, bk_obj_name, bk_inst_name
+
+    # 查询物理机采集任务状态
+    def get_subscription_task_status(self, task_id_list):
+        """
+        查询采集任务状态
+        :param  [list] task_id_list:
+        :return: [dict]
+        {
+            "contents": [
+                {
+                "is_label": true,
+                "label_name": "modify",
+                "bk_obj_name": "模块",
+                "node_path": "蓝鲸_test1_配置平台_adminserver",
+                "bk_obj_id": "module",
+                "bk_inst_id": 33,
+                "bk_inst_name": "adminserver",
+                "child": [
+                    {
+                        "bk_host_id": 1,
+                        "status": "FAILED",
+                        "ip": "127.0.0.1",
+                        "bk_cloud_id": 0,
+                        "log": "[unifytlogc] 下发插件配置-重载插件进程",
+                        "instance_id": "host|instance|host|127.0.0.1-0-0",
+                        "instance_name": "127.0.0.1",
+                        "task_id": 24516,
+                        "bk_supplier_id": "0",
+                        "create_time": "2019-09-17 19:23:02",
+                        "steps": {1 item}
+                        }
+                    ]
+                }
+            ]
+        }
+        """
+        if self.data.is_custom_scenario:
+            return {"task_ready": True, "contents": []}
+
+        if not self.data.subscription_id:
+            self._update_or_create_subscription(
+                collector_scenario=CollectorScenario.get_instance(
+                    collector_scenario_id=self.data.collector_scenario_id
+                ),
+                params=self.data.params,
+            )
+        # 查询采集任务状态
+        param = {
+            "subscription_id": self.data.subscription_id,
+        }
+        if self.data.task_id_list:
+            param["task_id_list"] = self.data.task_id_list
+
+        task_ready = self._check_task_ready(param=param)
+
+        # 如果任务未启动，则直接返回结果
+        if not task_ready:
+            return {"task_ready": task_ready, "contents": []}
+
+        status_result = NodeApi.get_subscription_task_status.bulk_request(
+            params={
+                "subscription_id": self.data.subscription_id,
+                "need_detail": False,
+                "need_aggregate_all_tasks": True,
+                "need_out_of_scope_snapshots": False,
+            },
+            get_data=lambda x: x["list"],
+            get_count=lambda x: x["total"],
+        )
+        instance_status = self.format_task_instance_status(status_result)
+
+        # 如果采集目标是HOST-INSTANCE
+        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
+            content_data = [
+                {
+                    "is_label": False,
+                    "label_name": "",
+                    "bk_obj_name": _("主机"),
+                    "node_path": _("主机"),
+                    "bk_obj_id": "host",
+                    "bk_inst_id": "",
+                    "bk_inst_name": "",
+                    "child": instance_status,
+                }
+            ]
+            return {"task_ready": task_ready, "contents": content_data}
+
+        # 如果采集目标是HOST-TOPO
+        # 获取target_nodes获取采集目标及差异节点target_subscription_diff合集
+        node_collect = self._get_collect_node()
+        node_mapping, template_mapping = self._get_mapping(node_collect=node_collect)
+        content_data = list()
+        target_mapping = self.get_target_mapping()
+        total_host_result = self._get_host_result(node_collect)
+        for node_obj in node_collect:
+            map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+            host_result = total_host_result.get(map_key, [])
+            label_name = target_mapping.get(map_key, "")
+            node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
+                node_obj=node_obj, template_mapping=template_mapping, node_mapping=node_mapping, map_key=map_key
+            )
+
+            content_obj = {
+                "is_label": False if not label_name else True,
+                "label_name": label_name,
+                "bk_obj_name": bk_obj_name,
+                "node_path": node_path,
+                "bk_obj_id": node_obj["bk_obj_id"],
+                "bk_inst_id": node_obj["bk_inst_id"],
+                "bk_inst_name": bk_inst_name,
+                "child": [],
+            }
+
+            for instance_obj in instance_status:
+                # delete 标签如果订阅任务状态action不为UNINSTALL
+                if label_name == "delete" and instance_obj["steps"].get(LogPluginInfo.NAME) != "UNINSTALL":
+                    continue
+                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
+                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                    "host_id"
+                ] in host_result:
+                    content_obj["child"].append(instance_obj)
+            content_data.append(content_obj)
+        return {"task_ready": task_ready, "contents": content_data}
+
     def get_task_status(self, id_list):
         return self.get_subscription_task_status(task_id_list=id_list)
+
+    @staticmethod
+    def format_subscription_instance_status(instance_data, plugin_data):
+        """
+        对订阅状态数据按照实例运行状态进行归类
+        :param [dict] instance_data:
+        :param [dict] plugin_data:
+        :return: [dict]
+        """
+        plugin_status_mapping = {}
+        for plugin_obj in plugin_data:
+            for item in plugin_obj["plugin_status"]:
+                if item["name"] == "bkunifylogbeat":
+                    plugin_status_mapping[plugin_obj["bk_host_id"]] = item
+
+        instance_list = list()
+        for instance_obj in instance_data:
+            # 日志采集暂时只支持本地采集
+            bk_host_id = instance_obj["instance_info"]["host"]["bk_host_id"]
+            plugin_statuses = plugin_status_mapping.get(bk_host_id, {})
+            if instance_obj["status"] in [CollectStatus.PENDING, CollectStatus.RUNNING]:
+                status = CollectStatus.RUNNING
+                status_name = RunStatus.RUNNING
+            elif instance_obj["status"] == CollectStatus.SUCCESS:
+                status = CollectStatus.SUCCESS
+                status_name = RunStatus.SUCCESS
+            else:
+                status = CollectStatus.FAILED
+                status_name = RunStatus.FAILED
+
+            bk_cloud_id = instance_obj["instance_info"]["host"]["bk_cloud_id"]
+            if isinstance(bk_cloud_id, list):
+                bk_cloud_id = bk_cloud_id[0]["bk_inst_id"]
+
+            status_obj = {
+                "status": status,
+                "status_name": status_name,
+                "host_id": bk_host_id,
+                "ip": instance_obj["instance_info"]["host"]["bk_host_innerip"],
+                "ipv6": instance_obj["instance_info"]["host"].get("bk_host_innerip_v6", ""),
+                "cloud_id": bk_cloud_id,
+                "host_name": instance_obj["instance_info"]["host"]["bk_host_name"],
+                "instance_id": instance_obj["instance_id"],
+                "instance_name": instance_obj["instance_info"]["host"]["bk_host_innerip"],
+                "plugin_name": plugin_statuses.get("name"),
+                "plugin_version": plugin_statuses.get("version"),
+                "bk_supplier_id": instance_obj["instance_info"]["host"].get("bk_supplier_account"),
+                "create_time": instance_obj["create_time"],
+            }
+            instance_list.append(status_obj)
+
+        return instance_list
 
     def get_subscription_status(self):
         """

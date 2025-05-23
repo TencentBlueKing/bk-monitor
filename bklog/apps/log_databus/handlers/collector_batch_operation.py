@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from apps.log_databus.constants import CollectorBatchOperationType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
@@ -60,7 +60,7 @@ class CollectorBatchHandler:
                 "description": f"{self.operation} operation executed successfully",
             }
             try:
-                handler = BaseCollectorHandler(collector_config_id=collector.collector_config_id)
+                handler = CollectorHandler(collector_config_id=collector.collector_config_id)
                 if self.operation == CollectorBatchOperationType.STOP.value:
                     handler.get_instance().stop()
                 else:
@@ -92,7 +92,7 @@ class CollectorBatchHandler:
                 "status": "SUCCESS",
                 "description": f"{self.operation} operation executed successfully",
             }
-            handler = BaseCollectorHandler(collector.collector_config_id)
+            handler = CollectorHandler(collector.collector_config_id)
             collect_config = handler.get_instance().retrieve()
             clean_stash = handler.get_clean_stash()
 

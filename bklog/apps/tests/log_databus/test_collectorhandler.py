@@ -26,7 +26,7 @@ from django.test import TestCase
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
-from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
 
 BK_DATA_ID = 1
@@ -256,11 +256,11 @@ class TestCollectorHandler(TestCase):
         """
 
         if params:
-            result = BaseCollectorHandler().update_or_create(params=params)
+            result = CollectorHandler().update_or_create(params=params)
         else:
             params = copy.deepcopy(PARAMS)
             params["params"]["conditions"]["type"] = "separator"
-            result = BaseCollectorHandler().update_or_create(params=params)
+            result = CollectorHandler().update_or_create(params=params)
         return params, result
 
     @patch("apps.api.NodeApi.switch_subscription", lambda _: {})
@@ -310,7 +310,7 @@ class TestCollectorHandler(TestCase):
     @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsFilterTest())
     def test_filter_illegal_ips(self, *args, **kwargs):
         self.assertEqual(
-            BaseCollectorHandler._filter_illegal_ip_and_host_id(
+            CollectorHandler._filter_illegal_ip_and_host_id(
                 bk_biz_id=FILTER_ILLEGAL_IPS_BIZ_ID, ips=FILTER_ILLEGAL_IPS_IP_LIST
             )[0],
             ["127.0.0.1"],

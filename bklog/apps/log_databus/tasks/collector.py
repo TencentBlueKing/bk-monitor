@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectItsmStatus,
     ContainerCollectStatus,
 )
-from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import (
     BcsStorageClusterConfig,
@@ -70,7 +70,7 @@ def shutdown_collector_warm_storage_config(cluster_id):
     if not result_table_list:
         return
 
-    cluster_infos = BaseCollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
+    cluster_infos = CollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
     for collector in CollectorConfig.objects.all():
         try:
             if not collector.table_id:
@@ -112,7 +112,7 @@ def collector_status():
             and BkDataDatabusApi.get_cleans(params={"raw_data_id": _collector.bkdata_data_id})
         ):
             continue
-        BaseCollectorHandler(collector_config_id=_collector.collector_config_id).get_instance().stop()
+        CollectorHandler(collector_config_id=_collector.collector_config_id).get_instance().stop()
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -305,7 +305,7 @@ def create_custom_log_group():
     otlp_logs = CollectorConfig.objects.filter(custom_type=CustomTypeEnum.OTLP_LOG.value, log_group_id__isnull=True)
     for log in otlp_logs:
         try:
-            BaseCollectorHandler.create_custom_log_group(log)
+            CollectorHandler.create_custom_log_group(log)
             log.refresh_from_db(fields=["log_group_id"])
             logger.info(
                 "[CreateCustomLogGroupSuccess] Collector => %s; LogGroupID => %s",
@@ -337,7 +337,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
 
     for collector in collectors:
         try:
-            collect_config = BaseCollectorHandler(collector.collector_config_id).get_instance().retrieve()
+            collect_config = CollectorHandler(collector.collector_config_id).get_instance().retrieve()
             if collect_config["storage_cluster_id"] == storage_cluster_id:
                 logger.info(
                     "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
@@ -378,7 +378,7 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
-            handler = BaseCollectorHandler(collector.collector_config_id)
+            handler = CollectorHandler(collector.collector_config_id)
             collect_config = handler.get_instance().retrieve()
             clean_stash = handler.get_clean_stash()
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
@@ -419,7 +419,7 @@ def update_alias_settings(collector_config_id, alias_settings):
     更新别名配置
     """
     try:
-        handler = BaseCollectorHandler(collector_config_id)
+        handler = CollectorHandler(collector_config_id)
         collect_config = handler.get_instance().retrieve()
         clean_stash = handler.get_clean_stash()
 

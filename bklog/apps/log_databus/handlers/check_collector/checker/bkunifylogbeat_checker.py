@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectStatus,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.utils.bcs import Bcs
 
@@ -111,7 +111,7 @@ class BkunifylogbeatChecker(Checker):
             self.append_normal_info(_("自定义容器采集, 不检查采集任务状态"))
             return
         task_status_contents = (
-            BaseCollectorHandler(self.collector_config.collector_config_id)
+            CollectorHandler(self.collector_config.collector_config_id)
             .get_instance()
             .get_task_status(id_list=[])
             .get("contents", [])

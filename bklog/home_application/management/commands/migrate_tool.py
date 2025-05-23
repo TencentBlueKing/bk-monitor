@@ -7,7 +7,7 @@ from typing import Any
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_databus.handlers.collector_handler.base_collector import (
-    BaseCollectorHandler,
+    CollectorHandler,
     get_random_public_cluster_id,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -514,7 +514,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
             collector_config_name_en = table_id
         # 如果采集项英文名已存在, 则在后面加上随机字符串
         if (
-            BaseCollectorHandler()
+            CollectorHandler()
             .pre_check({"collector_config_name_en": collector_config_name_en, "bk_biz_id": data["bk_biz_id"]})
             .get("allowed", False)
         ):
@@ -565,7 +565,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         }
         slz = FastCollectorCreateSerializer(data=params)
         slz.is_valid()
-        return BaseCollectorHandler().fast_create(params=slz.data)
+        return CollectorHandler().fast_create(params=slz.data)
 
     def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.info(

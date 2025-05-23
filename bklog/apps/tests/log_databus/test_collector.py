@@ -27,7 +27,7 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector_handler.base_collector import BaseCollectorHandler
+from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
 from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
 from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
 from apps.log_search.models import Space
@@ -1083,7 +1083,7 @@ class TestCollector(TestCase):
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
 
         params["params"]["conditions"]["type"] = "separator"
-        result = BaseCollectorHandler().update_or_create(params)
+        result = CollectorHandler().update_or_create(params)
         self.assertEqual(result["bk_data_id"], BK_DATA_ID)
         self.assertEqual(result["collector_config_name"], params["collector_config_name"])
         self.assertEqual(result["subscription_id"], SUBSCRIPTION_ID)
@@ -1093,7 +1093,6 @@ class TestCollector(TestCase):
         self._test_run_subscription_task(result["collector_config_id"])
         self._test_start(result["collector_config_id"])
         self._test_retry_target_nodes(result["collector_config_id"])
-        self._test_delete_subscription(result["collector_config_id"])
         self._test_get_target_mapping(result["collector_config_id"])
         self._test_get_subscription_status(result["collector_config_id"])
         self._test_get_subscription_task_detail(result["collector_config_id"])
@@ -1122,9 +1121,9 @@ class TestCollector(TestCase):
 
         params["target_nodes"] = [{"bk_inst_id": 34, "bk_obj_id": "module", "ip": "127.0.0.1", "bk_cloud_id": 1}]
         with self.assertRaises(CollectorConfigNotExistException):
-            BaseCollectorHandler(collector_config_id=9999)
+            CollectorHandler(collector_config_id=9999)
 
-        collector = BaseCollectorHandler(collector_config_id=collector_config_id)
+        collector = CollectorHandler(collector_config_id=collector_config_id)
         result = collector.update_or_create(params)
         self.assertEqual(result["collector_config_name"], new_collector_config_name)
 
@@ -1159,7 +1158,7 @@ class TestCollector(TestCase):
         scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
 
         # 指定订阅节点
-        collector1 = BaseCollectorHandler(collector_config_id=collector_config_id)
+        collector1 = CollectorHandler(collector_config_id=collector_config_id)
         result1 = collector1._run_subscription_task(scope=scope)
         self.assertEqual(result1, collector1.data.task_id_list)
 
@@ -1184,12 +1183,6 @@ class TestCollector(TestCase):
         result = collector.retry_instances(params)
         self.assertEqual(result, task_id_list)
 
-    @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)
-    def _test_delete_subscription(self, collector_config_id):
-        collector = BaseCollectorHandler(collector_config_id=collector_config_id)
-        result = collector._delete_subscription()
-        self.assertTrue(result.get("result"))
-
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 8})
     @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)
     def _test_destroy(self, collector_config_id):
@@ -1197,10 +1190,10 @@ class TestCollector(TestCase):
         collector.destroy()
 
         with self.assertRaises(CollectorConfigNotExistException):
-            BaseCollectorHandler(collector_config_id=collector_config_id)
+            CollectorHandler(collector_config_id=collector_config_id)
 
     def test_format_subscription_instance_status(self, *args, **kwargs):
-        result = BaseCollectorHandler.format_subscription_instance_status(TASK_RESULT_DATA, PLUGIN_RESULT_DATA)
+        result = HostCollectorHandler.format_subscription_instance_status(TASK_RESULT_DATA, PLUGIN_RESULT_DATA)
         self.assertEqual(result, STATUS_DATA_RETURN)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
@@ -1225,11 +1218,11 @@ class TestCollector(TestCase):
         self.assertEqual(result2["contents"][0]["bk_inst_id"], 34)
 
     def test_get_node_mapping(self, *args, **kwargs):
-        result = BaseCollectorHandler().get_node_mapping(TOPO_TREE)
+        result = HostCollectorHandler().get_node_mapping(TOPO_TREE)
         self.assertEqual(result, TOPO_TREE_RETURN)
 
     def _test_get_target_mapping(self, collector_config_id):
-        collector = BaseCollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         collector.data.target_subscription_diff = [
             {"type": "add", "bk_inst_id": 2, "bk_obj_id": "biz"},
             {"type": "add", "bk_inst_id": 3, "bk_obj_id": "module"},
@@ -1241,7 +1234,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_instance_status", lambda _: [PART_FAILED_INSTANCE_DATA])
     def _test_get_part_failed_subscription_status(self, collector_config_id):
-        result = BaseCollectorHandler().get_subscription_status_by_list([collector_config_id])
+        result = CollectorHandler().get_subscription_status_by_list([collector_config_id])
         self.assertEqual(
             result,
             [
@@ -1260,7 +1253,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_instance_status", lambda _: [FAILED_INSTANCE_DATA])
     def _test_get_failed_subscription_status(self, collector_config_id):
-        result = BaseCollectorHandler().get_subscription_status_by_list([collector_config_id])
+        result = CollectorHandler().get_subscription_status_by_list([collector_config_id])
         self.assertEqual(
             result,
             [
@@ -1279,7 +1272,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_instance_status", lambda _: [SUCCESS_INSTANCE_DATA])
     def _test_get_success_subscription_status(self, collector_config_id):
-        result = BaseCollectorHandler().get_subscription_status_by_list([collector_config_id])
+        result = CollectorHandler().get_subscription_status_by_list([collector_config_id])
         self.assertEqual(
             result,
             [
@@ -1298,7 +1291,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_instance_status", lambda _: [RUNNING_INSTANCE_DATA])
     def _test_get_running_subscription_status(self, collector_config_id):
-        result = BaseCollectorHandler().get_subscription_status_by_list([collector_config_id])
+        result = CollectorHandler().get_subscription_status_by_list([collector_config_id])
         self.assertEqual(
             result,
             [
@@ -1317,7 +1310,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_task_detail", lambda _: TASK_DETAIL_DATA)
     def _test_get_subscription_task_detail(self, collector_config_id):
-        collector = BaseCollectorHandler(collector_config_id=collector_config_id)
+        collector = CollectorHandler(collector_config_id=collector_config_id)
         result = collector.get_subscription_task_detail("host|instance|host|127.0.0.1-0-0", task_id="24626")
         for i in ["unifytlogc", "下发插件配置", "更新插件部署状态", "渲染并下发配置", "重载插件进程"]:
             self.assertIn(i, result["log_detail"])
@@ -1326,8 +1319,8 @@ class TestCollector(TestCase):
         self.assertEqual(result.get("log_result").get("instance_id"), "host|instance|host|127.0.0.1-0-0")
 
     def test_get_instance_log(self, *args, **kwargs):
-        result = BaseCollectorHandler.get_instance_log(TASK_DETAIL_DATA)
-        result2 = BaseCollectorHandler.get_instance_log({"steps": []})
+        result = HostCollectorHandler.get_instance_log(TASK_DETAIL_DATA)
+        result2 = HostCollectorHandler.get_instance_log({"steps": []})
 
         self.assertEqual(result, "[unifytlogc] 下发插件配置-重载插件进程")
         self.assertEqual(result2, "")
@@ -1338,7 +1331,7 @@ class TestCollector(TestCase):
     def test_format_task_instance_status(self, *args, **kwargs):
         _, create_result = TestCollectorHandler.create()
         collector_config_id = create_result["collector_config_id"]
-        result = BaseCollectorHandler(collector_config_id=collector_config_id).format_task_instance_status(
+        result = HostCollectorHandler(collector_config_id=collector_config_id).format_task_instance_status(
             [TASK_DETAIL_DATA]
         )
         self.assertEqual(result[0]["status"], "FAILED")
@@ -1351,7 +1344,7 @@ class TestCollector(TestCase):
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
     @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
     def _test_get_subscription_task_status(self, collector_config_id, mock_bulk_request):
-        collector = BaseCollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO
         result = collector.get_subscription_task_status(collector.data.task_id_list)
@@ -1369,16 +1362,16 @@ class TestCollector(TestCase):
         self.assertEqual(result2["contents"][0]["bk_obj_id"], "host")
 
     def test_check_task_ready_exception(self, *args, **kwargs):
-        self.assertEqual(BaseCollectorHandler._check_task_ready_exception(ApiRequestError("test1", 111)), True)
+        self.assertEqual(HostCollectorHandler._check_task_ready_exception(ApiRequestError("test1", 111)), True)
         self.assertEqual(
-            BaseCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=1306201, errors="test2")),
+            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=1306201, errors="test2")),
             True,
         )
         with self.assertRaises(BaseException):
-            BaseCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=111, errors="test2"))
+            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=111, errors="test2"))
 
         with self.assertRaises(BaseException):
-            BaseCollectorHandler._check_task_ready_exception(BaseException())
+            HostCollectorHandler._check_task_ready_exception(BaseException())
 
     @patch("apps.api.TransferApi.create_data_id", lambda _: {"bk_data_id": BK_DATA_ID})
     @patch(
@@ -1403,23 +1396,23 @@ class TestCollector(TestCase):
     @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
     def test_pre_check(self, *args, **kwargs):
         params = copy.deepcopy(PARAMS)
-        result = BaseCollectorHandler().pre_check(
+        result = CollectorHandler().pre_check(
             params={"bk_biz_id": params["bk_biz_id"], "collector_config_name_en": params["collector_config_name_en"]}
         )
         self.assertEqual(result["allowed"], True)
 
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
         params["params"]["conditions"]["type"] = "separator"
-        BaseCollectorHandler().update_or_create(params)
+        CollectorHandler().update_or_create(params)
 
         # 测试collector_config_name_en同名
         params = copy.deepcopy(PARAMS)
-        result = BaseCollectorHandler().pre_check(
+        result = CollectorHandler().pre_check(
             params={"bk_biz_id": params["bk_biz_id"], "collector_config_name_en": params["collector_config_name_en"]}
         )
         self.assertEqual(result["allowed"], False)
 
-        result = BaseCollectorHandler().pre_check(
+        result = CollectorHandler().pre_check(
             params={"bk_biz_id": params["bk_biz_id"], "collector_config_name_en": "1"}
         )
         self.assertEqual(result["allowed"], True)
@@ -1466,7 +1459,7 @@ namespaceSelector:
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
     def test_list_bcs_clusters(self, *args, **kwargs):
-        clusters = BaseCollectorHandler().list_bcs_clusters(BK_BIZ_ID)
+        clusters = K8sCollectorHandler().list_bcs_clusters(BK_BIZ_ID)
         self.assertEqual(len(clusters), 1)
         self.assertEqual(BCS_CLUSTER_ID, clusters[0]["id"])
 
