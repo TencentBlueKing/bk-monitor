@@ -102,7 +102,7 @@ export default defineComponent({
     const handleSortChange = (type: 'show' | 'sort' | 'type', value?) => {
       if (type === 'sort') {
         sortOrder.sort = sortOrder.sort === 'desc' ? 'asc' : 'desc';
-      } else if (type == 'show') {
+      } else if (type === 'show') {
         sortOrder.popoverShow = value;
       }
     };
@@ -225,9 +225,7 @@ export default defineComponent({
                   )}
                   <span
                     class='span-name'
-                    v-overflow-text={{
-                      text: original.name,
-                    }}
+                    v-overflow-tips
                   >
                     {original.name}
                   </span>
@@ -247,14 +245,12 @@ export default defineComponent({
                     alt=''
                     src={original.icon}
                   />
-                  <span
+                  <div
                     class='service-name'
-                    v-overflow-text={{
-                      text: original.operationName,
-                    }}
+                    v-overflow-tips
                   >
                     {original.operationName}
-                  </span>
+                  </div>
                   <span class='start-time'>
                     {`${formatDate(original.startTime)} ${customFormatTime(original.startTime, 'HH:mm:ss')}`}
                   </span>

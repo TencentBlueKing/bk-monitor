@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
@@ -55,7 +55,7 @@ class ChangeDataStreamComponent(Component):
     bound_service = ChangeDataStreamService
 
 
-class ChangeDataStream(object):
+class ChangeDataStream:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.change_data_stream = ServiceActivity(
             component_code="change_data_stream", name=f"change_data_stream:{index_set_id}-{collector_config_id}"
@@ -87,7 +87,7 @@ class CreateBkdataAccessComponent(Component):
     bound_service = CreateBkdataAccessService
 
 
-class CreateBkdataAccess(object):
+class CreateBkdataAccess:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_bkdata_access = ServiceActivity(
             component_code="create_bkdata_access", name=f"create_bkdata_access:{index_set_id}_{collector_config_id}"
@@ -113,7 +113,7 @@ class SyncBkdataEtlComponent(Component):
     bound_service = SyncBkdataEtlService
 
 
-class SyncBkdataEtl(object):
+class SyncBkdataEtl:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.sync_bkdata_etl = ServiceActivity(
             component_code="sync_bkdata_etl", name=f"sync_bkdata_etl:{index_set_id}_{collector_config_id}"
@@ -149,7 +149,7 @@ class AddProjectDataComponent(Component):
     bound_service = AddProjectDataService
 
 
-class AddProjectData(object):
+class AddProjectData:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.add_project_data = ServiceActivity(
             component_code="add_project_data", name=f"add_project_data:{index_set_id}_{collector_config_id}"
@@ -175,7 +175,9 @@ class AddResourceGroupService(BaseService):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         if clustering_config.es_storage:
             return True
-        es_storage_name = DataAccessHandler().add_cluster_group(clustering_config.source_rt_name)
+        es_storage_name = DataAccessHandler().add_cluster_group(
+            clustering_config.source_rt_name, clustering_config.bk_biz_id
+        )
         clustering_config.es_storage = es_storage_name
         clustering_config.save()
         return True
@@ -187,7 +189,7 @@ class AddResourceGroupComponent(Component):
     bound_service = AddResourceGroupService
 
 
-class AddResourceGroupSet(object):
+class AddResourceGroupSet:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.add_resource_group = ServiceActivity(
             component_code="add_resource_group", name=f"create_new_index_set:{index_set_id}_{collector_config_id}"
@@ -222,7 +224,7 @@ class CreateBkdataDataIdComponent(Component):
     bound_service = CreateBkdataDataIdService
 
 
-class CreateBkdataDataId(object):
+class CreateBkdataDataId:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_bkdata_data_id = ServiceActivity(
             component_code="create_bkdata_data_id", name=f"create_bkdata_data_id:{index_set_id}-{collector_config_id}"
