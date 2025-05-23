@@ -185,10 +185,10 @@ export default defineComponent({
             triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
             triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
           ) {
-            handleSetActiveConditionMenu();
+            setActiveConditionMenu();
             return;
           }
-          handleSetActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+          setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
           const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
           return {
             content: conditionMenuRef.value.$el,
@@ -196,7 +196,7 @@ export default defineComponent({
           };
         },
         onHide: () => {
-          handleSetActiveConditionMenu();
+          setActiveConditionMenu();
         },
         popoverOptions: {
           theme: 'light padding-0',
@@ -806,7 +806,7 @@ export default defineComponent({
       };
     }
 
-    function handleSetActiveConditionMenu(colKey = '', cellSource = '') {
+    function setActiveConditionMenu(colKey = '', cellSource = '') {
       activeConditionMenuTarget.conditionKey = colKey;
       activeConditionMenuTarget.conditionValue = cellSource;
     }
@@ -870,6 +870,15 @@ export default defineComponent({
      */
     function handleConditionChange(value: ConditionChangeEvent) {
       emit('conditionChange', value);
+    }
+
+    /**
+     * @description 字段分析统计菜单项点击后回调
+     *
+     */
+    function handleMenuClick() {
+      setActiveConditionMenu();
+      conditionMenuPopoverHide();
     }
 
     /**
@@ -1302,7 +1311,7 @@ export default defineComponent({
       statisticsDomRender,
       handleSliderShowChange,
       handleClearRetrievalFilter,
-      conditionMenuPopoverHide,
+      handleMenuClick,
       handleConditionChange,
     };
   },
@@ -1312,7 +1321,7 @@ export default defineComponent({
       <div
         style={{
           // 消除表格组件实现吸底效果时候吸底虚拟滚动条组件marginTop 多处理了 1px 的副作用
-          marginTop: '-1px',
+          marginTop: this.tableData?.length ? 0 : '-1px',
         }}
         class='trace-explore-table'
       >
@@ -1418,7 +1427,7 @@ export default defineComponent({
             conditionKey={this.activeConditionMenuTarget.conditionKey}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
             onConditionChange={this.handleConditionChange}
-            onOnMenuClick={this.conditionMenuPopoverHide}
+            onMenuClick={this.handleMenuClick}
           />
         </div>
         {this.statisticsDomRender()}
