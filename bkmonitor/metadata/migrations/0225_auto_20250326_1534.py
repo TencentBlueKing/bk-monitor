@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.conf import settings
 import logging
 from typing import Any
 
@@ -68,7 +69,10 @@ def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
 
 
 def sync_router(event_groups: list[dict[str, Any]]):
-    event_groups = event_groups + INNER_EVENT_GROUPS
+    # 未开启多租户才变更内置的 DataID。
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        event_groups = event_groups + INNER_EVENT_GROUPS
+
     table_ids: list[str] = list({event_group["table_id"] for event_group in event_groups})
     platform_data_ids: set[str] = set(
         models["DataSource"]
