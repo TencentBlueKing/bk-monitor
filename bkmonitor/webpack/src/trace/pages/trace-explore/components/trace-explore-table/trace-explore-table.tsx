@@ -576,7 +576,7 @@ export default defineComponent({
           trace_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
             colKey: 'trace_id',
-            title: t('所属Trace'),
+            title: t('所属 Trace'),
             width: 240,
             clickCallback: row => handleSliderShowChange('trace', row.trace_id),
           },
@@ -606,15 +606,15 @@ export default defineComponent({
         root_span_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_span_name',
-          headerDescription: t('整个Trace的第一个Span'),
-          title: t('根Span'),
+          headerDescription: t('整个 Trace 的第一个 Span'),
+          title: t('根 Span'),
           width: 160,
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
         root_service: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_service',
-          headerDescription: t('服务端进程的第一个Service'),
+          headerDescription: t('服务端进程的第一个 Service'),
           title: t('入口服务'),
           width: 160,
           getRenderValue: row => getJumpToApmLinkItem(row?.root_service),

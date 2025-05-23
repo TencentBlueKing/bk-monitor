@@ -1475,7 +1475,7 @@ export default {
   'Span 名称': 'Span name',
   '实例 ID': 'Instance ID',
   'SDK 名称': 'SDK name',
-  所属Trace: 'Trace',
+  '所属 Trace': 'Trace',
   内部邮件: 'Internal Mail',
   外部邮件: 'External Mail',
   邮件列表: 'Mail List',
