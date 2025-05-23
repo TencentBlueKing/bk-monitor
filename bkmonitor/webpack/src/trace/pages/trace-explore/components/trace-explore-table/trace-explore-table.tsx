@@ -454,34 +454,46 @@ export default defineComponent({
     }
 
     /**
-     * @description 滚动触发事件，滚动触底加载更多
+     * @description 滚动触发事件
      *
      */
     function handleScroll(event: Event) {
       if (!tableData.value?.length) {
         return;
       }
-      const target = event.target as HTMLElement;
       updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
       conditionMenuPopoverHide();
+      handleScrollToEnd(event.target as HTMLElement);
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      scrollPointerEventsTimer = setTimeout(() => {
+        updateTablePointEvents('auto');
+      }, 600);
+    }
+
+    /**
+     * @description 滚动触底加载更多
+     *
+     */
+    function handleScrollToEnd(target: HTMLElement) {
+      if (!tableHasScrollLoading.value) {
+        return;
+      }
       const { scrollHeight, scrollTop, clientHeight } = target;
-      const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+      const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
+      const noScrollBar = scrollHeight <= clientHeight;
+      const shouldRequest = noScrollBar || isEnd;
       if (
         !(
           tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.SCROLL]
         ) &&
-        isEnd
+        shouldRequest
       ) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointEvents('auto');
-      }, 600);
     }
 
     /**
@@ -728,8 +740,6 @@ export default defineComponent({
         updateTableDataFn = list => {
           store.updateTableList(list);
         };
-      } else if (!tableHasScrollLoading.value) {
-        return;
       }
 
       tableLoading[loadingType] = true;
@@ -750,6 +760,15 @@ export default defineComponent({
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
       updateTableDataFn(res.data);
       tableHasMoreData.value = res.data?.length === limit;
+      requestAnimationFrame(() => {
+        // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
+        // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
+        // 所以该场景处理只能通过多次请求的方案来兼容，不能通过首次请求加大页码的方式来兼容
+        // 否则在某些边界场景下会出现首次请求返回的不为空数据已经是全部数据了
+        // 还是但未出现滚动条，导致无法触发触底逻辑再次请求接口判断是否已是全部数据
+        // 从而导致触底loading一直存在但实际已没有更多数据
+        handleScrollToEnd(document.querySelector(SCROLL_ELEMENT_CLASS_NAME));
+      });
     }
     const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
@@ -1293,7 +1312,7 @@ export default defineComponent({
       <div
         style={{
           // 消除表格组件实现吸底效果时候吸底虚拟滚动条组件marginTop 多处理了 1px 的副作用
-          marginTop: this.tableData?.length ? 0 : '-1px',
+          marginTop: '-1px',
         }}
         class='trace-explore-table'
       >
