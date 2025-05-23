@@ -5,22 +5,22 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('metadata', '0211_auto_20250326_1534'),
+        ("metadata", "0212_auto_20250311_1943"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SpaceTypeToResultTableFilterAlias',
+            name="SpaceTypeToResultTableFilterAlias",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('space_type', models.CharField(max_length=64, verbose_name='空间类型')),
-                ('table_id', models.CharField(max_length=128, verbose_name='结果表名')),
-                ('filter_alias', models.CharField(max_length=128, verbose_name='过滤条件别名')),
-                ('status', models.BooleanField(default=True, verbose_name='是否启用')),
-                ('create_time', models.DateTimeField(auto_now_add=True, verbose_name='创建时间')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("space_type", models.CharField(max_length=64, verbose_name="空间类型")),
+                ("table_id", models.CharField(max_length=128, verbose_name="结果表名")),
+                ("filter_alias", models.CharField(max_length=128, verbose_name="过滤条件别名")),
+                ("status", models.BooleanField(default=True, verbose_name="是否启用")),
+                ("create_time", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
             ],
             options={
-                'unique_together': {('space_type', 'table_id')},
+                "unique_together": {("space_type", "table_id")},
             },
         ),
     ]
