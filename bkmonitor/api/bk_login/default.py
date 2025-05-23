@@ -262,8 +262,6 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
     批量查询虚拟用户
     """
 
-    cache_type = CacheType.USER
-
     action = "/api/v3/open/tenant/virtual-users/-/lookup/"
     method = "GET"
 

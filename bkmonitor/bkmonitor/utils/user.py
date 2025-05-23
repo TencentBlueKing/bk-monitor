@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import lru_cache
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -46,6 +47,7 @@ def set_local_username(username):
     local.username = username
 
 
+@lru_cache(maxsize=100)
 def get_admin_username(bk_tenant_id: str) -> str | None:
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return getattr(settings, "COMMON_USERNAME", None)
