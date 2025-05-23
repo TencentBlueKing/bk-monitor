@@ -371,9 +371,7 @@ class SQLCompiler(compiler.SQLCompiler):
 
         # dimension aggregation
         for dimension in dimensions:
-            # missing="" 用于聚合出不存在某个字段的日志条数，和 series 的行为对齐。
-            # 此处行为和 UnifyQuery 保持一致，从而确保切换前后查询语句、返回结果等价。
-            _aggregations = {dimension: {"terms": {"field": dimension, "missing": "", "size": self._get_bucket_size()}}}
+            _aggregations = {dimension: {"terms": {"field": dimension, "size": self._get_bucket_size()}}}
             _aggregations[dimension]["aggregations"] = aggregations
             aggregations = _aggregations
 
