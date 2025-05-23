@@ -1,8 +1,7 @@
 import { defineComponent, ref, computed } from 'vue';
 import GrepCliEditor from './grep-cli-editor';
 import './grep-cli.scss';
-
-const fieldList = [{ id: 'log', name: 'log' }];
+import useStore from '../../../hooks/use-store';
 
 export default defineComponent({
   name: 'GrepCli',
@@ -18,6 +17,10 @@ export default defineComponent({
     const isWordMatch = ref(false);
     const currentMatchIndex = ref(0);
     const totalMatches = ref(0);
+
+    const store = useStore();
+
+    const fieldList = computed(() => store.state.indexFieldInfo.fields ?? []);
 
     // 计算是否有搜索结果
     const hasResults = computed(() => {
@@ -163,14 +166,15 @@ export default defineComponent({
             class='grep-cli-select'
             value={field.value}
             onChange={handleFieldChange}
+            popover-min-width={200}
             size='small'
             style='min-width: 80px; border: none;'
           >
-            {fieldList.map(option => (
+            {fieldList.value.map(option => (
               <bk-option
-                key={option.id}
-                id={option.id}
-                name={option.name}
+                key={option.field_name}
+                id={option.field_name}
+                name={option.field_name}
               />
             ))}
           </bk-select>
