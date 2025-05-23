@@ -55,7 +55,7 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
     from core.drf_resource import api
 
     result = api.bk_login.batch_lookup_virtual_user(
-        bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups="admin", bk_username="admin"
+        bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups="bk_admin", bk_username="admin"
     )
     if result:
         return result[0].get("bk_username")
