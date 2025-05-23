@@ -39,6 +39,10 @@
   line-height: 24px; /* 调整行高 */
   padding-right: 8px;
   color: #c78500; /* num 列颜色 */
+  width: 43px;
+  text-align: right;
+  display: inline-block;
+  padding-right: 16px;
 }
 
 .cli-result-contents {
@@ -55,6 +59,7 @@
   white-space: pre;
   padding-left: 8px;
   color: #313238; /* 调整内容颜色 */
+  font-size: 12px;
 }
 
 .cli-result-right-panel {
