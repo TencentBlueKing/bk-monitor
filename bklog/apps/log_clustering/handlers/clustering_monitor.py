@@ -323,8 +323,12 @@ class ClusteringMonitorHandler:
         signature_strategy_settings.save()
 
         strategy_output_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
-        self.clustering_config.normal_strategy_output = strategy_output_rt
-        self.clustering_config.normal_strategy_enable = True
+        if strategy_type == StrategiesType.NORMAL_STRATEGY:
+            self.clustering_config.normal_strategy_output = strategy_output_rt
+            self.clustering_config.normal_strategy_enable = True
+        else:
+            self.clustering_config.new_cls_strategy_output = strategy_output_rt
+            self.clustering_config.new_cls_strategy_enable = True
 
         self.clustering_config.save(
             update_fields=[
