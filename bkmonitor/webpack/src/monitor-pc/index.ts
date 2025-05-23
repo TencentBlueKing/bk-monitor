@@ -91,9 +91,7 @@ if (hasRouteHash) {
       })
       .then(data => {
         appLoadingNode && (appLoadingNode.style.display = 'none');
-        for (const [key, value] of Object.entries(data)) {
-          window[key.toLocaleLowerCase()] = value;
-        }
+        Object.assign(window, ...Object.entries(data).map(([key, value]) => ({ [key.toLowerCase()]: value })));
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -145,9 +143,7 @@ if (hasRouteHash) {
             context_type: 'extra',
           })
           .then(data => {
-            for (const [key, value] of Object.entries(data)) {
-              window[key.toLocaleLowerCase()] = value;
-            }
+            Object.assign(window, ...Object.entries(data).map(([key, value]) => ({ [key.toLowerCase()]: value })));
             store.commit('app/SET_APP_STATE', {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });
