@@ -279,7 +279,6 @@ class ClusteringMonitorHandler:
             "$alert_upward": "1",
             "$alert_slight_shake": "0",
         }
-        self.conf["normal_plan_id"] = 1
         items = [
             {
                 "name": f"COUNT({self.index_set.index_set_name})",
