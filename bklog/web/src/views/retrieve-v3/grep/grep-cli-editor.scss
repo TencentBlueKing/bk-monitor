@@ -1,19 +1,19 @@
 .grep-cli-codemirror-editor {
   width: 100%;
-  height: 36px;
+  height: 34px;
   border: none;
   border-radius: 2px;
   overflow: hidden;
   transition: height 0.2s ease;
 
   &.auto-height {
-    min-height: 36px;
+    min-height: 34px;
     max-height: 200px;
     height: auto !important;
 
     .cm-editor {
       height: auto !important;
-      min-height: 36px;
+      min-height: 34px;
     }
 
     .cm-content {

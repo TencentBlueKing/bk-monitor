@@ -1,6 +1,5 @@
 .grep-cli-container {
   width: 100%;
-  background: transparent;
   box-shadow: 0 2px 4px 0 #19192914;
   border-radius: 2px;
   display: flex;
@@ -8,17 +7,30 @@
   justify-content: space-between;
   margin-bottom: 8px;
   min-height: 40px;
+  background: #ffffff;
+  box-shadow: 0 2px 4px 0 #19192914;
 }
 
 .grep-cli-left {
   display: flex;
   align-items: start;
-
-  background: #ffffff;
   width: calc(100% - 370px);
-  box-shadow: 0 2px 4px 0 #19192914;
   border-radius: 2px;
   min-height: 40px;
+  height: 100%;
+  margin-right: 4px;
+  position: relative;
+
+  &::after {
+    position: absolute;
+    content: '';
+    width: 4px;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: #f5f7fa;
+    transform: translateX(100%);
+  }
 
   .grep-cli-label {
     min-width: 42px;
@@ -35,6 +47,7 @@
     max-width: calc(100% - 128px);
     width: 100%;
     min-height: 40px;
+    height: 100%;
   }
 }
 
@@ -43,15 +56,12 @@
   display: flex;
   align-items: center;
   padding: 0 6px;
-  background: #ffffff;
   min-height: 40px;
+  height: 100%;
 }
 
 .grep-cli-right {
-  margin-left: 4px;
   width: 366px;
-  background: #ffffff;
-  box-shadow: 0 2px 4px 0 #19192914;
   border-radius: 2px;
   padding: 6px 8px;
   flex-direction: row;

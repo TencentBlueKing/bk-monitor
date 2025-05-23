@@ -179,12 +179,13 @@ export default defineComponent({
               value={value.value}
               placeholder='-- INSERT --'
               autoHeight={true}
-              minHeight='36px'
+              minHeight='34px'
               maxHeight='160px'
               onUpdate:value={handleEditorChange}
             />
           </div>
         </div>
+
         {/* 右侧匹配栏 */}
         <div class='grep-cli-right'>
           <div class='grep-cli-search-section'>

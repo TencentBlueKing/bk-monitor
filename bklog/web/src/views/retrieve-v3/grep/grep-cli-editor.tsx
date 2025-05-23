@@ -14,6 +14,7 @@ import {
   rectangularSelection,
   crosshairCursor,
 } from '@codemirror/view';
+import { grepSyntaxHighlighting } from './grep-highlighter';
 import './grep-cli-editor.scss';
 
 export default defineComponent({
@@ -33,7 +34,7 @@ export default defineComponent({
     },
     height: {
       type: String,
-      default: '36px',
+      default: '34px',
     },
     autoHeight: {
       type: Boolean,
@@ -41,11 +42,15 @@ export default defineComponent({
     },
     minHeight: {
       type: String,
-      default: '36px',
+      default: '34px',
     },
     maxHeight: {
       type: String,
       default: '200px',
+    },
+    enableSyntaxHighlight: {
+      type: Boolean,
+      default: true,
     },
   },
   emits: ['update:value', 'change'],
@@ -57,6 +62,15 @@ export default defineComponent({
     // 创建编辑器状态
     const createState = (doc: string) => {
       const initialHeight = props.autoHeight ? currentHeight.value : props.height;
+
+      // 计算8行的最大高度
+      // 字体大小14px，行高1.4，8行 = 14 * 1.4 * 8 = 156.8px
+      // 加上上下padding各6px = 168.8px，约170px
+      const maxLines = 8;
+      const fontSize = 14;
+      const lineHeight = 1.4;
+      const verticalPadding = 12; // 上下各6px
+      const maxHeightForLines = `${Math.ceil(fontSize * lineHeight * maxLines + verticalPadding)}px`;
 
       // 手动配置扩展，不包含行号
       const extensions = [
@@ -94,6 +108,7 @@ export default defineComponent({
           '&': {
             fontSize: '14px',
             height: initialHeight,
+            maxHeight: maxHeightForLines,
           },
           '.cm-content': {
             padding: '6px 8px',
@@ -108,11 +123,12 @@ export default defineComponent({
             borderRadius: '2px',
             border: 'none',
             backgroundColor: 'transparent',
-            height: initialHeight,
+            height: 'auto',
+            maxHeight: maxHeightForLines,
           },
           '.cm-scroller': {
-            overflow: props.autoHeight ? 'hidden' : 'auto',
-            maxHeight: props.autoHeight ? props.maxHeight : 'none',
+            overflow: 'auto',
+            maxHeight: maxHeightForLines,
           },
           // 确保没有行号相关样式
           '.cm-gutters': {
@@ -125,8 +141,29 @@ export default defineComponent({
             fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
             fontSize: '14px',
           },
+          // 自定义滚动条样式
+          '.cm-scroller::-webkit-scrollbar': {
+            width: '6px',
+            height: '6px',
+          },
+          '.cm-scroller::-webkit-scrollbar-track': {
+            backgroundColor: '#f1f1f1',
+            borderRadius: '3px',
+          },
+          '.cm-scroller::-webkit-scrollbar-thumb': {
+            backgroundColor: '#c1c1c1',
+            borderRadius: '3px',
+          },
+          '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: '#a8a8a8',
+          },
         }),
       ];
+
+      // 根据 enableSyntaxHighlight 属性决定是否启用语法高亮
+      if (props.enableSyntaxHighlight) {
+        extensions.push(grepSyntaxHighlighting());
+      }
 
       return EditorState.create({
         doc,
