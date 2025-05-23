@@ -66,7 +66,7 @@ import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-
+import { builtInInitHiddenList } from '@/const/index.js';
 Vue.use(Vuex);
 const stateTpl = {
   userMeta: {}, // /meta/mine
@@ -647,7 +647,16 @@ const store = new Vuex.Store({
     },
 
     updateIndexFieldInfo(state, payload) {
-      Object.assign(state.indexFieldInfo, payload ?? {});
+      const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
+      const processedData = payload ? { ...payload } : {}; 
+      if (Array.isArray(processedData.fields)) {
+        processedData.fields = [...processedData.fields].sort((a, b) => {
+          const aWeight = HIDDEN_FIELDS.has(a.field_name) ? 1 : 0;
+          const bWeight = HIDDEN_FIELDS.has(b.field_name) ? 1 : 0;
+          return aWeight - bWeight; 
+        });
+      }
+      Object.assign(state.indexFieldInfo, processedData);
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;
