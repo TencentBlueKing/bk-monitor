@@ -59,11 +59,11 @@ import {
   BkLogGlobalStorageKey,
   URL_ARGS,
 } from './default-values.ts';
-import { BK_LOG_STORAGE } from './store.type.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
+import { BK_LOG_STORAGE } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 import { builtInInitHiddenList } from '@/const/index.js';
@@ -249,7 +249,7 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => {
+        .map(({ field, operator, value, showList }) => {
           const addition = {
             field,
             operator,
@@ -258,6 +258,10 @@ const store = new Vuex.Store({
 
           if (['is true', 'is false'].includes(addition.operator)) {
             addition.value = [''];
+          } else {
+            if (showList) {
+              addition.value = value.filter((_, index) => !showList[index]);
+            }
           }
 
           return addition;
