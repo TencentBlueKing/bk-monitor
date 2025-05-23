@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.conf import settings
 from django.utils.module_loading import import_string
@@ -43,7 +43,7 @@ from apps.utils.function import ignored
 from apps.utils.log import logger
 
 
-class CollectorScenario(object):
+class CollectorScenario:
     """
     采集场景：行日志、段日志、window event, Redis慢日志, syslog日志
     1. 根据采集场景加载具体实现的类
@@ -112,14 +112,12 @@ class CollectorScenario(object):
         return sorted(set(field_list))
 
     @classmethod
-    def change_data_stream(
-        cls, collector_config: CollectorConfig, mq_topic: Optional[str] = None, mq_partition: int = 1
-    ):
+    def change_data_stream(cls, collector_config: CollectorConfig, mq_topic: str | None = None, mq_partition: int = 1):
         """
         change bk_data_id result_table_id
         :return:
         """
-        from apps.log_databus.handlers.collector import build_bk_data_name
+        from apps.log_databus.handlers.collector_handler.base_collector import build_bk_data_name
 
         new_bk_data_id = cls.update_or_create_data_id(
             data_link_id=collector_config.data_link_id,
@@ -358,7 +356,7 @@ class CollectorScenario(object):
         return local_params
 
     @staticmethod
-    def _add_labels(local_params: Dict[str, Any], params: Dict[str, Any], collector_config_id: int = None):
+    def _add_labels(local_params: dict[str, Any], params: dict[str, Any], collector_config_id: int = None):
         """
         补充采集器模板里的labels, 采集器里的labels格式为: List[Dict[str, Dict[str, Any]]]
         params里的取值是: extra_template_labels, 格式为: List[Dict[str, Dict[str, Any]]]
@@ -366,7 +364,7 @@ class CollectorScenario(object):
         此处针对collector_config_id进行了特殊处理
         因为在创建采集项时，生成的collector_config_id未知，所以需要在内部流程透传
         """
-        extra_template_labels: List[Dict[str, Dict[str, Any]]] = params.get("extra_template_labels", [])
+        extra_template_labels: list[dict[str, dict[str, Any]]] = params.get("extra_template_labels", [])
         if not extra_template_labels:
             return local_params
         local_params["labels"] = {}
@@ -377,7 +375,7 @@ class CollectorScenario(object):
         return local_params
 
     @staticmethod
-    def _add_ext_meta(local_params: Dict[str, Any], params: Dict[str, Any]):
+    def _add_ext_meta(local_params: dict[str, Any], params: dict[str, Any]):
         """
         补充采集器里的元数据ext_meta
         params里的取值是extra_labels(容器日志历史遗留字段), 格式为: List[Dict[str, str]]
@@ -391,7 +389,7 @@ class CollectorScenario(object):
         return local_params
 
     @staticmethod
-    def _handle_collector_config_overlay(local_params: Dict[str, Any], params: Dict[str, Any]):
+    def _handle_collector_config_overlay(local_params: dict[str, Any], params: dict[str, Any]):
         """
         处理自定义采集器配置字段
         """

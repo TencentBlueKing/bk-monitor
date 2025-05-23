@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,16 +18,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
-from typing import Union
 
 from django.conf import settings
 
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
-from apps.log_databus.handlers.collector import build_result_table_id
+from apps.log_databus.handlers.collector_handler.base_collector import build_result_table_id
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -73,7 +72,7 @@ class BKBaseEtlHandler(EtlHandler):
         BKBaseEtlHandler.stop_bkdata_clean(bkdata_result_table_id)
         BKBaseEtlHandler.start_bkdata_clean(bkdata_result_table_id)
 
-    def update_or_create(self, instance: Union[CollectorConfig, CollectorPlugin], params=None, **kwargs):
+    def update_or_create(self, instance: CollectorConfig | CollectorPlugin, params=None, **kwargs):
         """
         创建或更新清洗入库
         """
