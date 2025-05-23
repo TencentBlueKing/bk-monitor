@@ -227,7 +227,7 @@ def is_include_promql(query_string: str) -> bool:
         ]
 
         # 匹配promql的函数
-        function_pattern = r'\b(?:{})\b'.format('|'.join(promql_functions))
+        function_pattern = r'\b(?:{})\b.*\(.*\)'.format('|'.join(promql_functions))
 
         # 匹配promql的时间窗口
         time_window_pattern = r'\[\d+[smhdw]\s*:\s*?(\d[smhdw])?\]'
