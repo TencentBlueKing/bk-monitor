@@ -61,7 +61,7 @@ export default defineComponent({
     const content = ref('');
     const loading = ref(false);
     const infoContent = ref([]);
-    const handleShowChange = v => {
+    const handleShowChange = (v?: boolean) => {
       emit('change', v);
     };
     const handleConfirm = v => emit('change', v);
@@ -201,6 +201,7 @@ export default defineComponent({
           ),
           footer: () => [
             <Button
+              key={'confirm'}
               style='margin-right: 10px'
               disabled={this.loading}
               theme='primary'
@@ -208,7 +209,12 @@ export default defineComponent({
             >
               {this.$t('确认')}
             </Button>,
-            <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>,
+            <Button
+              key={'cancel'}
+              onClick={() => this.handleShowChange(false)}
+            >
+              {this.$t('取消')}
+            </Button>,
           ],
         }}
         header-position={'left'}

@@ -26,7 +26,7 @@
 import OptimizedHighlighter from './optimized-highlighter';
 import { random } from '../../common/util';
 import { getRGBAColors } from './colors';
-import { RetrieveEvent } from './retrieve-events';
+import RetrieveEvent from './retrieve-events';
 
 export default class {
   // 滚动条查询条件
@@ -46,6 +46,9 @@ export default class {
 
   // 收藏栏是否展示
   isFavoriteShown: boolean;
+
+  // 收藏栏是否仅查看当前索引集
+  isViewCurrentIndex: boolean;
 
   // 趋势图添加随机类名
   // 用于监听趋势图高度变化

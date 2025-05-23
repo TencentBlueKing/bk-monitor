@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage } from '@/common/util';
+import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
@@ -38,11 +39,14 @@ export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  JSONBigInstance: JSONBig;
+
   rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
+    this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
   }
 
   private createJsonField(name: number | string) {
@@ -141,18 +145,28 @@ export default class JsonView {
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
-    const nodeType = typeof target;
+    let formatTarget = target;
 
-    if (nodeType === 'object' && target !== null) {
-      node.append(...this.createObjectNode(target, depth));
+    if (typeof target === 'string' && /^(\{|\[)/.test(target)) {
+      try {
+        formatTarget = this.JSONBigInstance.parse(target);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const nodeType = typeof formatTarget;
+
+    if (nodeType === 'object' && formatTarget !== null) {
+      node.append(...this.createObjectNode(formatTarget, depth));
     } else {
       node.classList.add('bklog-json-field-value');
       if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
         setTimeout(() => {
-          this.options.segmentRender(target, node);
+          this.options.segmentRender(formatTarget, node);
         });
       } else {
-        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${target}</span></span>`;
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${formatTarget}</span></span>`;
       }
     }
 

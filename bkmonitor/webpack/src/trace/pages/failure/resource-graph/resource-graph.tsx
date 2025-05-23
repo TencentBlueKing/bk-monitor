@@ -1550,7 +1550,7 @@ export default defineComponent({
             <span
               key={this.entityName}
               class='graph-title_value'
-              v-overflowText={{
+              v-overflow-tips={{
                 text: this.entityName,
               }}
             >

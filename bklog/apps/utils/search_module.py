@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 import copy
 import json
 import uuid
-from urllib import parse
+from io import BytesIO
 
 from blueapps.conf import settings
 from django.core.cache import cache
-from django.http import HttpResponse
 from django.utils import timezone
-from six import StringIO
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -32,6 +29,7 @@ from apps.log_search.models import (
     LogIndexSet,
     UserIndexSetFieldsConfig,
 )
+from apps.log_search.utils import create_download_response
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
@@ -326,7 +324,7 @@ class BkApi(AbstractBkApi):
         else:
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
-        output = StringIO()
+        output = BytesIO()
         export_fields = search_dict.get("export_fields", [])
         search_handler = SearchHandler(
             index_set_id, search_dict=search_dict, export_fields=export_fields, export_log=True
@@ -334,13 +332,10 @@ class BkApi(AbstractBkApi):
         result = search_handler.search()
         result_list = result.get("origin_log_list")
         for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
-        file_name = f"bk_log_search_{index}.txt"
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
+        file_name = f"bk_log_search_{index}.log"
+        response = create_download_response(output, file_name)
         AsyncTask.objects.create(
             request_param=request_data,
             scenario_id=search_dict["scenario_id"],

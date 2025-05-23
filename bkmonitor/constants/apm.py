@@ -11,8 +11,157 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from constants.result_table import ResultTableField
+
 
 FIVE_MIN_SECONDS = 5 * 60
+
+
+class TraceDataSourceConfig:
+    """Trace数据源配置常量"""
+
+    ES_KEYWORD_OPTION = {"es_type": "keyword"}
+
+    # object 字段配置
+    ES_OBJECT_OPTION = {"es_type": "object", "es_dynamic": True}
+
+    # NESTED 配置
+    ES_NESTED_OPTION = {"es_type": "nested"}
+
+    # OTLP events 配置
+    TRACE_EVENT_OPTION = {
+        **ES_NESTED_OPTION,
+        "es_properties": {
+            "attributes": {
+                "properties": {
+                    "exception": {"properties": {"message": {"type": "text"}, "stacktrace": {"type": "text"}}},
+                    "message": {"type": "object"},
+                }
+            },
+            "timestamp": {"type": "long"},
+        },
+    }
+
+    # OTLP status 配置
+    TRACE_STATUS_OPTION = {
+        **ES_OBJECT_OPTION,
+        "es_properties": {"message": {"type": "text"}, "code": {"type": "integer"}},
+    }
+
+    TRACE_FIELD_LIST = [
+        {
+            "field_name": "attributes",
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_OBJECT_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Attributes",
+        },
+        {
+            "field_name": "resource",
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_OBJECT_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Resources",
+        },
+        {
+            "field_name": "events",
+            "field_type": ResultTableField.FIELD_TYPE_NESTED,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": TRACE_EVENT_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Events",
+        },
+        {
+            "field_name": "elapsed_time",
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Span Elapsed Time",
+        },
+        {
+            "field_name": "end_time",
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Span End Time",
+        },
+        {
+            "field_name": "start_time",
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Span Start Time",
+        },
+        {
+            "field_name": "kind",
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "Span Kind",
+        },
+        {
+            "field_name": "links",
+            "field_type": ResultTableField.FIELD_TYPE_NESTED,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_NESTED_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Links",
+        },
+        {
+            "field_name": "parent_span_id",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_KEYWORD_OPTION,
+            "is_config_by_user": True,
+            "description": "Parent Span ID",
+        },
+        {
+            "field_name": "span_id",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_KEYWORD_OPTION,
+            "is_config_by_user": True,
+            "description": "Span ID",
+        },
+        {
+            "field_name": "span_name",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_KEYWORD_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Name",
+        },
+        {
+            "field_name": "status",
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": TRACE_STATUS_OPTION,
+            "is_config_by_user": True,
+            "description": "Span Status",
+        },
+        {
+            "field_name": "trace_id",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_KEYWORD_OPTION,
+            "is_config_by_user": True,
+            "description": "Trace ID",
+        },
+        {
+            "field_name": "trace_state",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": ES_KEYWORD_OPTION,
+            "is_config_by_user": True,
+            "description": "Trace State",
+        },
+    ]
 
 
 class SpanKind:
@@ -504,7 +653,7 @@ class SpanStandardField:
             _("接口名称"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
-            ValueSource.METRIC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.STATUS,
@@ -590,17 +739,20 @@ class PreCalculateSpecificField(TextChoices):
     预计算存储字段
     """
 
+    # 下面字段的顺序调整，会影响页面展示，需尽可能把最常用的字段放最前面
     BIZ_ID = "biz_id"
     BIZ_NAME = "biz_name"
     APP_ID = "app_id"
     APP_NAME = "app_name"
     TRACE_ID = "trace_id"
-    HIERARCHY_COUNT = "hierarchy_count"
+    TRACE_DURATION = "trace_duration"
     SERVICE_COUNT = "service_count"
     SPAN_COUNT = "span_count"
+    HIERARCHY_COUNT = "hierarchy_count"
+    ERROR = "error"
+    ERROR_COUNT = "error_count"
     MIN_START_TIME = "min_start_time"
     MAX_END_TIME = "max_end_time"
-    TRACE_DURATION = "trace_duration"
     SPAN_MAX_DURATION = "span_max_duration"
     SPAN_MIN_DURATION = "span_min_duration"
     ROOT_SERVICE = "root_service"
@@ -613,8 +765,6 @@ class PreCalculateSpecificField(TextChoices):
     ROOT_SPAN_NAME = "root_span_name"
     ROOT_SPAN_SERVICE = "root_span_service"
     ROOT_SPAN_KIND = "root_span_kind"
-    ERROR = "error"
-    ERROR_COUNT = "error_count"
     TIME = "time"
     CATEGORY_STATISTICS = "category_statistics"
     KIND_STATISTICS = "kind_statistics"
@@ -623,12 +773,19 @@ class PreCalculateSpecificField(TextChoices):
     @classmethod
     def search_fields(cls):
         """获取可供搜索的字段"""
-        return list(set(list(cls.values)) - set(cls.hidden_fields()))
+        return [v for v in cls.values if v not in cls.hidden_fields()]
 
     @classmethod
     def hidden_fields(cls):
         """获取隐藏字段"""
         return [cls.BIZ_ID, cls.BIZ_NAME, cls.APP_ID, cls.APP_NAME, cls.TIME, cls.COLLECTIONS]
+
+    @classmethod
+    def specific_fields(cls):
+        """获取可供搜索的字段中预计算表特有的字段"""
+        # span 表的顶层字段
+        trace_top_fields = {field_dict["field_name"] for field_dict in TraceDataSourceConfig.TRACE_FIELD_LIST}
+        return list(set(cls.search_fields()) - trace_top_fields)
 
 
 class TraceListQueryMode:
@@ -1137,3 +1294,249 @@ class SpanKindCachedEnum(CachedEnum):
         default = super().get_default(value)
         default.label = value
         return default
+
+
+TRACE_RESULT_TABLE_OPTION = {
+    "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"],
+    # 以下为 UnifyQuery 查询所需的元数据：
+    # 是否根据查询时间范围，指定具体日期的索引进行查询。
+    "need_add_time": True,
+    # 默认查询时间字段，页面查询时间范围过滤与此字段联动。
+    "time_field": {"name": "end_time", "type": "long", "unit": "microsecond"},
+}
+
+PRECALCULATE_RESULT_TABLE_OPTION = {
+    # 是否根据查询时间范围，指定具体日期的索引进行查询。
+    "need_add_time": True,
+    # 默认查询时间字段，页面查询时间范围过滤与此字段联动。
+    "time_field": {"name": PreCalculateSpecificField.MIN_START_TIME.value, "type": "long", "unit": "microsecond"},
+}
+
+
+class PrecalculateStorageConfig:
+    TABLE_SCHEMA = [
+        {
+            "field_name": PreCalculateSpecificField.BIZ_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Bk Biz Id",
+        },
+        {
+            "field_name": PreCalculateSpecificField.BIZ_NAME.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Bk Biz Name",
+        },
+        {
+            "field_name": PreCalculateSpecificField.APP_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "App Id",
+        },
+        {
+            "field_name": PreCalculateSpecificField.APP_NAME.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "App Name",
+        },
+        {
+            "field_name": PreCalculateSpecificField.TRACE_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Trace ID",
+        },
+        {
+            "field_name": PreCalculateSpecificField.HIERARCHY_COUNT.value,
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "Hierarchy Count",
+        },
+        {
+            "field_name": PreCalculateSpecificField.SERVICE_COUNT.value,
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "Service Count",
+        },
+        {
+            "field_name": PreCalculateSpecificField.SPAN_COUNT.value,
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "Span Count",
+        },
+        {
+            "field_name": PreCalculateSpecificField.MIN_START_TIME.value,
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Min Start Time",
+        },
+        {
+            "field_name": PreCalculateSpecificField.MAX_END_TIME.value,
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Max End Time",
+        },
+        {
+            "field_name": PreCalculateSpecificField.TRACE_DURATION.value,
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Trace Duration",
+        },
+        {
+            "field_name": PreCalculateSpecificField.SPAN_MAX_DURATION.value,
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Span Max Duration",
+        },
+        {
+            "field_name": PreCalculateSpecificField.SPAN_MIN_DURATION.value,
+            "field_type": ResultTableField.FIELD_TYPE_LONG,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "long"},
+            "is_config_by_user": True,
+            "description": "Span Min Duration",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Entry Service",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE_SPAN_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Service Span Id",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE_SPAN_NAME.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Service Span Name",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE_STATUS_CODE.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Service Status Code",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE_CATEGORY.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Service Category",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SERVICE_KIND.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Service Kind",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SPAN_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Span Id",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SPAN_NAME.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Span Name",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SPAN_SERVICE.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Span Service",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ROOT_SPAN_KIND.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Root Span Kind",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ERROR.value,
+            "field_type": ResultTableField.FIELD_TYPE_BOOLEAN,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "boolean"},
+            "is_config_by_user": True,
+            "description": "error",
+        },
+        {
+            "field_name": PreCalculateSpecificField.ERROR_COUNT.value,
+            "field_type": ResultTableField.FIELD_TYPE_INT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "integer"},
+            "is_config_by_user": True,
+            "description": "Error Count",
+        },
+        {
+            "field_name": PreCalculateSpecificField.CATEGORY_STATISTICS.value,
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "object", "es_dynamic": True},
+            "is_config_by_user": True,
+            "description": "Span分类统计",
+        },
+        {
+            "field_name": PreCalculateSpecificField.KIND_STATISTICS.value,
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "object", "es_dynamic": True},
+            "is_config_by_user": True,
+            "description": "Span类型统计",
+        },
+        {
+            "field_name": PreCalculateSpecificField.COLLECTIONS.value,
+            "field_type": ResultTableField.FIELD_TYPE_OBJECT,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "object", "es_dynamic": True},
+            "is_config_by_user": True,
+            "description": "常见标准字段数据",
+        },
+    ]

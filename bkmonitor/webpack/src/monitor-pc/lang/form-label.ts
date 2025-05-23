@@ -865,6 +865,7 @@ export default {
   版本: 'Version',
   正常: 'Normal',
   异常: 'Exception',
+  未设置: 'Not set',
   升级: 'Upgrade',
   克隆: 'Clone',
   列表: 'List',
@@ -1492,6 +1493,8 @@ export default {
   'SDK 版本': 'SDK Version',
   'ID 精准查询': 'ID Exact Query',
   服务入口Span: 'Service Entry Spans',
+  '根 Span 类型': 'Root Span Type',
+  入口服务类型: 'Entry Service Type',
   接口类型: 'Span Type',
   来源类型: 'Source Type',
   异步: 'Asynchronous',
@@ -1927,6 +1930,10 @@ export default {
   收藏名称: 'Collection name',
   收藏详情: 'Collection details',
 
+  // trace
+  字段显示: 'Field display',
+  待选字段: 'Available fields',
+  已选字段: 'Selected fields',
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',

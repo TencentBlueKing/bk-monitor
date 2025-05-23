@@ -25,9 +25,9 @@
  */
 const getters = {
   bizId: state => state.app.bizId,
-  bizName: state => state.app.bizList.find(item => +item.bizId === (+state.app.bizId || +window.bk_biz_id))?.name,
+  bizName: state => state.app.bizList.find(item => +item.bk_biz_id === (+state.app.bizId || +window.bk_biz_id))?.name,
   bizList: state => state.app.bizList.slice(),
-  spaceUid: state => state.app.bizList.find(item => +item.bizId === +state.app.bizId)?.space_uid,
+  spaceUid: state => state.app.bizList.find(item => +item.bk_biz_id === +state.app.bizId)?.space_uid,
   title: state => state.app.title,
   needBack: state => state.app.needBack,
   csrfCookieName: state => state.app.csrfCookieName,

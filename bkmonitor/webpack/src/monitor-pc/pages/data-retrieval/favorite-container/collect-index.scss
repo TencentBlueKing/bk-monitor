@@ -4,7 +4,7 @@
   overflow: hidden;
 
   .search-container {
-    padding: 20px 12px 7px;
+    padding: 17px 12px 7px;
     box-shadow: inset 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
     .search-title,
@@ -15,6 +15,10 @@
 
     .icon-monitor {
       cursor: pointer;
+
+      &.icon-gongneng-shouqi {
+       margin-right: 10px; 
+      }
     }
 
     .favorite-number {
@@ -32,7 +36,6 @@
 
     .tools {
       .icon-shezhi1 {
-        margin-right: 13px;
         font-size: 16px;
       }
     }

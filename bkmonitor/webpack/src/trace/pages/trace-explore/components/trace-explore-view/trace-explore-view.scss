@@ -1,0 +1,64 @@
+.trace-explore-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 600px;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+
+  .trace-explore-view-chart {
+    flex-shrink: 0;
+  }
+
+  .trace-explore-view-filter {
+    z-index: 8;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 44px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    background: #fff;
+
+    .bk-checkbox {
+      font-size: inherit;
+      color: inherit;
+
+      & ~ .bk-checkbox {
+        margin-left: 16px;
+      }
+    }
+  }
+
+  .trace-explore-view-table {
+    flex-grow: 1;
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .back-to-top {
+    right: 14px;
+    bottom: 24px;
+    z-index: 150;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    text-align: center;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px 0 #0000001f;
+
+    .icon-BackToTop {
+      font-size: 20px;
+      color: #3a84ff;
+    }
+
+    &:hover {
+      color: #fff;
+      background-color: #f0f1f5;
+    }
+  }
+}

@@ -145,11 +145,16 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
                 {
                   'icon-file-personal': this.collectItem.id === 0,
                   'icon-mc-file-close': this.collectItem.id !== 0 && !this.isExpand,
-                  'icon-mc-file-open': this.collectItem.id !== 0 && this.isExpand,
+                  'icon-mc-file-open': this.isExpand,
                 },
               ]}
             />
-            <span class='group-str'>{this.collectItem.name}</span>
+            <span
+              class='group-str'
+              v-bk-overflow-tips
+            >
+              {this.collectItem.name}
+            </span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}
         </div>

@@ -76,14 +76,14 @@ export const setGlobalBizId = () => {
     !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
   };
   const setLocationSearch = (bizId: number | string) => {
-    if (location.search) {
+    if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {
       location.search = location.search.replace(/(space_uid|bizId)=([^#&/]+)/gim, `bizId=${bizId}`);
     } else {
       location.href = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
     }
     return false;
   };
-  if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
+  if (bizId && (!isInSpaceList(bizId) || (bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)))) {
     const newBizId = defaultBizId || localBizId;
     if (hasAuth(newBizId)) {
       window.bk_biz_id = +newBizId;
@@ -95,7 +95,7 @@ export const setGlobalBizId = () => {
     url.search = searchParams.toString();
     url.hash = '#/';
     history.replaceState({}, '', url.toString());
-    bizId = window.bk_biz_id;
+    bizId = +window.bk_biz_id;
   }
   if (!isCanAllIn && !bizList?.length && !isNoBusiness) {
     location.href = `${location.origin}${location.pathname}#/no-business`;
@@ -258,5 +258,6 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
 
 export * from './colorHelpers';
 export * from './constant';
+export * from './equal';
 export * from './utils';
 export * from './xss';

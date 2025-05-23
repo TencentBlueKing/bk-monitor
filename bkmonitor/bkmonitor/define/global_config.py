@@ -362,6 +362,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
+        (
+            "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
+            slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
+        ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
@@ -421,6 +425,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
         ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
+        # RUM 配置
+        ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
+        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
     ]
 )
 
@@ -625,11 +632,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # TODO(crayon) 已全量放开，下个版本删除该配置项。
-        # 事件检索新版灰度配置
-        ("EVENT_V2_BIZ_LIST", slz.ListField(label=_("事件检索新版灰度配置"), default=[])),
-        # Trace 检索新版灰度配置（开启后 Trace 使用新版页面，并且通过 UnifyQuery 检索）。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("Trace 检索灰度配置"), default=[])),
+        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
+        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
