@@ -1161,17 +1161,17 @@ export default defineComponent({
       }
       return (
         <div class='explore-col explore-link-col '>
-          <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-            <a
-              style={{ color: 'inherit' }}
-              href={item.url}
-              rel='noreferrer'
-              target='_blank'
-            >
-              {item.alias}
-            </a>
-          </div>
-          <i class='icon-monitor icon-mc-goto' />
+          <a
+            style={{ color: 'inherit' }}
+            href={item.url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+              <span>{item.alias}</span>
+            </div>
+            <i class='icon-monitor icon-mc-goto' />
+          </a>
         </div>
       );
     }
