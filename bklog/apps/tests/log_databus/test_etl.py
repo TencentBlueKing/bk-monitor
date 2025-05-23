@@ -427,7 +427,8 @@ class TestEtl(TestCase):
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_text(self, mock_index_set):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_text(self, mock_modify_delay, mock_index_set):
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
 
