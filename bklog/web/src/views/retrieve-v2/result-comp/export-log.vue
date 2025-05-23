@@ -94,7 +94,7 @@
             v-model="downloadType"
           >
             <bk-radio
-              v-for="[key, val] in Object.entries(filteredRadioMap)"
+              v-for="[key, val] in Object.entries(downloadTypeRadioMap)"
               :key="key"
               :value="key"
             >
@@ -316,14 +316,6 @@
       routerIndexSet() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
-      filteredRadioMap() {
-        if (this.isUnionSearch) {
-          return Object.fromEntries(
-            Object.entries(this.downloadTypeRadioMap).filter(([key]) => key !== 'sampling')
-          );
-        }
-        return this.downloadTypeRadioMap;
-      }
     },
     watch: {
       totalCount(val) {
