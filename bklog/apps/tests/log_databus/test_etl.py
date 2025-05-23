@@ -456,14 +456,14 @@ class TestEtl(TestCase):
         self.assertEqual(etl_config["etl_params"]["separator_node_action"], "")
         return True
 
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_json(self, mock_index_set):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_json(self, mock_modify_delay, mock_index_set):
         """
         JSON清洗
         """
@@ -520,7 +520,6 @@ class TestEtl(TestCase):
         self.assertTrue(etl_fields["delete1"]["is_delete"])
         return True
 
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
@@ -528,7 +527,8 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_regexp(self, mock_index_set, mock_preview):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_regexp(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         正则清洗
         """
@@ -580,7 +580,6 @@ class TestEtl(TestCase):
         self.assertEqual(etl_fields["request_time"]["option"]["es_type"], "date")
         return True
 
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
@@ -588,7 +587,8 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_delimiter(self, mock_index_set, mock_preview):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_delimiter(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         分隔符清洗
         """
