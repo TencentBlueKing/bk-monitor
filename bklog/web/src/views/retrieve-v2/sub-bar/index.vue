@@ -1,9 +1,6 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, defineComponent } from 'vue';
   import { bkMessage } from 'bk-magic-vue';
-
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -13,11 +10,24 @@
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
+  // #else
+  // #code const TimeSetting = () => null;
+  // #code const FieldSetting = () => null;
+  // #code const VersionSwitch = () => null;
+  // #code const ClusterSetting = () => null;
+  // #code const BarGlobalSetting = () => null;
+  // #code const MoreSetting = () => null;
+  // #code const WarningSetting = () => null;
+  // #endif
+
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import * as authorityMap from '@/common/authority-map';
@@ -142,20 +152,13 @@
         store.commit('updateIndexId', payload.ids[0]);
       }
 
-      const mode = ['ui', 'sql'].includes(search_mode) ? search_mode : 'ui';
-
-      store.commit('updateIndexItemParams', {
-        keyword,
-        addition: foramtAddition,
-        ip_chooser,
-        begin: 0,
-        search_mode: mode,
+      store.commit('updateSqlQueryFieldList', []);
+      store.commit('updateIndexSetQueryResult', {
+        origin_log_list: [],
+        list: [],
       });
 
-      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
-
-      setRouteQuery();
-      setTimeout(() => {
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
     }
@@ -172,13 +175,17 @@
       foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
     }
 
+    const mode = ['ui', 'sql'].includes(search_mode) ? search_mode : 'ui';
+
     store.commit('updateIndexItemParams', {
       keyword,
       addition: foramtAddition,
       ip_chooser,
       begin: 0,
-      search_mode,
+      search_mode: mode,
     });
+
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
 
     setRouteQuery();
     setTimeout(() => {
