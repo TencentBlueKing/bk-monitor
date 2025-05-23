@@ -23,7 +23,7 @@ from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from core.drf_resource import CacheResource, api, resource
@@ -127,7 +127,7 @@ class ListSpacesResource(Resource):
 
     @classmethod
     def get_space_by_user(cls, username, use_cache=True) -> list[dict]:
-        perm_client = Permission(username)
+        perm_client = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> list[dict]:

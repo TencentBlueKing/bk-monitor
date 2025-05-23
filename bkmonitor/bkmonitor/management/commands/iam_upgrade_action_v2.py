@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import sys
 import time
-from typing import List
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -36,7 +35,9 @@ from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.action import ActionMeta, get_action_by_id
+from bkmonitor.iam.compatible import CompatibleIAM
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.common import DEFAULT_TENANT_ID
 
 ACTIONS_TO_UPGRADE = [
     ActionEnum.VIEW_BUSINESS,
@@ -75,11 +76,11 @@ ACTIONS_TO_UPGRADE = [
 
 class ApiBatchAuthRequest(OldApiBatchAuthRequest):
     def __init__(self, *args, expired_at=None, **kwargs):
-        super(ApiBatchAuthRequest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.expired_at = expired_at
 
     def to_dict(self):
-        request_dict = super(ApiBatchAuthRequest, self).to_dict()
+        request_dict = super().to_dict()
         if self.expired_at is not None:
             request_dict["expired_at"] = self.expired_at
         return request_dict
@@ -92,9 +93,10 @@ class Command(BaseCommand):
         parser.add_argument("-c", "--concurrency", help="Concurrency of grant resource")
         parser.add_argument("-a", "--action")
         parser.add_argument("-u", "--username")
+        parser.add_argument("-t", "--bk_tenant_id", required=False)
 
     def __init__(self, *args, **kwargs):
-        super(Command, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.spaces = {str(space["bk_biz_id"]): space["space_name"] for space in SpaceApi.list_spaces_dict()}
         self.apm_applications = {
@@ -102,12 +104,16 @@ class Command(BaseCommand):
             for app in Application.objects.values("application_id", "app_alias")
         }
 
-        self.iam_client = Permission.get_iam_client()
+        self.iam_client: CompatibleIAM | None = None
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 
-    def handle(self, action=None, concurrency=None, username=None, **options):
+    def handle(self, action=None, concurrency=None, username=None, bk_tenant_id=None, **options):
         from monitor.models import GlobalConfig
+
+        if not bk_tenant_id:
+            bk_tenant_id = DEFAULT_TENANT_ID
+        self.iam_client = Permission.get_iam_client(bk_tenant_id)
 
         start_time = time.time()
         print("[upgrade_iam_action_v2] ##### START #####")
@@ -201,7 +207,7 @@ class Command(BaseCommand):
                 try:
                     results.append(future.get())
                 except Exception as e:
-                    print("[grant_resource] grant permission for action: {}, something wrong: {}".format(action.id, e))
+                    print(f"[grant_resource] grant permission for action: {action.id}, something wrong: {e}")
 
             progress += len(resources)
             global_progress += len(resources)
@@ -282,7 +288,7 @@ class Command(BaseCommand):
             policies = [policy for policy in policies if policy["subject"]["id"] == self.username]
         return policies
 
-    def expression_to_resource_paths(self, expression, paths: List):
+    def expression_to_resource_paths(self, expression, paths: list):
         """
         将权限表达式转换为资源路径
         """

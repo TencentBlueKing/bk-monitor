@@ -129,10 +129,6 @@ class BkJWTClient:
 
         self.user = self.AttrDict(result.get("user", {}))
 
-        # 多租户校验
-        if not self.app.get("tenant_id") and settings.ENABLE_MULTI_TENANT_MODE:
-            return False, "lack of tenant_id"
-
         return True, ""
 
 
@@ -182,7 +178,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
             public_key = cache.get(cache_key)
             if public_key is None:
                 try:
-                    public_key = api.bk_apigateway.get_public_key(api_name=api_name)["public_key"]
+                    public_key = api.bk_apigateway.get_public_key(api_name=api_name, bk_tenant_id=DEFAULT_TENANT_ID)[
+                        "public_key"
+                    ]
                 except BKAPIError as e:
                     logger.error(f"获取{api_name} apigw public_key失败，%s" % e)
                     public_key = ""
@@ -222,7 +220,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
             app_code = request.jwt.app.app_code
             username = request.jwt.user.username
             if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = request.jwt.app.get("tenant_id") or DEFAULT_TENANT_ID
+                bk_tenant_id = request.META.get("HTTP_X_BK_TENANT_ID")
+                if not bk_tenant_id:
+                    return HttpResponseForbidden("lack of tenant_id")
             else:
                 bk_tenant_id = DEFAULT_TENANT_ID
         else:

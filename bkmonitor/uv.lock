@@ -243,7 +243,7 @@ wheels = [
 
 [[package]]
 name = "bk-iam"
-version = "1.3.6"
+version = "2.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
@@ -251,7 +251,10 @@ dependencies = [
     { name = "requests" },
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/77/9e69600acd7900c1196216c31e033e92735e6ee2e427f5abc434d1a39e3a/bk-iam-1.3.6.tar.gz", hash = "sha256:008086b036f285fd5c240be65911c2e7968e57d258292e6212767c73e363bf2c", size = 35630, upload-time = "2024-04-19T07:04:04.677Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/30/8b4f0825bea5ec58858014440e2c2cf6101567250a3b15ae46f81fa90a86/bk_iam-2.0.2.tar.gz", hash = "sha256:c498bb6c0fa6020d5e146402a883f8dba88caf453eed567afbe5b5d70bd4a361", size = 38886, upload-time = "2025-05-19T04:15:34.981Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/d5/0edba5bb602cd6988133e7a1f6469a1dd698ed3a40ee838d75e7d9052a90/bk_iam-2.0.2-py2.py3-none-any.whl", hash = "sha256:27e2751f5faa3ec973866a99a26d041d4ca0f4f0995b1645eafe2d73094fe8dc", size = 103332, upload-time = "2025-05-19T04:15:33.42Z" },
+]
 
 [[package]]
 name = "bk-notice-sdk"
@@ -420,7 +423,7 @@ requires-dist = [
     { name = "betterproto", specifier = "==2.0.0b7" },
     { name = "bk-audit", specifier = "==1.0.7" },
     { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
-    { name = "bk-iam", specifier = "==1.3.6" },
+    { name = "bk-iam", specifier = "==2.0.2" },
     { name = "bk-notice-sdk", specifier = "==1.3.2" },
     { name = "bkstorages", specifier = "==1.1.1" },
     { name = "blueapps", specifier = "==4.16rc1" },

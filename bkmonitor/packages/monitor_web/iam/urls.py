@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,19 +7,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.urls import include, re_path
-from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
 
 from bkmonitor.iam.permission import Permission
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.routers import ResourceRouter
 from monitor_web.iam import views
 
 router = ResourceRouter()
 router.register_module(views)
 
-dispatcher = DjangoBasicResourceApiDispatcher(Permission.get_iam_client(), settings.BK_IAM_SYSTEM_ID)
+dispatcher = views.ResourceApiDispatcher(Permission.get_iam_client(DEFAULT_TENANT_ID), settings.BK_IAM_SYSTEM_ID)
 dispatcher.register("apm_application", views.ApmApplicationProvider())
 dispatcher.register("space", views.SpaceProvider())
 dispatcher.register("grafana_dashboard", views.GrafanaDashboardProvider())

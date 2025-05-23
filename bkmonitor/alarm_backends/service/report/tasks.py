@@ -200,7 +200,7 @@ def render_mails(
         # 只有通知渠道是用户的情况下，才考虑获取权限信息
         try:
             # 获取订阅者的业务列表
-            perm_client = Permission(receivers[0])
+            perm_client = Permission(username=receivers[0], bk_tenant_id=report_item.bk_tenant_id)
             perm_client.skip_check = False
             spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
             bk_biz_ids = [s["bk_biz_id"] for s in spaces]

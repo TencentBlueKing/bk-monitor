@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, Set, Tuple
 
 from django.utils import timezone
 from iam import ObjectSet, make_expression
@@ -20,6 +19,7 @@ from bk_dataview.api import get_or_create_org
 from bk_dataview.permissions import BasePermission, GrafanaPermission, GrafanaRole
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
+from bkmonitor.utils.request import get_request_tenant_id
 
 logger = logging.getLogger("monitor_web")
 
@@ -30,7 +30,7 @@ class DashboardPermission(BasePermission):
     """
 
     @classmethod
-    def get_policy_dashboard_uids(cls, org_id: int, bk_biz_id: int, policy: Dict) -> Set[str]:
+    def get_policy_dashboard_uids(cls, org_id: int, bk_biz_id: int, policy: dict) -> set[str]:
         """
         从权限策略中获取仪表盘 ID
         """
@@ -74,7 +74,7 @@ class DashboardPermission(BasePermission):
         """
         role = GrafanaRole.Anonymous
         bk_biz_id = int(org_name)
-        permission = Permission(username=username)
+        permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         if force_check:
             permission.skip_check = False
 
@@ -94,9 +94,9 @@ class DashboardPermission(BasePermission):
     @classmethod
     def get_user_permission(
         cls, username: str, org_name: str, force_check: bool = False
-    ) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+    ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
         role = GrafanaRole.Anonymous
-        p = Permission(username=username)
+        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         if force_check:
             p.skip_check = False
 
@@ -138,7 +138,7 @@ class DashboardPermission(BasePermission):
     @classmethod
     def has_permission(
         cls, request, view, org_name: str, force_check: bool = False
-    ) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+    ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
         """
         仪表盘权限校验
         """

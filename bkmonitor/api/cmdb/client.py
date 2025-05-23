@@ -60,7 +60,7 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
         return request_url.format(**params)
 
     def full_request_data(self, validated_request_data):
-        setattr(self, "bk_username", get_backend_username())
+        setattr(self, "bk_username", get_backend_username(bk_tenant_id=self.bk_tenant_id))
         validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data.update(bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT)
         # 业务id判定

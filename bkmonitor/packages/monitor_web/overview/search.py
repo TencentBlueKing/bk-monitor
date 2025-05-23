@@ -58,7 +58,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         """
         Get the allowed bk_biz_ids by username.
         """
-        permission = Permission(username)
+        permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         spaces = permission.filter_space_list_by_action(action)
 
         # 缓存业务信息

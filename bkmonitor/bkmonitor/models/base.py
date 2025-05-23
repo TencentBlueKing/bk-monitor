@@ -1034,7 +1034,7 @@ class ReportItems(AbstractRecordModel):
     订阅报表
     """
 
-    bk_tenant_id = models.CharField(verbose_name="租户ID", default=DEFAULT_TENANT_ID, max_length=128)
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     mail_title = models.CharField(verbose_name="邮件标题", max_length=512)
     channels = models.JSONField(verbose_name="订阅渠道", default=list)
     receivers = models.JSONField(verbose_name="接收者", default=dict)
@@ -1082,7 +1082,7 @@ class ReportContents(Model):
     报表内容
     """
 
-    bk_tenant_id = models.CharField(verbose_name="租户ID", default=DEFAULT_TENANT_ID, max_length=128)
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     report_item = models.IntegerField(verbose_name="订阅报表ID", db_index=True)
     content_title = models.CharField(verbose_name="内容标题", max_length=512)
     content_details = models.TextField(verbose_name="内容说明", max_length=512)
@@ -1095,7 +1095,7 @@ class ReportStatus(Model):
     报表发送状态
     """
 
-    bk_tenant_id = models.CharField(verbose_name="租户ID", default=DEFAULT_TENANT_ID, max_length=128)
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     report_item = models.IntegerField(verbose_name="订阅报表ID", db_index=True)
     mail_title = models.CharField(verbose_name="邮件标题", max_length=512)
     create_time = models.DateTimeField(verbose_name="发送时间", db_index=True)
