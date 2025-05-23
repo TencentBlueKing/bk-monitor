@@ -87,12 +87,17 @@
   const setRouteParams = (ids, isUnionIndex) => {
     if (isUnionIndex) {
       router.replace({
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
         params: {
           ...route.params,
           indexId: undefined,
         },
+        // #endif
         query: {
           ...route.query,
+          // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+          indexId: undefined,
+          // #endif
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -207,6 +212,7 @@
   };
 
   const handleIndexSetValueChange = (values, type, id) => {
+    console.log(values, type, id)
     const storage = {};
     if (['single', 'union'].includes(type)) {
       store.commit('updateIndexItem', {
@@ -223,7 +229,6 @@
     if ('history' === indexSetTab.value) {
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
     }
-
     store.commit('updateStorage', storage);
     handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
