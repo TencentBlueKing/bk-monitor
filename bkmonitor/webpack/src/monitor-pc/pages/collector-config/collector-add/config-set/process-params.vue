@@ -144,26 +144,43 @@
           {{ $t('调试') }}
         </bk-button>
         <div
-          v-if="debugResult.processName"
+          v-if="debugResult.length"
           class="debug-result"
         >
           <div class="result">
-            <span>{{ $t('匹配进程') }}: </span>
-            <span class="text-danger">{{ debugResult.processName }}</span>
+            <span>{{ $t('调试结果') }}: </span>
           </div>
-          <div class="result match-dimension">
-            <span>{{ $t('匹配维度') }}: </span>
-            <div class="dimensions">
-              <div
-                v-for="[key, value] in Object.entries(debugResult.dimensions)"
-                class="dimension"
-                :key="key"
-              >
-                <span class="dimension-key">{{ key }} = </span>
-                <span class="dimension-value">{{ value }}</span>
-              </div>
-            </div>
-          </div>
+          <bk-table
+            ext-cls="debug-result-table"
+            :data="debugResult"
+            :header-border="false"
+            :outer-border="false"
+            custom-header-color="#F5F7FA"
+          >
+            <bk-table-column
+              width="150"
+              label="匹配进程"
+              prop="process_name"
+            >
+            </bk-table-column>
+            <bk-table-column
+              label="匹配维度"
+              prop="dimensions"
+            >
+              <template slot-scope="props">
+                <div class="match-dimension">
+                  <div
+                    v-for="[key, value] in Object.entries(props.row.dimensions)"
+                    class="dimension"
+                    :key="key"
+                  >
+                    <span class="dimension-key">{{ key }} = </span>
+                    <span class="dimension-value">{{ value }}</span>
+                  </div>
+                </div>
+              </template>
+            </bk-table-column>
+          </bk-table>
         </div>
       </div>
     </div>
@@ -221,10 +238,7 @@ export default {
       /** 调试文本 */
       debugProcesses: '',
       /** 调试结果 */
-      debugResult: {
-        processName: '',
-        dimensions: {},
-      },
+      debugResult: [],
     };
   },
   watch: {
@@ -259,12 +273,10 @@ export default {
           process_name: this.params.process_name,
         });
         if (!data) {
-          this.debugResult.dimensions = {};
-          this.debugResult.processName = '';
+          this.debugResult = [];
           return;
         }
-        this.debugResult.dimensions = data?.[0].dimensions;
-        this.debugResult.processName = data?.[0].process_name;
+        this.debugResult = data;
       } catch (error) {
         console.log('error', error);
       }
@@ -315,10 +327,9 @@ export default {
     }
 
     &.debug-content {
-      padding: 12px;
-      background: #f5f7fa;
-      border-radius: 2px;
-
+      width: 800px;
+      display: flex;
+      flex-direction: column;
       .debug-control {
         margin-bottom: 8px;
         background: #fff;
@@ -327,39 +338,41 @@ export default {
           height: 80px;
         }
       }
-
+      button {
+        width: 52px;
+      }
       .debug-result {
+        margin-bottom: 12px;
         .result {
-          margin-top: 8px;
+          margin-top: 10px;
           font-size: 12px;
           color: #63656e;
-
-          &.match-dimension {
-            display: flex;
-
-            .dimensions {
+          margin-bottom: 8px;
+        }
+        .debug-result-table {
+          .bk-table-body-wrapper {
+            td {
               display: flex;
-              flex: 1;
-              flex-wrap: wrap;
-              margin-left: 4px;
-
-              .dimension {
+              .match-dimension {
                 display: flex;
-                flex-direction: column;
-                gap: 2px;
-                padding: 4px;
-                margin-right: 4px;
-                margin-bottom: 4px;
-                font-size: 12px;
-                background: #eaebf0;
-                border-radius: 2px;
-
-                .dimension-key {
-                  color: #757880;
-                }
-
-                .dimension-value {
-                  color: #313238;
+                flex: 1;
+                flex-wrap: wrap;
+                .dimension {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 2px;
+                  padding: 4px;
+                  margin: 4px 0;
+                  margin-right: 4px;
+                  font-size: 12px;
+                  background: #eaebf0;
+                  border-radius: 2px;
+                  .dimension-key {
+                    color: #757880;
+                  }
+                  .dimension-value {
+                    color: #313238;
+                  }
                 }
               }
             }
