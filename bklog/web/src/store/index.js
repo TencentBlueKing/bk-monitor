@@ -651,6 +651,13 @@ const store = new Vuex.Store({
       const processedData = payload ? { ...payload } : {}; 
       if (Array.isArray(processedData.fields)) {
         processedData.fields = [...processedData.fields].sort((a, b) => {
+          // dtEventTimeStamp默认在第一个
+          if (a.field_name === 'dtEventTimeStamp') {
+            return -1;
+          }
+          if (b.field_name === 'dtEventTimeStamp') {
+            return 1;
+          }
           const aWeight = HIDDEN_FIELDS.has(a.field_name) ? 1 : 0;
           const bWeight = HIDDEN_FIELDS.has(b.field_name) ? 1 : 0;
           return aWeight - bWeight; 
