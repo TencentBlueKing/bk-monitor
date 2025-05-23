@@ -88,7 +88,7 @@ ALARM_INTERVAL_CLUSTERING = 7200
 # 数量突增告警
 AGG_DIMENSION_NORMAL = ["__dist_05"]
 AGG_CONDITION_NORMAL = [
-    {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "eq", "condition": "and"}
+    {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "neq", "condition": "and"}
 ]
 # 新类告警
 AGG_DIMENSION = ["sensitivity", "signature"]
