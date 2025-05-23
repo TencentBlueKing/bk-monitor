@@ -168,6 +168,10 @@ export default defineComponent({
       ></CommonList>
     );
 
+    /**
+     * 我的收藏渲染
+     * @returns
+     */
     const renderFavoriteList = () => (
       <CommonList
         list={favoriteList.value}
@@ -183,7 +187,7 @@ export default defineComponent({
           color: '#F8B64F',
           onClick: (e, item) => {
             e.stopPropagation();
-            cancelFavorite(item);
+            cancelFavorite(item, 'favorite');
           },
         }}
       ></CommonList>

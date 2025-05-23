@@ -14,10 +14,12 @@ import csv
 from urllib import parse
 from typing import Any
 from collections.abc import Iterable
+from collections import deque
 
 from django.http import HttpResponse
 
 from core.drf_resource import api
+from bkmonitor.utils.time_tools import time_interval_align
 
 
 def list_remote_service_callers(bk_biz_id, app_name, remote_service_name):
@@ -152,6 +154,22 @@ def split_by_size(start_time, end_time, size=30):
     return segments
 
 
+def split_by_interval_number(start_time: int, end_time: int, interval: int = 60):
+    """根据 interval 对开始时间和结束时间进行分割
+
+    丢弃最后一个覆盖不全的点
+    start_time,end_time: 10位时间戳
+    interval: 单位秒
+    """
+    segments = []
+    while start_time <= end_time:
+        segments.append((start_time, start_time + interval))
+        start_time += interval
+
+    # 遗弃最后一个覆盖不全的点，因为unify_query也是这么处理的
+    return segments[:-1]
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
     if interval[-1] == "s":
@@ -276,6 +294,42 @@ def fill_series(series, start_time, end_time, interval):
     return res
 
 
+def fill_unify_query_series(series: list, start_time: int, end_time: int, interval: int):
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
+
+    start_time = time_interval_align(start_time, interval)
+    end_time = time_interval_align(end_time, interval)
+    # 转换为 13 位毫秒时间戳
+    timestamp_range = [
+        (t_s * 1000, t_e * 1000) for t_s, t_e in split_by_interval_number(start_time, end_time, interval)
+    ]
+    first_start_time_ms = timestamp_range and timestamp_range[0][0]
+
+    res = []
+
+    for i in series:
+        dps = [[None, t_s] for t_s, t_e in timestamp_range]
+        dps_len = len(dps)
+        for dp, dp_timestamp_ms in i["datapoints"]:
+            # 计算列表 index 位置
+            result_index = (dp_timestamp_ms - first_start_time_ms) // (interval * 1000)
+            # 确保不超过边界
+            if 0 <= result_index < dps_len:
+                dps_result_data = dps[result_index][0]
+                dps[result_index][0] = dp if dps_result_data is None else dps_result_data + (dp or 0)
+
+        res.append(
+            {
+                **i,
+                "datapoints": dps,
+            }
+        )
+
+    return res or [{"datapoints": [[None, t_s] for t_s, t_e in timestamp_range]}]
+
+
 def generate_csv_file_download_response(file_name: str, file_content: Iterable[Iterable[Any]]) -> HttpResponse:
     """生成一个带有文件内容和文件名的 HTTP 响应"""
 
@@ -312,3 +366,39 @@ def generate_csv_file_download_response(file_name: str, file_content: Iterable[I
         # 例子：row_list => ["a", "b", "c"]
         writer.writerow(row_list)
     return response
+
+
+def flatten_es_dict_data(data_dict: dict) -> dict:
+    """将 ES 查询结果扁平化处理"""
+
+    def update_result_dict(result_dict: dict, key: str, value):
+        if key not in result_dict:
+            result_dict[key] = value
+        else:
+            if isinstance(result_dict[key], list):
+                result_dict[key].append(value)
+            else:
+                result_dict[key] = [result_dict[key], value]
+
+    result_dict = {}
+    q = deque()
+    q.append(("", data_dict))
+    while q:
+        name_prefix, data = q.popleft()
+        for field_name, field_value in data.items():
+            field_key = f"{name_prefix}.{field_name}" if name_prefix else field_name
+            if not field_value:
+                update_result_dict(result_dict, field_key, field_value)
+                continue
+
+            if isinstance(field_value, dict):
+                q.append((field_key, field_value))
+            elif isinstance(field_value, list):
+                for value in field_value:
+                    if isinstance(value, dict):
+                        q.append((field_key, value))
+                    else:
+                        update_result_dict(result_dict, field_key, value)
+            else:
+                update_result_dict(result_dict, field_key, field_value)
+    return result_dict

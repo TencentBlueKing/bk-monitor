@@ -19,7 +19,7 @@ from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.drf_resource import api
-from packages.monitor_web.data_explorer.event.constants import (
+from monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
     INNER_FIELD_TYPE_MAPPINGS,

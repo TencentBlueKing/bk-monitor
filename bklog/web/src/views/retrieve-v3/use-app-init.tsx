@@ -58,11 +58,13 @@ export default () => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
     });
     let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
-      Object.assign(routeParams, { ids: [routeParams.index_id], isUnionIndex: false, selectIsUnionSearch: false });
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
       activeTab = 'single';
     }
 
@@ -76,8 +78,6 @@ export default () => {
     store.commit('updateIndexId', routeParams.index_id);
     store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
-
-  reoverRouteParams();
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -104,6 +104,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
@@ -111,6 +112,7 @@ export default () => {
       '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
+      '--header-height': fromMonitor.value ? '0px' : '52px',
     };
   });
 
@@ -166,11 +168,14 @@ export default () => {
         return;
       }
 
-      router.push({ query: { ...route.query, search_mode: 'ui' } });
+      router.push({
+        query: { ...route.query, search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui' },
+      });
     }
   };
 
   setSearchMode();
+  reoverRouteParams();
 
   /**
    * 拉取索引集列表
@@ -202,10 +207,19 @@ export default () => {
         // 需要检查索引集列表中是否包含解析出来的索引集信息
         // 避免索引信息不存在导致的频繁错误请求和异常提示
         const emptyIndexSetList = [];
+        const indexSetItems = [];
+        const indexSetIds = [];
+
         if (indexSetIdList.value.length) {
           indexSetIdList.value.forEach(id => {
-            if (!resp[1].some(item => `${item.index_set_id}` === `${id}`)) {
+            const item = resp[1].find(item => `${item.index_set_id}` === `${id}`);
+            if (!item) {
               emptyIndexSetList.push(id);
+            }
+
+            if (item) {
+              indexSetItems.push(item);
+              indexSetIds.push(id);
             }
           });
 
@@ -216,6 +230,10 @@ export default () => {
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
             });
+          }
+
+          if (indexSetItems.length) {
+            store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
           }
         }
 
@@ -339,6 +357,13 @@ export default () => {
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
+    // 清理掉当前查询结果，避免下次进入空白展示
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      is_error: false,
+      exception_msg: '',
+    });
   });
 
   return {

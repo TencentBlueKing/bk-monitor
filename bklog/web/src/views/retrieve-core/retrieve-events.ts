@@ -40,6 +40,11 @@ enum RetrieveEvent {
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
   /**
+   * 收藏栏是否仅查看当前索引集
+   */
+  FAVORITE_VIEW_CURRENT_CHANGE = 'favorite-view-current-change',
+
+/**
    * 左侧字段信息初始化
    */
   LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',

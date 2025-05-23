@@ -3,10 +3,19 @@
   padding: 14px 16px;
 
   .header-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 12px;
     font-size: 16px;
     line-height: 24px;
     color: #313238;
+
+    .icon-mc-close {
+      font-size: 32px;
+      color: #63656e;
+      cursor: pointer;
+    }
   }
 
   .detail-items-wrap {

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -95,7 +95,6 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
-  const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -157,25 +156,27 @@
   };
 
   const beforeQueryBtnClick = () => {
-    return $http
-      .request('favorite/checkKeywords', {
-        data: {
-          keyword: sqlQueryValue.value,
-          fields: totalFields.value.map(item => ({
-            field_name: item.field_name,
-            is_analyzed: item.is_analyzed,
-            field_type: item.field_type,
-          })),
-        },
-      })
-      .then(resp => {
-        if (resp.result) {
-          Object.assign(inspectResponse.value, resp.data);
-          return resp.data;
-        }
+    // 功能完善后再放开
+    return Promise.resolve(true);
+    // return $http
+    //   .request('favorite/checkKeywords', {
+    //     data: {
+    //       keyword: sqlQueryValue.value,
+    //       fields: totalFields.value.map(item => ({
+    //         field_name: item.field_name,
+    //         is_analyzed: item.is_analyzed,
+    //         field_type: item.field_type,
+    //       })),
+    //     },
+    //   })
+    //   .then(resp => {
+    //     if (resp.result) {
+    //       Object.assign(inspectResponse.value, resp.data);
+    //       return resp.data;
+    //     }
 
-        return Promise.reject(resp);
-      });
+    //     return Promise.reject(resp);
+    //   });
   };
 
   const getBtnQueryResult = () => {
@@ -195,7 +196,7 @@
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
       if (searchMode.value === 'sql') {
-        beforeQueryBtnClick().then(resp => {
+        beforeQueryBtnClick().then(() => {
           getBtnQueryResult();
           RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
         });
@@ -210,7 +211,7 @@
 
   const handleSqlRetrieve = value => {
     if (value !== '*') {
-      beforeQueryBtnClick().then(resp => {
+      beforeQueryBtnClick().then(() => {
         store.commit('updateIndexItemParams', {
           keyword: value,
         });
@@ -272,21 +273,13 @@
       search_mode: nextMode,
     });
 
-    // console.log('nextMode', nextMode);
-
-    // router.replace({
-    //   params: { ...route.params },
-    //   query: {
-    //     ...(route.query ?? {}),
-    //     search_mode: nextMode,
-    //   },
-    // });
-
     inspectResponse.value.is_legal = true;
     inspectResponse.is_resolved = false;
 
     if (addition.value.length > 0 || (keyword.value !== '*' && keyword.value !== '')) {
       handleBtnQueryClick();
+    } else {
+      setRouteParams();
     }
   };
 
@@ -490,11 +483,6 @@
     inspectResponse.is_resolved = false;
     inspectPopInstance.hide(300);
   };
-
-  onBeforeUnmount(() => {
-    // popToolInstance.onBeforeUnmount();
-    // popToolInstance.uninstallInstance();
-  });
 </script>
 <template>
   <div
