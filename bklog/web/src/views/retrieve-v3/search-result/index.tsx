@@ -30,9 +30,13 @@ import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+// #else
+// #code const GraphAnalysis = () => null
+// #endif
 import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
-// #if MONITOR_APP !== 'apm'
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 // #else
 // #code const SearchResultTab = () => null;
@@ -41,7 +45,7 @@ import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-result-container',
+  name: 'V3ResultContainer',
   setup() {
     const router = useRouter();
     const route = useRoute();
