@@ -29,7 +29,7 @@ from metadata.models import (
     DataSourceOption,
 )
 from metadata.models.data_link import DataLink
-from metadata.models.data_link.constants import DataLinkResourceStatus, BASEREPORT_USAGES
+from metadata.models.data_link.constants import DataLinkResourceStatus, BASEREPORT_USAGES, BASEREPORT_SOURCE_SYSTEM
 from metadata.models.data_link.service import create_vm_data_link
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
@@ -926,7 +926,7 @@ def create_basereport_data_link(
     from metadata import models
 
     # TODO: BkBase元数据长度问题,目前限制为不能超过50个字符
-    data_link_name = f"{bk_tenant_id}_{bk_biz_id}_basereport"
+    data_link_name = f"{bk_tenant_id}_{bk_biz_id}_sys_base"
     logger.info(
         "create_basereport_data_link:data_id->[%s] of bk_tenant_id->[%s] start to create "
         "basereport_data_link,will use data_link_name->[%s],namespace->[%s]",
@@ -936,11 +936,13 @@ def create_basereport_data_link(
         namespace,
     )
 
+    source = BASEREPORT_SOURCE_SYSTEM
+
     try:
         with transaction.atomic():
             # 1. 创建监控平台元数据：逻辑结果表 ResultTable , 数据源-结果表映射关系 DataSourceResultTable
             for usage in BASEREPORT_USAGES:
-                result_table_id = f"{bk_tenant_id}_{bk_biz_id}.{usage}"
+                result_table_id = f"{bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
 
                 rt, _ = models.ResultTable.objects.get_or_create(
                     table_id=result_table_id,
@@ -968,13 +970,20 @@ def create_basereport_data_link(
 
     # 2. 创建链路实例
     data_link_ins, _ = DataLink.objects.get_or_create(
-        data_link_name=data_link_name, namespace=namespace, data_link_strategy=DataLink.BASEREPORT_TIME_SERIES_V1
+        data_link_name=data_link_name,
+        namespace=namespace,
+        data_link_strategy=DataLink.BASEREPORT_TIME_SERIES_V1,
+        bk_tenant_id=bk_tenant_id,
     )
 
     # 3. 创建链路
     try:
         data_link_ins.apply_data_link(
-            data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
+            data_source=data_source,
+            table_id=data_link_name,
+            storage_cluster_name=storage_cluster_name,
+            bk_biz_id=bk_biz_id,
+            source=source,
         )
         logger.info(
             "create_basereport_data_link:data_id->[%s] of bk_tenant_id->[%s] create basereport data link success",

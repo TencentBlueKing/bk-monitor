@@ -100,3 +100,9 @@ MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"
 BKBASE_NAMESPACE_BK_MONITOR = "bkmonitor"
 BKBASE_NAMESPACE_BK_LOG = "bklog"
 BKBASE_NAMESPACE_BK_APM = "bkapm"
+
+# 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce
+BASEREPORT_SOURCE_SYSTEM = "sys"
+BASEREPORT_SOURCE_DBM = "dbm"
+BASEREPORT_SOURCE_DEVX = "devx"
+BASEREPORT_SOURCE_PERFORCE = "perforce"

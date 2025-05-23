@@ -79,6 +79,7 @@ class DataLink(models.Model):
     data_link_strategy = models.CharField(max_length=255, verbose_name="链路策略", choices=DATA_LINK_STRATEGY_CHOICES)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         verbose_name = "数据链路"
@@ -340,13 +341,14 @@ class DataLink(models.Model):
         ]
         return configs
 
-    def compose_basereport_time_series_configs(self, data_source, storage_cluster_name, bk_biz_id):
+    def compose_basereport_time_series_configs(self, data_source, storage_cluster_name, bk_biz_id, source):
         """
         生成基础采集时序链路配置
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID
         @param storage_cluster_name: 存储集群名称
         @param bk_biz_id: 业务id
+        @param source: 数据来源
         @return: config_list 配置列表
         """
         logger.info(
@@ -358,7 +360,7 @@ class DataLink(models.Model):
         )
 
         # 需要注意超出计算平台meta长度限制问题
-        bkbase_vmrt_prefix = f"{data_source.bk_tenant_id}_{bk_biz_id}_basereport"
+        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
 
         config_list = []
         conditions = []
@@ -380,6 +382,7 @@ class DataLink(models.Model):
                         data_link_name=self.data_link_name,
                         namespace=self.namespace,
                         bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
                     )
 
                     # 创建VM Storage绑定配置
@@ -389,6 +392,7 @@ class DataLink(models.Model):
                         data_link_name=self.data_link_name,
                         namespace=self.namespace,
                         bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
                     )
 
                     # 添加配置到列表
@@ -423,6 +427,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
 
                 # 创建DataBusConfig
@@ -432,6 +437,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
 
         except Exception as e:  # pylint: disable=broad-except
@@ -579,3 +585,33 @@ class DataLink(models.Model):
             logger.error(
                 "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", self.data_link_name, e
             )
+
+    def sync_basereport_metadata(self, data_source, table_id, bk_biz_id, storage_cluster_name, source):
+        """
+        同步元数据
+        同步全套链路信息 AccessVMRecord,
+        """
+        from metadata.models import ClusterInfo, AccessVMRecord
+
+        try:
+            storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+        except ClusterInfo.DoesNotExist:
+            logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
+            return
+
+        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+
+        try:
+            with transaction.atomic():
+                # 创建11个VMResultTableConfig和VMStorageBindingConfig
+                for usage in BASEREPORT_USAGES:
+                    vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
+                    result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
+                    vm_record, _ = AccessVMRecord.objects.create(
+                        result_table_id=result_table_id,
+                        vm_result_table_id=vm_result_table_id,
+                        storage_cluster_id=storage_cluster_id,
+                        vm_cluster_id=storage_cluster_id,
+                    )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)

@@ -14,7 +14,6 @@ import logging
 from django.conf import settings
 from django.db import models
 
-from constants.common import DEFAULT_TENANT_ID
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
 
@@ -45,6 +44,7 @@ class DataLinkResourceConfigBase(models.Model):
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID", default=settings.DEFAULT_BKDATA_BIZ_ID)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         abstract = True
@@ -84,7 +84,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
+    def compose_config(self) -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -114,7 +114,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
                 "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
                 "maintainers": json.dumps(maintainer),
-                "tenant": bk_tenant_id,
+                "tenant": self.bk_tenant_id,
             },
             err_msg_prefix="compose data_id config",
         )
@@ -133,7 +133,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
         verbose_name = "VM结果表配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
+    def compose_config(self) -> dict:
         """
         组装数据源结果表配置
         """
@@ -165,7 +165,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
                 "data_type": self.data_type,
                 "maintainers": json.dumps(maintainer),
-                "tenant": bk_tenant_id,
+                "tenant": self.bk_tenant_id,
             },
             err_msg_prefix="compose bkdata table_id config",
         )
@@ -184,7 +184,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict:
+    def compose_config(self) -> dict:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -222,7 +222,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "rt_name": self.name,
                 "vm_name": self.vm_cluster_name,
                 "maintainers": json.dumps(maintainer),
-                "tenant": bk_tenant_id,
+                "tenant": self.bk_tenant_id,
             },
             err_msg_prefix="compose vm storage binding config",
         )
@@ -247,7 +247,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_kind: str | None = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -301,7 +300,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "transform_name": transform_name,
                 "transform_format": transform_format,
                 "maintainers": json.dumps(maintainer),
-                "tenant": bk_tenant_id,
+                "tenant": self.bk_tenant_id,
             },
             err_msg_prefix="compose vm databus config",
         )
@@ -323,6 +322,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         """
         组装条件处理配置
         @param conditions: 条件列表
+        @param bk_tenant_id: 租户ID
         """
         tpl = """
         {
@@ -330,6 +330,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "namespace": "{{namespace}}",
                 "name": "{{name}}",
+                "tenant": "{{tenant}}",
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
@@ -342,6 +343,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             render_params={
                 "name": self.name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                "tenant": self.bk_tenant_id,
                 "bk_biz_id": self.bk_biz_id,
                 "conditions": json.dumps(conditions),
             },
