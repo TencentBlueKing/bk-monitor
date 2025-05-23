@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 from unittest.mock import patch
@@ -246,7 +246,7 @@ INDEX_SET_LISTS = {
             "apply_status": "normal",
             "apply_status_name": "正常",
             "bk_biz_id": 2,
-            "permission": {},
+            "permission": {"manage_indices_v2": True},
             "is_editable": True,
             "sort_fields": [],
             "target_fields": [],
@@ -322,8 +322,8 @@ RETRIEVE_LIST = {
     "view_roles": [],
     "bkdata_project_id": None,
     "bk_biz_id": 2,
-    'apply_status': 'normal',
-    'apply_status_name': '正常',
+    "apply_status": "normal",
+    "apply_status_name": "正常",
     "storage_cluster_name": "",
     "tags": [],
     "storage_cluster_domain_name": "",
