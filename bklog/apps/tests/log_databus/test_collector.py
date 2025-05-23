@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -904,7 +903,7 @@ CONFIG_DATA = {
 FAILED_SUBSCRIPTION_STATUS = [{"instance_id": "xxx", "status": "FAILED"}]
 
 
-class CCModuleTest(object):
+class CCModuleTest:
     """
     mock CCApi.search_module
     """
@@ -913,7 +912,7 @@ class CCModuleTest(object):
         return []
 
 
-class CCBizHostsTest(object):
+class CCBizHostsTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -922,7 +921,7 @@ class CCBizHostsTest(object):
         return []
 
 
-class CCSetTest(object):
+class CCSetTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -933,7 +932,7 @@ class CCSetTest(object):
 
 BK_BIZ_ID = -200
 SPACE_ID = "1ce0ae294d63478ea46a2a1772acd8a7"
-SPACE_UID = "bcs__{}".format(SPACE_ID)
+SPACE_UID = f"bcs__{SPACE_ID}"
 BCS_CLUSTER_ID = "BCS-K8S-10000"
 PROJECTS = [
     {
@@ -1422,9 +1421,9 @@ class TestCollector(TestCase):
         )
         self.assertEqual(result["allowed"], True)
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_validate_container_config_yaml(self, *args, **kwargs):
         yaml_config = """
 ---
@@ -1461,7 +1460,7 @@ namespaceSelector:
         )
         self.assertTrue(result["parse_status"])
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
     def test_list_bcs_clusters(self, *args, **kwargs):
         clusters = CollectorHandler().list_bcs_clusters(BK_BIZ_ID)
@@ -1475,9 +1474,9 @@ namespaceSelector:
             [WorkLoadType.DEPLOYMENT, WorkLoadType.JOB, WorkLoadType.DAEMON_SET, WorkLoadType.STATEFUL_SET],
         )
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 

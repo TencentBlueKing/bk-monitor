@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -27,11 +26,11 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
-from apps.api.modules.utils import add_esb_info_before_request  # noqa
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter  # noqa
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW  # noqa
 
 
-class _MonitorApi(object):
+class _MonitorApi:
     MODULE = _("Monitor监控平台")
 
     def __init__(self):
@@ -42,6 +41,7 @@ class _MonitorApi(object):
             description="查询通知组",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["bk_biz_ids"][0]),
         )
         self.save_notice_group = DataAPI(
             method="POST",
@@ -50,6 +50,7 @@ class _MonitorApi(object):
             description="保存通知组",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.delete_alarm_strategy_v3 = DataAPI(
             method="POST",
@@ -58,6 +59,7 @@ class _MonitorApi(object):
             description="删除告警策略V3",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.search_alarm_strategy_v3 = DataAPI(
             method="POST",
@@ -66,6 +68,7 @@ class _MonitorApi(object):
             description="查询告警策略V3",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.save_alarm_strategy_v3 = DataAPI(
             method="POST",
@@ -74,6 +77,7 @@ class _MonitorApi(object):
             description="保存告警策略V3",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.query_log_relation = DataAPI(
             method="POST",
@@ -90,6 +94,7 @@ class _MonitorApi(object):
             description="创建或更新订阅报表",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.send_report = DataAPI(
             method="POST",
@@ -106,6 +111,7 @@ class _MonitorApi(object):
             description="获取已存在的订阅报表",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_report_variables = DataAPI(
             method="GET",
@@ -122,6 +128,7 @@ class _MonitorApi(object):
             description="查询告警",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["bk_biz_ids"][0]),
         )
         self.get_alert_detail = DataAPI(
             method="GET",
