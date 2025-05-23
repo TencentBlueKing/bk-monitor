@@ -144,10 +144,12 @@ class BaseQueryTransformer(BaseTreeTransformer):
             return ""
         transform_obj = cls()
 
-        if is_include_promql(query_string):
+        try:
+            query_tree = parse_query_string_node(transform_obj, query_string)
+        except QueryStringParseError:
             # 包含promql语句，可能会报语法错误，需要尝试转换
             query_string = cls.convert_metric_id(query_string)
-        query_tree = parse_query_string_node(transform_obj, query_string)
+            query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -171,7 +173,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
         """
 
-        def convert(match):
+        def convert_metric(match):
             value = match.group(0)
             value = value.split(":", 1)[1].replace('"', '').replace("'", '')
             # 如果是promql，需要进行转义
@@ -181,17 +183,20 @@ class BaseQueryTransformer(BaseTreeTransformer):
             # 给末尾加上“*”，用于支持模糊匹配
             return f'{target_type} : {value}*'
 
-        def replace(match):
+        def add_quote(match):
             value = match.group('value')
             value = f'"{value}"' if value else value
             return f'{target_type} : {value}'
 
         target_type = "指标ID"
 
-        query_string = cls.process_label_filter(query_string) # 处理promql语句中的过滤条件
-        # 处理不带引号的指标ID值，
-        query_string = re.sub(r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', replace, query_string, re.IGNORECASE)
-        query_string = re.sub( r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert, query_string)
+        # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
+        # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
+        #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
+        #  - 如果指标格式为`指标ID:{promql}`，也会匹配失败，需要转变为`指标ID:"{promql}"`
+        query_string = cls.process_label_filter(query_string)
+        query_string = re.sub(r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE)
+        query_string = re.sub( r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert_metric, query_string, re.IGNORECASE)
 
         # 还原process_label_filter函数中处理的双引号，并做转义
         query_string = query_string.replace("##", r'\=\"')
