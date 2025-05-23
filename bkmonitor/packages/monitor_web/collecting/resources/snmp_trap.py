@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.utils import shortuuid
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
@@ -56,6 +57,7 @@ class GetTrapCollectorPluginResource(Resource):
         id = serializers.IntegerField(required=False, label="采集配置ID")
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         plugin_id = validated_request_data["plugin_id"]
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -63,11 +65,15 @@ class GetTrapCollectorPluginResource(Resource):
         yaml = validated_request_data["params"]["snmp_trap"]["yaml"]
         if "id" not in validated_request_data:
             plugin_id = "trap_" + str(shortuuid.uuid())
-            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.SNMP_TRAP)
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=PluginType.SNMP_TRAP
+            )
             params = plugin_manager.get_params(plugin_id, bk_biz_id, label, snmp_trap=snmp_trap, yaml=yaml)
             resource.plugin.create_plugin(params)
         else:
-            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.SNMP_TRAP)
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=PluginType.SNMP_TRAP
+            )
             params = plugin_manager.get_params(plugin_id, bk_biz_id, label, snmp_trap=snmp_trap, yaml=yaml)
             plugin_manager.update_version(params)
 

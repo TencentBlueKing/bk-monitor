@@ -24,6 +24,7 @@ from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api, resource
 from core.errors.export_import import ImportConfigError
@@ -51,7 +52,8 @@ def import_plugin(bk_biz_id, plugin_config):
     plugin_id = config["plugin_id"]
     plugin_type = config["plugin_type"]
     config["bk_biz_id"] = bk_biz_id
-    exist_plugin = CollectorPluginMeta.objects.filter(plugin_id=plugin_id).first()
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    exist_plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).first()
     if exist_plugin:
         # 避免导入包和原插件内容一致，文件名不同
         def handle_collector_json(config_value):
@@ -86,9 +88,9 @@ def import_plugin(bk_biz_id, plugin_config):
             with transaction.atomic():
                 serializers_obj.save()
                 plugin_manager = PluginManagerFactory.get_manager(
-                    plugin=plugin_id, plugin_type=plugin_type, operator=local.username
+                    bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=plugin_type, operator=local.username
                 )
-                version, no_use = plugin_manager.create_version(config)
+                version, _ = plugin_manager.create_version(config)
             result = resource.plugin.plugin_register(
                 plugin_id=version.plugin.plugin_id,
                 config_version=version.config_version,
@@ -150,6 +152,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             import_collect_obj.error_msg = ""
             import_collect_obj.save()
 
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     for import_collect_config in collect_config_list:
         parse_instance = ImportParse.objects.get(id=import_collect_config.parse_id)
         config = parse_instance.config
@@ -176,7 +179,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             import_collect_config.save()
             continue
 
-        plugin_obj = CollectorPluginMeta.objects.get(plugin_id=plugin_instance.config_id)
+        plugin_obj = CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin_instance.config_id)
         deployment_config_params = {
             "plugin_version": plugin_obj.packaged_release_version,
             "target_node_type": config["target_node_type"],

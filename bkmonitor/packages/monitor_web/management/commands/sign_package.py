@@ -19,6 +19,7 @@ import yaml
 from django.core.management import BaseCommand
 from django.utils.translation import gettext as _
 
+from constants.common import DEFAULT_TENANT_ID
 from core.errors.plugin import PluginParseError
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
@@ -34,6 +35,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         super(Command, self).add_arguments(parser)
+        parser.add_argument("--bk_tenant_id", dest="bk_tenant_id", default=DEFAULT_TENANT_ID, help="bk_tenant_id")
         parser.add_argument("src_path", type=str, help="the source package path")
         parser.add_argument("--dest", dest="dest_path", default=".", help="package dest path")
         parser.add_argument("--protocols", dest="protocols", default="strict,default", help="make an official package?")
@@ -43,6 +45,7 @@ class Command(BaseCommand):
         src_path = kwargs["src_path"]
         dest_path = kwargs["dest_path"]
         protocols = kwargs["protocols"].split(",")
+        bk_tenant_id = kwargs["bk_tenant_id"]
 
         if not kwargs["ver"]:
             config_version, info_version = None, None
@@ -96,7 +99,9 @@ class Command(BaseCommand):
 
         print("3/4 sign package")
         # 3. 根据插件包构造 db 条目，并执行签名
-        import_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type, tmp_path=tmp_dir)
+        import_manager = PluginManagerFactory.get_manager(
+            bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=plugin_type, tmp_path=tmp_dir
+        )
         tmp_version = import_manager.get_tmp_version(config_version=config_version, info_version=info_version)
 
         sig_manager = load_plugin_signature_manager(tmp_version)
