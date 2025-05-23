@@ -734,6 +734,8 @@ export default {
   对象: 'Object',
   排除规则: 'Exclusion Rules',
   端口探测: 'Port Detection',
+  匹配进程: 'Matching Process',
+  匹配维度: 'Matching Dimensions',
   上报协议: 'Report Protocol',
   是否为平台事件: 'Is platform event',
   作用范围: 'Scope',
