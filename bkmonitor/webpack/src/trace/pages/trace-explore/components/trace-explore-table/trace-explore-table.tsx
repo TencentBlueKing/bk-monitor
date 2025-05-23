@@ -518,6 +518,7 @@ export default defineComponent({
             colKey: 'span_id',
             title: t('Span ID'),
             width: 160,
+            fixed: 'left',
             clickCallback: row => handleSliderShowChange('span', row.span_id),
           },
           span_name: {
@@ -587,6 +588,7 @@ export default defineComponent({
           colKey: 'trace_id',
           title: t('Trace ID'),
           width: 240,
+          fixed: 'left',
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
         },
         min_start_time: {
