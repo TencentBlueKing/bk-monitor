@@ -427,9 +427,8 @@ class TestEtl(TestCase):
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     def test_bk_log_text(self, mock_modify_delay, mock_index_set):
-        mock_modify_delay.return_value = None
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
 
@@ -464,12 +463,11 @@ class TestEtl(TestCase):
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     def test_bk_log_json(self, mock_modify_delay, mock_index_set):
         """
         JSON清洗
         """
-        mock_modify_delay.return_value = None
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
 
@@ -530,12 +528,11 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     def test_bk_log_regexp(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         正则清洗
         """
-        mock_modify_delay.return_value = None
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
 
@@ -591,12 +588,11 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    @patch("apps.log_databus.tasks.collector.modify_result_table.delay")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     def test_bk_log_delimiter(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         分隔符清洗
         """
-        mock_modify_delay.return_value = None
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
         mock_preview.return_value = ETL_DELIMITER_PREVIEW_SDK
