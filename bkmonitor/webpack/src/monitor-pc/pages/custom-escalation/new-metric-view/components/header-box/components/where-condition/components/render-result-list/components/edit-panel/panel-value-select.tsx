@@ -27,6 +27,7 @@ import { Component, Ref, Watch, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import _ from 'lodash';
 import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
 
@@ -59,6 +60,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
       name: methodMap[key],
     }))
   );
+  valueListMemo: Readonly<{ id: string; name: string }[]> = [];
 
   get currentSelectedMetricNameList() {
     return customEscalationViewStore.currentSelectedMetricNameList;
@@ -70,30 +72,40 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
       if (this.keyName) {
         this.valueTagInputRef.focusFn();
       }
+      this.valueListMemo = [];
     });
   }
 
-  async getValueCallback() {
+  async getValueCallback({ search }: { search: string }) {
     if (!this.keyName) {
       return {
         count: 0 as const,
         list: [],
       };
     }
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
-    const result = await getCustomTsDimensionValues({
-      time_series_group_id: Number(this.$route.params.id),
-      dimension: this.keyName,
-      start_time: startTime || 0,
-      end_time: endTime || 0,
-      metrics: this.currentSelectedMetricNameList,
-    });
-    return {
-      count: 0 as const,
-      list: result.map(item => ({
+
+    if (this.valueListMemo.length < 1) {
+      const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+      const result = await getCustomTsDimensionValues({
+        time_series_group_id: Number(this.$route.params.id),
+        dimension: this.keyName,
+        start_time: startTime || 0,
+        end_time: endTime || 0,
+        metrics: this.currentSelectedMetricNameList,
+      });
+      this.valueListMemo = result.map(item => ({
         id: item.name,
         name: item.name,
-      })),
+      }));
+    }
+
+    const list = _.filter(this.valueListMemo, item =>
+      item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())
+    );
+
+    return {
+      count: 0 as const,
+      list,
     };
   }
 

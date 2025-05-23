@@ -942,7 +942,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
    * 处理路由跳转
    */
   handleJump(): void {
-    const { customMetricV2EnableList, bizId } = this.$store.getters;
 
     const toView = {
       customEvent: () => {
@@ -954,7 +953,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       },
       customTimeSeries: () => {
         this.$router.push({
-          name: customMetricV2EnableList.includes(bizId) ? 'new-custom-escalation-view' : 'custom-escalation-view',
+          name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
           query: { name: this.detailData.name },
         });
@@ -1519,6 +1518,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                     <pre class='content-example'>X-BK-TOKEN=$TOKEN</pre>
                     <div class='mt10'>
                       {this.$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}
+                    </div>
+                    <div class='mt10'>
+                      {this.$t('如果上报渠道不支持加入自定义 headers, 也可以使用 BasicAuth 进行验证, user: bkmonitor, password: $TOKEN')}
                     </div>
                   </div>
 

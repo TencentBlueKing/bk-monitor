@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { BK_LOG_STORAGE } from './store/store.type';
+
 /** 外部版根据空间授权权限显示菜单 */
 const updateExternalMenuBySpace = curSpace => {
   const list = [];
@@ -56,8 +58,8 @@ export default ({
 
     store.commit('updateMySpaceList', spaceList);
 
-    const space_uid = store.state.spaceUid;
-    const bkBizId = store.state.bkBizId;
+    const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
     let space = null;
 
     if (space_uid) {
@@ -72,7 +74,18 @@ export default ({
       space = spaceList?.[0];
     }
 
-    store.commit('updateSpace', space_uid);
+    store.commit('updateSpace', space?.space_uid);
+
+    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+        [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+      });
+    }
+
+    if (!space) {
+      return;
+    }
 
     if (isExternal) {
       const list = updateExternalMenuBySpace(space);

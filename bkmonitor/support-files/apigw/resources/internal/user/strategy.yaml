@@ -1,0 +1,27 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /user/strategy/get_devops_strategy_list/:
+    get:
+      operationId: get_devops_strategy_list
+      description: 获取蓝盾插件专用策略列表
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/alarm_strategy_v3/get_devops_strategy_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: false
+        descriptionEn: get_devops_strategy_list

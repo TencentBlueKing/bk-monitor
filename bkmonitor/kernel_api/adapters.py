@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -24,7 +23,6 @@ API_FIELD_FORMATED_MAPPINGS = {
     "app_token": "bk_app_secret",
     "company_id": "bk_supplier_id",
     "company_code": "bk_supplier_account",
-    "username": "bk_username",
     "plat_id": "bk_cloud_id",
     "plat_name": "bk_cloud_name",
     "biz_id": "bk_biz_id",
@@ -47,7 +45,7 @@ class ApiRenderer(MonitorJSONRenderer):
         return result
 
     def get_result(self, data, renderer_context=None):
-        result = super(ApiRenderer, self).get_result(data, renderer_context)
+        result = super().get_result(data, renderer_context)
         return self.format_field(result, -1)
 
 
@@ -60,7 +58,7 @@ class ApiModelFilterSet(django_filters.FilterSet):
         return extend_fields
 
     def __init__(self, data=None, queryset=None, prefix=None, strict=None, request=None):
-        super(ApiModelFilterSet, self).__init__(data, queryset, prefix, strict, request)
+        super().__init__(data, queryset, prefix, strict, request)
 
         data = self.data.copy()
         extend_fields = getattr(self.Meta, "extend_fields", None) or self.get_extend_fields()
@@ -90,4 +88,4 @@ class SerializerFieldFormatedMeta(type):
 
 class FormatedViewsetMixin:
     def finalize_response(self, request, response, *args, **kwargs):
-        return super(FormatedViewsetMixin, self).finalize_response(request, response, *args, **kwargs)
+        return super().finalize_response(request, response, *args, **kwargs)

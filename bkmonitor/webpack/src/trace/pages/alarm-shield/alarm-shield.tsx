@@ -23,11 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, ref } from 'vue';
+import { defineComponent, provide, reactive, ref as deepRef, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect, Table } from 'bkui-vue';
+import {
+  type FilterValue,
+  PrimaryTable,
+  type SortInfo,
+  type TableFilterChangeContext,
+  type TableRowData,
+  type TableSort,
+} from '@blueking/tdesign-ui';
+import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
@@ -36,23 +44,12 @@ import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
+import { type AlarmShieldTableItem, EColumn, type IColumn } from './typing';
 
 import type { IAuthority } from '../../typings/authority';
 
 import './alarm-shield.scss';
 
-enum EColunm {
-  beginTime = 'begin_time',
-  cycleDuration = 'cycleDuration',
-  description = 'description',
-  failureTime = 'failure_time',
-  id = 'id',
-  operate = 'operate',
-  shieldContent = 'shieldContent',
-  shieldType = 'shieldType',
-  status = 'status',
-  updateUser = 'update_user',
-}
 export default defineComponent({
   name: 'AlarmShield',
   setup() {
@@ -66,12 +63,13 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
     /* 时间范围 */
-    const dateRange = ref([]);
+    const dateRange = deepRef([]);
     /* 参数范围 */
-    const backDisplayMap = ref({});
+    const backDisplayMap = deepRef({});
     /* 搜索内容 */
-    const searchData = ref([]);
-    const searchValues = ref([]);
+    const searchData = deepRef([]);
+    const searchValues = deepRef([]);
+    const filterValue = shallowRef<FilterValue>({});
     let searchCondition = [];
     /* 状态映射 */
     const statusMap = {
@@ -92,138 +90,99 @@ export default defineComponent({
       },
     };
     /* 屏蔽状态 */
-    const shieldStatus = ref(0);
+    const shieldStatus = deepRef(0);
     const shieldStatusList = [
       { name: t('屏蔽中'), id: 0, type: 'effct' },
       { name: t('屏蔽失效'), id: 1, type: 'overdue' },
     ];
-    /* 表格数据 */
-    const tableData = reactive({
-      loading: false,
-      data: [],
-      columns: [
-        {
-          id: EColunm.id,
-          name: 'ID',
-          width: 100,
-          disabled: true,
-          checked: true,
-          sort: {
-            value: '',
-          },
-        },
-        {
-          id: EColunm.shieldType,
-          name: t('分类'),
-          width: 150,
-          disabled: true,
-          checked: true,
-          filter: {
-            filterFn: () => true,
-            checked: [],
-            list: [
-              { text: t('告警事件屏蔽'), value: 'alert' },
-              { text: t('范围屏蔽'), value: 'scope' },
-              { text: t('策略屏蔽'), value: 'strategy' },
-              { text: t('维度屏蔽'), value: 'dimension' },
-            ],
-          },
-        },
-        {
-          id: EColunm.shieldContent,
-          name: t('屏蔽内容'),
-          width: 250,
-          disabled: false,
-          checked: true,
-        },
-        {
-          id: EColunm.beginTime,
-          name: t('开始时间'),
-          width: 150,
-          disabled: false,
-          checked: true,
-          sort: {
-            value: '',
-          },
-        },
-        {
-          id: EColunm.failureTime,
-          name: t('失效时间'),
-          width: 150,
-          disabled: false,
-          checked: true,
-          sort: {
-            value: '',
-          },
-        },
-        {
-          id: EColunm.cycleDuration,
-          name: t('持续周期及时长'),
-          width: 150,
-          disabled: false,
-          checked: true,
-        },
-        {
-          id: EColunm.description,
-          name: t('屏蔽原因'),
-          width: 230,
-          disabled: false,
-          checked: true,
-        },
-        {
-          id: EColunm.status,
-          name: t('状态'),
-          width: 150,
-          disabled: false,
-          checked: true,
-        },
-        {
-          id: EColunm.updateUser,
-          name: t('更新人'),
-          width: 150,
-          disabled: false,
-          checked: true,
-        },
-        {
-          id: EColunm.operate,
-          name: t('操作'),
-          width: 150,
-          disabled: true,
-          checked: true,
-        },
-      ],
-      pagination: {
-        current: 1,
-        count: 0,
-        limit: 10,
+    const columns = shallowRef<IColumn[]>([
+      {
+        id: EColumn.id,
+        name: 'ID',
+        width: 80,
+        disabled: true,
+        sortable: true,
       },
-      filter: {
-        shieldType: {
-          checked: [],
-        },
+      {
+        id: EColumn.shieldType,
+        name: t('分类'),
+        width: 150,
+        disabled: true,
+        filterMultiple: true,
+        filter: [
+          { label: t('告警事件屏蔽'), value: 'alert' },
+          { label: t('范围屏蔽'), value: 'scope' },
+          { label: t('策略屏蔽'), value: 'strategy' },
+          { label: t('维度屏蔽'), value: 'dimension' },
+        ],
       },
-      sort: {
-        column: '',
-        type: '',
+      {
+        id: EColumn.shieldContent,
+        name: t('屏蔽内容'),
+        disabled: false,
+        minWidth: 250,
       },
+      {
+        id: EColumn.beginTime,
+        name: t('开始时间'),
+        width: 150,
+        disabled: false,
+        sortable: true,
+      },
+      {
+        id: EColumn.failureTime,
+        name: t('失效时间'),
+        width: 150,
+        disabled: false,
+        sortable: true,
+      },
+      {
+        id: EColumn.cycleDuration,
+        name: t('持续周期及时长'),
+        width: 150,
+        disabled: false,
+      },
+      {
+        id: EColumn.description,
+        name: t('屏蔽原因'),
+        minWidth: 230,
+        disabled: false,
+      },
+      {
+        id: EColumn.status,
+        name: t('状态'),
+        width: 150,
+        disabled: false,
+      },
+      {
+        id: EColumn.updateUser,
+        name: t('更新人'),
+        width: 150,
+        disabled: false,
+      },
+      {
+        id: EColumn.operate,
+        name: t('操作'),
+        width: 100,
+        disabled: true,
+      },
+    ]);
+    const tableLoading = deepRef(false);
+
+    const pagination = reactive({
+      current: 1,
+      count: 0,
+      limit: 10,
     });
-    const settings = reactive({
-      checked: tableData.columns.map(item => item.id),
-      size: 'small',
-      fields: tableData.columns
-        .filter(item => {
-          if (shieldStatus.value === 0) {
-            return ![EColunm.failureTime, EColunm.status].includes(item.id);
-          }
-          return ![EColunm.cycleDuration].includes(item.id);
-        })
-        .map(item => ({
-          label: item.name,
-          field: item.id,
-          disabled: item.disabled,
-        })),
+
+    const sort = deepRef<SortInfo>({
+      sortBy: '',
+      descending: false,
     });
-    const emptyType = ref<EmptyStatusType>('empty');
+
+    const tableList = shallowRef<AlarmShieldTableItem[]>([]);
+
+    const emptyType = deepRef<EmptyStatusType>('empty');
     /* 详情数据 */
     const detailData = reactive({
       show: false,
@@ -233,13 +192,14 @@ export default defineComponent({
     provide('authority', authority);
 
     init();
+
     async function init() {
       const pageSize = commonPageSizeGet();
-      tableData.pagination.limit = pageSize;
-      tableData.loading = true;
+      pagination.limit = pageSize;
+      tableLoading.value = true;
       authority.auth = await getAuthorityMap(authMap);
       createdConditionList();
-      await handleGetShiledList();
+      await handleGetShieldList();
     }
 
     function createdConditionList() {
@@ -256,16 +216,15 @@ export default defineComponent({
         },
       };
       const res = [];
-      const map = backDisplayMap.value;
-      Object.keys(map).forEach((key: string) => {
-        const { name, id, list } = map[key];
+      const map: Record<string, any> = backDisplayMap.value;
+      for (const { name, id, list } of Object.values(map)) {
         res.push({
           name,
           id,
           multiple: true,
           children: list || [],
         });
-      });
+      }
       searchData.value = res;
       getRouterParams();
     }
@@ -280,7 +239,7 @@ export default defineComponent({
         let queryStringObj = null;
         try {
           queryStringObj = JSON.parse(queryString as any);
-        } catch (err) {
+        } catch {
           router
             .replace({
               ...route,
@@ -290,21 +249,21 @@ export default defineComponent({
         }
         if (queryStringObj) {
           const ids = Object.keys(backDisplayMap.value);
-          const searchValues_ = [];
-          queryStringObj?.forEach(item => {
+          const searchValueList = [];
+          for (const item of queryStringObj) {
             if (ids.includes(item.key)) {
               if (item.value?.length)
-                searchValues_.push({
+                searchValueList.push({
                   id: item.key,
                   multiple: true,
                   name: backDisplayMap.value[item.key].name,
                   values: Array.isArray(item.value) ? item.value.map(item => ({ id: item, name: item })) : [item.value],
                 });
             } else {
-              if (item.key) searchValues_.push({ id: item.key, name: item.key });
+              if (item.key) searchValueList.push({ id: item.key, name: item.key });
             }
-          });
-          searchValues.value = searchValues_;
+          }
+          searchValues.value = searchValueList;
           searchCondition = routerParamsReplace();
         }
       }
@@ -314,67 +273,48 @@ export default defineComponent({
      * @param item
      */
     function handleStatusChange(item) {
-      if (tableData.loading) {
+      if (tableLoading.value) {
         return;
       }
       if (shieldStatus.value !== item.id) {
         shieldStatus.value = item.id;
-        tableData.pagination.current = 1;
-        settings.fields = tableData.columns
-          .filter(item => {
-            if (shieldStatus.value === 0) {
-              return ![EColunm.failureTime, EColunm.status].includes(item.id);
-            }
-            return ![EColunm.cycleDuration].includes(item.id);
-          })
-          .map(item => ({
-            label: item.name,
-            field: item.id,
-            disabled: item.disabled,
-          }));
-        settings.checked = settings.fields.map(item => item.field);
-        tableData.sort = {
-          column: '',
-          type: '',
+        pagination.current = 1;
+        sort.value = {
+          sortBy: '',
+          descending: false,
         };
-        tableData.columns.forEach(item => {
-          if (item?.sort) {
-            item.sort.value = '';
-          }
-        });
-        handleGetShiledList();
+        handleGetShieldList();
       }
     }
     /**
      * @description 获取屏蔽列表
      */
-    async function handleGetShiledList() {
-      tableData.loading = true;
+    async function handleGetShieldList() {
+      tableLoading.value = true;
       // tableData.data = [];
+
+      let categories = filterValue.value[EColumn.shieldType];
+      if (!categories?.length) {
+        categories = columns.value.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
+      }
+
       const params = {
-        page: tableData.pagination.current,
-        page_size: tableData.pagination.limit,
+        page: pagination.current,
+        page_size: pagination.limit,
         time_range: (() => {
           if (dateRange.value?.every(item => !!item)) {
             return dateRange.value.join('--');
           }
           return undefined;
         })(),
-        categories: (() => {
-          const filterItem: any = tableData.columns.find(item => item.id === EColunm.shieldType);
-          const checked = filterItem.filter.checked || [];
-          if (checked.length) {
-            return checked;
-          }
-          return filterItem.filter.list.map(item => item.value);
-        })(),
+        categories,
         search: '',
         order: (() => {
-          if (tableData.sort.type) {
-            if (tableData.sort.type === 'asc') {
-              return (tableData.sort as any).column;
+          if (sort.value.sortBy) {
+            if (!sort.value.descending) {
+              return sort.value.sortBy;
             }
-            return `-${(tableData.sort as any).column}`;
+            return `-${sort.value.sortBy}`;
           }
           return undefined;
         })(),
@@ -388,9 +328,10 @@ export default defineComponent({
           count: 0,
         };
       });
-      tableData.data = [...data.shield_list];
-      tableData.pagination.count = data.count;
-      tableData.loading = false;
+      tableList.value = [...data.shield_list];
+
+      pagination.count = data.count;
+      tableLoading.value = false;
     }
     /**
      * @description 条件搜索
@@ -398,21 +339,21 @@ export default defineComponent({
      */
     function handleSearchCondition(v) {
       searchValues.value = v;
-      tableData.pagination.current = 1;
+      pagination.current = 1;
       searchCondition = routerParamsReplace();
       emptyType.value = searchCondition.length ? 'search-empty' : 'empty';
-      handleGetShiledList();
+      handleGetShieldList();
     }
     function routerParamsReplace() {
       const query = [];
       const ids = Object.keys(backDisplayMap.value);
-      searchValues.value.forEach(item => {
+      for (const item of searchValues.value) {
         if (ids.includes(item.id)) {
           if (item.values?.length) query.push({ key: item.id, value: item.values.map(v => v.id) });
         } else {
           if (item.id) query.push({ key: 'query', value: item.id });
         }
-      });
+      }
       const queryStr = JSON.stringify(query);
       router
         .replace({
@@ -478,7 +419,7 @@ export default defineComponent({
         title: t('是否解除该屏蔽?'),
         onConfirm: () => {
           disableShield({ id: row.id }).then(() => {
-            handleGetShiledList();
+            handleGetShieldList();
             Message({
               theme: 'success',
               message: t('解除屏蔽成功'),
@@ -491,46 +432,37 @@ export default defineComponent({
      * @description 当前排序
      * @param opt
      */
-    function handleColumnSort(opt) {
-      const sort = {
-        column: '',
-        type: '',
-      };
-      if (opt.type !== 'null') {
-        sort.column = opt.column.id;
-        sort.type = opt.type;
+    function handleSortChange(info: TableSort) {
+      if (info) {
+        sort.value = { ...info };
       } else {
-        sort.column = opt.column.id;
+        sort.value = {
+          sortBy: '',
+          descending: false,
+        };
       }
-      tableData.sort = sort;
-      const tableColumn = tableData.columns.find(item => item.id === sort.column);
-      tableData.columns.forEach(item => {
-        if (item.id !== sort.column && !!item?.sort) {
-          item.sort.value = '';
-        }
-      });
-      if (tableColumn?.sort) {
-        tableColumn.sort.value = sort.type || '';
-      }
-      tableData.pagination.current = 1;
-      handleGetShiledList();
+      pagination.current = 1;
+      handleGetShieldList();
     }
     /**
      * @description 当前筛选
      * @param opt
      */
-    function handleColumnFilter() {
-      tableData.pagination.current = 1;
-      handleGetShiledList();
+    function handleFilterChange(value: FilterValue, context: TableFilterChangeContext<TableRowData>) {
+      const field = context?.col?.colKey;
+      filterValue.value = value;
+      if (!field) return;
+      pagination.current = 1;
+      handleGetShieldList();
     }
     /**
      * @description 当前页切换
      * @param page
      */
     function handlePageChange(page: number) {
-      if (tableData.pagination.current !== page) {
-        tableData.pagination.current = page;
-        handleGetShiledList();
+      if (pagination.current !== page) {
+        pagination.current = page;
+        handleGetShieldList();
       }
     }
     /**
@@ -538,16 +470,16 @@ export default defineComponent({
      * @param limit
      */
     function handleLimitChange(limit: number) {
-      tableData.pagination.current = 1;
-      tableData.pagination.limit = limit;
+      pagination.current = 1;
+      pagination.limit = limit;
       commonPageSizeSet(limit);
-      handleGetShiledList();
+      handleGetShieldList();
     }
 
     function handleDatePick() {
       emptyType.value = 'search-empty';
-      tableData.pagination.current = 1;
-      handleGetShiledList();
+      pagination.current = 1;
+      handleGetShieldList();
     }
     /**
      * @description 空状态操作
@@ -557,7 +489,7 @@ export default defineComponent({
     function handleEmptyOperation(type) {
       if (type === 'refresh') {
         emptyType.value = 'empty';
-        handleGetShiledList();
+        handleGetShieldList();
         return;
       }
       if (type === 'clear-filter') {
@@ -565,28 +497,24 @@ export default defineComponent({
         dateRange.value = [];
         searchCondition = routerParamsReplace();
         emptyType.value = searchCondition.length ? 'search-empty' : 'empty';
-        handleGetShiledList();
+        handleGetShieldList();
         return;
       }
     }
 
-    function handleSettingChange(opt) {
-      settings.checked = opt.checked;
-      settings.size = opt.size;
-    }
     /**
      * @description 清空时间范围
      */
     function handleDatePickClear() {
       setTimeout(() => {
-        tableData.pagination.current = 1;
-        handleGetShiledList();
+        pagination.current = 1;
+        handleGetShieldList();
       }, 50);
     }
 
-    function handleSetFormater(row, column) {
+    function handleSetFormat(row, column) {
       switch (column) {
-        case EColunm.id: {
+        case EColumn.id: {
           return (
             <Button
               theme='primary'
@@ -595,31 +523,31 @@ export default defineComponent({
             >{`#${row.id}`}</Button>
           );
         }
-        case EColunm.shieldType: {
+        case EColumn.shieldType: {
           return <span>{row.category_name}</span>;
         }
-        case EColunm.shieldContent: {
+        case EColumn.shieldContent: {
           return <span>{row.content}</span>;
         }
-        case EColunm.beginTime: {
+        case EColumn.beginTime: {
           return <span>{row.begin_time}</span>;
         }
-        case EColunm.failureTime: {
+        case EColumn.failureTime: {
           return <span>{row.failure_time}</span>;
         }
-        case EColunm.cycleDuration: {
+        case EColumn.cycleDuration: {
           return <span>{row.cycle_duration}</span>;
         }
-        case EColunm.description: {
+        case EColumn.description: {
           return <span>{row.description || '--'}</span>;
         }
-        case EColunm.status: {
+        case EColumn.status: {
           return <span class={statusMap[row.status].className}>{statusMap[row.status].des}</span>;
         }
-        case EColunm.updateUser: {
+        case EColumn.updateUser: {
           return <span>{row.update_user || '--'}</span>;
         }
-        case EColunm.operate: {
+        case EColumn.operate: {
           return (
             <div>
               {row.category !== 'alert' && (
@@ -674,13 +602,18 @@ export default defineComponent({
         }
       }
     }
+
     return {
-      tableData,
-      settings,
+      columns,
+      sort,
+      tableLoading,
+      tableList,
+      pagination,
       authorityStore,
       authority,
       handleAdd,
       shieldStatusList,
+      filterValue,
       t,
       shieldStatus,
       handleStatusChange,
@@ -691,10 +624,9 @@ export default defineComponent({
       emptyType,
       detailData,
       handleSearchCondition,
-      handleSetFormater,
-      handleColumnSort,
-      handleColumnFilter,
-      handleSettingChange,
+      handleSetFormat,
+      handleSortChange,
+      handleFilterChange,
       handleEmptyOperation,
       handlePageChange,
       handleLimitChange,
@@ -739,6 +671,7 @@ export default defineComponent({
             <div class='right'>
               <DatePicker
                 class='shield-time'
+                appendToBody={true}
                 format={'yyyy-MM-dd HH:mm:ss'}
                 modelValue={this.dateRange}
                 placeholder={this.t('选择屏蔽时间范围')}
@@ -757,36 +690,10 @@ export default defineComponent({
             </div>
           </div>
           <div class='table-wrap'>
-            {!this.tableData.loading ? (
-              <Table
+            {!this.tableLoading ? (
+              <PrimaryTable
                 class='shield-table'
-                columns={this.tableData.columns
-                  .filter(item => {
-                    if (this.shieldStatus === 0) {
-                      return (
-                        ![EColunm.failureTime, EColunm.status].includes(item.id) &&
-                        this.settings.checked.includes(item.id)
-                      );
-                    }
-                    return ![EColunm.cycleDuration].includes(item.id) && this.settings.checked.includes(item.id);
-                  })
-                  .map(item => {
-                    return {
-                      ...item,
-                      label: (col: any) => col.name,
-                      render: ({ row }) => this.handleSetFormater(row, item.id),
-                    };
-                  })}
-                darkHeader={true}
-                data={this.tableData.data}
-                pagination={false}
-                settings={this.settings}
-                showOverflowTooltip={true}
-                onColumnFilter={this.handleColumnFilter}
-                onColumnSort={this.handleColumnSort}
-                onSettingChange={this.handleSettingChange}
-              >
-                {{
+                v-slots={{
                   empty: () => (
                     <EmptyStatus
                       type={this.emptyType}
@@ -794,20 +701,58 @@ export default defineComponent({
                     />
                   ),
                 }}
-              </Table>
+                bkUiSettings={{
+                  checked: this.columns.map(item => item.id),
+                }}
+                columns={this.columns.map(item => ({
+                  title: item.name,
+                  minWidth: item.minWidth || item.width,
+                  resizable: true,
+                  cellKey: item.id,
+                  colKey: item.id,
+                  ellipsis: {
+                    popperOptions: {
+                      strategy: 'fixed',
+                    },
+                  },
+                  sortType: 'all',
+                  sorter: item.sortable,
+                  filter: item.filter?.length
+                    ? {
+                        resetValue: [],
+                        type: 'multiple',
+                        list: item.filter,
+                        showConfirmAndReset: true,
+                        props: {},
+                      }
+                    : undefined,
+                  cell: (_, { row }) => this.handleSetFormat(row, item.id),
+                }))}
+                pagination={{
+                  total: this.pagination.count,
+                }}
+                data={this.tableList}
+                filterValue={this.filterValue}
+                rowKey='id'
+                showSortColumnBgColor={true}
+                sort={this.sort}
+                resizable
+                onFilterChange={this.handleFilterChange}
+                onSortChange={this.handleSortChange}
+              />
             ) : (
               <TableSkeleton />
             )}
 
-            {!!this.tableData.data.length && (
+            {!!this.tableList.length && (
               <Pagination
                 class='mt-14'
                 align={'right'}
-                count={this.tableData.pagination.count}
+                count={this.pagination.count}
                 layout={['total', 'limit', 'list']}
-                limit={this.tableData.pagination.limit}
+                limit={this.pagination.limit}
                 location={'right'}
-                modelValue={this.tableData.pagination.current}
+                modelValue={this.pagination.current}
                 onChange={v => this.handlePageChange(v)}
                 onLimitChange={v => this.handleLimitChange(v)}
               />

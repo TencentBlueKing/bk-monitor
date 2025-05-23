@@ -61,7 +61,7 @@ export default defineComponent({
 
     const { $t } = useLocale();
 
-    const hiddenEmptyItem = ref(true);
+    const hiddenEmptyItem = ref(false);
     const searchText = ref('');
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
@@ -136,7 +136,7 @@ export default defineComponent({
      * @param item
      */
     const handleIndexSetItemClick = (e: MouseEvent, item: any, is_root_checked = false) => {
-      if (is_root_checked || !item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+      if (!item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
       }
 
@@ -146,6 +146,10 @@ export default defineComponent({
       }
 
       if (props.type === 'union') {
+        if (is_root_checked) {
+          return;
+        }
+
         const indexSetId = `${item.index_set_id}`;
         const isChecked = !(propValueStrList.value.includes(indexSetId) || disableList.value.includes(indexSetId));
         const list = [];
@@ -176,7 +180,12 @@ export default defineComponent({
 
     const handleFavoriteClick = (e: MouseEvent, item: any) => {
       e.stopPropagation();
-      emit('favorite-change', item, !item.is_favorite);
+
+      emit(
+        'favorite-change',
+        Object.assign(item, { id: item.id ?? item.index_set_id, index_set_type: 'single' }),
+        !item.is_favorite,
+      );
     };
 
     /**
@@ -221,7 +230,7 @@ export default defineComponent({
 
     const handleNodeOpenClick = (e: MouseEvent, node) => {
       e.stopPropagation();
-      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'closed' ? 'opened' : 'closed';
+      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'opened' ? 'closed' : 'opened';
       set(listNodeOpenManager.value, node.index_set_id, nextStatus);
     };
 
@@ -278,7 +287,7 @@ export default defineComponent({
               class={[
                 'node-open-arrow',
                 {
-                  'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed',
+                  'is-closed': listNodeOpenManager.value[item.index_set_id] !== 'opened',
                 },
               ]}
               onClick={e => handleNodeOpenClick(e, item)}
@@ -333,7 +342,7 @@ export default defineComponent({
             const result = [];
             const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
-            if (listNodeOpenManager.value[item.index_set_id] !== 'closed') {
+            if (listNodeOpenManager.value[item.index_set_id] === 'opened') {
               (item.children ?? []).forEach(child => {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
                   result.push(renderNodeItem(child, true, false, is_root_checked));
@@ -350,19 +359,7 @@ export default defineComponent({
     };
 
     const getSingleBody = () => {
-      return [
-        getMainRender(),
-        // <div class='bklog-v3-item-info'>
-        //   {activeValueItems.value.map((item: any) => (
-        //     <ObjectView
-        //       object={item}
-        //       showList={objectShowList}
-        //       labelWidth={100}
-        //       class='item-row'
-        //     ></ObjectView>
-        //   ))}
-        // </div>,
-      ];
+      return [getMainRender()];
     };
 
     /**
