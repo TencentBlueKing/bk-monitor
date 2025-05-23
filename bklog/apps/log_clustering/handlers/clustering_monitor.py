@@ -45,6 +45,7 @@ from apps.log_clustering.constants import (
     DEFAULT_NOTICE_WAY,
     DEFAULT_PATTERN_MONITOR_MSG,
     DEFAULT_SCENARIO,
+    DETECTS,
     ITEM_NAME_CLUSTERING,
     PATTERN_MONITOR_MSG_BY_SWITCH,
     TRIGGER_CONFIG,
@@ -91,21 +92,6 @@ class ClusteringMonitorHandler:
     ):
         """保存新类告警策略"""
         params = params or {}
-        strategy_type = StrategiesType.NEW_CLS_strategy
-        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
-            index_set_id=self.index_set_id,
-            strategy_type=strategy_type,
-            signature="",
-            is_deleted=False,
-            defaults={
-                "strategy_id": None,
-                "bk_biz_id": self.bk_biz_id,
-                "pattern_level": pattern_level,
-            },
-        )
-        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
-            "__clustering_field__", self.clustering_config.clustering_fields
-        )
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
 
         labels = DEFAULT_LABEL.copy()
@@ -161,51 +147,11 @@ class ClusteringMonitorHandler:
                 ],
             }
         ]
-        detects = [
-            {
-                "level": 2,
-                "expression": "",
-                "trigger_config": TRIGGER_CONFIG,
-                "recovery_config": {"check_window": 5},
-                "connector": "and",
-            }
-        ]
 
-        if params.get("user_groups"):
-            user_groups = params["user_groups"]
-        else:
-            # 没配置告警组的就创建一个默认的
-            user_groups = [
-                MonitorUtils.get_or_create_notice_group(
-                    log_index_set_id=label_index_set_id,
-                    bk_biz_id=self.bk_biz_id,
-                )
-            ]
-
-        notice = {
-            "config_id": 0,
-            "user_groups": user_groups,
-            "signal": ["abnormal"],
-            "options": {
-                "converge_config": {"need_biz_converge": True},
-                "exclude_notice_ways": {"recovered": [], "closed": [], "ack": []},
-                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": []},
-                "upgrade_config": {"is_enabled": False, "user_groups": []},
-                "assign_mode": ["by_rule", "only_notice"],
-                "chart_image_enabled": False,
-            },
-            "config": {
-                "interval_notify_mode": "standard",
-                "notify_interval": ALARM_INTERVAL_CLUSTERING,
-                "template": [
-                    {
-                        "signal": "abnormal",
-                        "message_tmpl": anomaly_template,
-                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}",
-                    }
-                ],
-            },
-        }
+        notice = self.get_notice(
+            label_index_set_id=label_index_set_id,
+            user_groups=params.get("user_groups"),
+        )
         request_params = {
             "type": "monitor",
             "bk_biz_id": self.bk_biz_id,
@@ -214,32 +160,16 @@ class ClusteringMonitorHandler:
             "labels": labels,
             "is_enabled": True,
             "items": items,
-            "detects": detects,
+            "detects": DETECTS,
             "actions": [],
             "notice": notice,
         }
 
-        if signature_strategy_settings.strategy_id and self.get_strategy(
-            strategy_type, signature_strategy_settings.strategy_id
-        ):
-            # 如果策略存在，则更新告警策略
-            request_params["id"] = signature_strategy_settings.strategy_id
-        strategy = MonitorApi.save_alarm_strategy_v3(params=request_params)
-        strategy_id = strategy["id"]
-        signature_strategy_settings.strategy_id = strategy_id
-        signature_strategy_settings.save()
-
-        strategy_output_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
-        self.clustering_config.new_cls_strategy_output = strategy_output_rt
-        self.clustering_config.new_cls_strategy_enable = True
-
-        self.clustering_config.save(
-            update_fields=[
-                "normal_strategy_output",
-                "normal_strategy_enable",
-                "new_cls_strategy_output",
-                "new_cls_strategy_enable",
-            ]
+        strategy_id = self.save_strategy_infos(
+            table_id=table_id,
+            strategy_type=StrategiesType.NEW_CLS_strategy,
+            pattern_level=pattern_level,
+            request_params=request_params,
         )
 
         return {"strategy_id": strategy_id, "label_name": labels}
@@ -253,21 +183,6 @@ class ClusteringMonitorHandler:
     ):
         """保存数量突增告警策略"""
         params = params or {}
-        strategy_type = StrategiesType.NORMAL_STRATEGY
-        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
-            index_set_id=self.index_set_id,
-            strategy_type=strategy_type,
-            signature="",
-            is_deleted=False,
-            defaults={
-                "strategy_id": None,
-                "bk_biz_id": self.bk_biz_id,
-                "pattern_level": pattern_level,
-            },
-        )
-        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
-            "__clustering_field__", self.clustering_config.clustering_fields
-        )
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
 
         labels = DEFAULT_LABEL.copy()
@@ -318,19 +233,36 @@ class ClusteringMonitorHandler:
                 ],
             }
         ]
-        detects = [
-            {
-                "level": 2,
-                "expression": "",
-                "trigger_config": TRIGGER_CONFIG,
-                "recovery_config": {"check_window": 5},
-                "connector": "and",
-            }
-        ]
 
-        if params.get("user_groups"):
-            user_groups = params["user_groups"]
-        else:
+        notice = self.get_notice(
+            label_index_set_id=label_index_set_id,
+            user_groups=params.get("user_groups"),
+            dimensions=AGG_DIMENSION_NORMAL,
+        )
+
+        request_params = {
+            "type": "monitor",
+            "bk_biz_id": self.bk_biz_id,
+            "scenario": DEFAULT_SCENARIO,
+            "name": name,
+            "labels": labels,
+            "is_enabled": True,
+            "items": items,
+            "detects": DETECTS,
+            "actions": [],
+            "notice": notice,
+        }
+        strategy_id = self.save_strategy_infos(
+            table_id=table_id,
+            strategy_type=StrategiesType.NORMAL_STRATEGY,
+            pattern_level=pattern_level,
+            request_params=request_params,
+        )
+
+        return {"strategy_id": strategy_id, "label_name": labels}
+
+    def get_notice(self, label_index_set_id, user_groups, dimensions=None):
+        if not user_groups:
             # 没配置告警组的就创建一个默认的
             user_groups = [
                 MonitorUtils.get_or_create_notice_group(
@@ -338,6 +270,10 @@ class ClusteringMonitorHandler:
                     bk_biz_id=self.bk_biz_id,
                 )
             ]
+        dimensions = dimensions or []
+        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
+            "__clustering_field__", self.clustering_config.clustering_fields
+        )
         notice = {
             "config_id": 0,
             "user_groups": user_groups,
@@ -345,7 +281,7 @@ class ClusteringMonitorHandler:
             "options": {
                 "converge_config": {"need_biz_converge": True},
                 "exclude_notice_ways": {"recovered": [], "closed": [], "ack": []},
-                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": ["__dist_05"]},
+                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": dimensions},
                 "upgrade_config": {"is_enabled": False, "user_groups": []},
                 "assign_mode": ["by_rule", "only_notice"],
                 "chart_image_enabled": False,
@@ -362,19 +298,20 @@ class ClusteringMonitorHandler:
                 ],
             },
         }
-        request_params = {
-            "type": "monitor",
-            "bk_biz_id": self.bk_biz_id,
-            "scenario": DEFAULT_SCENARIO,
-            "name": name,
-            "labels": labels,
-            "is_enabled": True,
-            "items": items,
-            "detects": detects,
-            "actions": [],
-            "notice": notice,
-        }
+        return notice
 
+    def save_strategy_infos(self, table_id, strategy_type, pattern_level, request_params):
+        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
+            index_set_id=self.index_set_id,
+            strategy_type=strategy_type,
+            signature="",
+            is_deleted=False,
+            defaults={
+                "strategy_id": None,
+                "bk_biz_id": self.bk_biz_id,
+                "pattern_level": pattern_level,
+            },
+        )
         if signature_strategy_settings.strategy_id and self.get_strategy(
             strategy_type, signature_strategy_settings.strategy_id
         ):
@@ -397,8 +334,7 @@ class ClusteringMonitorHandler:
                 "new_cls_strategy_enable",
             ]
         )
-
-        return {"strategy_id": strategy_id, "label_name": labels}
+        return strategy_id
 
     def get_strategy(self, strategy_type, strategy_id):
         # 获取告警策略信息

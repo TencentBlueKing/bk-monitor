@@ -101,6 +101,16 @@ TRIGGER_CONFIG = {
     "uptime": {"calendars": [], "time_ranges": [{"start": "00:00", "end": "23:59"}]},
 }
 
+DETECTS = [
+    {
+        "level": 2,
+        "expression": "",
+        "trigger_config": TRIGGER_CONFIG,
+        "recovery_config": {"check_window": 5},
+        "connector": "and",
+    }
+]
+
 DEFAULT_ALERT_NOTICE = [
     {
         "time_range": "00:00:00--23:59:00",
