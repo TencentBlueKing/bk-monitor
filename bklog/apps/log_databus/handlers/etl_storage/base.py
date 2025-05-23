@@ -691,6 +691,7 @@ class EtlStorage:
             # 必须为 库名.表名
             "table_id": f"{collector_config.table_id}",
             "is_enable": is_enable,
+            "bk_biz_id": collector_config.bk_biz_id,
         }
         TransferApi.switch_result_table(params)
         return True
