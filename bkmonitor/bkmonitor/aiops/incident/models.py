@@ -536,6 +536,7 @@ class IncidentSnapshot:
             # 根据调用关系聚类结果进行聚合
             groups_by_clusters = self.generate_groups_by_edge_clusters()
             groups_by_clusters = self.drop_groups_duplicates(groups_by_clusters)
+            groups_by_clusters = self.drop_groups_interset(groups_by_clusters)
             groups_by_clusters = self.split_by_logic_key(groups_by_clusters)
             self.aggregate_by_groups(groups_by_clusters, entities_orders)
 
@@ -672,6 +673,41 @@ class IncidentSnapshot:
             return True
 
         return False
+
+    def drop_groups_interset(self, groups_by_clusters: dict[tuple, set]) -> dict[tuple, set]:
+        """清除存在交集但是不完全相同的任意两个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 清理交集后的分组情况
+        """
+        tmp_groups_by_clusters = copy.deepcopy(groups_by_clusters)
+
+        while True:
+            removed = False
+            for edge_cluster_id, groups in tmp_groups_by_clusters.items():
+                intersection = set()
+
+                for comp_edge_cluster_id, comp_groups in tmp_groups_by_clusters.items():
+                    if edge_cluster_id != comp_edge_cluster_id:
+                        intersection = groups & comp_groups
+                        if groups != comp_groups and len(intersection) > 0:
+                            tmp_groups_by_clusters[edge_cluster_id] -= intersection
+                            tmp_groups_by_clusters[comp_edge_cluster_id] -= intersection
+                            removed = True
+                            break
+
+                if len(intersection) > 0:
+                    break
+
+            if not removed:
+                break
+
+        result_groups = {}
+        for cluster_id, groups in tmp_groups_by_clusters.items():
+            if len(groups) >= 2:
+                result_groups[cluster_id] = groups
+
+        return result_groups
 
     def drop_groups_duplicates(self, groups_by_clusters: dict[tuple, set]) -> dict[tuple, set]:
         """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
