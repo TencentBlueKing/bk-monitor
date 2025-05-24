@@ -1,9 +1,6 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, defineComponent } from 'vue';
   import { bkMessage } from 'bk-magic-vue';
-
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -13,11 +10,24 @@
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
+  // #else
+  // #code const TimeSetting = () => null;
+  // #code const FieldSetting = () => null;
+  // #code const VersionSwitch = () => null;
+  // #code const ClusterSetting = () => null;
+  // #code const BarGlobalSetting = () => null;
+  // #code const MoreSetting = () => null;
+  // #code const WarningSetting = () => null;
+  // #endif
+
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import * as authorityMap from '@/common/authority-map';
@@ -50,6 +60,9 @@
   const indexSetTab = computed(() => {
     return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
   });
+
+  /** 是否是监控组件 */
+  const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
 
   const spaceUid = computed(() => store.state.spaceUid);
 
@@ -275,8 +288,10 @@
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
-
-    <div class="box-right-option">
+    <div
+      v-if="!isMonitorComponent"
+      class="box-right-option"
+    >
       <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"

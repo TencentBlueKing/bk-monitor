@@ -70,7 +70,7 @@ const createMonitorConfig = config => {
   return {
     ...config,
     entry: {
-      main: isTrace ? './src/views/retrieve-v2/monitor/trace.ts' : './src/views/retrieve-v2/monitor/index.ts',
+      main: isTrace ? './src/views/retrieve-v3/monitor/trace.ts' : './src/views/retrieve-v3/monitor/apm.ts',
     },
     output: {
       filename: '[name].js',
@@ -154,6 +154,7 @@ const createMonitorConfig = config => {
           'dayjs',
           /lodash/,
           /vue-json-pretty/,
+          /monaco-editor/,
           ({ request }, cb) => {
             if (request === 'echarts') {
               return cb(undefined, request.replace(request, request));
