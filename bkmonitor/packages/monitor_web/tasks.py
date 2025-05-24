@@ -1424,18 +1424,24 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
 
 
 @shared_task(ignore_result=True)
-def update_target_detail(bk_biz_id=None):
+def update_target_detail(bk_biz_id=None,strategies_ids=None):
     """
     对启用了缓存的业务ID，更新监控目标详情缓存
     """
-    if bk_biz_id is None:
+    if bk_biz_id is None and strategies_ids is None:
         # 总任务，定时任务发起
         for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
             update_target_detail.delay(bk_biz_id=bk_biz_id)
         return
 
+    filter_conditions = {
+        "bk_biz_id": bk_biz_id
+    }
+    if strategies_ids is not None:
+        filter_conditions["id__in"] = strategies_ids
+
     # 参数指定bk_biz_id
-    strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+    strategy_ids = StrategyModel.objects.filter(**filter_conditions).values_list("id", flat=True)
     items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
     resource.strategies.get_target_detail_with_cache.set_mapping(
         {item.strategy_id: (bk_biz_id, item.target) for item in items}
