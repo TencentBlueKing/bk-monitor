@@ -347,6 +347,12 @@ importers:
       '@blueking/ai-blueking':
         specifier: 0.3.25-beta.0
         version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+      '@blueking/bk-user-display-name':
+        specifier: ^1.0.2
+        version: 1.0.2
+      '@blueking/bk-user-selector':
+        specifier: ^0.0.28
+        version: 0.0.28(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
         specifier: 0.0.35
         version: 0.0.35
@@ -1490,6 +1496,15 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
+
+  '@blueking/bk-user-display-name@1.0.2':
+    resolution: {integrity: sha512-HutBumyW9cQEPD1rby7kJfCdKOZ5T1HHE4icQhuoHGP9rtQoB9NYmEbFdgQvNLVu1EbH4cCtdaaiu8imTzTJlw==}
+
+  '@blueking/bk-user-selector@0.0.28':
+    resolution: {integrity: sha512-0FEwNHo2F5GVRcDhPPHw3qFcRCbEu2q2AMOORhZH1Mae5jLe+bxu6ycjG8TWn+RkIbuIYAmGRcHKT9exJuFlqg==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
 
   '@blueking/bk-weweb@0.0.35':
     resolution: {integrity: sha512-sVBhLhacO2GdmVqHyF5FHR/LGev99gyHQ8qxlG01W+kSg2hyYt207Zgk9/QdGnrbSQ5/kFyRsgXYqVV9RHY9zA==}
@@ -9580,6 +9595,14 @@ snapshots:
       elkjs: 0.8.2
       vue: 2.7.16
       web-worker: 1.5.0
+
+  '@blueking/bk-user-display-name@1.0.2': {}
+
+  '@blueking/bk-user-selector@0.0.28(@blueking/bkui-library@0.0.0-beta.4)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      lodash: 4.17.21
+      sortablejs: 1.15.6
 
   '@blueking/bk-weweb@0.0.35': {}
 
