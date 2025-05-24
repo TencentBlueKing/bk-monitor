@@ -32,6 +32,7 @@ import { useRouter } from 'vue-router';
 import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
+import { EStatus, getEffectiveStatus, statusMap } from 'monitor-common/rotation-utils/common';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -40,7 +41,6 @@ import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
-import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 
 import type { IAuthority } from '../../typings/authority';
 
