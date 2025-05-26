@@ -482,7 +482,7 @@ export default defineComponent({
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
-      const noScrollBar = scrollHeight <= clientHeight;
+      const noScrollBar = scrollHeight <= clientHeight + 1;
       const shouldRequest = noScrollBar || isEnd;
       if (
         !(
