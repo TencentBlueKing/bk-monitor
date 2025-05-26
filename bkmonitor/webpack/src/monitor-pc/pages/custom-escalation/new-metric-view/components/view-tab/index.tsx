@@ -187,10 +187,6 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       ...this.viewList[0],
       view_order: this.tabRef.visiblePanels.map(item => item.name),
     });
-    console.log(
-      this.tabRef.visiblePanels.map(item => item.name),
-      'this.tabRef.visiblePanels.map(item => item.name)'
-    );
   }
 
   async handleRemoveView(id: string) {
