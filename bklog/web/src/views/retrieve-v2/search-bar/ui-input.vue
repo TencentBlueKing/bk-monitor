@@ -28,7 +28,15 @@
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
-
+  const popoverRefs = ref(new Map())
+  const setPopoverRef = (el, parentIndex, childIndex) => {
+  const key = `${parentIndex}-${childIndex}`
+    if (el) {
+      popoverRefs.value.set(key, el)
+    } else {
+      popoverRefs.value.delete(key)
+    }
+  }
   const inputValueLength = ref(0);
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
@@ -229,6 +237,9 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
+    if(item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(false))
+    }
     emitChange(modelValue.value);
   };
 
@@ -364,6 +375,28 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
+  const handlePopoverShow = (parentIndex, childIndex)=>{
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.showHandler()
+  }
+  const changeOptionShow = (parentIndex,childIndex,item,show)=>{
+    if(!item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(false))
+    }
+    set(item.showList, childIndex, show)
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const onlyOptionShow =  (parentIndex,childIndex,item)=>{
+    if(!item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(true))
+    }
+    item.showList = item.showList.map((_, index) => index !== childIndex);
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
 </script>
 
 <template>
@@ -409,12 +442,25 @@
             :key="childIndex"
           >
             <template v-if="item.showAll ? true : childIndex < 3">
-              <span
-                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
-                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
+              <bk-popover 
+                :ref="(el) => setPopoverRef(el, index, childIndex)"
+                placement="bottom" 
+                theme="light" 
+                trigger="click"
               >
-                {{ formatDateTimeField(child, item.field_type) }}
-              </span>
+                <span
+                  v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line':item.showList?.[childIndex]}]"
+                  @click.stop="() => handlePopoverShow(index,childIndex)"
+                >
+                  {{ formatDateTimeField(child, item.field_type) }}
+                </span>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex]" @click="changeOptionShow(index,childIndex,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
               <span
                 v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
                 class="match-value-relation"
@@ -440,7 +486,7 @@
             'bklog-icon',
             { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
           ]"
-          @click.stop="e => handleDisabledTagItem(item, e)"
+          @click.stop="handleDisabledTagItem(item)"
         />
         <span
           class="bklog-icon bklog-shanchu tag-options-close"
@@ -540,6 +586,22 @@
           top: -9px;
         }
       }
+    }
+  }
+
+  .bk-tooltip-content{
+    .match-value-select{
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 32px;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .delete-line{
+      color: #979ba5;
+      text-decoration: line-through;
     }
   }
 </style>

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
-from typing import Union
 
 from django.conf import settings
 
@@ -47,7 +46,10 @@ class BKBaseEtlHandler(EtlHandler):
         """停止清洗任务"""
 
         BkDataDatabusApi.delete_tasks(
-            params={"result_table_id": bkdata_result_table_id, "bk_username": get_request_username()}
+            params={
+                "result_table_id": bkdata_result_table_id,
+                "bk_username": get_request_username(),
+            }
         )
 
     @staticmethod
@@ -73,7 +75,7 @@ class BKBaseEtlHandler(EtlHandler):
         BKBaseEtlHandler.stop_bkdata_clean(bkdata_result_table_id)
         BKBaseEtlHandler.start_bkdata_clean(bkdata_result_table_id)
 
-    def update_or_create(self, instance: Union[CollectorConfig, CollectorPlugin], params=None, **kwargs):
+    def update_or_create(self, instance: CollectorConfig | CollectorPlugin, params=None, **kwargs):
         """
         创建或更新清洗入库
         """
@@ -174,7 +176,9 @@ class BKBaseEtlHandler(EtlHandler):
             table_id = build_result_table_id(instance.get_bk_biz_id(), table_name)
             storage_params["physical_table_name"] = f"write_{timestamp_format}_{table_id}"
 
-        has_storage = BkDataDatabusApi.get_config_db_list({"raw_data_id": instance.bk_data_id})
+        has_storage = BkDataDatabusApi.get_config_db_list(
+            {"raw_data_id": instance.bk_data_id, "bk_biz_id": instance.bk_biz_id}
+        )
         # 创建入库
         if not has_storage:
             BkDataDatabusApi.databus_data_storages_post(storage_params)

@@ -59,14 +59,14 @@ import {
   BkLogGlobalStorageKey,
   URL_ARGS,
 } from './default-values.ts';
-import { BK_LOG_STORAGE } from './store.type.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
+import { BK_LOG_STORAGE } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-
+import { builtInInitHiddenList } from '@/const/index.js';
 Vue.use(Vuex);
 const stateTpl = {
   userMeta: {}, // /meta/mine
@@ -249,7 +249,7 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => {
+        .map(({ field, operator, value, showList }) => {
           const addition = {
             field,
             operator,
@@ -258,6 +258,10 @@ const store = new Vuex.Store({
 
           if (['is true', 'is false'].includes(addition.operator)) {
             addition.value = [''];
+          } else {
+            if (showList) {
+              addition.value = value.filter((_, index) => !showList[index]);
+            }
           }
 
           return addition;
@@ -647,7 +651,23 @@ const store = new Vuex.Store({
     },
 
     updateIndexFieldInfo(state, payload) {
-      Object.assign(state.indexFieldInfo, payload ?? {});
+      const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
+      const processedData = payload ? { ...payload } : {}; 
+      if (Array.isArray(processedData.fields)) {
+        processedData.fields = [...processedData.fields].sort((a, b) => {
+          // dtEventTimeStamp默认在第一个
+          if (a.field_name === 'dtEventTimeStamp') {
+            return -1;
+          }
+          if (b.field_name === 'dtEventTimeStamp') {
+            return 1;
+          }
+          const aWeight = HIDDEN_FIELDS.has(a.field_name) ? 1 : 0;
+          const bWeight = HIDDEN_FIELDS.has(b.field_name) ? 1 : 0;
+          return aWeight - bWeight; 
+        });
+      }
+      Object.assign(state.indexFieldInfo, processedData);
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;

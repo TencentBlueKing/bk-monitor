@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,10 +14,11 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -78,6 +78,8 @@ class Deque:
 
 
 class StatisticsQuery(BaseQuery):
+    """TODO(crayon)：StatisticsQuery 已无页面功能引用，待删除。"""
+
     LOGIC_FILTER_ALLOW_KEYS = ["root_span", "root_service_span"]
     LOGIC_FILTER_KEY_MAPPING = {
         "root_span": {"span_name": "root_span_name", "service_name": "root_span_service", "kind": "root_span_kind"},
@@ -119,21 +121,24 @@ class StatisticsQuery(BaseQuery):
     def query_statistics(
         self,
         query_mode: str,
-        start_time: Optional[int],
-        end_time: Optional[int],
+        start_time: int | None,
+        end_time: int | None,
         limit: int,
         offset: int,
-        filters: Optional[List[types.Filter]] = None,
-        es_dsl: Optional[Dict[str, Any]] = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str | None = None,
+        sort: list[str] | None = None,
     ):
         logic_fields, filters = self._parse_filters(filters)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters)).order_by(
-            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+            *(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self._add_filters_from_dsl(q, es_dsl)
+        if query_string:
+            q = q.query_string(query_string)
+
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
-        k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}{es_dsl}"
+        k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}"
         params_key = str(hashlib.md5(k.encode()).hexdigest())
         queryset: UnifyQuerySet = queryset.after(self._get_after_key_param(offset, params_key))
         return self._query_data(query_mode, q, queryset, offset, params_key, logic_fields)
@@ -145,14 +150,14 @@ class StatisticsQuery(BaseQuery):
         queryset: UnifyQuerySet,
         offset: int,
         params_key: str,
-        logic_fields: List[str],
+        logic_fields: list[str],
     ):
         #  满足任一条件直接分组获取指标数据：不包含根 span、服务入口 span；查询统计视角为 service
         if not logic_fields or query_mode == QueryStatisticsMode.SERVICE:
             return self._query_metric_data(query_mode, q, queryset, offset, params_key)
 
         # step1 获取分组信息
-        groups: List[Dict[str, Any]] = self._query_groups(query_mode, q, queryset)
+        groups: list[dict[str, Any]] = self._query_groups(query_mode, q, queryset)
         # step2 获取 specific_span_ids
         specific_span_ids = self._batch_query_specific_span_ids(
             queryset.query.start_time, queryset.query.end_time, groups, logic_fields
@@ -164,18 +169,18 @@ class StatisticsQuery(BaseQuery):
         q: QueryConfigBuilder = q.filter(span_id__eq=specific_span_ids)
         return self._query_metric_data(query_mode, q, queryset, offset, params_key)
 
-    def _query_groups(self, query_mode: str, q: QueryConfigBuilder, queryset: UnifyQuerySet) -> List[Dict[str, Any]]:
-        group_fields: List[str] = []
-        field__display_map: Dict[str, str] = {}
+    def _query_groups(self, query_mode: str, q: QueryConfigBuilder, queryset: UnifyQuerySet) -> list[dict[str, Any]]:
+        group_fields: list[str] = []
+        field__display_map: dict[str, str] = {}
         for info in self.GROUP_FIELD_CONFIG[query_mode]:
             group_fields.append(info["field"])
             field__display_map[info["field"]] = info["display"]
 
-        group_fields: List[str] = [info["field"] for info in self.GROUP_FIELD_CONFIG[query_mode]]
+        group_fields: list[str] = [info["field"] for info in self.GROUP_FIELD_CONFIG[query_mode]]
         # 这里的 count 仅仅是因为聚合需要传一个 metric，没有特殊含义
         q: QueryConfigBuilder = q.metric(field=group_fields[0], method="count").group_by(*group_fields)
 
-        groups: List[Dict[str, Any]] = []
+        groups: list[dict[str, Any]] = []
         for bucket in queryset.add_query(q):
             groups.append({field__display_map[field]: bucket[field] for field in group_fields})
         return groups
@@ -187,9 +192,9 @@ class StatisticsQuery(BaseQuery):
         queryset: UnifyQuerySet,
         offset: int,
         params_key: str,
-    ) -> List[Dict[str, Any]]:
-        group_fields: List[str] = []
-        field_display_map: Dict[str, str] = {}
+    ) -> list[dict[str, Any]]:
+        group_fields: list[str] = []
+        field_display_map: dict[str, str] = {}
         for info in self.GROUP_FIELD_CONFIG[query_mode]:
             group_fields.append(info["field"])
             field_display_map[info["field"]] = info["display"]
@@ -203,11 +208,11 @@ class StatisticsQuery(BaseQuery):
         )
 
         groups_filter: Q = Q()
-        after_key: Optional[Dict[str, Any]] = {}
-        group_bucket_map: Dict[Tuple, Dict[str, Any]] = {}
+        after_key: dict[str, Any] | None = {}
+        group_bucket_map: dict[tuple, dict[str, Any]] = {}
         for bucket in queryset.add_query(histogram_q):
-            group_values: List[str] = []
-            group_filter_params: Dict[str, Any] = {}
+            group_values: list[str] = []
+            group_filter_params: dict[str, Any] = {}
             for group_field in group_fields:
                 group_values.append(bucket[group_field])
                 group_filter_params[f"{group_field}__eq"] = bucket[group_field]
@@ -238,8 +243,8 @@ class StatisticsQuery(BaseQuery):
             .metric(field=OtlpKey.STATUS_CODE, method="count", alias="error_count")
         )
         for err_bucket in queryset.add_query(error_q).after({}):
-            group: Tuple = tuple([err_bucket[field] for field in group_fields])
-            bucket: Optional[Dict[str, Any]] = group_bucket_map.get(group)
+            group: tuple = tuple([err_bucket[field] for field in group_fields])
+            bucket: dict[str, Any] | None = group_bucket_map.get(group)
             if not bucket:
                 logger.info("StatisticsQuery: %s, %s", err_bucket, group_bucket_map)
                 logger.warning(
@@ -253,7 +258,7 @@ class StatisticsQuery(BaseQuery):
         return list(group_bucket_map.values())
 
     @classmethod
-    def _get_after_key_param(cls, offset: int, params_key: str) -> Dict[str, Any]:
+    def _get_after_key_param(cls, offset: int, params_key: str) -> dict[str, Any]:
         after_key = None
         if offset != 0:
             cache_key: str = f"{params_key}:{offset}"
@@ -267,12 +272,12 @@ class StatisticsQuery(BaseQuery):
         return after_key or {}
 
     def _query_specific_span_ids(
-        self, start_time: int, end_time: int, logic_field: str, groups: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, start_time: int, end_time: int, logic_field: str, groups: list[dict[str, Any]]
+    ) -> list[str]:
         groups_filter: Q = Q()
         logic_span_map = self.LOGIC_FILTER_KEY_MAPPING[logic_field]
         for group in groups:
-            groups_filter_params: Dict[str, Any] = {
+            groups_filter_params: dict[str, Any] = {
                 f"{logic_span_map[field]}__eq": value for field, value in group.items()
             }
             groups_filter: Q = groups_filter | Q(**groups_filter_params)
@@ -290,29 +295,29 @@ class StatisticsQuery(BaseQuery):
             .limit(DISCOVER_BATCH_SIZE)
         )
 
-        specific_span_ids: Set[str] = set()
+        specific_span_ids: set[str] = set()
         for trace_info in queryset:
             specific_span_ids.add(trace_info[span_id_field])
 
         return list(specific_span_ids)
 
     def _batch_query_specific_span_ids(
-        self, start_time: int, end_time: int, groups: List[Dict[str, Any]], logic_fields: List[str]
+        self, start_time: int, end_time: int, groups: list[dict[str, Any]], logic_fields: list[str]
     ):
-        specific_span_ids: Set[str] = set()
+        specific_span_ids: set[str] = set()
         params_list = [(start_time, end_time, logic_field, groups) for logic_field in logic_fields]
         for partial_span_ids in ThreadPool().map_ignore_exception(self._query_specific_span_ids, params_list):
             specific_span_ids |= set(partial_span_ids)
 
         return list(specific_span_ids)
 
-    def _parse_filters(self, filters: Optional[List[types.Filter]] = None) -> Tuple[List[str], List[types.Filter]]:
+    def _parse_filters(self, filters: list[types.Filter] | None = None) -> tuple[list[str], list[types.Filter]]:
         """分离 filters 中可能保存特殊逻辑的查询"""
         if not filters:
             return [], []
 
-        logic_fields: List[str] = []
-        normal_filters: List[types.Filter] = []
+        logic_fields: list[str] = []
+        normal_filters: list[types.Filter] = []
         for item in filters:
             if item["operator"] == LogicSupportOperator.LOGIC:
                 # 对于统计，只有根 Span、服务入口 Span 需要走特殊逻辑

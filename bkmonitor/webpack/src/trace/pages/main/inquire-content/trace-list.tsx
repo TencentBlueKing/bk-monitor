@@ -37,6 +37,7 @@ import {
   watch,
   KeepAlive,
   onUnmounted,
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -54,7 +55,7 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
-import { useTimeRanceInject } from '../../../plugins/hooks';
+import { useTimeRangeInject } from '../../../plugins/hooks';
 import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
@@ -176,8 +177,9 @@ export default defineComponent({
     const columnFilters = ref<Record<string, string[]>>({});
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
-
-    const timeRange = useTimeRanceInject();
+    /** 侧栏全屏 */
+    const slideFullScreen = shallowRef(false);
+    const timeRange = useTimeRangeInject();
     provide('isFullscreen', isFullscreen);
 
     const selectedListType = computed(() => store.listType);
@@ -257,12 +259,12 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            content={t('整个Trace的第一个Span')}
+            content={t('整个 Trace 的第一个 Span')}
             placement='right'
             popoverDelay={[500, 0]}
             theme='light'
           >
-            <span class='th-label'>{t('根Span')}</span>
+            <span class='th-label'>{t('根 Span')}</span>
           </Popover>
         ),
         field: 'root_span_name',
@@ -289,7 +291,7 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            content={t('服务端进程的第一个Service')}
+            content={t('服务端进程的第一个 Service')}
             placement='right'
             popoverDelay={[500, 0]}
             theme='light'
@@ -714,6 +716,10 @@ export default defineComponent({
       listOptionCancelFn();
     });
 
+    const handleFullscreenChange = (flag: boolean) => {
+      slideFullScreen.value = flag;
+    };
+
     watch(
       () => route.query,
       () => {
@@ -846,6 +852,8 @@ export default defineComponent({
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
 
+      handleFullscreenChange(false);
+
       // 弹窗关闭时重置路由
       route.query?.incident_query &&
         router.replace({
@@ -907,7 +915,7 @@ export default defineComponent({
     getFilterValues();
     function handleScrollBottom(arg: { bottom: number }) {
       // TODO：这里貌似不太严谨，会导致重复调用 scrollBottotm 事件。
-      if (arg.bottom <= 2) {
+      if (arg.bottom <= 2 || arg?.[0]?.bottom <= 2) {
         /* 到底了 */
         emit('scrollBottom');
       }
@@ -1285,7 +1293,7 @@ export default defineComponent({
             popoverDelay={[500, 0]}
             theme='light'
           >
-            <span class='th-label'>{t('所属Trace')}</span>
+            <span class='th-label'>{t('所属 Trace')}</span>
           </Popover>
         ),
         field: 'trace_id',
@@ -1391,6 +1399,8 @@ export default defineComponent({
       isSpanDetailLoading,
       isShowSpanDetail,
       spanDetails,
+      slideFullScreen,
+      handleFullscreenChange,
       handleTraceColumnSort,
       handleDialogClose,
       traceListFilter,
@@ -1457,7 +1467,7 @@ export default defineComponent({
               class='trace-table'
               v-slots={{ empty: () => tableEmptyContent() }}
               rowStyle={(row: { traceID: string[] }) => {
-                if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
+                if (this.showTraceDetail && row?.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
                 return {};
               }}
               // rowHeight={40}
@@ -1582,18 +1592,18 @@ export default defineComponent({
                     onChange={this.handleSpanTypeChange}
                   >
                     <Popover
-                      content={this.$t('整个Trace的第一个Span')}
+                      content={this.$t('整个 Trace 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.RootSpan}>{this.$t('根 Span')}</Checkbox>
                     </Popover>
                     <Popover
-                      content={this.$t('每个Service的第一个Span')}
+                      content={this.$t('每个 Service 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口 Span')}</Checkbox>
                     </Popover>
                     {/* 20230816 后端未上线勿删 */}
                     {/* <Checkbox
@@ -1649,20 +1659,21 @@ export default defineComponent({
           </div>
         </Dialog> */}
         <Sideslider
-          width='80%'
+          width={this.slideFullScreen ? '100%' : '80%'}
           class='trace-info-sideslider'
           v-slots={{
             header: () => (
               <TraceDetailHeader
                 appName={appName}
+                fullscreen={this.slideFullScreen}
                 traceId={this.curTraceId}
                 isInTable
+                onFullscreenChange={this.handleFullscreenChange}
               />
             ),
           }}
           esc-close={false}
           is-show={this.isFullscreen}
-          scrollable={false}
           multi-instance
           transfer
           onClosed={this.handleDialogClose}

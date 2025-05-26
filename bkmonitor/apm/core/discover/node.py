@@ -9,10 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from future.backports.datetime import timedelta
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 

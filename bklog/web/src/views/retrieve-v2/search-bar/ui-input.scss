@@ -219,6 +219,9 @@ ul.search-items {
               line-height: 16px;
               text-overflow: ellipsis;
               white-space: nowrap;
+              &:hover{
+                text-decoration: underline
+              }
 
               &.has-ellipsis {
                 overflow: hidden;
@@ -226,7 +229,10 @@ ul.search-items {
                 white-space: nowrap;
               }
             }
-
+            .delete-line {
+              text-decoration: line-through;
+              color: #979ba5;
+            }
             .match-value-relation {
               margin: 0 4px;
               font-family: 'Roboto Mono';
@@ -257,7 +263,8 @@ ul.search-items {
               //   content: '';
               //   border-bottom: 1px solid #c4c6cc;
               // }
-            }
+            };
+           
           }
         }
 

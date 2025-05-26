@@ -28,7 +28,14 @@
               class="list-item"
               @click="handleClickHistory(item)"
             >
-              <div class="item-text">
+              <div class="item-text"
+                v-bk-tooltips="{
+                  allowHTML:true,
+                  placement:'top',
+                  content: getContent(item),
+                  disabled: item.query_string.length < 5,
+                }"
+              >
                 <span
                   class="bklog-icon"
                   :class="getClass(item.search_mode)"
@@ -38,10 +45,6 @@
 
                 <div
                   class="text"
-                  v-bk-tooltips="{
-                    content: getContent(item),
-                    disabled: item.query_string.length < 5,
-                  }"
                 >
                   {{ item.query_string }}
                 </div>
@@ -50,7 +53,7 @@
                 :addition="item.params.addition"
                 searchMode='sql'
                 active-favorite="history"
-                ref="bookmarkPop"
+                @instanceShow="instanceShow"
                 ></BookmarkPop>
               </div>
             </li>
@@ -78,6 +81,7 @@
         popoverInstance: null,
         historyRecords: [],
         searchInput: "",
+        bookmarkPopRefsShow: false
       };
     },
     components:{
@@ -120,7 +124,8 @@
         return textMap[searchMode] || '';
       },
       getContent(item){
-        return dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')
+        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>语句：${item.query_string}</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
@@ -137,7 +142,7 @@
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
           onHide: () => {
-            if(this.$refs.bookmarkPop[0].$refs.popoverContentRef.instance?.state.isShown){
+            if(this.bookmarkPopRefsShow){
               return false
             }
           },
@@ -187,6 +192,9 @@
             this.historyLoading = false;
           });
       },
+      instanceShow(val){
+        this.bookmarkPopRefsShow = val
+      }
     },
   };
 </script>
