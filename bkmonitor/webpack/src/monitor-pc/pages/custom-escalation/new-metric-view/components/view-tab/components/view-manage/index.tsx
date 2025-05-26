@@ -72,6 +72,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
   dragCount = 0;
   lastDragTime = null;
   delList = [];
+  isLoading = false;
   
   @Watch('viewList', {immediate: true})
   viewListChange() {
@@ -90,6 +91,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
       return;
     }
     let handleRes = false;
+    this.isLoading = true;
     /** 有修改操作才调用修改接口 */
     if (this.isChange){
       handleRes = await this.handleUpdateNameOrSort();
@@ -98,6 +100,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
     if (this.isDelChange){
       handleRes = await this.handleDelView();
     }
+    this.isLoading = false;
     if (handleRes) {
       this.$bkMessage({
         theme: 'success',
@@ -203,6 +206,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
           </draggable>
           <div slot='footer'>
           <bk-button
+            loading={this.isLoading}
             style={{ marginRight: '5px' }}
             theme='primary'
             onClick={this.handleSave}
