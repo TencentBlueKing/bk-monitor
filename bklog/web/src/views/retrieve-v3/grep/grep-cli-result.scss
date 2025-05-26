@@ -47,7 +47,7 @@
   font-size: 12px;
   text-align: right;
   user-select: none;
-  line-height: 24px;
+  line-height: 20px;
 }
 
 .cli-result-line-content-wrapper {
@@ -59,35 +59,18 @@
 
 .cli-result-line-content {
   font-size: 12px;
-  line-height: 24px;
+  line-height: 20px;
   white-space: pre-wrap;
   word-break: break-all;
   color: #313238;
   transition: max-height 0.3s ease;
   position: relative;
+  max-height: 160px;
+  overflow-y: auto;
+  display: inline-flex;
 
-  &.truncated {
-    overflow: hidden;
-    max-height: 192px; // 8行 * 24px
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 48px; // 2行高度
-      background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
-      pointer-events: none;
-    }
-  }
-
-  &.expanded {
-    max-height: none !important;
-
-    &::after {
-      display: none;
-    }
+  &.is-expanded {
+    max-height: none;
   }
 }
 
@@ -95,14 +78,15 @@
   white-space: pre-wrap;
   word-break: break-all;
   padding: 0;
-  line-height: 24px;
+  line-height: 20px;
 }
 
-.cli-result-expand-btn {
+.expand-button,
+.collapse-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 12px;
+  padding: 2px 8px;
   margin: 4px 0;
   background: #f0f7ff;
   border: 1px solid #3a84ff;
@@ -121,6 +105,35 @@
   &:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(58, 132, 255, 0.2);
+  }
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  color: #979ba5;
+  font-size: 12px;
+
+  .loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    border: 2px solid #3a84ff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

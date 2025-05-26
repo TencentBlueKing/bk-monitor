@@ -53,7 +53,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['update:value', 'change'],
+  emits: ['change'],
   setup(props, { emit }) {
     const editorRef = ref<HTMLDivElement>();
     const currentHeight = ref(props.height);
@@ -98,7 +98,6 @@ export default defineComponent({
         EditorView.updateListener.of(update => {
           if (update.docChanged) {
             const newValue = update.state.doc.toString();
-            emit('update:value', newValue);
             emit('change', newValue);
           }
         }),

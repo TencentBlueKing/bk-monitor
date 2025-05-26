@@ -8,7 +8,8 @@ export default defineComponent({
   components: {
     GrepCliEditor,
   },
-  setup() {
+  emits: ['search-change', 'match-mode'],
+  setup(props, { emit }) {
     const field = ref('log');
     const value = ref('');
     const searchValue = ref('');
@@ -19,7 +20,6 @@ export default defineComponent({
     const totalMatches = ref(0);
 
     const store = useStore();
-
     const fieldList = computed(() => store.state.indexFieldInfo.fields ?? []);
 
     // 计算是否有搜索结果
@@ -51,48 +51,96 @@ export default defineComponent({
     // 编辑器内容变化
     const handleEditorChange = (newValue: string) => {
       value.value = newValue;
-      updateSearchResults();
+      emit('search-change', {
+        content: newValue,
+        searchValue: searchValue.value,
+        matchMode: {
+          caseSensitive: isCaseSensitive.value,
+          regexMode: isRegexMode.value,
+          wordMatch: isWordMatch.value,
+        },
+      });
     };
 
     // 搜索输入
-    const handleSearchInput = (e: Event) => {
-      searchValue.value = (e.target as HTMLInputElement).value;
-      updateSearchResults();
+    const handleSearchInput = (value: string) => {
+      searchValue.value = value;
+      emit('search-change', {
+        content: value,
+        searchValue: searchValue.value,
+        matchMode: {
+          caseSensitive: isCaseSensitive.value,
+          regexMode: isRegexMode.value,
+          wordMatch: isWordMatch.value,
+        },
+      });
     };
 
     // 切换大小写敏感
     const toggleCaseSensitive = () => {
       isCaseSensitive.value = !isCaseSensitive.value;
-      updateSearchResults();
+      emit('match-mode', {
+        caseSensitive: isCaseSensitive.value,
+        regexMode: isRegexMode.value,
+        wordMatch: isWordMatch.value,
+      });
     };
 
     // 切换正则模式
     const toggleRegexMode = () => {
       isRegexMode.value = !isRegexMode.value;
-      updateSearchResults();
+      emit('match-mode', {
+        caseSensitive: isCaseSensitive.value,
+        regexMode: isRegexMode.value,
+        wordMatch: isWordMatch.value,
+      });
     };
 
     // 切换整词匹配
     const toggleWordMatch = () => {
       isWordMatch.value = !isWordMatch.value;
-      updateSearchResults();
+      emit('match-mode', {
+        caseSensitive: isCaseSensitive.value,
+        regexMode: isRegexMode.value,
+        wordMatch: isWordMatch.value,
+      });
     };
 
     // 上一个匹配
     const gotoPrevMatch = () => {
-      if (totalMatches.value > 0) {
+      if (hasResults.value) {
         currentMatchIndex.value = currentMatchIndex.value > 1 ? currentMatchIndex.value - 1 : totalMatches.value;
+        emit('search-change', {
+          content: value.value,
+          searchValue: searchValue.value,
+          matchMode: {
+            caseSensitive: isCaseSensitive.value,
+            regexMode: isRegexMode.value,
+            wordMatch: isWordMatch.value,
+          },
+          currentIndex: currentMatchIndex.value,
+        });
       }
     };
 
     // 下一个匹配
     const gotoNextMatch = () => {
-      if (totalMatches.value > 0) {
+      if (hasResults.value) {
         currentMatchIndex.value = currentMatchIndex.value < totalMatches.value ? currentMatchIndex.value + 1 : 1;
+        emit('search-change', {
+          content: value.value,
+          searchValue: searchValue.value,
+          matchMode: {
+            caseSensitive: isCaseSensitive.value,
+            regexMode: isRegexMode.value,
+            wordMatch: isWordMatch.value,
+          },
+          currentIndex: currentMatchIndex.value,
+        });
       }
     };
 
-    // 处理导航点击事件（包含禁用状态检查）
+    // 处理导航点击事件
     const handlePrevClick = () => {
       if (hasResults.value) {
         gotoPrevMatch();
@@ -103,59 +151,6 @@ export default defineComponent({
       if (hasResults.value) {
         gotoNextMatch();
       }
-    };
-
-    // 更新搜索结果状态
-    const updateSearchResults = () => {
-      if (!searchValue.value || !value.value) {
-        totalMatches.value = 0;
-        currentMatchIndex.value = 0;
-        return;
-      }
-
-      try {
-        let content = value.value;
-        let searchPattern = searchValue.value;
-
-        // 大小写处理
-        if (!isCaseSensitive.value) {
-          content = content.toLowerCase();
-          searchPattern = searchPattern.toLowerCase();
-        }
-
-        let matches: RegExpMatchArray[] = [];
-
-        if (isRegexMode.value) {
-          // 正则模式
-          try {
-            const flags = isCaseSensitive.value ? 'g' : 'gi';
-            const regex = new RegExp(searchPattern, flags);
-            matches = Array.from(content.matchAll(regex));
-          } catch {
-            // 正则表达式无效时回退到普通搜索
-            matches = Array.from(content.matchAll(new RegExp(escapeRegExp(searchPattern), 'g')));
-          }
-        } else if (isWordMatch.value) {
-          // 整词匹配
-          const regex = new RegExp(`\\b${escapeRegExp(searchPattern)}\\b`, isCaseSensitive.value ? 'g' : 'gi');
-          matches = Array.from(value.value.matchAll(regex));
-        } else {
-          // 普通搜索
-          const regex = new RegExp(escapeRegExp(searchPattern), 'g');
-          matches = Array.from(content.matchAll(regex));
-        }
-
-        totalMatches.value = matches.length;
-        currentMatchIndex.value = totalMatches.value > 0 ? 1 : 0;
-      } catch {
-        totalMatches.value = 0;
-        currentMatchIndex.value = 0;
-      }
-    };
-
-    // 转义正则表达式特殊字符
-    const escapeRegExp = (string: string) => {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
     return () => (
@@ -185,7 +180,7 @@ export default defineComponent({
               autoHeight={true}
               minHeight='34px'
               maxHeight='160px'
-              onUpdate:value={handleEditorChange}
+              onChange={handleEditorChange}
             />
           </div>
         </div>
