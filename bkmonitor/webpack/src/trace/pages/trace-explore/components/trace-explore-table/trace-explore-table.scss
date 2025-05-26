@@ -353,4 +353,14 @@
       }
     }
   }
+
+  .t-table--column-fixed .t-table__cell--fixed-left-last::after {
+    border-right-width: 1px !important;
+    box-shadow: 1px 0px 3px 0px rgba(0, 0, 0, 0.12);
+  }
+
+  .t-table--column-fixed .t-table__cell--fixed-right-first::after {
+    border-left-width: 1px !important;
+    box-shadow: -1px 0px 3px 0px rgba(0, 0, 0, 0.12);
+  }
 }

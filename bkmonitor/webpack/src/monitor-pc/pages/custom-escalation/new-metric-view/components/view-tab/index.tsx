@@ -31,6 +31,7 @@ import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from 'monitor-api/modules/scene_view';
 
+import { optimizedDeepEqual } from '../../metric-chart-view/utils';
 import RemoveConfirm from './components/remove-confirm';
 import ViewSave from './components/view-save';
 import ViewManage from './components/view-manage';
@@ -76,7 +77,10 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   }
 
   @Watch('graphConfigPayload')
-  graphConfigPayloadChange() {
+  graphConfigPayloadChange(val, old) {
+    if (optimizedDeepEqual(val, old)) {
+      return;
+    }
     this.$router.replace({
       query: {
         ...this.$route.query,
