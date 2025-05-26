@@ -60,16 +60,19 @@
 
     &.explore-link-col {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       color: #3a84ff;
+
+      & > a {
+        display: inline-flex;
+        flex-basis: auto;
+        align-items: center;
+        min-width: 0;
+      }
 
       .explore-link-text {
         flex-basis: auto;
         min-width: 0;
-
-        a {
-          vertical-align: text-bottom;
-        }
       }
 
       .icon-monitor {
@@ -197,6 +200,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    &:has(> .explore-table-condition-menu) {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
   }
 
   .explore-table-hidden-all {

@@ -373,7 +373,7 @@ export default defineComponent({
             title: resource['telemetry.sdk.version'] || '',
           },
           {
-            label: t('所属Trace'),
+            label: t('所属 Trace'),
             content: (
               <span
                 class='link'

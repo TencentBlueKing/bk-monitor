@@ -23,27 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-enum GradeFieldValueType {
-  REGEXP = 'regexp',
-  VALUE = 'value',
-}
-
-export type GradeSetting = {
-  id: string;
-  color?: string;
-  name?: string;
-  regExp?: string;
-  enable: boolean;
-  fieldValue?: string[];
+export const asignWindowField = (data: Record<string, any>, isLowerCase = true) => {
+  Object.assign(
+    window,
+    ...Object.entries(data).map(([key, value]) => ({ [isLowerCase ? key.toLowerCase() : key]: value }))
+  );
 };
-
-export type GradeConfiguration = {
-  disabled: boolean;
-  type: 'custom' | 'normal';
-  field: string;
-  valueType: GradeFieldValueType;
-  settings: GradeSetting[];
-};
-
-export { GradeFieldValueType };

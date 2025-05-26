@@ -315,8 +315,8 @@ export default defineComponent({
         >
           <span
             class='key-wrap'
-            v-overflow-tips={{
-              content: this.fieldInfo?.alias || this.fieldInfo?.field,
+            v-bk-tooltips={{
+              content: this.fieldInfo?.field || this.fieldInfo?.alias,
               placement: 'top',
             }}
           >

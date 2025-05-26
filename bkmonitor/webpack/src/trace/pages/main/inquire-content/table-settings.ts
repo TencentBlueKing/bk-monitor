@@ -35,7 +35,7 @@ const traceListSetting = {
       field: 'min_start_time',
     },
     {
-      label: `${window.i18n.t('根Span')}`,
+      label: `${window.i18n.t('根 Span')}`,
       field: 'root_span_name',
     },
     {
@@ -181,7 +181,7 @@ const spanListSetting = {
       field: 'resource.telemetry.sdk.version',
     },
     {
-      label: `${window.i18n.t('所属Trace')}`,
+      label: `${window.i18n.t('所属 Trace')}`,
       field: 'trace_id',
     },
   ],

@@ -126,24 +126,24 @@ export default defineComponent({
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.RootSpan}
                   v-bk-tooltips={{
-                    content: t('整个Trace的第一个Span'),
+                    content: t('整个 Trace 的第一个 Span'),
                     placement: 'top',
                     theme: 'light',
                   }}
                   label={TableCheckBoxFiltersEnum.RootSpan}
                 >
-                  {t('根Span')}
+                  {t('根 Span')}
                 </Checkbox>,
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.EntrySpan}
                   v-bk-tooltips={{
-                    content: t('每个Service的第一个Span'),
+                    content: t('每个 Service 的第一个 Span'),
                     placement: 'top',
                     theme: 'light',
                   }}
                   label={TableCheckBoxFiltersEnum.EntrySpan}
                 >
-                  {t('入口Span')}
+                  {t('入口 Span')}
                 </Checkbox>,
               ]
             : null}

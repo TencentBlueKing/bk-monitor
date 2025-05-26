@@ -48,6 +48,7 @@ import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
+import { asignWindowField } from 'monitor-common/utils/asign-window';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
@@ -73,9 +74,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      Object.keys(data).forEach(key => {
-        window[key.toLocaleLowerCase()] = data[key];
-      });
+      asignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -97,9 +96,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          Object.keys(data).forEach(key => {
-            window[key.toLocaleLowerCase()] = data[key];
-          });
+          asignWindowField(data);
         });
     })
     .catch(e => console.error(e))

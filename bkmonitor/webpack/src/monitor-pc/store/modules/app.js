@@ -64,7 +64,7 @@ const state = {
   cmdbUrl: '',
   bkLogSearchUrl: '', // 日志检索url
   bkUrl: '',
-  bkNodemanHost: '', // 节点管理域名
+  bkNodeManHost: '', // 节点管理域名
   loginUrl: '', // 登录Url
   navToggle: localStorage.getItem('navigationToggle') === 'true',
   collectingConfigFileMaxSize: null, // 插件参数文件大小限制单位M
