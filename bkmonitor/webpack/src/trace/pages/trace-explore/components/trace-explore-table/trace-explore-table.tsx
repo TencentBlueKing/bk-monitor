@@ -71,6 +71,7 @@ import {
   TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from './constants';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
+import TestComponents from './testComponents';
 import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
@@ -1042,6 +1043,7 @@ export default defineComponent({
           key={title}
           class={`explore-header-col ${chartIconActive}`}
         >
+          <TestComponents />
           <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <span
               class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
