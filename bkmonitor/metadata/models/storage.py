@@ -3547,6 +3547,32 @@ class ESStorage(models.Model, StorageResultTable):
             self.bk_tenant_id,
         )
 
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
         storage_records = StorageClusterRecord.objects.filter(
             table_id=self.table_id, is_deleted=False, is_current=False, bk_tenant_id=self.bk_tenant_id
@@ -3608,6 +3634,15 @@ class ESStorage(models.Model, StorageResultTable):
                         self.table_id,
                         index_name,
                         cluster_id,
+                    )
+                    continue
+
+                # 如果索引包含在长期存储索引列表中,不予处理,跳过
+                if index_name in long_term_storage_indices:
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                        self.table_id,
+                        index_name,
                     )
                     continue
 
