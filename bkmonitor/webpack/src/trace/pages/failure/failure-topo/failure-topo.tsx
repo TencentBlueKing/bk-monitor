@@ -2086,6 +2086,7 @@ export default defineComponent({
         query: {
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
           refreshInterval: '-1',
+          filterMode: 'queryString',
           query: rca_trace_info.abnormal_traces_query.query,
           sceneMode: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),

@@ -61,7 +61,7 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
 
       liHtmlList = traceData.map(item => {
         const where = [{ key: 'span_id', operator: 'equal', value: [item.span_id] }];
-        const hash = `#/trace/home?app_name=${appName}&where=${JSON.stringify(where)}`;
+        const hash = `#/trace/home?app_name=${appName}&where=${JSON.stringify(where)}&filterMode=ui&sceneMode=span`;
         const href = location.href.replace(location.href, hash);
         return `<tr>
           <td>${item.time}</td>

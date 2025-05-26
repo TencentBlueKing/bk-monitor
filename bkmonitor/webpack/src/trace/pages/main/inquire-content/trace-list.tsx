@@ -865,6 +865,7 @@ export default defineComponent({
             start_time: 'now-1h',
             end_time: 'now',
             query: route.query?.query,
+            filterMode: 'queryString',
           },
         });
     };
