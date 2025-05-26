@@ -262,12 +262,17 @@ export default class ViewTab extends tsc<IProps, IEmit> {
             </bk-tab>
           )}
           <div class='extend-action'>
-            <ViewManage
-              payload={this.graphConfigPayload}
-              sceneId={this.sceneId}
-              viewList={this.viewList}
-              onSuccess={this.handleViewSaveSuccess}
-            />
+            {
+              this.viewList.length > 0 && <ViewManage
+                payload={this.graphConfigPayload}
+                sceneId={this.sceneId}
+                viewList={this.viewList}
+                onSuccess={() => {
+                  this.isTabListInit = false;
+                  this.handleViewSaveSuccess();
+                }}
+              />
+            }
             <ViewSave
               payload={this.graphConfigPayload}
               sceneId={this.sceneId}

@@ -49,3 +49,9 @@
     cursor: pointer;
   }
 }
+.metric-view-manage-dialog {
+  .bk-dialog-body {
+    max-height: 390px;
+    overflow: auto;
+  }
+}
