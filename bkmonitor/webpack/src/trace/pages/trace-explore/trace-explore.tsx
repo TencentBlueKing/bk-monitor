@@ -105,7 +105,7 @@ export default defineComponent({
     const applicationList = shallowRef<IApplicationItem[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     /** 是否展示收藏夹 */
-    const isShowFavorite = shallowRef(true);
+    const isShowFavorite = shallowRef(false);
     /** 视角切换查询 */
     const cacheSceneQuery = new Map<string, Record<string, any>>();
 
@@ -300,7 +300,7 @@ export default defineComponent({
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'true');
+      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
         handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
