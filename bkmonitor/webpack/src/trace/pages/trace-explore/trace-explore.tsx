@@ -37,6 +37,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
@@ -574,13 +575,17 @@ export default defineComponent({
             mode: store.mode,
           },
         },
-      };
+      } as any;
       if (isEdit) {
         await updateFavorite(currentFavorite.value.id, {
           type: 'trace',
           ...params,
         });
         favoriteBox.value.refreshGroupList();
+        Message({
+          theme: 'success',
+          message: t('收藏成功'),
+        });
       } else {
         editFavoriteData.value = params;
         editFavoriteShow.value = true;

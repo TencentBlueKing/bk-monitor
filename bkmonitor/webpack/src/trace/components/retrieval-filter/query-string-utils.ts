@@ -106,7 +106,7 @@ export const QUERY_STRING_DATA_TYPES = Object.keys(queryStringColorMap);
 const defaultColor = '#313238';
 
 export function getQueryStringMethods(fieldType: EFieldType) {
-  if (fieldType === EFieldType.integer) {
+  if ([EFieldType.integer, EFieldType.long].includes(fieldType)) {
     return [...QUERY_STRING_METHODS];
   }
   return [
@@ -397,6 +397,7 @@ export class QueryStringEditor {
       }
     } else {
       this.options?.onSearch?.('');
+      this.popUp(EQueryStringTokenType.key, '');
     }
   }
 
