@@ -79,7 +79,7 @@ export default defineComponent({
     // 切换大小写敏感
     const toggleCaseSensitive = () => {
       isCaseSensitive.value = !isCaseSensitive.value;
-      emit('match-mode', {
+      emit('update:match-mode', {
         caseSensitive: isCaseSensitive.value,
         regexMode: isRegexMode.value,
         wordMatch: isWordMatch.value,
