@@ -1883,6 +1883,8 @@ class ESStorage(models.Model, StorageResultTable):
 
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
+    long_term_storage_settings = models.TextField("长期存储配置信息", blank=True, null=True)
+
     class Meta:
         unique_together = ("table_id", "bk_tenant_id")
 
@@ -3418,6 +3420,33 @@ class ESStorage(models.Model, StorageResultTable):
             return
 
         logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
+
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取所有的写入别名
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
@@ -3439,6 +3468,16 @@ class ESStorage(models.Model, StorageResultTable):
                     "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
                 )
                 continue
+
+            # 如果索引包含在长期存储索引列表中,不予处理,跳过
+            if index_name in long_term_storage_indices:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                    self.table_id,
+                    index_name,
+                )
+                continue
+
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
                 logger.info(
