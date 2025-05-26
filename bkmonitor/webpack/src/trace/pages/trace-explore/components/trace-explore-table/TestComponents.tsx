@@ -23,38 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { listFlattenTrace, listFlattenSpan } from 'monitor-api/modules/apm_trace';
-import { bkMessage, makeMessage } from 'monitor-api/utils';
-
-import { useQueryStringParseErrorState } from '../../../../../components/retrieval-filter/query-string-utils';
-
-export function getTableList(
-  params,
-  isSpanVisual: boolean,
-  requestConfig
-): Promise<{ data: any[]; total: number; isAborted?: boolean }> {
-  const apiFunc = isSpanVisual ? listFlattenSpan : listFlattenTrace;
-  const config = { needMessage: false, ...requestConfig };
-  return apiFunc(params, config).catch(err => {
-    const isAborted = requestErrorMessage(err);
-    return { data: [], total: 0, isAborted };
-  });
-}
-
-/**
- * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
- * @param err
- *
- */
-export function requestErrorMessage(err) {
-  const state = useQueryStringParseErrorState();
-  state.setErrorData(err);
-  const message = makeMessage(err.error_details || err.message);
-  let isAborted = false;
-  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
-    bkMessage(message);
-  } else {
-    isAborted = true;
-  }
-  return isAborted;
-}
+import { defineComponent } from 'vue';
+export default defineComponent({
+  name: 'TestComponents',
+  setup() {
+    return {};
+  },
+  render() {
+    return <i>Test Components</i>;
+  },
+});
