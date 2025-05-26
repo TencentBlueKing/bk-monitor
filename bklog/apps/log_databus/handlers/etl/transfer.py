@@ -27,7 +27,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
-from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl import EtlHandler

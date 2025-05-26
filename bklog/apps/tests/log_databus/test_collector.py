@@ -27,7 +27,7 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
 from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
 from apps.log_search.models import Space
@@ -1083,7 +1083,7 @@ class TestCollector(TestCase):
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
 
         params["params"]["conditions"]["type"] = "separator"
-        result = CollectorHandler().update_or_create(params)
+        result = HostCollectorHandler().update_or_create(params)
         self.assertEqual(result["bk_data_id"], BK_DATA_ID)
         self.assertEqual(result["collector_config_name"], params["collector_config_name"])
         self.assertEqual(result["subscription_id"], SUBSCRIPTION_ID)
@@ -1123,7 +1123,7 @@ class TestCollector(TestCase):
         with self.assertRaises(CollectorConfigNotExistException):
             CollectorHandler(collector_config_id=9999)
 
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.update_or_create(params)
         self.assertEqual(result["collector_config_name"], new_collector_config_name)
 
@@ -1310,7 +1310,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_task_detail", lambda _: TASK_DETAIL_DATA)
     def _test_get_subscription_task_detail(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.get_subscription_task_detail("host|instance|host|127.0.0.1-0-0", task_id="24626")
         for i in ["unifytlogc", "下发插件配置", "更新插件部署状态", "渲染并下发配置", "重载插件进程"]:
             self.assertIn(i, result["log_detail"])
@@ -1403,7 +1403,7 @@ class TestCollector(TestCase):
 
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
         params["params"]["conditions"]["type"] = "separator"
-        CollectorHandler().update_or_create(params)
+        HostCollectorHandler().update_or_create(params)
 
         # 测试collector_config_name_en同名
         params = copy.deepcopy(PARAMS)

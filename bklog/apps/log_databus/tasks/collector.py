@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectItsmStatus,
     ContainerCollectStatus,
 )
-from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import (
     BcsStorageClusterConfig,

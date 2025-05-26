@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import abc
-import base64
 import copy
 import datetime
 import re
@@ -66,7 +65,6 @@ from apps.log_databus.constants import (
     LogPluginInfo,
     RunStatus,
     TargetNodeTypeEnum,
-    TopoType,
     RETRIEVE_CHAIN,
 )
 from apps.log_databus.exceptions import (
@@ -78,16 +76,13 @@ from apps.log_databus.exceptions import (
     CollectorConfigNameDuplicateException,
     CollectorConfigNameENDuplicateException,
     CollectorConfigNotExistException,
-    CollectorCreateOrUpdateSubscriptionException,
     CollectorIllegalIPException,
     CollectorResultTableIDDuplicateException,
-    MissedNamespaceException,
     ModifyCollectorConfigException,
     PublicESClusterNotExistException,
     RegexInvalidException,
     RegexMatchException,
     ResultTableNotExistException,
-    SubscriptionInfoNotFoundException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -121,7 +116,6 @@ from apps.log_search.models import (
     Space,
 )
 from apps.models import model_to_dict
-from apps.utils.bcs import Bcs
 from apps.utils.cache import caches_one_hour
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
@@ -148,7 +142,7 @@ class CollectorHandler:
                 raise CollectorConfigNotExistException()
 
     def get_instance(self):
-        if self.data.is_container_environment:
+        if self.data and self.data.is_container_environment:
             collector_handler = import_string(
                 "apps.log_databus.handlers.collector_handler.k8s_collector.K8sCollectorHandler"
             )
@@ -194,22 +188,6 @@ class CollectorHandler:
                 use_request=use_request,
             )
         return multi_execute_func.run()
-
-    @abc.abstractmethod
-    def add_container_configs(self, collector_config, context):
-        raise NotImplementedError
-
-    def encode_yaml_config(self, collector_config, context):
-        """
-        encode_yaml_config
-        @param collector_config:
-        @param context:
-        @return:
-        """
-        if not collector_config["yaml_config"]:
-            return collector_config
-        collector_config["yaml_config"] = base64.b64encode(collector_config["yaml_config"].encode("utf-8"))
-        return collector_config
 
     def set_itsm_info(self, collector_config, context):  # noqa
         """
@@ -336,27 +314,6 @@ class CollectorHandler:
             return collector_config
         return collector_config
 
-    def complement_nodeman_info(self, collector_config, context):
-        """
-        补全保存在节点管理的订阅配置
-        @param collector_config:
-        @param context:
-        @return:
-        """
-        result = context
-        if self.data.subscription_id and "subscription_config" in result:
-            if not result["subscription_config"]:
-                raise SubscriptionInfoNotFoundException()
-            subscription_config = result["subscription_config"][0]
-            collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
-            params = collector_scenario.parse_steps(subscription_config["steps"])
-            collector_config.update({"params": params})
-            data_encoding = params.get("encoding")
-            if data_encoding:
-                # 将对应data_encoding 转换成大写供前端
-                collector_config.update({"data_encoding": data_encoding.upper()})
-        return collector_config
-
     def fields_is_empty(self, collector_config, context):  # noqa
         """
         如果数据未入库，则fields为空，直接使用默认标准字段返回
@@ -390,8 +347,7 @@ class CollectorHandler:
     def _pre_start(self):
         return True
 
-    @transaction.atomic
-    def start(self, **kwargs):
+    def start(self):
         """
         启动采集配置
         :return: task_id
@@ -425,15 +381,10 @@ class CollectorHandler:
         }
         user_operation_record.delay(operation_record)
 
-        if self.data.subscription_id:
-            return self._run_subscription_task()
-        return True
-
     def _pre_stop(self):
         return True
 
-    @transaction.atomic
-    def stop(self, **kwargs):
+    def stop(self):
         """
         停止采集配置
         :return: task_id
@@ -464,10 +415,6 @@ class CollectorHandler:
             "params": "",
         }
         user_operation_record.delay(operation_record)
-
-        if self.data.subscription_id:
-            return self._run_subscription_task("STOP")
-        return True
 
     def retrieve(self, use_request=True):
         """
@@ -520,7 +467,7 @@ class CollectorHandler:
         }
 
         _collector_config_name = self.data.collector_config_name
-        bk_data_name = build_bk_data_name(
+        bk_data_name = self.build_bk_data_name(
             bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
         )
         if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
@@ -598,8 +545,9 @@ class CollectorHandler:
         }
         user_operation_record.delay(operation_record)
 
+    @abc.abstractmethod
     def _pre_destroy(self):
-        return True
+        raise NotImplementedError
 
     @transaction.atomic
     def destroy(self, **kwargs):
@@ -879,8 +827,10 @@ class CollectorHandler:
                 )
             )
         # 判断是否已存在同bk_data_name, result_table_id
-        bk_data_name = build_bk_data_name(bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en)
-        result_table_id = build_result_table_id(bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en)
+        bk_data_name = self.build_bk_data_name(bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en)
+        result_table_id = self.build_result_table_id(
+            bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en
+        )
         if self._pre_check_bk_data_name(model_fields=model_fields, bk_data_name=bk_data_name):
             logger.error(f"bk_data_name {bk_data_name} already exists")
             raise CollectorBkDataNameDuplicateException(
@@ -964,9 +914,8 @@ class CollectorHandler:
 
         return model_to_dict(self.data)
 
-    @classmethod
     def update_or_create_data_id(
-        cls, instance: CollectorConfig | CollectorPlugin, etl_processor: str = None, bk_data_id: int = None
+        self, instance: CollectorConfig | CollectorPlugin, etl_processor: str = None, bk_data_id: int = None
     ) -> int:
         """
         创建或更新数据源
@@ -985,7 +934,7 @@ class CollectorHandler:
             bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=instance.bk_data_id,
                 data_link_id=instance.data_link_id,
-                data_name=build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
+                data_name=self.build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
             )
@@ -1111,8 +1060,10 @@ class CollectorHandler:
             )
         # 判断是否已存在同bk_data_name, result_table_id
         bkdata_biz_id = params.get("bkdata_biz_id") or bk_biz_id
-        bk_data_name = build_bk_data_name(bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en)
-        result_table_id = build_result_table_id(
+        bk_data_name = self.build_bk_data_name(
+            bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
+        )
+        result_table_id = self.build_result_table_id(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
         )
         if self._pre_check_bk_data_name(model_fields=model_fields, bk_data_name=bk_data_name):
@@ -1239,20 +1190,9 @@ class CollectorHandler:
             qs = qs.exclude(collector_config_id=self.collector_config_id)
         return qs.exists()
 
+    @abc.abstractmethod
     def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
-        try:
-            self.data.subscription_id = collector_scenario.update_or_create_subscription(self.data, params)
-            self.data.save()
-            if params.get("run_task", True):
-                self._run_subscription_task()
-            # start nodeman subscription
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
-        except Exception as error:  # pylint: disable=broad-except
-            logger.exception(f"create or update collector config failed => [{error}]")
-            if not is_create:
-                raise CollectorCreateOrUpdateSubscriptionException(
-                    CollectorCreateOrUpdateSubscriptionException.MESSAGE.format(err=error)
-                )
+        raise NotImplementedError
 
     @staticmethod
     def _authorization_collector(collector_config: CollectorConfig):
@@ -1270,11 +1210,6 @@ class CollectorHandler:
                     collector_config.collector_config_id, e
                 )
             )
-
-    def run(self, action, scope):
-        if self.data.subscription_id:
-            return self._run_subscription_task(action=action, scope=scope)
-        return True
 
     def _itsm_start_judge(self):
         if self.data.is_custom_scenario:
@@ -1385,33 +1320,6 @@ class CollectorHandler:
             for node in set(current_nodes_tuples) - set(target_nodes_tuples)
         ]
         return add_nodes + delete_nodes
-
-    # 详情接口查询，原始日志
-    def get_subscription_task_detail(self, instance_id, task_id=None):
-        """
-        采集任务实例日志详情
-        :param [string] instance_id: 实例ID
-        :param [string] task_id: 任务ID
-        :return: [dict]
-        """
-        # 详情接口查询，原始日志
-        param = {"subscription_id": self.data.subscription_id, "instance_id": instance_id}
-        if task_id:
-            param["task_id"] = task_id
-        detail_result = NodeApi.get_subscription_task_detail(param)
-
-        # 日志详情，用于前端展示
-        log = list()
-        for step in detail_result.get("steps", []):
-            log.append("{}{}{}\n".format("=" * 20, step["node_name"], "=" * 20))
-            for sub_step in step["target_hosts"][0].get("sub_steps", []):
-                log.extend(["{}{}{}".format("-" * 20, sub_step["node_name"], "-" * 20), sub_step["log"]])
-                # 如果ex_data里面有值，则在日志里加上它
-                if sub_step["ex_data"]:
-                    log.append(sub_step["ex_data"])
-                if sub_step["status"] != CollectStatus.SUCCESS:
-                    return {"log_detail": "\n".join(log), "log_result": detail_result}
-        return {"log_detail": "\n".join(log), "log_result": detail_result}
 
     def get_subscription_status_by_list(self, collector_id_list: list) -> list:
         """
@@ -1828,8 +1736,10 @@ class CollectorHandler:
                 )
             )
         # 判断是否已存在同bk_data_name, result_table_id
-        bk_data_name = build_bk_data_name(bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en)
-        result_table_id = build_result_table_id(
+        bk_data_name = self.build_bk_data_name(
+            bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
+        )
+        result_table_id = self.build_result_table_id(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
         )
         if self._pre_check_bk_data_name(model_fields=collector_config_params, bk_data_name=bk_data_name):
@@ -1854,7 +1764,7 @@ class CollectorHandler:
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(bkdata_biz_id, collector_config_name_en),
+                data_name=self.build_bk_data_name(bkdata_biz_id, collector_config_name_en),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -1925,14 +1835,14 @@ class CollectorHandler:
         if self._pre_check_collector_config_en(params, bk_biz_id):
             return data
 
-        bk_data_name = params.get("bk_data_name") or build_bk_data_name(
+        bk_data_name = params.get("bk_data_name") or self.build_bk_data_name(
             bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en
         )
         bk_data = CollectorConfig(bk_data_name=bk_data_name).get_bk_data_by_name()
         if bk_data:
             return data
 
-        result_table_id = params.get("result_table_id") or build_result_table_id(
+        result_table_id = params.get("result_table_id") or self.build_result_table_id(
             bk_biz_id=bk_biz_id, collector_config_name_en=collector_config_name_en
         )
         result_table = CollectorConfig(table_id=result_table_id).get_result_table_by_id()
@@ -1964,19 +1874,6 @@ class CollectorHandler:
 
         return None
 
-    def get_labels(self, topo_type, bcs_cluster_id, namespace, name):
-        api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
-        if topo_type == TopoType.NODE.value:
-            nodes = api_instance.list_node(field_selector=f"metadata.name={name}").to_dict()
-            return self._generate_label(nodes)
-        if topo_type == TopoType.POD.value:
-            if not namespace:
-                raise MissedNamespaceException()
-            pods = api_instance.list_namespaced_pod(
-                field_selector=f"metadata.name={name}", namespace=namespace
-            ).to_dict()
-            return self._generate_label(pods)
-
     @classmethod
     def _generate_label(cls, obj_dict):
         if not obj_dict or not obj_dict["items"]:
@@ -1993,7 +1890,7 @@ class CollectorHandler:
         params["params"]["encoding"] = params["data_encoding"]
         # 如果没传入集群ID, 则随机给一个公共集群
         if not params.get("storage_cluster_id"):
-            storage_cluster_id = get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
+            storage_cluster_id = self.get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
             if not storage_cluster_id:
                 raise PublicESClusterNotExistException()
             params["storage_cluster_id"] = storage_cluster_id
@@ -2018,7 +1915,7 @@ class CollectorHandler:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
         bkdata_biz_id = self.data.bkdata_biz_id if self.data.bkdata_biz_id else self.data.bk_biz_id
-        bk_data_name = build_bk_data_name(
+        bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=self.data.collector_config_name_en
         )
         self._cat_illegal_ips(params)
@@ -2103,21 +2000,9 @@ class CollectorHandler:
 
         return {"collector_config_id": self.data.collector_config_id}
 
+    @abc.abstractmethod
     def create_or_update_subscription(self, params):
-        """STEP2: 创建|修改订阅"""
-        is_create = True if self.data else False
-        try:
-            collector_scenario = CollectorScenario.get_instance(self.data.collector_scenario_id)
-            self._update_or_create_subscription(
-                collector_scenario=collector_scenario, params=params["params"], is_create=is_create
-            )
-        finally:
-            if (
-                params.get("is_allow_alone_data_id", True)
-                and params.get("etl_processor") != ETLProcessorChoices.BKBASE.value
-            ):
-                # 创建数据平台data_id
-                async_create_bkdata_data_id.delay(self.data.collector_config_id)
+        raise NotImplementedError
 
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
@@ -2177,7 +2062,8 @@ class CollectorHandler:
         update_alias_settings.delay(self.collector_config_id, alias_settings)
         return
 
-    def get_data_link_id(self, bk_biz_id: int, data_link_id: int = 0) -> int:
+    @staticmethod
+    def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:
         """
         获取随机的链路ID
         优先级如下:
@@ -2213,48 +2099,48 @@ class CollectorHandler:
             )
         return bk_table_id
 
+    @staticmethod
+    def get_random_public_cluster_id(bk_biz_id: int) -> int:
+        from apps.log_databus.handlers.storage import StorageHandler
 
-def get_random_public_cluster_id(bk_biz_id: int) -> int:
-    from apps.log_databus.handlers.storage import StorageHandler
+        # 拥有使用权限的集群列表
+        clusters = StorageHandler().get_cluster_groups_filter(bk_biz_id=bk_biz_id)
+        for cluster in clusters:
+            if cluster.get("storage_cluster_id"):
+                return cluster["storage_cluster_id"]
 
-    # 拥有使用权限的集群列表
-    clusters = StorageHandler().get_cluster_groups_filter(bk_biz_id=bk_biz_id)
-    for cluster in clusters:
-        if cluster.get("storage_cluster_id"):
-            return cluster["storage_cluster_id"]
+        return 0
 
-    return 0
+    @staticmethod
+    def build_bk_data_name(bk_biz_id: int, collector_config_name_en: str) -> str:
+        """
+        根据bk_biz_id和collector_config_name_en构建bk_data_name
+        @param bk_biz_id:
+        @param collector_config_name_en:
+        @return:
+        """
+        bk_biz_id = int(bk_biz_id)
+        if bk_biz_id >= 0:
+            bk_data_name = f"{bk_biz_id}_{settings.TABLE_ID_PREFIX}_{collector_config_name_en}"
+        else:
+            bk_data_name = (
+                f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}_{collector_config_name_en}"
+            )
+        return bk_data_name
 
-
-def build_bk_data_name(bk_biz_id: int, collector_config_name_en: str) -> str:
-    """
-    根据bk_biz_id和collector_config_name_en构建bk_data_name
-    @param bk_biz_id:
-    @param collector_config_name_en:
-    @return:
-    """
-    bk_biz_id = int(bk_biz_id)
-    if bk_biz_id >= 0:
-        bk_data_name = f"{bk_biz_id}_{settings.TABLE_ID_PREFIX}_{collector_config_name_en}"
-    else:
-        bk_data_name = (
-            f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}_{collector_config_name_en}"
-        )
-    return bk_data_name
-
-
-def build_result_table_id(bk_biz_id: int, collector_config_name_en: str) -> str:
-    """
-    根据bk_biz_id和collector_config_name_en构建result_table_id
-    @param bk_biz_id:
-    @param collector_config_name_en:
-    @return:
-    """
-    bk_biz_id = int(bk_biz_id)
-    if bk_biz_id >= 0:
-        result_table_id = f"{bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
-    else:
-        result_table_id = (
-            f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
-        )
-    return result_table_id
+    @staticmethod
+    def build_result_table_id(bk_biz_id: int, collector_config_name_en: str) -> str:
+        """
+        根据bk_biz_id和collector_config_name_en构建result_table_id
+        @param bk_biz_id:
+        @param collector_config_name_en:
+        @return:
+        """
+        bk_biz_id = int(bk_biz_id)
+        if bk_biz_id >= 0:
+            result_table_id = f"{bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
+        else:
+            result_table_id = (
+                f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
+            )
+        return result_table_id

@@ -6,9 +6,8 @@ from typing import Any
 
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_databus.handlers.collector_handler.base_collector import (
+from apps.log_databus.handlers.collector_handler.base import (
     CollectorHandler,
-    get_random_public_cluster_id,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.serializers import FastCollectorCreateSerializer
@@ -476,7 +475,7 @@ class MigrateToolBase:
             # 如果采集项没有指定存储集群, 则查询该业务下存不存在公共集群，如果不存在，则跳过
             # 放在这里是避免进了业务逻辑后, 再去查询公共集群，导致迁移直接失败
             if "collector_config_name_en" in data and not self.storage_cluster_id:
-                storage_cluster_id = get_random_public_cluster_id(mapping["bk_biz_id"])
+                storage_cluster_id = CollectorHandler().get_random_public_cluster_id(mapping["bk_biz_id"])
                 if not storage_cluster_id:
                     Prompt.warning(msg="业务{bk_biz_id}没有可用的公共存储集群, 跳过", bk_biz_id=mapping["bk_biz_id"])
                     continue
@@ -565,7 +564,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         }
         slz = FastCollectorCreateSerializer(data=params)
         slz.is_valid()
-        return CollectorHandler().fast_create(params=slz.data)
+        return CollectorHandler().get_instance().fast_create(params=slz.data)
 
     def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.info(

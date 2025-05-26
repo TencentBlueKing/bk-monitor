@@ -26,7 +26,7 @@ from django.test import TestCase
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
-from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
 
 BK_DATA_ID = 1
@@ -256,11 +256,11 @@ class TestCollectorHandler(TestCase):
         """
 
         if params:
-            result = CollectorHandler().update_or_create(params=params)
+            result = HostCollectorHandler().update_or_create(params=params)
         else:
             params = copy.deepcopy(PARAMS)
             params["params"]["conditions"]["type"] = "separator"
-            result = CollectorHandler().update_or_create(params=params)
+            result = HostCollectorHandler().update_or_create(params=params)
         return params, result
 
     @patch("apps.api.NodeApi.switch_subscription", lambda _: {})

@@ -29,7 +29,7 @@ from apps.log_databus.exceptions import (
     CollectorPluginNameDuplicateException,
     CollectorPluginNotExistException,
 )
-from apps.log_databus.handlers.collector_handler.base_collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin, DataLinkConfig
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
@@ -114,7 +114,7 @@ class CollectorPluginHandler:
         创建数据源
         """
 
-        return CollectorHandler.update_or_create_data_id(instance)
+        return CollectorHandler().update_or_create_data_id(instance)
 
     @transaction.atomic()
     def _update_or_create(self, params: dict) -> bool:
@@ -220,7 +220,7 @@ class CollectorPluginHandler:
 
             # DATA_ID
             if not is_allow_alone_data_id or is_create_public_data_id:
-                self.collector_plugin.bk_data_id = CollectorHandler.update_or_create_data_id(self.collector_plugin)
+                self.collector_plugin.bk_data_id = CollectorHandler().update_or_create_data_id(self.collector_plugin)
 
             is_create = False
 
@@ -361,7 +361,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 创建采集项
-        return CollectorHandler().update_or_create(params)
+        return CollectorHandler().get_instance().update_or_create(params)
 
     def update_instance(self, params: dict) -> dict:
         """
@@ -372,7 +372,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 更新采集项
-        return CollectorHandler(params["collector_config_id"]).update_or_create(params)
+        return CollectorHandler(params["collector_config_id"]).get_instance().update_or_create(params)
 
     def create_instance_etl(self, instance: CollectorConfig, params: dict) -> dict:
         """

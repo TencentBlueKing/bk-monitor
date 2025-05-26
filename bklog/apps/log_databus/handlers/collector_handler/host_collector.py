@@ -18,17 +18,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import copy
-
+from typing import Any
 from collections import defaultdict
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-
+from django.db import transaction
 from apps.api import CCApi, NodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import ApiRequestError, ApiResultError
-
+from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
     TargetNodeTypeEnum,
@@ -40,13 +40,14 @@ from apps.log_databus.constants import (
     SEARCH_BIZ_INST_TOPO_LEVEL,
     BK_SUPPLIER_ACCOUNT,
     RunStatus,
+    ETLProcessorChoices,
 )
-
+from apps.log_databus.exceptions import SubscriptionInfoNotFoundException, CollectorCreateOrUpdateSubscriptionException
 
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 
 
-from apps.log_databus.handlers.collector_handler.base_collector import (
+from apps.log_databus.handlers.collector_handler.base import (
     CollectorHandler,
 )
 
@@ -63,26 +64,82 @@ class HostCollectorHandler(CollectorHandler):
         if self.data.subscription_id:
             NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
 
+    @transaction.atomic
+    def start(self, **kwargs):
+        super().start()
+        if self.data.subscription_id:
+            return self._run_subscription_task()
+        return True
+
     def _pre_stop(self):
         if self.data.subscription_id:
             # 停止节点管理订阅功能
             NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
 
-    def _pre_destroy(self):
+    @transaction.atomic
+    def stop(self, **kwargs):
+        super().stop()
         if self.data.subscription_id:
-            subscription_params = {"subscription_id": self.data.subscription_id}
-            return NodeApi.delete_subscription(subscription_params)
-        return None
+            return self._run_subscription_task("STOP")
+        return True
 
-    # 统一调用
-    def add_container_configs(self, collector_config, context):
+    def _pre_destroy(self):
+        if not self.data.subscription_id:
+            return
+        subscription_params = {"subscription_id": self.data.subscription_id}
+        return NodeApi.delete_subscription(subscription_params)
+
+    def complement_nodeman_info(self, collector_config, context):
         """
-        add_container_configs
+        补全保存在节点管理的订阅配置
         @param collector_config:
         @param context:
         @return:
         """
+        result = context
+        if self.data.subscription_id and "subscription_config" in result:
+            if not result["subscription_config"]:
+                raise SubscriptionInfoNotFoundException()
+            subscription_config = result["subscription_config"][0]
+            collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
+            params = collector_scenario.parse_steps(subscription_config["steps"])
+            collector_config.update({"params": params})
+            data_encoding = params.get("encoding")
+            if data_encoding:
+                # 将对应data_encoding 转换成大写供前端
+                collector_config.update({"data_encoding": data_encoding.upper()})
         return collector_config
+
+    def run(self, action, scope):
+        if self.data.subscription_id:
+            return self._run_subscription_task(action=action, scope=scope)
+        return True
+
+    def get_subscription_task_detail(self, instance_id, task_id=None):
+        """
+        采集任务实例日志详情
+        :param [string] instance_id: 实例ID
+        :param [string] task_id: 任务ID
+        :return: [dict]
+        """
+        # 详情接口查询，原始日志
+        param = {"subscription_id": self.data.subscription_id, "instance_id": instance_id}
+        if task_id:
+            param["task_id"] = task_id
+        detail_result = NodeApi.get_subscription_task_detail(param)
+
+        # 日志详情，用于前端展示
+        log = list()
+        for step in detail_result.get("steps", []):
+            log.append("{}{}{}\n".format("=" * 20, step["node_name"], "=" * 20))
+            for sub_step in step["target_hosts"][0].get("sub_steps", []):
+                log.extend(["{}{}{}".format("-" * 20, sub_step["node_name"], "-" * 20), sub_step["log"]])
+                # 如果ex_data里面有值，则在日志里加上它
+                if sub_step["ex_data"]:
+                    log.append(sub_step["ex_data"])
+                if sub_step["status"] != CollectStatus.SUCCESS:
+                    return {"log_detail": "\n".join(log), "log_result": detail_result}
+        return {"log_detail": "\n".join(log), "log_result": detail_result}
 
     def _retry_subscription(self, instance_id_list):
         params = {"subscription_id": self.data.subscription_id, "instance_id_list": instance_id_list}
@@ -367,10 +424,9 @@ class HostCollectorHandler(CollectorHandler):
 
         return node_path, bk_obj_name, bk_inst_name
 
-    # 查询物理机采集任务状态
     def get_subscription_task_status(self, task_id_list):
         """
-        查询采集任务状态
+        查询物理机采集任务状态
         :param  [list] task_id_list:
         :return: [dict]
         {
@@ -668,3 +724,58 @@ class HostCollectorHandler(CollectorHandler):
         ]
         return_data["scope"] = scope_data
         return return_data
+
+    def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
+        try:
+            self.data.subscription_id = collector_scenario.update_or_create_subscription(self.data, params)
+            self.data.save()
+            if params.get("run_task", True):
+                self._run_subscription_task()
+            # start nodeman subscription
+            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(f"create or update collector config failed => [{error}]")
+            if not is_create:
+                raise CollectorCreateOrUpdateSubscriptionException(
+                    CollectorCreateOrUpdateSubscriptionException.MESSAGE.format(err=error)
+                )
+
+    def _run_subscription_task(self, action=None, scope: dict[str, Any] = None):
+        """
+        触发订阅事件
+        :param: action 动作 [START, STOP, INSTALL, UNINSTALL]
+        :param: nodes 需要重试的实例
+        :return: task_id 任务ID
+        """
+        collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
+        params = {"subscription_id": self.data.subscription_id}
+        if action:
+            params.update({"actions": {collector_scenario.PLUGIN_NAME: action}})
+
+        # 无scope.nodes时，节点管理默认对全部已配置的scope.nodes进行操作
+        # 有scope.nodes时，对指定scope.nodes进行操作
+        if scope:
+            params["scope"] = scope
+            params["scope"]["bk_biz_id"] = self.data.bk_biz_id
+
+        task_id = str(NodeApi.run_subscription_task(params)["task_id"])
+        if scope is None:
+            self.data.task_id_list = [str(task_id)]
+        self.data.save()
+        return self.data.task_id_list
+
+    def create_or_update_subscription(self, params):
+        """STEP2: 创建|修改订阅"""
+        is_create = True if self.data else False
+        try:
+            collector_scenario = CollectorScenario.get_instance(self.data.collector_scenario_id)
+            self._update_or_create_subscription(
+                collector_scenario=collector_scenario, params=params["params"], is_create=is_create
+            )
+        finally:
+            if (
+                params.get("is_allow_alone_data_id", True)
+                and params.get("etl_processor") != ETLProcessorChoices.BKBASE.value
+            ):
+                # 创建数据平台data_id
+                async_create_bkdata_data_id.delay(self.data.collector_config_id)

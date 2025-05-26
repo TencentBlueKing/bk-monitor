@@ -35,7 +35,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TargetObjectTypeEnum,
 )
-from apps.log_databus.handlers.collector_handler.base_collector import build_bk_data_name
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
@@ -143,7 +143,9 @@ class Command(BaseCommand):
 
     @classmethod
     def create_data_id(cls, collect_config):
-        data_name = build_bk_data_name(collect_config.bk_biz_id, collect_config.collector_config_name_en)
+        data_name = CollectorHandler().build_bk_data_name(
+            collect_config.bk_biz_id, collect_config.collector_config_name_en
+        )
         params = {
             "data_name": data_name,
             "etl_config": "bk_flat_batch",

@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import copy
+import base64
 import re
 import json
 from typing import Any
@@ -65,6 +66,7 @@ from apps.log_databus.exceptions import (
     NamespaceNotValidException,
     BCSApiException,
     BcsClusterIdNotValidException,
+    MissedNamespaceException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -72,11 +74,8 @@ from apps.log_databus.handlers.collector_scenario.utils import (
     convert_filters_to_collector_condition,
     deal_collector_scenario_param,
 )
-from apps.log_databus.handlers.collector_handler.base_collector import (
+from apps.log_databus.handlers.collector_handler.base import (
     CollectorHandler,
-    get_random_public_cluster_id,
-    build_bk_data_name,
-    build_result_table_id,
 )
 from apps.log_databus.models import (
     BcsRule,
@@ -112,17 +111,26 @@ class K8sCollectorHandler(CollectorHandler):
             for container_config in container_configs:
                 self.create_container_release(container_config)
 
+    @transaction.atomic
+    def start(self, **kwargs):
+        super().start()
+        return True
+
     def _pre_stop(self):
         if self.data.is_container_environment:
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.delete_container_release(container_config)
 
+    @transaction.atomic
+    def stop(self, **kwargs):
+        super().stop()
+        return True
+
     def _pre_destroy(self):
         if self.data.is_container_environment:
             ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).delete()
 
-    # 统一调用
     def add_container_configs(self, collector_config, context):
         """
         add_container_configs
@@ -130,11 +138,26 @@ class K8sCollectorHandler(CollectorHandler):
         @param context:
         @return:
         """
+        if not self.data.is_container_environment:
+            return collector_config
+
         container_configs = []
         for config in ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id):
             container_configs.append(model_to_dict(config))
 
         collector_config["configs"] = container_configs
+        return collector_config
+
+    def encode_yaml_config(self, collector_config, context):
+        """
+        encode_yaml_config
+        @param collector_config:
+        @param context:
+        @return:
+        """
+        if not collector_config["yaml_config"]:
+            return collector_config
+        collector_config["yaml_config"] = base64.b64encode(collector_config["yaml_config"].encode("utf-8"))
         return collector_config
 
     def retry_instances(self, instance_id_list):
@@ -409,7 +432,7 @@ class K8sCollectorHandler(CollectorHandler):
 
         return yaml.safe_dump_all(result)
 
-    def fast_contain_update(self, params: dict) -> dict:
+    def fast_container_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
         # 补充缺少的清洗配置参数
@@ -470,10 +493,10 @@ class K8sCollectorHandler(CollectorHandler):
                 )
             )
         # 判断是否已存在同bk_data_name, result_table_id
-        bk_data_name = build_bk_data_name(
+        bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=data["collector_config_name_en"]
         )
-        result_table_id = build_result_table_id(
+        result_table_id = self.build_result_table_id(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=data["collector_config_name_en"]
         )
         if self._pre_check_bk_data_name(model_fields=collector_config_params, bk_data_name=bk_data_name):
@@ -553,7 +576,7 @@ class K8sCollectorHandler(CollectorHandler):
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
+                data_name=self.build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -592,7 +615,7 @@ class K8sCollectorHandler(CollectorHandler):
             "task_id_list": self.data.task_id_list,
         }
 
-    def fast_contain_create(self, params: dict) -> dict:
+    def fast_container_create(self, params: dict) -> dict:
         # 补充缺少的容器参数
         container_configs = params["configs"]
         for container_config in container_configs:
@@ -615,7 +638,7 @@ class K8sCollectorHandler(CollectorHandler):
             params["fields"] = []
         # 如果没传入集群ID, 则随机给一个公共集群
         if not params.get("storage_cluster_id"):
-            storage_cluster_id = get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
+            storage_cluster_id = self.get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
             if not storage_cluster_id:
                 raise PublicESClusterNotExistException()
             params["storage_cluster_id"] = storage_cluster_id
@@ -634,6 +657,19 @@ class K8sCollectorHandler(CollectorHandler):
             "task_id_list": self.data.task_id_list,
             "index_set_id": index_set_id,
         }
+
+    def get_labels(self, topo_type, bcs_cluster_id, namespace, name):
+        api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
+        if topo_type == TopoType.NODE.value:
+            nodes = api_instance.list_node(field_selector=f"metadata.name={name}").to_dict()
+            return self._generate_label(nodes)
+        if topo_type == TopoType.POD.value:
+            if not namespace:
+                raise MissedNamespaceException()
+            pods = api_instance.list_namespaced_pod(
+                field_selector=f"metadata.name={name}", namespace=namespace
+            ).to_dict()
+            return self._generate_label(pods)
 
     @classmethod
     def format_bcs_container_config(
@@ -693,7 +729,6 @@ class K8sCollectorHandler(CollectorHandler):
             ],
         }
 
-    # 接口调用
     @classmethod
     def list_bcs_collector_without_rule(cls, bcs_cluster_id: str, bk_biz_id: int):
         """
@@ -892,11 +927,11 @@ class K8sCollectorHandler(CollectorHandler):
                 )
             )
         # 判断是否已存在同bk_data_name, result_table_id
-        bk_data_name = build_bk_data_name(
+        bk_data_name = self.build_bk_data_name(
             bk_biz_id=collector_config_params["bk_biz_id"],
             collector_config_name_en=collector_config_params["collector_config_name_en"],
         )
-        result_table_id = build_result_table_id(
+        result_table_id = self.build_result_table_id(
             bk_biz_id=collector_config_params["bk_biz_id"],
             collector_config_name_en=collector_config_params["collector_config_name_en"],
         )
@@ -922,7 +957,7 @@ class K8sCollectorHandler(CollectorHandler):
         self.data.bk_data_id = collector_scenario.update_or_create_data_id(
             bk_data_id=self.data.bk_data_id,
             data_link_id=self.data.data_link_id,
-            data_name=build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name_en"]),
+            data_name=self.build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name_en"]),
             description=collector_config_params["description"]
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],
@@ -1179,7 +1214,6 @@ class K8sCollectorHandler(CollectorHandler):
             "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
-    # 接口调用
     @staticmethod
     def sync_bcs_container_bkdata_id(data: dict[str, Any]):
         """同步bcs容器采集项bkdata_id"""
@@ -1262,7 +1296,6 @@ class K8sCollectorHandler(CollectorHandler):
             )
         return {"rule_id": rule_id}
 
-    # 接口调用
     @transaction.atomic
     def update_bcs_container_config(self, data, rule_id, bk_app_code="bk_bcs"):
         conf = self._get_bcs_config(
@@ -1498,7 +1531,6 @@ class K8sCollectorHandler(CollectorHandler):
             self.create_container_release(container_config)
         return [config.id for config in container_configs]
 
-    # 接口调用
     def retry_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
@@ -1642,7 +1674,6 @@ class K8sCollectorHandler(CollectorHandler):
             delete_config=delete_config,
         )
 
-    # 内部和接口调用
     def validate_container_config_yaml(self, bk_biz_id, bcs_cluster_id, yaml_config: str):
         """
         解析容器日志yaml配置
@@ -2263,6 +2294,12 @@ class K8sCollectorHandler(CollectorHandler):
             return []
 
         return self.generate_objs(workload_handler().to_dict(), namespaces=namespaces)
+
+    def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
+        pass
+
+    def create_or_update_subscription(self, params):
+        pass
 
     @staticmethod
     def _convert_lower_cluster_id(bcs_cluster_id: str):

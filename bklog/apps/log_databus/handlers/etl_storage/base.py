@@ -452,7 +452,7 @@ class EtlStorage:
         :param target_fields: 定位字段
         :param alias_settings: 别名配置
         """
-        from apps.log_databus.handlers.collector_handler.base_collector import build_result_table_id
+        from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 
         # ES 配置
         es_config = get_es_config(instance.get_bk_biz_id())
@@ -494,7 +494,7 @@ class EtlStorage:
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
-            "table_id": build_result_table_id(instance.get_bk_biz_id(), table_id),
+            "table_id": CollectorHandler().build_result_table_id(instance.get_bk_biz_id(), table_id),
             "is_enable": True,
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,
