@@ -239,6 +239,9 @@ def cache_application_scope_name():
             result_table_id = application.fetch_datasource_info(
                 TelemetryDataType.METRIC.value, attr_name="result_table_id"
             )
+            if result_table_id is None:
+                continue
+
             monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
             if monitor_info and isinstance(monitor_info, dict):
                 cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
