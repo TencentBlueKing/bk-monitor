@@ -848,7 +848,7 @@ export default defineComponent({
       isFullscreen.value = false;
       curTraceId.value = '';
       curTraceIndex.value = -1;
-
+      console.log('handleDialogClose');
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
 
@@ -860,10 +860,8 @@ export default defineComponent({
           path: '/trace/home',
           query: {
             app_name: route.query?.app_name,
-            search_type: 'scope',
-            search_id: 'traceID',
             refreshInterval: '-1',
-            listType: 'trace',
+            sceneMode: 'trace',
             start_time: 'now-1h',
             end_time: 'now',
             query: route.query?.query,
@@ -1347,7 +1345,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${props.appName}&search_type=accurate&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${props.appName}&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }

@@ -55,7 +55,6 @@ import ExploreFieldSetting from '../explore-field-setting/explore-field-setting'
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 
-// import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
@@ -1043,13 +1042,6 @@ export default defineComponent({
           key={title}
           class={`explore-header-col ${chartIconActive}`}
         >
-          {/* 使用这个组件，切换收藏会报错，需要找下问题 */}
-          {/* {fieldOptions?.type && (
-            <FieldTypeIcon
-              style='margin-right: 4px;'
-              type={fieldOptions.type}
-            />
-          )} */}
           <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <span
               class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
