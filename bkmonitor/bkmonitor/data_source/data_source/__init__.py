@@ -2141,7 +2141,7 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             query: dict[str, Any] = copy.deepcopy(base_query)
             query["reference_name"] = self.reference_name or "a"
             # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
-            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语意义。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
             if self.distinct:
                 query["collapse"] = {"field": self.distinct}
 
