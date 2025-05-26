@@ -30,7 +30,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
 import { Input } from 'tdesign-vue-next';
 
-import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_INPUT_EMITS, SETTING_KV_INPUT_PROPS } from './typing';
+import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_INPUT_EMITS, SETTING_KV_INPUT_PROPS } from './typing';
 
 import './setting-kv-input.scss';
 
@@ -129,7 +129,7 @@ export default defineComponent({
                     {{
                       default: () => (
                         <span
-                          class={['method-span', { 'red-text': OPTIONS_METHODS.includes(this.localMethod as any) }]}
+                          class={['method-span', { 'red-text': NOT_TYPE_METHODS.includes(this.localMethod as any) }]}
                         >
                           {this.methodMap[this.localMethod] || this.localMethod}
                         </span>

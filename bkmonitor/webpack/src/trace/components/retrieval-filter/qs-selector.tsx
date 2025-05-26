@@ -192,7 +192,10 @@ export default defineComponent({
       if (regex.test(field)) {
         fieldStr = field.replace(regex, '');
       }
-      if (curTokenType.value === EQueryStringTokenType.condition && type === EQueryStringTokenType.key) {
+      if (
+        (EQueryStringTokenType.condition === type && type === EQueryStringTokenType.key) ||
+        EQueryStringTokenType.method === type
+      ) {
         search.value = '';
       }
       curTokenType.value = type;

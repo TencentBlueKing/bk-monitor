@@ -27,7 +27,7 @@
 import { defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { VALUE_TAG_INPUT_EMITS, VALUE_TAG_INPUT_PROPS } from './typing';
-import { getCharLength } from './utils';
+import { getCharLength, NULL_VALUE_NAME } from './utils';
 
 import './value-tag-input.scss';
 
@@ -161,7 +161,7 @@ export default defineComponent({
           class={'value-span'}
           onClick={() => this.handleClick()}
         >
-          {this.localValue}
+          {this.localValue || NULL_VALUE_NAME}
         </span>
         {this.isEdit ? (
           <textarea
