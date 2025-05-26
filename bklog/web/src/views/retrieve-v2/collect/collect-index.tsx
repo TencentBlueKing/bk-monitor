@@ -42,6 +42,7 @@ import FavoriteManageDialog from './favorite-manage-dialog.vue';
 
 import './collect-index.scss';
 import { nextTick } from 'vue';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 interface IProps {
   collectWidth: number;
@@ -412,6 +413,11 @@ export default class CollectIndex extends tsc<IProps> {
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
     this.$store.commit('updateIsSetDefaultTableColumn', false);
+    this.$store.commit('updateStorage', {
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: value.index_set_type,
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(value.search_mode ?? 'ui'),
+    });
+
     const isUnionIndex = cloneValue.index_set_ids.length > 0;
     const keyword = cloneValue.params.keyword;
     const addition = cloneValue.params.addition ?? [];
