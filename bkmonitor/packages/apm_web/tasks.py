@@ -232,7 +232,7 @@ def cache_application_scope_name():
         return
 
     cache_agent = caches["redis"]
-    for application in Application.objects.filter(is_enabled=True):
+    for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True):
         try:
             bk_biz_id = application.bk_biz_id
             application_id = application.application_id
