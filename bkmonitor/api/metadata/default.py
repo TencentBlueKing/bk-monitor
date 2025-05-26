@@ -953,3 +953,17 @@ class GetDataLabelsMapResource(MetaDataAPIGWResource):
         table_or_labels = serializers.ListField(
             child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
         )
+
+
+class ListBkdataMetricsResource(MetaDataAPIGWResource):
+    """
+    查询计算平台指标数据
+    """
+
+    action = "/app/metadata/list_bk_base_rt_info_by_biz_id/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(required=True, allow_blank=False, allow_null=True, label="业务ID")
+        page = serializers.IntegerField(required=False, default=1, label="页数", min_value=1)
+        page_size = serializers.IntegerField(required=False, default=10, label="页长")

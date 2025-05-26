@@ -428,6 +428,8 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
+        # 单次拉取bk-data的metric数据的最大条数
+        ("MAX_FETCH_BKDATA_METRIC_DATA_SIZE", slz.IntegerField(label="单次拉取metric数据的最大条数", default=1000)),
     ]
 )
 

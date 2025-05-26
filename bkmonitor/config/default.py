@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import ntpath
-import os
 import sys
 from urllib.parse import urljoin
 
@@ -22,7 +21,6 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -758,7 +756,7 @@ else:
 ) = get_grafana_mysql_settings()
 
 try:
-    from dj_db_conn_pool.backends import mysql
+    from dj_db_conn_pool.backends import mysql  # noqa: F401
 
     assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
@@ -1611,3 +1609,6 @@ ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
 
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
+
+# 单次拉取bk-data的metric数据的最大条数
+MAX_FETCH_BKDATA_METRIC_DATA_SIZE = 1000
