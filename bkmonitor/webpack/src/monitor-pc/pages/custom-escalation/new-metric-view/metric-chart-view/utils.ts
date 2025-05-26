@@ -28,6 +28,10 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+
+interface NestedObject<T = unknown> {
+  [key: string]: T | NestedObject<T>;
+}
 export const refreshList = [
   // 刷新间隔列表
   {
@@ -257,7 +261,7 @@ export const formatTipsContent = (name: string, alias: string) => {
   return `${window.i18n.tc('指标名：')}${name || '--'} <br/> ${window.i18n.tc('指标别名：')}${alias || '--'}`;
 };
 
-export const optimizedDeepEqual = (obj1, obj2) => {
+export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
   // 处理特殊情况：非对象或 null
   if (obj1 === obj2) return true;
   if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) return false;
