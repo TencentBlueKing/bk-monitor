@@ -344,8 +344,9 @@ class CollectorHandler:
         collector_config["created_at"] = format_user_time_zone(collector_config["created_at"], time_zone=time_zone)
         return collector_config
 
+    @abc.abstractmethod
     def _pre_start(self):
-        return True
+        raise NotImplementedError
 
     def start(self):
         """
@@ -381,8 +382,9 @@ class CollectorHandler:
         }
         user_operation_record.delay(operation_record)
 
+    @abc.abstractmethod
     def _pre_stop(self):
-        return True
+        raise NotImplementedError
 
     def stop(self):
         """
