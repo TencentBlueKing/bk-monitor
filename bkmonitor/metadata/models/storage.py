@@ -1755,8 +1755,8 @@ class KafkaStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
-                "nothing will add." % table_id,
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
@@ -1780,7 +1780,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config", table_id, bk_tenant_id)
         return new_record
 
     @property
@@ -2013,8 +2013,8 @@ class ESStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] already has es storage config under bk_tenant_id->[%s]"
-                ", nothing will add." % table_id,
+                "result_table->[%s] already has es storage config under bk_tenant_id->[%s], nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
