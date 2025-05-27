@@ -63,6 +63,7 @@ export default defineComponent({
 
     const hiddenEmptyItem = ref(false);
     const searchText = ref('');
+    const isSearchAutoOpen = ref(false);
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
     const favoriteFormData = ref({
@@ -142,6 +143,7 @@ export default defineComponent({
           });
         }
 
+        is_shown_node = is_shown_node || item.children?.some(child => child.is_shown_node);
         return { ...item, is_shown_node };
       });
 
@@ -267,7 +269,16 @@ export default defineComponent({
 
     const handleNodeOpenClick = (e: MouseEvent, node) => {
       e.stopPropagation();
-      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'opened' ? 'closed' : 'opened';
+      let nextStatus = listNodeOpenManager.value[node.index_set_id] === 'opened' ? 'closed' : 'opened';
+
+      if (searchText.value?.length > 0 && listNodeOpenManager.value[node.index_set_id] !== 'forceClosed') {
+        nextStatus = 'forceClosed';
+      }
+
+      if (listNodeOpenManager.value[node.index_set_id] === 'forceClosed') {
+        nextStatus = 'opened';
+      }
+
       set(listNodeOpenManager.value, node.index_set_id, nextStatus);
     };
 
@@ -290,6 +301,18 @@ export default defineComponent({
       );
     };
 
+    const isClosedNode = (item: any) => {
+      if (listNodeOpenManager.value[item.index_set_id] === 'forceClosed') {
+        return true;
+      }
+
+      if (searchText.value?.length > 0) {
+        return false;
+      }
+
+      return listNodeOpenManager.value[item.index_set_id] !== 'opened';
+    };
+
     /**
      * 渲染节点数据
      * @param item
@@ -301,6 +324,7 @@ export default defineComponent({
     const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
       const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
+      const isClosed = () => isClosedNode(item);
 
       return (
         <div
@@ -327,7 +351,7 @@ export default defineComponent({
               class={[
                 'node-open-arrow',
                 {
-                  'is-closed': listNodeOpenManager.value[item.index_set_id] !== 'opened',
+                  'is-closed': isClosed(),
                 },
               ]}
               onClick={e => handleNodeOpenClick(e, item)}
@@ -382,7 +406,7 @@ export default defineComponent({
             const result = [];
             const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
-            if (listNodeOpenManager.value[item.index_set_id] === 'opened') {
+            if (!isClosedNode(item)) {
               (item.children ?? []).forEach(child => {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
                   result.push(renderNodeItem(child, true, false, is_root_checked));
@@ -513,6 +537,11 @@ export default defineComponent({
       }
     };
 
+    const handleSearchTextChange = (val: string) => {
+      searchText.value = val;
+      isSearchAutoOpen.value = val?.length > 0;
+    };
+
     const getFilterRow = () => {
       return (
         <div class='bklog-v3-content-filter'>
@@ -523,7 +552,7 @@ export default defineComponent({
               right-icon="'bk-icon icon-search'"
               style='width: 650px; margin-right: 12px;'
               value={searchText.value}
-              on-input={val => (searchText.value = val)}
+              on-input={handleSearchTextChange}
             ></bk-input>
             <bk-checkbox
               checked={hiddenEmptyItem.value}
