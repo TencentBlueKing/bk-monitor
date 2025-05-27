@@ -22,11 +22,27 @@ import kafka
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.tasks import run_access_event_handler_v2
 from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 
 
 logger = logging.getLogger("access.event")
+
+
+def always_retry(wait):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    logger.exception(f"alert handler error: {func.__name__}: {e}")
+                    time.sleep(wait)
+
+        return wrapper
+
+    return decorator
 
 
 class EventPoller:
@@ -89,6 +105,7 @@ class EventPoller:
     def __del__(self):
         self.should_exit = True
 
+    @always_retry(10)
     def kick_task(self):
         check_time = time.time()
         while True:
@@ -106,7 +123,8 @@ class EventPoller:
         # 添加退出信号处理，支持优雅退出
         signal.signal(signal.SIGTERM, self._stop)
         signal.signal(signal.SIGINT, self._stop)
-
+        kick_task = InheritParentThread(target=self.kick_task)
+        kick_task.start()
         while not self.should_exit:
             try:
                 topic_data = {}
