@@ -60,7 +60,7 @@ from metadata.models.data_link.utils import (
     get_data_source_related_info,
 )
 from metadata.models.data_source import DataSourceResultTable
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -138,6 +138,52 @@ class CreateDataIDResource(Resource):
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
 
+        return {"bk_data_id": new_data_source.bk_data_id}
+
+
+class GetOrCreateAgentEventDataIdResource(Resource):
+    """
+    获取/创建 Agent事件 数据ID
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+        etl_config = EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to get_or_create agent event data id,bk_biz_id->[%s]", bk_biz_id
+        )
+        try:
+            data_source = models.DataSource.objects.get(space_uid=space_uid, etl_config=etl_config)
+            return {"bk_data_id": data_source.bk_data_id}
+        except models.DataSource.DoesNotExist:
+            pass
+        except Exception as e:  # pylint: disable=broad-except
+            raise e
+
+        logger.info("GetOrCreateAgentEventDataIdResource: try to create agent event data id,bk_biz_id->[%s]", bk_biz_id)
+
+        data_name = f"base_{bk_biz_id}_agent_event"  # UNIQUE KEY
+
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to create agent event data id for bk_biz_id->[%s],"
+            "use data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+
+        new_data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=etl_config,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+        )
         return {"bk_data_id": new_data_source.bk_data_id}
 
 

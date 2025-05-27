@@ -28,7 +28,7 @@ from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSIO
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
-from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes, ENABLE_V4_DATALINK_ETL_CONFIGS
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
 
@@ -344,18 +344,20 @@ class DataSource(models.Model):
 
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
-    def apply_for_data_id_from_bkdata(cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID) -> int:
+    def apply_for_data_id_from_bkdata(
+        cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID, is_base: bool = False
+    ) -> int:
         """
         从计算平台申请data_id
         :param data_name: 数据源名称
         :param bk_biz_id: 业务ID
+        :param is_base: 是否是基础数据源
+        :return: data_id
         """
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
         from metadata.models.data_link.service import (
-            apply_data_id,
             apply_data_id_v2,
-            get_data_id,
             get_data_id_v2,
         )
 
@@ -364,14 +366,7 @@ class DataSource(models.Model):
             bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
 
         try:
-            if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
-                logger.info("apply_for_data_id_from_bkdata:apply data id from bkdata v2,data_name->[%s]", data_name)
-                apply_data_id_v2(
-                    data_name=data_name,
-                    bk_biz_id=bk_biz_id,
-                )
-            else:
-                apply_data_id(data_name)
+            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base)
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -381,11 +376,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
-                    logger.info("apply_for_data_id_from_bkdata:get data id from bkdata v2,data_name->[%s]", data_name)
-                    data = get_data_id_v2(data_name)
-                else:
-                    data = get_data_id(data_name)
+                data = get_data_id_v2(data_name)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
@@ -567,10 +558,16 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value:
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 # TODO: 多租户 等待BkBase多租户协议,传递租户ID
-                bk_data_id = cls.apply_for_data_id_from_bkdata(data_name, bk_biz_id)
+                is_base = False
+                if etl_config == EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value:
+                    is_base = True
+
+                bk_data_id = cls.apply_for_data_id_from_bkdata(
+                    data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base
+                )
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)
