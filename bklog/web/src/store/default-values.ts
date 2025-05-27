@@ -138,7 +138,6 @@ const getUrlArgs = (_route?) => {
   if (result.search_mode) {
     updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
   }
-  console.log(result);
   return result;
 };
 

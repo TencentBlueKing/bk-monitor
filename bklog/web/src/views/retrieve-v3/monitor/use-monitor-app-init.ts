@@ -31,6 +31,8 @@ import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
 export default (indexSetApi) => {
@@ -69,6 +71,35 @@ export default (indexSetApi) => {
       '--trend-graph-height': `${trendGraphHeight.value}px`,
     };
   });
+
+    /**
+   * 解析地址栏参数
+   * 在其他模块跳转过来时，这里需要解析路由参数
+   * 更新相关参数到store
+   */
+  const reoverRouteParams = () => {
+    update_URL_ARGS(route);
+    const routeParams = getDefaultRetrieveParams({
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+    });
+    let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
+
+    if (/^-?\d+$/.test(routeParams.index_id)) {
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      activeTab = 'single';
+    }
+
+    if (routeParams.unionList?.length) {
+      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      activeTab = 'union';
+    }
+
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+  };
 
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);
@@ -116,7 +147,6 @@ export default (indexSetApi) => {
 
       // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
-      console.log(route.query.indexId, indexSetIdList.value)
       if (!indexSetIdList.value.length) {
         const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
@@ -188,6 +218,7 @@ export default (indexSetApi) => {
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
   };
 
+  reoverRouteParams()
   const beforeMounted = () => {
     setDefaultRouteUrl();
     getIndexSetList();

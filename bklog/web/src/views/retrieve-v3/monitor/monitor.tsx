@@ -27,12 +27,10 @@
 import { computed, defineComponent, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
 
 import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { updateTimezone } from '../../../language/dayjs';
-import { update_URL_ARGS } from '../../../store/default-values';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import V3Container from '../container';
 import V3Collection from '../favorite';
@@ -70,14 +68,11 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore();
-    const route = useRoute()
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, isPreApiLoaded, getIndexSetList } =
       useMonitorAppInit(props.indexSetApi);
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
     const init = () => {
-      
-    update_URL_ARGS(route);
       const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
       store.commit('updateIndexItem', {
         start_time: result[0],
