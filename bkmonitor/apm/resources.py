@@ -854,6 +854,7 @@ class QuerySpanResource(Resource):
         fields = serializers.ListField(required=False, label="过滤字段")
         category = serializers.CharField(required=False, label="类别")
         group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
+        limit = serializers.IntegerField(required=False, label="限制数量", default=10_000, min_value=1)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -870,6 +871,7 @@ class QuerySpanResource(Resource):
         }
         if not validated_request_data.get("group_keys"):
             param["fields"] = validated_request_data.get("fields")
+            param["limit"] = validated_request_data["limit"]
             return application.trace_datasource.query_span(**param)
 
         param["group_keys"] = validated_request_data.get("group_keys")
