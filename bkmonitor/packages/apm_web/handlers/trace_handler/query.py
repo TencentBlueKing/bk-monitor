@@ -235,11 +235,12 @@ class FieldTransformer(TreeTransformer):
         self.opposite = opposite
 
     def visit_search_field(self, node, _):
+        name = TraceQueryTransformer.to_common_field(node.name)
         if not self.opposite:
-            if node.name not in self.fields:
+            if name not in self.fields:
                 self.is_has_field_not_in_fields = True
         else:
-            if node.name in self.fields:
+            if name in self.fields:
                 self.is_has_field_not_in_fields = True
 
         yield node
