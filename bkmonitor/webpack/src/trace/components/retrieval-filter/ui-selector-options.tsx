@@ -374,7 +374,7 @@ export default defineComponent({
     }
     function updateSelection(index: number) {
       nextTick(() => {
-        const listEl = elRef.value.querySelector('.component-top-left .options-wrap');
+        const listEl = elRef.value?.querySelector('.component-top-left .options-wrap');
         const el = listEl?.children?.[index];
         if (el) {
           if (!isElementVisible(el as HTMLElement, listEl as HTMLElement)) {
