@@ -172,7 +172,9 @@ export default defineComponent({
           .then(resp => {
             if (resp.result) {
               emit('change', { event: e, isSave, data: gradeOptionForm.value });
-              store.commit('updateIndexSetCustomConfig', { grade_options: gradeOptionForm.value });
+              store.commit('updateIndexSetCustomConfig', {
+                grade_options: JSON.parse(JSON.stringify(gradeOptionForm.value)),
+              });
               return;
             }
 
@@ -189,7 +191,7 @@ export default defineComponent({
 
     const updateOptions = (cfg?) => {
       const target = cfg ?? getDefaultGradeOption();
-      Object.assign(gradeOptionForm.value, target);
+      Object.assign(gradeOptionForm.value, JSON.parse(JSON.stringify(target)));
     };
 
     const handleTypeChange = type => {
@@ -269,7 +271,7 @@ export default defineComponent({
             <bk-switcher
               theme='primary'
               value={!gradeOptionForm.value.disabled}
-              on-change={v => handleGradeOptionFormChange('disabled', v)}
+              on-change={v => handleGradeOptionFormChange('disabled', !v)}
             ></bk-switcher>
             <span class='bklog-icon bklog-info-fill'></span>
             <span>指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段</span>
