@@ -33,6 +33,7 @@ import loadingImg from '../../static/img/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
 import { type IValue, VALUE_OPTIONS_EMITS, VALUE_OPTIONS_PROPS } from './typing';
+import { useI18n } from 'vue-i18n';
 
 import './value-options.scss';
 
@@ -41,6 +42,7 @@ export default defineComponent({
   props: VALUE_OPTIONS_PROPS,
   emits: VALUE_OPTIONS_EMITS,
   setup(props, { emit }) {
+    const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
 
     const localOptions = shallowRef<IValue[]>([]);
@@ -281,6 +283,7 @@ export default defineComponent({
       scrollLoading,
       handleCheck,
       handleScroll,
+      t,
     };
   },
   render() {
@@ -314,7 +317,7 @@ export default defineComponent({
         ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {this.noDataSimple ? (
-              <span class='no-data-text'>{this.$t('暂无数据，请输入生成')}</span>
+              <span class='no-data-text'>{this.t('暂无数据，请输入生成')}</span>
             ) : (
               <EmptyStatus type={'empty'} />
             )}

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, type PropType, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
@@ -88,6 +89,8 @@ export default defineComponent({
       max: 0, // 最大值
       step: 0, // 步长 / 刻度
     });
+
+    const { t } = useI18n();
 
     /** 设置滑动选择器状态 */
     const handleSetDurationSlider = (min: number, max: number, step: number) => {
@@ -196,6 +199,7 @@ export default defineComponent({
       chartOptions,
       durationSlider,
       handleDurationChange,
+      t,
     };
   },
   render() {
@@ -204,7 +208,7 @@ export default defineComponent({
         {this.chartOptions && (
           <div class='chart-item'>
             <div class='header'>
-              <span>{this.$t('耗时区间')}</span>
+              <span>{this.t('耗时区间')}</span>
               <span class='range'>
                 <span class='active'>{this.durationSlider.curValText}</span>
                 <span>{` / ${this.durationSlider.overallText}`}</span>

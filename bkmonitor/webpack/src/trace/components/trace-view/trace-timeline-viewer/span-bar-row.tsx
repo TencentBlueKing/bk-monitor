@@ -25,6 +25,7 @@
  */
 
 import { type PropType, computed, defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
@@ -124,6 +125,7 @@ export default defineComponent({
 
     const spanBarCurrentStore = useSpanBarCurrentInject();
     const childrenHiddenStore = useChildrenHiddenInject();
+    const { t } = useI18n();
 
     // 是否跨应用调用 span
 
@@ -202,6 +204,7 @@ export default defineComponent({
       showDuration,
       handleToggleCollapse,
       handleErrorPopoverContent,
+      t,
     };
   },
 
@@ -304,7 +307,7 @@ export default defineComponent({
       >
         {isHaveRead && (
           <Popover
-            content={this.$t('已读')}
+            content={this.t('已读')}
             placement='left'
             theme='dark'
           >
@@ -340,7 +343,7 @@ export default defineComponent({
                   src={CrossAppTag}
                 />
                 <span class='cross-span-name'>{this.crossRelationInfo.app_name}</span>
-                <span class='cross-description'>{`${this.$t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
+                <span class='cross-description'>{`${this.t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
               </a>
             </div>
           </TimelineRowCell>
@@ -373,7 +376,7 @@ export default defineComponent({
                       key={label}
                       extCls='span-error-icon'
                       v-slots={{
-                        content: () => this.handleErrorPopoverContent(this.$t('错误信息'), errorDetail),
+                        content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDetail),
                       }}
                       placement='bottom'
                       popoverDelay={[300, 0]}
@@ -436,17 +439,17 @@ export default defineComponent({
                         content: () =>
                           isExpand ? (
                             <span>
-                              {this.$t('点击折叠')}
+                              {this.t('点击折叠')}
                               <br />
-                              {this.$t('相同"Service + Span name + status"的 Span')}
+                              {this.t('相同"Service + Span name + status"的 Span')}
                             </span>
                           ) : (
                             <span>
-                              {this.$t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
+                              {this.t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
                                 count: groupInfo.members.length,
                               })}
                               <br />
-                              {this.$t('点击展开')}
+                              {this.t('点击展开')}
                             </span>
                           ),
                       }}
@@ -484,13 +487,13 @@ export default defineComponent({
                 v-slots={{
                   content: () => (
                     <div>
-                      <div>{`${this.$t('服务')}: ${displayServiceName}`}</div>
-                      <div>{`${this.$t('接口')}: ${displayOperationName}`}</div>
+                      <div>{`${this.t('服务')}: ${displayServiceName}`}</div>
+                      <div>{`${this.t('接口')}: ${displayOperationName}`}</div>
                       {}
-                      <div>{`${this.$t('类型')}: ${
-                        isVirtual ? this.$t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
+                      <div>{`${this.t('类型')}: ${
+                        isVirtual ? this.t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
                       }`}</div>
-                      <div>{`${this.$t('耗时')}: ${formatDuration(realDuration)}`}</div>
+                      <div>{`${this.t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
                   ),
                 }}

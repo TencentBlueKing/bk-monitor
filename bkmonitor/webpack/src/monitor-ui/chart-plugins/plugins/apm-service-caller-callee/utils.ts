@@ -30,22 +30,22 @@ import dayjs from 'dayjs';
 import { EKind, type ITabItem } from './type';
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
-    label: window.i18n.tc('主调'),
+    label: window.i18n.t('主调'),
     id: EKind.caller,
   },
   {
-    label: window.i18n.tc('被调'),
+    label: window.i18n.t('被调'),
     id: EKind.callee,
   },
 ];
 export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];
 export const PERSPECTIVE_TYPE = [
   {
-    label: window.i18n.tc('单视角'),
+    label: window.i18n.t('单视角'),
     id: 'single',
   },
   {
-    label: window.i18n.tc('多视角'),
+    label: window.i18n.t('多视角'),
     id: 'multiple',
   },
 ];
@@ -74,17 +74,17 @@ export const TAB_TABLE_REQUEST_COLUMN = [
 
 export const TAB_TABLE_TYPE = [
   {
-    label: window.i18n.tc('请求量'),
+    label: window.i18n.t('请求量'),
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
   },
   {
-    label: window.i18n.tc('成功/异常/超时率'),
+    label: window.i18n.t('成功/异常/超时率'),
     id: 'timeout',
     columns: [],
   },
   {
-    label: window.i18n.tc('耗时（ms）'),
+    label: window.i18n.t('耗时（ms）'),
     id: 'consuming',
     columns: [],
   },
@@ -93,31 +93,31 @@ export const TAB_TABLE_TYPE = [
 export const SYMBOL_LIST = [
   {
     value: 'eq',
-    label: window.i18n.tc('等于'),
+    label: window.i18n.t('等于'),
   },
   {
     value: 'neq',
-    label: window.i18n.tc('不等于'),
+    label: window.i18n.t('不等于'),
   },
   {
     value: 'before_req',
-    label: window.i18n.tc('前匹配'),
+    label: window.i18n.t('前匹配'),
   },
   {
     value: 'after_req',
-    label: window.i18n.tc('后匹配'),
+    label: window.i18n.t('后匹配'),
   },
   {
     value: 'include',
-    label: window.i18n.tc('包含'),
+    label: window.i18n.t('包含'),
   },
   {
     value: 'exclude',
-    label: window.i18n.tc('不包含'),
+    label: window.i18n.t('不包含'),
   },
   {
     value: 'reg',
-    label: window.i18n.tc('正则'),
+    label: window.i18n.t('正则'),
   },
 ];
 const CALL_INTERVAL_LIST = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, 120, 180, 240, 300, 600];
@@ -327,12 +327,12 @@ export const createDrillDownList = (
   const listEl = menuList
     .map(
       item =>
-        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
+        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.t('当前维度外层已选中') : ''}">${item.name}</div>`
     )
     .join('');
   el.innerHTML = `
   <div class="contextmenu-list-item-title">
-    ${window.i18n.tc('下钻至')}
+    ${window.i18n.t('下钻至')}
   </div>
   ${listEl}
 `;

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
@@ -47,6 +48,7 @@ export default defineComponent({
   },
   emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
     const handleSetting = () => {};
@@ -187,6 +189,7 @@ export default defineComponent({
       incidentDetail,
       operationsLoading,
       handleCallback,
+      t,
     };
   },
   render() {
@@ -195,7 +198,7 @@ export default defineComponent({
         <div class='failure-process-search'>
           <Input
             v-model={this.queryString}
-            placeholder={this.$t('搜索 流转记录')}
+            placeholder={this.t('搜索 流转记录')}
           />
 
           <Popover
@@ -211,7 +214,7 @@ export default defineComponent({
               default: (
                 <span
                   class='failure-process-search-setting'
-                  v-bk-tooltips={{ content: this.$t('设置展示类型') }}
+                  v-bk-tooltips={{ content: this.t('设置展示类型') }}
                   onClick={this.handleSetting}
                 >
                   <CogShape />
@@ -308,7 +311,7 @@ export default defineComponent({
           ) : (
             <Exception
               description={
-                this.checkedNodes.length || this.queryString !== '' ? this.$t('搜索数据为空') : this.$t('暂无数据')
+                this.checkedNodes.length || this.queryString !== '' ? this.t('搜索数据为空') : this.t('暂无数据')
               }
               scene='part'
               type='empty'
@@ -318,7 +321,7 @@ export default defineComponent({
                   class='link cursor'
                   onClick={this.handleClearSearch}
                 >
-                  {this.$t('清空筛选条件')}
+                  {this.t('清空筛选条件')}
                 </span>
               ) : (
                 ''

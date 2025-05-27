@@ -25,6 +25,7 @@
  */
 
 import { type PropType, computed, defineComponent, onBeforeMount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils/utils';
@@ -84,6 +85,7 @@ export default defineComponent({
   emits: ['change'],
   setup(props, { emit }) {
     const setMealAddModule = SetMealAdd();
+    const { t } = useI18n();
 
     const getMessageTemplateList = computed(() =>
       props.noAutoInput ? [] : setMealAddModule.getMessageTemplateList.filter(item => item.group !== 'CONTENT_VAR')
@@ -109,6 +111,7 @@ export default defineComponent({
       createFormEl,
       getMessageTemplateList,
       validator,
+      t,
     };
   },
   render() {
@@ -183,7 +186,7 @@ export default defineComponent({
                             <Input
                               v-model={this.formModel[item.formItemProps.property]}
                               behavior={'simplicity'}
-                              placeholder={item.formChildProps.placeholder || this.$t('请输入')}
+                              placeholder={item.formChildProps.placeholder || this.t('请输入')}
                               type={'password'}
                               onChange={this.emitModel}
                             />
@@ -192,7 +195,7 @@ export default defineComponent({
                         return (
                           <AutoInput
                             v-model={this.formModel[item.formItemProps.property]}
-                            placeholder={item.formChildProps.placeholder || this.$t('请输入')}
+                            placeholder={item.formChildProps.placeholder || this.t('请输入')}
                             tipsList={this.getMessageTemplateList}
                             on-change={this.emitModel}
                           />

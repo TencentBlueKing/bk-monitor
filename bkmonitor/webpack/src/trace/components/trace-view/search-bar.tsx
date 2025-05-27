@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { TagInput } from 'bkui-vue';
 
@@ -57,6 +58,7 @@ export default defineComponent({
   setup(props, { expose }) {
     const curFocusIndex = ref<number>(0);
     const searchValue = ref<string[]>([]);
+    const { t } = useI18n();
 
     const handleChange = (list: string[]) => {
       if (list.length) {
@@ -95,6 +97,7 @@ export default defineComponent({
       handlePaste,
       handlePrevResult,
       handleNextResult,
+      t,
     };
   },
 
@@ -107,7 +110,7 @@ export default defineComponent({
           v-model={this.searchValue}
           max-data={limitClassify ? 1 : -1}
           paste-fn={this.handlePaste}
-          placeholder={this.$t('搜索')}
+          placeholder={this.t('搜索')}
           allow-auto-match
           allow-create
           has-delete-icon

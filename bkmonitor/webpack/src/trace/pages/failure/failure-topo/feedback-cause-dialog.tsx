@@ -195,7 +195,7 @@ export default defineComponent({
             <Input
               v-model={this.formData.feedbackContent}
               maxlength={300}
-              placeholder={this.$t('请输入')}
+              placeholder={this.t('请输入')}
               type='textarea'
             />
           </Form.FormItem>

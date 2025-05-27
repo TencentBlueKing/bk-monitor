@@ -187,6 +187,7 @@ export default defineComponent({
       handleShowChange,
       handleSubmit,
       handleCancel,
+      t,
     };
   },
   render() {
@@ -200,10 +201,10 @@ export default defineComponent({
               <div class='alarm-dispatch'>
                 <div class='tips'>
                   <span class='icon-monitor icon-hint' />
-                  {this.$t('您一共选择了{0}条告警', [this.alertIds.length])}
+                  {this.t('您一共选择了{0}条告警', [this.alertIds.length])}
                 </div>
                 <div class='form-item'>
-                  <div class='label require'>{this.$t('分派人员')}</div>
+                  <div class='label require'>{this.t('分派人员')}</div>
                   <div
                     class='content'
                     onClick={this.handleFocus}
@@ -212,14 +213,14 @@ export default defineComponent({
                       class='content-user-selector'
                       v-model={this.users}
                       api={this.bkUrl}
-                      empty-text={this.$t('搜索结果为空')}
+                      empty-text={this.t('搜索结果为空')}
                     />
                   </div>
                   {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}
                 </div>
                 <div class='form-item'>
                   <div class='label'>
-                    <div class='title require'>{this.$t('分派原因')}</div>
+                    <div class='title require'>{this.t('分派原因')}</div>
                     <div class='tags'>
                       {reasonList.map(tag => (
                         <span
@@ -239,7 +240,7 @@ export default defineComponent({
                     <Input
                       v-model={this.reason}
                       maxlength={100}
-                      placeholder={this.$t('请输入')}
+                      placeholder={this.t('请输入')}
                       rows={3}
                       type={'textarea'}
                     />
@@ -247,7 +248,7 @@ export default defineComponent({
                   {!!this.errorMsg.reason && <div class='err-msg'>{this.errorMsg.reason}</div>}
                 </div>
                 <div class='form-item'>
-                  <div class='label require'>{this.$t('通知方式')}</div>
+                  <div class='label require'>{this.t('通知方式')}</div>
                   <div
                     class='content'
                     onClick={this.handleFocus}
@@ -276,20 +277,20 @@ export default defineComponent({
               theme='primary'
               onClick={this.handleSubmit}
             >
-              {this.$t('确定')}
+              {this.t('确定')}
             </Button>,
             <Button
               key={'cancel'}
               onClick={this.handleCancel}
             >
-              {this.$t('取消')}
+              {this.t('取消')}
             </Button>,
           ],
         }}
         header-position='left'
         is-show={this.show}
         mask-close={true}
-        title={this.$t('告警分派')}
+        title={this.t('告警分派')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
       />
