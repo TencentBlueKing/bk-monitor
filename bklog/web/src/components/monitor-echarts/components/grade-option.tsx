@@ -215,24 +215,25 @@ export default defineComponent({
       if (gradeOptionForm.value.type === 'custom' && !gradeOptionForm.value.disabled) {
         if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE) {
           return (
-            <bk-select
+            <bk-tag-input
               style='width: 100%;'
-              ext-popover-cls='bklog-popover-stop'
               value={item.fieldValue}
               searchable
+              trigger='focus'
               multiple
+              allow-create
+              clearable
+              list={fieldSearchValueList.value}
               onChange={v => handleSettingItemChange(index, 'fieldValue', v)}
-            >
-              {fieldSearchValueList.value.map((option, i) => {
-                return (
-                  <bk-option
-                    key={option.id}
-                    name={option.name}
-                    id={option.id}
-                  ></bk-option>
-                );
-              })}
-            </bk-select>
+              tpl={data => (
+                <div
+                  class='bklog-popover-stop'
+                  style='line-height: 30px; padding: 0 12px; width: 100%;'
+                >
+                  {data.name}
+                </div>
+              )}
+            ></bk-tag-input>
           );
         }
 

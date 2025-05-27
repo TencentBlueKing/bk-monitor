@@ -31,6 +31,7 @@ import RetrieveEvent from './retrieve-core/retrieve-events';
 import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
 import { RouteQueryTab } from './retrieve-v3/index.type';
+import { parseTableRowData } from '@/common/util';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
@@ -209,8 +210,10 @@ class RetrieveHelper extends RetrieveBase {
       return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
-    if (options.type === 'custom' && field[options.field]) {
-      const target = this.convertToMatchableString(field[options.field]);
+    const fieldValue = parseTableRowData(field, options.field, field.field_type);
+
+    if (options.type === 'custom' && fieldValue) {
+      const target = this.convertToMatchableString(fieldValue);
 
       if (!target) {
         return null;
