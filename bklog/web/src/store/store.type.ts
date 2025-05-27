@@ -51,6 +51,8 @@ enum BK_LOG_STORAGE {
 
   /**
    * 索引集激活的tab
+   * single - 单选
+   * union - 多选
    */
   INDEX_SET_ACTIVE_TAB = '_10',
 

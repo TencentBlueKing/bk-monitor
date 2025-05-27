@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, computed, watch } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 
-import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS } from './typing';
+import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
 import { NULL_VALUE_NAME } from './utils';
 
 import './kv-tag.scss';
@@ -149,7 +149,9 @@ export default defineComponent({
         >
           <div class='key-wrap'>
             <span class='key-name'>{`${this.localValue.key.name} (${this.localValue.key.id})`}</span>
-            <span class={['key-method', this.localValue.method.id]}>{this.localValue.method.name}</span>
+            <span class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id) }]}>
+              {this.localValue.method.name}
+            </span>
           </div>
           <div class={['value-wrap', { 'hide-value': this.isHide }]}>
             {this.$slots?.value ? (

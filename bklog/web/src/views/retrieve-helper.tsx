@@ -28,7 +28,7 @@ import { Ref } from 'vue';
 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
+import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
 import { RouteQueryTab } from './retrieve-v3/index.type';
 
@@ -122,9 +122,44 @@ class RetrieveHelper extends RetrieveBase {
     this.markInstance.incrementalUpdate();
   }
 
+  isMatchedGroup(group, fieldValue, isGradeMatchValue) {
+    if (isGradeMatchValue) {
+      return group.fieldValue?.includes(fieldValue) ?? false;
+    }
+
+    const regExp = new RegExp(group.regExp);
+    return regExp.test(fieldValue);
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): string | null {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
   /**
    * 解析日志级别
-   * @param str
+   * @param field
+   * @param options
    * @returns
    */
   getLogLevel(field: any, options: GradeConfiguration) {
@@ -133,7 +168,7 @@ class RetrieveHelper extends RetrieveBase {
     }
 
     if ((options?.type ?? 'normal') === 'normal') {
-      const str = field?.log ?? '';
+      const str = this.convertToMatchableString(field?.log);
 
       if (!str?.trim()) return null;
 
@@ -175,13 +210,19 @@ class RetrieveHelper extends RetrieveBase {
     }
 
     if (options.type === 'custom' && field[options.field]) {
-      const target = `${field[options.field]}`;
+      const target = this.convertToMatchableString(field[options.field]);
+
+      if (!target) {
+        return null;
+      }
+
       const levels = [];
       // 截取前1000字符避免性能问题
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
+            levels.push(item.id);
         }
       });
 

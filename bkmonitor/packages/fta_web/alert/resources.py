@@ -1883,9 +1883,6 @@ class ValidateQueryString(Resource):
     def perform_request(self, validated_request_data):
         if not validated_request_data["query_string"]:
             return ""
-
-        self.process_metric_id(validated_request_data)
-
         transformer_cls = {
             SearchType.ALERT: AlertQueryHandler.query_transformer,
             SearchType.ACTION: ActionQueryHandler.query_transformer,
@@ -1894,34 +1891,6 @@ class ValidateQueryString(Resource):
         search_type = validated_request_data["search_type"]
         ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
         return ret
-
-    @staticmethod
-    def process_metric_id(validated_request_data):
-        """
-        当指定指标ID时，且指标ID不是正常的数据格式，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
-        此时需要对指标ID进行转义
-
-        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
-        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
-        """
-        if ":" not in validated_request_data["query_string"]:
-            return
-        target_type, query_string = validated_request_data["query_string"].split(":", 1)
-        target_type = target_type.strip()
-
-        if target_type in ["指标ID", "event.metric"]:
-
-            # 检查是否为有效的指标ID，如果是则不进行转义
-            try:
-                query_string = query_string.replace("'", "").replace('"', '')
-                if parse_metric_id(query_string):
-                    return
-            except Exception:
-                pass
-
-            pattern = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
-            query_string = re.sub(pattern, lambda match: '\\' + match.group(0), query_string.strip())
-            validated_request_data["query_string"] = f"{target_type} : {query_string}"
 
 
 class BaseTopNResource(Resource):

@@ -122,6 +122,68 @@
         />
       </div>
     </div>
+    <div
+      v-if="params.match_type === 'command'"
+      class="form-item"
+    >
+      <label class="item-label">{{ $t('调试') }}</label>
+      <div class="item-content debug-content">
+        <bk-input
+          ext-cls="debug-control"
+          v-model="debugProcesses"
+          :maxlength="100"
+          :placeholder="$t('输入示例文本查看匹配结果')"
+          type="textarea"
+        />
+        <bk-button
+          :disabled="!debugProcesses"
+          :outline="true"
+          theme="primary"
+          @click="handleDebug"
+        >
+          {{ $t('调试') }}
+        </bk-button>
+        <div
+          v-if="debugResult.length"
+          class="debug-result"
+        >
+          <div class="result">
+            <span>{{ $t('调试结果') }}: </span>
+          </div>
+          <bk-table
+            ext-cls="debug-result-table"
+            :data="debugResult"
+            :header-border="false"
+            :outer-border="false"
+            custom-header-color="#F5F7FA"
+          >
+            <bk-table-column
+              width="150"
+              label="匹配进程"
+              prop="process_name"
+            >
+            </bk-table-column>
+            <bk-table-column
+              label="匹配维度"
+              prop="dimensions"
+            >
+              <template slot-scope="props">
+                <div class="match-dimension">
+                  <div
+                    v-for="[key, value] in Object.entries(props.row.dimensions)"
+                    class="dimension"
+                    :key="key"
+                  >
+                    <span class="dimension-key">{{ key }} = </span>
+                    <span class="dimension-value">{{ value }}</span>
+                  </div>
+                </div>
+              </template>
+            </bk-table-column>
+          </bk-table>
+        </div>
+      </div>
+    </div>
     <div class="form-item">
       <label class="item-label">{{ $t('端口探测') }}</label>
       <div class="item-content">
@@ -138,6 +200,8 @@
   </div>
 </template>
 <script>
+import { processCollectorDebug } from 'monitor-api/modules/plugin';
+
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
 export default {
@@ -171,6 +235,10 @@ export default {
         match_pattern: false,
       },
       pluginDisplayName: this.$t('进程采集插件'),
+      /** 调试文本 */
+      debugProcesses: '',
+      /** 调试结果 */
+      debugResult: [],
     };
   },
   watch: {
@@ -190,6 +258,28 @@ export default {
       }
       this.rules.match_pattern = !this.params.match_pattern;
       return !!this.params.match_pattern;
+    },
+    /** 调试
+     * @param {String} debug 调试文本
+     * @return {Boolean}
+     */
+    async handleDebug() {
+      try {
+        const data = await processCollectorDebug({
+          match: this.params.match_pattern,
+          exclude: this.params.exclude_pattern,
+          processes: this.debugProcesses,
+          dimensions: this.params.extract_pattern,
+          process_name: this.params.process_name,
+        });
+        if (!data) {
+          this.debugResult = [];
+          return;
+        }
+        this.debugResult = data;
+      } catch (error) {
+        console.log('error', error);
+      }
     },
   },
 };
@@ -234,6 +324,61 @@ export default {
 
     :deep(.bk-radio-text) {
       font-size: 12px;
+    }
+
+    &.debug-content {
+      width: 800px;
+      display: flex;
+      flex-direction: column;
+      .debug-control {
+        margin-bottom: 8px;
+        background: #fff;
+
+        .bk-textarea-wrapper {
+          height: 80px;
+        }
+      }
+      button {
+        width: 52px;
+      }
+      .debug-result {
+        margin-bottom: 12px;
+        .result {
+          margin-top: 10px;
+          font-size: 12px;
+          color: #63656e;
+          margin-bottom: 8px;
+        }
+        .debug-result-table {
+          .bk-table-body-wrapper {
+            td {
+              display: flex;
+              .match-dimension {
+                display: flex;
+                flex: 1;
+                flex-wrap: wrap;
+                .dimension {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 2px;
+                  padding: 4px;
+                  margin: 4px 0;
+                  margin-right: 4px;
+                  font-size: 12px;
+                  background: #eaebf0;
+                  border-radius: 2px;
+                  .dimension-key {
+                    color: #757880;
+                  }
+                  .dimension-value {
+                    color: #313238;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

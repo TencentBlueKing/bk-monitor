@@ -611,7 +611,9 @@ class EtlStorage:
         else:
             # 更新结果表
             params["table_id"] = table_id
-            TransferApi.modify_result_table(params)
+            from apps.log_databus.tasks.collector import modify_result_table
+
+            modify_result_table.delay(params)
             cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
 
         if not instance.table_id:

@@ -2085,11 +2085,10 @@ export default defineComponent({
         path: '/trace/home',
         query: {
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
-          search_type: 'scope',
-          search_id: 'traceID',
           refreshInterval: '-1',
+          filterMode: 'queryString',
           query: rca_trace_info.abnormal_traces_query.query,
-          listType: 'trace',
+          sceneMode: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
           ...query,
         },

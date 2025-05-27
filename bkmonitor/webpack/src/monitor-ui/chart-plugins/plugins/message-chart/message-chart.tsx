@@ -156,9 +156,9 @@ export default class MessageChart extends CommonSimpleChart {
       name: 'trace-retrieval',
       query: {
         app_name: this.queryConfig['filter-app_name'],
-        search_type: 'accurate',
-        search_id: 'traceID',
-        trace_id: item.trace_id,
+        where: JSON.stringify([{ key: 'trace_id', operator: 'equal', value: [item.trace_id] }]),
+        filterMode: 'ui',
+        sceneMode: 'trace',
       },
     };
     const routeData = this.$router.resolve(params);

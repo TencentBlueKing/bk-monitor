@@ -338,7 +338,7 @@ export default defineComponent({
             cursorIndex.value = searchLocalFields.value.length - 1;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
 
@@ -349,7 +349,7 @@ export default defineComponent({
             cursorIndex.value = 0;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
         case 'Enter': {

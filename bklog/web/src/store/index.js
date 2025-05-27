@@ -546,17 +546,24 @@ const store = new Vuex.Store({
       state.indexId = indexId;
     },
     updateUnionIndexList(state, unionIndexList) {
+      const updateIndexItem = unionIndexList.updateIndexItem ?? true;
+      const list = Array.isArray(unionIndexList) ? unionIndexList : unionIndexList.list;
+
       state.unionIndexList.splice(
         0,
         state.unionIndexList.length,
-        ...unionIndexList.filter(v => v !== null && v !== undefined),
+        ...list.filter(v => v !== null && v !== undefined),
       );
-      state.indexItem.ids.splice(
-        0,
-        state.indexItem.ids.length,
-        ...unionIndexList.filter(v => v !== null && v !== undefined),
-      );
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
+
+      if (updateIndexItem) {
+        state.indexItem.ids.splice(
+          0,
+          state.indexItem.ids.length,
+          ...list.filter(v => v !== null && v !== undefined),
+        );
+      }
+
+      const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {

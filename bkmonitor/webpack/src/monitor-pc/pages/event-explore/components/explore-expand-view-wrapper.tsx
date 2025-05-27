@@ -81,7 +81,7 @@ export default class ExploreExpandViewWrapper extends tsc<
   @Prop({ type: Object }) scrollSubject?: ExploreSubject;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
-  @Prop({ type: Object }) kvFieldCache: WeakMap<any, KVFieldList[]>;
+  @Prop({ type: WeakMap }) kvFieldCache: WeakMap<any, KVFieldList[]>;
   /** 筛选时间范围-跳转时使用 */
   @InjectReactive('timeRange') timezone: string;
   /** 当前活跃的nav */

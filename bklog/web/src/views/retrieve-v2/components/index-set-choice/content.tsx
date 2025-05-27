@@ -65,7 +65,7 @@ export default defineComponent({
     },
   },
   emits: ['type-change', 'value-change', 'auth-request'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { $t } = useLocale();
     const route = useRoute();
 
@@ -222,6 +222,10 @@ export default defineComponent({
       if (props.activeId === 'favorite') {
         requestFavoriteList(null);
       }
+    });
+
+    expose({
+      resetUnionList: () => (unionListValue.value = [...props.value]),
     });
 
     return () => (

@@ -23,35 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { defineComponent } from 'vue';
-import { computed } from 'vue';
-
-import { fieldTypeMap } from '../utils';
-
-import './field-type-icon.scss';
-
-export default defineComponent({
-  name: 'FieldTypeIcon',
-  props: {
-    type: {
-      type: String,
-      required: true,
-    },
-  },
-  setup(props) {
-    const info = computed(() => fieldTypeMap[props.type] || fieldTypeMap.other);
-    return {
-      info,
-    };
-  },
-  render() {
-    return (
-      <i
-        style={{ color: this.info?.color, background: this.info?.bgColor, fontSize: this.info?.fontSize || '14px' }}
-        class={[this.info?.icon, 'field-type-icon']}
-        v-bk-tooltips={{ content: this.info?.name }}
-      />
-    );
-  },
-});
+export const asignWindowField = (data: Record<string, any>, isLowerCase = true) => {
+  Object.assign(
+    window,
+    ...Object.entries(data).map(([key, value]) => ({ [isLowerCase ? key.toLowerCase() : key]: value }))
+  );
+};

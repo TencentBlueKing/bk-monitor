@@ -109,6 +109,10 @@ export default defineComponent({
       return [...thumbtack, ...other];
     });
 
+    const applicationFilter = (keyword: string, item) => {
+      return item.name.includes(keyword) || item.id.includes(keyword);
+    };
+
     const handleFavoriteShowChange = () => {
       emit('favoriteShowChange', !props.isShowFavorite);
     };
@@ -199,6 +203,7 @@ export default defineComponent({
       applicationToggle,
       headerToolMenuList,
       handleMenuSelectChange,
+      applicationFilter,
       handleApplicationToggle,
       handleApplicationChange,
       handleSceneModelChange,
@@ -254,6 +259,7 @@ export default defineComponent({
                 extCls: 'trace-explore-application-select-popover',
               }}
               clearable={false}
+              filterOption={this.applicationFilter}
               modelValue={this.store.appName}
               filterable
               onSelect={this.handleApplicationChange}
@@ -283,7 +289,7 @@ export default defineComponent({
                     <Select.Option
                       id={item.app_name}
                       key={item.app_name}
-                      name={item.app_name}
+                      name={item.app_alias}
                     >
                       {this.applicationToggle && (
                         <div class={['application-item-name', { is_top: item.isTop }]}>

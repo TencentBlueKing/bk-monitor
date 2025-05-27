@@ -96,6 +96,7 @@ export default defineComponent({
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
+    const refContentObject: Ref<any | null> = ref(null);
 
     let unionListValue = [];
 
@@ -108,6 +109,7 @@ export default defineComponent({
 
       onShow: () => {
         isOpened.value = true;
+        refContentObject.value?.resetUnionList();
       },
       onHide: () => {
         isOpened.value = false;
@@ -208,6 +210,7 @@ export default defineComponent({
             scopedSlots: {
               content: () => (
                 <Content
+                  ref={refContentObject}
                   list={props.indexSetList}
                   type={props.activeType}
                   value={props.indexSetValue}

@@ -259,12 +259,12 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            content={t('整个Trace的第一个Span')}
+            content={t('整个 Trace 的第一个 Span')}
             placement='right'
             popoverDelay={[500, 0]}
             theme='light'
           >
-            <span class='th-label'>{t('根Span')}</span>
+            <span class='th-label'>{t('根 Span')}</span>
           </Popover>
         ),
         field: 'root_span_name',
@@ -291,7 +291,7 @@ export default defineComponent({
       {
         label: () => (
           <Popover
-            content={t('服务端进程的第一个Service')}
+            content={t('服务端进程的第一个 Service')}
             placement='right'
             popoverDelay={[500, 0]}
             theme='light'
@@ -848,7 +848,7 @@ export default defineComponent({
       isFullscreen.value = false;
       curTraceId.value = '';
       curTraceIndex.value = -1;
-
+      console.log('handleDialogClose');
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
 
@@ -860,13 +860,12 @@ export default defineComponent({
           path: '/trace/home',
           query: {
             app_name: route.query?.app_name,
-            search_type: 'scope',
-            search_id: 'traceID',
             refreshInterval: '-1',
-            listType: 'trace',
+            sceneMode: 'trace',
             start_time: 'now-1h',
             end_time: 'now',
             query: route.query?.query,
+            filterMode: 'queryString',
           },
         });
     };
@@ -1293,7 +1292,7 @@ export default defineComponent({
             popoverDelay={[500, 0]}
             theme='light'
           >
-            <span class='th-label'>{t('所属Trace')}</span>
+            <span class='th-label'>{t('所属 Trace')}</span>
           </Popover>
         ),
         field: 'trace_id',
@@ -1347,7 +1346,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${props.appName}&search_type=accurate&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${props.appName}&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -1592,18 +1591,18 @@ export default defineComponent({
                     onChange={this.handleSpanTypeChange}
                   >
                     <Popover
-                      content={this.$t('整个Trace的第一个Span')}
+                      content={this.$t('整个 Trace 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.RootSpan}>{this.$t('根 Span')}</Checkbox>
                     </Popover>
                     <Popover
-                      content={this.$t('每个Service的第一个Span')}
+                      content={this.$t('每个 Service 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口 Span')}</Checkbox>
                     </Popover>
                     {/* 20230816 后端未上线勿删 */}
                     {/* <Checkbox

@@ -60,16 +60,19 @@
 
     &.explore-link-col {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       color: #3a84ff;
+
+      & > a {
+        display: inline-flex;
+        flex-basis: auto;
+        align-items: center;
+        min-width: 0;
+      }
 
       .explore-link-text {
         flex-basis: auto;
         min-width: 0;
-
-        a {
-          vertical-align: text-bottom;
-        }
       }
 
       .icon-monitor {
@@ -197,6 +200,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    &:has(> .explore-table-condition-menu) {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
   }
 
   .explore-table-hidden-all {
@@ -343,5 +352,15 @@
         opacity: unset !important;
       }
     }
+  }
+
+  .t-table--column-fixed .t-table__cell--fixed-left-last::after {
+    border-right-width: 1px !important;
+    box-shadow: 1px 0px 3px 0px rgba(0, 0, 0, 0.12);
+  }
+
+  .t-table--column-fixed .t-table__cell--fixed-right-first::after {
+    border-left-width: 1px !important;
+    box-shadow: -1px 0px 3px 0px rgba(0, 0, 0, 0.12);
   }
 }
