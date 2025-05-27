@@ -25,12 +25,14 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-  import * as authorityMap from '@/common/authority-map';
+import * as authorityMap from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
 export default (indexSetApi) => {
@@ -70,6 +72,35 @@ export default (indexSetApi) => {
     };
   });
 
+    /**
+   * 解析地址栏参数
+   * 在其他模块跳转过来时，这里需要解析路由参数
+   * 更新相关参数到store
+   */
+  const reoverRouteParams = () => {
+    update_URL_ARGS(route);
+    const routeParams = getDefaultRetrieveParams({
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+    });
+    let activeTab = 'single';
+    Object.assign(routeParams, { ids: [] });
+
+    if (/^-?\d+$/.test(routeParams.index_id)) {
+      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      activeTab = 'single';
+    }
+
+    if (routeParams.unionList?.length) {
+      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      activeTab = 'union';
+    }
+
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+  };
+
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);
     store.commit('retrieve/updateIndexSetList', []);
@@ -104,7 +135,6 @@ export default (indexSetApi) => {
       });
   };
 
-
   /**
    * 拉取索引集列表
    */
@@ -113,11 +143,11 @@ export default (indexSetApi) => {
     return getApmIndexSetList().then(resp => {
       isPreApiLoaded.value = true;
 
-      if(!resp?.length) return
+      if (!resp?.length) return
 
       // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
-      if (!route.query.indexId) {
+      if (!indexSetIdList.value.length) {
         const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
         store.commit('updateIndexId', defaultId);
@@ -130,10 +160,19 @@ export default (indexSetApi) => {
       // 需要检查索引集列表中是否包含解析出来的索引集信息
       // 避免索引信息不存在导致的频繁错误请求和异常提示
       const emptyIndexSetList = [];
-      if (route.query.indexId) {
+      const indexSetItems = [];
+      const indexSetIds = [];
+
+      if (indexSetIdList.value.length) {
         indexSetIdList.value.forEach(id => {
-          if (!resp.some(item => `${item.index_set_id}` === `${id}`)) {
+          const item = resp.find(item => `${item.index_set_id}` === `${id}`);
+          if (!item) {
             emptyIndexSetList.push(id);
+          }
+
+          if (item) {
+            indexSetItems.push(item);
+            indexSetIds.push(id);
           }
         });
 
@@ -144,6 +183,10 @@ export default (indexSetApi) => {
             is_error: true,
             exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
           });
+        }
+
+        if (indexSetItems.length) {
+          store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
         }
       }
 
@@ -175,6 +218,7 @@ export default (indexSetApi) => {
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
   };
 
+  reoverRouteParams()
   const beforeMounted = () => {
     setDefaultRouteUrl();
     getIndexSetList();
@@ -229,7 +273,6 @@ export default (indexSetApi) => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
-    store.dispatch('requestFavoriteList');
   });
 
   onUnmounted(() => {

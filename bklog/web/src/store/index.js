@@ -59,11 +59,11 @@ import {
   BkLogGlobalStorageKey,
   URL_ARGS,
 } from './default-values.ts';
-import { BK_LOG_STORAGE } from './store.type.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
+import { BK_LOG_STORAGE } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 
@@ -847,9 +847,6 @@ const store = new Vuex.Store({
     // 初始化监控默认数据
     initMonitorState(state, payload) {
       Object.assign(state, payload);
-    },
-    resetState(state) {
-      Object.assign(state, deepClone(stateTpl));
     },
     updateLocalSort(state, payload) {
       state.localSort = payload;

@@ -68,7 +68,6 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore();
-
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, isPreApiLoaded, getIndexSetList } =
       useMonitorAppInit(props.indexSetApi);
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
