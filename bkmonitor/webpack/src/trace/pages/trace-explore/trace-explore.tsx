@@ -322,11 +322,6 @@ export default defineComponent({
     });
 
     function getUrlParams() {
-      /** 对所有参数进行解析 */
-      const urlQuery: Record<string, string> = Object.keys(route.query).reduce((pre, cur) => {
-        pre[cur] = decodeURIComponent(route.query[cur] as string);
-        return pre;
-      }, {});
       const {
         start_time,
         end_time,
@@ -345,7 +340,7 @@ export default defineComponent({
         /** 兼容一下老版本的listType和query参数 */
         listType,
         query,
-      } = urlQuery;
+      } = route.query;
       try {
         store.init({
           timeRange: start_time ? [start_time as string, end_time as string] : DEFAULT_TIME_RANGE,
@@ -355,12 +350,12 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        where.value = JSON.parse((queryWhere as string) || '[]');
-        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        where.value = JSON.parse(decodeURIComponent((queryWhere as string) || '[]'));
+        commonWhere.value = JSON.parse(decodeURIComponent((queryCommonWhere as string) || '[]'));
+        checkboxFilters.value = JSON.parse(decodeURIComponent((selectedType as string) || '[]'));
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
-        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
