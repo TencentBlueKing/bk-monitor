@@ -1611,6 +1611,8 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
+# IAM多租户配置
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
