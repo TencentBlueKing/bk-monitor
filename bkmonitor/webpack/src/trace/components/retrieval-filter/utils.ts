@@ -30,49 +30,49 @@ import type { ShallowRef } from 'vue';
 
 export const fieldTypeMap = {
   all: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-a-',
     color: '#979BA5',
     bgColor: '#E8EAF0',
   },
   integer: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   long: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   boolean: {
-    name: window.i18n.tc('布尔'),
+    name: window.i18n.t('布尔'),
     icon: 'icon-monitor icon-buer',
     color: '#CB7979',
     bgColor: '#F0DFDF',
   },
   keyword: {
-    name: window.i18n.tc('字符串'),
+    name: window.i18n.t('字符串'),
     icon: 'icon-monitor icon-Str',
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
   text: {
-    name: window.i18n.tc('文本'),
+    name: window.i18n.t('文本'),
     icon: 'icon-monitor icon-text1',
     color: '#508CC8',
     bgColor: '#E1E7F2',
   },
   date: {
-    name: window.i18n.tc('时间'),
+    name: window.i18n.t('时间'),
     icon: 'icon-monitor icon-Time',
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },
   other: {
-    name: window.i18n.tc('其他'),
+    name: window.i18n.t('其他'),
     icon: 'icon-monitor icon-Others',
     color: '#B59D8D',
     bgColor: '#EBE0D9',

@@ -226,7 +226,7 @@ export default defineComponent({
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
-              window.i18n.tc('加载中...')
+              window.i18n.t('加载中...')
             ) : (
               <Exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>

@@ -62,7 +62,7 @@ export default defineComponent({
     },
     placeholder: {
       type: String,
-      default: window.i18n.tc('选择'),
+      default: window.i18n.t('选择'),
     },
   },
   emits: ['clear', 'change'],

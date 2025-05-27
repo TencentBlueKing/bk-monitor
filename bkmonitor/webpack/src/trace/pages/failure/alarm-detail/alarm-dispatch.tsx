@@ -36,7 +36,7 @@ import BkUserSelector from '../../alarm-shield/components/member-selector';
 
 import './alarm-dispatch.scss';
 
-const reasonList = [window.i18n.tc('当前工作安排较多'), window.i18n.tc('不在职责范围内'), window.i18n.tc('无法处理')];
+const reasonList = [window.i18n.t('当前工作安排较多'), window.i18n.t('不在职责范围内'), window.i18n.t('无法处理')];
 
 export default defineComponent({
   props: {
@@ -223,6 +223,7 @@ export default defineComponent({
                     <div class='tags'>
                       {reasonList.map(tag => (
                         <span
+                          key={tag}
                           class='tag'
                           onClick={() => this.handleTagClick(tag)}
                         >
@@ -253,7 +254,12 @@ export default defineComponent({
                   >
                     <BkCheckboxGroup v-model={this.noticeWay}>
                       {this.noticeWayList.map(item => (
-                        <Checkbox label={item.type}>{item.label}</Checkbox>
+                        <Checkbox
+                          key={item.type}
+                          label={item.type}
+                        >
+                          {item.label}
+                        </Checkbox>
                       ))}
                     </BkCheckboxGroup>
                   </div>
@@ -264,6 +270,7 @@ export default defineComponent({
           ),
           footer: () => [
             <Button
+              key='submit'
               style={{ 'margin-right': '8px' }}
               disabled={this.loading}
               theme='primary'
@@ -271,7 +278,12 @@ export default defineComponent({
             >
               {this.$t('确定')}
             </Button>,
-            <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>,
+            <Button
+              key={'cancel'}
+              onClick={this.handleCancel}
+            >
+              {this.$t('取消')}
+            </Button>,
           ],
         }}
         header-position='left'
