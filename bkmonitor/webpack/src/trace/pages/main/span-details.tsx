@@ -286,9 +286,6 @@ export default defineComponent({
         events,
         process,
         source,
-        error,
-        message,
-
         stage_duration,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
@@ -503,58 +500,36 @@ export default defineComponent({
         });
       }
       /** Events信息 来源：status_message & events */
-      if (error || events?.length) {
+      if (events?.length) {
         const eventList = [];
-        if (error) {
-          eventList.push({
-            isExpan: false,
-            header: {
-              date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message',
-            },
-            content: [
-              {
-                label: 'span.status_message',
-                content: message || '--',
-                type: 'string',
-                isFormat: false,
-                // 这里固定写死
-                query_key: 'status.message',
-                query_value: message,
-              },
-            ],
-          });
-        }
-        if (events?.length) {
-          eventList.push(
-            ...events
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(
-                (item: {
-                  timestamp: number;
-                  duration: number;
-                  name: any;
-                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-                }) => ({
-                  isExpan: false,
-                  header: {
-                    timestamp: item.timestamp,
-                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                    duration: formatDuration(item.duration),
-                    name: item.name,
-                  },
-                  content: item.attributes.map(attribute => ({
-                    label: attribute.key,
-                    content: attribute.value || '--',
-                    type: attribute.type,
-                    isFormat: false,
-                    query_key: attribute?.query_key || '',
-                    query_value: attribute?.query_value || '',
-                  })),
-                })
-              )
-          );
-        }
+        eventList.push(
+          ...events
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .map(
+              (item: {
+                timestamp: number;
+                duration: number;
+                name: any;
+                attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
+              }) => ({
+                isExpan: false,
+                header: {
+                  timestamp: item.timestamp,
+                  date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                  duration: formatDuration(item.duration),
+                  name: item.name,
+                },
+                content: item.attributes.map(attribute => ({
+                  label: attribute.key,
+                  content: attribute.value || '--',
+                  type: attribute.type,
+                  isFormat: false,
+                  query_key: attribute?.query_key || '',
+                  query_value: attribute?.query_value || '',
+                })),
+              })
+            )
+        );
         info.list.push({
           type: EListItemType.events,
           isExpan: true,
@@ -1469,7 +1444,7 @@ export default defineComponent({
                               );
                             })}
                           </div>,
-                          '',
+                          ` (${content.list.length})`,
                           isExpan => handleExpanChange(isExpan, index)
                         );
                       }

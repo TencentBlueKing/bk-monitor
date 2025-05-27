@@ -185,10 +185,10 @@ export default defineComponent({
       const lastXAxisItemFirst = Number(lastXAxisItem.split('-')?.[0] ?? 0); // 最大刻度范围起始值
       // 由于刻度均分原因 最大值不一定与最大刻度值相等
       if (curStart === lastXAxisItemFirst) {
-        return curStart < selectEnd ? '#A3C5FD' : '#DCDEE5';
+        return curStart < selectEnd ? '#5AB8A8' : '#DCDEE5';
       }
 
-      return curStart >= selectStart && curEnd <= selectEnd ? '#A3C5FD' : '#DCDEE5';
+      return curStart >= selectStart && curEnd <= selectEnd ? '#5AB8A8' : '#DCDEE5';
     };
 
     return {

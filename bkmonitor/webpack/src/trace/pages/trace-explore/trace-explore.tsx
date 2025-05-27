@@ -322,6 +322,11 @@ export default defineComponent({
     });
 
     function getUrlParams() {
+      /** 对所有参数进行解析 */
+      const urlQuery: Record<string, string> = Object.keys(route.query).reduce((pre, cur) => {
+        pre[cur] = decodeURIComponent(route.query[cur] as string);
+        return pre;
+      }, {});
       const {
         start_time,
         end_time,
@@ -340,7 +345,7 @@ export default defineComponent({
         /** 兼容一下老版本的listType和query参数 */
         listType,
         query,
-      } = route.query;
+      } = urlQuery;
       try {
         store.init({
           timeRange: start_time ? [start_time as string, end_time as string] : DEFAULT_TIME_RANGE,
