@@ -376,7 +376,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
