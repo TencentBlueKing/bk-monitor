@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, nextTick, ref } from 'vue';
 import { bkMessage } from 'bk-magic-vue';
 
 import useLocale from '@/hooks/use-locale';
@@ -33,12 +33,14 @@ import $http from '@/api';
 
 import './grade-option.scss';
 import { GradeFieldValueType, GradeSetting } from '../../../views/retrieve-core/interface';
+import { parseTableRowData } from '../../../common/util';
 
 const getDefaultGradeOption = () => {
   return {
     disabled: false,
     type: 'normal',
     field: null,
+    fieldType: 'string',
     valueType: GradeFieldValueType.VALUE,
     settings: [
       {
@@ -127,12 +129,17 @@ export default defineComponent({
 
     const isLoading = ref(false);
 
+    const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
+
+    const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));
     const fieldSearchValueList = computed(() => {
       if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE && gradeOptionForm.value.field) {
         const storedValues = gradeOptionForm.value.settings.map(item => item.fieldValue ?? []).flat();
         return Array.from(
           new Set([
-            ...store.state.indexSetQueryResult.list.map(item => item[gradeOptionForm.value.field]),
+            ...store.state.indexSetQueryResult.list.map(item =>
+              parseTableRowData(item, gradeOptionForm.value.field, gradeOptionField.value?.field_type, true),
+            ),
             ...storedValues,
           ]),
         ).map(f => ({ id: `${f}`, name: `${f}` }));
@@ -140,8 +147,6 @@ export default defineComponent({
 
       return [];
     });
-
-    const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
 
     const handleSaveGradeSettingClick = (e: MouseEvent, isSave = true) => {
       if (!isSave) {
@@ -201,6 +206,13 @@ export default defineComponent({
 
     const handleSettingItemChange = (index: number, key: string, value: any) => {
       gradeOptionForm.value.settings[index][key] = value;
+    };
+
+    const handleSettingFieldChange = (value: any) => {
+      handleGradeOptionFormChange('field', value);
+      nextTick(() => {
+        handleGradeOptionFormChange('fieldType', gradeOptionField.value?.field_type);
+      });
     };
 
     expose({
@@ -289,7 +301,7 @@ export default defineComponent({
                 value={gradeOptionForm.value.field}
                 searchable
                 disabled={gradeOptionForm.value.disabled}
-                on-change={val => handleGradeOptionFormChange('field', val)}
+                on-change={val => handleSettingFieldChange(val)}
                 placeholder={$t('请选择字段')}
               >
                 {fieldList.value.map(option => (
