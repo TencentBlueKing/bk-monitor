@@ -311,8 +311,8 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2
       vant:
-        specifier: ^2.13.6
-        version: 2.13.6(vue@2.7.16)
+        specifier: ^2.13.8
+        version: 2.13.8(vue@2.7.16)
       vconsole:
         specifier: ^3.15.1
         version: 3.15.1
@@ -484,8 +484,8 @@ importers:
   src/monitor-ui:
     dependencies:
       '@antv/g6':
-        specifier: ^4.8.24
-        version: 4.8.24
+        specifier: ^4.8.25
+        version: 4.8.25
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -596,8 +596,8 @@ importers:
   src/trace:
     dependencies:
       '@antv/g6':
-        specifier: ^4.8.24
-        version: 4.8.24
+        specifier: ^4.8.25
+        version: 4.8.25
       '@blueking/date-picker':
         specifier: 2.0.0-beta.46
         version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
@@ -746,8 +746,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0(vue@3.5.15(typescript@5.8.3))
       vue-router:
-        specifier: ^4.5.0
-        version: 4.5.0(vue@3.5.15(typescript@5.8.3))
+        specifier: ^4.5.1
+        version: 4.5.1(vue@3.5.15(typescript@5.8.3))
     devDependencies:
       '@types/d3':
         specifier: ^7.4.3
@@ -812,21 +812,21 @@ packages:
   '@antv/g6-core@0.8.24':
     resolution: {integrity: sha512-rgI3dArAD8uoSz2+skS4ctN4x/Of33ivTIKaEYYvClxgkLZWVz9zvocy+5AWcVPBHZsAXkZcdh9zndIoWY/33A==}
 
-  '@antv/g6-element@0.8.24':
-    resolution: {integrity: sha512-61FXkt9LY+6EOUtSam1iFTOW2AM59sPVcV1BuPj4dXiD0dluLE+R7d8B/94g1tKDw9tsjhfUQGC7hTXscJRJFw==}
+  '@antv/g6-element@0.8.25':
+    resolution: {integrity: sha512-bPsI+dS9rdp80O/XyV0iy6QiusyOgO/diCIsGQuLHs6rBqjLtDA5yu9JDo49mPA3JblJV0MYjbgL8Exou7Ecqw==}
     peerDependencies:
-      '@antv/g6': 4.8.24
+      '@antv/g6': 4.8.25
 
-  '@antv/g6-pc@0.8.24':
-    resolution: {integrity: sha512-nf0y1lrp8J5DotqRryXd2S/J30COW8spVcLF9gUqywGqQAHfE00Ywkqr+PZBnsfCZXsXCi9o0+CE9NrkWs4SBQ==}
+  '@antv/g6-pc@0.8.25':
+    resolution: {integrity: sha512-HZ2QyDbgsUQpQBFqrA8Zcvm/rAKN4n3I7XEeWCODZgyhQ8kz2f3qdzrRXDPmMyclexi0JF9DarCs8a2rzhV5YA==}
 
-  '@antv/g6-plugin@0.8.24':
-    resolution: {integrity: sha512-ZIOnwLTC7SM2bFiJZ3vYFWnkyOCWKqnU96i/fBh1qAoY5slDS3hatenZWEXUtOcqaKw1h+5A5f72MRXqBBVn0g==}
+  '@antv/g6-plugin@0.8.25':
+    resolution: {integrity: sha512-TAincRgNzrZNGBt1TvzfQV0Ob6OO3+WCcTrCZb4PzRoOessAiMsNm0S7x+7NFm30DJVC8Ud2M7M2V9DjhVd8Wg==}
     peerDependencies:
-      '@antv/g6': 4.8.24
+      '@antv/g6': 4.8.25
 
-  '@antv/g6@4.8.24':
-    resolution: {integrity: sha512-bgj7sZ+z45JmOngIpYpwmSIg7SboMLZBoAlX0+RoAETZB3/xvZO0MXT3lCSyAhIgm5Sb68pekKi7OStuo04NyQ==}
+  '@antv/g6@4.8.25':
+    resolution: {integrity: sha512-8mdTnN9QMVNQZtlXmftL8fvRsa4L+GajK58Zp51wyrGLFyjeop8R0QSkCALW45DWP2TaQeZAPtjhQUU/wf5hIg==}
 
   '@antv/graphlib@1.2.0':
     resolution: {integrity: sha512-hhJOMThec51nU4Fe5p/viLlNIL71uDEgYFzKPajWjr2715SFG1HAgiP6AVylIeqBcAZ04u3Lw7usjl/TuI5RuQ==}
@@ -8085,8 +8085,8 @@ packages:
     resolution: {integrity: sha512-36B2ryl4+oL5QxZ3AzD0t5SsMNGvTtQHpjgFO5tbNxfXbMFkY822ktCDe1MnlqV3301QQI9SLHDNJokDI+Z9pA==}
     engines: {node: '>= 0.10'}
 
-  vant@2.13.6:
-    resolution: {integrity: sha512-znjA/oKGh5s47xoc0Eq0PkEa8fwXKOAFdJ6eB3YOamwoRouvZYTILpdB25wtDqvVVK8v5AQAc6GHVHFVWcQRNA==}
+  vant@2.13.8:
+    resolution: {integrity: sha512-w5xDfQROoI2uIWjKVfng9sI+DOQYRZhWKdXj3flJQuay1+YJAxoooCI3COPgi+uazJwHrvF86CG6q/mCyVBRIA==}
     peerDependencies:
       vue: '>= 2.6.0'
 
@@ -8221,8 +8221,8 @@ packages:
     peerDependencies:
       vue: ^2
 
-  vue-router@4.5.0:
-    resolution: {integrity: sha512-HDuk+PuH5monfNuY+ct49mNmkCRK4xJAV9Ts4z9UFc4rzdDnxQLyCMGGc8pKhZhHTVzfanpNwB/lwqevcBwI4w==}
+  vue-router@4.5.1:
+    resolution: {integrity: sha512-ogAF3P97NPm8fJsE4by9dwSYtDwXIY1nFY9T6DyQnGHd1E2Da94w9JIolpe42LJGIl0DwOHBi8TcRPlPGwbTtw==}
     peerDependencies:
       vue: ^3.2.0
 
@@ -8611,15 +8611,15 @@ snapshots:
       ml-matrix: 6.12.0
       tslib: 2.8.1
 
-  '@antv/g6-element@0.8.24(@antv/g6@4.8.24)':
+  '@antv/g6-element@0.8.25(@antv/g6@4.8.25)':
     dependencies:
       '@antv/g-base': 0.5.16
-      '@antv/g6': 4.8.24
+      '@antv/g6': 4.8.25
       '@antv/g6-core': 0.8.24
       '@antv/util': 2.0.17
       tslib: 2.8.1
 
-  '@antv/g6-pc@0.8.24(@antv/g6@4.8.24)':
+  '@antv/g6-pc@0.8.25(@antv/g6@4.8.25)':
     dependencies:
       '@ant-design/colors': 4.0.5
       '@antv/algorithm': 0.1.26
@@ -8630,8 +8630,8 @@ snapshots:
       '@antv/g-math': 0.1.9
       '@antv/g-svg': 0.5.7
       '@antv/g6-core': 0.8.24
-      '@antv/g6-element': 0.8.24(@antv/g6@4.8.24)
-      '@antv/g6-plugin': 0.8.24(@antv/g6@4.8.24)
+      '@antv/g6-element': 0.8.25(@antv/g6@4.8.25)
+      '@antv/g6-plugin': 0.8.25(@antv/g6@4.8.25)
       '@antv/hierarchy': 0.6.14
       '@antv/layout': 0.3.25(dagre@0.8.5)
       '@antv/matrix-util': 3.1.0-beta.3
@@ -8646,24 +8646,24 @@ snapshots:
     transitivePeerDependencies:
       - '@antv/g6'
 
-  '@antv/g6-plugin@0.8.24(@antv/g6@4.8.24)':
+  '@antv/g6-plugin@0.8.25(@antv/g6@4.8.25)':
     dependencies:
       '@antv/dom-util': 2.0.4
       '@antv/g-base': 0.5.16
       '@antv/g-canvas': 0.5.17
       '@antv/g-svg': 0.5.7
-      '@antv/g6': 4.8.24
+      '@antv/g6': 4.8.25
       '@antv/g6-core': 0.8.24
-      '@antv/g6-element': 0.8.24(@antv/g6@4.8.24)
+      '@antv/g6-element': 0.8.25(@antv/g6@4.8.25)
       '@antv/matrix-util': 3.1.0-beta.3
       '@antv/path-util': 2.0.15
       '@antv/scale': 0.3.18
       '@antv/util': 2.0.17
       insert-css: 2.0.0
 
-  '@antv/g6@4.8.24':
+  '@antv/g6@4.8.25':
     dependencies:
-      '@antv/g6-pc': 0.8.24(@antv/g6@4.8.24)
+      '@antv/g6-pc': 0.8.25(@antv/g6@4.8.25)
 
   '@antv/graphlib@1.2.0': {}
 
@@ -17036,7 +17036,7 @@ snapshots:
 
   validator@13.15.0: {}
 
-  vant@2.13.6(vue@2.7.16):
+  vant@2.13.8(vue@2.7.16):
     dependencies:
       '@babel/runtime': 7.27.0
       '@vant/icons': 3.0.2
@@ -17225,7 +17225,7 @@ snapshots:
     dependencies:
       vue: 2.7.16
 
-  vue-router@4.5.0(vue@3.5.15(typescript@5.8.3)):
+  vue-router@4.5.1(vue@3.5.15(typescript@5.8.3)):
     dependencies:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.15(typescript@5.8.3)

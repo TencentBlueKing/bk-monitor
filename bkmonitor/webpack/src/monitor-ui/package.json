@@ -14,7 +14,7 @@
   "author": "bk fe",
   "license": "ISC",
   "dependencies": {
-    "@antv/g6": "^4.8.24",
+    "@antv/g6": "^4.8.25",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/monitor-apm-log": "1.0.1-beta.8",
     "@blueking/monitor-resource-topo": "0.0.1-beta.36",
