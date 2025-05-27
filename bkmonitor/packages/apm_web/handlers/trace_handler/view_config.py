@@ -148,10 +148,17 @@ class TraceFieldsHandler:
 
         return field_type not in {"object", "nested"}
 
-    def is_dimensions(self, field_type: str) -> bool:
+    def is_dimensions(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
         """判断字段是否可以用于聚合和获取枚举值"""
 
-        return field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]
+        if field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]:
+            if mode == QueryMode.TRACE:
+                return field_name not in ["min_start_time", "max_end_time", "root_span_id", "trace_id"]
+            elif mode == QueryMode.SPAN:
+                return field_name not in ["time", "start_time", "end_time", "span_id", "trace_id"]
+            else:
+                return True
+        return False
 
     def can_displayed(self, field_type: str) -> bool:
         """判断字段是否可以显示"""
@@ -190,7 +197,7 @@ class TraceFieldsHandler:
                     alias=self.get_field_alias(field_name),
                     type=field_type,
                     is_searched=self.is_searched(field_type),
-                    is_dimensions=self.is_dimensions(field_type),
+                    is_dimensions=self.is_dimensions(mode, field_name, field_type),
                     can_displayed=self.can_displayed(field_type),
                     supported_operations=self.get_supported_operations(field_type),
                 )
