@@ -181,7 +181,6 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    debugger;
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {

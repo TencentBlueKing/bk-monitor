@@ -199,7 +199,6 @@
   };
 
   const handleIndexSetValueChange = (values, type, id) => {
-    debugger;
     const storage = {
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
         ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
