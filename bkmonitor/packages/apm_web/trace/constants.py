@@ -78,6 +78,7 @@ class OperatorEnum:
         LT["operator"]: QueryStringOperators.LT,
         GTE["operator"]: QueryStringOperators.GTE,
         LTE["operator"]: QueryStringOperators.LTE,
+        "between": QueryStringOperators.BETWEEN,
     }
 
 

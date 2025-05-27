@@ -120,15 +120,18 @@ class QueryStringGenerator:
                 else:
                     c_list.append(c)
             result_values.append(f"*{''.join(c_list)}*")
-        return values
+        return result_values
 
     def _process_values_by_add_double_quotation(self, values: list) -> list:
         """将值两端添加双引号"""
 
         result_values = []
         for v in values:
-            v = str(v).replace('"', '\\"')
-            result_values.append(f'"{v}"')
+            if isinstance(v, str):
+                v = v.replace('"', '\\"')
+                result_values.append(f'"{v}"')
+            else:
+                result_values.append(v)
         return result_values
 
     def _process_values(self, query_string_operator: str, values: list, is_wildcard: bool) -> list:
@@ -175,9 +178,10 @@ class QueryStringGenerator:
                 logic_operator = QueryStringLogicOperators.OR
             else:
                 logic_operator = QueryStringLogicOperators.AND
-            result_str = f" {logic_operator} ".join(values)
+            result_str = f" {logic_operator} ".join(map(str, values))
             if len(values) > 1:
                 result_str = f"({result_str})"
+            result_str = template.format(field=field, value=result_str)
         return result_str
 
     def to_query_string(self) -> str:
