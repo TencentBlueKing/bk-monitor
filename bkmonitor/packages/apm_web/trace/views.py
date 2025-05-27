@@ -49,8 +49,6 @@ from packages.apm_web.handlers.trace_handler.dimension_statistics import (
     DimensionStatisticsAPIHandler,
 )
 
-from .mock_data import API_TOPK_DATA
-
 
 class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
@@ -174,14 +172,9 @@ class TraceQueryViewSet(ResourceViewSet):
         api_topk_data = DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
         file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['fields'][0]}.csv"
-        if validated_data.get("is_mock"):
-            file_content = (
-                [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in API_TOPK_DATA[0]["list"]
-            )
-        else:
-            file_content = (
-                [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_data[0]["list"]
-            )
+        file_content = (
+            [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_data[0]["list"]
+        )
         response = generate_csv_file_download_response(file_name, file_content)
 
         return response
