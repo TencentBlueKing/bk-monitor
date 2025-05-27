@@ -58,10 +58,10 @@ class QueryStringBuilder:
     # TraceId must be a 32-hex-character lowercase string
     # Add possible spaces and quotes.
     # Add possible field prefixes like `trace_id: xxx`.
-    TRACE_ID_PATTERN = re.compile(r"^(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*$")
+    TRACE_ID_PATTERN = re.compile(r"^\s*\"?(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*\"?$")
 
     # SpanId must be a 16-hex-character lowercase string
-    SPAN_ID_PATTERN = re.compile(r"^(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*$")
+    SPAN_ID_PATTERN = re.compile(r"^\s*\"(?:span_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*\"?$")
 
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
@@ -111,6 +111,15 @@ class QueryStringBuilder:
     def extract_trace_id(cls, query_string: str) -> str:
         return cls.extract_keyword(cls.TRACE_ID_PATTERN, query_string)
 
+    @classmethod
+    def extract(cls, extract_funcs: dict[str, Callable[[str], str]], query_string: str) -> tuple[str, str]:
+        """提取查询语句中的关键字和预测字段"""
+        for predicted_field, extract_func in extract_funcs.items():
+            keyword: str = extract_func(query_string)
+            if keyword:
+                return predicted_field, keyword
+        return "", query_string
+
     def special_check(self, query_string: str) -> str:
         """特殊字符检查"""
         if query_string.strip() == "":
@@ -121,11 +130,10 @@ class QueryStringBuilder:
             OtlpKey.SPAN_ID: self.extract_span_id,
             OtlpKey.TRACE_ID: self.extract_trace_id,
         }
-        for predicted_field, extract_func in extract_funcs.items():
-            keyword: str = extract_func(query_string)
-            if keyword:
-                self._predicted_field = predicted_field
-                return f'"{keyword}"'
+        predicted_field, keyword = self.extract(extract_funcs, query_string)
+        if predicted_field:
+            self._predicted_field = predicted_field
+            return f'"{keyword}"'
 
         if self.NO_KEYWORD_QUERY_PATTERN.search(query_string):
             return query_string
@@ -184,6 +192,15 @@ class QueryTreeTransformer(BaseTreeTransformer):
     def generate_query(self, query_string: str) -> str:
         if not query_string:
             return ""
+
+        # 如果直接命中 TraceID / SpanID 检索，无需解析语法树，避免 "trace_id: "xx"" 语法树误识别为多层的问题。
+        extract_funcs: dict[str, Callable[[str], str]] = {
+            OtlpKey.SPAN_ID: QueryStringBuilder.extract_span_id,
+            OtlpKey.TRACE_ID: QueryStringBuilder.extract_trace_id,
+        }
+        predicted_field, keyword = QueryStringBuilder.extract(extract_funcs, query_string)
+        if predicted_field:
+            return f'{predicted_field}: "{keyword}"'
 
         try:
             query_tree = parser.parse(query_string, lexer=lexer)
