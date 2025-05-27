@@ -264,7 +264,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
     # 计算平台元数据一致性 Redis Watch
     ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
-    # 主动拉取刷新metric数据， 2h一次
+    # 主动拉取刷新metric数据， 每2小时执行一次
     ("metadata.task.refresh_metric_list", "0 */2 * * *", "global"),
 ]
 # 耗时任务单独队列处理
