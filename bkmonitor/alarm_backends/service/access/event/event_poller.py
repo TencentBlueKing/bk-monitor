@@ -109,7 +109,7 @@ class EventPoller:
     def kick_task(self):
         check_time = time.time()
         while True:
-            if time.time() - check_time < 3.0:
+            if time.time() - check_time < 5.0:
                 time.sleep(1)
             client = key.EVENT_SIGNAL_KEY.client
             signal_channel = key.EVENT_SIGNAL_KEY.get_key()
