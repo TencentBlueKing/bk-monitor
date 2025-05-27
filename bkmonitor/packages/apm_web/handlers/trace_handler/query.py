@@ -58,10 +58,10 @@ class QueryStringBuilder:
     # TraceId must be a 32-hex-character lowercase string
     # Add possible spaces and quotes.
     # Add possible field prefixes like `trace_id: xxx`.
-    TRACE_ID_PATTERN = re.compile(r"^\s*\"?(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*\"?$")
+    TRACE_ID_PATTERN = re.compile(r"^\s*[\"']?(?:trace_id\s*:\s*)?\s*[\"']?\s*([0-9a-f]{32})\s*[\"']?\s*[\"']?$")
 
     # SpanId must be a 16-hex-character lowercase string
-    SPAN_ID_PATTERN = re.compile(r"^\s*\"(?:span_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*\"?$")
+    SPAN_ID_PATTERN = re.compile(r"^\s*[\"']?(?:span_id\s*:\s*)?\s*[\"']?\s*([0-9a-f]{16})\s*[\"']?\s*[\"']?$")
 
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
