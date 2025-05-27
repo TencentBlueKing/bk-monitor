@@ -416,7 +416,7 @@ export default defineComponent({
             ) : (
               <EmptyStatus
                 textMap={{
-                  empty: this.$tc('暂未匹配到符合条件的收藏项'),
+                  empty: this.$t('暂未匹配到符合条件的收藏项'),
                 }}
                 type={'empty'}
               />

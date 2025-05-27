@@ -540,7 +540,7 @@ export default defineComponent({
               <div
                 class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
-                  content: window.i18n.tc('清空'),
+                  content: window.i18n.t('清空'),
                   delay: 300,
                 }}
                 onClick={this.handleClear}
@@ -550,7 +550,7 @@ export default defineComponent({
               <div
                 class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
-                  content: window.i18n.tc('复制'),
+                  content: window.i18n.t('复制'),
                   delay: 300,
                 }}
                 onClick={this.handleCopy}
@@ -561,7 +561,7 @@ export default defineComponent({
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
-                    content: window.i18n.tc('常驻筛选'),
+                    content: window.i18n.t('常驻筛选'),
                     delay: 300,
                   }}
                   onClick={() => this.handleShowResidentSetting()}
@@ -584,7 +584,7 @@ export default defineComponent({
                         <div
                           class='favorite-btn'
                           v-bk-tooltips={{
-                            content: window.i18n.tc('收藏'),
+                            content: window.i18n.t('收藏'),
                             delay: 300,
                           }}
                           onClick={this.handleFavoriteClick}

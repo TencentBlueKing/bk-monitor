@@ -50,6 +50,7 @@ export default defineComponent({
       <i
         style={{ color: this.info?.color, background: this.info?.bgColor, fontSize: this.info?.fontSize || '14px' }}
         class={[this.info?.icon, 'field-type-icon']}
+        v-bk-tooltips={{ content: this.info?.name }}
       />
     );
   },

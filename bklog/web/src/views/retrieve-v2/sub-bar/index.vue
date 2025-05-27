@@ -205,6 +205,10 @@
         isUnionIndex: type === 'union',
       });
 
+      if (type === 'union') {
+        store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
+      }
+
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
     }
 

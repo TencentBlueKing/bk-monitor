@@ -338,7 +338,7 @@ export default defineComponent({
             cursorIndex.value = searchLocalFields.value.length - 1;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
 
@@ -349,7 +349,7 @@ export default defineComponent({
             cursorIndex.value = 0;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
         case 'Enter': {
@@ -610,7 +610,7 @@ export default defineComponent({
                   />
                 )}
               </div>
-              {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
+              {this.isIntegerError ? <div class='error-msg'>{this.$t('仅支持输入数值类型')}</div> : undefined}
             </div>,
             !!this.groupRelationItem && (
               <div

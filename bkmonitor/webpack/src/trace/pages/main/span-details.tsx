@@ -631,7 +631,6 @@ export default defineComponent({
       //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
       // );
       // window.open(url, '_blank');
-
       const where = JSON.stringify([
         {
           key: content.query_key,
@@ -641,7 +640,7 @@ export default defineComponent({
       ]);
       const url = location.href.replace(
         location.hash,
-        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&where=${where}&filterMode=ui`
+        `#/trace/home?app_name=${appName.value}&sceneMode=span&where=${where}&filterMode=ui`
       );
       window.open(url, '_blank');
     };
@@ -692,7 +691,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${appName.value}&sceneMode=trace&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }

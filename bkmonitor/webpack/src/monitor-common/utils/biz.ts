@@ -26,7 +26,7 @@
 // 空间类型对应map
 export const SPACE_TYPE_MAP = {
   bkcc: {
-    name: window.i18n.tc('业务'),
+    name: window.i18n.t('业务'),
     dark: {
       color: '#478EFC',
       backgroundColor: '#2B354D',
@@ -37,7 +37,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   default: {
-    name: window.i18n.tc('监控空间'),
+    name: window.i18n.t('监控空间'),
     dark: {
       color: '#B3B3B3',
       backgroundColor: '#333333',
@@ -48,7 +48,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   bkci: {
-    name: window.i18n.tc('研发项目'),
+    name: window.i18n.t('研发项目'),
     dark: {
       color: '#F85959',
       backgroundColor: '#4C3232',
@@ -59,7 +59,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   bcs: {
-    name: window.i18n.tc('容器项目'),
+    name: window.i18n.t('容器项目'),
     dark: {
       color: '#FC943B',
       backgroundColor: '#453921',
@@ -70,7 +70,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   paas: {
-    name: window.i18n.tc('蓝鲸应用'),
+    name: window.i18n.t('蓝鲸应用'),
     dark: {
       color: '#2BB950',
       backgroundColor: '#223B2B',
@@ -81,7 +81,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   bksaas: {
-    name: window.i18n.tc('蓝鲸应用'),
+    name: window.i18n.t('蓝鲸应用'),
     dark: {
       color: '#2BB950',
       backgroundColor: '#223B2B',

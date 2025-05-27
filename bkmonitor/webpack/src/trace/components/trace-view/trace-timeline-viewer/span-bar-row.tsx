@@ -167,6 +167,31 @@ export default defineComponent({
       emit('toggleCollapse', groupID, status);
     };
 
+    /**
+     * @description: span错误icon hover 鼠标移入弹出内容详情 popover
+     * @param title popover 标题
+     * @param detail 需要展示的kv结构数据
+     */
+    const handleErrorPopoverContent = (title: string, detail: Record<string, any>) => {
+      return (
+        <div class='span-row-content-popover'>
+          <div class='span-row-content-popover-title'>{title}</div>
+          <div class='span-row-content-popover-main'>
+            {Object.entries(detail).map(([label, value]) => (
+              <div
+                key={label}
+                class='popover-main-item'
+              >
+                <span class='content-item-key'>{label}</span>
+                <span class='content-item-colon'>:</span>
+                <span class='content-item-value'>{value || '--'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
     return {
       detailToggle,
       childrenToggle,
@@ -176,6 +201,7 @@ export default defineComponent({
       ellipsisDirection,
       showDuration,
       handleToggleCollapse,
+      handleErrorPopoverContent,
     };
   },
 
@@ -212,6 +238,7 @@ export default defineComponent({
       ebpf_tap_port_name: ebpfTapPortName = '',
       group_info: groupInfo,
       is_expand: isExpand,
+      attributes,
     } = span as Record<string, any>;
     /** 折叠节点的耗时取自 group_info.duration */
     const realDuration = groupInfo && groupInfo.id === spanID && !isExpand ? groupInfo.duration : duration;
@@ -232,14 +259,34 @@ export default defineComponent({
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
+    let errorDetail = {
+      'span.status_message': '',
+      'trpc.status_msg': '',
+    };
+    if (showErrorIcon) {
+      errorDetail = attributes?.reduce?.(
+        (prev, curr) => {
+          if (!['span.status_message', 'trpc.status_msg'].includes(curr.key)) {
+            return prev;
+          }
+          prev[curr.key] = curr.value;
+          return prev;
+        },
+        {
+          'span.status_message': '',
+          'trpc.status_msg': '',
+        }
+      );
+    }
+
     let longLabel: string;
     let hintSide: string;
     if (viewStart && viewEnd && viewStart > 1 - viewEnd) {
       longLabel = `${labelDetail}${label ? ` | ${label}` : ''}`;
-      hintSide = 'left';
+      hintSide = 'right';
     } else {
       longLabel = `${label ? `${label} | ` : ''}${labelDetail}`;
-      hintSide = 'right';
+      hintSide = 'left';
     }
 
     return (
@@ -322,11 +369,21 @@ export default defineComponent({
                   tabindex={0}
                 >
                   {showErrorIcon && (
-                    <img
-                      class='error-icon'
-                      alt='error'
-                      src={ErrorIcon}
-                    />
+                    <Popover
+                      key={label}
+                      extCls='span-error-icon'
+                      v-slots={{
+                        content: () => this.handleErrorPopoverContent(this.$t('错误信息'), errorDetail),
+                      }}
+                      placement='bottom'
+                      popoverDelay={[300, 0]}
+                    >
+                      <img
+                        class='error-icon'
+                        alt='error'
+                        src={ErrorIcon}
+                      />
+                    </Popover>
                   )}
                   {span?.icon && (
                     <img

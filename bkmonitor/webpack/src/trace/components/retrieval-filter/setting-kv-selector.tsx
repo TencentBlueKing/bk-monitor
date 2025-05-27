@@ -32,8 +32,8 @@ import { Dropdown } from 'bkui-vue';
 import tippy, { sticky } from 'tippy.js';
 
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
-import { onClickOutside, triggerShallowRef } from './utils';
+import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
+import { NOT_VALUE_METHODS, onClickOutside, triggerShallowRef } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -65,6 +65,7 @@ export default defineComponent({
       return new Set(localValue.value);
     });
     const isHighLight = computed(() => !!inputValue.value || showSelector.value || expand.value);
+    const notNeedValueWrap = computed(() => NOT_VALUE_METHODS.includes(localMethod.value));
 
     init();
     onMounted(() => {
@@ -248,6 +249,9 @@ export default defineComponent({
       handleChange();
     }
     function handleChange() {
+      if (notNeedValueWrap.value) {
+        localValue.value = [];
+      }
       emit('change', {
         ...props.value,
         key: props.fieldInfo.field,
@@ -287,6 +291,7 @@ export default defineComponent({
       isHover,
       optionsWidth,
       showSelector,
+      notNeedValueWrap,
       handleIsChecked,
       handleMouseenter,
       handleMouseleave,
@@ -309,7 +314,7 @@ export default defineComponent({
         class={['vue3_resident-setting__setting-kv-selector-component', { active: this.isHighLight }]}
       >
         <div
-          class={['component-main', { expand: this.expand }]}
+          class={['component-main', { expand: this.expand, 'not-value-wrap': this.notNeedValueWrap }]}
           onMouseenter={this.handleMouseenter}
           onMouseleave={this.handleMouseleave}
         >
@@ -331,7 +336,7 @@ export default defineComponent({
             >
               {{
                 default: () => (
-                  <span class={['method-span', { 'red-text': OPTIONS_METHODS.includes(this.localMethod as any) }]}>
+                  <span class={['method-span', { 'red-text': NOT_TYPE_METHODS.includes(this.localMethod as any) }]}>
                     {this.methodMap[this.localMethod] || this.localMethod}
                   </span>
                 ),
@@ -351,9 +356,11 @@ export default defineComponent({
               }}
             </Dropdown>
           </span>
+
           <div
             style={{
               borderBottomWidth: this.localValue?.length ? '1px' : '0',
+              display: this.notNeedValueWrap ? 'none' : 'flex',
             }}
             class='value-wrap'
             onClick={this.handleClickValueWrap}
