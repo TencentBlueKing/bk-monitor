@@ -25,6 +25,7 @@
  */
 
 import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Pagination, Popover } from 'bkui-vue';
 
@@ -70,6 +71,7 @@ export default defineComponent({
   },
   emits: ['viewDetail', 'listChange'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 每页显示条数 */
     const pageLimit = 30;
     /** 当前页 */
@@ -142,6 +144,7 @@ export default defineComponent({
       handlePageChange,
       spanListBody,
       isScrollBody,
+      t,
     };
   },
   render() {
@@ -188,13 +191,13 @@ export default defineComponent({
               {{
                 default: () => (
                   <div class='sort-select'>
-                    <span class='text'>{this.$t('产生时间')}</span>
+                    <span class='text'>{this.t('产生时间')}</span>
                     <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
                   </div>
                 ),
                 content: () => (
                   <div class=''>
-                    <div class='select-item'>{this.$t('产生时间')}</div>
+                    <div class='select-item'>{this.t('产生时间')}</div>
                   </div>
                 ),
               }}

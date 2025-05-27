@@ -25,8 +25,10 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import { Button, Dialog, Loading, Select } from 'bkui-vue';
+
 // , Option, Select
 import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
@@ -115,6 +117,7 @@ export default defineComponent({
   emits: ['showChange', 'debugStatus', 'mealInfo', 'refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const router = useRouter();
     const dynamicform = ref<InstanceType<typeof DynamicForm>>();
     const httpCallBack = ref<InstanceType<typeof HttpCallBack>>();
     /* 动态表单 */
@@ -122,7 +125,7 @@ export default defineComponent({
       formList: [],
       formModel: {},
       formRules: {},
-      name: window.i18n.t('参数填写') as string,
+      name: t('参数填写') as string,
       templateId: '',
       timeout: 0,
     });
@@ -404,7 +407,7 @@ export default defineComponent({
               formList: [],
               formModel: {},
               formRules: {},
-              name: window.i18n.t('参数填写') as string,
+              name: t('参数填写') as string,
               templateId: '',
               timeout: 0,
             };
@@ -459,6 +462,8 @@ export default defineComponent({
       handleShowChange,
       handleConfirm,
       handleRefreshTemplate,
+      t,
+      router,
     };
   },
   render() {
@@ -471,12 +476,12 @@ export default defineComponent({
             <Loading loading={this.loading}>
               <div class='formdata-wrap'>
                 <div class='meal-list'>
-                  <div class='title'>{this.$t('处理套餐')}</div>
+                  <div class='title'>{this.t('处理套餐')}</div>
                   <div class='wrap'>
                     <GroupSelect
                       key={this.groupSelectKey}
                       list={this.noNoticeActionConfigList}
-                      placeholder={this.$t('选择套餐')}
+                      placeholder={this.t('选择套餐')}
                       value={this.mealId}
                       onChange={this.handleSelected}
                     />
@@ -508,7 +513,7 @@ export default defineComponent({
                       }}
                       behavior='simplicity'
                       disabled={true}
-                      placeholder={this.$t('请选择')}
+                      placeholder={this.t('请选择')}
                     />
                   </div>
                 )}
@@ -541,7 +546,7 @@ export default defineComponent({
                                 key='no-data'
                                 class='nodata'
                               >
-                                {this.$t('当前无需填写参数')}
+                                {this.t('当前无需填写参数')}
                               </span>,
                               <br key='line-break' />,
                             ]
@@ -558,10 +563,10 @@ export default defineComponent({
                       <span
                         class='link'
                         onClick={() => {
-                          this.$router.push({ name: 'set-meal' });
+                          this.router.push({ name: 'set-meal' });
                         }}
                       >
-                        {this.$t('处理套餐')}
+                        {this.t('处理套餐')}
                       </span>
                     </i18n-t>
                   </div>
@@ -576,21 +581,21 @@ export default defineComponent({
               theme='primary'
               onClick={() => !this.confirmLoading && this.handleConfirm()}
             >
-              {window.i18n.t('确定')}
+              {this.t('确定')}
             </Button>,
             <Button
               key='cancel-button'
               style={{ marginLeft: '10px' }}
               onClick={() => this.handleCancel()}
             >
-              {window.i18n.t('取消')}
+              {this.t('取消')}
             </Button>,
           ],
         }}
         header-position='left'
         is-show={this.show}
         mask-close={true}
-        title={this.$t('手动处理')}
+        title={this.t('手动处理')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
       />

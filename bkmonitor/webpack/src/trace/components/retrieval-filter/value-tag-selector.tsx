@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, shallowRef, computed, useTemplateRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { promiseTimeout, onClickOutside } from '@vueuse/core';
 
@@ -42,6 +43,7 @@ export default defineComponent({
   emits: VALUE_TAG_SELECTOR_EMITS,
   setup(props, { emit }) {
     const elRef = useTemplateRef<HTMLDivElement>('el');
+    const { t } = useI18n();
 
     const localValue = shallowRef<IValue[]>([]);
     const isShowDropDown = shallowRef(false);
@@ -259,6 +261,7 @@ export default defineComponent({
       handleDelete,
       handleIsChecked,
       handleCheck,
+      t,
     };
   },
   render() {
@@ -269,7 +272,7 @@ export default defineComponent({
         class='mb-4 mr-4'
         fontSize={12}
         isFocus={this.isFocus}
-        placeholder={this.placeholder || `${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
+        placeholder={this.placeholder || `${this.t('请输入')} ${this.t('或')} ${this.t('选择')}`}
         value={this.inputValue}
         onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}

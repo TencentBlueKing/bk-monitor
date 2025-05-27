@@ -268,9 +268,6 @@ class QueryProxy:
             topk_values.append({"field_value": field_value, "count": count})
         return topk_values
 
-    def query_total(self, query_mode, start_time, end_time, filters: list[types.Filter], query_string: str):
-        return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)
-
     def query_field_aggregated_value(
         self,
         query_mode,

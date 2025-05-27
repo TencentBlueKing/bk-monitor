@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
@@ -64,6 +65,7 @@ export default defineComponent({
   },
   emits: ['update:loading', 'spanListChange', 'showSpanDetail'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const mermaidRef = ref<HTMLElement>();
     const thumbnailRef = ref<HTMLCanvasElement>();
     const sequenceGraphRef = ref<HTMLElement>();
@@ -617,13 +619,14 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       handleScaleChange,
       handleThumbnailViewMouseDown,
       handleShowLegend,
+      t,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );

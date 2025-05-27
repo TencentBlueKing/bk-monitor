@@ -116,7 +116,6 @@ class SpanIdInputSerializer(serializers.Serializer):
 class BaseTraceRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     app_name = serializers.CharField(label="应用名称")
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class BaseTraceFilterSerializer(serializers.Serializer):

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, shallowRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import MonitorDrag from '../../../components/monitor-drag/monitor-drag';
 
@@ -32,6 +33,7 @@ import './trace-explore-layout.scss';
 export default defineComponent({
   name: 'TraceExploreLayout',
   setup() {
+    const { t } = useI18n();
     const isShow = shallowRef(true);
     const maxWidth = shallowRef(400);
     const minWidth = shallowRef(120);
@@ -57,6 +59,7 @@ export default defineComponent({
       width,
       handleDragChange,
       handleClickShrink,
+      t,
     };
   },
   render() {
@@ -83,7 +86,7 @@ export default defineComponent({
           ) : (
             <div
               class='expand-trigger'
-              v-bk-tooltips={{ content: this.$t('展开') }}
+              v-bk-tooltips={{ content: this.t('展开') }}
               onClick={() => this.handleClickShrink(true)}
             >
               <i class='icon-monitor icon-gongneng-shouqi' />

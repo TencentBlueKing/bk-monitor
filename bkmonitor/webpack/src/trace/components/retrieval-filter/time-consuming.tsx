@@ -249,6 +249,7 @@ export default defineComponent({
       handleChangeDebounce,
       handleRangeChange,
       handleInputChangeDebounce,
+      t,
     };
   },
   render() {
@@ -262,7 +263,7 @@ export default defineComponent({
               placement: 'top',
             }}
           >
-            {this.$t('耗时')}
+            {this.t('耗时')}
           </span>
         )}
         <div
@@ -271,7 +272,7 @@ export default defineComponent({
             placement: 'bottom',
             content: (
               <div>
-                {this.$t('支持')}
+                {this.t('支持')}
                 ns, μs, ms, s, m, h, d
               </div>
             ),
@@ -314,7 +315,7 @@ export default defineComponent({
             placement: 'bottom',
             content: (
               <div>
-                {this.$t('支持')}
+                {this.t('支持')}
                 ns, μs, ms, s, m, h, d
               </div>
             ),

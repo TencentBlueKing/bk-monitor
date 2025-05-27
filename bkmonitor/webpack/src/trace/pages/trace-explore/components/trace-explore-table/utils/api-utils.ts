@@ -51,12 +51,7 @@ export function requestErrorMessage(err) {
   state.setErrorData(err);
   const message = makeMessage(err.error_details || err.message);
   let isAborted = false;
-  if (
-    message &&
-    err?.message !== 'canceled' &&
-    err?.message !== 'aborted' &&
-    err?.error_details?.type !== 'QueryStringParseError'
-  ) {
+  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
     bkMessage(message);
   } else {
     isAborted = true;

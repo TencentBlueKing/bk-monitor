@@ -48,12 +48,12 @@ class OriginTraceQuery(BaseQuery):
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters))
         if query_string:
-            q.query_string(query_string)
+            q = q.query_string(query_string)
 
         def _fill_data():
             _trace_ids: list[str] = []
             _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID)
-            for _info in queryset.add_query(_q).offset(offset).limit(limit).time_agg(False).instant():
+            for _info in queryset.add_query(_q).offset(offset).limit(limit):
                 _trace_id: str | list[str] = _info[OtlpKey.TRACE_ID]
                 if isinstance(_trace_id, list):
                     _trace_id = _trace_id[0]

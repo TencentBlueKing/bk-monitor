@@ -539,6 +539,7 @@ export default defineComponent({
       defaultOptions,
       handleClearSearch,
       handleMethodChange,
+      t,
     };
   },
   render() {
@@ -549,12 +550,12 @@ export default defineComponent({
             key={'all'}
             class='form-item'
           >
-            <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
+            <div class='form-item-label mt-16'>{this.t('检索内容')}</div>
             <div class='form-item-content mt-8'>
               <Input
                 ref={'allInput'}
                 v-model={this.queryString}
-                placeholder={this.$t('请输入')}
+                placeholder={this.t('请输入')}
                 rows={15}
                 type={'textarea'}
               />
@@ -569,7 +570,7 @@ export default defineComponent({
                 key={'method'}
                 class='form-item mt-34'
               >
-                <div class='form-item-label'>{this.$t('条件')}</div>
+                <div class='form-item-label'>{this.t('条件')}</div>
                 <div class='form-item-content mt-6'>
                   <Select
                     ext-cls={'method-select'}
@@ -598,7 +599,7 @@ export default defineComponent({
                   class={['form-item', this.isDurationKey ? 'mt-34' : 'mt-16']}
                 >
                   <div class='form-item-label'>
-                    <span class='left'>{this.$t('检索值')}</span>
+                    <span class='left'>{this.t('检索值')}</span>
                     {!!this.wildcardItem && (
                       <span class='right'>
                         <Checkbox
@@ -638,7 +639,7 @@ export default defineComponent({
                       />
                     )}
                   </div>
-                  {this.isIntegerError ? <div class='error-msg'>{this.$t('仅支持输入数值类型')}</div> : undefined}
+                  {this.isIntegerError ? <div class='error-msg'>{this.t('仅支持输入数值类型')}</div> : undefined}
                 </div>
                 {!!this.groupRelationItem && (
                   <div
@@ -676,7 +677,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior='simplicity'
                 clearable={true}
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.t('请输入关键字')}
                 stopPropagation={false}
                 onClear={this.handleSearchChangeDebounce}
                 onInput={this.handleSearchChangeDebounce}
@@ -748,19 +749,19 @@ export default defineComponent({
             <span class='desc-item-icon'>
               <span class='icon-monitor icon-mc-arrow-down' />
             </span>
-            <span class='desc-item-name'>{this.$t('移动光标')}</span>
+            <span class='desc-item-name'>{this.t('移动光标')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>Enter</span>
-            <span class='desc-item-name'>{this.$t('选中')}</span>
+            <span class='desc-item-name'>{this.t('选中')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>Esc</span>
-            <span class='desc-item-name'>{this.$t('收起查询')}</span>
+            <span class='desc-item-name'>{this.t('收起查询')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>{`${this.isMacSystem ? 'Cmd' : 'Ctrl'}+Enter`}</span>
-            <span class='desc-item-name'>{this.$t('提交查询')}</span>
+            <span class='desc-item-name'>{this.t('提交查询')}</span>
           </span>
           <div class='operate-btns'>
             <Button
@@ -771,9 +772,9 @@ export default defineComponent({
                 this.handleConfirm();
               }}
             >
-              {`${this.$t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
+              {`${this.t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
             </Button>
-            <Button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</Button>
+            <Button onClick={() => this.handleCancel()}>{`${this.t('取消')}`}</Button>
           </div>
         </div>
       </div>

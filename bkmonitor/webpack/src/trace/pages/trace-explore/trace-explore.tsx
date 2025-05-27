@@ -118,7 +118,7 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
     const fieldListMap = shallowRef<ExploreFieldList>({ trace: [], span: [] });
-    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
+    /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
     const fieldList = computed(() => {
@@ -350,12 +350,12 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        where.value = JSON.parse((queryWhere as string) || '[]');
-        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        where.value = JSON.parse(decodeURIComponent((queryWhere as string) || '[]'));
+        commonWhere.value = JSON.parse(decodeURIComponent((queryCommonWhere as string) || '[]'));
+        checkboxFilters.value = JSON.parse(decodeURIComponent((selectedType as string) || '[]'));
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
-        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
@@ -426,7 +426,7 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后回调
+     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后回调
      *
      */
     function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
@@ -732,7 +732,7 @@ export default defineComponent({
                 >
                   <p class='subTitle'>
                     <i18n-t keypath='无法查询调用链，请先 {0}'>
-                      <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                      <span onClick={() => this.handleCreateApp()}>{this.t('创建应用')}</span>
                     </i18n-t>
                   </p>
                 </EmptyStatus>

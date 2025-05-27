@@ -11,6 +11,10 @@
       min-width: 0;
       user-select: none;
 
+      .col-type-icon {
+        margin-right: 4px;
+      }
+
       &.active-statistics-field {
         .icon-monitor.icon-Chart.statistics-icon {
           display: block;

@@ -77,7 +77,7 @@ class RelatedLogChart extends CommonSimpleChart {
   @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
   empty = true;
-  emptyText = window.i18n.tc('加载中...');
+  emptyText = window.i18n.t('加载中...');
   emptyChart = false;
   /** 关联是否为蓝鲸日志平台 */
   isBkLog = true;
@@ -139,7 +139,7 @@ class RelatedLogChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.unregisterObserver();
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     this.keyword = this.panel.options?.related_log_chart?.defaultKeyword ?? this.keyword;
     // 先用 log_predicate 接口判断日志类型 蓝鲸日志平台 or 第三方其他日志
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
@@ -181,7 +181,7 @@ class RelatedLogChart extends CommonSimpleChart {
         .catch(error => {
           this.empty = true;
           this.handleErrorMsgChange(error.msg || error.message);
-          this.emptyText = window.i18n.tc('出错了');
+          this.emptyText = window.i18n.t('出错了');
         })
         .finally(() => {
           this.handleLoadingChange(false);
