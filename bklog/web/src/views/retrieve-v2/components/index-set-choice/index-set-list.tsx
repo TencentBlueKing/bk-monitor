@@ -83,39 +83,76 @@ export default defineComponent({
       props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`)),
     );
 
-    const formatList = computed(() =>
-      props.list.map((item: any) => {
+    const formatList = computed(() => {
+      // 首先处理所有节点，添加 is_shown_node 标记
+      const processedList = props.list.map((item: any) => {
         let is_shown_node = true;
 
         // 判定是不是已经选中Tag进行过滤
-        // 如果已经选中了Tag进行过滤，这里需要判定当前索引是否满足Tag标签
         if (tagItem.value.tag_id !== undefined) {
           is_shown_node = item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
         }
 
         // 如果满足Tag标签或者当前条目为显示状态
-        // 继续判断其他过滤条件
         if (is_shown_node) {
           // 如果启用隐藏空数据
           if (hiddenEmptyItem.value) {
-            // 如果当前索引不是传入的选中值
             if (!props.value.includes(`${item.index_set_id}`)) {
-              // 判断当前索引Tag标签是否有标识为空数据
-              // 如果结果为True，说明当前索引不展示
               is_shown_node = !item.tags.some(tag => tag.tag_id === 4);
             }
           }
 
-          // 如果此时判定结果仍然为true
           // 继续判定检索匹配是否满足匹配条件
           if (is_shown_node) {
             is_shown_node = item.index_set_name.indexOf(searchText.value) !== -1;
           }
         }
-        Object.assign(item, { is_shown_node });
-        return item;
-      }),
-    );
+
+        // 处理子节点
+        if (item.children?.length) {
+          // 处理子节点的显示状态
+          item.children = item.children.map((child: any) => {
+            let child_is_shown_node = true;
+
+            if (tagItem.value.tag_id !== undefined) {
+              child_is_shown_node = child.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+            }
+
+            if (child_is_shown_node) {
+              if (hiddenEmptyItem.value) {
+                if (!props.value.includes(`${child.index_set_id}`)) {
+                  child_is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
+                }
+              }
+
+              if (child_is_shown_node) {
+                child_is_shown_node = child.index_set_name.indexOf(searchText.value) !== -1;
+              }
+            }
+
+            return { ...child, is_shown_node: child_is_shown_node };
+          });
+
+          // 对子节点进行排序
+          item.children.sort((a: any, b: any) => {
+            const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
+            const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+            if (aHasNoData === bHasNoData) return 0;
+            return aHasNoData ? 1 : -1;
+          });
+        }
+
+        return { ...item, is_shown_node };
+      });
+
+      // 对根节点进行排序
+      return processedList.sort((a: any, b: any) => {
+        const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
+        const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+        if (aHasNoData === bHasNoData) return 0;
+        return aHasNoData ? 1 : -1;
+      });
+    });
 
     const filterFullList = computed(() => formatList.value.filter((item: any) => item.is_shown_node));
 
@@ -263,6 +300,8 @@ export default defineComponent({
      */
     const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
+
       return (
         <div
           class={[
@@ -271,6 +310,7 @@ export default defineComponent({
               'no-authority': !hasPermission,
               'is-child': is_child,
               'has-child': has_child,
+              'is-empty': isEmptyNode,
               active: propValueStrList.value.includes(item.index_set_id),
             },
           ]}
@@ -297,7 +337,7 @@ export default defineComponent({
 
             <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
               {getCheckBoxRender(item, is_root_checked)}
-
+              <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }}></span>
               <span class='group-icon'>
                 <i class='bklog-icon bklog-suoyin-mulu'></i>
               </span>

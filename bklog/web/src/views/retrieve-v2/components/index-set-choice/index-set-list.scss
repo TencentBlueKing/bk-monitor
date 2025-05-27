@@ -144,6 +144,20 @@
           }
         }
 
+        .bklog-empty-icon {
+          display: none;
+
+          &.is-empty {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #ffdddd;
+            border: 1px solid #ea3636;
+            border-radius: 50%;
+            margin-right: 4px;
+          }
+        }
+
         .index-set-name {
           position: relative;
           white-space: nowrap;
@@ -212,6 +226,12 @@
             .group-icon {
               display: none;
               width: 8px;
+            }
+          }
+
+          &.is-empty {
+            .node-open-arrow {
+              padding-right: 24px;
             }
           }
         }
@@ -329,6 +349,12 @@
             &.is-child {
               .node-open-arrow {
                 padding-right: 34px;
+              }
+
+              &.is-empty {
+                .node-open-arrow {
+                  padding-right: 44px;
+                }
               }
             }
           }
