@@ -23,17 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface GradeSetting {
+
+enum GradeFieldValueType {
+  REGEXP = 'regexp',
+  VALUE = 'value',
+}
+
+export type GradeSetting = {
   id: string;
   color?: string;
   name?: string;
   regExp?: string;
   enable: boolean;
-}
+  fieldValue?: string[];
+};
 
-export interface GradeConfiguration {
+export type GradeConfiguration = {
   disabled: boolean;
   type: 'custom' | 'normal';
-  field: string; // 'field' is null, but we can define it as any unless more specific information is available
+  field: string;
+  valueType: GradeFieldValueType;
   settings: GradeSetting[];
-}
+};
+
+export { GradeFieldValueType };

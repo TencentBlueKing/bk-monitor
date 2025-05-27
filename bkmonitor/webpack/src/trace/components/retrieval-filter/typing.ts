@@ -42,8 +42,12 @@ export enum EFieldType {
 export enum EMethod {
   eq = 'equal',
   exclude = 'exclude',
+  exists = 'exists',
   include = 'include',
+  like = 'link',
   ne = 'not_equal',
+  notExists = 'not exists',
+  notLike = 'not_like',
 }
 
 export const METHOD_MAP = {
@@ -189,7 +193,7 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
-export const OPTIONS_METHODS = [EMethod.ne, EMethod.exclude];
+export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists, EMethod.notLike];
 
 export const qsSelectorOptionsDescMap = {
   ':': [

@@ -37,6 +37,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
@@ -104,7 +105,7 @@ export default defineComponent({
     const applicationList = shallowRef<IApplicationItem[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     /** 是否展示收藏夹 */
-    const isShowFavorite = shallowRef(true);
+    const isShowFavorite = shallowRef(false);
     /** 视角切换查询 */
     const cacheSceneQuery = new Map<string, Record<string, any>>();
 
@@ -163,7 +164,7 @@ export default defineComponent({
       return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
     });
     const retrievalFilterPlaceholder = computed(() => {
-      return t('快捷键 / ，可直接输入TraceID/SpanID快捷检索');
+      return t('快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索');
       // return store.mode === 'trace'
       //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
       //   : t('快捷键 / ，可直接输入SpanID快捷检索');
@@ -299,7 +300,7 @@ export default defineComponent({
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'true');
+      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
         handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
@@ -574,13 +575,17 @@ export default defineComponent({
             mode: store.mode,
           },
         },
-      };
+      } as any;
       if (isEdit) {
         await updateFavorite(currentFavorite.value.id, {
           type: 'trace',
           ...params,
         });
         favoriteBox.value.refreshGroupList();
+        Message({
+          theme: 'success',
+          message: t('收藏成功'),
+        });
       } else {
         editFavoriteData.value = params;
         editFavoriteShow.value = true;

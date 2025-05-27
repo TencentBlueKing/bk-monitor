@@ -336,7 +336,7 @@ export default defineComponent({
                   this.handleCheck({ id: this.search, name: this.search });
                 }}
               >
-                <i18n-t keypath='生成 "{0}" Tag'>
+                <i18n-t keypath='直接输入 "{0}"'>
                   <span class='highlight'>{this.search}</span>
                 </i18n-t>
               </div>

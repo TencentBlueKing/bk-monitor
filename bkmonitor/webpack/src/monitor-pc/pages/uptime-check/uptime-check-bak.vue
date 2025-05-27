@@ -44,7 +44,7 @@
             )
           "
           :link-text="$t('采集器安装前往节点管理')"
-          :link-url="`${$store.getters.bkNodemanHost}#/plugin-manager/list`"
+          :link-url="`${$store.getters.bkNodeManHost}#/plugin-manager/list`"
           doc-link="quickStartDial"
         />
         <keep-alive v-if="active">
@@ -139,7 +139,7 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
     padding-left: 24px;
     background: #fff;
     border-bottom: 1px solid #dcdee5;
-    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
+    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, 0.06);
 
     .tab-item {
       display: inline-block;
