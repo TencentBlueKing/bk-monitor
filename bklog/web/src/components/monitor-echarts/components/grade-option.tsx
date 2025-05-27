@@ -263,36 +263,6 @@ export default defineComponent({
                     class='grade-table-col col-color'
                   >
                     <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }}></span>
-
-                    {/* {item.id !== 'others' && (
-                      <bk-select
-                        style='width: 32px'
-                        class='bklog-v3-grade-color-select'
-                        value={item.color}
-                        clearable={false}
-                        behavior='simplicity'
-                        ext-popover-cls='bklog-v3-grade-color-list bklog-popover-stop'
-                        size='small'
-                        on-change={val => (item.color = val)}
-                      >
-                        {colorList.value.map(option => (
-                          <bk-option
-                            id={option.name}
-                            key={option.id}
-                            name={option.name}
-                          >
-                            <div
-                              class='bklog-popover-stop'
-                              style={{
-                                width: '100%',
-                                height: '16px',
-                                background: option.name,
-                              }}
-                            ></div>
-                          </bk-option>
-                        ))}
-                      </bk-select>
-                    )} */}
                   </div>
                   <div
                     style='width: 240px'
