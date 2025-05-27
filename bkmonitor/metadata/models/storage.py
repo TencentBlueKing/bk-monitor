@@ -3263,7 +3263,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",self.table_id,new_index_name
             )
         except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
