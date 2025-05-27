@@ -214,6 +214,8 @@ class TraceFieldsHandler:
             field_names.sort(key=lambda field_name: "." in field_name)
         elif mode == QueryMode.SPAN:
             field_names = list(self.span_fields_info)
+            # 去除 Span 协议中没有的字段（比如：监控内置字段、bkbase 内置字段等）
+            field_names = [f for f in field_names if f.split(".")[0] in SPAN_SORTED_FIELD]
             field_names.sort(
                 key=lambda field_name: (
                     # 顶层字段优先
