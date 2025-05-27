@@ -345,7 +345,7 @@ export default defineComponent({
           <div
             class='goto-old-wrap'
             v-bk-tooltips={{
-              content: this.$tc('回到旧版'),
+              content: this.$t('回到旧版'),
               placements: ['bottom-end'],
               zIndex: 9999,
             }}

@@ -34,42 +34,42 @@ import { EFieldType, EQueryStringTokenType } from './typing';
 export const QUERY_STRING_METHODS = [
   {
     id: ':',
-    name: window.i18n.tc('等于'),
+    name: window.i18n.t('等于'),
   },
   {
     id: ':*',
-    name: window.i18n.tc('存在'),
+    name: window.i18n.t('存在'),
   },
   {
     id: '>',
-    name: window.i18n.tc('大于'),
+    name: window.i18n.t('大于'),
   },
   {
     id: '<',
-    name: window.i18n.tc('小于'),
+    name: window.i18n.t('小于'),
   },
   {
     id: '>=',
-    name: window.i18n.tc('大于或等于'),
+    name: window.i18n.t('大于或等于'),
   },
   {
     id: '<=',
-    name: window.i18n.tc('小于或等于'),
+    name: window.i18n.t('小于或等于'),
   },
 ];
 
 export const QUERY_STRING_CONDITIONS = [
   {
     id: 'AND',
-    name: window.i18n.tc('两个参数都'),
+    name: window.i18n.t('两个参数都'),
   },
   {
     id: 'OR',
-    name: window.i18n.tc('一个或多个参数'),
+    name: window.i18n.t('一个或多个参数'),
   },
   {
     id: 'AND NOT',
-    name: window.i18n.tc('一个或多个参数'),
+    name: window.i18n.t('一个或多个参数'),
   },
 ];
 
@@ -112,11 +112,11 @@ export function getQueryStringMethods(fieldType: EFieldType) {
   return [
     {
       id: ':',
-      name: window.i18n.tc('等于'),
+      name: window.i18n.t('等于'),
     },
     {
       id: ':*',
-      name: window.i18n.tc('存在'),
+      name: window.i18n.t('存在'),
     },
   ];
 }

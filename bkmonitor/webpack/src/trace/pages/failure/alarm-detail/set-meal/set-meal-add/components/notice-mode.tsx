@@ -226,8 +226,8 @@ export default defineComponent({
 
     const validator = (isStrict = true) => {
       const msg = [
-        window.i18n.tc('每个告警级别至少选择一种通知方式'),
-        window.i18n.tc('每个执行阶段至少选择一种通知方式'),
+        window.i18n.t('每个告警级别至少选择一种通知方式'),
+        window.i18n.t('每个执行阶段至少选择一种通知方式'),
       ];
       const res = handleParams();
       const isPass = res.every(item => {
@@ -389,7 +389,7 @@ export default defineComponent({
                                   style={{ marginRight: '5px' }}
                                   class='bk-icon icon-plus-circle'
                                 />
-                                {this.$tc('新增群组')}
+                                {this.$t('新增群组')}
                               </div>
                             </Select>
                           </div>
