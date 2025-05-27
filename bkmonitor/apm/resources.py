@@ -1931,86 +1931,80 @@ class QueryFieldsTopkResource(Resource):
         field_topk_map = {}
         # 字段去重数字典
         field_distinct_map = {}
-        field_total_count_map = {}
-
-        def _build_query_params(field, method, limit=None):
-            """构建查询参数字典"""
-            params = copy.deepcopy(base_query_params)
-            params["field"] = field
-            if method:
-                params["method"] = method
-            if limit:
-                params["limit"] = limit
-            return params
-
+        field_total_map = {}
         fields = validated_data["fields"]
         # 查询字段总行数
         total_threads = [
             InheritParentThread(
                 target=self.query_aggregated_value,
-                args=(proxy, _build_query_params(field, AggregatedMethod.COUNT.value), field_total_count_map),
+                args=(
+                    proxy,
+                    {**base_query_params, "field": field, "method": AggregatedMethod.COUNT.value},
+                    field_total_map,
+                ),
             )
             for field in fields
         ]
         run_threads(total_threads)
 
         # 查询字段去重数和topk值
-        distinct_threads = []
-        topk_threads = []
+        to_be_executed_threads = []
         for field in fields:
-            if field_total_count_map[field] == 0:
+            if field_total_map[field] == 0:
                 continue
 
             # 构建去重数查询线程
-            distinct_threads.append(
+            to_be_executed_threads.append(
                 InheritParentThread(
                     target=self.query_aggregated_value,
-                    args=(proxy, _build_query_params(field, AggregatedMethod.DISTINCT.value), field_distinct_map),
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "method": AggregatedMethod.DISTINCT.value},
+                        field_distinct_map,
+                    ),
                 )
             )
 
             # 构建topk查询线程
-            topk_threads.append(
+            to_be_executed_threads.append(
                 InheritParentThread(
                     target=self.query_topk,
-                    args=(proxy, _build_query_params(field, None, validated_data["limit"]), field_topk_map),
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "limit": validated_data["limit"]},
+                        field_topk_map,
+                    ),
                 )
             )
-        run_threads(distinct_threads + topk_threads)
+        run_threads(to_be_executed_threads)
 
         # 组装 topk 返回结果
-        return [
-            {
-                "field": field,
-                "distinct_count": field_distinct_map.get(field, 0),
-                "list": [
+        processed_topk_fields = []
+        for field in fields:
+            topk_field = {"field": field, "distinct_count": field_distinct_map.get(field, 0), "list": []}
+            for field_topk in field_topk_map.get(field, []):
+                topk_field["list"].append(
                     {
                         "value": field_topk["field_value"],
                         "count": field_topk["count"],
                         "proportions": format_percent(
-                            100 * (field_topk["count"] / field_total_count_map[field])
-                            if field_total_count_map[field] > 0
-                            else 0,
+                            100 * (field_topk["count"] / field_total_map[field]) if field_total_map[field] > 0 else 0,
                             precision=3,
                             sig_fig_cnt=3,
                             readable_precision=3,
                         ),
                     }
-                    for field_topk in field_topk_map.get(field, [])
-                ],
-            }
-            for field in fields
-        ]
+                )
+            processed_topk_fields.append(topk_field)
+        return processed_topk_fields
 
     @classmethod
-    def query_aggregated_value(cls, proxy, aggregated_query_params, field_aggregated_map):
-        field_aggregated_map[aggregated_query_params["field"]] = proxy.query_field_aggregated_value(
-            **aggregated_query_params
-        )
+    def query_aggregated_value(cls, proxy, query_params, field_aggregated_map):
+        field_aggregated_map[query_params["field"]] = proxy.query_field_aggregated_value(**query_params)
 
     @classmethod
-    def query_topk(cls, proxy, topk_query_params, field_topk_map):
-        field_topk_map[topk_query_params["field"]] = proxy.query_field_topk(**topk_query_params)
+    def query_topk(cls, proxy, query_params, field_topk_map):
+        field_topk_map[query_params["field"]] = proxy.query_field_topk(**query_params)
 
 
 class QueryFieldStatisticsInfoResource(Resource):
