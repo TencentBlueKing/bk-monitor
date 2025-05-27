@@ -57,19 +57,29 @@ class QueryStringBuilder:
     # Refer: https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
     # TraceId must be a 32-hex-character lowercase string
     # Add possible spaces and quotes.
-    TRACE_ID_PATTERN = re.compile(r"^\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*$")
+    # Add possible field prefixes like `trace_id: xxx`.
+    TRACE_ID_PATTERN = re.compile(r"^(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{32})\s*\\?\"?\s*$")
 
     # SpanId must be a 16-hex-character lowercase string
-    SPAN_ID_PATTERN = re.compile(r"^\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*$")
+    SPAN_ID_PATTERN = re.compile(r"^(?:trace_id\s*:\s*)?\s*\\?\"?\s*([0-9a-f]{16})\s*\\?\"?\s*$")
 
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
     def __init__(self, query_string: str):
-        self._query_string: str = query_string
+        self._query_string: str = query_string.strip()
+        # 预测字段，用于增强检索。
+        self._predicted_field: str = ""
 
     @property
     def query_string(self):
         return self.special_check(self.html_unescape(self._query_string))
+
+    @property
+    def predicted_query_string(self):
+        query_string: str = self.query_string
+        if not self._predicted_field:
+            return query_string
+        return f"{self._predicted_field}: {query_string}"
 
     def html_unescape(self, query_string: str) -> str:
         """html 转码"""
@@ -107,10 +117,14 @@ class QueryStringBuilder:
             return self.WILDCARD_PATTERN
 
         # TraceID & SpanID 直接走精确查询
-        extract_funcs: list[Callable[[str], str]] = [self.extract_span_id, self.extract_trace_id]
-        for extract_func in extract_funcs:
+        extract_funcs: dict[str, Callable[[str], str]] = {
+            OtlpKey.SPAN_ID: self.extract_span_id,
+            OtlpKey.TRACE_ID: self.extract_trace_id,
+        }
+        for predicted_field, extract_func in extract_funcs.items():
             keyword: str = extract_func(query_string)
             if keyword:
+                self._predicted_field = predicted_field
                 return f'"{keyword}"'
 
         if self.NO_KEYWORD_QUERY_PATTERN.search(query_string):
@@ -154,7 +168,8 @@ class QueryTreeTransformer(BaseTreeTransformer):
 
     @classmethod
     def transform_value_without_search_field(cls, value: str) -> str:
-        return cls.transform_value_with_search_field(value)
+        # 语法子树为未指定 Field 的模糊检索，增加预测的 Field，提高查询效率。
+        return QueryStringBuilder(value).predicted_query_string
 
     def visit_search_field(self, node, context):
         if context.get("ignore_search_field"):
@@ -185,7 +200,7 @@ class QueryTreeTransformer(BaseTreeTransformer):
         # 手动修改后的语法数可能会有一些空格丢失的问题，因此需要对树的头尾进行重整
         query_tree = auto_head_tail(query_tree)
 
-        return QueryStringBuilder(str(query_tree)).query_string
+        return QueryStringBuilder(str(query_tree)).predicted_query_string
 
 
 class SpanQueryTransformer(QueryTreeTransformer):
