@@ -47,7 +47,7 @@ const i18n = createI18n({
   legacy: true,
   missing: (locale: Locale, key: Path) => {
     if (process.env.NODE_ENV === 'development') {
-      console.info(`缺少翻译key: ${key} in ${locale}`);
+      console.warn(`缺少翻译key: ${key} in ${locale}`);
     }
     return key;
   },
