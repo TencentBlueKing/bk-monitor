@@ -85,74 +85,122 @@ export default defineComponent({
     );
 
     const formatList = computed(() => {
-      // 首先处理所有节点，添加 is_shown_node 标记
-      const processedList = props.list.map((item: any) => {
+      // 检查节点是否应该显示
+      const checkNodeShouldShow = (node: any) => {
+        // 如果当前节点在选中列表中，直接返回 true
+        if (propValueStrList.value.includes(`${node.index_set_id}`)) {
+          return true;
+        }
+
         let is_shown_node = true;
 
         // 判定是不是已经选中Tag进行过滤
         if (tagItem.value.tag_id !== undefined) {
-          is_shown_node = item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+          is_shown_node = node.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
         }
 
         // 如果满足Tag标签或者当前条目为显示状态
         if (is_shown_node) {
           // 如果启用隐藏空数据
           if (hiddenEmptyItem.value) {
-            if (!props.value.includes(`${item.index_set_id}`)) {
-              is_shown_node = !item.tags.some(tag => tag.tag_id === 4);
+            if (!props.value.includes(`${node.index_set_id}`)) {
+              is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
             }
           }
 
           // 继续判定检索匹配是否满足匹配条件
           if (is_shown_node) {
-            is_shown_node = item.index_set_name.indexOf(searchText.value) !== -1;
+            is_shown_node = node.index_set_name.indexOf(searchText.value) !== -1;
           }
         }
 
+        return is_shown_node;
+      };
+
+      // 处理子节点
+      const processChildren = (children: any[]) => {
+        if (!children?.length) return [];
+
+        // 处理子节点的显示状态
+        const processedChildren = children.map(child => ({
+          ...child,
+          is_shown_node: checkNodeShouldShow(child),
+        }));
+
+        // 对子节点进行排序
+        return processedChildren.sort((a: any, b: any) => {
+          // 单选模式下才进行特殊排序
+          if (props.type === 'single') {
+            // 如果节点在选中列表中，优先级最高
+            const aIsSelected = propValueStrList.value.includes(`${a.index_set_id}`);
+            const bIsSelected = propValueStrList.value.includes(`${b.index_set_id}`);
+            if (aIsSelected !== bIsSelected) {
+              return aIsSelected ? -1 : 1;
+            }
+          }
+
+          // 其次按是否有数据排序
+          const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
+          const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+          if (aHasNoData !== bHasNoData) {
+            return aHasNoData ? 1 : -1;
+          }
+
+          return 0;
+        });
+      };
+
+      // 处理根节点
+      const processedList = props.list.map((item: any) => {
+        const is_shown_node = checkNodeShouldShow(item);
+
         // 处理子节点
         if (item.children?.length) {
-          // 处理子节点的显示状态
-          item.children = item.children.map((child: any) => {
-            let child_is_shown_node = true;
-
-            if (tagItem.value.tag_id !== undefined) {
-              child_is_shown_node = child.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
-            }
-
-            if (child_is_shown_node) {
-              if (hiddenEmptyItem.value) {
-                if (!props.value.includes(`${child.index_set_id}`)) {
-                  child_is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
-                }
-              }
-
-              if (child_is_shown_node) {
-                child_is_shown_node = child.index_set_name.indexOf(searchText.value) !== -1;
-              }
-            }
-
-            return { ...child, is_shown_node: child_is_shown_node };
-          });
-
-          // 对子节点进行排序
-          item.children.sort((a: any, b: any) => {
-            const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
-            const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
-            if (aHasNoData === bHasNoData) return 0;
-            return aHasNoData ? 1 : -1;
-          });
+          item.children = processChildren(item.children);
         }
 
-        is_shown_node = is_shown_node || item.children?.some(child => child.is_shown_node);
-        return { ...item, is_shown_node };
+        const isOpenNode = item.children?.some(child => child.is_shown_node);
+        // 检查是否有子节点被选中
+        const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.index_set_id}`));
+
+        // 如果当前节点不显示，但子节点有显示的，则当前节点也需要显示
+        const finalIsShownNode = is_shown_node || isOpenNode;
+
+        return {
+          ...item,
+          is_shown_node: finalIsShownNode,
+          is_children_open: isOpenNode,
+          has_selected_child: hasSelectedChild,
+        };
       });
 
       // 对根节点进行排序
       return processedList.sort((a: any, b: any) => {
+        // 单选模式下才进行特殊排序
+        if (props.type === 'single') {
+          // 如果节点在选中列表中，优先级最高
+          const aIsSelected = propValueStrList.value.includes(`${a.index_set_id}`);
+          const bIsSelected = propValueStrList.value.includes(`${b.index_set_id}`);
+          if (aIsSelected !== bIsSelected) {
+            return aIsSelected ? -1 : 1;
+          }
+
+          // 如果节点有子节点被选中，次优先级
+          const aHasSelectedChild = a.has_selected_child;
+          const bHasSelectedChild = b.has_selected_child;
+          if (aHasSelectedChild !== bHasSelectedChild) {
+            return aHasSelectedChild ? -1 : 1;
+          }
+        }
+
+        // 按是否有数据排序（所有模式都生效）
         const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
         const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
-        if (aHasNoData === bHasNoData) return 0;
-        return aHasNoData ? 1 : -1;
+        if (aHasNoData !== bHasNoData) {
+          return aHasNoData ? 1 : -1;
+        }
+
+        return 0;
       });
     });
 
@@ -275,6 +323,10 @@ export default defineComponent({
         nextStatus = 'forceClosed';
       }
 
+      if (node.is_children_open) {
+        nextStatus = 'forceClosed';
+      }
+
       if (listNodeOpenManager.value[node.index_set_id] === 'forceClosed') {
         nextStatus = 'opened';
       }
@@ -307,6 +359,10 @@ export default defineComponent({
       }
 
       if (searchText.value?.length > 0) {
+        return false;
+      }
+
+      if (item.is_children_open) {
         return false;
       }
 
