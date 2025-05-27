@@ -16,6 +16,7 @@ from alarm_backends.service.access import ACCESS_TYPE_TO_CLASS
 from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from alarm_backends.service.access.data.token import TokenBucket
 from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
+from alarm_backends.service.access.event.processorv2 import AccessCustomEventGlobalProcessV2
 from alarm_backends.service.access.incident import AccessIncidentProcess
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
@@ -64,6 +65,22 @@ def run_access_event_handler(data_id, **kwargs):
     if kwargs:
         logger.warning(f"run_access_event_handler() got an unexpected keyword argument {kwargs}")
     processor = AccessCustomEventGlobalProcess(data_id=data_id)
+    processor.process()
+    metrics.report_all()
+
+
+@app.task(ignore_result=True, queue="celery_service_access_event")
+def run_access_event_handler_v2(data_id, **kwargs):
+    """
+    事件处理器
+    1. 处理任务，对DataID加锁
+    2. 如果加锁成功，拉取数据；加锁失败，return；
+    3. 拉取数据成功后，如果数据大小刚好等于上限，说明可能还有数据，继续将此 DataID 发布给下个Worker
+    4. 解锁DataID，处理数据。
+    """
+    if kwargs:
+        logger.warning(f"run_access_event_handler_v2() got an unexpected keyword argument {kwargs}")
+    processor = AccessCustomEventGlobalProcessV2(data_id=data_id)
     processor.process()
     metrics.report_all()
 

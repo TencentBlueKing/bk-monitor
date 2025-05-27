@@ -610,7 +610,7 @@ export default defineComponent({
                   />
                 )}
               </div>
-              {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
+              {this.isIntegerError ? <div class='error-msg'>{this.$t('仅支持输入数值类型')}</div> : undefined}
             </div>,
             !!this.groupRelationItem && (
               <div

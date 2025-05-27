@@ -476,7 +476,7 @@ export default defineComponent({
                     <GroupSelect
                       key={this.groupSelectKey}
                       list={this.noNoticeActionConfigList}
-                      placeholder={this.$tc('选择套餐')}
+                      placeholder={this.$t('选择套餐')}
                       value={this.mealId}
                       onChange={this.handleSelected}
                     />
@@ -508,7 +508,7 @@ export default defineComponent({
                       }}
                       behavior='simplicity'
                       disabled={true}
-                      placeholder={this.$tc('请选择')}
+                      placeholder={this.$t('请选择')}
                     />
                   </div>
                 )}

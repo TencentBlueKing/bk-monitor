@@ -45,13 +45,14 @@ const i18n = createI18n({
   silentTranslationWarn: true,
   silentFallbackWarn: true,
   // allowComposition: true,
-  // legacy: false,
+  legacy: true,
   messages: {
     ...mergeI18nJson(),
   },
 });
 window.i18n = i18n.global;
+console.info(i18n.global, '==========', 'i18n');
 window.mainComponent = {
-  $t: window.i18n.tc,
+  $t: window.i18n.t,
 };
 export default i18n;
