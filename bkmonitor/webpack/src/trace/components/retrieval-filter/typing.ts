@@ -32,6 +32,7 @@ export enum EMode {
 }
 export enum EFieldType {
   all = 'all',
+  boolean = 'boolean',
   date = 'date',
   integer = 'integer',
   keyword = 'keyword',

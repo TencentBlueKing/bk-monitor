@@ -52,6 +52,7 @@ import {
   fieldTypeMap,
   GROUP_RELATION_KEY,
   isNumeric,
+  NOT_VALUE_METHODS,
   WILDCARD_KEY,
 } from './utils';
 import ValueTagSelector from './value-tag-selector';
@@ -123,6 +124,10 @@ export default defineComponent({
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
       return DURATION_KEYS.includes(checkedItem.value?.name);
+    });
+    /* 是否选择了无需检索值的操作符 */
+    const notValueOfMethod = computed(() => {
+      return NOT_VALUE_METHODS.includes(method.value);
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -494,6 +499,14 @@ export default defineComponent({
       handleSearchChange();
     }
 
+    function handleMethodChange(value) {
+      if (NOT_VALUE_METHODS.includes(value)) {
+        values.value = [];
+        groupRelation.value = groupRelationItem.value?.default || DEFAULT_GROUP_RELATION;
+        isWildcard.value = wildcardItem.value?.default || false;
+      }
+    }
+
     return {
       checkedItem,
       queryString,
@@ -512,6 +525,8 @@ export default defineComponent({
       isMacSystem,
       placeholderStr,
       timeConsumingValue,
+      notValueOfMethod,
+      isDurationKey,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -523,6 +538,7 @@ export default defineComponent({
       handleCancel,
       defaultOptions,
       handleClearSearch,
+      handleMethodChange,
     };
   },
   render() {
@@ -548,11 +564,10 @@ export default defineComponent({
       }
       return this.checkedItem
         ? [
-            !DURATION_KEYS.includes(this.checkedItem?.name) && (
+            !this.isDurationKey && (
               <div
                 key={'method'}
                 class='form-item mt-34'
-                // onClick={e => e.stopPropagation()}
               >
                 <div class='form-item-label'>{this.$t('条件')}</div>
                 <div class='form-item-content mt-6'>
@@ -563,6 +578,7 @@ export default defineComponent({
                       boundary: 'parent',
                     }}
                     clearable={false}
+                    onChange={this.handleMethodChange}
                   >
                     {this.checkedItem.supported_operations.map(item => (
                       <Select.Option
@@ -575,70 +591,74 @@ export default defineComponent({
                 </div>
               </div>
             ),
-            <div
-              key={'value'}
-              class={['form-item', DURATION_KEYS.includes(this.checkedItem.name) ? 'mt-34' : 'mt-16']}
-            >
-              <div class='form-item-label'>
-                <span class='left'>{this.$t('检索值')}</span>
-                {!!this.wildcardItem && (
-                  <span class='right'>
-                    <Checkbox
-                      v-model={this.isWildcard}
-                      // onChange={this.handleIsWildcardChange}
-                    >
-                      {this.wildcardItem?.label || '使用通配符'}
-                    </Checkbox>
-                  </span>
-                )}
-              </div>
-              <div class='form-item-content mt-6'>
-                {DURATION_KEYS.includes(this.checkedItem.name) ? (
-                  <TimeConsuming
-                    key={this.rightRefreshKey}
-                    fieldInfo={
-                      {
-                        field: this.checkedItem.name,
-                      } as any
-                    }
-                    styleType={'form'}
-                    value={this.timeConsumingValue}
-                    onChange={this.handleTimeConsumingValueChange}
-                  />
-                ) : (
-                  <ValueTagSelector
-                    key={this.rightRefreshKey}
-                    ref='valueSelector'
-                    fieldInfo={this.valueSelectorFieldInfo}
-                    getValueFn={this.getValueFnProxy}
-                    placeholder={''}
-                    value={this.values}
-                    autoFocus
-                    onChange={this.handleValueChange}
-                    onSelectorBlur={this.handleValueSelectorBlur}
-                    onSelectorFocus={this.handleSelectorFocus}
-                  />
-                )}
-              </div>
-              {this.isIntegerError ? <div class='error-msg'>{this.$t('仅支持输入数值类型')}</div> : undefined}
-            </div>,
-            !!this.groupRelationItem && (
-              <div
-                key='group_relation'
-                class='form-item mt-16'
-              >
-                <div class='form-item-label'>{this.groupRelationItem?.label || '组件关系'}</div>
-                <div class='form-item-content mt-6'>
-                  <Radio.Group v-model={this.groupRelation}>
-                    {this.groupRelationItem?.children?.map(g => (
-                      <Radio
-                        key={g.value}
-                        label={g.value}
+            !this.notValueOfMethod && (
+              <>
+                <div
+                  key={'value'}
+                  class={['form-item', this.isDurationKey ? 'mt-34' : 'mt-16']}
+                >
+                  <div class='form-item-label'>
+                    <span class='left'>{this.$t('检索值')}</span>
+                    {!!this.wildcardItem && (
+                      <span class='right'>
+                        <Checkbox
+                          v-model={this.isWildcard}
+                          // onChange={this.handleIsWildcardChange}
+                        >
+                          {this.wildcardItem?.label || '使用通配符'}
+                        </Checkbox>
+                      </span>
+                    )}
+                  </div>
+                  <div class='form-item-content mt-6'>
+                    {this.isDurationKey ? (
+                      <TimeConsuming
+                        key={this.rightRefreshKey}
+                        fieldInfo={
+                          {
+                            field: this.checkedItem.name,
+                          } as any
+                        }
+                        styleType={'form'}
+                        value={this.timeConsumingValue}
+                        onChange={this.handleTimeConsumingValueChange}
                       />
-                    ))}
-                  </Radio.Group>
+                    ) : (
+                      <ValueTagSelector
+                        key={this.rightRefreshKey}
+                        ref='valueSelector'
+                        fieldInfo={this.valueSelectorFieldInfo}
+                        getValueFn={this.getValueFnProxy}
+                        placeholder={''}
+                        value={this.values}
+                        autoFocus
+                        onChange={this.handleValueChange}
+                        onSelectorBlur={this.handleValueSelectorBlur}
+                        onSelectorFocus={this.handleSelectorFocus}
+                      />
+                    )}
+                  </div>
+                  {this.isIntegerError ? <div class='error-msg'>{this.$t('仅支持输入数值类型')}</div> : undefined}
                 </div>
-              </div>
+                {!!this.groupRelationItem && (
+                  <div
+                    key='group_relation'
+                    class='form-item mt-16'
+                  >
+                    <div class='form-item-label'>{this.groupRelationItem?.label || '组件关系'}</div>
+                    <div class='form-item-content mt-6'>
+                      <Radio.Group v-model={this.groupRelation}>
+                        {this.groupRelationItem?.children?.map(g => (
+                          <Radio
+                            key={g.value}
+                            label={g.value}
+                          />
+                        ))}
+                      </Radio.Group>
+                    </div>
+                  </div>
+                )}
+              </>
             ),
           ]
         : undefined;
