@@ -65,7 +65,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
-    const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
+    // const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
     const searchValue = shallowRef('');
@@ -176,9 +176,9 @@ export default defineComponent({
           } else {
             handleCheck(props.fields[0]);
             // 需要等待popover 动画执行完毕 300ms
-            setTimeout(() => {
-              searchInputRef.value?.focus();
-            }, 300);
+            // setTimeout(() => {
+            //   searchInputRef.value?.focus();
+            // }, 300);
           }
         } else {
           cleanup?.();
@@ -359,12 +359,22 @@ export default defineComponent({
         }
       }
     }
+    function isElementVisible(element: HTMLElement, container: HTMLElement) {
+      const elementRect = element?.getBoundingClientRect();
+      const containerRect = container?.getBoundingClientRect();
+      if (elementRect && containerRect) {
+        return elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
+      }
+      return true;
+    }
     function updateSelection(index: number) {
       nextTick(() => {
         const listEl = elRef.value.querySelector('.component-top-left .options-wrap');
         const el = listEl?.children?.[index];
         if (el) {
-          el.scrollIntoView(false);
+          if (!isElementVisible(el as HTMLElement, listEl as HTMLElement)) {
+            el.scrollIntoView(false);
+          }
         }
       });
     }
