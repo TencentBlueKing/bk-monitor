@@ -118,7 +118,7 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
     const fieldListMap = shallowRef<ExploreFieldList>({ trace: [], span: [] });
-    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
+    /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
     const fieldList = computed(() => {
@@ -426,7 +426,7 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后回调
+     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后回调
      *
      */
     function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
@@ -732,7 +732,7 @@ export default defineComponent({
                 >
                   <p class='subTitle'>
                     <i18n-t keypath='无法查询调用链，请先 {0}'>
-                      <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                      <span onClick={() => this.handleCreateApp()}>{this.t('创建应用')}</span>
                     </i18n-t>
                   </p>
                 </EmptyStatus>

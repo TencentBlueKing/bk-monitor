@@ -127,6 +127,7 @@ export default defineComponent({
       handleShowChange,
       handleConfirm,
       isAlarm,
+      t,
     };
   },
   render() {
@@ -148,16 +149,16 @@ export default defineComponent({
               key={'content'}
               class='content'
             >
-              <p class='title'>{this.$t('群聊邀请')}</p>
+              <p class='title'>{this.t('群聊邀请')}</p>
               <div class='checkbox-group'>
                 <Checkbox
                   checked={true}
                   modelValue={true}
                   disabled
                 >
-                  {this.isAlarm ? this.$t('告警关注人') : this.$t('故障关注人')}
+                  {this.isAlarm ? this.t('告警关注人') : this.t('故障关注人')}
                 </Checkbox>
-                {/* <Checkbox value={this.isHandler}>{this.$t('告警处理人')}</Checkbox> */}
+                {/* <Checkbox value={this.isHandler}>{this.t('告警处理人')}</Checkbox> */}
               </div>
               <BkUserSelector
                 class='bk-user-selector'
@@ -172,13 +173,13 @@ export default defineComponent({
                           key={'1'}
                           label={'2'}
                         >
-                          {this.$t('故障链接')}
+                          {this.t('故障链接')}
                         </Checkbox>,
                         <Checkbox
                           key={'2'}
                           label={'alarm_content'}
                         >
-                          {this.$t('故障内告警')}
+                          {this.t('故障内告警')}
                         </Checkbox>,
                       ]
                     : [
@@ -186,13 +187,13 @@ export default defineComponent({
                           key={'1'}
                           label={'detail_url'}
                         >
-                          {this.$t('告警事件链接')}
+                          {this.t('告警事件链接')}
                         </Checkbox>,
                         <Checkbox
                           key={'2'}
                           label={'alarm_content'}
                         >
-                          {this.$t('告警事件内容')}
+                          {this.t('告警事件内容')}
                         </Checkbox>,
                       ]}
                 </Checkbox.Group>
@@ -208,20 +209,20 @@ export default defineComponent({
               theme='primary'
               onClick={() => this.handleConfirm()}
             >
-              {this.$t('确定')}
+              {this.t('确定')}
             </Button>,
             <Button
               key={'cancel'}
               onClick={() => this.handleShowChange(false)}
             >
-              {this.$t('取消')}
+              {this.t('取消')}
             </Button>,
           ],
         }}
         header-position='left'
         is-show={this.show}
         mask-close={true}
-        title={this.$t('一键拉群')}
+        title={this.t('一键拉群')}
         on-value-change={this.handleShowChange}
         onClosed={this.handleShowChange}
       />

@@ -125,7 +125,6 @@ const VIEW_CONTAINER_MIN_HEIGHT = 620; // 详情面板最小高度
 export default defineComponent({
   name: 'TraceDetail',
   props: TraceDetailProps,
-  emits: ['close'],
   setup(props) {
     const route = useRoute();
     /** 取消请求方法 */
@@ -851,18 +850,18 @@ export default defineComponent({
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
+      t,
     };
   },
 
   render() {
-    const { isInTable, appName } = this.$props;
     const { trace_id: traceId, trace_info: traceInfo, span_classify: spanClassify } = this.traceData;
     const isStatisticsPanel = this.activePanel === 'statistics';
 
     return (
       <Loading
         ref='traceDetailElem'
-        class={`trace-detail-wrapper is-fix ${isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
+        class={`trace-detail-wrapper is-fix ${this.isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
         loading={this.isLoading}
         zIndex={99999}
       >
@@ -888,11 +887,11 @@ export default defineComponent({
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <span>{this.$t('产生时间')}</span>
+            <span>{this.t('产生时间')}</span>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('总耗时')}</span>
+            <span>{this.t('总耗时')}</span>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -908,7 +907,7 @@ export default defineComponent({
                   default: () => <span class='icon-monitor icon-tips' />,
                   content: () => (
                     <div class='trace-duration-pop'>
-                      <span style='color: #313238'>{this.$t('时间校准')}</span>
+                      <span style='color: #313238'>{this.t('时间校准')}</span>
                       <Switcher
                         modelValue={this.enabledTimeAlignment}
                         size='small'
@@ -916,7 +915,7 @@ export default defineComponent({
                         onChange={this.handleChangeEnableTimeALignment}
                       />
                       <span class='icon-monitor icon-hint' />
-                      {this.$t('开启时间校准，可同步服务所在时钟')}
+                      {this.t('开启时间校准，可同步服务所在时钟')}
                     </div>
                   ),
                 }}
@@ -926,19 +925,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <span>{this.$t('耗时分布')}</span>
+            <span>{this.t('耗时分布')}</span>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('服务数')}</span>
+            <span>{this.t('服务数')}</span>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('层级数')}</span>
+            <span>{this.t('层级数')}</span>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('span总数')}</span>
+            <span>{this.t('span总数')}</span>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>
@@ -1081,7 +1080,7 @@ export default defineComponent({
                 }`}
               >
                 <span class={`label ${isStatisticsPanel ? 'is-required' : ''}`}>
-                  {`${isStatisticsPanel ? this.$t('分组') : this.$t('显示')}`}
+                  {`${isStatisticsPanel ? this.t('分组') : this.t('显示')}`}
                 </span>
                 :
                 <Checkbox.Group
@@ -1174,9 +1173,9 @@ export default defineComponent({
                   <div class='statistics-container'>
                     <StatisticsTable
                       ref='statisticsElem'
-                      appName={appName}
+                      appName={this.appName}
                       compareTraceID={this.compareTraceID}
-                      traceId={traceId}
+                      traceId={this.traceID}
                       onClearKeyword={() => this.clearSearch()}
                       onUpdate:loading={this.contentLoadingChange}
                     />
@@ -1185,12 +1184,12 @@ export default defineComponent({
                 {/* 火焰图 */}
                 {this.activePanel === 'flame' && (
                   <FlameGraphV2
-                    appName={appName}
+                    appName={this.appName}
                     diffTraceId={this.compareTraceID}
                     filterKeywords={this.filterKeywords}
                     filters={this.traceViewFilters}
                     textDirection={this.ellipsisDirection}
-                    traceId={traceId}
+                    traceId={this.traceID}
                     onDiffTraceSuccess={this.updateCompareStatus}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onUpdate:loading={this.contentLoadingChange}
@@ -1198,9 +1197,9 @@ export default defineComponent({
                 )}
                 {this.activePanel === 'sequence' && (
                   <SequenceGraph
-                    appName={appName}
+                    appName={this.appName}
                     filters={this.traceViewFilters}
-                    traceId={traceId}
+                    traceId={this.traceID}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
                     onUpdate:loading={this.contentLoadingChange}

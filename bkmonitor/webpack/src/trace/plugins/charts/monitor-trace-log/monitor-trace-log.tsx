@@ -36,6 +36,7 @@ import {
   type ComputedRef,
 } from 'vue';
 import { shallowRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useTraceExploreStore } from '@/store/modules/explore';
 import {
@@ -60,7 +61,8 @@ window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorTraceLog',
-  setup() {
+  setup(props, { emit }) {
+    const { t } = useI18n();
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const traceStore = useTraceExploreStore();
     const empty = ref(true);
@@ -218,6 +220,7 @@ export default defineComponent({
       empty,
       loading,
       handleRelated,
+      t,
     };
   },
   render() {
@@ -226,13 +229,13 @@ export default defineComponent({
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
-              window.i18n.t('加载中...')
+              this.t('加载中...')
             ) : (
               <Exception type='building'>
-                <span>{this.$t('暂无关联日志')}</span>
+                <span>{this.t('暂无关联日志')}</span>
                 <div class='text-wrap'>
                   <pre class='text-row'>
-                    {this.$t(
+                    {this.t(
                       '关联日志方法：\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n2. 在服务配置 - 关联日志出关联对应索引集\n3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项'
                     )}
                   </pre>
@@ -240,7 +243,7 @@ export default defineComponent({
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('日志采集')}
+                    {this.t('日志采集')}
                   </Button>
                 </div>
               </Exception>

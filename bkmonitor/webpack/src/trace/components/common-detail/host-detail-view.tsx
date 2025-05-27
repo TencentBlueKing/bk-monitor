@@ -358,6 +358,7 @@ export default defineComponent({
       moduleData,
       handleTransformVal,
       targetListName,
+      t,
     };
   },
   render() {
@@ -370,7 +371,7 @@ export default defineComponent({
             <div
               class={['status-item', 'bg-failed']}
               v-bk-tooltips={{
-                content: this.$t('主机当前状态'),
+                content: this.t('主机当前状态'),
                 delay: 200,
                 boundary: 'window',
               }}
@@ -387,7 +388,7 @@ export default defineComponent({
                 `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`,
               ]}
               v-bk-tooltips={{
-                content: this.$t('采集状态'),
+                content: this.t('采集状态'),
                 delay: 200,
                 boundary: 'window',
               }}

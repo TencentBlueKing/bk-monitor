@@ -496,8 +496,8 @@ export default defineComponent({
         viewSearchKey={this.viewSearchKey}
         onChange={this.onChange}
         onCloseDialog={this.onCloseDialog}
-        onOutputField-change={this.onOutPutFieldChange}
-        onPanelChange={this.onPanelChange}
+        // onOutputField-change={this.onOutPutFieldChange}
+        // onPanelChange={this.onPanelChange}
       />
     );
   },

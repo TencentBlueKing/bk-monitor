@@ -203,7 +203,7 @@ export default defineComponent({
         handleCommonWhereChange([]);
         handleChange();
         Message({
-          message: t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'),
+          message: t('"常驻筛选"面板被折叠，过滤条件已填充到上方搜索框。'),
           theme: 'success',
         });
       }
@@ -466,6 +466,7 @@ export default defineComponent({
       handleClickSearchBtn,
       handleQsValueChange,
       handleCommonWhereChange,
+      t,
     };
   },
   render() {
@@ -527,7 +528,7 @@ export default defineComponent({
                   theme: 'light',
                   content: (
                     <div style='max-width: 280px;line-height: 20px;'>
-                      <div style='color: #313238; font-size: 12px;'>{this.$t('语法错误')}:</div>
+                      <div style='color: #313238; font-size: 12px;'>{this.t('语法错误')}:</div>
                       <div style='word-break: break-all; padding: 6px 8px; color: #e71818; background: #f5f7fa;border-radius: 2px;'>
                         {this.queryStringError.message}
                       </div>
@@ -540,7 +541,7 @@ export default defineComponent({
               <div
                 class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
-                  content: window.i18n.t('清空'),
+                  content: this.t('清空'),
                   delay: 300,
                 }}
                 onClick={this.handleClear}
@@ -550,7 +551,7 @@ export default defineComponent({
               <div
                 class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
                 v-bk-tooltips={{
-                  content: window.i18n.t('复制'),
+                  content: this.t('复制'),
                   delay: 300,
                 }}
                 onClick={this.handleCopy}
@@ -561,7 +562,7 @@ export default defineComponent({
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
-                    content: window.i18n.t('常驻筛选'),
+                    content: this.t('常驻筛选'),
                     delay: 300,
                   }}
                   onClick={() => this.handleShowResidentSetting()}
@@ -584,7 +585,7 @@ export default defineComponent({
                         <div
                           class='favorite-btn'
                           v-bk-tooltips={{
-                            content: window.i18n.t('收藏'),
+                            content: this.t('收藏'),
                             delay: 300,
                           }}
                           onClick={this.handleFavoriteClick}
@@ -604,13 +605,13 @@ export default defineComponent({
                             class='favorite-btn-item'
                             onClick={() => this.handleFavorite(true)}
                           >
-                            {this.$t('覆盖当前收藏')}
+                            {this.t('覆盖当前收藏')}
                           </div>
                           <div
                             class='favorite-btn-item'
                             onClick={() => this.handleFavorite(false)}
                           >
-                            {this.$t('另存为新收藏')}
+                            {this.t('另存为新收藏')}
                           </div>
                         </div>
                       );

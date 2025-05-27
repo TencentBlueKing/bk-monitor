@@ -26,6 +26,7 @@
 
 import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
@@ -58,6 +59,7 @@ export default defineComponent({
     const isChecked = shallowRef(false);
     const hideIndex = shallowRef(-1);
     const optionsWidth = shallowRef(0);
+    const { t } = useI18n();
 
     let clickOutsideFn = () => {};
 
@@ -305,6 +307,7 @@ export default defineComponent({
       handleInput,
       handleClear,
       handleSelectOption,
+      t,
     };
   },
   render() {
@@ -401,7 +404,7 @@ export default defineComponent({
               <AutoWidthInput
                 height={22}
                 isFocus={this.isFocus}
-                placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
+                placeholder={`${this.t('请输入')} ${this.t('或')} ${this.t('选择')}`}
                 value={this.inputValue}
                 onBackspaceNull={this.handleBackspaceNull}
                 onBlur={this.handleBlur}

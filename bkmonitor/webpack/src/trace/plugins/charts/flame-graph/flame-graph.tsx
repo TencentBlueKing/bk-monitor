@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
@@ -64,7 +65,7 @@ interface IJsonItem {
 }
 interface IDataItem {
   name: string;
-  value: Array<Record<string, any> | number | string>;
+  value: Array<number | Record<string, any> | string>;
   itemStyle: {
     color: string;
   };
@@ -127,6 +128,7 @@ export default defineComponent({
   },
   emits: ['update:loading', 'showSpanDetail'],
   setup(props, { emit, expose }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLDivElement>();
     const chartWrapRef = ref<HTMLDivElement>();
     let chartInstance = null; // echarts 实例
@@ -795,13 +797,14 @@ export default defineComponent({
       handleGraphWarpBlur,
       handlesSaleValueChange,
       handleStoreImg,
+      t,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );
