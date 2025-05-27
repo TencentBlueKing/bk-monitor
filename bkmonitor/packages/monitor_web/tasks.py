@@ -289,7 +289,7 @@ def update_metric_list_by_biz(bk_biz_id):
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
     source_type_use_biz = [
-        "BKDATA",
+        # "BKDATA",   # 当前更新BKDATA的任务转移到meta后台执行
         "LOGTIMESERIES",
         "BKMONITOR",
         "CUSTOMEVENT",
@@ -1424,7 +1424,7 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
 
 
 @shared_task(ignore_result=True)
-def update_target_detail(bk_biz_id=None,strategies_ids=None):
+def update_target_detail(bk_biz_id=None, strategies_ids=None):
     """
     对启用了缓存的业务ID，更新监控目标详情缓存
     """
@@ -1434,9 +1434,7 @@ def update_target_detail(bk_biz_id=None,strategies_ids=None):
             update_target_detail.delay(bk_biz_id=bk_biz_id)
         return
 
-    filter_conditions = {
-        "bk_biz_id": bk_biz_id
-    }
+    filter_conditions = {"bk_biz_id": bk_biz_id}
     if strategies_ids is not None:
         filter_conditions["id__in"] = strategies_ids
 
