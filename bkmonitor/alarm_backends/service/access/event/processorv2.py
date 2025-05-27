@@ -328,7 +328,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             except Exception as e:
                 logger.exception("topic(%s) loads alarm(%s) failed, %s", self.topic, m, e)
         self.record_list.extend(record_list)
-        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "redis").inc(len(record_list))
+        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id).inc(len(record_list))
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():
