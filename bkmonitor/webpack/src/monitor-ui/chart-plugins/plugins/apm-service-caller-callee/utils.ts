@@ -272,6 +272,10 @@ export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
   };
 }
 
+export function getPreviousTimestamps(timeArr: number[], nears: string[]) {
+  console.log(timeArr, nears);
+}
+
 export const createDrillDownList = (
   menuList: { id: string; name: string; disabled: boolean; selected: boolean }[],
   position: { x: number; y: number },
