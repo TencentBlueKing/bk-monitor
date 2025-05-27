@@ -283,10 +283,10 @@ export default defineComponent({
     let hintSide: string;
     if (viewStart && viewEnd && viewStart > 1 - viewEnd) {
       longLabel = `${labelDetail}${label ? ` | ${label}` : ''}`;
-      hintSide = 'left';
+      hintSide = 'right';
     } else {
       longLabel = `${label ? `${label} | ` : ''}${labelDetail}`;
-      hintSide = 'right';
+      hintSide = 'left';
     }
 
     return (
