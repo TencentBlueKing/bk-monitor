@@ -498,6 +498,3 @@ DT_TIME_STAMP_NANO = "dtEventTimeStampNanos"
 NANO_FORMAT = "date_nanos"
 STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos"
 NON_STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos||epoch_millis"
-
-# 多租户环境下的Agent事件清洗类型
-MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "agent_event_multi_tenancy"
