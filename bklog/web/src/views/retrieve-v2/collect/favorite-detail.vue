@@ -25,7 +25,9 @@
 -->
 <template>
   <div class="favorite-manage___favorite-detail-component">
-    <div class="header-title">{{ $t("收藏详情") }}</div>
+    <div class="header-title">{{ $t("收藏详情") }}
+      <span class="bklog-icon bklog-close" @click="handleCloseDialog" />
+    </div>
     <div class="detail-items-wrap">
       <!-- 收藏名称 -->
       <div class="form-item">
@@ -126,7 +128,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["success"]);
+const emit = defineEmits(["success","close"]);
 
 const showNameInput = ref(false);
 const nameInput = ref("");
@@ -213,6 +215,9 @@ const handleUpdateFavorite = async (row) => {
       return Promise.reject(error);
     });
 };
+function handleCloseDialog (){
+  emit("close")
+}
 function mergeWhereList(source, target) {
   let result = [];
   const sourceMap = new Map();
@@ -262,6 +267,11 @@ watch(
     font-size: 16px;
     line-height: 24px;
     color: #313238;
+    display: flex;
+    justify-content: space-between;
+    .bklog-close{
+      cursor: pointer;
+    }
   }
 
   .detail-items-wrap {

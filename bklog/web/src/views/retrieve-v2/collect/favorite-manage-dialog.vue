@@ -37,7 +37,7 @@
     :scrollable="true"
     :show-footer="false"
     :show-mask="false"
-    @value-change="initData"
+    @value-change="(val)=>initData(val)"
   >
     <div class="favorite-group-dialog-header">
       {{ $t("收藏管理") }}
@@ -50,7 +50,7 @@
             :class="['group-item', { active: curSelectGroup === 'all' }]"
             @click="handleSelectGroupChange('all')"
           >
-            <i class="bklog-icon icon-all" />
+            <i class="bklog-icon bklog-all" />
             <span class="group-name">{{ $t("全部收藏") }}</span>
             <span class="favorite-count">{{ allGroupList.length }}</span>
           </div>
@@ -73,7 +73,7 @@
         </div>
         <div class="search-input-container">
           <bk-popover
-            ref="addGroupPopover"
+            ref="addGroupPopoverRef"
             ext-cls="new-add-group-popover"
             :tippy-options="{
               trigger: 'click',
@@ -86,7 +86,7 @@
             <template #content>
               <div>
                 <bk-form
-                  ref="checkInputForm"
+                  ref="checkInputFormRef"
                   style="width: 100%"
                   form-type="vertical"
                   :model="addGroupData"
@@ -201,7 +201,7 @@
                 <div
                   v-if="!row.editGroup"
                   class="edit-cell"
-                  @click="handleEditGroup(row)"
+                  @click.stop="handleEditGroup(row)"
                 >
                   <span class="text">{{ row.group_name }}</span>
                   <i class="bklog-icon bklog-edit" />
@@ -209,8 +209,10 @@
                 <bk-select
                   v-else
                   class="edit-favorite-group"
+                  ref="editFavoriteNameSelectRef"
                   :model-value="row.group_id"
                   :clearable="false"
+                  @toggle="(val) => handleToggle(val, row)"
                   @selected="(val) => handleEditFavoriteGroup(val, row)"
                 >
                   <bk-option
@@ -251,6 +253,7 @@
           :groups="groups"
           :value="curClickRow"
           @success="handleDetailUpdate"
+          @close="handleDetailClose"
         />
       </div>
     </div>
@@ -282,7 +285,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close", "submit"]);
+const emit = defineEmits(["close"]);
 const store = useStore();
 const { $t } = useLocale();
 const spaceUid = computed(() => store.state.spaceUid);
@@ -301,7 +304,7 @@ const tableFilters = computed(() => {
   const names = {};
   const groups = {};
 
-  for (const item of searchResultFavorites.value) {
+  for (const item of allGroupList.value) {
     if (!names[item.updated_by]) {
       names[item.updated_by] = item.updated_by;
     }
@@ -341,19 +344,16 @@ const addGroupPopoverRef = ref(null);
 const checkInputFormRef = ref(null);
 const favoriteTableRef = ref(null);
 const editFavoriteNameInputRef = ref(null);
+const editFavoriteNameSelectRef = ref(null);
 
 const rules = {
   name: [
-    { validator: checkName, message: $t("组名不规范"), trigger: "blur" },
-    { validator: checkExistName, message: $t("名称冲突"), trigger: "blur" },
+    { validator: () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.name), message: $t("组名不规范"), trigger: "blur" },
+    { validator:  () => !localFavoriteList.value.some((item) => item.name === addGroupData.value.name), message: $t("名称冲突"), trigger: "blur" },
     { required: true, message: $t("必填项"), trigger: "blur" },
     { max: 30, message: $t("最大30字符"), trigger: "blur" },
   ],
 };
-
-const checkName = () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.name);
-const checkExistName = () =>
-  !localFavoriteList.value.some((item) => item.name === addGroupData.value.name);
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeydown);
@@ -371,6 +371,7 @@ watch(
         return [group.id, { ...group, favorites: [] }];
       })
     );
+    const initialOtherGroups = Array.from(groupMap.values());
     const [noGroupItems, privateItems, otherGroupItems] = newValue.reduce(
       (acc, item) => {
         if (item.group_name === "未分组") {
@@ -381,14 +382,11 @@ watch(
           const group = groupMap.get(item.group_id);
           if (group) {
             group.favorites.push(item);
-            if (!acc[2].some((g) => g.id === group.id)) {
-              acc[2].push(group);
-            }
           }
         }
         return acc;
       },
-      [[], [], []]
+      [[], [], initialOtherGroups]
     );
 
     noGroupList.value = noGroupItems;
@@ -397,16 +395,18 @@ watch(
   },
   { deep: true }
 );
-const initData = async () => {
-  await getGroupList();
-  getFavoriteList();
+const initData = async ( val=true ) => {
+  if (val) {
+    await getGroupList();
+    await getFavoriteList();
+  }
 };
 
 const handleShowChange = () => {
   emit("close", false);
 };
 /** 获取组列表 */
-const getGroupList = async (isAddGroup = false) => {
+const getGroupList = async () => {
   try {
     const res = await $http.request("favorite/getGroupList", {
       query: {
@@ -524,12 +524,14 @@ const handleTableSelectionChange = (selection) => {
 const handleAddGroupConfirm = async () => {
   try {
     await checkInputFormRef.value.validate();
-    await createFavoriteGroup({
-      type: favoriteType.value,
-      name: addGroupData.value.name,
-    });
+    const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
+    await $http
+      .request(`favorite/createGroup`, {
+        data,
+      })
+
     handleAddGroupPopoverHidden();
-    handleOperateChange("request-query-history");
+    initData();
   } catch (error) {
     console.error(error);
   }
@@ -537,9 +539,9 @@ const handleAddGroupConfirm = async () => {
 /** 隐藏添加分组popover */
 const handleAddGroupPopoverHidden = (close = true) => {
   addGroupData.value.name = "";
-  checkInputFormRef.value?.clearValidate();
+  checkInputFormRef.value?.clearError();
   if (close) {
-    addGroupPopoverRef.value?.hide();
+    addGroupPopoverRef.value?.hideHandler();
   }
 };
 const handleEditGroup = (row) => {
@@ -549,6 +551,9 @@ const handleEditGroup = (row) => {
       favorite.editGroup = false;
     }
   }
+  nextTick(() => {
+    editFavoriteNameSelectRef?.value.show();
+  });
 };
 const handleEditName = (row) => {
   row.editName = true;
@@ -557,7 +562,11 @@ const handleEditName = (row) => {
     editFavoriteNameInputRef?.value.focus();
   });
 };
-
+const handleToggle = (val,row) => {
+  if(!val){
+    row.editGroup = false;
+  }
+}
 const handleEditFavoriteName = (val, row) => {
   if (val !== row.name) {
     const updatedRow = {
@@ -631,6 +640,9 @@ const handleDetailUpdate = (params) => {
   curClickRow.value = params;
   handleOperateChange(params);
 };
+const handleDetailClose = () => {
+  curClickRow.value = null;
+}
 // 修改分组
 const handleOperateChange = (data) => {
   const updateDataInList = (list, data) => {
@@ -640,7 +652,9 @@ const handleOperateChange = (data) => {
   searchResultFavorites.value = updateDataInList(searchResultFavorites.value, data);
 };
 // 批量编辑分组
-const handleBatchUpdateGroup = (groupId) => {
+const handleBatchUpdateGroup = async(groupId) => {
+  await initData();
+  curSelectGroup.value = 'all'
   const selectIds = selectFavoriteList.value.map((item) => item.id);
   if (!groupId) {
     const updateDataInList = (list) => {
@@ -889,6 +903,28 @@ const sourceFilterMethod = (value, row, column) => {
   .favorite-detail-container {
     width: 540px;
     background: #f5f7fa;
+  }
+}
+.new-add-group-popover {
+  width: 272px;
+
+  .tippy-tooltip.light-theme {
+    padding: 16px;
+  }
+
+  .operate-button {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
+    color: #979ba5;
+
+    .bk-button {
+      min-width: 52px;
+
+      &:first-child {
+        margin-right: 8px;
+      }
+    }
   }
 }
 </style>

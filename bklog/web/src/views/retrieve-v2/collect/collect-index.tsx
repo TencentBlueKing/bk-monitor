@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
-import { isEqual } from 'lodash';
 
 import $http from '../../../api';
 import { copyMessage, deepClone } from '../../../common/util';
@@ -41,7 +40,6 @@ import FavoriteManageDialog from './favorite-manage-dialog.vue';
 // import ManageGroupDialog from './manage-group-dialog';
 
 import './collect-index.scss';
-import { nextTick } from 'vue';
 
 interface IProps {
   collectWidth: number;
@@ -810,6 +808,10 @@ export default class CollectIndex extends tsc<IProps> {
   handleShowCurrentChange() {
     RetrieveHelper.setViewCurrentIndexn(this.isShowCurrentIndexList);
   }
+  closeShowManageDialog(){
+    this.isShowManageDialog = false
+    this.getFavoriteList();
+  }
   render() {
     return (
       <div
@@ -1017,9 +1019,8 @@ export default class CollectIndex extends tsc<IProps> {
         /> */}
         <FavoriteManageDialog
           modelValue={this.isShowManageDialog}
-          onClose={(val: boolean) => this.isShowManageDialog = false }
-          onSubmit={(value) => {console.log(2334);
-          }}
+          onClose={this.closeShowManageDialog }
+
         >
 
         </FavoriteManageDialog>
