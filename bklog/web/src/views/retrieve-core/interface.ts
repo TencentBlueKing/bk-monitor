@@ -42,6 +42,7 @@ export type GradeConfiguration = {
   disabled: boolean;
   type: 'custom' | 'normal';
   field: string;
+  fieldType: string;
   valueType: GradeFieldValueType;
   settings: GradeSetting[];
 };

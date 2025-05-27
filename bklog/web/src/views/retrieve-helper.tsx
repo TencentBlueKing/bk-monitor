@@ -210,7 +210,7 @@ class RetrieveHelper extends RetrieveBase {
       return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
-    const fieldValue = parseTableRowData(field, options.field, field.field_type);
+    const fieldValue = parseTableRowData(field, options.field, options.fieldType);
 
     if (options.type === 'custom' && fieldValue) {
       const target = this.convertToMatchableString(fieldValue);
