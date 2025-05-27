@@ -173,20 +173,20 @@ export default defineComponent({
      * @param detail 需要展示的kv结构数据
      */
     const handleErrorPopoverContent = (title: string, detail: Record<string, any>) => {
-      const createListItem = (label, value) => {
-        return (
-          <div class='popover-main-item'>
-            <span class='content-item-key'>{label}</span>
-            <span class='content-item-colon'>:</span>
-            <span class='content-item-value'>{value || '--'}</span>
-          </div>
-        );
-      };
       return (
         <div class='span-row-content-popover'>
           <div class='span-row-content-popover-title'>{title}</div>
           <div class='span-row-content-popover-main'>
-            {Object.entries(detail).map(([label, value]) => createListItem(label, value))}
+            {Object.entries(detail).map(([label, value]) => (
+              <div
+                key={label}
+                class='popover-main-item'
+              >
+                <span class='content-item-key'>{label}</span>
+                <span class='content-item-colon'>:</span>
+                <span class='content-item-value'>{value || '--'}</span>
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -375,7 +375,6 @@ export default defineComponent({
                       v-slots={{
                         content: () => this.handleErrorPopoverContent(this.$t('错误信息'), errorDetail),
                       }}
-                      allowHtml={true}
                       placement='bottom'
                       popoverDelay={[300, 0]}
                     >
