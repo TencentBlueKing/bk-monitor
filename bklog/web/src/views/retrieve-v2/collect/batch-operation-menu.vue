@@ -27,12 +27,14 @@
 <template>
   <div class="batch-operation-menu-container">
     <bk-popover
+      ref="batchOperatePopoverRef"
       trigger="click"
       :arrow="false"
       theme="light"
       placement="bottom-start"
       boundary="viewport"
       extCls="batch-operation-menu"
+      :interactive="true"
     >
       <bk-button :disabled="selectFavoriteList.length === 0">
         {{ $t("批量操作") }} <i class="bk-icon icon-angle-down" />
@@ -41,18 +43,21 @@
         <div>
           <div class="batch-operation-menu-content">
             <bk-popover
-              placement="right"
+              ref="operationMenuRef"
+              placement="right-start"
               :arrow="false"
               theme="light"
               boundary="viewport"
               extCls="batch-operation-menu"
+              @show="()=>handleShowOperationMenuRef(false)"
+              @hide="()=>handleShowOperationMenuRef(true)"
             >
               <div class="operation-item">
                 {{ $t("移动至分组") }}
                 <i class="bk-icon icon-angle-right" />
               </div>
               <div slot="content">
-                <div ref="batchMoveToGroupMenu" class="batch-move-to-group-menu-content">
+                <div ref="batchMoveToGroupMenuRef" class="batch-move-to-group-menu-content">
                   <div class="group-list">
                     <div
                       v-for="group in favoriteGroupList"
@@ -67,7 +72,7 @@
                     <template v-if="moveToGroupAddGroup">
                       <div class="add-group-input">
                         <bk-form
-                          ref="checkInputAddForm"
+                          ref="checkInputAddFormRef"
                           style="width: 100%"
                           :label-width="0"
                           :model="addGroupData"
@@ -75,14 +80,14 @@
                         >
                           <bk-form-item property="name">
                             <bk-input
-                              ref="moveToGroupInput"
+                              ref="moveToGroupInputRef"
                               v-model="addGroupData.name"
                             />
                           </bk-form-item>
                         </bk-form>
                         <i
                           class="bk-icon icon-check-line"
-                          @click="handleAddGroupConfirm"
+                          @click.stop="handleAddGroupConfirm"
                         />
                         <i
                           class="bk-icon icon-close-line-2"
@@ -158,9 +163,10 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, computed, nextTick } from "vue";
 import { bkMessage } from "bk-magic-vue";
 import useLocale from "@/hooks/use-locale";
+import useStore from "@/hooks/use-store";
 import $http from "@/api";
 const { $t } = useLocale();
 const props = defineProps({
@@ -177,15 +183,15 @@ const props = defineProps({
     default: () => [],
   },
 });
-
+const store = useStore();
+const spaceUid = computed(() => store.state.spaceUid);
 const emit = defineEmits(["operateChange"]);
-const batchMoveToGroupMenu = ref(null);
-const moveToGroupInput = ref(null);
-const checkInputAddForm = ref(null);
-
-const batchOperatePopoverInstance = ref(null);
+const operationMenuRef = ref(null);
+const batchMoveToGroupMenuRef = ref(null);
+const moveToGroupInputRef = ref(null);
+const checkInputAddFormRef = ref(null);
+const batchOperatePopoverRef = ref(null);
 const batchDeleteDialogVisible = ref(false);
-const batchMoveGroupPopoverInstance = ref(null);
 const moveToGroupAddGroup = ref(false);
 
 const addGroupData = ref({
@@ -215,7 +221,7 @@ function checkExistName() {
 // 显示批量删除对话框
 function handleShowBatchDeleteDialog() {
   batchDeleteDialogVisible.value = true;
-  batchOperatePopoverInstance.value?.hide();
+  batchOperatePopoverRef.value?.hideHandler();;
 }
 
 // 批量删除收藏
@@ -261,8 +267,7 @@ async function handleBatchMoveToGroup(id) {
     })
     .then(() => {
       emit("operateChange", id);
-      batchMoveGroupPopoverInstance.value?.hide();
-      batchOperatePopoverInstance.value?.hide();
+      batchOperatePopoverRef.value?.hideHandler();;
     })
     .catch((error) => {
       console.error("Batch update failed", error);
@@ -273,22 +278,30 @@ async function handleBatchMoveToGroup(id) {
 // 添加新分组确认
 async function handleAddGroupConfirm() {
   try {
-    await checkInputAddForm.value.validate();
-    const data = await createFavoriteGroup({
-      type: props.favoriteType,
-      name: addGroupData.value.name,
-    });
-    handleBatchMoveToGroup(data.id);
+    await checkInputAddFormRef.value.validate();
+    const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
+    const res = await $http
+      .request(`favorite/createGroup`, {
+        data,
+      })
+    moveToGroupAddGroup.value = false
+    checkInputAddFormRef.value?.clearError();
+    operationMenuRef.value?.hideHandler();
+    handleBatchMoveToGroup(res.data.id)
   } catch (error) {
     console.error(error);
   }
+}
+function handleShowOperationMenuRef (val){
+  batchOperatePopoverRef?.value.instance.set({ hideOnClick: val });
+  moveToGroupAddGroup.value = false
 }
 
 // 表单输入焦点处理
 watch(moveToGroupAddGroup, (val) => {
   if (val) {
     nextTick(() => {
-      moveToGroupInput.value?.focus();
+      moveToGroupInputRef.value?.focus();
     });
   } else {
     addGroupData.value.name = "";
@@ -309,8 +322,8 @@ watch(moveToGroupAddGroup, (val) => {
     color: #4d4f56;
     cursor: pointer;
 
-    .icon-arrow-right {
-      font-size: 16px;
+    .icon-angle-right {
+      font-size: 20px;
     }
 
     &:hover {

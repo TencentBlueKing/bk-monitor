@@ -3016,8 +3016,6 @@ class CustomServiceDataViewResource(Resource):
 
 
 class CustomServiceDataSourceResource(Resource):
-    TIME_DELTA = 1
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
@@ -3029,7 +3027,7 @@ class CustomServiceDataSourceResource(Resource):
             raise ValueError(_("应用不存在"))
 
         end_time = datetime.datetime.now()
-        start_time = end_time - datetime.timedelta(days=self.TIME_DELTA)
+        start_time = end_time - datetime.timedelta(hours=2)
 
         if data["type"] == CustomServiceType.HTTP:
             return SpanHandler.get_span_urls(app, start_time, end_time)

@@ -1066,4 +1066,7 @@ export default {
   '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be restored. Please operate with caution!',
   '已选择以下{0}个收藏对象': 'The following {0} favorite objects have been selected',
   批量删除成功: 'Batch deletion succeeded',
+  '组名不规范, 包含了特殊符号.': 'The group name is not standard, and special symbols are included.',
+  '注意: 名字冲突': 'Note: name conflict',
+  '注意：最大值为30个字符': 'Note: the maximum value is 30 characters',
 };

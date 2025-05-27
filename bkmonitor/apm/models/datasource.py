@@ -858,10 +858,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         filter_params: list[dict[str, Any]] | None = None,
         fields: list[str] | None = None,
         category: str | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """查询 Span 列表"""
         qs: UnifyQuerySet = (
-            self.get_qs(start_time, end_time).add_query(self.get_q(filter_params, category, fields)).limit(10_000)
+            self.get_qs(start_time, end_time)
+            .add_query(self.get_q(filter_params, category, fields))
+            .limit(limit or 10_000)
         )
         try:
             return list(qs)

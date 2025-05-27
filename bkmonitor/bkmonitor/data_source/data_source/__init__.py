@@ -2100,15 +2100,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             "order_by": [],
         }
 
-        metrics: list[dict[str, Any]] = self.metrics
-        if self.distinct:
-            # 针对原始 Trace 检索（未开启预计算）场景，默认需要按指定时间字段进行排序。
-            # 后续如果有多字段排序的需求，也相应需要在这里进行调整扩展。
-            metrics = [{"method": "max", "field": self.time_field, "alias": "a"}]
-            group_by.append(self.distinct)
-
         query_list: list[dict[str, Any]] = []
-        for metric in metrics:
+        for metric in self.metrics:
             query: dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
@@ -2147,6 +2140,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if not query_list:
             query: dict[str, Any] = copy.deepcopy(base_query)
             query["reference_name"] = self.reference_name or "a"
+            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
+            if self.distinct:
+                query["collapse"] = {"field": self.distinct}
+
             for select_field in self.select:
                 if "(" in select_field and ")" in select_field:
                     continue
