@@ -37,7 +37,7 @@ format = "pylint"
 exclude = "*config*,*migrations*,*.pyc,.git,__pycache__.tox,docs,old,build,dist,*.egg-info,.cache,.eggs"
 
 [tool.ruff]
-src = ["bkmonitor", "bklog", "bkmonitor/packages"]
+src = ["bkmonitor", "bklog", "bkmonitor/packages", "bk-monitor-base"]
 line-length = 120
 exclude = [
     ".git",
