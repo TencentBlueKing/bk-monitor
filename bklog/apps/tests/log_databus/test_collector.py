@@ -32,6 +32,7 @@ from apps.log_databus.handlers.collector_handler.host_collector import HostColle
 from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
+from ...log_databus.models import ContainerCollectorConfig
 
 from ...log_databus.serializers import CollectorCreateSerializer
 from ...utils.drf import custom_params_valid
@@ -45,6 +46,55 @@ TASK_ID = 3
 NEW_TASK_ID = 4
 LAST_TASK_ID = 5
 CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
+CREATE_CONFIG_PARAMS = {
+    "id": 6,
+    "created_at": "2025-05-22 06:09:46.622208",
+    "created_by": "",
+    "updated_at": "2025-05-22 06:09:47.446807",
+    "updated_by": "admin",
+    "is_deleted": "0",
+    "deleted_at": None,
+    "deleted_by": None,
+    "collector_config_id": "1",
+    "namespaces": [],
+    "any_namespace": "1",
+    "data_encoding": "UTF-8",
+    "params": {
+        "paths": ["/var"],
+        "max_bytes": 204800,
+        "conditions": {"type": "none", "separator": None, "match_content": None},
+        "tail_files": "true",
+        "kafka_hosts": [],
+        "redis_hosts": [],
+        "winlog_name": [],
+        "extra_labels": [],
+        "ignore_older": 86400,
+        "kafka_topics": [],
+        "winlog_level": [],
+        "exclude_files": [],
+        "kafka_group_id": "",
+        "winlog_event_id": [],
+        "kafka_ssl_params": {},
+        "syslog_conditions": [],
+        "kafka_initial_offset": "newest",
+    },
+    "workload_type": "",
+    "workload_name": "",
+    "container_name": "",
+    "match_labels": [],
+    "match_expressions": [],
+    "all_container": "1",
+    "status": "PENDING",
+    "collector_type": "container_log_config",
+    "raw_config": None,
+    "parent_container_config_id": "0",
+    "rule_id": "0",
+    "status_detail": "等待配置下发",
+    "container_name_exclude": "",
+    "namespaces_exclude": [],
+    "match_annotations": [],
+}
+
 PARAMS = {
     "bk_biz_id": 706,
     "collector_config_name": "采集项名称",
@@ -1153,6 +1203,18 @@ class TestCollector(TestCase):
         self.assertEqual(result.get("collector_config_id"), collector_config_id)
         self.assertEqual(result.get("collector_scenario_id"), "row")
 
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        mock_append.return_value = ""
+        mock_run.return_value = CONFIG_DATA
+        mock_get_cluster_info.return_value = CLUSTER_INFO
+        result = collector.retrieve()
+
+        self.assertEqual(result.get("data_encoding"), "UTF-8")
+        self.assertIsNone(result.get("storage_cluster_id"))
+        self.assertIsNone(result.get("retention"))
+        self.assertEqual(result.get("collector_config_id"), collector_config_id)
+        self.assertEqual(result.get("collector_scenario_id"), "row")
+
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": LAST_TASK_ID})
     def _test_run_subscription_task(self, collector_config_id):
         scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
@@ -1168,11 +1230,19 @@ class TestCollector(TestCase):
         result = collector.start()
         self.assertEqual(result, ["6"])
 
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        result = collector.start()
+        self.assertEqual(result, True)
+
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 7})
     def _test_stop(self, collector_config_id):
         collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.stop()
         self.assertEqual(result, ["7"])
+
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        result = collector.stop()
+        self.assertEqual(result, True)
 
     @patch("apps.api.NodeApi.retry_subscription", lambda _: {"task_id": 8})
     def _test_retry_target_nodes(self, collector_config_id):
@@ -1182,6 +1252,12 @@ class TestCollector(TestCase):
         params = {"instance_id_list": [{"instance_id": "xxx"}]}
         result = collector.retry_instances(params)
         self.assertEqual(result, task_id_list)
+
+        ContainerCollectorConfig.objects.create(**CREATE_CONFIG_PARAMS)
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        params = [6]
+        result = collector.retry_instances(params)
+        self.assertEqual(result, params)
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 8})
     @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)

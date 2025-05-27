@@ -2067,7 +2067,7 @@ class K8sCollectorHandler(CollectorHandler):
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
     @staticmethod
-    def _get_expr_list(self, match_expressions):
+    def _get_expr_list(match_expressions):
         expr_list = []
         for expression in match_expressions:
             if expression["operator"] == LabelSelectorOperator.IN:
