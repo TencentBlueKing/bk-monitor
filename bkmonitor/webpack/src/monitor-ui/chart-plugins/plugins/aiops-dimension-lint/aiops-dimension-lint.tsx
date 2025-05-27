@@ -121,7 +121,7 @@ export default class AiopsDimensionLine extends LineChart {
     const hasMatch = timeMatch && timeMatch.length > 2;
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-      : val.replace('current', window.i18n.tc('当前'));
+      : val.replace('current', window.i18n.t('当前'));
   }
   /** 获取数据 */
   async getPanelData(start_time?: string, end_time?: string) {
@@ -135,7 +135,7 @@ export default class AiopsDimensionLine extends LineChart {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       // const series = apdexData.series || [];
@@ -296,12 +296,12 @@ export default class AiopsDimensionLine extends LineChart {
           this.hasSetEvent = true;
         }
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];

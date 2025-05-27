@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -48,7 +47,6 @@ SAFE_OPTIONS = {
 
 
 class CustomJSONEncoder(JSONEncoder):
-
     """
     extended json encoder
     enable to encode datetime, date, time, decimal, uuid
@@ -70,14 +68,18 @@ class CustomJSONEncoder(JSONEncoder):
 
 
 def load(*args, **kwargs):
-    # 只允许通过位置参数传递文件对象，不支持关键字参数
-    if not args:
+    # 支持通过位置参数或关键字参数fp传递文件对象
+    if not args and "fp" not in kwargs:
         raise TypeError("load() missing 1 required positional argument")
+
+    # 处理fp关键字参数
+    if "fp" in kwargs:
+        args = (kwargs.pop("fp"),) + args
 
     # ujson的load方法不支持任何关键字参数
     if not kwargs:
         try:
-            return ujson.load(*args, **kwargs)
+            return ujson.load(*args)
         except ValueError:
             pass
     return json_load(*args, **kwargs)

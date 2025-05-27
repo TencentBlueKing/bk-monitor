@@ -469,7 +469,7 @@
 <style lang="scss">
   .monitor-echarts-container {
     position: relative;
-    height: 160px;
+    // height: 160px;
     overflow: hidden;
     background-color: #fff;
 
@@ -489,7 +489,7 @@
       display: inline-block;
       margin-left: 24px;
       font-size: 12px;
-      color: #63656e;
+      color: #4d4f56;
 
       .select-custom {
         display: inline-block;
@@ -526,7 +526,7 @@
     }
 
     .monitor-echart-wrap {
-      height: 116px;
+      // height: 116px;
       padding-top: 0;
       padding-bottom: 0;
 

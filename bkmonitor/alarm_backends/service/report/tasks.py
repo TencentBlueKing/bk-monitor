@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
-import posixpath
 from collections import defaultdict
 
 import arrow
@@ -85,17 +84,7 @@ def operation_data_custom_report_v2():
 
     # 数据上报
     report_tool.send_data_by_http(all_data, DataSource.objects.get(bk_data_id=bk_data_id).token)
-    logger.info(
-        """
-        [new_operation_data_report] success, dataid:%d, data_len: %d;
-        gsecmdline: %s;
-        ipc: %s;
-        """,
-        bk_data_id,
-        len(all_data),
-        posixpath.join(settings.LINUX_GSE_AGENT_PATH, "plugins", "bin", "gsecmdline"),
-        settings.LINUX_GSE_AGENT_IPC_PATH,
-    )
+    logger.info("[operation_data_custom_report_v2] success, dataid: %d, data_len: %d", bk_data_id, len(all_data))
 
 
 def report_mail_detect():
@@ -150,9 +139,9 @@ def report_mail_detect():
                                 # 当前这个小时，且在检测的这个分钟已经发送过，则不再检测发送
                                 # 因为有一分钟裕量，否则有可能前后一分钟都会命中
                                 continue
-                        run_time_strings.append(f'{today} {hour}:{minute}:00')
+                        run_time_strings.append(f"{today} {hour}:{minute}:00")
         else:
-            run_time_strings = [f'{datetime.datetime.today().strftime("%Y-%m-%d")} {item.frequency["run_time"]}']
+            run_time_strings = [f"{datetime.datetime.today().strftime('%Y-%m-%d')} {item.frequency['run_time']}"]
         for time_str in run_time_strings:
             run_time = TimeMatch.convert_datetime_to_arrow(datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S"))
             if time_check.is_match(run_time):
@@ -161,7 +150,7 @@ def report_mail_detect():
                 item.save()
                 # 发送邮件
                 logger.info("[mail_report] start process and render mails on run time(%s)...", run_time)
-                ReportHandler(item.id).process_and_render_mails()
+                ReportHandler(bk_tenant_id=item.bk_tenant_id, item_id=item.id).process_and_render_mails()
                 logger.info("[mail_report] end process and render mails...")
                 # 满足一次条件直接终止
                 break
@@ -169,7 +158,12 @@ def report_mail_detect():
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def render_mails(
-    mail_handler, report_item, report_item_contents, receivers, is_superuser, channel_name=ReportItems.Channel.USER
+    mail_handler,
+    report_item: ReportItems,
+    report_item_contents,
+    receivers,
+    is_superuser,
+    channel_name=ReportItems.Channel.USER,
 ):
     """
     渲染并发送邮件
@@ -186,6 +180,7 @@ def render_mails(
         return
     logger.info(f"[mail_report] report_item({report_item.id}) start...")
     status = {
+        "bk_tenant_id": report_item.bk_tenant_id,
         "report_item": mail_handler.item_id,
         "mail_title": report_item.mail_title,
         "create_time": datetime.datetime.now(tz=datetime.timezone.utc),
@@ -211,7 +206,7 @@ def render_mails(
             bk_biz_ids = [s["bk_biz_id"] for s in spaces]
         except Exception as error:
             logger.exception(
-                "[mail_report] get business info of report_item(%s)" " failed: %s", report_item.id, str(error)
+                "[mail_report] get business info of report_item(%s) failed: %s", report_item.id, str(error)
             )
             bk_biz_ids = []
 
@@ -226,7 +221,7 @@ def render_mails(
             is_link_enabled=report_item.is_link_enabled,
             channel_name=channel_name,
         )
-        status["mail_title"] = f'{report_item.mail_title} {render_args["mail_title_time"]}'
+        status["mail_title"] = f"{report_item.mail_title} {render_args['mail_title_time']}"
         if err_msg:
             status["details"]["error_message"][receivers_string] = err_msg
         if channel_name == ReportItems.Channel.WXBOT:
@@ -333,6 +328,6 @@ def render_image_task(task: RenderImageTask):
         task.status = RenderImageTask.Status.FAILED
     else:
         task.status = RenderImageTask.Status.SUCCESS
-        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.jpeg")
+        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.{config.image_format}")
 
     task.save()

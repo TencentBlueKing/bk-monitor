@@ -29,6 +29,8 @@ import {
   eventTotal as apmEventTotal,
   eventViewConfig as apmEventViewConfig,
   eventLogs as apmEventLogs,
+  eventStatisticsInfo as apmEventStatisticsInfo,
+  eventStatisticsGraph as apmEventStatisticsGraph,
 } from 'monitor-api/modules/apm_event';
 import {
   eventDownloadTopK,
@@ -36,6 +38,8 @@ import {
   eventTotal,
   eventViewConfig,
   eventLogs,
+  eventStatisticsInfo,
+  eventStatisticsGraph,
 } from 'monitor-api/modules/data_explorer';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 
@@ -68,6 +72,18 @@ export const getEventTopK = (
 ): Promise<ITopKField[]> => {
   const apiFunc = type === APIType.APM ? apmEventTopK : eventTopK;
   return apiFunc(params, { needMessage: false, ...config }).catch(() => []);
+};
+
+/** 获取topk统计信息 */
+export const getTopKStatisticInfo = (params: any, type = APIType.MONITOR, config = {}) => {
+  const apiFunc = type === APIType.APM ? apmEventStatisticsInfo : eventStatisticsInfo;
+  return apiFunc(params, { needMessage: false, ...config });
+};
+
+/** 获取topk图表数据 */
+export const getTopKStatisticGraph = (params: any, type = APIType.MONITOR, config = {}) => {
+  const apiFunc = type === APIType.APM ? apmEventStatisticsGraph : eventStatisticsGraph;
+  return apiFunc(params, { needMessage: false, ...config });
 };
 
 export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {

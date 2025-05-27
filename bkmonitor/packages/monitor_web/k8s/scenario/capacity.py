@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,19 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
 
 from django.utils.translation import gettext_lazy as _lazy
 
 from monitor_web.k8s.scenario import Category, Metric
 
 """
-k8s 性能场景配置, 初版
+k8s 容量场景配置, 初版
 """
 
 
 # 每个场景需要配置一个 get_metrics函数 以返回指标列表
-def get_metrics() -> List:
+def get_metrics() -> list:
     return [
         Category(
             id="CPU",
@@ -28,14 +26,14 @@ def get_metrics() -> List:
             children=[
                 Metric(
                     id="node_cpu_seconds_total",
-                    name=_lazy("节点CPU使用量"),
+                    name=_lazy("CPU使用量"),
                     unit="core",
                     unsupported_resource=[],
                 ),
                 # sum(rate(node_cpu_seconds_total{mode!="idle"}[1m])) by (node)
                 Metric(
                     id="node_cpu_capacity_ratio",
-                    name=_lazy("节点CPU装箱率"),
+                    name=_lazy("CPU装箱率"),
                     unit="percentunit",
                     unsupported_resource=[],
                 ),
@@ -45,8 +43,8 @@ def get_metrics() -> List:
                 # kube_node_status_allocatable{resource="cpu"} * 100
                 Metric(
                     id="node_cpu_usage_ratio",
-                    name=_lazy("节点CPU使用率"),
-                    unit="percentunit",
+                    name=_lazy("CPU使用率"),
+                    unit="percent",
                     unsupported_resource=[],
                 ),
                 # (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) by (node)) * 100
@@ -58,16 +56,16 @@ def get_metrics() -> List:
             children=[
                 Metric(
                     id="node_memory_working_set_bytes",
-                    name=_lazy("节点内存使用量"),
+                    name=_lazy("内存使用量"),
                     unit="bytes",
                     unsupported_resource=[],
                 ),
                 # sum by (node)(node_memory_MemTotal_bytes) - sum by (node) (node_memory_MemAvailable_bytes)
                 Metric(
                     id="node_memory_capacity_ratio",
-                    name=_lazy("节点内存装箱率"),
+                    name=_lazy("内存装箱率"),
                     unit="percentunit",
-                    unsupported_resource=["namespace"],
+                    unsupported_resource=[],
                 ),
                 # kube_node_status_allocatable 依赖bk-monitor-operator升级
                 # sum(kube_pod_container_resource_requests{resource="memory"}) by (node)
@@ -75,9 +73,9 @@ def get_metrics() -> List:
                 # kube_node_status_allocatable{resource="memory"} * 100
                 Metric(
                     id="node_memory_usage_ratio",
-                    name=_lazy("节点内存使用率"),
+                    name=_lazy("内存使用率"),
                     unit="percentunit",
-                    unsupported_resource=["namespace"],
+                    unsupported_resource=[],
                 ),
                 # (1 - (sum by (node)(node_memory_MemAvailable_bytes) / sum by (node)(node_memory_MemTotal_bytes)))
             ],
@@ -90,21 +88,21 @@ def get_metrics() -> List:
                     id="master_node_count",
                     name=_lazy("集群Master节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["node"],
                 ),
                 # count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="worker_node_count",
                     name=_lazy("集群Worker节点计数"),
                     unit="none",
-                    unsupported_resource=["container"],
+                    unsupported_resource=["node"],
                 ),
                 # count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))
                 Metric(
                     id="node_pod_usage",
-                    name=_lazy("节点Pod个数使用率"),
-                    unit="none",
-                    unsupported_resource=["container"],
+                    name=_lazy("Pod个数使用率"),
+                    unit="percentunit",
+                    unsupported_resource=[],
                 ),
                 # sum by (node)(kubelet_running_pods) / sum by (node)(kube_node_status_capacity_pods)
             ],
@@ -115,21 +113,21 @@ def get_metrics() -> List:
             children=[
                 Metric(
                     id="node_network_receive_bytes_total",
-                    name=_lazy("节点网络入带宽"),
+                    name=_lazy("网络入带宽"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 # sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_transmit_bytes_total",
-                    name=_lazy("节点网络出带宽"),
+                    name=_lazy("网络出带宽"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 # sum(rate(node_network_transmit_bytes_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_receive_packets_total",
-                    name=_lazy("节点网络入包量"),
+                    name=_lazy("网络入包量"),
                     unit="pps",
                     unsupported_resource=[],
                 ),
@@ -137,7 +135,7 @@ def get_metrics() -> List:
                 # sum(rate(node_network_receive_packets_total{device!~"lo|veth.*"}[1m])) by (node)
                 Metric(
                     id="node_network_transmit_packets_total",
-                    name=_lazy("节点网络出包量"),
+                    name=_lazy("网络出包量"),
                     unit="pps",
                     unsupported_resource=[],
                 ),

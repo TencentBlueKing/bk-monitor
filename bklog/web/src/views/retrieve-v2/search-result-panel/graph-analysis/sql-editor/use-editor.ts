@@ -133,21 +133,27 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
     );
   };
 
+  let isResizeLayout = false;
   const debounceLayout = debounce(() => {
-    const rect = refRootElement.value.getBoundingClientRect();
-    editorInstance.value?.layout({
-      width: rect.width,
-      height: rect.height,
-    });
-  }, 300);
+    if (refRootElement.value && !isResizeLayout) {
+      isResizeLayout = true;
+      const rect = refRootElement.value?.getBoundingClientRect();
+      editorInstance.value?.layout({
+        width: rect.width,
+        height: rect.height,
+      });
+
+      setTimeout(() => {
+        isResizeLayout = false;
+      }, 300);
+    }
+  }, 120);
 
   useResizeObserve(refRootElement, debounceLayout);
 
   onMounted(() => {
-    setTimeout(() => {
-      initEditorInstance();
-      setSuggestFields();
-    });
+    initEditorInstance();
+    setSuggestFields();
   });
 
   return {

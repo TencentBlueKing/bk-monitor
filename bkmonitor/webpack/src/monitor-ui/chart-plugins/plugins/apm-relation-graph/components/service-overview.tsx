@@ -125,11 +125,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   get tabs() {
     if (this.curType === 'endpoint') {
-      return [{ id: 'service', name: window.i18n.tc('服务') }];
+      return [{ id: 'service', name: window.i18n.t('服务') }];
     }
     return [
-      { id: 'service', name: window.i18n.tc('服务') },
-      { id: 'log', name: window.i18n.tc('日志') },
+      { id: 'service', name: window.i18n.t('服务') },
+      { id: 'log', name: window.i18n.t('日志') },
     ];
   }
 

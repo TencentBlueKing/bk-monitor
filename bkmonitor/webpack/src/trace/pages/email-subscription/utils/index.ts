@@ -37,7 +37,7 @@ export function getSendFrequencyText(data: Report) {
       str = t('仅一次');
       break;
     }
-    case FrequencyType.dayly: {
+    case FrequencyType.daily: {
       const includeWeekend = [1, 2, 3, 4, 5, 6, 7];
       const isIncludeWeekend = includeWeekend.every(item => data.frequency.week_list.includes(item));
       str = `${t('每天')}${isIncludeWeekend ? `(${t('包含周末')})` : ''} ${data.frequency.run_time}`;

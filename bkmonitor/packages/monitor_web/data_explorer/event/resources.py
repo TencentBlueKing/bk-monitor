@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import threading
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -73,12 +73,12 @@ logger = logging.getLogger(__name__)
 class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         if validated_request_data["is_mock"]:
             return API_TIME_SERIES_RESPONSE
 
         try:
-            result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
+            result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         except Exception as exc:
             logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
             return {}
@@ -94,7 +94,7 @@ class EventTimeSeriesResource(Resource):
 class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         if validated_request_data.get("is_mock"):
             return API_LOGS_RESPONSE
 
@@ -111,14 +111,14 @@ class EventLogsResource(Resource):
         for query in [
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
-            queryset = queryset.add_query(query.order_by("-time"))
+            queryset = queryset.add_query(query.order_by("time desc"))
         try:
-            events: List[Dict[str, Any]] = list(queryset)
+            events: list[dict[str, Any]] = list(queryset)
         except Exception as exc:
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
             return {"list": []}
 
-        processors: List[BaseEventProcessor] = [
+        processors: list[BaseEventProcessor] = [
             OriginEventProcessor(),
             K8sEventProcessor(BcsClusterContext()),
             HostEventProcessor(SystemClusterContext()),
@@ -133,7 +133,7 @@ class EventLogsResource(Resource):
 class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         if validated_request_data.get("is_mock"):
             return API_VIEW_CONFIG_RESPONSE
 
@@ -172,7 +172,7 @@ class EventViewConfigResource(Resource):
         return dimension_metadata_map
 
     @classmethod
-    def sort_fields(cls, dimension_metadata_map) -> List[Dict[str, Any]]:
+    def sort_fields(cls, dimension_metadata_map) -> list[dict[str, Any]]:
         fields = []
         for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
@@ -227,14 +227,14 @@ class EventViewConfigResource(Resource):
         return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
-    def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
+    def get_supported_operations(cls, field_type) -> list[dict[str, Any]]:
         return TYPE_OPERATION_MAPPINGS[field_type]
 
 
 class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         lock = threading.Lock()
         if validated_request_data["is_mock"]:
             return API_TOPK_RESPONSE
@@ -324,9 +324,8 @@ class EventTopKResource(Resource):
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {
-                        # TODO unifyquery 处理完空值问题会退这段代码
-                        "value": "" if not field_value or field_value == " " else field_value,
-                        "alias": "--" if not field_value or field_value == " " else field_value,
+                        "value": field_value or "",
+                        "alias": "--" if not field_value else field_value,
                         "count": field_count,
                         "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
                     }
@@ -347,21 +346,21 @@ class EventTopKResource(Resource):
 
     @classmethod
     def query_topk(
-        cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0, need_empty: bool = False
+        cls, queryset: UnifyQuerySet, qs: list[QueryConfigBuilder], field: str, limit: int = 0, need_empty: bool = False
     ):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(
                 q.metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
                 .group_by(field)
-                .order_by("-_value")
+                .order_by("_value desc")
             )
 
         queryset.expression(alias)
         return list(queryset.limit(limit))
 
     @classmethod
-    def query_distinct(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str):
+    def query_distinct(cls, queryset: UnifyQuerySet, qs: list[QueryConfigBuilder], field: str):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(q.metric(field=field, method="cardinality", alias=alias))
@@ -371,7 +370,7 @@ class EventTopKResource(Resource):
 
     @classmethod
     def get_match_query_configs(
-        cls, field: str, query_configs: List[Dict[str, Any]], dimension_metadata_map: Dict[str, Dict[str, Set[str]]]
+        cls, field: str, query_configs: list[dict[str, Any]], dimension_metadata_map: dict[str, dict[str, set[str]]]
     ):
         """
         获取字段匹配的查询条件
@@ -390,10 +389,10 @@ class EventTopKResource(Resource):
         cls,
         lock: Lock,
         queryset: UnifyQuerySet,
-        query_configs: List[Dict[str, Any]],
+        query_configs: list[dict[str, Any]],
         field: str,
         limit: int,
-        field_topk_map: Dict[str, Dict[str, int]],
+        field_topk_map: dict[str, dict[str, int]],
         need_empty: bool = False,
     ):
         """
@@ -416,7 +415,7 @@ class EventTopKResource(Resource):
 
     @classmethod
     def calculate_distinct_count_for_table(
-        cls, queryset: UnifyQuerySet, query_config: Dict[str, Any], field: str, field_distinct_map: Dict[str, int]
+        cls, queryset: UnifyQuerySet, query_config: dict[str, Any], field: str, field_distinct_map: dict[str, int]
     ):
         """
         计算数据源的维度去重数量
@@ -433,11 +432,11 @@ class EventTopKResource(Resource):
         cls,
         lock: Lock,
         queryset: UnifyQuerySet,
-        query_configs: List[Dict[str, Any]],
+        query_configs: list[dict[str, Any]],
         field: str,
-        dimension_metadata_map: Dict[str, Dict[str, Set[str]]],
-        field_distinct_map: Dict[str, int],
-        field_topk_map: Dict[str, Dict[str, int]],
+        dimension_metadata_map: dict[str, dict[str, set[str]]],
+        field_distinct_map: dict[str, int],
+        field_topk_map: dict[str, dict[str, int]],
         need_empty: bool = False,
     ):
         """
@@ -458,7 +457,7 @@ class EventTopKResource(Resource):
 class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         if validated_request_data.get("is_mock"):
             return API_TOTAL_RESPONSE
 
@@ -486,7 +485,7 @@ class EventTotalResource(Resource):
 class EventStatisticsGraphResource(Resource):
     RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """
         param:field[values]:list
                 1）当字段类型为 integer 时，包含字段的最小值、最大值、枚举数量和区间数量。具体结构如下：
@@ -498,9 +497,9 @@ class EventStatisticsGraphResource(Resource):
         """
         field = validated_request_data["field"]
         # keyword 类型，返回时序图
-        field_name = field["name"]
+        field_name = field["field_name"]
         values = field["values"]
-        if field["type"] == EventDimensionTypeEnum.KEYWORD.value:
+        if field["field_type"] == EventDimensionTypeEnum.KEYWORD.value:
             for query_config in validated_request_data["query_configs"]:
                 query_config["filter_dict"] = q_to_dict(
                     (dict_to_q(query_config["filter_dict"]) or Q()) & Q(**{f"{field_name}__eq": values})
@@ -517,21 +516,21 @@ class EventStatisticsGraphResource(Resource):
                 )
                 queries.append(q)
 
-        # 字段枚举数量少于区间数量或者区间的最大数量小于区间数，直接查询枚举值返回
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if distinct_count < interval_num or (max_value - min_value + 1) < interval_num:
+        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
             for q in queries:
                 queryset = queryset.add_query(q.group_by(field_name))
             return self.process_graph_info(
                 [
                     [datapoint["_result_"], datapoint[field_name]]
-                    for datapoint in sorted(queryset.limit(values[2]), key=lambda x: int(x[field_name]))
+                    for datapoint in sorted(queryset.limit(distinct_count), key=lambda x: int(x[field_name]))
                 ]
             )
         # 划分区间计算
         return self.process_graph_info(
             self.calculate_interval_buckets(
-                queryset, queries, field_name, self.calculate_intervals(values[0], values[1], values[3])
+                queryset, queries, field_name, self.calculate_intervals(min_value, max_value, interval_num)
             )
         )
 
@@ -561,7 +560,7 @@ class EventStatisticsGraphResource(Resource):
         return intervals
 
     @classmethod
-    def calculate_interval_buckets(cls, queryset, queries, field, intervals) -> List:
+    def calculate_interval_buckets(cls, queryset, queries, field, intervals) -> list:
         """
         统计各区间计数
         """
@@ -600,7 +599,7 @@ class EventStatisticsGraphResource(Resource):
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod
-    def collect_interval_buckets(cls, queryset, queries, bucket, interval: Tuple[int, int]):
+    def collect_interval_buckets(cls, queryset, queries, bucket, interval: tuple[int, int]):
         for query in queries:
             queryset = queryset.add_query(query)
         try:
@@ -613,7 +612,7 @@ class EventStatisticsGraphResource(Resource):
 class EventStatisticsInfoResource(Resource):
     RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         queries = [
             get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
         ]
@@ -623,7 +622,7 @@ class EventStatisticsInfoResource(Resource):
             "field_count": "count",
             "distinct_count": "cardinality",
         }
-        if field["type"] == EventDimensionTypeEnum.INTEGER.value:
+        if field["field_type"] == EventDimensionTypeEnum.INTEGER.value:
             # 数值类型，支持更多统计方法
             statistics_property_method_map.update({"max": "max", "min": "min", "median": "cp50", "avg": "avg"})
 
@@ -635,7 +634,7 @@ class EventStatisticsInfoResource(Resource):
                     args=(
                         get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
                         queries,
-                        field["name"],
+                        field["field_name"],
                         statistics_property,
                         method,
                         statistics_info,
@@ -648,7 +647,7 @@ class EventStatisticsInfoResource(Resource):
         return self.process_statistics_info(statistics_info)
 
     @classmethod
-    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+    def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
         processed_statistics_info = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
@@ -659,6 +658,7 @@ class EventStatisticsInfoResource(Resource):
                 processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
             processed_statistics_info[statistics_property] = value
+
         # 计算百分比
         processed_statistics_info["field_percent"] = (
             round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)

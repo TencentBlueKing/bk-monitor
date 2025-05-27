@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
+import { formatTipsContent } from '../../../../../metric-chart-view/utils';
+
 import './select-panel.scss';
 
 interface IProps {
@@ -53,6 +55,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   checkedMap: Readonly<Record<string, boolean>> = {};
   renderData: Readonly<IProps['data']> = [];
   hasSelectedAll = false;
+  isPanelShow = false;
 
   get isSelectDisabled() {
     return this.data.length < 1;
@@ -70,10 +73,26 @@ export default class AppendValue extends tsc<IProps, IEmit> {
       return;
     }
     this.popoverRef.showHandler();
+    this.renderData = Object.freeze(this.data);
     this.checkedMap = Object.freeze(
       this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
     );
     this.hasSelectedAll = _.every(this.renderData, item => _.has(this.checkedMap, item.name));
+  }
+
+  handlePopoverShow() {
+    this.isPanelShow = true;
+  }
+
+  handlePopoverhide() {
+    this.isPanelShow = false;
+    const result = Object.entries(this.checkedMap).map(([field, split]) => ({
+      field,
+      split,
+    }));
+    if (!_.isEqual(result, this.value)) {
+      this.$emit('change', result);
+    }
   }
 
   handleToggleAll(checkAll: boolean) {
@@ -110,16 +129,6 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.checkedMap = Object.freeze(latestCheckedMap);
   }
 
-  handleChange() {
-    const result = Object.entries(this.checkedMap).map(([field, split]) => ({
-      field,
-      split,
-    }));
-    if (!_.isEqual(result, this.value)) {
-      this.$emit('change', result);
-    }
-  }
-
   created() {
     this.handleFilterChange = _.throttle((filterKey: string) => {
       if (!filterKey) {
@@ -147,10 +156,12 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           class='item'
         >
           <bk-checkbox
+            v-bk-tooltips={{ content: formatTipsContent(dimensionData.name, dimensionData.alias), placement: 'left' }}
             checked={isChecked}
             onChange={() => this.handleToggleCheck(dimensionData.name)}
           >
             {dimensionData.alias || dimensionData.name}
+            {/* {dimensionData.alias && <span class='dimension-name'>{dimensionData.name}</span>} */}
           </bk-checkbox>
           {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>
@@ -187,7 +198,9 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           distance: 10,
           arrow: false,
           hideOnClick: true,
-          onHidden: this.handleChange,
+          zIndex: 999,
+          onShow: this.handlePopoverShow,
+          onHidden: this.handlePopoverhide,
         }}
         theme='light group-by-select-panel'
         trigger='manual'
@@ -209,28 +222,34 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           class='wrapper'
           slot='content'
         >
-          <div style='padding: 0 8px'>
-            <bk-input
-              behavior='simplicity'
-              clearable={true}
-              onChange={this.handleFilterChange}
-            />
-          </div>
-          {this.renderData.length > 0 && (
-            <div class='dimension-list'>
-              <div class='item'>
-                <bk-checkbox
-                  checked={this.hasSelectedAll}
-                  onChange={this.handleToggleAll}
-                >
-                  {this.$t('全部')}
-                </bk-checkbox>
+          {this.isPanelShow && (
+            <div>
+              <div style='padding: 0 8px'>
+                <bk-input
+                  behavior='simplicity'
+                  clearable={true}
+                  onChange={this.handleFilterChange}
+                />
               </div>
-              {this.renderData.map(renderDimensionItem)}
+              {this.renderData.length > 0 && (
+                <div class='dimension-list'>
+                  <div class='item'>
+                    <bk-checkbox
+                      false-value={false}
+                      true-value={true}
+                      value={this.hasSelectedAll}
+                      onChange={this.handleToggleAll}
+                    >
+                      {this.$t('全部')}
+                    </bk-checkbox>
+                  </div>
+                  {this.renderData.map(renderDimensionItem)}
+                </div>
+              )}
+              {this.renderData.length < 1 && (
+                <div style='color: #63656e; line-height: 32px; text-align: center;'>{this.$t('无匹配数据')}</div>
+              )}
             </div>
-          )}
-          {this.renderData.length < 1 && (
-            <div style='color: #63656e; line-height: 32px; text-align: center;'>{this.$t('无匹配数据')}</div>
           )}
         </div>
       </bk-popover>

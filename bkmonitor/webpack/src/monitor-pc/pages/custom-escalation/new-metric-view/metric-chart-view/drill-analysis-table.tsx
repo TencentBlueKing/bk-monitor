@@ -32,7 +32,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { generateTimeStrings, handleGetMinPrecision } from './utils';
+import { generateTimeStrings, handleGetMinPrecision, formatTipsContent } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -66,9 +66,9 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   typeEnums = {
     '1h': this.$t('1小时前'),
-    '1d': this.$t('昨天'),
-    '7d': this.$t('上周'),
-    '30d': this.$t('1 月前'),
+    '1d': this.$t('1天前'),
+    '7d': this.$t('7天前'),
+    '30d': this.$t('30天前'),
   };
   /** 维度是否支持多选 */
   isMultiple = false;
@@ -180,7 +180,21 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         />
       );
     }
-    const baseView = (item: IDimensionItem) => [<span>{item.alias}</span>, <span class='item-name'>{item.name}</span>];
+    // const baseView = (item: IDimensionItem) => [
+    //   <span>{item.alias || item.name}</span>,
+    //   <span class='item-name'>{item.alias ? item.name : ''}</span>,
+    // ];
+    const baseView = (item: IDimensionItem) => (
+      <span
+        class='item-alias'
+        v-bk-tooltips={{
+          content: formatTipsContent(item.name, item.alias),
+          placement: 'right',
+        }}
+      >
+        {item.alias || item.name}
+      </span>
+    );
     /** 单选 */
     if (!this.isMultiple) {
       return this.showDimensionsList.map((item: IDimensionItem) => (
@@ -238,6 +252,17 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   renderOperation(row: IDataItem) {
     const drillKey = this.drillList.map(item => item.key);
     const list = this.dimensionsList.filter(item => !drillKey.includes(item.name) && !item.checked);
+    const len = list.length;
+    if (len === 0) {
+      return (
+        <span
+          class='disabled-drill-down'
+          v-bk-tooltips={{ content: this.$t('暂无维度可下钻') }}
+        >
+          {this.$t('下钻')}
+        </span>
+      );
+    }
     return (
       <bk-dropdown-menu
         ref='dropdown'
@@ -262,9 +287,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               <li
                 key={option.key}
                 class={['table-drill-down-item', { active: isActive }]}
+                v-bk-tooltips={{
+                  content: formatTipsContent(option.name, option.alias),
+                  placement: 'right',
+                }}
                 onClick={() => this.chooseDrill(option, row)}
               >
-                {option.name}
+                {option.alias || option.name}
+                {/* {option.alias ? ` (${option.name})` : ''} */}
               </li>
             );
           })}
@@ -299,8 +329,11 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     return <span style={{ color: row[prop] ? color : '#313238' }}>{row[prop] ? `${row[prop]}%` : '--'}</span>;
   }
   renderValue(row: IDataItem, prop: string) {
+    if (row[prop] === undefined || row[prop] === null) {
+      return '--';
+    }
     const precision = handleGetMinPrecision(
-      this.tableList.map(item => item[prop]),
+      this.tableList.map(item => item[prop]).filter((set: any) => typeof set === 'number'),
       getValueFormat(row.unit),
       row.unit
     );
@@ -341,6 +374,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
   }
 
+  renderPercentage(row) {
+    if (row.percentage === undefined || row.percentage === null) {
+      return '--';
+    }
+    return <span>{row.percentage}%</span>;
+  }
+
   /** 绘制表格内容 */
   renderTableColumn() {
     const { time_compare = [] } = this.filterConfig.function;
@@ -350,7 +390,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         prop: 'operation',
         renderFn: row => this.renderOperation(row),
       },
-      { label: '占比', prop: 'percentage', sortable: true },
+      { label: '占比', prop: 'percentage', sortable: true, renderFn: row => this.renderPercentage(row) },
       { label: '当前值', prop: 'value', sortable: true, renderFn: row => this.renderValue(row, 'value') },
     ];
     let compareColumn: IColumnItem[] = [];
@@ -390,7 +430,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               if (item?.renderFn) {
                 return item?.renderFn(row);
               }
-              return row[item.prop] || '--';
+              return row[item.prop] === undefined || row[item.prop] === null ? '--' : row[item.prop];
             },
           }}
           label={this.$t(item.label)}
@@ -432,6 +472,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.showDimensionKeys.map(key => {
       this.drillList.push({
         key,
+        alias: this.showDimensionsList.find(ele => ele.name === key).alias,
         value: row.dimensions[key],
       });
     });
@@ -444,6 +485,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.drillList = this.drillList.filter(drill => item.key !== drill.key);
     this.$emit('chooseDrill', this.drillList, this.activeList);
   }
+
   createOption(dimensions: Record<string, string>) {
     return (
       <div class='options-wrapper'>
@@ -502,10 +544,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
                 <bk-tag
                   key={item.key}
                   class='drill-tag'
+                  v-bk-tooltips={{
+                    content: formatTipsContent(item.key, item.alias),
+                  }}
                   closable
                   onClose={() => this.clearDrillFilter(item)}
                 >
-                  <span>{item.key}</span>
+                  <span>{item.alias || item.key}</span>
                   <span class='tag-eq'>=</span>
                   <span class='tag-value'>{item.value}</span>
                 </bk-tag>

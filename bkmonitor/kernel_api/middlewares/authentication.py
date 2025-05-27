@@ -7,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
 import logging
 import random
 import time
-from typing import Dict, Tuple
 
 import jwt
 from django.conf import settings
@@ -75,14 +75,14 @@ class BkJWTClient:
     jwt鉴权客户端
     """
 
-    JWT_KEY_NAME = 'HTTP_X_BKAPI_JWT'
-    ALGORITHM = 'RS512'
+    JWT_KEY_NAME = "HTTP_X_BKAPI_JWT"
+    ALGORITHM = "RS512"
 
     class AttrDict(dict):
         def __getattr__(self, item):
             return self[item]
 
-    def __init__(self, request: HttpRequest, public_keys: Dict[str, str]):
+    def __init__(self, request: HttpRequest, public_keys: dict[str, str]):
         self.request = request
         self.public_keys = public_keys
 
@@ -90,9 +90,9 @@ class BkJWTClient:
         self.app = None
         self.user = None
 
-    def validate(self) -> Tuple[bool, str]:
+    def validate(self) -> tuple[bool, str]:
         # jwt内容
-        raw_content = self.request.META.get(self.JWT_KEY_NAME, '')
+        raw_content = self.request.META.get(self.JWT_KEY_NAME, "")
         if not raw_content:
             return False, "request headers jwt content is empty"
 
@@ -123,9 +123,9 @@ class BkJWTClient:
         if self.app.get("bk_app_code"):
             self.app["app_code"] = self.app["bk_app_code"]
 
-        # 验证app是否经过验证
-        if self.app.get("verified") is not True:
-            return False, "app_code not verified"
+        # # 验证app是否经过验证
+        # if self.app.get("verified") is not True:
+        #     return False, "app_code not verified"
 
         self.user = self.AttrDict(result.get("user", {}))
 
@@ -154,7 +154,7 @@ class AppWhiteListModelBackend(ModelBackend):
                 user.tenant_id = bk_tenant_id
                 user.save()
         except Exception as e:
-            logger.error("Auto create & update UserModel fail, username: {}, error: {}".format(username, e))
+            logger.error(f"Auto create & update UserModel fail, username: {username}, error: {e}")
             return None
 
         if self.user_can_authenticate(user):
@@ -168,7 +168,7 @@ class AppWhiteListModelBackend(ModelBackend):
 class AuthenticationMiddleware(MiddlewareMixin):
     @staticmethod
     @functools.lru_cache(maxsize=1)
-    def get_apigw_public_keys() -> Dict[str, str]:
+    def get_apigw_public_keys() -> dict[str, str]:
         cache = caches["login_db"]
 
         api_names = settings.FROM_APIGW_NAME.split(",")
@@ -237,7 +237,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             return
 
         # 校验app_code权限范围
-        if app_code and is_match_api_token(request, bk_tenant_id, app_code):
+        if not app_code or is_match_api_token(request, bk_tenant_id, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             return
 

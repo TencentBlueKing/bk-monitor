@@ -4,6 +4,7 @@ from typing import List
 from django.utils.translation import gettext as _
 
 from bkmonitor.iam import ActionEnum
+from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
@@ -16,7 +17,10 @@ class UptimecheckSearchHandler(BaseSearchHandler):
     SCENE = "uptimecheck"
 
     def search_node(self, query: str, limit: int = 10) -> List[SearchResultItem]:
-        nodes = UptimeCheckNode.objects.filter(name__icontains=query).values("id", "bk_biz_id", "name")
+        bk_tenant_id = get_request_tenant_id()
+        nodes = UptimeCheckNode.objects.filter(name__icontains=query, bk_tenant_id=bk_tenant_id).values(
+            "id", "bk_biz_id", "name"
+        )
 
         if self.scope == SearchScope.BIZ:
             nodes = nodes.filter(bk_biz_id=self.bk_biz_id)

@@ -31,10 +31,9 @@ module.exports = function (api) {
       '@babel/preset-env',
       {
         targets: {
-          browsers:
-          isMonitorCompiler
-              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
-              : ['> 1%', 'last 2 versions', 'not ie <= 8'],
+          browsers: isMonitorCompiler
+            ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
+            : ['> 1%', 'last 2 versions', 'not ie <= 8'],
           node: 'current',
         },
         useBuiltIns: 'usage',

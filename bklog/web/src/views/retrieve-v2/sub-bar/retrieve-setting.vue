@@ -2,6 +2,7 @@
   import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
   import useRouter from '@/hooks/use-router';
+  import useRoute from '@/hooks/use-route';
   import useLocale from '@/hooks/use-locale';
 
   const emit = defineEmits(['update:is-show-cluster-setting']);
@@ -10,17 +11,23 @@
 
   const { $t } = useLocale();
   const router = useRouter();
+  const route = useRoute()
   const store = useStore();
 
   const refTrigger = ref();
   const isExternal = computed(() => store.state.isExternal);
-  const spaceUid = computed(() => store.state.spaceUid);
+  // const spaceUid = computed(() => store.state.spaceUid);
   const indexSetId = computed(() => store.state.indexId);
   const indexSetItem = computed(() =>
     store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   const isPopoverShow = ref(false);
-
+  const spaceUid = computed(()=>{
+    const indexSetList = store.state.retrieve.indexSetList;
+    const indexSetId = route.params?.indexId;
+    const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+    return currentIndexSet?.space_uid
+  })
   const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
@@ -73,7 +80,6 @@
       name: $t('采集详情'),
     },
   ]);
-
   /**
    * @desc: 初始化选择列表
    * @param {String} detailStr 当前索引集类型
@@ -151,10 +157,6 @@
     return true;
   };
 
-  const arrowClassName = computed(() => {
-    return isPopoverShow.value ? 'bk-icon icon-angle-up' : 'bk-icon icon-angle-down';
-  });
-
   watch(
     [indexSetItem, clusterIsActive, storeIsShowClusterStep],
     () => {
@@ -171,8 +173,8 @@
     v-if="isShowRetrieveSetting"
     :distance="11"
     :offset="0"
-    :on-show="() => handlePopShow(true)"
     :on-hide="() => handlePopShow(false)"
+    :on-show="() => handlePopShow(true)"
     animation="slide-toggle"
     placement="bottom-end"
     theme="light bk-select-dropdown"
@@ -180,14 +182,10 @@
   >
     <slot name="trigger">
       <div
-        class="more-operation"
         ref="refTrigger"
+        class="more-operation"
       >
-        <span class="bklog-icon">{{ $t('设置') }}</span>
-        <span
-          class="setting-icon"
-          :class="arrowClassName + ' bklog-select-arrow'"
-        ></span>
+        <span class="bklog-icon bklog-setting-line"></span>{{ $t('全局设置') }}
       </div>
     </slot>
     <template #content>
@@ -209,14 +207,16 @@
     </template>
   </bk-popover>
 </template>
+
 <style lang="scss">
   .more-operation {
-    padding: 5px 10px 5px 14px;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    .setting-icon {
-      font-size: 20px;
+    span {
+      margin: 0 6px 0 0;
+      font-size: 14px;
     }
   }
 </style>

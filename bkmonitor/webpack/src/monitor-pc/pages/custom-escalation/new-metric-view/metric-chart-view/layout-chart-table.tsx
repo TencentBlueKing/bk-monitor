@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
-import { random } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
@@ -55,6 +56,7 @@ interface ILayoutChartTableProps {
   panel?: IPanelModel;
   config?: IMetricAnalysisConfig;
   isShowStatisticalValue?: boolean;
+  groupId?: string;
 }
 interface ILayoutChartTableEvents {
   onResize?: number;
@@ -70,11 +72,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: true }) isShowStatisticalValue: boolean;
+  /** groupId */
+  @Prop({ default: '' }) groupId: string;
   // @Prop({ default: 600 }) height: number;
-  @Prop({ default: 372 }) minHeight: number;
+  @Prop({ default: 300 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @Ref('metricChart') metricChartRef: HTMLDivElement;
   /* 主动刷新图表 */
   chartKey = random(8);
   isDragging = false;
@@ -89,6 +94,10 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   viewQueryConfig = {};
   currentChart = {};
   currentMethod = '';
+  selectLegendInd = -1;
+  /** 收藏到仪表盘 */
+  showCollection = false;
+  checkList = [];
 
   @Watch('panel', { immediate: true })
   handleFilterOptionChange(val) {
@@ -97,6 +106,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       this.currentMethod = query_configs[0]?.metrics[0]?.method;
     }
   }
+  @Watch('isShowStatisticalValue')
+  handleIsShowStatisticalValueChange() {
+    this.selectLegendInd = -1;
+  }
+
   /** 对比工具栏数据 */
   get compareValue() {
     const { compare } = this.filterOption;
@@ -213,6 +227,37 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       .catch(() => {});
   }
 
+  isNullOrUndefined(value: any) {
+    return value === undefined || value === null ? '--' : value;
+  }
+  /** 点击表格的图例，与图表联动 */
+  handleRowClick(item, index) {
+    this.selectLegendInd = this.selectLegendInd === index ? -1 : index;
+    this.metricChartRef?.handleSelectLegend({ actionType: 'click', item });
+  }
+  /**
+   * @description: 点击保存仪表盘
+   * @param {PanelModel} panel 视图配置
+   * @return {*}
+   */
+  handleCollectChart() {
+    this.showCollection = true;
+    const panel = deepClone(this.panel);
+    panel.targets.map(item => {
+      item.data = { ...item };
+    });
+    this.checkList = [panel];
+  }
+
+  handleShowCollectEmit(v: boolean) {
+    this.showCollection = v;
+  }
+
+  // 收藏成功
+  handleCollectSuccess() {
+    // this.handleCheckClose();
+  }
+
   /** 表格渲染 */
   renderIndicatorTable() {
     if (this.loading) {
@@ -233,8 +278,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       >
         <bk-table-column
           scopedSlots={{
-            default: ({ row }) => (
-              <span class='color-name'>
+            default: ({ row, $index }) => (
+              <span
+                class={`color-name ${this.selectLegendInd >= 0 && this.selectLegendInd !== $index ? 'disabled' : ''}`}
+                onClick={() => this.handleRowClick(row, $index)}
+              >
                 <span
                   style={{ backgroundColor: row.color }}
                   class='color-box'
@@ -255,7 +303,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.max || '--'}
+                {this.isNullOrUndefined(row.max)}
                 <span class='gray-text'>@{dayjs(row.maxTime).format('HH:mm')}</span>
               </span>
             ),
@@ -270,7 +318,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.min || '--'}
+                {this.isNullOrUndefined(row.min)}
                 <span class='gray-text'>@{dayjs(row.minTime).format('HH:mm')}</span>
               </span>
             ),
@@ -285,7 +333,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           scopedSlots={{
             default: ({ row }) => (
               <span class='num-cell'>
-                {row.latest || '--'}
+                {this.isNullOrUndefined(row.latest)}
                 <span class='gray-text'>@{dayjs(row.latestTime).format('HH:mm')}</span>
               </span>
             ),
@@ -299,7 +347,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => row.avg || '--',
+            default: ({ row }) => this.isNullOrUndefined(row.avg),
           }}
           label={this.$t('平均值')}
           prop='avg'
@@ -309,7 +357,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => row.total || '--',
+            default: ({ row }) => this.isNullOrUndefined(row.total),
           }}
           label={this.$t('累计值')}
           prop='total'
@@ -325,12 +373,16 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     const renderChart = () => (
       <NewMetricChart
         key={this.chartKey}
+        ref='metricChart'
         style={{ height: `${this.drag.height}px` }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
-        isShowLegend={true}
+        // isShowLegend={true}
+        groupId={this.groupId}
+        isShowLegend={!this.isShowStatisticalValue}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}
+        onCollectChart={this.handleCollectChart}
         onDownImage={this.handleDownImage}
         onDrillDown={this.handelDrillDown}
         onFullScreen={this.handleFullScreen}
@@ -370,7 +422,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           class='layout-dragging'
           onMousedown={this.startDragging}
         >
-          <div class='drag-btn'></div>
+          <div class='drag-btn' />
         </div>
         {this.showDrillDown && (
           <DrillAnalysisView
@@ -388,6 +440,13 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             on-close-modal={this.handleCloseViewDetail}
           />
         )}
+        {/* 收藏到仪表盘 */}
+        <CollectionDialog
+          collectionList={this.checkList}
+          isShow={this.showCollection}
+          onOnCollectionSuccess={() => this.handleCollectSuccess}
+          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
+        />
       </div>
     );
   }

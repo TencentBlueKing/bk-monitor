@@ -302,7 +302,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     let iterationTarget = this.groupInstance.dimensions;
     let resourceColumnFixed = false;
     if (this.isListTab) {
-      iterationTarget = [...this.groupInstance.groupFilters].reverse();
+      iterationTarget = this.groupInstance.groupFilters?.length
+        ? [...this.groupInstance.groupFilters].reverse()
+        : [K8sTableColumnKeysEnum.CLUSTER];
       resourceColumnFixed = true;
     }
     for (const key of iterationTarget) {
@@ -348,14 +350,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Watch('tableChartColumns')
   onTableChartColumnsChange() {
     this.tableLoading.loading = true;
+    this.initSortContainer(this.sortContainer);
     if (!this.tableChartColumns.ids?.length) {
       this.debounceGetK8sList();
       return;
     }
-    if (!this.tableChartColumns.ids?.includes(this.sortContainer.prop)) {
-      this.sortContainer.prop = this.tableChartColumns.ids[0];
-    }
-    this.sortContainer.initDone = false;
     this.debounceGetK8sList();
     this.refreshTable();
   }
@@ -409,7 +408,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   created() {
-    let sort: Omit<K8sTableSortContainer, 'initDone'> = this.groupInstance.defaultSortContainer;
+    let sort: Partial<Omit<K8sTableSortContainer, 'initDone'>> = this.groupInstance.defaultSortContainer;
     if (this.$route.query?.tableSort) {
       const { tableSort, tableOrder, tableMethod } = this.$route.query;
       sort = {
@@ -433,7 +432,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
-    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE } = K8sTableColumnKeysEnum;
+    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE, NODE } =
+      K8sTableColumnKeysEnum;
 
     return {
       [CLUSTER]: {
@@ -513,6 +513,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
+      [NODE]: {
+        id: NODE,
+        name: this.$t('node'),
+        sortable: false,
+        type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
+        min_width: 150,
+        can_click: true,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
+      },
     };
   }
 
@@ -531,11 +541,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 初始化排序
    * @param {string} orderBy 排序字段
    */
-  initSortContainer(sort: Omit<K8sTableSortContainer, 'initDone'>) {
+  initSortContainer(sort: Partial<Omit<K8sTableSortContainer, 'initDone'>> = {}) {
+    let sortProp: K8sTableColumnChartKey | null = sort.prop;
+    if (!this.tableChartColumns.ids?.includes(sortProp)) {
+      if (this.tableChartColumns.ids.length) {
+        sortProp = this.tableChartColumns.ids[0];
+      } else {
+        sortProp = null;
+      }
+    }
     this.sortContainer = {
       ...this.sortContainer,
       ...sort,
+      prop: sortProp,
     };
+    this.routerParamChange();
     this.sortContainer.initDone = false;
   }
   /**
@@ -643,18 +663,23 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
     const { timeRange, ...filterCommonParams } = this.filterCommonParams;
     const formatTimeRange = handleTransformToTimestamp(timeRange);
+    const sortParams = this.sortContainer.prop
+      ? {
+          column: this.sortContainer.prop,
+          order_by: this.sortContainer.orderBy,
+        }
+      : {};
 
     /** 获取资源列表请求接口参数 */
     const requestParam = {
       ...filterCommonParams,
+      ...sortParams,
+      ...pageRequestParam,
       start_time: formatTimeRange[0],
       end_time: formatTimeRange[1],
-      ...pageRequestParam,
       resource_type: resourceType,
       with_history: true,
       page_type: this.pagination.pageType,
-      column: this.sortContainer.prop,
-      order_by: this.sortContainer.orderBy,
       method,
     };
 
@@ -923,7 +948,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.sortContainer.prop = sortItem.prop;
     this.sortContainer.orderBy = sortItem.order === 'descending' ? 'desc' : 'asc';
     this.routerParamChange();
-    this.getK8sList();
+    this.getK8sList({
+      needRefresh: true,
+    });
   }
 
   /**

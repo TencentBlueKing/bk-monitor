@@ -155,6 +155,7 @@ export default defineComponent({
       allowDisplay,
       localValue,
       handleChangeShowMore,
+      t,
     };
   },
   render() {
@@ -172,7 +173,7 @@ export default defineComponent({
             class='display-btn'
             onClick={evt => this.handleFieldChecked(evt, item, index)}
           >
-            {item.checked ? this.$t('隐藏') : this.$t('展示')}
+            {item.checked ? this.t('隐藏') : this.t('展示')}
           </span>
         ) : undefined}
       </div>
@@ -187,12 +188,15 @@ export default defineComponent({
       //   return total;
       // }, 0);
       <div class={['field-list-item-content']}>
-        {/* <div class="field-list-item-desc">{this.$t('{0}/{1}条记录中数量排名前
+        {/* <div class="field-list-item-desc">{this.t('{0}/{1}条记录中数量排名前
           {2} 的数', [count, this.total, TOP_NUM])}</div> */}
         {item.dimensions.map((val: IDimissionItem, i) => {
           if (!item.showMore && i + 1 > TOP_NUM) return undefined;
           return (
-            <div class='val-percent-item'>
+            <div
+              key={val.id || i}
+              class='val-percent-item'
+            >
               <div class='val-percent-progress'>
                 <div class='val-percent-text'>
                   {
@@ -249,7 +253,7 @@ export default defineComponent({
               class='btn-more'
               onClick={() => this.handleChangeShowMore(item.key)}
             >
-              {this.$t('更多')}
+              {this.t('更多')}
             </span>
           </div>
         ) : undefined}

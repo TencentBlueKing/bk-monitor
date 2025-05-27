@@ -67,7 +67,7 @@ const COLOR_LIST = [
 ];
 const sensitivityRangeList: ISensitivityRangeItem[] = COLOR_LIST.map((color, index) => ({
   id: `${index}`,
-  name: `${window.i18n.tc('敏感度区间')}${index}`,
+  name: `${window.i18n.t('敏感度区间')}${index}`,
   color,
 }));
 @Component
@@ -209,7 +209,7 @@ export default class TimeSeriesOutlier extends LineChart {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       let series = [];
@@ -435,12 +435,12 @@ export default class TimeSeriesOutlier extends LineChart {
           this.handleResize();
         }, 100);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];

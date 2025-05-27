@@ -20,6 +20,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
 from common.log import logger
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -110,7 +111,7 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
             # 校验公共节点管理权限
             Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
         self.node_beat_check(validated_data)
-        instance = UptimeCheckNode(**validated_data)
+        instance = UptimeCheckNode(bk_tenant_id=get_request_tenant_id(), **validated_data)
         instance.save()
         return instance
 

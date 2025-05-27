@@ -296,6 +296,7 @@ export default class ChartTitle extends tsc<
    */
   @Emit('selectChild')
   handleMenuChildClick(data: IChartTitleMenuEvents['onSelectChild']) {
+    this.showMenu = false;
     return data;
   }
   handleMetricSelect(metric: IExtendMetricData) {
@@ -450,7 +451,7 @@ export default class ChartTitle extends tsc<
                   }}
                   class={[
                     'icon-monitor icon-mc-add-strategy strategy-icon icon-btn',
-                    { 'hover-show': this.isHoverShow },
+                    // { 'hover-show': this.isHoverShow },
                   ]}
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),

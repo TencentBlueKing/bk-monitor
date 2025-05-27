@@ -101,8 +101,8 @@ export default class DetailsSide extends tsc<IProps> {
   selected = 'default';
   /* 类型切换 */
   typeOptions = [
-    { id: EOptionKind.caller, name: window.i18n.tc('主调') },
-    { id: EOptionKind.callee, name: window.i18n.tc('被调') },
+    { id: EOptionKind.caller, name: window.i18n.t('主调') },
+    { id: EOptionKind.callee, name: window.i18n.t('被调') },
   ];
   curType = EOptionKind.caller;
   /* 对比时间 */
@@ -174,11 +174,11 @@ export default class DetailsSide extends tsc<IProps> {
       return [
         {
           id: 'error_count',
-          name: window.i18n.tc('错误数'),
+          name: window.i18n.t('错误数'),
         },
         {
           id: 'error_rate',
-          name: window.i18n.tc('错误率'),
+          name: window.i18n.t('错误率'),
         },
       ];
     }
@@ -576,7 +576,7 @@ export default class DetailsSide extends tsc<IProps> {
         placement='right'
         transfer={true}
       >
-        <div>{window.i18n.tc('缩略图')}</div>
+        <div>{window.i18n.t('缩略图')}</div>
         <div slot='content'>
           <span>{this.$t('选择任一图并点选所需对比时间和参照时间')}</span>
         </div>

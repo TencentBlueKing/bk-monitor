@@ -25,6 +25,7 @@
  */
 
 import { type PropType, defineComponent, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
 
@@ -95,14 +96,15 @@ const getNextViewLayout = (start: number, position: number) => {
 export default defineComponent({
   name: 'ViewingLayer',
   props: ViewingLayerProps,
-  setup(props) {
+  setup(props, { emit }) {
+    const { t } = useI18n();
     const preventCursorLine = ref(false);
     const layerGraphRef = ref<HTMLDivElement>();
 
     const viewRangeStore = useViewRangeInject();
     const spanBarCurrentStore = useSpanBarCurrentInject();
 
-    const getDraggingBounds = (tag: TNil | string): DraggableBounds => {
+    const getDraggingBounds = (tag: string | TNil): DraggableBounds => {
       if (!layerGraphRef.value) {
         throw new Error('invalid state');
       }
@@ -287,6 +289,7 @@ export default defineComponent({
       getMarkers,
       viewRangeStore,
       spanBarCurrentStore,
+      t,
     };
   },
   render() {
@@ -321,7 +324,7 @@ export default defineComponent({
             size='small'
             onClick={this.resetTimeZoomClickHandler}
           >
-            {this.$t('重置')}
+            {this.t('重置')}
           </Button>
         )}
         <svg

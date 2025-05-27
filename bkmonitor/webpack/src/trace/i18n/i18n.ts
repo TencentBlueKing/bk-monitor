@@ -37,19 +37,22 @@ if (currentLang === 'en') {
 } else {
   currentLang = 'zhCN';
 }
+// 判断当前语言是否为英文
+export const isEn = currentLang === 'enUS';
 const i18n = createI18n({
   locale: currentLang,
   fallbackLocale: 'zh-cn',
   silentTranslationWarn: true,
   silentFallbackWarn: true,
   // allowComposition: true,
-  // legacy: false,
+  legacy: true,
   messages: {
     ...mergeI18nJson(),
   },
 });
 window.i18n = i18n.global;
+console.info(i18n.global, '==========', 'i18n');
 window.mainComponent = {
-  $t: window.i18n.tc,
+  $t: window.i18n.t,
 };
 export default i18n;

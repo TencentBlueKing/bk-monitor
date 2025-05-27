@@ -74,8 +74,13 @@ class UseSegmentProp {
     const eventBoxList = [
       {
         onClick: () => taskEventManager.executeFn('copy'),
-        iconName: 'icon bklog-icon bklog-copy',
+        iconName: 'icon bklog-icon bklog-copy-3',
         text: this.$t('复制'),
+      },
+      {
+        onClick: () => taskEventManager.executeFn('highlight'),
+        iconName: 'icon bklog-icon bklog-highlight',
+        text: this.$t('高亮'),
       },
       {
         onClick: () => {

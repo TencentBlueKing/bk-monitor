@@ -1,8 +1,9 @@
 .sql-query-options {
   position: relative;
   width: 100%;
-  // min-height: 140px;
+  min-height: 150px;
   max-height: 260px;
+
   overflow: auto;
   background: #fff;
 
@@ -33,7 +34,7 @@
       flex: 1;
       min-width: 150px;
       padding: 0 8px;
-      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+      font-family: Roboto-Regular;
       color: #63656e;
     }
 
@@ -44,14 +45,14 @@
 
       .item-callout {
         padding: 0 4px;
-        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        font-family: Roboto-Regular;
         color: #313238;
         background-color: #f4f6fa;
       }
     }
 
     &.active {
-      background-color: #eaf3ff;
+      background: #f5f7fa;
 
       .item-text {
         color: #313238;
@@ -65,23 +66,28 @@
     &:not(.active) {
       &:hover {
         cursor: pointer;
-        background-color: #f4f6fa;
+        background: #f5f7fa;
       }
+    }
+
+    &.is-hover {
+      background: #f5f7fa;
     }
   }
 
   /* 字段 icon 样式 */
   .field-list-item.list-item {
     .item-type-icon {
-      color: #936501;
-      background-color: #fef6e6;
+      color: #b17313;
+      background: #fff6e6;
     }
 
     &:hover,
-    &.active {
+    &.active,
+    &.is-hover {
       .item-type-icon {
-        color: #010101;
-        background-color: #fdedcc;
+        color: #313238;
+        background: #fce5c0;
       }
     }
   }
@@ -91,7 +97,7 @@
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
       color: #02776e;
-      background-color: #e6f2f1;
+      background: #e6f2f1;
     }
 
     &:hover,
@@ -107,8 +113,8 @@
   .continue-list-item.list-item {
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
-      color: #7800a6;
-      background-color: #f2e6f6;
+      color: #7c609e;
+      background: #f3f1f8;
     }
 
     &:hover,
@@ -124,8 +130,8 @@
   .colon-list-item.list-item {
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
-      color: #006bb4;
-      background-color: #e6f0f8;
+      color: #016bb4;
+      background: #e6f0f8;
     }
 
     &:hover,

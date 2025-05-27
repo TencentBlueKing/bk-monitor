@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, inject } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, nextTick } from 'vue';
 
 import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -32,10 +32,12 @@ import useStore from '@/hooks/use-store';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { debounce } from 'lodash';
 
+import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
+import RetrieveHelper from '../../../retrieve-helper';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import './text-segmentation.scss';
-import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
@@ -60,11 +62,13 @@ export default defineComponent({
     const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const isWrap = computed(() => store.state.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
+    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const isLimitExpandView = computed(
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
+    );
     const rootStyle = computed(() => {
       return {
-        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '60px'}`,
+        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '68px'}`,
       };
     });
 
@@ -93,7 +97,7 @@ export default defineComponent({
     });
 
     let wordList: WordListItem[];
-    let renderMoreItems: () => void = null;
+    let renderMoreItems: (size?, next?) => void = null;
 
     const getTagName = item => {
       if (item.isMark) {
@@ -142,7 +146,7 @@ export default defineComponent({
 
     let removeScrollEventFn = null;
     let cellScrollInstance: {
-      setListItem: (size?: number) => void;
+      setListItem: (size?: number, next?: () => void) => void;
       removeScrollEvent: () => void;
       reset: (list: WordListItem[]) => void;
     };
@@ -158,14 +162,6 @@ export default defineComponent({
       debounceUpdateWidth();
     };
 
-    const formatItemText = (item: WordListItem) => {
-      if (item.isMark) {
-        return item.text.replace(/\s/g, '\u00A0');
-      }
-
-      return item.text;
-    };
-
     onMounted(() => {
       hasOverflowY.value = false;
       refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
@@ -178,16 +174,18 @@ export default defineComponent({
           child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
 
           if (item.isBlobWord) {
-            child.innerHTML = item.text;
+            child.innerHTML = item.text?.length ? item.text : '""';
             return child;
           }
 
-          child.textContent = item.text;
+          child.textContent = item.text?.length ? item.text : '""';
           return child;
         },
       );
 
       setWordSegmentRender();
+
+      nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
     });
 
     onBeforeUnmount(() => {
@@ -200,8 +198,8 @@ export default defineComponent({
       return (
         <div
           ref={refContent}
-          class='field-value bklog-word-segment'
           style={rootStyle.value}
+          class='field-value bklog-word-segment'
           data-field-name={props.field.field_name}
           onClick={handleTextSegmentClick}
         >

@@ -29,7 +29,8 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_metric_string, process_stage_string
+from fta_web.alert.utils import process_metric_string, process_stage_string, is_include_promql
+import re
 
 
 class QueryField:
@@ -75,9 +76,6 @@ class QueryField:
         except Exception:
             value = None
         return value
-
-
-query_cache = {}
 
 
 class BaseQueryTransformer(BaseTreeTransformer):
@@ -142,14 +140,16 @@ class BaseQueryTransformer(BaseTreeTransformer):
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})
 
-        global query_cache
         if not query_string:
             return ""
         transform_obj = cls()
-        if query_string not in query_cache:
-            query_cache[query_string] = parse_query_string_node(transform_obj, query_string)
 
-        query_tree = query_cache[query_string]
+        try:
+            query_tree = parse_query_string_node(transform_obj, query_string)
+        except QueryStringParseError:
+            # 包含promql语句，可能会报语法错误，需要尝试转换
+            query_string = cls.convert_metric_id(query_string)
+            query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -162,6 +162,63 @@ class BaseQueryTransformer(BaseTreeTransformer):
         query_tree = auto_head_tail(query_tree)
 
         return str(query_tree)
+
+    @classmethod
+    def convert_metric_id(cls, query_string: str) -> str:
+        """
+        当指定了指标ID时，且指标ID值是一个promql，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
+        此时需要对指标ID进行转义，并加上“*”，用于支持模糊匹配
+
+        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
+        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
+        """
+
+        def convert_metric(match):
+            value = match.group(0)
+            value = value.split(":", 1)[1].replace('"', '').replace("'", '')
+            # 如果是promql，需要进行转义
+            if is_include_promql(value):
+                value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: '\\' + match.group(0), value.strip())
+
+            # 给末尾加上“*”，用于支持模糊匹配
+            return f'{target_type} : {value}*'
+
+        def add_quote(match):
+            value = match.group('value')
+            value = f'"{value}"' if value else value
+            return f'{target_type} : {value}'
+
+        target_type = "指标ID"
+
+        # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
+        # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
+        #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
+        #  - 如果指标格式为`指标ID:{promql}`，也会匹配失败，需要转变为`指标ID:"{promql}"`
+        query_string = cls.process_label_filter(query_string)
+        query_string = re.sub(r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE)
+        query_string = re.sub( r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert_metric, query_string, re.IGNORECASE)
+
+        # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("##", r'\=\"')
+        query_string = query_string.replace("#", r'\"')
+
+        return query_string
+
+    @classmethod
+    def process_label_filter(cls, query_string: str) -> str:
+        """处理promql语句中的过滤条件，对双引号进行提前处理，否则会导致转义失败
+        """
+
+        def replace(match):
+            value = match.group(0)
+            # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
+            value = value.replace('="', '##').replace('"', "#")
+            return value
+
+        # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
+        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        query_string = re.sub(pattern, replace, query_string)
+        return query_string
 
     @classmethod
     def get_field_info(cls, field: str) -> Optional[QueryField]:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import uuid
 from datetime import datetime, timedelta
 
@@ -16,6 +16,7 @@ from django.db import models
 
 from bkmonitor.utils.itsm import ApprovalStatusEnum
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
+from constants.common import DEFAULT_TENANT_ID
 from constants.new_report import (
     ChannelEnum,
     ScenarioEnum,
@@ -75,7 +76,9 @@ class Report(AbstractRecordModel):
     start_time = models.IntegerField(verbose_name="开始时间", null=True)
     end_time = models.IntegerField(verbose_name="结束时间", null=True)
     send_mode = models.CharField(verbose_name="发送模式", max_length=32, choices=SendModeEnum.get_choices())
-    subscriber_type = models.CharField(verbose_name="订阅人类型", max_length=32, choices=SubscriberTypeEnum.get_choices())
+    subscriber_type = models.CharField(
+        verbose_name="订阅人类型", max_length=32, choices=SubscriberTypeEnum.get_choices()
+    )
     send_round = models.IntegerField(verbose_name="最近一次发送轮次", default=0)
     is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
 
@@ -91,7 +94,7 @@ class Report(AbstractRecordModel):
             return True
         if frequency["type"] == 1:
             now_datetime = datetime.now()
-            run_time = datetime.strptime(frequency["run_time"], '%Y-%m-%d %H:%M:%S')
+            run_time = datetime.strptime(frequency["run_time"], "%Y-%m-%d %H:%M:%S")
             # 过一个检测周期后失效，避免执行前失效
             threshold_time = run_time + timedelta(minutes=1)
             if now_datetime > threshold_time:
@@ -144,6 +147,7 @@ class RenderImageTask(Model):
 
     TYPE = ((Type.DASHBOARD, "仪表盘"),)
 
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     task_id = models.UUIDField(verbose_name="任务ID", default=uuid.uuid4, editable=False, db_index=True)
     create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
     start_time = models.DateTimeField(verbose_name="开始时间", null=True)

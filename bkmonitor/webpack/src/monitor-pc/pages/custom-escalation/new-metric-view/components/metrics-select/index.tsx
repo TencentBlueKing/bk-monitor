@@ -81,7 +81,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
             <router-link
               style='color: #3a84ff;'
               to={{
-                name: 'new-custom-detail-timeseries',
+                name: 'custom-detail-timeseries',
                 id: this.$route.params.id,
               }}
               target='_blank'

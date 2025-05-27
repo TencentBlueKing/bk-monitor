@@ -40,9 +40,19 @@ import './index.scss';
 
 interface IProps {
   value?: IValue[];
-  commonConditionValue?: Omit<IValue, 'condition'>[];
+  commonConditionValue?: {
+    key: string;
+    alias: string;
+    method: string;
+    value: string[];
+  }[];
   commonDimensionEnable?: boolean;
-  customData?: Omit<IValue, 'condition'>[];
+  customData?: {
+    key: string;
+    alias: string;
+    method: string;
+    value: string[];
+  }[];
 }
 
 interface IEmit {
@@ -77,9 +87,12 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
 
   localWhereValueList: Readonly<IProps['value']> = [];
   localCommonConditionValueList: Readonly<IProps['commonConditionValue']> = [];
-  isShowCommonlyUsedList = false;
+  isShowCommonlyUsedList = true;
   localCustomDataValueList: Readonly<IProps['customData']> = [];
 
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
   get commonDimensionList() {
     return customEscalationViewStore.commonDimensionList;
   }
@@ -100,7 +113,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   }
 
   @Watch('customData', { immediate: true })
-  customValueChange() {
+  customDataChange() {
     this.localCustomDataValueList = Object.freeze([...this.customData]);
   }
 
@@ -135,6 +148,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
         }
         return {
           key: item.name,
+          alias: item.alias,
           method: 'eq',
           value: [],
         };
@@ -167,7 +181,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   }
 
   created() {
-    this.isShowCommonlyUsedList = this.$route.query[URL_CACHE_KEY] === 'true';
+    this.isShowCommonlyUsedList = Boolean(this.$route.query[URL_CACHE_KEY]) || true;
   }
 
   render() {
@@ -184,7 +198,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
             value={this.localWhereValueList as IProps['value']}
             onChange={this.handleConditionChange}
           />
-          {this.commonDimensionEnable && this.isShowCommonlyUsedList && (
+          {this.currentSelectedMetricList.length > 0 && this.commonDimensionEnable && this.isShowCommonlyUsedList && (
             <RenderCommonList
               data={this.localCommonConditionValueList as IProps['commonConditionValue']}
               onChange={this.handleCommonConditinChange}
@@ -197,7 +211,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
             />
           )}
         </div>
-        {this.commonDimensionEnable && (
+        {this.currentSelectedMetricList.length > 0 && this.commonDimensionEnable && (
           <div
             class={{
               'commonly-used-btn': true,

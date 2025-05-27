@@ -33,13 +33,24 @@ import { deepClone } from 'monitor-common/utils';
 import { ACTION_MAP, type AngleType, type EditModel } from './authorization-list';
 
 import './authorization-dialog.scss';
-
+interface IGrafanaDashboard {
+  id: number;
+  uid: string;
+  text: string;
+  folder_uid: string;
+  folder_title: string;
+  name: string;
+  is_starred: boolean;
+  url: string;
+  uri: string;
+}
 interface IProps {
   value?: boolean;
   rowData?: EditModel | null;
   bizId: number | string;
   viewType: AngleType;
   authorizer: string;
+  defaultResources: IGrafanaDashboard[];
 }
 
 interface IEvents {
@@ -53,6 +64,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Prop({ required: true, type: String }) viewType: AngleType;
   @Prop({ required: true, type: String }) authorizer: string;
   @Prop({ required: false, type: Object, default: null }) rowData: EditModel | null;
+  @Prop({ required: false, type: Array, default: [] }) defaultResources: IGrafanaDashboard[];
   @Ref() formRef: any;
 
   resourceList = [];
@@ -85,6 +97,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           expire_time: '',
         };
       }
+      this.resourceList = this.defaultResources;
     }
   }
 

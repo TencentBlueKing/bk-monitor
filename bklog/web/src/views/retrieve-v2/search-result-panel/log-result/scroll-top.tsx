@@ -27,17 +27,17 @@ import { computed, defineComponent, ref } from 'vue';
 
 import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
-import useScroll from '@/hooks/use-scroll';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 
 export default defineComponent({
   emits: ['scroll-top'],
   setup(_, { emit }) {
     const { $t } = useLocale();
     const offsetTop = ref(0);
+    const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
-    useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+    RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
       if (event.target) {
         offsetTop.value = (event.target as HTMLElement).scrollTop;
       }
@@ -55,7 +55,7 @@ export default defineComponent({
         v-bk-tooltips={$t('返回顶部')}
         onClick={() => scrollTop()}
       >
-        <i class='bklog-icon bklog-zhankai'></i>
+        <i class='bklog-icon bklog-backtotop'></i>
       </span>
     );
     return {

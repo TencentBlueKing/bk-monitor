@@ -173,4 +173,9 @@ export default {
   选择维度信息: 'Select dimension information',
   已选列表: 'Selected list',
   全部移除: 'Remove all',
+
+  数值分布直方图: 'Numerical distribution histogram',
+  'TOP 5 时序图': 'TOP 5 Time Series Chart',
+  'Trace 检索': 'Trace Search',
+  'Tracing 检索': 'Tracing Search',
 };

@@ -18,6 +18,7 @@ from django.db.models.sql import AND, OR
 from django.utils.functional import cached_property
 
 from alarm_backends.core.control.mixins import CheckMixin, DetectMixin, DoubleCheckMixin
+from alarm_backends.core.detect_result import CONST_MAX_LEN_CHECK_RESULT
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.strategy.new_strategy import get_metric_id
@@ -34,17 +35,14 @@ def gen_condition_matcher(agg_condition):
     and_cond = []
     for cond in agg_condition:
         t = {"field": cond["key"], "method": cond["method"], "value": cond["value"]}
-        connector = cond.get("condition")
-        if connector:
-            if connector.upper() == AND:
-                and_cond.append(t)
-            elif connector.upper() == OR:
-                or_cond.append(and_cond)
-                and_cond = [t]
-            else:
-                raise Exception("Unsupported connector(%s)" % connector)
-        else:
+        connector = cond.get("condition") or AND
+        if connector.upper() == AND:
+            and_cond.append(t)
+        elif connector.upper() == OR:
+            or_cond.append(and_cond)
             and_cond = [t]
+        else:
+            raise Exception("Unsupported connector(%s)" % connector)
 
     if and_cond:
         or_cond.append(and_cond)
@@ -103,6 +101,11 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
             expression=self.expression,
             functions=self.functions,
         )
+
+    def get_detect_result_expire_ttl(self):
+        interval = self.strategy.get_interval()
+        point_remain = detect_result_point_required(self.strategy.config)
+        return point_remain * interval
 
     def query_record(self, start_time: int, end_time: int) -> List:
         records = self.query.query_data(start_time * 1000, end_time * 1000)
@@ -222,3 +225,21 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
                 return True
 
         return False
+
+
+def detect_result_point_required(strategy) -> int:
+    """
+    检测结果需要保留多少个检测结果点
+    """
+    from alarm_backends.core.control.strategy import Strategy
+
+    # 计算恢复窗口时间偏移量
+    recovery_configs = Strategy.get_recovery_configs(strategy)
+    trigger_configs = Strategy.get_trigger_configs(strategy)
+
+    point_remind = CONST_MAX_LEN_CHECK_RESULT
+    for level in trigger_configs:
+        trigger_window_size = trigger_configs[level].get("check_window_size", 5)
+        recovery_window_size = recovery_configs[level].get("check_window_size", 5)
+        point_remind = max([point_remind, (trigger_window_size + recovery_window_size) * 2])
+    return point_remind

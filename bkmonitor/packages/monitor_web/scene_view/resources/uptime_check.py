@@ -19,6 +19,7 @@ from rest_framework import serializers
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
@@ -223,6 +224,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         return result
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -249,7 +251,9 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         host_to_node = {}
         # 过滤业务下所有节点时，同时还应该加上通用节点
         # todo: 过滤增加指定业务可见节点
-        nodes = UptimeCheckNode.objects.filter(Q(bk_biz_id=task.bk_biz_id) | Q(is_common=True))
+        nodes = UptimeCheckNode.objects.filter(
+            Q(bk_biz_id=task.bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id
+        )
 
         ip_to_hostid = {}
         hostid_to_ip = {}
@@ -361,9 +365,10 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
         var_type = serializers.ChoiceField(choices=("location", "carrieroperator", "node", "ip_type"))
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         var_list = (
-            UptimeCheckNode.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True))
+            UptimeCheckNode.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id)
             .values_list(
                 validated_request_data["var_type"] if validated_request_data["var_type"] != "node" else "name",
                 flat=True,

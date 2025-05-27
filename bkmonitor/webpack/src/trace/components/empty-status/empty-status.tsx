@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Exception } from 'bkui-vue';
 
@@ -32,17 +33,10 @@ import type { TranslateResult } from 'vue-i18n';
 import './empty-status.scss';
 
 export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
-type EmptyStatusScene = 'page' | 'part';
-type EmptyStatusOperationType = 'clear-filter' | 'refresh';
+export type EmptyStatusScene = 'page' | 'part';
+export type EmptyStatusOperationType = 'clear-filter' | 'refresh';
 export type IEmptyStatusTextMap = {
   [key in EmptyStatusType]?: TranslateResult;
-};
-
-const defaultTextMap: IEmptyStatusTextMap = {
-  empty: window.i18n.t('暂无数据'),
-  'search-empty': window.i18n.t('无数据'),
-  500: window.i18n.t('数据获取异常'),
-  403: window.i18n.t('无业务权限'),
 };
 
 export default defineComponent({
@@ -62,12 +56,19 @@ export default defineComponent({
     },
     textMap: {
       type: Object as PropType<IEmptyStatusTextMap>,
-      default: defaultTextMap,
+      default: {},
     },
   },
   emits: ['operation'],
   setup(props, { emit }) {
-    const typeText = computed(() => props.textMap[props.type]);
+    const { t } = useI18n();
+    const defaultTextMap = {
+      empty: t('暂无数据'),
+      'search-empty': t('搜索结果为空'),
+      500: t('数据获取异常'),
+      403: t('无业务权限'),
+    };
+    const typeText = computed(() => (props.textMap || defaultTextMap)[props.type]);
 
     const handleOperation = (type: EmptyStatusOperationType) => {
       emit('operation', type);
@@ -76,6 +77,7 @@ export default defineComponent({
     return {
       typeText,
       handleOperation,
+      t,
     };
   },
   render() {
@@ -87,13 +89,13 @@ export default defineComponent({
             class='operation-text'
             path='可以尝试{0}或{1}'
           >
-            <span style='margin: 0 3px'>{this.$t('调整关键词')}</span>
+            <span style='margin: 0 3px'>{this.t('调整关键词')}</span>
             <span
               style='margin-left: 3px'
               class='operation-btn'
               onClick={() => this.handleOperation('clear-filter')}
             >
-              {this.$t('清空筛选条件')}
+              {this.t('清空筛选条件')}
             </span>
           </i18n>
         );
@@ -104,7 +106,7 @@ export default defineComponent({
             class='operation-btn'
             onClick={() => this.handleOperation('refresh')}
           >
-            {this.$t('刷新')}
+            {this.t('刷新')}
           </span>
         );
       }

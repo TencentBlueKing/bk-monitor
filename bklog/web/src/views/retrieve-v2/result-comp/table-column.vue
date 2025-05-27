@@ -25,15 +25,11 @@
 -->
 
 <template>
-  <div
-    class="bklog-column-container"
-    @click.stop
-  >
+  <div class="bklog-column-container">
     <!-- eslint-disable vue/no-v-html -->
     <span
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-      :class="['field-container', 'add-to', { active: hasClickEvent }]"
-      @click.stop="handleClickContent"
+      v-bk-tooltips="{ content: $t('查看调用链'), delay: 500 }"
+      :class="['field-container', 'add-to']"
     >
       <template v-if="isJsonFormat">
         <JsonFormatter
@@ -57,6 +53,9 @@
   import { mapState } from 'vuex';
   import TextSegmentation from './text-segmentation';
   import JsonFormatter from '@/global/json-formatter.vue';
+
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
+
   export default {
     components: {
       TextSegmentation,
@@ -67,10 +66,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -83,8 +79,8 @@
     },
     computed: {
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
-        tableLineIsWrap: state => state.tableLineIsWrap,
+        formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
       }),
 
       isJsonFormat() {
@@ -98,10 +94,6 @@
       this.unregisterOberver();
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
-
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
