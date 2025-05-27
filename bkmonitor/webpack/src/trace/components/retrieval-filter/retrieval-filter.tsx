@@ -40,6 +40,7 @@ import { useQueryStringParseErrorState } from './query-string-utils';
 import ResidentSetting from './resident-setting';
 import {
   ECondition,
+  EFieldType,
   type EMethod,
   EMode,
   type IFilterField,
@@ -76,7 +77,9 @@ export default defineComponent({
         .filter(item => item?.is_searched)
         .map(item => ({
           ...item,
-          isEnableOptions: props.notSupportEnumKeys.includes(item.name) ? false : !!item?.is_dimensions,
+          isEnableOptions: props.notSupportEnumKeys.includes(item.name)
+            ? false
+            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
           supported_operations:
             item?.supported_operations?.map(s => ({
               ...s,

@@ -176,7 +176,11 @@ export default defineComponent({
       }
       localValue.value.push({ id: inputValue.value, name: inputValue.value });
       triggerShallowRef(localValue);
-      activeIndex.value += 1;
+      if (activeIndex.value === -1 && localValue.value.length) {
+        activeIndex.value = localValue.value.length - 1;
+      } else {
+        activeIndex.value += 1;
+      }
       inputValue.value = '';
       handleChange();
       isFocus.value = true;
@@ -286,16 +290,19 @@ export default defineComponent({
           onClick={this.handleClick}
         >
           {this.localValue.length
-            ? this.localValue.map((item, index) => [
-                <ValueTagInput
-                  key={item.id}
-                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-                  value={item.id}
-                  onChange={v => this.handleTagUpdate(v, index)}
-                  onDelete={() => this.handleDelete(index)}
-                />,
-                this.activeIndex === index && inputRender(`${item.id}_input`),
-              ])
+            ? [
+                this.localValue.map((item, index) => [
+                  <ValueTagInput
+                    key={item.id}
+                    class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+                    value={item.id}
+                    onChange={v => this.handleTagUpdate(v, index)}
+                    onDelete={() => this.handleDelete(index)}
+                  />,
+                  this.activeIndex === index && inputRender(`${item.id}_input`),
+                ]),
+                this.activeIndex === -1 && inputRender('input'),
+              ]
             : inputRender('input')}
         </div>
         {this.isShowDropDown && (

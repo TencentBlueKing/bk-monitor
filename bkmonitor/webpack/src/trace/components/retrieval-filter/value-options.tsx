@@ -146,13 +146,15 @@ export default defineComponent({
         }
         case 'Enter': {
           event.preventDefault();
-          handleOptionsEnter();
-          emit(
-            'isChecked',
-            hoverActiveIndex.value >= 0 &&
-              hoverActiveIndex.value <= renderOptions.value.length - 1 &&
-              !!renderOptions.value.length
-          );
+          if (!(event.ctrlKey || event.metaKey)) {
+            handleOptionsEnter();
+            emit(
+              'isChecked',
+              hoverActiveIndex.value >= 0 &&
+                hoverActiveIndex.value <= renderOptions.value.length - 1 &&
+                !!renderOptions.value.length
+            );
+          }
           break;
         }
       }

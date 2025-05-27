@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount,
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useResizeObserver } from '@vueuse/core';
+import { promiseTimeout, useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
 import tippy, { sticky } from 'tippy.js';
 
@@ -59,6 +59,7 @@ export default defineComponent({
     const isChecked = shallowRef(false);
     const hideIndex = shallowRef(-1);
     const optionsWidth = shallowRef(0);
+    const keyWrapMinWidth = shallowRef(0);
     const { t } = useI18n();
 
     let clickOutsideFn = () => {};
@@ -70,7 +71,9 @@ export default defineComponent({
     const notNeedValueWrap = computed(() => NOT_VALUE_METHODS.includes(localMethod.value));
 
     init();
-    onMounted(() => {
+    onMounted(async () => {
+      keyWrapMinWidth.value = getTextWidth(props.fieldInfo?.alias || props.fieldInfo?.field || '');
+      await promiseTimeout(100);
       overviewCount();
       const valueWrap = elRef.value?.querySelector('.component-main > .value-wrap') as any;
       if (valueWrap) {
@@ -280,6 +283,18 @@ export default defineComponent({
         handleChange();
       }
     }
+    function getTextWidth(text: string) {
+      const span = document.createElement('span');
+      span.style.visibility = 'hidden';
+      span.style.position = 'absolute';
+      span.style.whiteSpace = 'nowrap';
+      span.style.fontSize = '12px';
+      document.body.appendChild(span);
+      span.textContent = text;
+      const width = span.offsetWidth;
+      document.body.removeChild(span);
+      return width;
+    }
 
     return {
       isHighLight,
@@ -294,6 +309,7 @@ export default defineComponent({
       optionsWidth,
       showSelector,
       notNeedValueWrap,
+      keyWrapMinWidth,
       handleIsChecked,
       handleMouseenter,
       handleMouseleave,
@@ -322,6 +338,9 @@ export default defineComponent({
           onMouseleave={this.handleMouseleave}
         >
           <span
+            style={{
+              minWidth: `${this.keyWrapMinWidth < 120 ? this.keyWrapMinWidth : 120}px`,
+            }}
             class='key-wrap'
             v-bk-tooltips={{
               content: this.fieldInfo?.field || this.fieldInfo?.alias,

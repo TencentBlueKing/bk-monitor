@@ -32,6 +32,7 @@ export enum EMode {
 }
 export enum EFieldType {
   all = 'all',
+  boolean = 'boolean',
   date = 'date',
   integer = 'integer',
   keyword = 'keyword',
@@ -448,7 +449,7 @@ export const AUTO_WIDTH_INPUT_EMITS = {
 } as const;
 export const VALUE_TAG_INPUT_PROPS = {
   value: {
-    type: String,
+    type: [String, Number],
     default: '',
   },
   isOneRow: {

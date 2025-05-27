@@ -60,6 +60,21 @@ function getNullValue() {
   );
 }
 
+function getBooleanValues() {
+  return JSON.parse(
+    JSON.stringify([
+      {
+        id: 'true',
+        name: 'true',
+      },
+      {
+        id: 'false',
+        name: 'false',
+      },
+    ])
+  );
+}
+
 export const useCandidateValue = () => {
   let candidateValueMap: ICandidateValueMap = new Map();
   let axiosController = new AbortController();
@@ -83,12 +98,19 @@ export const useCandidateValue = () => {
       const field = params?.fields?.[0];
       const fieldType = fields?.find(item => item?.name === field)?.type || '';
       const isKeyword = fieldType === 'keyword';
+      const isBoolean = fieldType === 'boolean';
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
       // const hasData = candidateItem?.values?.length >= params.limit || candidateItem?.isEnd;
       // if (searchValue ? candidateItem?.isEnd : hasData && !params?.query_string) {
-      if (candidateItem?.isEnd && !params?.query_string) {
+      if (isBoolean) {
+        const list = getBooleanValues().filter(item => item.name.includes(searchValueLower));
+        resolve({
+          count: list.length,
+          list,
+        });
+      } else if (candidateItem?.isEnd && !params?.query_string) {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();

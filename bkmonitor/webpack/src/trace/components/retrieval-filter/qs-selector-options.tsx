@@ -229,7 +229,7 @@ export default defineComponent({
       emit('select', str);
     }
     function updateSelection() {
-      const listEl = elRef.value.querySelector('.wrap-left .options-wrap');
+      const listEl = elRef.value?.querySelector('.wrap-left .options-wrap');
       const el = listEl?.children?.[cursorIndex.value] as HTMLDivElement;
       el?.focus();
     }

@@ -276,7 +276,7 @@ export const GROUP_RELATION_KEY = 'group_relation';
 /* 存在/不存在的key */
 export const EXISTS_KEYS = ['exists', 'not exists'];
 /* 不需要显示值选择的操作符 */
-export const NOT_VALUE_METHODS = ['not exists'];
+export const NOT_VALUE_METHODS = ['exists', 'not exists'];
 /* 默认组件关系 */
 export const DEFAULT_GROUP_RELATION = 'OR';
 /* 空值的id和name */

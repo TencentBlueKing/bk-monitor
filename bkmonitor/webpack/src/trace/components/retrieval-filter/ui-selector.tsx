@@ -197,6 +197,9 @@ export default defineComponent({
         target: el,
       };
       handleShowSelect(customEvent);
+      setTimeout(() => {
+        inputFocus.value = true;
+      }, 300);
     }
 
     function handleCancel() {
