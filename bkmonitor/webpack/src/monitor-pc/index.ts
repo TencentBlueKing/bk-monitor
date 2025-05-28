@@ -162,7 +162,7 @@ if (hasRouteHash) {
           reportApiSpeed: true, // 接口测速
           reportAssetSpeed: true, // 静态资源测速
           pagePerformance: true, // 是否开启页面测速
-          hostUrl: window.rum_access_url, // 上报域名，
+          hostUrl: window.rum_access_url.replace(/\/logs$/, ''), // 上报域名，
           webVitals: true, // 是否开启 web vitals 测速
           onError: true, // 当前实例是否需要进行错误监听，获取错误日志
           aid: true, // 当前实例是否生成aid,
