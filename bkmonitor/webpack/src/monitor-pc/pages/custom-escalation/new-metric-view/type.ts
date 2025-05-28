@@ -42,6 +42,7 @@ export interface IColumnItem {
   sortable?: boolean | undefined;
   renderFn?: (row) => void;
   fixed?: string;
+  minWidth?: number;
 }
 export interface IDataItem {
   name?: string;

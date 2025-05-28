@@ -37,9 +37,9 @@ import { refreshList } from '../../metric-chart-view/utils';
 import HeaderBox from '../header-box/index';
 import CheckViewTable from './check-view-table';
 
-import type { IDimensionItem, IRefreshItem, IResultItem } from '../../type';
+import type { IDimensionItem, IRefreshItem } from '../../type';
 import type { IMetricAnalysisConfig } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
-import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
 interface IViewConfig {
@@ -65,6 +65,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   @Prop({ default: '' }) currentMethod: string;
   @Ref('viewRef') viewRef: HTMLElement;
   @Ref('viewMain') viewMainRef: HTMLDivElement;
+  @Ref('metricChart') metricChartRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   dimensionParams: Record<string, any> = {};
   /* 主动刷新图表 */
@@ -80,9 +81,13 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   };
   divHeight = 0;
   resizeObserver = null;
-  showStatisticalValue = false;
+  showStatisticalValue = true;
   /* 拖拽数据 */
   drag = { height: 400, minHeight: 300, maxHeight: 550 };
+  /* 原始数据 */
+  tableData = [];
+  legendData: ILegendItem[] = [];
+  loading = false;
   get titleName() {
     return this.panel?.config?.title || '';
   }
@@ -153,8 +158,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   getTableList() {}
   /** 支持上下拖拽 */
   handleResizing(height: number) {
-    // this.drag.height = height;
-    // this.chartKey = random(8);
+    this.drag.height = height;
   }
   /** 设置panel的值 */
   setPanelConfigAndRefresh(keys: string, value) {
@@ -201,23 +205,20 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     ]);
     this.panelData.targets[0].function = !compare.type ? {} : { time_compare: compare.offset };
     this.dimensionParams = Object.freeze(payload);
+    this.loading = true;
   }
 
   /* 获取原始数据 */
   handleGetSeriesData(res) {
-    const dataSeries = (res.series || []).map(set => {
-      const { datapoints, dimensions, target, ...setData } = set;
-      const metric = res.metrics[0];
-      return {
-        metric,
-        dimensions,
-        datapoints,
-        ...setData,
-        target,
-      };
-    });
-    const dataList = dataSeries.reduce((data, item) => data.concat(item), []);
-    console.log(res, 'res', dataList);
+    this.tableData = res;
+  }
+  handleLegendData(list: ILegendItem[], loading: boolean) {
+    this.legendData = list;
+    this.loading = loading;
+  }
+  /** 点击表格的图例，与图表联动 */
+  handleRowClick(item: ILegendItem) {
+    this.metricChartRef?.handleSelectLegend({ actionType: 'click', item });
   }
 
   render() {
@@ -259,53 +260,69 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
             />
           </div>
         </div>
-        <HeaderBox
-          dimenstionParams={this.dimensionParams}
-          exclude={['metric']}
-          isShowExpand={false}
-          onChange={this.handleDimensionParamsChange}
-        >
-          <template slot='actionExtend'>
-            <bk-checkbox v-model={this.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
-          </template>
-        </HeaderBox>
-        <div
-          ref='viewMain'
-          class='check-view-main'
-        >
-          <bk-resize-layout
-            extCls='check-view-main-layout'
-            slot='aside'
-            border={false}
-            initial-divide={'50%'}
-            max={680}
-            min={340}
-            placement='top'
-            onResizing={this.handleResizing}
+        <div class='check-view-detail-body'>
+          <HeaderBox
+            dimenstionParams={this.dimensionParams}
+            exclude={['metric']}
+            isShowExpand={false}
+            splitable={false}
+            onChange={this.handleDimensionParamsChange}
           >
-            <div
-              class='check-view-main-chart'
+            <template slot='actionExtend'>
+              <bk-checkbox v-model={this.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+            </template>
+          </HeaderBox>
+          <div
+            ref='viewMain'
+            class='check-view-main'
+          >
+            <bk-resize-layout
+              extCls='check-view-main-layout'
               slot='aside'
+              border={false}
+              initial-divide={'50%'}
+              max={680}
+              min={340}
+              placement='top'
+              onResizing={this.handleResizing}
             >
-              <NewMetricChart
-                key={this.chartKey}
-                style={{ height: `${this.drag.height - 30}px` }}
-                chartHeight={this.drag.height}
-                currentMethod={this.currentMethod}
-                isShowLegend={true}
-                isToolIconShow={false}
-                panel={this.panelData}
-                onSeriesData={this.handleGetSeriesData}
-              />
-            </div>
-            <div
-              style={{ height: `${this.divHeight - this.drag.height - 4}px` }}
-              class='check-view-main-table'
-              slot='main'
-            >
-              <CheckViewTable />
-            </div>
-          </bk-resize-layout>
+              <div
+                class='check-view-main-chart'
+                slot='aside'
+              >
+                <span class='chart-context-menu-info'>
+                  <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                  {this.$t('右键更多操作')}
+                </span>
+                <NewMetricChart
+                  key={this.chartKey}
+                  ref='metricChart'
+                  style={{ height: `${this.drag.height - 30}px` }}
+                  chartHeight={this.drag.height}
+                  currentMethod={this.currentMethod}
+                  isNeedMenu={true}
+                  isShowLegend={false}
+                  isToolIconShow={false}
+                  panel={this.panelData}
+                  onLegendData={this.handleLegendData}
+                  onSeriesData={this.handleGetSeriesData}
+                />
+              </div>
+              <div
+                style={{ height: `${this.divHeight - this.drag.height}px` }}
+                class='check-view-main-table'
+                slot='main'
+              >
+                <CheckViewTable
+                  data={this.tableData}
+                  isShowStatistical={this.showStatisticalValue}
+                  legendData={this.legendData}
+                  loading={this.loading}
+                  onHeadClick={this.handleRowClick}
+                />
+              </div>
+            </bk-resize-layout>
+          </div>
         </div>
       </div>
     );

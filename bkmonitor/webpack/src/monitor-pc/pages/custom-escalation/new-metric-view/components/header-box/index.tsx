@@ -66,6 +66,7 @@ interface IProps {
   dimenstionParams?: Record<string, any>;
   isShowExpand?: boolean;
   exclude?: string[];
+  splitable?: boolean;
 }
 
 interface IEmit {
@@ -92,6 +93,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
   @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
   @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
+  @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
   @Ref('rootRef') rootRef: HTMLElement;
 
   isExpaned = true;
@@ -192,7 +194,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             />
             <div class='mult-item-box'>
               <GroupBy
-                splitable={true}
+                splitable={this.splitable}
                 value={this.params.group_by}
                 onChange={this.handleGroupByChange}
               />

@@ -434,6 +434,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             },
           }}
           label={this.$t(item.label)}
+          prop={item.prop}
           renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
           sortable={item.sortable}
         />
@@ -508,9 +509,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       </div>
     );
   }
-  handleSort({ column, order }) {
-    const sortColumn = this.sortColumn.find(item => item.label === column?.label);
-    this.sortProp = sortColumn?.prop || '';
+  handleSort({ order, prop }) {
+    this.sortProp = prop;
     this.sortOrder = order;
   }
   /** 维度表格 end */

@@ -46,6 +46,7 @@ import { COLOR_LIST_METRIC, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugin
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
+import { createMenuList } from 'monitor-ui/chart-plugins/utils';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -88,6 +89,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: '' }) currentMethod: string;
   /** groupId */
   @Prop({ default: '' }) groupId: string;
+  /** 是否展示图例 */
+  @Prop({ default: false }) isNeedMenu: boolean;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -100,6 +103,11 @@ class NewMetricChart extends CommonSimpleChart {
     id: method,
     name: method,
   }));
+  contextmenuInfo = {
+    options: [{ id: 'drill', name: window.i18n.tc('维度下钻') }],
+    sliceStartTime: 0, // 当前切片起始时间
+    sliceEndTime: 0,
+  };
   customScopedVars: Record<string, any> = {};
   width = 300;
   initialized = false;
@@ -144,10 +152,11 @@ class NewMetricChart extends CommonSimpleChart {
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
-  legendSorts: { name: string; timeShift: string; tipsName: string }[] = [];
+  legendSorts: { name: string; timeShift: string; tipsName: string; target: string }[] = [];
   // 切换图例时使用
   seriesList = null;
   minBase = 0;
+  enableContextmenu = true;
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -338,7 +347,7 @@ class NewMetricChart extends CommonSimpleChart {
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);
       if (lItem) {
-        result.push({ ...lItem, ...{ tipsName: item.tipsName } });
+        result.push({ ...lItem, ...{ tipsName: item.tipsName, target: item.target } });
       }
     }
     this.legendData = result;
@@ -466,6 +475,7 @@ class NewMetricChart extends CommonSimpleChart {
                     name,
                     tipsName,
                     timeShift: set.time_offset || '',
+                    target: set.target,
                   });
                   return {
                     ...set,
@@ -838,6 +848,42 @@ class NewMetricChart extends CommonSimpleChart {
       );
     });
   }
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    if (this.isNeedMenu) {
+      event.preventDefault();
+      console.log('右键菜单');
+      if (this.enableContextmenu) {
+        const { pageX, pageY } = event;
+        const instance = (this.$refs.baseChart as any).instance;
+        // createMenuList(
+        //   this.contextmenuInfo.options,
+        //   { x: pageX, y: pageY },
+        //   (id: string) => {
+        //     const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
+        //     let endTime = 0;
+        //     let i = 0;
+        //     const datas = this.seriesList[0].data || [];
+        //     for (const item of datas) {
+        //       i += 1;
+        //       if (item?.value?.[0] === startTime || item?.[0] === startTime) {
+        //         const nextItem = datas[i];
+        //         endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
+        //         break;
+        //       }
+        //     }
+        //     this.contextmenuInfo = {
+        //       ...this.contextmenuInfo,
+        //       sliceStartTime: startTime,
+        //       sliceEndTime: endTime || startTime + 1000 * 60,
+        //     };
+        //     // this.handleClickMenuItem(id);
+        //   },
+        //   instance
+        // );
+      }
+    }
+  }
   render() {
     return (
       <div class='new-metric-chart'>
@@ -875,7 +921,10 @@ class NewMetricChart extends CommonSimpleChart {
           )}
         </ChartHeader>
         {!this.empty ? (
-          <div class='new-metric-chart-content'>
+          <div
+            class='new-metric-chart-content'
+            onContextmenu={this.handleChartContextmenu}
+          >
             <div
               ref='chart'
               class='chart-instance'
