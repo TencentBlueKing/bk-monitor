@@ -123,7 +123,7 @@ export default defineComponent({
       return {
         filter_labels: {
           ...filter_labels,
-          ...(props.formData?.dateComparisonEnable && start && end ? { start: String(start), end: String(end) } : {}),
+          ...(props.formData?.dateComparisonEnable && start && end ? { start, end } : {}),
         },
         diff_filter_labels: {
           ...diff_filter_labels,
