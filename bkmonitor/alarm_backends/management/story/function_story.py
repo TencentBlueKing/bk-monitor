@@ -8,10 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from collections import defaultdict
 
 from django.conf import settings
+from kafka import KafkaConsumer, TopicPartition
 
+from alarm_backends.core.cache.key import REAL_TIME_HOST_TOPIC_KEY
+from alarm_backends.core.storage.redis import Cache
 from alarm_backends.management.story.base import (
     BaseStory,
     CheckStep,
@@ -72,20 +76,39 @@ class RealTimeTopicStatus(CheckStep):
     name = "check real time topic status"
 
     def check(self):
-        threshold = 100000
-        from alarm_backends.service.access.event.event_poller import EventPoller
-        from kafka.structs import TopicPartition
+        threshold = 10000
+        cache = Cache("service")
+        ip_topics = cache.hgetall(REAL_TIME_HOST_TOPIC_KEY.get_key())
+        topics = []
+        for value in ip_topics.values():
+            topics.extend(json.loads(value).keys())
 
-        ep = EventPoller()
-        consumer = ep.get_consumer()
-        for topic, data_id in ep.topics_map.items():
-            partitions = consumer.partitions_for_topic(topic) or {0}
-            topic_partitions = [TopicPartition(topic=topic, partition=partition) for partition in partitions]
-            end_offsets = consumer.end_offsets(topic_partitions)
+        # kafka集群及所属topic分组
+        bootstrap_servers_topics = defaultdict(set)
+        for topic in topics:
+            bootstrap_servers, topic = topic.split("|")
+            bootstrap_servers_topics[bootstrap_servers].add(topic)
+
+        group_id = f"{settings.APP_CODE}.real_time_access"
+        for bootstrap_servers, topics in bootstrap_servers_topics.items():
+            c = KafkaConsumer(bootstrap_servers=bootstrap_servers, group_id=group_id)
+            c.topics()
+
+            congestion_topics = []
+            topic_partitions = []
+            for topic in topics:
+                partitions = c.partitions_for_topic(topic) or {0}
+                topic_partitions.extend([TopicPartition(topic=topic, partition=partition) for partition in partitions])
+            end_offsets = c.end_offsets(topic_partitions)
             committed_offsets = {}
-            for tp in topic_partitions:
-                committed_offsets[tp] = consumer.committed(tp)
-                if end_offsets[tp] - committed_offsets[tp] > threshold:
+            for topic_partition in topic_partitions:
+                committed_offsets[topic_partition] = c.committed(topic_partition) or 0
+            c.close()
+
+            for topic_partition in committed_offsets:
+                if end_offsets[topic_partition] - committed_offsets[topic_partition] > threshold:
+                    congestion_topics.append(topic_partition.topic)
                     self.story.warning(
-                        f"{consumer.config['bootstrap_servers']} {topic} congestion occurs, {end_offsets[tp] - committed_offsets[tp]}"
+                        f"{bootstrap_servers} {topic_partition.topic} congestion occurs, "
+                        f"{end_offsets[topic_partition] - committed_offsets[topic_partition]}"
                     )
