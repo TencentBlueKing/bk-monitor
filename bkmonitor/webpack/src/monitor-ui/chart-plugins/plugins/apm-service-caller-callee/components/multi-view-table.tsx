@@ -518,22 +518,17 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
       const queryString = query.join(' AND ');
 
-      const conditionList = {};
-      Object.keys(filter).map(key => {
-        const item = {
-          selectedCondition: {
-            label: '=',
-            value: 'equal',
-          },
-          isInclude: true,
-          selectedConditionValue: filter[key],
+      const conditionList = Object.keys(filter).map(key => {
+        return {
+          key,
+          operator: 'equal',
+          value: filter[key],
         };
-        conditionList[key] = item;
       });
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${from}&end_time=${to}&listType=span`
+          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&queryString=${queryString}&start_time=${from}&end_time=${to}&sceneMode=span&filterMode=ui`
         )
       );
       return;

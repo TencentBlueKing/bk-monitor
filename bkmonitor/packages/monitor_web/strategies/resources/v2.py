@@ -3547,7 +3547,7 @@ class GetDevopsStrategyListResource(Resource):
             return {"result": False, "status": 1, "data": [], "message": "无法获取当前用户"}
 
         # 检查用户是否有权限访问指定业务
-        p = Permission(username=username)
+        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         # 强制检查权限
         p.skip_check = False
         if not p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_RULE):

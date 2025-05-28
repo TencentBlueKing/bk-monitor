@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Input } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
@@ -63,6 +64,7 @@ export default defineComponent({
   },
   emits: ['change', 'input', 'update:modelValue'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const popoverInstance = ref<PopoverInstance>();
     const keyword = ref('');
     const oldVal = ref('');
@@ -195,6 +197,7 @@ export default defineComponent({
       tipsListFilter,
       handleInput,
       handleMousedown,
+      t,
     };
   },
   render() {
@@ -204,7 +207,7 @@ export default defineComponent({
           <Input
             v-model={this.value}
             behavior={'simplicity'}
-            placeholder={this.placeholder || this.$t('请输入')}
+            placeholder={this.placeholder || this.t('请输入')}
             readonly={this.readonly}
             onInput={this.handleInput}
           />

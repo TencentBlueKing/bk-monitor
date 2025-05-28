@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from enum import Enum
 
 from django.conf import settings
 from django.db.models import TextChoices
@@ -406,7 +407,12 @@ class KindCategory:
 
     @classmethod
     def choices(cls):
-        return [(cls.ASYNC, _("异步")), (cls.SYNC, _("同步")), (cls.INTERNAL, _("内部")), (cls.UNSPECIFIED, _("未指定"))]
+        return [
+            (cls.ASYNC, _("异步")),
+            (cls.SYNC, _("同步")),
+            (cls.INTERNAL, _("内部")),
+            (cls.UNSPECIFIED, _("未指定")),
+        ]
 
     @classmethod
     def get_category(cls, kind):
@@ -600,3 +606,59 @@ class DiscoverRuleType(TextChoices):
     SYSTEM = "system", _("系统类型规则")
     PLATFORM = "platform", _("平台规则")
     SDK = "sdk", _("SDK 规则")
+
+
+class QueryMode:
+    """查询视角 Trace/Span"""
+
+    TRACE = "trace"
+    SPAN = "span"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.TRACE, "Trace视角"),
+            (cls.SPAN, "span视角"),
+        ]
+
+
+class EnabledStatisticsDimension(Enum):
+    """
+    开启字段分析的维度类型枚举（映射到 Elasticsearch 数据类型）
+    """
+
+    KEYWORD = "keyword"
+    INTEGER = "integer"
+    LONG = "long"
+    DOUBLE = "double"
+
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
+
+class AggregatedMethod(Enum):
+    """
+    聚合方法枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    COUNT = "count"
+    DISTINCT = "distinct"
+    CP50 = "cp50"
+
+
+class StatisticsProperty(Enum):
+    """
+    统计属性枚举
+    """
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    TOTAL_COUNT = "total_count"
+    DISTINCT_COUNT = "distinct_count"
+    FIELD_COUNT = "field_count"
+    MEDIAN = "median"

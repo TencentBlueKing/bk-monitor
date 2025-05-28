@@ -151,7 +151,7 @@ export default class MonitorRetrieve extends tsc<void> {
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
-              window.i18n.tc('加载中...')
+              window.i18n.t('加载中...')
             ) : (
               <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>

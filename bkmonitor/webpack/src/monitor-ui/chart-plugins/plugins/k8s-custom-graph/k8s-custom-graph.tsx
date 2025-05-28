@@ -136,7 +136,7 @@ class K8SCustomChart extends CommonSimpleChart {
   metrics = [];
   options = {};
   empty = true;
-  emptyText = window.i18n.tc('暂无数据');
+  emptyText = window.i18n.t('暂无数据');
   cancelTokens = [];
 
   /** 导出csv数据时候使用 */
@@ -201,14 +201,14 @@ class K8SCustomChart extends CommonSimpleChart {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.initialized) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     if (
       this.panel.targets.some(item =>
         item.data?.query_configs?.some(q => q.data_source_label === 'prometheus' && !q.promql)
       )
     ) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('暂无数据');
+      this.emptyText = window.i18n.t('暂无数据');
     } else {
       try {
         this.unregisterObserver();
@@ -529,13 +529,13 @@ class K8SCustomChart extends CommonSimpleChart {
           }, 100);
         } else {
           this.initialized = this.metrics.length > 0;
-          this.emptyText = window.i18n.tc('暂无数据');
+          this.emptyText = window.i18n.t('暂无数据');
           this.empty = true;
         }
       } catch (e) {
         console.error(e);
         this.empty = true;
-        this.emptyText = window.i18n.tc('出错了');
+        this.emptyText = window.i18n.t('出错了');
       }
     }
 
@@ -562,7 +562,7 @@ class K8SCustomChart extends CommonSimpleChart {
     }
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-      : val.replace('current', window.i18n.tc('当前'));
+      : val.replace('current', window.i18n.t('当前'));
   }
 
   handleSeriesName(item: DataQuery, set) {

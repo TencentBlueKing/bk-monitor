@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ComputedRef, type PropType, computed, defineComponent, ref, watch } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, onBeforeMount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
@@ -88,6 +88,7 @@ export default defineComponent({
     const chartTitleRef = ref<HTMLDivElement>();
     const showMenu = ref(false);
     const menuLeft = ref(0);
+    const menuTop = ref(0);
     const popoverInstance = ref(null);
     const alarmStatus = ref<ITitleAlarm>({ status: 0, alert_number: 0, strategy_number: 0 });
     const isShowChildren = ref(false);
@@ -139,6 +140,26 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    onMounted(() => {
+      addEventListener();
+    });
+
+    onBeforeMount(() => {
+      removeEventListener();
+    });
+
+    function addEventListener() {
+      window.addEventListener('wheel', closeMenu);
+    }
+    function removeEventListener() {
+      window.removeEventListener('wheel', closeMenu);
+    }
+
+    function closeMenu() {
+      handleChildMenuToggle(false);
+    }
+
     function handleShowMenu(e: any) {
       // console.log('handleShowMenu', isAlertListShown);
       if (!props.dragging) {
@@ -146,7 +167,8 @@ export default defineComponent({
         showMenu.value = !showMenu.value;
         const rect = chartTitleRef.value?.getBoundingClientRect();
         if (typeof rect !== 'undefined') {
-          menuLeft.value = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
+          menuTop.value = rect.top + 36;
+          menuLeft.value = rect.right - 185 < rect.left + e.layerX ? rect.right - 185 : rect.left + e.layerX;
         }
       }
       emit('updateDragging', false);
@@ -230,6 +252,7 @@ export default defineComponent({
       chartTitleRef,
       showMenu,
       menuLeft,
+      menuTop,
       popoverInstance,
       alarmStatus,
       isShowChildren,
@@ -253,6 +276,7 @@ export default defineComponent({
       handleSuccessLoad,
       isShowAlarmStyle,
       metricTitleTooltips,
+      t,
     };
   },
   render() {
@@ -285,7 +309,7 @@ export default defineComponent({
               {this.$slots.title ? this.$slots.title() : this.title}
             </div>
             {this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
-              <Popover content={this.$t('数据步长')}>
+              <Popover content={this.t('数据步长')}>
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
             ) : undefined}
@@ -309,7 +333,7 @@ export default defineComponent({
             ) : undefined}
             <span class='title-center' />
             {this.showMetricAlarm && this.metricTitleData ? (
-              <Popover content={this.$t('添加策略')}>
+              <Popover content={this.t('添加策略')}>
                 <i
                   style={{
                     display: this.isToolsShow && this.showAddMetric ? 'flex' : 'none',
@@ -333,7 +357,7 @@ export default defineComponent({
                   onSuccessLoad={this.handleSuccessLoad}
                 />
               )}
-              <Popover content={this.$t('更多')}>
+              <Popover content={this.t('更多')}>
                 <span
                   style={{
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
@@ -358,7 +382,7 @@ export default defineComponent({
         <TitleMenu
           style={{
             left: `${this.menuLeft}px`,
-            top: '36px',
+            top: `${this.menuTop}px`,
             display: this.showMenu ? 'flex' : 'none',
           }}
           drillDownOption={this.drillDownOption}

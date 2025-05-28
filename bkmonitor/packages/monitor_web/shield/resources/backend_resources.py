@@ -24,7 +24,7 @@ from bkmonitor.iam.action import ActionEnum
 from bkmonitor.iam.permission import Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.common_utils import logger
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
     localtime,
@@ -232,7 +232,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
                 raise ValidationError({"verify_user_permission": "无法获取当前用户"})
             if not request_data.get("bk_biz_id"):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
-            p = Permission(username=username)
+            p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
             p.skip_check = False
             if not p.is_allowed_by_biz(request_data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
                 raise ValidationError(
@@ -552,7 +552,7 @@ class DisableShieldResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务id")
         id = serializers.ListField(required=True, child=serializers.IntegerField(), min_length=1, label="屏蔽id列表")
         verify_user_permission = serializers.BooleanField(
-            required=False, default=True, label="是否额外验证用户权限(apigw)"
+            required=False, default=False, label="是否额外验证用户权限(apigw)"
         )
 
         def to_internal_value(self, data):
@@ -571,7 +571,7 @@ class DisableShieldResource(Resource):
                 raise ValidationError({"verify_user_permission": "无法获取当前用户"})
             if not data.get("bk_biz_id"):
                 raise ValidationError({"verify_user_permission": "业务id不能为空"})
-            p = Permission(username=username)
+            p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
             p.skip_check = False
             if not p.is_allowed_by_biz(data["bk_biz_id"], ActionEnum.MANAGE_DOWNTIME):
                 raise ValidationError({"verify_user_permission": f"当前用户无权限解除{data['bk_biz_id']}业务屏蔽配置"})

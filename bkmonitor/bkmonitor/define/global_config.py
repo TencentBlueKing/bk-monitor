@@ -535,6 +535,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
+        ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
         (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
@@ -632,17 +633,12 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # TODO(crayon) 已全量放开，下个版本删除该配置项。
-        # 事件检索新版灰度配置
-        ("EVENT_V2_BIZ_LIST", slz.ListField(label=_("事件检索新版灰度配置"), default=[])),
-        # Trace 检索新版灰度配置（开启后 Trace 使用新版页面，并且通过 UnifyQuery 检索）。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("Trace 检索灰度配置"), default=[])),
+        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
+        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
-        # 新版自定义时序灰度业务列表
-        ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
         # 事件中心AIOps功能灰度业务列表
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]

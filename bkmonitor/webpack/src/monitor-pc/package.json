@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/ai-blueking": "0.3.25-beta.0",
-    "@blueking/bk-weweb": "0.0.29-beta.3",
+    "@blueking/bk-weweb": "0.0.35",
     "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "2.0.0-beta.46",
     "@blueking/fork-resize-detector": "^0.0.2",
@@ -26,7 +26,7 @@
     "@prometheus-io/lezer-promql": "0.51.2",
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
-    "big.js": "^6.2.2",
+    "big.js": "^7.0.1",
     "bk-magic-vue": "2.5.10-beta.3",
     "dayjs": "^1.11.13",
     "deepmerge": "^4.3.1",

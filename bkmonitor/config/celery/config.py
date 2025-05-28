@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from celery.schedules import crontab
 from django.conf import settings
 
@@ -84,7 +84,7 @@ class Config:
         },
         "apm_web.tasks.cache_application_scope_name": {
             "task": "apm_web.tasks.cache_application_scope_name",
-            "schedule": crontab(minute="*/60"),
+            "schedule": crontab(minute="*/10"),
             "enabled": True,
         },
         "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
