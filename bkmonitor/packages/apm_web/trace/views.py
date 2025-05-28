@@ -39,6 +39,7 @@ from apm_web.trace.resources import (
     TraceListByIdResource,
     TraceOptionsResource,
     TraceStatisticsResource,
+    TraceGenerateQueryStringResource,
 )
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
 from apm_web.utils import generate_csv_file_download_response
@@ -162,6 +163,7 @@ class TraceQueryViewSet(ResourceViewSet):
         ResourceRoute("POST", TraceFieldsTopKResource, "fields_topk"),
         ResourceRoute("POST", TraceFieldStatisticsInfoResource, "field_statistics_info"),
         ResourceRoute("POST", TraceFieldStatisticsGraphResource, "field_statistics_graph"),
+        ResourceRoute("POST", TraceGenerateQueryStringResource, "generate_query_string"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")

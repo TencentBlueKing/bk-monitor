@@ -52,6 +52,7 @@ export const traceDownloadTopK = request('POST', 'apm/trace_api/trace_query/down
 export const traceFieldsTopK = request('POST', 'apm/trace_api/trace_query/fields_topk/');
 export const traceFieldStatisticsInfo = request('POST', 'apm/trace_api/trace_query/field_statistics_info/');
 export const traceFieldStatisticsGraph = request('POST', 'apm/trace_api/trace_query/field_statistics_graph/');
+export const traceGenerateQueryString = request('POST', 'apm/trace_api/trace_query/generate_query_string/');
 
 export default {
   traceChats,
@@ -81,4 +82,5 @@ export default {
   traceFieldsTopK,
   traceFieldStatisticsInfo,
   traceFieldStatisticsGraph,
+  traceGenerateQueryString,
 };

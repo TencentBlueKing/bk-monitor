@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -42,13 +42,15 @@ class EventDataSource(serializers.Serializer):
 class EventFilterSerializer(EventDataSource):
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
-    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True
+    )
     filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
     where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
     group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
 
     @classmethod
-    def drop_group_by(cls, query_configs: List[Dict[str, Any]]):
+    def drop_group_by(cls, query_configs: list[dict[str, Any]]):
         for query_config in query_configs:
             query_config["group_by"] = []
 
@@ -116,7 +118,9 @@ class EventViewConfigRequestSerializer(BaseEventRequestSerializer):
 
 class EventTopKRequestSerializer(BaseEventRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=0)
-    fields = serializers.ListField(label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False)
+    fields = serializers.ListField(
+        label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False
+    )
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
     need_empty = serializers.BooleanField(label="是否需要统计空值", required=False, default=False)
 
@@ -159,3 +163,7 @@ class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))
         return attrs
+
+
+class EventGenerateQueryStringRequestSerializer(serializers.Serializer):
+    where = serializers.ListField(label="过滤条件", default=[], child=serializers.DictField())
