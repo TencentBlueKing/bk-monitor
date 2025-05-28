@@ -214,8 +214,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         if status:
             all_versions = all_versions.filter(stage=status)
 
-        # 取出每个plugin的最新版本
-        plugin_latest_versions: Dict[str, PluginVersionHistory] = {}
+        # 取出每个plugin的最新版本进行预缓存
+        plugin_latest_versions: dict[str, PluginVersionHistory] = {}
         for version in all_versions:
             version.plugin = plugin_dict[version.plugin_id]
             # 当前面有一条release版本，后面的一定都是旧版本。debug和unregister不能共存，且只能有一条

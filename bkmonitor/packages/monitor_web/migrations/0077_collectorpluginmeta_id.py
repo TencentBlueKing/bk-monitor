@@ -6,9 +6,9 @@ from django.db import migrations, models
 def migrate_plugin_id_to_id(apps, schema_editor):
     CollectorPluginMeta = apps.get_model("monitor_web", "CollectorPluginMeta")
 
-    plugins = CollectorPluginMeta.objects.all()
+    plugins = list(CollectorPluginMeta.objects.all())
 
-    for index, plugin in enumerate(CollectorPluginMeta.objects.all()):
+    for index, plugin in enumerate(plugins):
         plugin.id = index + 1
 
     CollectorPluginMeta.objects.bulk_update(plugins, ["id"])
@@ -16,7 +16,7 @@ def migrate_plugin_id_to_id(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('monitor_web', '0076_auto_20250408_1522'),
+        ("monitor_web", "0076_auto_20250408_1522"),
     ]
 
     operations = [
@@ -25,18 +25,18 @@ class Migration(migrations.Migration):
             reverse_code=migrations.RunPython.noop,
         ),
         migrations.AlterField(
-            model_name='collectorpluginmeta',
-            name='plugin_id',
-            field=models.CharField(max_length=64, verbose_name='插件ID'),
+            model_name="collectorpluginmeta",
+            name="plugin_id",
+            field=models.CharField(max_length=64, verbose_name="插件ID"),
         ),
         migrations.AlterField(
-            model_name='collectorpluginmeta',
-            name='id',
-            field=models.BigIntegerField(primary_key=True, verbose_name='ID'),
+            model_name="collectorpluginmeta",
+            name="id",
+            field=models.BigIntegerField(primary_key=True, verbose_name="ID"),
         ),
         migrations.AlterField(
-            model_name='collectorpluginmeta',
-            name='id',
-            field=models.BigAutoField(primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="collectorpluginmeta",
+            name="id",
+            field=models.BigAutoField(primary_key=True, serialize=False, verbose_name="ID"),
         ),
     ]

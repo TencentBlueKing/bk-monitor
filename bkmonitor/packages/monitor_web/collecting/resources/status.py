@@ -7,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -45,7 +46,7 @@ class CollectTargetStatusResource(Resource):
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=True)
         auto_running_tasks = serializers.ListField(required=False, label="自动运行的任务")
 
-    def perform_request(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
             bk_biz_id=params["bk_biz_id"], id=params["id"]
         )
@@ -99,14 +100,14 @@ class CollectTargetStatusTopoResource(Resource):
         config_version = collect_config.deployment_config.plugin_version.config_version
         latest_info_version = PluginVersionHistory.objects.filter(
             bk_tenant_id=collect_config.bk_tenant_id,
-            plugin_id=collect_config.plugin.plugin_id,
+            plugin_id=collect_config.plugin_id,
             config_version=config_version,
             stage=PluginVersionHistory.Stage.RELEASE,
         ).latest("info_version")
         return latest_info_version
 
     @classmethod
-    def nodata_test(cls, collect_config: CollectConfigMeta, target_list: List[Dict[str, Any]]) -> Dict[str, bool]:
+    def nodata_test(cls, collect_config: CollectConfigMeta, target_list: list[dict[str, Any]]) -> dict[str, bool]:
         """
         无数据检测
         """
@@ -124,7 +125,7 @@ class CollectTargetStatusTopoResource(Resource):
             or collect_config.plugin.plugin_type == PluginType.SNMP_TRAP
         ):
             version = collect_config.deployment_config.plugin_version
-            event_group_name = "{}_{}".format(version.plugin.plugin_type, version.plugin_id)
+            event_group_name = f"{version.plugin.plugin_type}_{version.plugin_id}"
             group_info = CustomEventGroup.objects.get(
                 bk_biz_id=collect_config.bk_biz_id, type=EVENT_TYPE.KEYWORDS, name=event_group_name
             )
@@ -193,7 +194,7 @@ class CollectTargetStatusTopoResource(Resource):
         return target_status
 
     @staticmethod
-    def get_instance_info(instance: Dict) -> Dict:
+    def get_instance_info(instance: dict) -> dict:
         """
         获取实例信息
         """
@@ -220,8 +221,8 @@ class CollectTargetStatusTopoResource(Resource):
 
     @classmethod
     def create_topo_tree(
-        cls, topo_node: TopoNode, module_mapping: Dict[int, List[Dict[str, Any]]], result: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        cls, topo_node: TopoNode, module_mapping: dict[int, list[dict[str, Any]]], result: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         创建拓扑树
         """
@@ -251,7 +252,7 @@ class CollectTargetStatusTopoResource(Resource):
         if sub_nodes:
             result.extend(sub_nodes)
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
             id=params["id"], bk_biz_id=params["bk_biz_id"]
         )
@@ -270,9 +271,9 @@ class CollectTargetStatusTopoResource(Resource):
 
         # 获取实例采集状态并搜集节点信息，避免服务模板还需要进行转换
         collect_status = installer.status(diff=False)
-        topo_nodes: Set[str] = set()
-        instance_status: Dict[str, Dict[str, Any]] = {}
-        targets: List[Dict[str, Any]] = []
+        topo_nodes: set[str] = set()
+        instance_status: dict[str, dict[str, Any]] = {}
+        targets: list[dict[str, Any]] = []
         for node in collect_status:
             # 记录节点信息
             if node.get("bk_obj_id"):
@@ -355,7 +356,7 @@ class UpdateConfigInstanceCountResource(Resource):
             try:
                 _, collect_statistics_data = fetch_sub_statistics([collect_config])
             except BKAPIError as e:
-                logger.error("请求节点管理状态统计接口失败: {}".format(e))
+                logger.error(f"请求节点管理状态统计接口失败: {e}")
                 return
 
             # 统计节点管理订阅的正常数、异常数
