@@ -461,6 +461,11 @@ export class QueryStringEditor {
     if (event.key === 'Enter') {
       event.stopPropagation();
       event.preventDefault();
+      if (!this.queryString) {
+        // 针对粘贴后300ms内回车的情况
+        const str = this.editorEl.textContent.replace(/^\s+|\s+$/g, '');
+        this.options?.onChange(str);
+      }
       this.options?.onQuery?.();
     }
   }
