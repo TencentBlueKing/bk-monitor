@@ -123,7 +123,8 @@ class TestReportMail(Resource):
                 subscribers = [subscriber["username"] for subscriber in channel["subscribers"]]
                 render_mails.apply_async(
                     args=(report_handler, item, params["report_contents"], subscribers, True),
-                    kwargs={"channel_name": channel["channel_name"]},
+                    kwargs={"channel_name": channel["channel_name"],
+                            "with_actual_size": channel.get("with_actual_size", False)},
                 )
         return "success"
 

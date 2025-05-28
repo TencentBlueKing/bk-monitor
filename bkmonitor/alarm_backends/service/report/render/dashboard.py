@@ -10,6 +10,7 @@ from pyppeteer.errors import TimeoutError
 
 from bkmonitor.browser import get_browser
 from core.errors.common import CustomError
+from bk_dataview.util import get_dashboard_data_view_size
 
 logger = logging.getLogger("alarm_backends")
 
@@ -38,6 +39,8 @@ class RenderDashboardConfig:
     image_quality: int = 85
     # 是否透明背景，默认False
     transparent: bool = False
+    # 单图表渲染时，是否按照实际渲染大小展示
+    with_actual_size: bool = False
 
 
 def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False):
@@ -112,6 +115,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
         content_selector = "div.panel-solo" if config.with_panel_title else "div.css-kuoxoh-panel-content"
         await page.setViewport({"width": config.width, "height": config.height, "deviceScaleFactor": config.scale})
     else:
+        # 如果非单图渲染， 宽度会被限制为1600
         # 获取仪表盘高度
         scroll_div_selector = '[class="scrollbar-view"]'
         await page.waitForSelector(scroll_div_selector)

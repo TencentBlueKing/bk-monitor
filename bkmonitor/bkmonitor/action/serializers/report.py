@@ -55,7 +55,9 @@ class ReportChannelSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField(required=True, label="是否启动")
     channel_name = serializers.CharField(required=True, label="渠道名称")
     subscribers = serializers.ListField(required=False, label="订阅人员", default=[])
-
+    with_actual_size = serializers.BooleanField(
+        required=False, default=False, label="是否使用实际大小渲染仪表盘图表"
+    )
     subscriber_serializers = {"email": EmailSubscriberSerializer}
 
     def to_internal_value(self, data):
