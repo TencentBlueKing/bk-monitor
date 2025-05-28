@@ -764,6 +764,7 @@ DRF_DATAAPI_CONFIG = [
     "output_standard",
     "request_auth",
     "cache_time",
+    "bk_tenant_id",
 ]
 
 

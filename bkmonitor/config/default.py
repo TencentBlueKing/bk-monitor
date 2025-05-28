@@ -545,6 +545,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+# {2:["app1", "app2"], 3:["app_name"]}
+APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
@@ -857,8 +859,9 @@ LOG_LEVEL_MAP = {
     "bk_dataview": "ERROR",
 }
 
-warnings.filterwarnings('ignore', r"DateTimeField .* received a naive datetime",
-                      RuntimeWarning, r'django\.db\.models\.fields')
+warnings.filterwarnings(
+    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 #
 # 数据平台接入配置
@@ -1582,9 +1585,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
-
-# 事件检索新版灰度列表
-EVENT_V2_BIZ_LIST = []
 
 # Trace 检索新版灰度配置
 TRACE_V2_BIZ_LIST = []

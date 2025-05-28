@@ -242,42 +242,42 @@ export const CHART_INTERVAL = [
 export const IPV4 =
   /((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?/;
 
-export const NO_BUSSINESS_PAGE_HASH = 'NO_BUSSINESS_PAGE_HASH';
+export const NO_BUSINESS_PAGE_HASH = 'NO_BUSINESS_PAGE_HASH';
 export const PANEL_INTERVAL_LIST = [
   {
     name: 'auto',
     id: 'auto',
   },
   {
-    name: window.i18n.tc('10 秒'),
+    name: window.i18n.t('10 秒'),
     id: '10s',
   },
   {
-    name: window.i18n.tc('30 秒'),
+    name: window.i18n.t('30 秒'),
     id: '30s',
   },
   {
-    name: window.i18n.tc('60 秒'),
+    name: window.i18n.t('60 秒'),
     id: '60s',
   },
   {
-    name: window.i18n.tc('2 分钟'),
+    name: window.i18n.t('2 分钟'),
     id: '2m',
   },
   {
-    name: window.i18n.tc('5 分钟'),
+    name: window.i18n.t('5 分钟'),
     id: '5m',
   },
   {
-    name: window.i18n.tc('10 分钟'),
+    name: window.i18n.t('10 分钟'),
     id: '10m',
   },
   {
-    name: window.i18n.tc('30 分钟'),
+    name: window.i18n.t('30 分钟'),
     id: '30m',
   },
   {
-    name: window.i18n.tc('1 小时'),
+    name: window.i18n.t('1 小时'),
     id: '1h',
   },
 ];

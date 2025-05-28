@@ -53,6 +53,15 @@ module.exports = function (api) {
             baseLibName: 'bk-magic-vue',
           },
         ],
+    [
+      'module-resolver',
+      {
+        root: ['./src'],
+        alias: {
+          '@': './src',
+        },
+      },
+    ],
   ].filter(Boolean);
   return {
     presets,

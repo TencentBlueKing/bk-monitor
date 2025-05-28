@@ -34,10 +34,11 @@ import {
   ref,
   watch,
 } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
+import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
-import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
+import { PrimaryTable, type TableProps } from '@blueking/tdesign-ui';
+import { Alert, Button, Exception, Input, Popover, Select } from 'bkui-vue';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 // TODO：这个是父组件，需要将相关代码和mixins部分 copy 过来这里
@@ -54,22 +55,26 @@ import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+
 // import { VariablesService } from '../../utils/variable';
 import { VariablesService } from '../../../utils';
+
 // import BaseEchart from '../monitor-base-echart';
 import BaseEchart from '../../base-echart';
+
 // mixins 转 hooks 相关
 import {
   useChartIntersection,
   useRefreshImmediateInject,
   useRefreshIntervalInject,
-  useTimeRanceInject,
+  useTimeRangeInject,
 } from '../../hooks';
 
 import type { ITableDataItem } from '../../typings/table-chart';
+
 // 原有类型
-import type { Column } from 'bkui-vue/lib/table/props';
 import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+
 // import { PanelModel } from '../../typings';
 import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
@@ -169,7 +174,7 @@ export default defineComponent({
     /** 是否配置初始化 */
     const initialized = ref(false);
     // 顶层注入数据
-    const timeRange = useTimeRanceInject();
+    const timeRange = useTimeRangeInject();
     const refreshInterval = useRefreshIntervalInject();
     /** 是否滚动到底部，用作判断加载完table数据后是否需要清空table数据还是添加数据 */
     let isScrollLoadTableData = false;
@@ -572,11 +577,11 @@ export default defineComponent({
     /**
      * columns 是原先用于 vue2 组件的，无法在 vue3 组件上继续使用，这里进行调整。
      */
-    const transformedColumns = computed(() => {
+    const transformedColumns = computed<TableProps['columns']>(() => {
       const result = columns.value.map(item => {
         const newColumn: Record<string, any> = {};
-        newColumn.label = item.name;
-        newColumn.field = item.id;
+        newColumn.title = item.name;
+        newColumn.colKey = item.id;
         newColumn.width = item.width;
         newColumn.minWidth = item.min_width;
         return newColumn;
@@ -630,6 +635,7 @@ export default defineComponent({
       isScrollLoading,
       selectedOptionAlias,
       handleQueryTable,
+      t,
     };
   },
   render() {
@@ -651,7 +657,7 @@ export default defineComponent({
                           class='link'
                           onClick={() => this.goLink()}
                         >
-                          {this.$t('route-日志检索')}
+                          {this.t('route-日志检索')}
                           <i class='icon-monitor icon-fenxiang' />
                         </span>
                       ) : (
@@ -674,10 +680,10 @@ export default defineComponent({
                 <div class='log-chart-collapse'>
                   <div class='collapse-header'>
                     <span class='collapse-title'>
-                      <span class='title'>{this.$t('总趋势')}</span>
+                      <span class='title'>{this.t('总趋势')}</span>
                       {!this.emptyChart && (
                         <div class='title-tool'>
-                          <span class='interval-label'>{this.$t('汇聚周期')}</span>
+                          <span class='interval-label'>{this.t('汇聚周期')}</span>
 
                           <Select
                             class='interval-select'
@@ -701,7 +707,7 @@ export default defineComponent({
                     </span>
                     {!this.emptyChart && (
                       <Popover
-                        content={this.$t('截图到本地')}
+                        content={this.t('截图到本地')}
                         placement='top'
                       >
                         <i
@@ -728,7 +734,7 @@ export default defineComponent({
                           />
                         </div>
                       ) : (
-                        <div class='empty-chart'>{this.$t('查无数据')}</div>
+                        <div class='empty-chart'>{this.t('查无数据')}</div>
                       )}
                     </div>
                   </div>
@@ -760,26 +766,23 @@ export default defineComponent({
                     theme='primary'
                     onClick={this.handleQueryTable}
                   >
-                    {this.$t('查询')}
+                    {this.t('查询')}
                   </Button>
                 </div>
                 <div class='related-table-container'>
-                  <Table
+                  <PrimaryTable
                     style='width: 100%;'
                     height='100%'
-                    v-slots={{
-                      expandRow: row => {
-                        return (
-                          <div>
-                            <JsonPretty data={row.source} />
-                          </div>
-                        );
-                      },
+                    expandedRow={(_, { row }) => {
+                      return (
+                        <div>
+                          <JsonPretty data={row.source} />
+                        </div>
+                      );
                     }}
-                    columns={this.transformedColumns as Column[]}
+                    columns={this.transformedColumns}
                     data={this.tableData}
-                    scroll-loading={this.isScrollLoading}
-                    onScrollBottom={this.handlePageChange}
+                    expandIcon={true}
                   />
                 </div>
               </div>
@@ -791,14 +794,14 @@ export default defineComponent({
               this.emptyText
             ) : (
               <Exception type='building'>
-                <span>{this.$t('暂无关联日志')}</span>
+                <span>{this.t('暂无关联日志')}</span>
                 <div class='text-wrap'>
-                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <span class='text-row'>{this.t('可前往配置页去配置相关日志')}</span>
                   <Button
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('关联日志')}
+                    {this.t('关联日志')}
                   </Button>
                 </div>
               </Exception>

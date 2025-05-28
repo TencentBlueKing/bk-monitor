@@ -156,6 +156,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
+    if (!this.$route.params.id) {
+      return;
+    }
     if (this.config.metrics.length < 1) {
       this.loading = false;
       this.groupList = [];

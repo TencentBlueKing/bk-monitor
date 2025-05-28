@@ -26,6 +26,7 @@
 
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch, watchEffect } from 'vue';
 import { shallowRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
@@ -59,6 +60,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const { t } = useI18n();
     // 自动刷新定时任务
     let refreshIntervalInstance = null; // 自动刷新定时任务
 
@@ -67,7 +69,7 @@ export default defineComponent({
     let cancelTopoFn = () => {};
 
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
-    const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const searchType = inject<Ref<SearchType>>('profilingSearchType', undefined);
     const graphWrapperRef = ref<HTMLDivElement>();
     const empty = ref(true);
     // 当前视图模式
@@ -327,6 +329,7 @@ export default defineComponent({
       isCompared,
       graphWrapperRef,
       downloadImgIndex,
+      t,
     };
   },
   render() {
@@ -347,7 +350,7 @@ export default defineComponent({
         />
         {this.empty ? (
           <Exception
-            description={this.$t('暂无数据')}
+            description={this.t('暂无数据')}
             type='empty'
           />
         ) : (

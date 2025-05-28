@@ -58,6 +58,7 @@ export default () => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
@@ -77,8 +78,6 @@ export default () => {
     store.commit('updateIndexId', routeParams.index_id);
     store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
-
-  reoverRouteParams();
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
@@ -105,6 +104,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
@@ -112,6 +112,7 @@ export default () => {
       '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
+      '--header-height': fromMonitor.value ? '0px' : '52px',
     };
   });
 
@@ -167,11 +168,14 @@ export default () => {
         return;
       }
 
-      router.push({ query: { ...route.query, search_mode: 'ui' } });
+      router.push({
+        query: { ...route.query, search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui' },
+      });
     }
   };
 
   setSearchMode();
+  reoverRouteParams();
 
   /**
    * 拉取索引集列表
@@ -185,17 +189,21 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取第一个索引集
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const defaultId = resp[1][0]?.index_set_id;
-
-          if (defaultId) {
-            const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
-            store.commit('updateIndexId', strId);
-
-            router.replace({
-              params: { indexId: strId },
-              query: { ...route.query, unionList: undefined },
-            });
+          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
+          if (lastIndexSetIds?.length) {
+            const validateIndexSetIds = lastIndexSetIds.filter(id =>
+              resp[1].some(item => `${item.index_set_id}` === `${id}`),
+            );
+            if (validateIndexSetIds.length) {
+              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
+              });
+            } else {
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+              });
+            }
           }
         }
 
@@ -233,10 +241,38 @@ export default () => {
           }
         }
 
+        if (!indexSetIdList.value.length) {
+          const defaultId = [resp[1][0]?.index_set_id];
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+          }
+        }
+
+        let indexId =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.state.indexItem.ids[0]
+            : undefined;
+        const unionList =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = route.params.indexId ? 'single' : 'union';
+          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          if (indexId && type === 'single') {
+            store.commit('updateIndexId', indexId);
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
+          }
+
+          if (type === 'union') {
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [...(unionList ?? [])] });
+          }
+
+          store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
+
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
 
           store.dispatch('requestIndexSetFieldInfo').then(() => {
@@ -246,6 +282,27 @@ export default () => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         }
+
+        if (!indexSetIdList.value.length) {
+          const defaultId = [resp[1][0]?.index_set_id];
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+          }
+        }
+
+        const queryTab = RetrieveHelper.routeQueryTabValueFix(
+          store.state.indexItem.items?.[0],
+          route.query.tab,
+          store.getters.isUnionSearch,
+        );
+
+        router.replace({
+          params: { ...route.params, indexId },
+          query: { ...route.query, ...queryTab, unionList: unionList ? JSON.stringify(unionList) : undefined },
+        });
       });
   };
 

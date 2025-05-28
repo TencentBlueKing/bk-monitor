@@ -172,7 +172,7 @@ ACCESS_EVENT_PROCESS_COUNT = Counter(
 ACCESS_EVENT_PROCESS_PULL_DATA_COUNT = Counter(
     name="bkmonitor_access_event_process_pull_data_count",
     documentation="access(event) 模块数据拉取条数",
-    labelnames=("data_id", "source"),
+    labelnames=("data_id",),
 )
 
 ACCESS_PROCESS_PUSH_DATA_COUNT = Counter(

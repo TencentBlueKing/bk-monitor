@@ -179,7 +179,7 @@ export default defineComponent({
                         this.showCustomTime = !this.showCustomTime;
                       }}
                     >
-                      {this.$t('自定义')}
+                      {this.t('自定义')}
                     </span>
                   )}
                 </div>
