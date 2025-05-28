@@ -316,6 +316,14 @@
   }
 }
 
-.slide-dimension-filter-overflow-tips-theme {
+.slide-dimension-filter-overflow-tips {
   font-size: 12px;
+}
+
+.slide-dimension-filter-overflow-tips,
+.statistics-top-k-item-tooltips-wrap-popover {
+  max-width: 400px; 
+  word-break: break-word; 
+  overflow-wrap: break-word;
+  white-space: normal;
 }

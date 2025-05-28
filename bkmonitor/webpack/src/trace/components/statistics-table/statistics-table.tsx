@@ -1313,7 +1313,7 @@ export default defineComponent({
         if (index < query.length - 1) queryString += ' AND ';
       });
       const where = [{ key: 'trace_id', operator: 'equal', value: [props.traceId] }];
-      const hash = `#/trace/home?app_name=${props.appName}&sceneMode=span&where=${JSON.stringify(where)}&query=${queryString}&filterMode=ui`;
+      const hash = `#/trace/home?app_name=${props.appName}&sceneMode=span&where=${encodeURIComponent(JSON.stringify(where))}&query=${queryString}&filterMode=ui`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
