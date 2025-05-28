@@ -603,7 +603,7 @@ export default defineComponent({
       if (searchText.value.length > 0) {
         Object.keys(listNodeOpenManager.value).forEach(key => {
           if (listNodeOpenManager.value[key] === 'forceClosed') {
-            listNodeOpenManager.value[key] = 'opened';
+            delete listNodeOpenManager.value[key];
           }
         });
       }
