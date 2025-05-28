@@ -46,12 +46,12 @@ import { COLOR_LIST_METRIC, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugin
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
-import { createMenuList } from 'monitor-ui/chart-plugins/utils';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
+import { createDrillDownList } from './utils';
 import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
@@ -853,35 +853,19 @@ class NewMetricChart extends CommonSimpleChart {
     if (this.isNeedMenu) {
       event.preventDefault();
       console.log('右键菜单');
-      if (this.enableContextmenu) {
-        const { pageX, pageY } = event;
-        const instance = (this.$refs.baseChart as any).instance;
-        // createMenuList(
-        //   this.contextmenuInfo.options,
-        //   { x: pageX, y: pageY },
-        //   (id: string) => {
-        //     const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
-        //     let endTime = 0;
-        //     let i = 0;
-        //     const datas = this.seriesList[0].data || [];
-        //     for (const item of datas) {
-        //       i += 1;
-        //       if (item?.value?.[0] === startTime || item?.[0] === startTime) {
-        //         const nextItem = datas[i];
-        //         endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
-        //         break;
-        //       }
-        //     }
-        //     this.contextmenuInfo = {
-        //       ...this.contextmenuInfo,
-        //       sliceStartTime: startTime,
-        //       sliceEndTime: endTime || startTime + 1000 * 60,
-        //     };
-        //     // this.handleClickMenuItem(id);
-        //   },
-        //   instance
-        // );
-      }
+      // if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      const instance = (this.$refs.baseChart as any).instance;
+      createDrillDownList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          console.log(id, '右键菜单点击');
+          // this.handleIconClick(id);
+        },
+        instance
+      );
+      // }
     }
   }
   render() {
