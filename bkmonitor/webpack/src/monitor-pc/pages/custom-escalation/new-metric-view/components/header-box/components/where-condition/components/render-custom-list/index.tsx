@@ -35,6 +35,7 @@ import './index.scss';
 interface IProps {
   data: {
     key: string;
+    alias: string;
     method: string;
     value: string[];
   }[];

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import './verify-input.scss';
 
@@ -47,10 +48,12 @@ export default defineComponent({
       default: false,
     },
   },
-  setup() {
+  setup(props, { emit }) {
+    const { t } = useI18n();
     const handleFocus = () => {};
     return {
       handleFocus,
+      t,
     };
   },
   render() {
@@ -67,7 +70,7 @@ export default defineComponent({
           />
         )}
         {this.showValidate && this.position === 'bottom' && (
-          <span class='bottom-text'>{this.$t(this.validator.content)}</span>
+          <span class='bottom-text'>{this.t(this.validator.content)}</span>
         )}
       </div>
     );

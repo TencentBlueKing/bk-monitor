@@ -54,7 +54,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   defaultList: ITableFilterItem[] = [
     {
       id: 'all',
-      name: window.i18n.tc('全部'),
+      name: window.i18n.t('全部'),
     },
   ];
 

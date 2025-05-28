@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import LOG_SEARCH_APIGATEWAY_ROOT
 
 
@@ -70,6 +70,7 @@ class _BkLogApi:
             module=self.MODULE,
             description=_("获取索引列表"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.cluster = DataAPI(
@@ -102,6 +103,7 @@ class _BkLogApi:
             module=self.MODULE,
             description=_("连通性测试"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 

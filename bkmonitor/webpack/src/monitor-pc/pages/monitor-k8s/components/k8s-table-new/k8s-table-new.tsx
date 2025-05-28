@@ -948,7 +948,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.sortContainer.prop = sortItem.prop;
     this.sortContainer.orderBy = sortItem.order === 'descending' ? 'desc' : 'asc';
     this.routerParamChange();
-    this.getK8sList();
+    this.getK8sList({
+      needRefresh: true,
+    });
   }
 
   /**

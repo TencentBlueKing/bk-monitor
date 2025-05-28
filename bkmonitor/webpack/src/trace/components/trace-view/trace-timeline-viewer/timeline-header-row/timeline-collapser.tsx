@@ -25,6 +25,7 @@
  */
 
 import { type PropType, defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 
@@ -45,13 +46,22 @@ const CollapserProps = {
 export default defineComponent({
   name: 'TimelineCollapser',
   props: CollapserProps,
+  setup(props, { emit }) {
+    const { t } = useI18n();
+
+    const { onCollapseAll, onCollapseOne, onExpandOne, onExpandAll } = props;
+
+    return {
+      t,
+    };
+  },
   render() {
     const { onCollapseAll, onCollapseOne, onExpandOne, onExpandAll } = this.$props;
 
     return (
       <div class='timeline-collapser'>
         <Popover
-          content={this.$t('展开 1 层')}
+          content={this.t('展开 1 层')}
           placement='top'
           popoverDelay={[500, 0]}
           theme='dark'
@@ -67,7 +77,7 @@ export default defineComponent({
           </div>
         </Popover>
         <Popover
-          content={this.$t('收起 1 层')}
+          content={this.t('收起 1 层')}
           placement='top'
           popoverDelay={[500, 0]}
           theme='dark'
@@ -83,7 +93,7 @@ export default defineComponent({
           </div>
         </Popover>
         <Popover
-          content={this.$t('全部展开')}
+          content={this.t('全部展开')}
           placement='top'
           popoverDelay={[500, 0]}
           theme='dark'
@@ -99,7 +109,7 @@ export default defineComponent({
           </div>
         </Popover>
         <Popover
-          content={this.$t('全部收起')}
+          content={this.t('全部收起')}
           placement='top'
           popoverDelay={[500, 0]}
           theme='dark'

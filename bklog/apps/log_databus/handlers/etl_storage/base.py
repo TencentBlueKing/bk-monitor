@@ -433,6 +433,7 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         alias_settings: list = None,
+        total_shards_per_node: int = None,
     ):
         """
         创建或更新结果表
@@ -451,6 +452,7 @@ class EtlStorage:
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param alias_settings: 别名配置
+        :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -523,6 +525,8 @@ class EtlStorage:
             "warm_phase_settings": {},
         }
         index_settings = index_settings or {}
+        if total_shards_per_node is not None and total_shards_per_node > 0:
+            index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
         params["default_storage_config"]["index_settings"].update(index_settings)
 
         # 是否启用冷热集群
@@ -607,7 +611,9 @@ class EtlStorage:
         else:
             # 更新结果表
             params["table_id"] = table_id
-            TransferApi.modify_result_table(params)
+            from apps.log_databus.tasks.collector import modify_result_table
+
+            modify_result_table.delay(params)
             cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
 
         if not instance.table_id:
@@ -687,6 +693,7 @@ class EtlStorage:
             # 必须为 库名.表名
             "table_id": f"{collector_config.table_id}",
             "is_enable": is_enable,
+            "bk_biz_id": collector_config.bk_biz_id,
         }
         TransferApi.switch_result_table(params)
         return True

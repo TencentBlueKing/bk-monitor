@@ -743,13 +743,13 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       name: window.i18n.t('无Agent'),
       status: '2',
       tips: window.i18n.t('原因: Agent未安装或者状态异常'),
-      url: `${this.$store.getters.bkNodemanHost}#/agent-manager/status`,
+      url: `${this.$store.getters.bkNodeManHost}#/agent-manager/status`,
     },
     3: {
       name: window.i18n.t('无数据上报'),
       status: '3',
       tips: window.i18n.t('原因:bkmonitorbeat未安装或者状态异常'),
-      url: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+      url: `${this.$store.getters.bkNodeManHost}#/plugin-manager/list`,
     },
   };
 
@@ -779,7 +779,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       // 无数据
       tipsText: window.i18n.t('原因:bkmonitorbeat进程采集器未安装或者状态异常'),
       linkText: window.i18n.t('前往节点管理处理'),
-      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+      linkUrl: `${this.$store.getters.bkNodeManHost}#/plugin-manager/list`,
     },
     3: {},
   };
@@ -1231,8 +1231,8 @@ $processColors: #ea3636 #c4c6cc #63656e;
       &-main {
         display: inline-block;
         overflow: hidden;
-        color: #3a84ff;
         text-overflow: ellipsis;
+        color: #3a84ff;
         white-space: nowrap;
         cursor: pointer;
       }

@@ -143,6 +143,7 @@ export default {
   'route-Profiling 检索': 'Profiling',
   'route-编辑轮值': 'Edit Rotation',
   'route-新增轮值': 'Add Rotation',
+  'route-故障': 'Incident',
 
   // 功能页面标题
 

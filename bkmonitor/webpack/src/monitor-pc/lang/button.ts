@@ -293,8 +293,8 @@ export default {
   实例: 'Instance',
   效果调试: 'Debug',
   删除并调试: 'Delete & Debug',
-  根Span: 'Trace Root Spans',
-  入口Span: 'Service Entry Spans',
+  '根 Span': 'Trace Root Spans',
+  '入口 Span': 'Service Entry Spans',
   生成自定义指标: 'Create custom metric',
   接口统计: 'Interface Statistics',
   服务统计: 'Service Statistics',
@@ -507,4 +507,5 @@ export default {
   常驻筛选: 'Permanent Filter',
   加载更多: 'Load More',
   设置筛选: 'Set Filter',
+  退出全屏: 'Exit Full Screen',
 };

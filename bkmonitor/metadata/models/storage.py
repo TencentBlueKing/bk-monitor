@@ -1755,8 +1755,8 @@ class KafkaStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
-                "nothing will add." % table_id,
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
@@ -1780,7 +1780,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config", table_id, bk_tenant_id)
         return new_record
 
     @property
@@ -1882,6 +1882,8 @@ class ESStorage(models.Model, StorageResultTable):
     archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
 
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+
+    long_term_storage_settings = models.TextField("长期存储配置信息", blank=True, null=True)
 
     class Meta:
         unique_together = ("table_id", "bk_tenant_id")
@@ -2013,8 +2015,8 @@ class ESStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] already has es storage config under bk_tenant_id->[%s]"
-                ", nothing will add." % table_id,
+                "result_table->[%s] already has es storage config under bk_tenant_id->[%s], nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
@@ -3261,7 +3263,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",self.table_id,new_index_name
             )
         except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
@@ -3418,6 +3420,33 @@ class ESStorage(models.Model, StorageResultTable):
             return
 
         logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
+
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取所有的写入别名
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
@@ -3439,6 +3468,16 @@ class ESStorage(models.Model, StorageResultTable):
                     "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
                 )
                 continue
+
+            # 如果索引包含在长期存储索引列表中,不予处理,跳过
+            if index_name in long_term_storage_indices:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                    self.table_id,
+                    index_name,
+                )
+                continue
+
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
                 logger.info(
@@ -3508,6 +3547,32 @@ class ESStorage(models.Model, StorageResultTable):
             self.bk_tenant_id,
         )
 
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
         storage_records = StorageClusterRecord.objects.filter(
             table_id=self.table_id, is_deleted=False, is_current=False, bk_tenant_id=self.bk_tenant_id
@@ -3569,6 +3634,15 @@ class ESStorage(models.Model, StorageResultTable):
                         self.table_id,
                         index_name,
                         cluster_id,
+                    )
+                    continue
+
+                # 如果索引包含在长期存储索引列表中,不予处理,跳过
+                if index_name in long_term_storage_indices:
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                        self.table_id,
+                        index_name,
                     )
                     continue
 
