@@ -159,10 +159,11 @@ class GetOrCreateAgentEventDataIdResource(Resource):
         try:
             data_source = models.DataSource.objects.get(space_uid=space_uid, etl_config=etl_config)
             return {"bk_data_id": data_source.bk_data_id}
-        except models.DataSource.DoesNotExist:
+        except models.DataSource.DoesNotExist:  # 若不存在,则进行申请新建
             pass
         except Exception as e:  # pylint: disable=broad-except
-            raise e
+            logger.error("GetOrCreateAgentEventDataIdResource: unexpected error occurred,bk_biz_id->[%s]", bk_biz_id)
+            raise e  # 非不存在类报错,直接Raise
 
         logger.info("GetOrCreateAgentEventDataIdResource: try to create agent event data id,bk_biz_id->[%s]", bk_biz_id)
 
@@ -175,6 +176,7 @@ class GetOrCreateAgentEventDataIdResource(Resource):
             data_name,
         )
 
+        # 调用DataSource模型类方法,事务
         new_data_source = models.DataSource.create_data_source(
             data_name=data_name,
             etl_config=etl_config,
@@ -184,6 +186,7 @@ class GetOrCreateAgentEventDataIdResource(Resource):
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
         )
+
         return {"bk_data_id": new_data_source.bk_data_id}
 
 

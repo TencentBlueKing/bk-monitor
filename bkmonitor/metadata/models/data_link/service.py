@@ -65,10 +65,11 @@ def apply_data_id_v2(
     @param is_base: 是否是基础数据源
     """
     logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
-    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
 
-    if is_base:
+    if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         bkbase_data_name = data_name
+    else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
 
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
     if not bk_biz_id:
@@ -120,9 +121,11 @@ def get_data_id_v2(
     获取数据源对应的 data_id
     """
     logger.info("get_data_id: data_name->[%s]", data_name)
-    data_id_name = utils.compose_bkdata_data_id_name(data_name)
-    if is_base:
+    if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         data_id_name = data_name
+    else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
+        data_id_name = utils.compose_bkdata_data_id_name(data_name)
+
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
     )

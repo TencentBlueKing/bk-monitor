@@ -28,7 +28,12 @@ from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSIO
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
-from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes, ENABLE_V4_DATALINK_ETL_CONFIGS
+from metadata.models.space.constants import (
+    SPACE_UID_HYPHEN,
+    SpaceTypes,
+    ENABLE_V4_DATALINK_ETL_CONFIGS,
+    SYSTEM_BASE_DATA_ETL_CONFIGS,
+)
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
 
@@ -562,7 +567,9 @@ class DataSource(models.Model):
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 # TODO: 多租户 等待BkBase多租户协议,传递租户ID
                 is_base = False
-                if etl_config == EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value:
+
+                # 根据清洗类型判断是否是系统基础数据
+                if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
                     is_base = True
 
                 bk_data_id = cls.apply_for_data_id_from_bkdata(

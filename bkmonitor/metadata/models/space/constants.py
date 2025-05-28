@@ -111,7 +111,7 @@ class EtlConfigs(Enum):
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
 
     # 多租户基础Agent事件
-    BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event_etl_config"
+    BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
     # 固定指标单表(metric_name)
     BK_EXPORTER = "bk_exporter"
     BK_STANDARD = "bk_standard"
@@ -127,7 +127,7 @@ class EtlConfigs(Enum):
         (BK_STANDARD_V2_TIME_SERIES, "bk_standard_v2_time_series"),
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
-        (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event_etl_config"),
+        (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
     )
 
 
@@ -137,6 +137,12 @@ SPACE_DATASOURCE_ETL_LIST = [item[0] for item in EtlConfigs._choices_labels.valu
 # 现阶段默认使用V4方式申请Dataid的清洗类型
 ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+    EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+]
+
+# 系统内置数据-清洗类型列表
+SYSTEM_BASE_DATA_ETL_CONFIGS = [
+    EtlConfigs.BK_SYSTEM_BASEREPORT.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
 ]
 
