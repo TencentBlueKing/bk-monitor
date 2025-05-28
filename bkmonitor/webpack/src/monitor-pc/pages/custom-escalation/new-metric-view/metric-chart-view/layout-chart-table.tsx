@@ -177,6 +177,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     });
     this.currentChart = {
       ...chart,
+      groupId: null, // 去除当前的group_id
       targets: [chart.targets[ind]],
     };
   }

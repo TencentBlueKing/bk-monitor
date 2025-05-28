@@ -171,6 +171,7 @@ export default defineComponent({
           is_shown_node: finalIsShownNode,
           is_children_open: isOpenNode,
           has_selected_child: hasSelectedChild,
+          has_no_data_child: item.children?.some(child => child.tags?.some(tag => tag.tag_id === 4)),
         };
       });
 
@@ -377,7 +378,13 @@ export default defineComponent({
      * @param is_root_checked
      * @returns
      */
-    const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
+    const renderNodeItem = (
+      item: any,
+      is_child = false,
+      has_child = true,
+      is_root_checked = false,
+      has_no_data_child = false,
+    ) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
       const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
       const isClosed = () => isClosedNode(item);
@@ -391,6 +398,7 @@ export default defineComponent({
               'is-child': is_child,
               'has-child': has_child,
               'is-empty': isEmptyNode,
+              'has-no-data-child': has_no_data_child,
               active: propValueStrList.value.includes(item.index_set_id),
             },
           ]}
@@ -465,7 +473,7 @@ export default defineComponent({
             if (!isClosedNode(item)) {
               (item.children ?? []).forEach(child => {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
-                  result.push(renderNodeItem(child, true, false, is_root_checked));
+                  result.push(renderNodeItem(child, true, false, is_root_checked, item.has_no_data_child));
                 }
               });
             }
