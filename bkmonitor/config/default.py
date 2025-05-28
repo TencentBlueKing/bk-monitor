@@ -1618,8 +1618,5 @@ BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 新版自定义时序灰度业务列表
-ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
-
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
