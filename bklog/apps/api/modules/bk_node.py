@@ -98,7 +98,6 @@ class _BKNodeApi:
             description="查询插件列表",
             before_request=get_bk_node_request_before,
             pagination_style=DataAPI.PaginationStyle.PAGE_NUMBER.value,
-            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.check_subscription_task_ready = DataAPI(
             method="POST",
