@@ -109,9 +109,8 @@ export default defineComponent({
         }
 
         // 继续判定检索匹配是否满足匹配条件
-        if (!is_shown_node) {
-          is_shown_node =
-            searchText.value.length > 0 ? node.index_set_name.indexOf(searchText.value) !== -1 : is_shown_node;
+        if (searchText.value.length > 0) {
+          is_shown_node = node.index_set_name.indexOf(searchText.value) !== -1;
         }
 
         return is_shown_node;
