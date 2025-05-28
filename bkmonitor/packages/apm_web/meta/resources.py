@@ -51,8 +51,6 @@ from apm_web.constants import (
     StorageStatus,
     TopoNodeKind,
     nodata_error_strategy_config_mapping,
-    TRPC_TRACE_VIEW_CONFIG,
-    DEFAULT_TRACE_VIEW_CONFIG,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers import metric_group
@@ -283,15 +281,9 @@ class ListApplicationInfoResource(Resource):
 
     def perform_request(self, validated_request_data):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        qs = Application.objects.filter(bk_biz_id=bk_biz_id).filter(Application.q_filter_create_finished())
-        apps = self.ResponseSerializer(instance=qs, many=True).data
-        biz_trpc_apps = settings.APM_TRPC_APPS.get(bk_biz_id) or []
-        for app in apps:
-            app_name = app["app_name"]
-            app["view_config"] = TRPC_TRACE_VIEW_CONFIG if app_name in biz_trpc_apps else DEFAULT_TRACE_VIEW_CONFIG
-
-        return apps
+        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).filter(
+            Application.q_filter_create_finished()
+        )
 
 
 class ApplicationInfoResource(Resource):
