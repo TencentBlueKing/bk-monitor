@@ -63,7 +63,6 @@ export default defineComponent({
 
     const hiddenEmptyItem = ref(false);
     const searchText = ref('');
-    const isSearchAutoOpen = ref(false);
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
     const favoriteFormData = ref({
@@ -86,13 +85,13 @@ export default defineComponent({
 
     const formatList = computed(() => {
       // 检查节点是否应该显示
-      const checkNodeShouldShow = (node: any) => {
+      const checkNodeShouldShow = (node: any, defaultIsShown = true) => {
         // 如果当前节点在选中列表中，直接返回 true
         if (propValueStrList.value.includes(`${node.index_set_id}`)) {
           return true;
         }
 
-        let is_shown_node = true;
+        let is_shown_node = defaultIsShown;
 
         // 判定是不是已经选中Tag进行过滤
         if (tagItem.value.tag_id !== undefined) {
@@ -107,24 +106,24 @@ export default defineComponent({
               is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
             }
           }
+        }
 
-          // 继续判定检索匹配是否满足匹配条件
-          if (is_shown_node) {
-            is_shown_node = node.index_set_name.indexOf(searchText.value) !== -1;
-          }
+        // 继续判定检索匹配是否满足匹配条件
+        if (searchText.value.length > 0) {
+          is_shown_node = node.index_set_name.indexOf(searchText.value) !== -1;
         }
 
         return is_shown_node;
       };
 
       // 处理子节点
-      const processChildren = (children: any[]) => {
+      const processChildren = (children: any[], parentNode) => {
         if (!children?.length) return [];
 
         // 处理子节点的显示状态
         const processedChildren = children.map(child => ({
           ...child,
-          is_shown_node: checkNodeShouldShow(child),
+          is_shown_node: checkNodeShouldShow(child, listNodeOpenManager.value[parentNode.index_set_id] === 'opened'),
         }));
 
         // 对子节点进行排序
@@ -156,19 +155,16 @@ export default defineComponent({
 
         // 处理子节点
         if (item.children?.length) {
-          item.children = processChildren(item.children);
+          item.children = processChildren(item.children, item);
         }
 
         const isOpenNode = item.children?.some(child => child.is_shown_node);
         // 检查是否有子节点被选中
         const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.index_set_id}`));
 
-        // 如果当前节点不显示，但子节点有显示的，则当前节点也需要显示
-        const finalIsShownNode = is_shown_node || isOpenNode;
-
         return {
           ...item,
-          is_shown_node: finalIsShownNode,
+          is_shown_node: is_shown_node,
           is_children_open: isOpenNode,
           has_selected_child: hasSelectedChild,
           has_no_data_child: item.children?.some(child => child.tags?.some(tag => tag.tag_id === 4)),
@@ -367,7 +363,7 @@ export default defineComponent({
         return false;
       }
 
-      return listNodeOpenManager.value[item.index_set_id] !== 'opened';
+      return !['opened'].includes(listNodeOpenManager.value[item.index_set_id]);
     };
 
     /**
@@ -603,7 +599,13 @@ export default defineComponent({
 
     const handleSearchTextChange = (val: string) => {
       searchText.value = val;
-      isSearchAutoOpen.value = val?.length > 0;
+      if (searchText.value.length > 0) {
+        Object.keys(listNodeOpenManager.value).forEach(key => {
+          if (listNodeOpenManager.value[key] === 'forceClosed') {
+            delete listNodeOpenManager.value[key];
+          }
+        });
+      }
     };
 
     const getFilterRow = () => {
