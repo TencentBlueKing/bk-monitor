@@ -164,7 +164,7 @@ export default defineComponent({
 
         return {
           ...item,
-          is_shown_node: is_shown_node,
+          is_shown_node: is_shown_node || isOpenNode,
           is_children_open: isOpenNode,
           has_selected_child: hasSelectedChild,
           has_no_data_child: item.children?.some(child => child.tags?.some(tag => tag.tag_id === 4)),
