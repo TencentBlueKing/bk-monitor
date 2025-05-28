@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from rest_framework import serializers
 
 from constants.report import GROUPS, StaffChoice
@@ -38,7 +37,7 @@ class FrequencySerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if not data.get("hour"):
             data["hour"] = 0.5
-        data = super(FrequencySerializer, self).to_internal_value(data)
+        data = super().to_internal_value(data)
         return data
 
 
@@ -55,13 +54,11 @@ class ReportChannelSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField(required=True, label="是否启动")
     channel_name = serializers.CharField(required=True, label="渠道名称")
     subscribers = serializers.ListField(required=False, label="订阅人员", default=[])
-    with_actual_size = serializers.BooleanField(
-        required=False, default=False, label="是否使用实际大小渲染仪表盘图表"
-    )
+    with_actual_size = serializers.BooleanField(required=False, default=False, label="是否使用实际大小渲染仪表盘图表")
     subscriber_serializers = {"email": EmailSubscriberSerializer}
 
     def to_internal_value(self, data):
-        channel = super(ReportChannelSerializer, self).to_internal_value(data)
+        channel = super().to_internal_value(data)
         subscriber_slz_class = SubscriberSerializer
         if channel["channel_name"] in self.subscriber_serializers:
             subscriber_slz_class = self.subscriber_serializers[channel["channel_name"]]

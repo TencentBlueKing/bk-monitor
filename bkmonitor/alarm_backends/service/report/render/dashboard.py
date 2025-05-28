@@ -10,7 +10,6 @@ from pyppeteer.errors import TimeoutError
 
 from bkmonitor.browser import get_browser
 from core.errors.common import CustomError
-from bk_dataview.util import get_dashboard_data_view_size
 
 logger = logging.getLogger("alarm_backends")
 

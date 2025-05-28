@@ -23,7 +23,3 @@ def get_dashboard_data_view_size(uid: str, panel_id: str) -> dict:
     grid_pos = panel.get("gridPos", {})
     actual_size = {"w": math.ceil(grid_pos.get("w", 0)) * 66.79, "h": math.ceil(grid_pos.get("h", 0) * 37.11)}
     return actual_size
-
-
-
-
