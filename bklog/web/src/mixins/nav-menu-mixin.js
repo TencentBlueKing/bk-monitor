@@ -190,6 +190,7 @@ export default {
         reportLogStore.reportRouteLog({
           route_id: name,
           nav_id: meta.navId,
+          external_menu: this.externalMenu,
         });
       }
     },

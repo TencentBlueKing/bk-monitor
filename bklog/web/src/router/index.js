@@ -1123,8 +1123,8 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
  * @param id 路由id
  * @returns 路由配置
  */
-export function getRouteConfigById(id, space_uid, bk_biz_id) {
-  const flatConfig = getRoutes(space_uid, bk_biz_id).flatMap(config => {
+export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
+  const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
@@ -1184,6 +1184,7 @@ export default (spaceId, bkBizId, externalMenu) => {
       route_id: to.name,
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
+      external_menu: externalMenu,
     });
   });
 
