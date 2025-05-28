@@ -275,7 +275,7 @@ class ListApplicationInfoResource(Resource):
 
     many_response_data = True
 
-    class ResponseSerializer(serializers.ModelSerializer):
+    class ApplicationInfoResponseSerializer(serializers.ModelSerializer):
         class Meta:
             ref_name = "list_application_info"
             model = Application
@@ -285,7 +285,7 @@ class ListApplicationInfoResource(Resource):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
         bk_biz_id = validated_request_data["bk_biz_id"]
         qs = Application.objects.filter(bk_biz_id=bk_biz_id).filter(Application.q_filter_create_finished())
-        apps = self.ResponseSerializer(instance=qs, many=True).data
+        apps = self.ApplicationInfoResponseSerializer(instance=qs, many=True).data
         biz_trpc_apps = settings.APM_TRPC_APPS.get(bk_biz_id) or []
         for app in apps:
             app_name = app["app_name"]
