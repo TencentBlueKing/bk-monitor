@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,15 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 from functools import wraps
 
 from celery import shared_task
 from celery.result import AsyncResult
 
-from bkmonitor.utils.request import set_request_username
 from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import set_local_username
 from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ def run_perform_request(self, resource_obj, username: str, bk_tenant_id: str, re
     :param request_data: 请求数据
     :return: resource处理后的返回数据
     """
-    set_request_username(username)
+    set_local_username(username)
     set_local_tenant_id(bk_tenant_id)
 
     resource_obj._task_manager = self
