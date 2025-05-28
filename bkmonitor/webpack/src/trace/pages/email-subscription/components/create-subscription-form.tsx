@@ -442,7 +442,8 @@ export default defineComponent({
         }
         return item;
       });
-      clonedDetailInfo.channels = undefined;
+      // biome-ignore lint/performance/noDelete: <explanation>
+      delete clonedDetailInfo.channels;
       if (clonedDetailInfo.frequency.type === FrequencyType.onlyOnce) isNotChooseOnlyOnce = false;
       Object.assign(formData, clonedDetailInfo);
       // 时间范围
@@ -1050,7 +1051,7 @@ export default defineComponent({
                           columns={[
                             {
                               width: '140px',
-                              title: `${this.$t('订阅名称')}`,
+                              title: `${this.t('订阅名称')}`,
                               ellipsis: {
                                 popperOptions: {
                                   strategy: 'fixed',
@@ -1080,7 +1081,7 @@ export default defineComponent({
                                   strategy: 'fixed',
                                 },
                               },
-                              title: `${this.$t('变量说明')}`,
+                              title: `${this.t('变量说明')}`,
                               colKey: 'description',
                             },
                             {
@@ -1090,7 +1091,7 @@ export default defineComponent({
                                   strategy: 'fixed',
                                 },
                               },
-                              title: `${this.$t('示例')}`,
+                              title: `${this.t('示例')}`,
                               colKey: 'example',
                             },
                           ]}

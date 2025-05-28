@@ -854,6 +854,7 @@ class QuerySpanResource(Resource):
         fields = serializers.ListField(required=False, label="过滤字段")
         category = serializers.CharField(required=False, label="类别")
         group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
+        limit = serializers.IntegerField(required=False, label="限制数量", default=10_000, min_value=1)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -870,6 +871,7 @@ class QuerySpanResource(Resource):
         }
         if not validated_request_data.get("group_keys"):
             param["fields"] = validated_request_data.get("fields")
+            param["limit"] = validated_request_data["limit"]
             return application.trace_datasource.query_span(**param)
 
         param["group_keys"] = validated_request_data.get("group_keys")
@@ -1919,96 +1921,92 @@ class QueryFieldsTopkResource(Resource):
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
     def perform_request(self, validated_data):
+        base_query_params = {
+            "query_mode": validated_data["mode"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "query_string": validated_data["query_string"],
+            "filters": validated_data["filters"],
+        }
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
         # 字段 topk 值字典
         field_topk_map = {}
         # 字段去重数字典
         field_distinct_map = {}
-        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        field_total_map = {}
         fields = validated_data["fields"]
-        total = self.query_total(proxy, validated_data)
-        if total == 0:
-            return [{"field": field, "distinct_count": 0, "list": []} for field in fields]
+        # 查询字段总行数
+        total_threads = [
+            InheritParentThread(
+                target=self.query_aggregated_value,
+                args=(
+                    proxy,
+                    {**base_query_params, "field": field, "method": AggregatedMethod.COUNT.value},
+                    field_total_map,
+                ),
+            )
+            for field in fields
+        ]
+        run_threads(total_threads)
 
-        # 查询字段去重数
-        run_threads(
-            [
+        # 查询字段去重数和topk值
+        to_be_executed_threads = []
+        for field in fields:
+            if field_total_map[field] == 0:
+                continue
+
+            # 构建去重数查询线程
+            to_be_executed_threads.append(
                 InheritParentThread(
-                    target=self.query_distinct_count,
-                    args=(proxy, field, validated_data, field_distinct_map),
+                    target=self.query_aggregated_value,
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "method": AggregatedMethod.DISTINCT.value},
+                        field_distinct_map,
+                    ),
                 )
-                for field in fields
-            ]
-        )
-
-        # 查询字段 topk 值
-        if validated_data["limit"] != 0:
-            run_threads(
-                [
-                    InheritParentThread(
-                        target=self.query_topk,
-                        args=(proxy, field, validated_data, field_topk_map),
-                    )
-                    for field in fields
-                ]
             )
 
+            # 构建topk查询线程
+            to_be_executed_threads.append(
+                InheritParentThread(
+                    target=self.query_topk,
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "limit": validated_data["limit"]},
+                        field_topk_map,
+                    ),
+                )
+            )
+        run_threads(to_be_executed_threads)
+
         # 组装 topk 返回结果
-        return [
-            {
-                "field": field,
-                "distinct_count": field_distinct_map.get(field, 0),
-                "list": [
+        processed_topk_fields = []
+        for field in fields:
+            topk_field = {"field": field, "distinct_count": field_distinct_map.get(field, 0), "list": []}
+            for field_topk in field_topk_map.get(field, []):
+                topk_field["list"].append(
                     {
                         "value": field_topk["field_value"],
                         "count": field_topk["count"],
                         "proportions": format_percent(
-                            100 * (field_topk["count"] / total) if total > 0 else 0,
+                            100 * (field_topk["count"] / field_total_map[field]) if field_total_map[field] > 0 else 0,
                             precision=3,
                             sig_fig_cnt=3,
                             readable_precision=3,
                         ),
                     }
-                    for field_topk in field_topk_map.get(field, [])
-                ],
-            }
-            for field in fields
-        ]
+                )
+            processed_topk_fields.append(topk_field)
+        return processed_topk_fields
 
     @classmethod
-    def query_distinct_count(cls, proxy, field, validated_data, field_distinct_map):
-        field_distinct_map[field] = proxy.query_field_aggregated_value(
-            validated_data["mode"],
-            validated_data["start_time"],
-            validated_data["end_time"],
-            field,
-            AggregatedMethod.DISTINCT.value,
-            validated_data["filters"],
-            validated_data["query_string"],
-        )
+    def query_aggregated_value(cls, proxy, query_params, field_aggregated_map):
+        field_aggregated_map[query_params["field"]] = proxy.query_field_aggregated_value(**query_params)
 
     @classmethod
-    def query_topk(cls, proxy, field, validated_data, field_topk_map):
-        field_topk_map[field] = proxy.query_field_topk(
-            validated_data["mode"],
-            validated_data["start_time"],
-            validated_data["end_time"],
-            field,
-            validated_data["limit"],
-            validated_data["filters"],
-            validated_data["query_string"],
-        )
-
-    @classmethod
-    def query_total(cls, proxy, validated_data):
-        return int(
-            proxy.query_total(
-                validated_data["mode"],
-                validated_data["start_time"],
-                validated_data["end_time"],
-                validated_data["filters"],
-                validated_data["query_string"],
-            )
-        )
+    def query_topk(cls, proxy, query_params, field_topk_map):
+        field_topk_map[query_params["field"]] = proxy.query_field_topk(**query_params)
 
 
 class QueryFieldStatisticsInfoResource(Resource):

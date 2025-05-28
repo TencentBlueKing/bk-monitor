@@ -552,7 +552,7 @@ class DisableShieldResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务id")
         id = serializers.ListField(required=True, child=serializers.IntegerField(), min_length=1, label="屏蔽id列表")
         verify_user_permission = serializers.BooleanField(
-            required=False, default=True, label="是否额外验证用户权限(apigw)"
+            required=False, default=False, label="是否额外验证用户权限(apigw)"
         )
 
         def to_internal_value(self, data):

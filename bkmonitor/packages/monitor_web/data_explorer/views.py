@@ -404,6 +404,7 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
         ResourceRoute("POST", event_resources.EventStatisticsInfoResource, endpoint="event/statistics_info"),
         ResourceRoute("POST", event_resources.EventStatisticsGraphResource, endpoint="event/statistics_graph"),
+        ResourceRoute("POST", event_resources.EventGenerateQueryStringResource, endpoint="event/generate_query_string"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="event/download_topk")

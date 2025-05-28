@@ -35,6 +35,7 @@ import {
   shallowRef,
   watch,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
@@ -103,6 +104,7 @@ export default defineComponent({
   props: BaseChartProps,
   emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store', 'loaded'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
     const curChartOption: ShallowRef<MonitorEchartOptions | null> = shallowRef(null);
@@ -465,6 +467,7 @@ export default defineComponent({
       handleMouseleave,
       handleDataZoom,
       handleClickRestore,
+      t,
     };
   },
   render() {
@@ -484,7 +487,7 @@ export default defineComponent({
             class='chart-restore'
             onClick={this.handleClickRestore}
           >
-            {this.$t('复位')}
+            {this.t('复位')}
           </span>
         )}
       </div>

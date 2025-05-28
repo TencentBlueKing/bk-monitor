@@ -26,9 +26,11 @@
 
 import { defineComponent, shallowRef, watch } from 'vue';
 
-import { Dropdown, Input } from 'bkui-vue';
+import { useDebounceFn } from '@vueuse/core';
+import { Dropdown } from 'bkui-vue';
+import { Input } from 'tdesign-vue-next';
 
-import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_INPUT_EMITS, SETTING_KV_INPUT_PROPS } from './typing';
+import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_INPUT_EMITS, SETTING_KV_INPUT_PROPS } from './typing';
 
 import './setting-kv-input.scss';
 
@@ -73,35 +75,25 @@ export default defineComponent({
       handleChange();
     }
 
-    function handleChange() {
-      emit('change', {
-        ...props.value,
-        key: props.fieldInfo.field,
-        method: localMethod.value,
-        value: localValue.value?.trim().length ? [localValue.value.trim()] : [],
-      });
-    }
-
-    function handleEnter() {
+    const handleChange = useDebounceFn(() => {
       const valueStr = props.value?.value?.[0] || '';
-      if (valueStr !== localValue.value) {
-        handleChange();
+      const methodStr = props.value?.method || '';
+      if (valueStr !== localValue.value || methodStr !== localMethod.value) {
+        emit('change', {
+          ...props.value,
+          key: props.fieldInfo.field,
+          method: localMethod.value,
+          value: localValue.value?.trim().length ? [localValue.value.trim()] : [],
+        });
       }
-    }
-    function handleBlur() {
-      const valueStr = props.value?.value?.[0] || '';
-      if (valueStr !== localValue.value) {
-        handleChange();
-      }
-    }
+    }, 100);
 
     return {
       localMethod,
       methodMap,
       localValue,
       handleMethodChange,
-      handleEnter,
-      handleBlur,
+      handleChange,
     };
   },
   render() {
@@ -109,16 +101,19 @@ export default defineComponent({
       <div class='vue3_resident-setting__setting-kv-input-component'>
         <Input
           v-model={this.localValue}
-          onBlur={this.handleBlur}
-          onEnter={this.handleEnter}
+          autoWidth={true}
+          clearable={true}
+          onBlur={this.handleChange}
+          onClear={this.handleChange}
+          onEnter={this.handleChange}
         >
           {{
-            prefix: () => (
+            label: () => (
               <div class='key-method-wrap'>
                 <span
                   class='key-wrap'
-                  v-overflow-tips={{
-                    content: this.fieldInfo?.alias || this.value?.key,
+                  v-bk-tooltips={{
+                    content: this.fieldInfo?.field || this.fieldInfo?.alias,
                     placement: 'top',
                   }}
                 >
@@ -134,7 +129,7 @@ export default defineComponent({
                     {{
                       default: () => (
                         <span
-                          class={['method-span', { 'red-text': OPTIONS_METHODS.includes(this.localMethod as any) }]}
+                          class={['method-span', { 'red-text': NOT_TYPE_METHODS.includes(this.localMethod as any) }]}
                         >
                           {this.methodMap[this.localMethod] || this.localMethod}
                         </span>

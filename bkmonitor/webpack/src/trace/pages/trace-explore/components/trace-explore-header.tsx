@@ -109,6 +109,10 @@ export default defineComponent({
       return [...thumbtack, ...other];
     });
 
+    const applicationFilter = (keyword: string, item) => {
+      return item.name.includes(keyword) || item.id.includes(keyword);
+    };
+
     const handleFavoriteShowChange = () => {
       emit('favoriteShowChange', !props.isShowFavorite);
     };
@@ -186,9 +190,6 @@ export default defineComponent({
         query: route.query,
         params: route.params,
       });
-      // const queryStr = location.hash.match(/\?([^]*)/)?.[1] || '';
-      // const url = `${location.origin}${location.pathname}${location.search}#/trace/old${queryStr ? `?${queryStr}` : ''}`;
-      // location.href = url;
     }
 
     return {
@@ -199,6 +200,7 @@ export default defineComponent({
       applicationToggle,
       headerToolMenuList,
       handleMenuSelectChange,
+      applicationFilter,
       handleApplicationToggle,
       handleApplicationChange,
       handleSceneModelChange,
@@ -224,25 +226,25 @@ export default defineComponent({
               >
                 <i
                   class='icon-monitor icon-shoucangjia'
-                  v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
+                  v-bk-tooltips={{ content: this.t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
                 />
               </div>
             </div>
           )}
-          {this.hideFeatures.includes('title') ? null : <div class='header-title'>{this.$t('Tracing 检索')}</div>}
+          {this.hideFeatures.includes('title') ? null : <div class='header-title'>{this.t('Tracing 检索')}</div>}
           {this.hideFeatures.includes('title') ? null : (
             <div class='event-type-select'>
               <div
                 class={{ item: true, active: this.store.mode === 'trace' }}
                 onClick={() => this.handleSceneModelChange('trace')}
               >
-                {this.$t('Trace 视角')}
+                {this.t('Trace 视角')}
               </div>
               <div
                 class={{ item: true, active: this.store.mode === 'span' }}
                 onClick={() => this.handleSceneModelChange('span')}
               >
-                {this.$t('Span 视角')}
+                {this.t('Span 视角')}
               </div>
             </div>
           )}
@@ -254,6 +256,7 @@ export default defineComponent({
                 extCls: 'trace-explore-application-select-popover',
               }}
               clearable={false}
+              filterOption={this.applicationFilter}
               modelValue={this.store.appName}
               filterable
               onSelect={this.handleApplicationChange}
@@ -262,7 +265,7 @@ export default defineComponent({
               {{
                 trigger: () => (
                   <div class='application-select-trigger'>
-                    <span class='data-prefix'>{this.$t('应用')}：</span>
+                    <span class='data-prefix'>{this.t('应用')}：</span>
                     {this.store.currentApp && (
                       <span
                         class='application-name'
@@ -283,7 +286,7 @@ export default defineComponent({
                     <Select.Option
                       id={item.app_name}
                       key={item.app_name}
-                      name={item.app_name}
+                      name={item.app_alias}
                     >
                       {this.applicationToggle && (
                         <div class={['application-item-name', { is_top: item.isTop }]}>
@@ -339,7 +342,7 @@ export default defineComponent({
           <div
             class='goto-old-wrap'
             v-bk-tooltips={{
-              content: this.$tc('回到旧版'),
+              content: this.t('回到旧版'),
               placements: ['bottom-end'],
               zIndex: 9999,
             }}
@@ -353,7 +356,7 @@ export default defineComponent({
                 count='!'
                 theme='warning'
               >
-                <span>{this.$t('回到旧版')}</span>
+                <span>{this.t('回到旧版')}</span>
               </Badge>
             )}
           </div>

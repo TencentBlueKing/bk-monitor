@@ -40,6 +40,7 @@ import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { asignWindowField } from 'monitor-common/utils/asign-window';
 
 import './common/global-login';
 import App from './pages/app';
@@ -92,9 +93,7 @@ if (hasRouteHash) {
       })
       .then(data => {
         appLoadingNode && (appLoadingNode.style.display = 'none');
-        for (const [key, value] of Object.entries(data)) {
-          window[key.toLocaleLowerCase()] = value;
-        }
+        asignWindowField(data);
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -115,7 +114,7 @@ if (hasRouteHash) {
           cmdbUrl: window.bk_cc_url,
           bkLogSearchUrl: window.bk_log_search_url,
           bkUrl: window.bk_url,
-          bkNodemanHost: window.bk_nodeman_host,
+          bkNodeManHost: window.bk_nodeman_host,
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
           jobUrl: window.bk_job_url,
@@ -146,9 +145,7 @@ if (hasRouteHash) {
             context_type: 'extra',
           })
           .then(data => {
-            for (const [key, value] of Object.entries(data)) {
-              window[key.toLocaleLowerCase()] = value;
-            }
+            asignWindowField(data);
             store.commit('app/SET_APP_STATE', {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });
@@ -164,14 +161,24 @@ if (hasRouteHash) {
           uin: window.user_name || window.username, // 用户唯一标识（可选）
           reportApiSpeed: true, // 接口测速
           reportAssetSpeed: true, // 静态资源测速
+          pagePerformance: true, // 是否开启页面测速
           hostUrl: window.rum_access_url, // 上报域名，
-          spa: true, // spa 页面需要开启，页面切换的时候上报pv
-          // url: window.rum_access_url,
-          // pvUrl: window.rum_access_url,
-          // whiteListUrl: window.rum_access_url,
-          // speedUrl: window.rum_access_url,
-          // performanceUrl: window.rum_access_url,
+          webVitals: true, // 是否开启 web vitals 测速
+          onError: true, // 当前实例是否需要进行错误监听，获取错误日志
+          aid: true, // 当前实例是否生成aid,
+          random: 1, // 0~1 抽样率
+          spa: true, // 当前页面是否是单页应用？true的话将会监听hashchange及history api，在页面跳转时进行pv上报,
+          pageUrl: location.href, // 修改上报数据中页面地址，开发者可以主动对数据进行聚合和降低维度
+          reportImmediately: true, // 采集完数据后是否立即上报，默认为 true，如果设置为 false，则只采集数据，不触发数据上报，需要业务主动调用 aegis.ready() 方法才能触发上报，该参数一般用于业务有异步上报诉求的场景（例如预加载）。当 Aegis 初始化的时候，无法获取到正确的 uin，但是开发者希望上报 pv 的时候都带上 uin 数据，也可以用此参数控制获取 uin 后再执行 ready 方法，可以配合 setConfig 去设置 uin
+          delay: 1000, // 上报节流时间，在该时间段内的上报将会合并到一个上报请求中
+          repeat: 5, // 重复上报次数，对于同一个错误或者同一个接口测速超过多少次不上报。如果传入 repeat 参数为 0，则不限制。
+          api: {
+            apiDetail: true,
+          },
         });
+        Vue.config.errorHandler = (err, vm, info) => {
+          window.aegisInstance.error(`Error: ${err.toString()}\nStack: ${err.stack}\nInfo: ${info}`);
+        };
       });
   }
 }

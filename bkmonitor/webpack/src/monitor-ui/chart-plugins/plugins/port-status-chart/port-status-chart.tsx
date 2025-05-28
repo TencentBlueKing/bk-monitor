@@ -64,7 +64,7 @@ class PortStatusChart extends CommonSimpleChart {
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -103,14 +103,14 @@ class PortStatusChart extends CommonSimpleChart {
       if (res) {
         this.initialized = true;
         this.empty = false;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;

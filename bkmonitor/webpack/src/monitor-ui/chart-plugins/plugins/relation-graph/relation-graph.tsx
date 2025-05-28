@@ -290,7 +290,7 @@ export class RelationGraph extends CommonSimpleChart {
         avg_duration: [],
       };
     }
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     this.empty = true;
     this.isRendered = false;
     try {
@@ -417,21 +417,21 @@ export class RelationGraph extends CommonSimpleChart {
         this.initialized = true;
         if (this.isOverview) {
           this.empty = !this.graphData.nodes.length;
-          this.emptyText = !this.graphData.nodes.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.graphData.nodes.length ? window.i18n.t('查无数据') : '';
           if (!this.empty) {
             this.initGraph();
           }
         } else {
           this.empty = !this.tableData.length;
-          this.emptyText = !this.tableData.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.tableData.length ? window.i18n.t('查无数据') : '';
         }
       } else {
         this.empty = true;
-        this.emptyText = window.i18n.tc('出错了');
+        this.emptyText = window.i18n.t('出错了');
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       if (this.isOverview) {
         this.emptyStatusType = '500';
       }
@@ -1012,7 +1012,7 @@ export class RelationGraph extends CommonSimpleChart {
   /* 切换总览/列表 */
   handleOverview(value: boolean) {
     this.empty = true;
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     this.isOverview = value;
     this.tableFilterDict = {};
     if (!this.isOverview) {

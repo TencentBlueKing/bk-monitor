@@ -53,7 +53,7 @@ class CallerBarChart extends CommonSimpleChart {
   needResetChart = true;
   initialized = false;
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.t('查无数据');
   empty = true;
   cancelTokens = [];
   options = {};
@@ -233,12 +233,12 @@ class CallerBarChart extends CommonSimpleChart {
         this.initialized = true;
         this.empty = false;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);

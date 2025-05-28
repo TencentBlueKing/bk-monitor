@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -27,7 +26,7 @@ Access 部署 + 采集模块
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
-from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user  # noqa
+from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter  # noqa
 from config.domains import ACCESS_APIGATEWAY_ROOT  # noqa
 
 
@@ -52,6 +51,7 @@ class _BkDataAccessApi:
             after_request=None,
             url_keys=["raw_data_id"],
             cache_time=60,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.stop_collectorhub = DataAPI(
             method="POST",
@@ -69,6 +69,7 @@ class _BkDataAccessApi:
             description="创建部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.deploy_plan_put = DataAPI(
             method="PUT",
@@ -78,6 +79,7 @@ class _BkDataAccessApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             url_keys=["raw_data_id"],
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 

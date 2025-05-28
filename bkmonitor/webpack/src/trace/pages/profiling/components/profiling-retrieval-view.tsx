@@ -123,7 +123,7 @@ export default defineComponent({
       return {
         filter_labels: {
           ...filter_labels,
-          ...(props.formData?.dateComparisonEnable && start && end ? { start, end } : {}),
+          ...(props.formData?.dateComparisonEnable && start && end ? { start: String(start), end: String(end) } : {}),
         },
         diff_filter_labels: {
           ...diff_filter_labels,
@@ -137,7 +137,7 @@ export default defineComponent({
      * 设置对比项默认框选时间
      */
     function setDefaultDate() {
-      if (!trendChartData.value.length || !props.formData.dateComparisonEnable) return;
+      if (!trendChartData.value.length || !props.formData?.dateComparisonEnable) return;
       comparisonPosition[0] = [chartTime.start, chartTime.mid];
       comparisonPosition[1] = [chartTime.mid, chartTime.end];
       handleComparisonDateChange();
@@ -177,7 +177,7 @@ export default defineComponent({
       <div class='profiling-retrieval-view-component'>
         <div class='btn-group-wrap'>
           <div class='data-type'>
-            {this.$t('数据类型')}
+            {this.t('数据类型')}
             <Button.ButtonGroup
               class='data-type-list'
               size='small'
@@ -198,7 +198,7 @@ export default defineComponent({
             </Button.ButtonGroup>
           </div>
           <div class='data-type'>
-            {this.$t('汇聚方法')}
+            {this.t('汇聚方法')}
             <Button.ButtonGroup
               class='data-type-list'
               size='small'

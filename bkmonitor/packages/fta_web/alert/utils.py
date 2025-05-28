@@ -190,12 +190,52 @@ def process_metric_string(query_string):
     """
 
     def replacer(match):
-        value = match.group('value').replace('"', '').replace("'", "")
+        value = match.group('value')
+
+        for i in ["'", '"']:
+            if value.startswith(i):
+                value=value.strip(i)
+
         if not value.endswith('*'):
             value += '*'
         return f'event.metric : {value}'
+
+    # 如果包含promql语句，则后面会在convert_metric_id方法中进行处理
+    if is_include_promql(query_string):
+        return query_string
 
     pattern = r"(指标ID|event.metric)\s*:\s*(?P<value>[^\s+]*)"
     query_string = re.sub(pattern, replacer, query_string, re.IGNORECASE)
     query_string = re.sub(r'\s+', ' ', query_string).strip()
     return query_string
+
+def is_include_promql(query_string: str) -> bool:
+        """
+        判断是否包含promql 语句
+        """
+        promql_functions = [
+            'abs', 'absent', 'absent_over_time', 'avg', 'avg_over_time', 'bottomk', 'ceil', 'changes', 'clamp_max',
+            'clamp_min', 'count', 'count_over_time', 'count_values', 'day_of_month', 'day_of_week', 'days_in_month',
+            'delta', 'deriv',
+            'exp', 'floor', 'histogram_quantile', 'holt_winters', 'hour', 'idelta', 'increase', 'irate', 'label_join',
+            'label_replace',
+            'ln', 'log2', 'log10', 'max', 'max_over_time', 'min', 'min_over_time', 'minute', 'month', 'predict_linear',
+            'quantile',
+            'quantile_over_time', 'rate', 'resets', 'round', 'scalar', 'sort', 'sort_desc', 'sqrt', 'stddev',
+            'stddev_over_time',
+            'stdvar', 'stdvar_over_time', 'sum', 'sum_over_time', 'time', 'timestamp', 'topk', 'vector', 'year'
+        ]
+
+        # 匹配promql的函数
+        function_pattern = r'\b(?:{})\b.*\(.*\)'.format('|'.join(promql_functions))
+
+        # 匹配promql的时间窗口
+        time_window_pattern = r'\[\d+[smhdw]\s*:\s*?(\d[smhdw])?\]'
+
+        # 匹配promql的过滤条件
+        filter_condition_pattern = r'\{.*=.*\}'
+
+        if re.search(function_pattern, query_string) or re.search(time_window_pattern, query_string) or re.search(
+                filter_condition_pattern, query_string):
+            return True
+        return False
