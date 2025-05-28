@@ -249,19 +249,30 @@ export default defineComponent({
       handleChangeDebounce,
       handleRangeChange,
       handleInputChangeDebounce,
+      t,
     };
   },
   render() {
     return (
       <div class={['time-consuming-component', this.styleType ? this.styleType : 'default']}>
-        {this.styleType !== 'form' && <span class='time-consuming-title'>{this.$t('耗时')}</span>}
+        {this.styleType !== 'form' && (
+          <span
+            class='time-consuming-title'
+            v-bk-tooltips={{
+              content: this.fieldInfo?.field || this.fieldInfo?.alias,
+              placement: 'top',
+            }}
+          >
+            {this.t('耗时')}
+          </span>
+        )}
         <div
           class={['input-wrap', { 'is-error': this.startError }]}
           v-bk-tooltips={{
             placement: 'bottom',
             content: (
               <div>
-                {this.$t('支持')}
+                {this.t('支持')}
                 ns, μs, ms, s, m, h, d
               </div>
             ),
@@ -304,7 +315,7 @@ export default defineComponent({
             placement: 'bottom',
             content: (
               <div>
-                {this.$t('支持')}
+                {this.t('支持')}
                 ns, μs, ms, s, m, h, d
               </div>
             ),

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 
@@ -73,6 +74,8 @@ export default defineComponent({
       handleGetOptions();
     }, 500);
     let cleanup = () => {};
+
+    const { t } = useI18n();
 
     watch(
       () => props.type,
@@ -226,7 +229,7 @@ export default defineComponent({
       emit('select', str);
     }
     function updateSelection() {
-      const listEl = elRef.value.querySelector('.wrap-left .options-wrap');
+      const listEl = elRef.value?.querySelector('.wrap-left .options-wrap');
       const el = listEl?.children?.[cursorIndex.value] as HTMLDivElement;
       el?.focus();
     }
@@ -321,6 +324,7 @@ export default defineComponent({
       handleSelect,
       getSubtitle,
       handleSelectFavorite,
+      t,
     };
   },
   render() {
@@ -416,7 +420,7 @@ export default defineComponent({
             ) : (
               <EmptyStatus
                 textMap={{
-                  empty: this.$tc('暂未匹配到符合条件的收藏项'),
+                  empty: this.t('暂未匹配到符合条件的收藏项'),
                 }}
                 type={'empty'}
               />
@@ -430,11 +434,11 @@ export default defineComponent({
               <span class='desc-item-icon'>
                 <span class='icon-monitor icon-mc-arrow-down' />
               </span>
-              <span class='desc-item-name'>{this.$t('移动光标')}</span>
+              <span class='desc-item-name'>{this.t('移动光标')}</span>
             </span>
             <span class='desc-item'>
               <span class='desc-item-box'>Enter</span>
-              <span class='desc-item-name'>{this.$t('确认结果')}</span>
+              <span class='desc-item-name'>{this.t('确认结果')}</span>
             </span>
           </div>
         </div>

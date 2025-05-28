@@ -37,7 +37,7 @@ export default defineComponent({
     resetPosKey: { type: String, default: '' },
     startPlacement: { type: String, default: 'right' },
     theme: { type: String, default: 'normal' },
-    lineText: { type: String, default: window.i18n.tc('详情') },
+    lineText: { type: String, default: window.i18n.t('详情') },
     isShow: { type: Boolean, default: false },
     isInPanelView: { type: Boolean, default: false },
     top: { type: Number, default: 0 },

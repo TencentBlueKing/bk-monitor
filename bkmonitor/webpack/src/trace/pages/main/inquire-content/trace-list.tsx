@@ -143,6 +143,7 @@ export default defineComponent({
     'serviceStatisticsChange',
   ],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 取消请求方法 */
     let listOptionCancelFn = () => {};
     let searchCancelFn = () => {};
@@ -150,7 +151,6 @@ export default defineComponent({
     const router = useRouter();
     const store = useTraceStore();
     const searchStore = useSearchStore();
-    const { t } = useI18n();
     const statusList = [
       { id: 'have_root_span', name: 'root span', tips: t('包含根span的trace') },
       { id: 'have_service_span', name: 'entry span', tips: t('包含至少一个服务的trace') },
@@ -828,7 +828,7 @@ export default defineComponent({
         })
         .catch(() => null);
     };
-    const handleColseDetail = () => {
+    const handleCloseDetail = () => {
       if (!isFullscreen.value) return;
       handleDialogClose();
     };
@@ -1002,7 +1002,7 @@ export default defineComponent({
     );
 
     const handleListPageKeydown = (evt: KeyboardEvent) => {
-      if (evt.code === 'Escape') handleColseDetail();
+      if (evt.code === 'Escape') handleCloseDetail();
     };
 
     onMounted(() => {
@@ -1377,7 +1377,7 @@ export default defineComponent({
       handleSpanFilter,
       handleCollapse,
       handleStatusChange,
-      handleColseDetail,
+      handleCloseDetail,
       handleScrollBottom,
       handleSourceData,
       chartList,
@@ -1409,41 +1409,41 @@ export default defineComponent({
       handleSpanTableSettingsChange,
       store,
       handleTraceDetail,
+      t,
     };
   },
 
   render() {
-    const { appName } = this.$props;
     const tableEmptyContent = () => (
       <EmptyStatus type='search-empty'>
         <div class='search-empty-content'>
-          <div class='tips'>{this.$t('您可以按照以下方式优化检索结果')}</div>
+          <div class='tips'>{this.t('您可以按照以下方式优化检索结果')}</div>
           <div class='description'>
-            1. {this.$t('检查')}
+            1. {this.t('检查')}
             <span
               class='link'
               onClick={() => this.handleSourceData()}
             >
-              {this.$t('数据源配置')}
+              {this.t('数据源配置')}
             </span>
-            {this.$t('情况')}
+            {this.t('情况')}
           </div>
-          <div class='description'>2. {this.$t('检查右上角的时间范围')}</div>
-          <div class='description'>3. {this.$t('是否启用了采样，采样不保证全量数据')}</div>
+          <div class='description'>2. {this.t('检查右上角的时间范围')}</div>
+          <div class='description'>3. {this.t('是否启用了采样，采样不保证全量数据')}</div>
           <div class='description'>
-            4. {this.$t('优化查询语句')}
-            <div class='sub-description'>{`${this.$t('带字段全文检索更高效')}：log:abc`}</div>
-            <div class='sub-description'>{`${this.$t('模糊检索使用通配符')}：log:abc* ${this.$t('或')} log:ab?c`}</div>
-            <div class='sub-description'>{`${this.$t('双引号匹配完整字符串')}: log:"ERROR MSG"`}</div>
-            <div class='sub-description'>{`${this.$t('数值字段范围匹配')}: count:[1 TO 5]`}</div>
-            <div class='sub-description'>{`${this.$t('正则匹配')}：name:/joh?n(ath[oa]n/`}</div>
-            <div class='sub-description'>{`${this.$t('组合检索注意大写')}：log: (error OR info)`}</div>
+            4. {this.t('优化查询语句')}
+            <div class='sub-description'>{`${this.t('带字段全文检索更高效')}：log:abc`}</div>
+            <div class='sub-description'>{`${this.t('模糊检索使用通配符')}：log:abc* ${this.t('或')} log:ab?c`}</div>
+            <div class='sub-description'>{`${this.t('双引号匹配完整字符串')}: log:"ERROR MSG"`}</div>
+            <div class='sub-description'>{`${this.t('数值字段范围匹配')}: count:[1 TO 5]`}</div>
+            <div class='sub-description'>{`${this.t('正则匹配')}：name:/joh?n(ath[oa]n/`}</div>
+            <div class='sub-description'>{`${this.t('组合检索注意大写')}：log: (error OR info)`}</div>
           </div>
           <div
             style='margin-top: 8px'
             class='description link'
           >
-            {this.$t('查看更多语法规则')}
+            {this.t('查看更多语法规则')}
             <span class='icon-monitor icon-fenxiang' />
           </div>
         </div>
@@ -1529,7 +1529,7 @@ export default defineComponent({
             onClick={this.handleCollapse}
           >
             <span class='icon-monitor icon-mc-triangle-down' />
-            <span>{this.$t('总览')}</span>
+            <span>{this.t('总览')}</span>
           </div>
           {this.collapseActive && (
             <div class='chart-list'>
@@ -1559,8 +1559,8 @@ export default defineComponent({
                 v-model={this.selectedListType}
                 onChange={this.handleListTypeChange}
               >
-                <Radio.Button label='trace'>{this.$t('Trace 视角')}</Radio.Button>
-                <Radio.Button label='span'>{this.$t('Span 视角')}</Radio.Button>
+                <Radio.Button label='trace'>{this.t('Trace 视角')}</Radio.Button>
+                <Radio.Button label='span'>{this.t('Span 视角')}</Radio.Button>
               </Radio.Group>
 
               {/* 20230816 列表的每一个子项都添加 key ，解决切换列表时可能会渲染异常的问题，这里用静态 key ，因为触发 checkbox.group 时会重新执行动态 key ，避免再一次重新渲染。  */}
@@ -1569,12 +1569,12 @@ export default defineComponent({
                   key='trace-filter'
                   class='trace-filter'
                 >
-                  <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
+                  <span style='margin-right: 6px;'>{this.t('包含')}：</span>
                   <Checkbox.Group
                     v-model={this.selectedTraceType}
                     onChange={this.handleTraceTypeChange}
                   >
-                    <Checkbox label={TraceFilter.Error}>{this.$t('错误')}</Checkbox>
+                    <Checkbox label={TraceFilter.Error}>{this.t('错误')}</Checkbox>
                   </Checkbox.Group>
                 </div>
               )}
@@ -1585,33 +1585,33 @@ export default defineComponent({
                   class='span-filter'
                 >
                   {/* 第二期没有 第三方、错误  */}
-                  <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
+                  <span style='margin-right: 6px;'>{this.t('包含')}：</span>
                   <Checkbox.Group
                     v-model={this.selectedSpanType}
                     onChange={this.handleSpanTypeChange}
                   >
                     <Popover
-                      content={this.$t('整个 Trace 的第一个 Span')}
+                      content={this.t('整个 Trace 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.RootSpan}>{this.$t('根 Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.RootSpan}>{this.t('根 Span')}</Checkbox>
                     </Popover>
                     <Popover
-                      content={this.$t('每个 Service 的第一个 Span')}
+                      content={this.t('每个 Service 的第一个 Span')}
                       placement='top'
                       theme='light'
                     >
-                      <Checkbox label={SpanFilter.EntrySpan}>{this.$t('入口 Span')}</Checkbox>
+                      <Checkbox label={SpanFilter.EntrySpan}>{this.t('入口 Span')}</Checkbox>
                     </Popover>
                     {/* 20230816 后端未上线勿删 */}
                     {/* <Checkbox
                       label={SpanFilter.ThirdPart}
                       key={random(6)}
                     >
-                      {this.$t('第三方')}
+                      {this.t('第三方')}
                     </Checkbox> */}
-                    <Checkbox label={SpanFilter.Error}>{this.$t('错误')}</Checkbox>
+                    <Checkbox label={SpanFilter.Error}>{this.t('错误')}</Checkbox>
                   </Checkbox.Group>
                 </div>
               )}
@@ -1652,18 +1652,18 @@ export default defineComponent({
                 appName={appName}
                 traceID={this.curTraceId}
                 isInTable
-                onClose={this.handleColseDetail}
+                onClose={this.handleCloseDetail}
               />
             </div>
           </div>
         </Dialog> */}
         <Sideslider
-          width={this.slideFullScreen ? '100%' : '80%'}
+          width={this.slideFullScreen ? '100%' : '85%'}
           class='trace-info-sideslider'
           v-slots={{
             header: () => (
               <TraceDetailHeader
-                appName={appName}
+                appName={this.appName}
                 fullscreen={this.slideFullScreen}
                 traceId={this.curTraceId}
                 isInTable
@@ -1688,10 +1688,10 @@ export default defineComponent({
           <div class='detail-box'>
             <TraceDetail
               ref='traceDetailElem'
-              appName={appName}
+              appName={this.appName}
               traceID={this.curTraceId}
               isInTable
-              onClose={this.handleColseDetail}
+              onClose={this.handleCloseDetail}
             />
           </div>
         </Sideslider>

@@ -199,7 +199,12 @@
   };
 
   const handleIndexSetValueChange = (values, type, id) => {
-    const storage = {};
+    const storage = {
+      [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
+        ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+        [spaceUid.value]: values,
+      },
+    };
     if (['single', 'union'].includes(type)) {
       store.commit('updateIndexItem', {
         isUnionIndex: type === 'union',
@@ -209,7 +214,10 @@
         store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
       }
 
-      Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+      Object.assign(storage, {
+        [BK_LOG_STORAGE.FAVORITE_ID]: undefined,
+        [BK_LOG_STORAGE.HISTORY_ID]: undefined,
+      });
     }
 
     if ('favorite' === indexSetTab.value) {

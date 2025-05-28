@@ -197,6 +197,9 @@ export default defineComponent({
         target: el,
       };
       handleShowSelect(customEvent);
+      setTimeout(() => {
+        inputFocus.value = true;
+      }, 300);
     }
 
     function handleCancel() {
@@ -305,6 +308,7 @@ export default defineComponent({
       handleHideTag,
       handleUpdateTag,
       handleClickComponent,
+      t,
     };
   },
   render() {
@@ -317,7 +321,7 @@ export default defineComponent({
         <div onClick={this.handleAdd}>
           <div class='add-btn'>
             <span class='icon-monitor icon-mc-add' />
-            <span class='add-text'>{this.$t('添加条件')}</span>
+            <span class='add-text'>{this.t('添加条件')}</span>
           </div>
         </div>
         {this.localValue.map((item, index) => (
@@ -330,7 +334,7 @@ export default defineComponent({
           >
             {{
               value: DURATION_KEYS.includes(item.key.id)
-                ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
+                ? () => <span class='value-name'>{this.getDurationDisplay(item.value.map(item => item.id))}</span>
                 : undefined,
             }}
           </KvTag>
@@ -339,7 +343,7 @@ export default defineComponent({
           <AutoWidthInput
             height={40}
             isFocus={this.inputFocus}
-            placeholder={this.placeholder || `${this.$t('快捷键 / ，可直接输入')}`}
+            placeholder={this.placeholder || `${this.t('快捷键 / ，可直接输入')}`}
             value={this.inputValue}
             onBlur={this.handleBlur}
             onEnter={this.handleEnter}

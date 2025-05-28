@@ -186,6 +186,16 @@ EVENT_LIST_KEY = register_key_with_config(
     }
 )
 
+EVENT_SIGNAL_KEY = register_key_with_config(
+    {
+        "label": "[access]待检测event信号队列",
+        "key_type": "set",
+        "key_tpl": "access.event.signal",
+        "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
 DATA_LIST_KEY = register_key_with_config(
     {
         "label": "[access]待检测数据队列",

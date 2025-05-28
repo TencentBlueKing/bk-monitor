@@ -219,18 +219,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         id: 'topo',
         tips: this.resourceDisable
           ? this.selectedEndpoint
-            ? window.i18n.tc('请选择非接口节点')
-            : window.i18n.tc('请选择节点')
-          : window.i18n.tc('资源拓扑'),
+            ? window.i18n.t('请选择非接口节点')
+            : window.i18n.t('请选择节点')
+          : window.i18n.t('资源拓扑'),
         icon: 'icon-ziyuan',
       },
       {
         id: 'overview',
         tips: this.overviewDisable
-          ? window.i18n.tc('请选择节点')
+          ? window.i18n.t('请选择节点')
           : this.selectedEndpoint
-            ? window.i18n.tc('接口概览')
-            : window.i18n.tc('服务概览'),
+            ? window.i18n.t('接口概览')
+            : window.i18n.t('服务概览'),
         icon: 'icon-mc-overview',
       },
     ];

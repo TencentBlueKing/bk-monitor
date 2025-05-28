@@ -2049,10 +2049,10 @@ class CollectorHandler:
                 "conditions": [],
                 "page": 1,
                 "pagesize": settings.BULK_REQUEST_LIMIT,
-                "bk_biz_id": self.data.bk_biz_id,
             },
             chunk_values=bk_host_ids,
             chunk_key="bk_host_id",
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=self.data.bk_biz_id),
         )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)

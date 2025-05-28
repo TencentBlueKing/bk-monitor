@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Input, Popover, Tree, Switcher } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
@@ -54,6 +55,7 @@ export default defineComponent({
   },
   emits: ['update:autoAggregate', 'update:checkedIds', 'update:aggregateCluster'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 支持搜索, 当前声明2个原因为 当前版本输入框组件不绑定值不支持清除配置，所以需要一个值来缓存搜索值
      *  而搜索的触发方式需要按回车才能搜索，所以需要分开，后续更新版本后修改为一个即可
      */
@@ -77,6 +79,7 @@ export default defineComponent({
       treeSearchValue,
       searchValue,
       handleNodeCheck,
+      t,
     };
   },
   render() {
@@ -88,24 +91,24 @@ export default defineComponent({
             default: () => (
               <div class='aggregation-select-trigger'>
                 <i class='icon-monitor icon-shezhi1 trigger-icon' />
-                {this.$t('聚合规则')}
+                {this.t('聚合规则')}
               </div>
             ),
             content: () => (
               <div class='aggregation-select-content-wrap'>
-                <Collapse title={this.$t('按调用关系聚合')}>
+                <Collapse title={this.t('按调用关系聚合')}>
                   <div class='aggregation-select-switcher'>
                     <Switcher
                       v-model={this.aggregateCluster}
                       v-bk-tooltips={{
-                        content: this.$t('如果同时开启了 按从属关系聚合，将先进行从属边的聚合，再进行调用边的聚合'),
+                        content: this.t('如果同时开启了 按从属关系聚合，将先进行从属边的聚合，再进行调用边的聚合'),
                       }}
                       theme='primary'
                       onChange={this.handleChange}
                     />
                   </div>
                 </Collapse>
-                <Collapse title={this.$t('按从属关系聚合')}>
+                <Collapse title={this.t('按从属关系聚合')}>
                   <div class='aggregation-select-content'>
                     <div class='panel-header'>
                       <div
@@ -115,7 +118,7 @@ export default defineComponent({
                         }}
                         onClick={() => this.$emit('update:autoAggregate', true)}
                       >
-                        {this.$t('自动聚合')}
+                        {this.t('自动聚合')}
                       </div>
                       <div
                         class={{
@@ -124,7 +127,7 @@ export default defineComponent({
                         }}
                         onClick={() => this.$emit('update:autoAggregate', false)}
                       >
-                        {this.$t('不聚合')}
+                        {this.t('不聚合')}
                       </div>
                     </div>
                     <div class='panel-search'>
@@ -134,7 +137,7 @@ export default defineComponent({
                           prefix: () => <Search class='input-icon' />,
                         }}
                         behavior='simplicity'
-                        placeholder={this.$t('请输入关键字')}
+                        placeholder={this.t('请输入关键字')}
                         clearable
                         onClear={() => (this.treeSearchValue = '')}
                         onEnter={value => (this.treeSearchValue = value)}
@@ -151,7 +154,7 @@ export default defineComponent({
                       // biome-ignore lint/correctness/noChildrenProp: <explanation>
                       children={'children'}
                       data={this.treeData}
-                      empty-text={this.$t('没有数据')}
+                      empty-text={this.t('没有数据')}
                       expandAll={true}
                       indent={36}
                       label='name'

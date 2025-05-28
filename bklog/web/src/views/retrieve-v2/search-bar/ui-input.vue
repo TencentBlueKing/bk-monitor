@@ -29,12 +29,18 @@
   const store = useStore();
   const { $t } = useLocale();
   const popoverRefs = ref(new Map())
+  const morePopoverRefs = ref([]);
   const setPopoverRef = (el, parentIndex, childIndex) => {
-  const key = `${parentIndex}-${childIndex}`
+    const key = `${parentIndex}-${childIndex}`
     if (el) {
       popoverRefs.value.set(key, el)
     } else {
       popoverRefs.value.delete(key)
+    }
+  }
+  const setMorePopoverRef = (el, index) => {
+    if (el) {
+      morePopoverRefs.value[index] = el;
     }
   }
   const inputValueLength = ref(0);
@@ -397,6 +403,9 @@
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
+  const moreOption = (index) => {
+    morePopoverRefs.value[index].showHandler()
+  }
 </script>
 
 <template>
@@ -469,12 +478,41 @@
               </span>
             </template>
           </span>
-          <span
-            v-if="item.value.length > 3 && !item.showAll"
-            style="color: #f59500"
+          <bk-popover 
+            :ref="(el) => setMorePopoverRef(el, index)"
+            placement="bottom" 
+            theme="light" 
+            trigger="click"
           >
-            +{{ item.value.length - 3 }}
-          </span>
+            <span
+              v-if="item.value.length > 3 && !item.showAll"
+              style="color: #f59500"
+              @click.stop="moreOption(index)"
+              class="match-value-more"
+            >
+              +{{ item.value.length - 3 }}
+            </span>
+            <div slot="content">
+              <div class="match-value-content">
+              <bk-popover 
+                v-for="(child, childIndex) in item.value.slice(3)"
+                :ref="(el) => setPopoverRef(el, index, childIndex+3)"
+                :key="childIndex"
+                placement="right" 
+                theme="light" 
+                trigger="click"
+                extCls="match-value-popover"
+              >
+                <div class="match-value-child"  :class="[{'delete-line':item.showList?.[childIndex+3]}]">{{ child }}</div>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex+3]" @click="changeOptionShow(index,childIndex+3,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex+3,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex+3,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
+            </div>
+            </div>
+          </bk-popover>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -603,5 +641,20 @@
       color: #979ba5;
       text-decoration: line-through;
     }
+  }
+  .match-value-content{
+    display: flex;
+    flex-direction: column;
+    .bk-tooltip-ref{
+      width: 100%;
+      cursor: pointer;
+    }
+    .match-value-child{
+      font-size: 12px;
+      line-height: 32px;
+    }
+  }
+  .match-value-popover{
+    left: 15px !important;
   }
 </style>

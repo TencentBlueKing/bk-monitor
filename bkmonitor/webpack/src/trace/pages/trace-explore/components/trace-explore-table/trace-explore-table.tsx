@@ -55,6 +55,7 @@ import ExploreFieldSetting from '../explore-field-setting/explore-field-setting'
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 
+import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
@@ -482,7 +483,7 @@ export default defineComponent({
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
-      const noScrollBar = scrollHeight <= clientHeight;
+      const noScrollBar = scrollHeight <= clientHeight + 1;
       const shouldRequest = noScrollBar || isEnd;
       if (
         !(
@@ -586,7 +587,7 @@ export default defineComponent({
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
           colKey: 'trace_id',
-          title: t('Trace ID'),
+          title: 'Trace ID',
           width: 240,
           fixed: 'left',
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
@@ -1036,12 +1037,17 @@ export default defineComponent({
      */
     function tableDescriptionHeaderRender(title, tipText, column) {
       const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
+      const fieldType = fieldOptions?.type || '';
       const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
       return () => (
         <div
           key={title}
           class={`explore-header-col ${chartIconActive}`}
         >
+          <FieldTypeIcon
+            class='col-type-icon'
+            type={fieldType}
+          />
           <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <span
               class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}

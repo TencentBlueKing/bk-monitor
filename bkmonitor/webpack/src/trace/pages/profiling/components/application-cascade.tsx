@@ -374,7 +374,7 @@ export default defineComponent({
                     >
                       <div class='loading-spin' />
                     </Loading>
-                    <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
+                    <div class='loading-text'>{this.t('应用加载中，请耐心等候…')}</div>
                   </div>
                 )}
                 <div class='footer-wrap'>

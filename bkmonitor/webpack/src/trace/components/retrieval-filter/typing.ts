@@ -32,6 +32,7 @@ export enum EMode {
 }
 export enum EFieldType {
   all = 'all',
+  boolean = 'boolean',
   date = 'date',
   integer = 'integer',
   keyword = 'keyword',
@@ -52,8 +53,8 @@ export enum EMethod {
 
 export const METHOD_MAP = {
   [EMethod.eq]: '=',
-  [EMethod.exclude]: window.i18n.tc('不包含'),
-  [EMethod.include]: window.i18n.tc('包含'),
+  [EMethod.exclude]: window.i18n.t('不包含'),
+  [EMethod.include]: window.i18n.t('包含'),
   [EMethod.ne]: '!=',
 };
 
@@ -197,43 +198,43 @@ export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists,
 
 export const qsSelectorOptionsDescMap = {
   ':': [
-    { type: 'tag', text: window.i18n.tc('等于') },
-    { type: 'text', text: window.i18n.tc('某一值') },
+    { type: 'tag', text: window.i18n.t('等于') },
+    { type: 'text', text: window.i18n.t('某一值') },
   ],
   ':*': [
-    { type: 'tag', text: window.i18n.tc('存在') },
-    { type: 'text', text: window.i18n.tc('任意形式') },
+    { type: 'tag', text: window.i18n.t('存在') },
+    { type: 'text', text: window.i18n.t('任意形式') },
   ],
   '>': [
-    { type: 'tag', text: window.i18n.tc('大于') },
-    { type: 'text', text: window.i18n.tc('某一值') },
+    { type: 'tag', text: window.i18n.t('大于') },
+    { type: 'text', text: window.i18n.t('某一值') },
   ],
   '<': [
-    { type: 'tag', text: window.i18n.tc('小于') },
-    { type: 'text', text: window.i18n.tc('某一值') },
+    { type: 'tag', text: window.i18n.t('小于') },
+    { type: 'text', text: window.i18n.t('某一值') },
   ],
   '>=': [
-    { type: 'tag', text: window.i18n.tc('大于或等于') },
-    { type: 'text', text: window.i18n.tc('某一值') },
+    { type: 'tag', text: window.i18n.t('大于或等于') },
+    { type: 'text', text: window.i18n.t('某一值') },
   ],
   '<=': [
-    { type: 'tag', text: window.i18n.tc('小于或等于') },
-    { type: 'text', text: window.i18n.tc('某一值') },
+    { type: 'tag', text: window.i18n.t('小于或等于') },
+    { type: 'text', text: window.i18n.t('某一值') },
   ],
   AND: [
-    { type: 'text', text: window.i18n.tc('需要') },
-    { type: 'tag', text: window.i18n.tc('两个参数都') },
-    { type: 'text', text: window.i18n.tc('为真') },
+    { type: 'text', text: window.i18n.t('需要') },
+    { type: 'tag', text: window.i18n.t('两个参数都') },
+    { type: 'text', text: window.i18n.t('为真') },
   ],
   OR: [
-    { type: 'text', text: window.i18n.tc('需要') },
-    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
-    { type: 'text', text: window.i18n.tc('为真') },
+    { type: 'text', text: window.i18n.t('需要') },
+    { type: 'tag', text: window.i18n.t('一个或多个参数') },
+    { type: 'text', text: window.i18n.t('为真') },
   ],
   'AND NOT': [
-    { type: 'text', text: window.i18n.tc('需要') },
-    { type: 'tag', text: window.i18n.tc('一个或多个参数') },
-    { type: 'text', text: window.i18n.tc('为真') },
+    { type: 'text', text: window.i18n.t('需要') },
+    { type: 'tag', text: window.i18n.t('一个或多个参数') },
+    { type: 'text', text: window.i18n.t('为真') },
   ],
 };
 
@@ -448,7 +449,7 @@ export const AUTO_WIDTH_INPUT_EMITS = {
 } as const;
 export const VALUE_TAG_INPUT_PROPS = {
   value: {
-    type: String,
+    type: [String, Number],
     default: '',
   },
   isOneRow: {
