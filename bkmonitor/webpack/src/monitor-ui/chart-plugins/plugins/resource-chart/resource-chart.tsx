@@ -59,7 +59,7 @@ interface IResourceChartEvent {
 @Component
 class ResourceChart extends CommonSimpleChart {
   data: IResourceData[][] = [];
-  emptyText = window.i18n.tc('加载中...');
+  emptyText = window.i18n.t('加载中...');
   empty = true;
   metrics: IExtendMetricData[] = [];
 
@@ -75,7 +75,7 @@ class ResourceChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.handleLoadingChange(true);
     this.empty = true;
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -112,12 +112,12 @@ class ResourceChart extends CommonSimpleChart {
         this.empty = false;
         this.data = res;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);

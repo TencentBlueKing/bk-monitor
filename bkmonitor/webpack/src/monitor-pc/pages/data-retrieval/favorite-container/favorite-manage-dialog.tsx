@@ -263,6 +263,13 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
     close && this.addGroupPopoverRef?.hideHandler();
   }
 
+  handleTableRowClick(row, event) {
+    // 编辑收藏名称和所属组时不弹出收藏详情
+    if (event.target.tagName !== 'INPUT' && event.target.className !== 'bk-select-name') {
+      this.curClickRow = row;
+    }
+  }
+
   handleTableSelectionChange(selection: IFavList.favList[]) {
     this.selectFavoriteList = selection;
   }
@@ -328,9 +335,13 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
 
   /** 自定义收藏名称展示 */
   favoriteNameScopedSlots({ row }) {
-    const handleEditName = () => {
+    const handleEditName = (e: MouseEvent) => {
+      e.stopPropagation();
       row.editName = true;
-      row.editGroup = false;
+      // row.editGroup = false;
+      for (const favorite of this.searchResultFavorites) {
+        favorite.editGroup = false;
+      }
       this.$nextTick(() => {
         this.favoriteTableRef?.$refs?.editFavoriteNameInput?.focus();
       });
@@ -359,7 +370,8 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
 
   /** 自定义所属组展示 */
   groupScopedSlots({ row }) {
-    const handleEditGroup = () => {
+    const handleEditGroup = (e: MouseEvent) => {
+      e.stopPropagation();
       row.editGroup = true;
       for (const favorite of this.searchResultFavorites) {
         if (favorite.id !== row.id) {
@@ -430,11 +442,11 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
         onChange={this.handleShowChange}
       >
         <div class='favorite-group-dialog-header'>
-          {this.$t('收藏管理')}
           <i
-            class='bk-icon icon-close close-icon'
+            class='icon-monitor icon-back-left'
             onClick={() => this.handleShowChange(false)}
           />
+          {this.$t('收藏管理')}
         </div>
         <div class='favorite-group-dialog-content'>
           <div class='favorite-group-filter'>
@@ -549,10 +561,21 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                   }}
                 >
                   <i class='icon-monitor icon-mc-file-close' />
-                  <span class='group-name'>{group.name}</span>
+                  <span
+                    class='group-name'
+                    v-bk-overflow-tips
+                  >
+                    {group.name}
+                  </span>
                   <span class='favorite-count'>{group.favorites.length}</span>
                 </div>
               ))}
+              {this.groupSearchValue && this.searchResultGroupList.length < 1 && (
+                <bk-exception
+                  scene='part'
+                  type='search-empty'
+                />
+              )}
             </div>
           </div>
           <div class='favorite-table-container'>
@@ -580,7 +603,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 data={this.searchResultFavorites}
                 max-height={525}
                 row-class-name={this.getRowClassName}
-                on-row-click={row => (this.curClickRow = row)}
+                on-row-click={(row, event) => (this.handleTableRowClick(row, event))}
                 on-row-mouse-enter={index => (this.curHoverRowIndex = index)}
                 on-row-mouse-leave={() => (this.curHoverRowIndex = -1)}
                 on-selection-change={this.handleTableSelectionChange}
@@ -644,6 +667,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 favoriteType={this.favoriteType}
                 groups={this.groups as any[]}
                 value={this.curClickRow}
+                onClose={() => {this.curClickRow = null}}
                 onSuccess={this.handleDetailUpdate}
               />
             </div>

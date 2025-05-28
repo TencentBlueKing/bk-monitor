@@ -157,16 +157,16 @@ export default class JsonView {
 
     const nodeType = typeof formatTarget;
 
-    if (nodeType === 'object' && target !== null) {
-      node.append(...this.createObjectNode(target, depth));
+    if (nodeType === 'object' && formatTarget !== null) {
+      node.append(...this.createObjectNode(formatTarget, depth));
     } else {
       node.classList.add('bklog-json-field-value');
       if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
         setTimeout(() => {
-          this.options.segmentRender(target, node);
+          this.options.segmentRender(formatTarget, node);
         });
       } else {
-        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${target}</span></span>`;
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${formatTarget}</span></span>`;
       }
     }
 

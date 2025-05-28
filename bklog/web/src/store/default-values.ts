@@ -76,44 +76,69 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
-const getUrlArgs = () => {
-  const router = new VueRouter({
-    routes: [
-      {
-        path: '',
-        redirect: 'retrieve',
-        meta: {
-          title: '检索',
-          navId: 'retrieve',
-        },
-      },
-      {
-        name: 'retrieve',
-        path: '/retrieve/:indexId?',
-      },
-    ],
-  });
-
-  const hash = window.location.hash.replace(/^#/, '');
-  const route = router.resolve(hash);
-  const urlResolver = new RouteUrlResolver({ route: route.resolved });
-  urlResolver.setResolver('index_id', () => route.resolved.params.indexId ?? '');
-  const routeParams = urlResolver.convertQueryToStore<RouteParams>();
-
-  if (routeParams.bizId) {
-    window.localStorage.setItem('bk_biz_id', routeParams.bizId);
+const updateLocalstorage = (val: any) => {
+  try {
+    const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+    const jsonVal = JSON.parse(storageValue);
+    Object.assign(jsonVal, val);
+    localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
+  } catch (e) {
+    console.error(e);
   }
-
-  if (routeParams.spaceUid) {
-    window.localStorage.setItem('space_uid', routeParams.spaceUid);
-  }
-
-  return routeParams;
 };
 
-export const URL_ARGS = getUrlArgs();
+const getUrlArgs = (_route?) => {
+  let urlResolver: RouteUrlResolver = null;
 
-export const getDefaultRetrieveParams = () => {
+  if (!_route) {
+    const router = new VueRouter({
+      routes: [
+        {
+          path: '',
+          redirect: 'retrieve',
+          meta: {
+            title: '检索',
+            navId: 'retrieve',
+          },
+        },
+        {
+          name: 'retrieve',
+          path: '/retrieve/:indexId?',
+        },
+      ],
+    });
+
+    const hash = window.location.hash.replace(/^#/, '');
+    const route = router.resolve(hash);
+    urlResolver = new RouteUrlResolver({ route: route.resolved });
+    urlResolver.setResolver('index_id', () =>
+      route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '',
+    );
+    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
+  } else {
+    urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
+    urlResolver.setResolver('search_mode', () => _route.query.search_mode);
+  }
+
+  const result = urlResolver.convertQueryToStore<RouteParams>();
+
+  if (result.search_mode) {
+    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
+  }
+
+  return result;
+};
+
+let URL_ARGS = getUrlArgs();
+const update_URL_ARGS = route => {
+  URL_ARGS = getUrlArgs(route);
+  return URL_ARGS;
+};
+
+export { URL_ARGS, update_URL_ARGS };
+
+export const getDefaultRetrieveParams = (defaultValue?) => {
   return {
     keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
@@ -125,6 +150,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    ...(defaultValue ?? {}),
     ...URL_ARGS,
   };
 };
@@ -188,7 +214,7 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  ids: URL_ARGS.unionList?.length ? URL_ARGS.unionList : [URL_ARGS.index_id],
+  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
@@ -208,14 +234,35 @@ export const IndexItem = {
   ...DEFAULT_DATETIME_PARAMS,
 };
 
-export const getStorageOptions = () => {
+/**
+ * 获取缓存配置
+ * @param values 默认填充值
+ * @returns
+ */
+export const getStorageOptions = (values?: any) => {
   const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
       storage = JSON.parse(storageValue);
-
       let update = false;
+
+      // 如果传入了默认值，判定是否为SpaceUid或BizId
+      // 如果是，则将其赋值到storage中，并删除传入的值
+      // bizId 和 spaceUid通过iframe传入
+      if (values?.[BK_LOG_STORAGE.BK_SPACE_UID] || values?.[BK_LOG_STORAGE.BK_BIZ_ID]) {
+        Object.assign(storage, values);
+        delete values[BK_LOG_STORAGE.BK_SPACE_UID];
+        delete values[BK_LOG_STORAGE.BK_BIZ_ID];
+      }
+
+      Object.keys(values ?? {}).forEach(key => {
+        if (values[key] !== undefined && values[key] !== null) {
+          update = true;
+          Object.assign(storage, { [key]: values[key] });
+        }
+      });
+
       // 对旧版缓存进行还原操作
       // 映射旧版配置到新版key，同时移除旧版key
       [
@@ -238,16 +285,17 @@ export const getStorageOptions = () => {
         }
       });
 
-      // [
-      //   ['space_uid', BK_LOG_STORAGE.SPACE_UID],
-      //   ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
-      // ].forEach(([k1, k2]) => {
-      //   const oldVal = localStorage.getItem(k1);
-      //   if (oldVal !== undefined) {
-      //     storage[k2] = oldVal;
-      //     localStorage.removeItem(k1);
-      //   }
-      // });
+      [
+        ['space_uid', BK_LOG_STORAGE.BK_SPACE_UID],
+        ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
+      ].forEach(([k1, k2]) => {
+        const oldVal = localStorage.getItem(k1);
+        if (oldVal !== undefined && oldVal !== null) {
+          storage[k2] = oldVal;
+          localStorage.removeItem(k1);
+          update = true;
+        }
+      });
 
       if (update) {
         window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));

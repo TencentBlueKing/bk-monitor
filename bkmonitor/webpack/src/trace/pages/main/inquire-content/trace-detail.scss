@@ -45,6 +45,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     margin-top: 8px;
 
     .message-item {
+      display: flex;
+      align-items: center;
       margin-right: 8px;
       font-size: 12px;
       line-height: 1;
@@ -80,10 +82,10 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
     .item-card {
       position: relative;
+      float: left;
       box-sizing: content-box;
       display: flex;
       align-items: center;
-      float: left;
       height: 28px;
       padding: 0 8px;
       margin: 0 8px 6px 0;
@@ -212,7 +214,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
     .view-tools {
       position: sticky;
-      top: 42px;
+      top: 36px;
       z-index: 99;
       box-sizing: border-box;
       display: flex;
@@ -425,9 +427,9 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   right: 20px;
   bottom: 0;
   z-index: 99;
+  visibility: hidden;
   width: 100%;
   pointer-events: none;
-  visibility: hidden;
 
   &.is-visibility {
     visibility: visible;

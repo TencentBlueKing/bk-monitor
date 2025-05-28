@@ -139,7 +139,7 @@ export default defineComponent({
       () => props.drillDownOption,
       () => {
         const drillDown = menuList.value.find(item => item.id === 'drill-down');
-        if (!!drillDown) {
+        if (drillDown) {
           /** 服务实例实例 | 主机 | 自定义上报target 优先级从左往右 */
           const defaultKeys = ['bk_target_service_instance_id', 'bk_target_ip', 'target'];
           const optionsKeys = props.drillDownOption.map(item => item.id);
@@ -210,6 +210,7 @@ export default defineComponent({
             <ul class='child-list'>
               {item.children?.map(child => (
                 <Popover
+                  key={child.id}
                   content={child.id}
                   disabled={!child.needTips}
                   placement={'right'}
@@ -237,7 +238,7 @@ export default defineComponent({
               <i class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`} />
               {!item.checked ? item.name : item.nextName || item.name}
               {!!item.children?.length && item.hasLink && (
-                <bk-popover
+                <Popover
                   ref={`${item.id}-popover`}
                   animation='slide-toggle'
                   arrow={false}
@@ -249,7 +250,7 @@ export default defineComponent({
                 >
                   <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue!)}</span>
                   {childTpl(item)}
-                </bk-popover>
+                </Popover>
               )}
               {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
               {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}

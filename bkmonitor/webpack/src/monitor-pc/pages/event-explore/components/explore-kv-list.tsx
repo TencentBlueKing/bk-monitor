@@ -449,7 +449,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     return () => (
       <i
         class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
-        v-bk-tooltips={{ content: '新开标签页', disabled: !hasClick }}
+        v-bk-tooltips={{ content: this.$t('新开标签页'), disabled: !hasClick }}
         onClick={e => this.handleNewExplorePage(e, method)}
       />
     );

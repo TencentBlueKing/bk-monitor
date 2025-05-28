@@ -54,7 +54,7 @@ class ReportLogStore extends VuexModule {
 
     const username = store.state.userMeta?.username;
     const space = spaceList?.find(item => item.space_uid === spaceUid);
-    const routeConfig = getRouteConfigById(params.nav_id);
+    const routeConfig = getRouteConfigById(params.nav_id, spaceUid, bkBizId, params.externalMenu);
 
     $http
       .request(

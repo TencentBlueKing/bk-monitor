@@ -383,7 +383,7 @@ def _filter_dict_to_conditions(filter_dict: dict, conditions: list[dict]) -> lis
         new_condition = copy.deepcopy(new_condition)
         for condition in new_condition:
             condition["condition"] = "and"
-        if result:
+        if result and new_condition:
             new_condition[0]["condition"] = "or"
         result.extend(new_condition)
 
@@ -403,19 +403,22 @@ def _parse_conditions(
         if conditions["field_list"]:
             conditions["condition_list"].append(condition.get("condition", "and"))
 
+        options: dict[str, Any] = condition.get("options") or {}
         value: list[Any] = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
         value = [str(v) for v in value]
         operator: str = operator_mapping.get(condition["method"], condition["method"])
         if operator in ["include", "exclude"]:
             value = [re.escape(v) for v in value]
 
-        # 通用处理，对 UnifyQuery 而言，存在与否通过 field !=/= "" 进行过滤。
-        if operator in ["exists", "nexists"]:
-            operator = {"exists": "ne", "nexists": "eq"}[operator]
-            # 强制 value 为 ""。
+        if operator in ["existed", "nexisted"]:
             value = [""]
 
-        options: dict[str, Any] = condition.get("options") or {}
+        # UnifyQuery 模糊检索通过 options.is_wildcard=true 的查询配置进行启用。
+        # 在 ORM 场景传递 options 并不优雅，于是抽象 wildcard / nwildcard 作为新 lookup。
+        if operator in ["wildcard", "nwildcard"]:
+            operator = {"wildcard": "contains", "nwildcard": "ncontains"}[operator]
+            options["is_wildcard"] = True
+
         conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator, **options})
     return conditions
 
@@ -1979,14 +1982,16 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
 
     OPERATOR_MAPPING: dict[str, str] = {
         "neq": "ne",
-        "exists": "exists",
-        "nexists": "nexists",
+        "exists": "existed",
+        "nexists": "nexisted",
         "include": "contains",
         "exclude": "ncontains",
         "gt": "gt",
         "lt": "lt",
         "gte": "gte",
         "lte": "lte",
+        "wildcard": "wildcard",
+        "nwildcard": "nwildcard",
     }
 
     # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
@@ -2019,6 +2024,16 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             for nested_field in self.NESTED_FIELDS:
                 if field_name.startswith(nested_field):
                     return True
+
+        for ordering in self.order_by or []:
+            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
+            field: str = ordering.split(maxsplit=1)[0]
+            if field == "_value":
+                return True
+
+        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
+        if self.query_string and self.query_string != "*":
+            return True
 
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 
@@ -2082,15 +2097,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             "order_by": [],
         }
 
-        metrics: list[dict[str, Any]] = self.metrics
-        if self.distinct:
-            # 针对原始 Trace 检索（未开启预计算）场景，默认需要按指定时间字段进行排序。
-            # 后续如果有多字段排序的需求，也相应需要在这里进行调整扩展。
-            metrics = [{"method": "max", "field": self.time_field, "alias": "a"}]
-            group_by.append(self.distinct)
-
         query_list: list[dict[str, Any]] = []
-        for metric in metrics:
+        for metric in self.metrics:
             query: dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
@@ -2129,6 +2137,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if not query_list:
             query: dict[str, Any] = copy.deepcopy(base_query)
             query["reference_name"] = self.reference_name or "a"
+            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
+            if self.distinct:
+                query["collapse"] = {"field": self.distinct}
+
             for select_field in self.select:
                 if "(" in select_field and ")" in select_field:
                     continue

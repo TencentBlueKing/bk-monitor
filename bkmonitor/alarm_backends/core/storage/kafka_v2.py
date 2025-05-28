@@ -73,6 +73,7 @@ class KafkaQueueV2:
                     group_id=group_name,
                     client_id=f"{group_name}-{self.pod_id}",
                     enable_auto_commit=settings.KAFKA_AUTO_COMMIT,
+                    max_poll_interval_ms=3,
                     session_timeout_ms=30000,
                     max_partition_fetch_bytes=1024 * 1024 * 5,  # 增大分区拉取量
                     partition_assignment_strategy=[kafka.coordinator.assignors.roundrobin.RoundRobinPartitionAssignor],
@@ -113,14 +114,42 @@ class KafkaQueueV2:
             return self.get_consumer()
         return consumer
 
+    def has_assigned_partitions(self):
+        """检查当前消费组是否已分配分区"""
+        try:
+            consumer = self.get_consumer()
+            consumer._coordinator.poll()
+            # 检查消费者是否已分配分区且不为空集合
+            return bool(consumer.assignment())
+        except Exception as e:
+            logger.warning(f"检查分区分配异常: {str(e)}")
+            return False
+
+    def has_reassigned_partitions(self):
+        """检查分区是否发生重新分配"""
+        try:
+            consumer = self.get_consumer()
+            current_assignment = frozenset(consumer.assignment())
+
+            # 首次检查时初始化记录
+            if not hasattr(self, "last_assignment"):
+                self.last_assignment = current_assignment
+                return False
+
+            # 比较当前分配与上次记录是否一致
+            is_reassigned = self.last_assignment != current_assignment
+            self.last_assignment = current_assignment  # 更新分配记录
+            return is_reassigned
+        except Exception as e:
+            logger.warning(f"检查分区重分配异常: {str(e)}")
+            return False
+
     def take_raw(self, count=1, timeout=0.1):
         consumer = self._ensure_connected(self.get_consumer())
-        records = []
-        while not records:
-            records += consumer.poll(timeout_ms=timeout * 1000, max_records=count).values()
+        records = consumer.poll(timeout_ms=timeout * 1000, max_records=count).values()
         messages = list(itertools.chain.from_iterable(records))
         consumer.commit()  # 手动提交保证可靠性
-        logger.info(f"{consumer._subscription.assignment} poll messages: {len(messages)}")
+        logger.info(f"{consumer.assignment()} poll messages: {len(messages)}")
         return messages
 
     def take(self, count=1, timeout=0.1):

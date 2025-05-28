@@ -72,6 +72,8 @@
   });
 
   const setRouteParams = (ids, isUnionIndex) => {
+    const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
+
     if (isUnionIndex) {
       router.replace({
         params: {
@@ -80,6 +82,7 @@
         },
         query: {
           ...route.query,
+          ...queryTab,
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -97,6 +100,7 @@
       },
       query: {
         ...route.query,
+        ...queryTab,
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -131,7 +135,6 @@
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
       RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
 
-      setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
       store.commit('updateIndexItem', payload);
 
@@ -148,6 +151,8 @@
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
+
+      setRouteParams(payload.ids, payload.isUnionIndex);
     }
   };
 
@@ -162,13 +167,17 @@
       foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
     }
 
+    const mode = ['ui', 'sql'].includes(search_mode) ? search_mode : 'ui';
+
     store.commit('updateIndexItemParams', {
       keyword,
       addition: foramtAddition,
       ip_chooser,
       begin: 0,
-      search_mode,
+      search_mode: mode,
     });
+
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
 
     setRouteQuery();
     setTimeout(() => {
@@ -196,6 +205,10 @@
         isUnionIndex: type === 'union',
       });
 
+      if (type === 'union') {
+        store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
+      }
+
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
     }
 
@@ -208,7 +221,8 @@
     }
 
     store.commit('updateStorage', storage);
-    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
+    const items = indexSetList.value.filter(item => (values ?? []).includes(item.index_set_id));
+    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union', items });
   };
 
   const handleAuthRequest = item => {

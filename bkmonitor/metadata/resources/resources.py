@@ -2450,7 +2450,7 @@ class SyncBkBaseRtMetaByBizIdResource(Resource):
     同步单个业务的计算平台RT元信息
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         bk_biz_id = serializers.CharField(label="业务ID")
 
     def perform_request(self, validated_request_data):
@@ -2462,3 +2462,28 @@ class SyncBkBaseRtMetaByBizIdResource(Resource):
         bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=[bk_biz_id], storages=storages)
         sync_bkbase_result_table_meta(round_iter=0, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=[bk_biz_id])
         logger.info("SyncBkBaseRtMetaByBizIdResource: end sync bkbase meta for biz_id->[%s]", bk_biz_id)
+
+
+class ListBkBaseRtInfoByBizIdResource(Resource):
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info("ListBkBaseRtInfoByBizIdResource: start query bkbase rts for biz_id->[%s]", bk_biz_id)
+        bkbase_rts = models.ResultTable.objects.filter(
+            bk_biz_id=bk_biz_id, default_storage=models.ClusterInfo.TYPE_BKDATA
+        )
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = bkbase_rts.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = bkbase_rts[offset : offset + page_size]
+            results = [rt.to_json() for rt in paginated_queryset]
+            return {"count": count, "info": results}
+
+        # 如果不分页，返回所有结果
+        results = [rt.to_json() for rt in bkbase_rts]
+        return results

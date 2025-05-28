@@ -373,7 +373,7 @@ export default {
                 {
                   style: { color: '#3a84ff', cursor: 'pointer' },
                   attrs: {
-                    href: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+                    href: `${this.$store.getters.bkNodeManHost}#/plugin-manager/list`,
                     target: '_blank',
                   },
                   directives: [

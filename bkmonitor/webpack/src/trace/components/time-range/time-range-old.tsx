@@ -25,6 +25,7 @@
  */
 
 import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -56,6 +57,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { modelValue } = toRefs(props);
+    const { t } = useI18n();
 
     /** 日历组件的值 */
     const timestamp = ref<TimeRangeType>(['', '']);
@@ -188,6 +190,7 @@ export default defineComponent({
       handleCustomInput,
       handleShortcutChange,
       handleTransformTimeValue,
+      t,
     };
   },
   render() {
@@ -230,7 +233,7 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleConfirm}
               >
-                {this.$t('确定')}
+                {this.t('确定')}
               </Button>
             </div>
           ),

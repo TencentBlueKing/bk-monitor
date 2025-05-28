@@ -24,12 +24,11 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
-from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip
+from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
-from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -85,16 +84,15 @@ def build_event_body(
 ):
     bk_biz_name = ""
     operator = (app.create_user if apm_event is APMEvent.APP_CREATE else app.update_user,)
-
     event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
-    response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
-    if response_biz_data:
-        biz_data = response_biz_data[0]
-        bk_biz_name = biz_data.bk_biz_name
 
-        from bkm_space.define import SpaceTypeEnum
+    from bkm_space.api import SpaceApi
+    from bkm_space.define import SpaceTypeEnum
 
-        if biz_data.space_type_id == SpaceTypeEnum.BKSAAS.value:
+    space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+    if space is not None:
+        bk_biz_name = space.space_name
+        if space.space_type_id == SpaceTypeEnum.BKSAAS.value:
             # 对于 PAAS 平台创建的 APM 应用，临时通过通知组<<应用成员>>来获取用户
             SAAS_NOTICE_GROUP_NAME = "应用成员"
             from bkmonitor.models import UserGroup
@@ -216,7 +214,7 @@ def application_create_check():
 
     # 获取所有没有 traceDatasource && metricDatasource 的应用(证明是未进行 saas 数据源同步的应用)
     # 因创建失败是偶尔事件并且会发送通知所以这里可以一直尝试同步
-    apps = Application.objects.filter(trace_result_table_id="", metric_result_table_id="")
+    apps = Application.objects.filter(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
     logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
     for app in apps:
         app.sync_datasource()
@@ -224,23 +222,33 @@ def application_create_check():
 
 @shared_task(ignore_result=True)
 def cache_application_scope_name():
+    """
+    1. 每次获取 5 分钟内的数据
+    2. 和已有的缓存数据做一个整合
+    """
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
     if "redis" not in caches:
         logger.info("[CACHE_APPLICATION_SCOPE_NAME] no redis cache, task stopped")
         return
 
     cache_agent = caches["redis"]
-    for application in Application.objects.filter(is_enabled=True):
+    for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True):
         try:
             bk_biz_id = application.bk_biz_id
             application_id = application.application_id
             result_table_id = application.fetch_datasource_info(
                 TelemetryDataType.METRIC.value, attr_name="result_table_id"
             )
-            collection = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
-            if collection and isinstance(collection, dict):
+            if result_table_id is None:
+                continue
+
+            monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
+            if monitor_info and isinstance(monitor_info, dict):
                 cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
-                cache_agent.set(cache_key, compress_and_serialize(collection))
+                cached_data = cache_agent.get(cache_key)
+                old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
+                merged_monitor_info = MetricHelper.merge_monitor_info(monitor_info, old_monitor_info)
+                cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
                 cache_agent.expire(cache_key, 60 * 60 * 24)
         except Exception as e:  # noqa
             logger.warning(

@@ -43,12 +43,13 @@ import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
 import getRouter from './router';
 import store from './store';
-import preload from './preload';
+import preload, { getExternalMenuListBySpace } from './preload';
 
 import './static/style.css';
 import './static/font-face/index.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
+import { BK_LOG_STORAGE } from './store/store.type';
 
 Vue.prototype.$renderHeader = renderHeader;
 
@@ -56,7 +57,7 @@ const setRouterErrorHandle = router => {
   router.onError(err => {
     const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
     const isChunkLoadFailed = err.message.match(pattern);
-    const targetPath = router.history.pending.fullPath;
+    const targetPath = router.history?.pending?.fullPath;
     if (isChunkLoadFailed) {
       router.replace(targetPath);
     }
@@ -74,11 +75,18 @@ const mountedVueInstance = () => {
       return i18n.t(key, params);
     },
   };
-  preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
-    const spaceUid = store.state.spaceUid;
-    const bkBizId = store.state.bkBizId;
+  preload({ http, store }).then(([space]) => {
+    const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
-    const router = getRouter(spaceUid, bkBizId);
+    let externalMenu = [];
+     if (window.IS_EXTERNAL && space) {
+      externalMenu = getExternalMenuListBySpace(space) ?? [];
+      store.commit('updateExternalMenu', externalMenu);
+    }
+
+    store.dispatch('requestMenuList', spaceUid);
+    const router = getRouter(spaceUid, bkBizId, externalMenu);
     setRouterErrorHandle(router);
 
     window.mainComponent = new Vue({

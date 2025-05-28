@@ -25,9 +25,9 @@
  */
 const getters = {
   bizId: state => state.app.bizId,
-  bizName: state => state.app.bizList.find(item => +item.bizId === (+state.app.bizId || +window.bk_biz_id))?.name,
+  bizName: state => state.app.bizList.find(item => +item.bk_biz_id === (+state.app.bizId || +window.bk_biz_id))?.name,
   bizList: state => state.app.bizList.slice(),
-  spaceUid: state => state.app.bizList.find(item => +item.bizId === +state.app.bizId)?.space_uid,
+  spaceUid: state => state.app.bizList.find(item => +item.bk_biz_id === +state.app.bizId)?.space_uid,
   title: state => state.app.title,
   needBack: state => state.app.needBack,
   csrfCookieName: state => state.app.csrfCookieName,
@@ -42,7 +42,7 @@ const getters = {
   cmdbUrl: state => state.app.cmdbUrl,
   bkLogSearchUrl: state => state.app.bkLogSearchUrl,
   bkUrl: state => state.app.bkUrl,
-  bkNodemanHost: state => state.app.bkNodemanHost,
+  bkNodeManHost: state => state.app.bkNodeManHost,
   loginUrl: state => state.app.loginUrl,
   navToggle: state => state.app.navToggle,
   collectingConfigFileMaxSize: state => state.app.collectingConfigFileMaxSize,

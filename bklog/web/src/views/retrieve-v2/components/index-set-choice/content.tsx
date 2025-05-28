@@ -65,7 +65,7 @@ export default defineComponent({
     },
   },
   emits: ['type-change', 'value-change', 'auth-request'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { $t } = useLocale();
     const route = useRoute();
 
@@ -168,6 +168,10 @@ export default defineComponent({
       ></CommonList>
     );
 
+    /**
+     * 我的收藏渲染
+     * @returns
+     */
     const renderFavoriteList = () => (
       <CommonList
         list={favoriteList.value}
@@ -183,7 +187,7 @@ export default defineComponent({
           color: '#F8B64F',
           onClick: (e, item) => {
             e.stopPropagation();
-            cancelFavorite(item);
+            cancelFavorite(item, 'favorite');
           },
         }}
       ></CommonList>
@@ -218,6 +222,10 @@ export default defineComponent({
       if (props.activeId === 'favorite') {
         requestFavoriteList(null);
       }
+    });
+
+    expose({
+      resetUnionList: () => (unionListValue.value = [...props.value]),
     });
 
     return () => (

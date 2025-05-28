@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user
+from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter
 from config.domains import DATABUS_APIGATEWAY_ROOT
 
 
@@ -38,6 +38,7 @@ class _BkDataDatabusApi:
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             cache_time=60,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.databus_data_storages_post = DataAPI(
             method="POST",
@@ -47,6 +48,7 @@ class _BkDataDatabusApi:
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             cache_time=60,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.databus_data_storages_put = DataAPI(
             method="PUT",
@@ -57,6 +59,7 @@ class _BkDataDatabusApi:
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             cache_time=60,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.get_cleans = DataAPI(
@@ -66,6 +69,7 @@ class _BkDataDatabusApi:
             description="获取清洗配置列表",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.databus_cleans_post = DataAPI(
             method="POST",
@@ -74,6 +78,7 @@ class _BkDataDatabusApi:
             description="创建清洗配置",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.databus_cleans_put = DataAPI(
             method="PUT",
@@ -83,6 +88,7 @@ class _BkDataDatabusApi:
             description="更新清洗配置",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.post_tasks = DataAPI(
             method="POST",
@@ -91,6 +97,7 @@ class _BkDataDatabusApi:
             description="创建清洗分发任务",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
         )
         self.delete_tasks = DataAPI(
             method="DELETE",
@@ -100,6 +107,7 @@ class _BkDataDatabusApi:
             description="停止清洗，分发任务",
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
         )
 
 

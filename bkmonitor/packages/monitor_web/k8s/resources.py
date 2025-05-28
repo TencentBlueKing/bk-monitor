@@ -356,6 +356,17 @@ class GetResourceDetail(Resource):
                 "value": value,
             }
         )
+    
+    def remove_items_with_keys(self, items: list[dict], keys: list[str]) -> list[dict]:
+        """
+        删除 items 中的指定 key 的 item
+        """
+        key_set = set(keys)
+        return [
+            item 
+            for item in items 
+            if "key" in item and item["key"] not in key_set
+        ]
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -389,7 +400,7 @@ class GetResourceDetail(Resource):
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
 
         # 调用对应的资源类型的接口，返回对应的接口数据
-        items = resource_router[resource_type][0](
+        items:list[dict] = resource_router[resource_type][0](
             **{
                 "bk_biz_id": bk_biz_id,
                 "bcs_cluster_id": bcs_cluster_id,
@@ -397,10 +408,45 @@ class GetResourceDetail(Resource):
             }
         )
 
-        # 获取 pod 关于 service 和 ingress 的联系
+        resource_ignore_keys:dict[str,list[str]] = {
+            "pod":[
+                "request_cpu_usage_ratio",# CPU使用率（request）
+                "limit_cpu_usage_ratio",# CPU使用率（limit）
+                "request_memory_usage_ratio",# 内存使用率（request）
+                "limit_memory_usage_ratio",# 内存使用率（limit）
+                "resource_usage_cpu",
+                "resource_usage_memory",
+                "resource_usage_disk",
+                "resource_requests_cpu",
+                "resource_limits_cpu",
+                "resource_requests_memory",
+                "resource_limits_memory"
+            ],
+            "container": [
+                "resource_usage_cpu",# CPU 使用量
+                "resource_usage_memory",# 内存使用量
+                "resource_usage_disk",# 磁盘使用量
+            ],
+            "node": [
+                "system_cpu_summary_usage",
+                "system_mem_pct_used",
+                "system_io_util",
+                "system_disk_in_use",
+                "system_load_load15",
+            ],
+            "cluster":[
+                "cpu_usage_ratio", # CPU使用率
+                "memory_usage_ratio", # 内存使用率
+                "disk_usage_ratio",  # 磁盘使用率
+            ],
+        }
+        if resource_ignore_keys.get(resource_type):
+            items = self.remove_items_with_keys(items, resource_ignore_keys[resource_type])
+
         if resource_type == "pod":
             self.add_pod_service_ingress_relation(items, validated_request_data)
 
+        # 获取 pod 关于 service 和 ingress 的联系
         for item in items:
             self.link_to_string(item)
 
@@ -518,17 +564,22 @@ class ListK8SResources(Resource):
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
+
         if scenario == "network":
-            # 网络场景默认指标，用nw_container_network_receive_bytes_total
-            if not column.startswith("nw_"):
+            column = column if column.startswith("nw_") else "nw_" + column
+
+            if not resource.k8s.get_scenario_metric(scenario="network", metric_id=column, bk_biz_id=bk_biz_id):
+                # 网络场景默认指标，用nw_container_network_receive_bytes_total
                 column = "nw_container_network_receive_bytes_total"
             # 网络场景，pod不需要workload相关信息
             if resource_meta.resource_field == "pod_name":
                 resource_meta.only_fields = ["name", "namespace", "bk_biz_id", "bcs_cluster_id"]
 
-        # 如果是容量场景，则使用容量的指标: node_boot_time_seconds(用以获取node列表)
+
         if scenario == "capacity":
-            column = "node_boot_time_seconds"
+            if not resource.k8s.get_scenario_metric(scenario="capacity", metric_id=column, bk_biz_id=bk_biz_id):
+                # 容量场景默认指标: node_boot_time_seconds(用以获取node列表)
+                column = "node_boot_time_seconds"
 
         order_by = column if order_by == "asc" else f"-{column}"
 

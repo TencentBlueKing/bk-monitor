@@ -54,7 +54,7 @@ idna==2.9
 bk-audit==1.2.2
 
 # qcloud cos
-cos-python-sdk-v5==1.9.6
+cos-python-sdk-v5==1.9.36
 
 # pipeline
 bamboo-pipeline==4.0.0

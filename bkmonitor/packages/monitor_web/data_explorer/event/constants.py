@@ -15,6 +15,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
+from constants.elasticsearch import QueryStringOperators
 
 
 class EventDomain(CachedEnum):
@@ -193,6 +194,10 @@ class EventDimensionTypeEnum(Enum):
     INTEGER: str = "integer"
     DATE: str = "date"
 
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
 
 # 事件字段别名
 EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
@@ -289,13 +294,23 @@ class Operation:
         "value": "exclude",
         "options": {"label": _("使用通配符"), "name": "is_wildcard"},
     }
+    QueryStringOperatorMapping = {
+        EQ["value"]: QueryStringOperators.EQUAL,
+        NE["value"]: QueryStringOperators.NOT_EQUAL,
+        INCLUDE["value"]: QueryStringOperators.INCLUDE,
+        EXCLUDE["value"]: QueryStringOperators.NOT_INCLUDE,
+        GT["value"]: QueryStringOperators.GT,
+        LT["value"]: QueryStringOperators.LT,
+        GTE["value"]: QueryStringOperators.GTE,
+        LTE["value"]: QueryStringOperators.LTE,
+    }
 
 
 # 类型和操作符映射
 TYPE_OPERATION_MAPPINGS = {
     "date": [Operation.EQ, Operation.NE],
     "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE],
-    "text": [Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
+    "text": [Operation.EQ, Operation.NE, Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
     "integer": [Operation.EQ, Operation.NE, Operation.GT, Operation.GTE, Operation.LT, Operation.LTE],
 }
 

@@ -43,10 +43,6 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
         # 透传size
         self.size: int = params.get("size", 30)
 
-        # 仅支持单索引集
-        self.index_set = self.index_info_list[0]
-        self.scenario_id = self.index_set["scenario_id"]
-
     def search(self, *args):
         base_params = copy.deepcopy(self.base_dict)
         body: Dict = {}

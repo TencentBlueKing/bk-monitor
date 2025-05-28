@@ -210,7 +210,7 @@ class CollectorHandler:
             multi_execute_func.append(
                 "subscription_config",
                 BKNodeApi.get_subscription_info,
-                params={"subscription_id_list": [self.data.subscription_id]},
+                params={"subscription_id_list": [self.data.subscription_id], "bk_biz_id": self.data.bk_biz_id},
                 use_request=use_request,
             )
         return multi_execute_func.run()
@@ -1037,7 +1037,9 @@ class CollectorHandler:
             if params.get("run_task", True):
                 self._run_subscription_task()
             # start nodeman subscription
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "enable", "bk_biz_id": self.data.bk_biz_id}
+            )
         except Exception as error:  # pylint: disable=broad-except
             logger.exception(f"create or update collector config failed => [{error}]")
             if not is_create:
@@ -1144,7 +1146,9 @@ class CollectorHandler:
 
         # 启动节点管理订阅功能
         if self.data.subscription_id:
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "enable", "bk_biz_id": self.data.bk_biz_id}
+            )
 
         # 存在RT则启用RT
         if self.data.table_id:
@@ -1194,7 +1198,9 @@ class CollectorHandler:
 
         if self.data.subscription_id:
             # 停止节点管理订阅功能
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "disable", "bk_biz_id": self.data.bk_biz_id}
+            )
 
         # 存在RT则停止RT
         if self.data.table_id:
@@ -1299,7 +1305,7 @@ class CollectorHandler:
         :return: task_id 任务ID
         """
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
-        params = {"subscription_id": self.data.subscription_id}
+        params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         if action:
             params.update({"actions": {collector_scenario.PLUGIN_NAME: action}})
 
@@ -1316,7 +1322,11 @@ class CollectorHandler:
         return self.data.task_id_list
 
     def _retry_subscription(self, instance_id_list):
-        params = {"subscription_id": self.data.subscription_id, "instance_id_list": instance_id_list}
+        params = {
+            "subscription_id": self.data.subscription_id,
+            "instance_id_list": instance_id_list,
+            "bk_biz_id": self.data.bk_biz_id,
+        }
 
         task_id = str(NodeApi.retry_subscription(params)["task_id"])
         self.data.task_id_list.append(task_id)
@@ -1336,7 +1346,7 @@ class CollectorHandler:
         """
         if not self.data.subscription_id:
             return
-        subscription_params = {"subscription_id": self.data.subscription_id}
+        subscription_params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         return NodeApi.delete_subscription(subscription_params)
 
     def diff_target_nodes(self, target_nodes: list) -> list:
@@ -1465,6 +1475,7 @@ class CollectorHandler:
         # 查询采集任务状态
         param = {
             "subscription_id": self.data.subscription_id,
+            "bk_biz_id": self.data.bk_biz_id,
         }
         if self.data.task_id_list:
             param["task_id_list"] = self.data.task_id_list
@@ -1481,6 +1492,7 @@ class CollectorHandler:
                 "need_detail": False,
                 "need_aggregate_all_tasks": True,
                 "need_out_of_scope_snapshots": False,
+                "bk_biz_id": self.data.bk_biz_id,
             },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
@@ -1774,7 +1786,11 @@ class CollectorHandler:
         :return: [dict]
         """
         # 详情接口查询，原始日志
-        param = {"subscription_id": self.data.subscription_id, "instance_id": instance_id}
+        param = {
+            "subscription_id": self.data.subscription_id,
+            "instance_id": instance_id,
+            "bk_biz_id": self.data.bk_biz_id,
+        }
         if task_id:
             param["task_id"] = task_id
         detail_result = NodeApi.get_subscription_task_detail(param)
@@ -1874,7 +1890,10 @@ class CollectorHandler:
             subscription_id_list.append(collector_obj.subscription_id)
 
         status_result = NodeApi.subscription_statistic(
-            params={"subscription_id_list": subscription_id_list, "plugin_name": LogPluginInfo.NAME}
+            params={
+                "subscription_id_list": subscription_id_list,
+                "plugin_name": LogPluginInfo.NAME,
+            }
         )
 
         # 如果没有订阅ID，则直接返回
@@ -2015,6 +2034,7 @@ class CollectorHandler:
                 "need_detail": False,
                 "need_aggregate_all_tasks": True,
                 "need_out_of_scope_snapshots": False,
+                "bk_biz_id": self.data.bk_biz_id,
             },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
@@ -2025,7 +2045,12 @@ class CollectorHandler:
             bk_host_ids.append(item["instance_info"]["host"]["bk_host_id"])
 
         plugin_data = NodeApi.plugin_search.batch_request(
-            params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
+            params={
+                "conditions": [],
+                "page": 1,
+                "pagesize": settings.BULK_REQUEST_LIMIT,
+                "bk_biz_id": self.data.bk_biz_id,
+            },
             chunk_values=bk_host_ids,
             chunk_key="bk_host_id",
         )
@@ -3946,13 +3971,17 @@ class CollectorHandler:
         space = Space.objects.get(bk_biz_id=bk_biz_id)
 
         if space.space_type_id == SpaceTypeEnum.BCS.value:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
             bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
             project_ids = {p["projectID"] for p in bcs_projects}
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
                 if project_id not in project_ids:
@@ -3961,7 +3990,9 @@ class CollectorHandler:
                     namespaces.add(ns)
             return [{"id": n, "name": n} for n in namespaces]
         elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
         else:
             return []

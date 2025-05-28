@@ -470,8 +470,8 @@ export default defineComponent({
           <div class='empty-wrap'>
             <div onClick={() => handleGuideClick(SearchType.Profiling)}>
               <EmptyCard
-                desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
-                title={this.$t('持续 Profiling')}
+                desc={this.t('直接进行 精准查询，定位到 Trace 详情')}
+                title={this.t('持续 Profiling')}
               >
                 {{
                   img: () => (
@@ -486,8 +486,8 @@ export default defineComponent({
             </div>
             <div onClick={() => handleGuideClick(SearchType.Upload)}>
               <EmptyCard
-                desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
-                title={this.$t('上传 Profiling')}
+                desc={this.t('可以切换到 范围查询，根据条件筛选 Trace')}
+                title={this.t('上传 Profiling')}
               >
                 {{
                   img: () => (

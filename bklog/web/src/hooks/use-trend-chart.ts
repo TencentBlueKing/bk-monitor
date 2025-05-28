@@ -51,14 +51,20 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
 
-  // const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() =>
     (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable),
   );
 
+  /**
+   * 匹配规则是否为值匹配
+   * 可选值：value、regex
+   */
+  const isGradeMatchValue = computed(() => {
+    return store.state.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
+  });
+
   let runningInterval = '1m';
-  // let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
@@ -141,8 +147,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return { interval: runningInterval };
   };
 
-  // const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
-
   // 时间向下取整
   const getIntegerTime = time => {
     if (runningInterval === '1d') {
@@ -154,16 +158,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const intervalTimestamp = getIntervalValue(runningInterval);
     return Math.floor(time / intervalTimestamp) * intervalTimestamp;
   };
-
-  // const updateSerieData = (data = [], buckets?) => {
-  //   if (buckets?.length) {
-  //     buckets.forEach(bucket => {
-  //       if (!data.some(d => d[0] === bucket.key)) {
-  //         data.push([bucket.key, 0, bucket.key_as_string]);
-  //       }
-  //     });
-  //   }
-  // };
 
   const getDefData = (buckets?) => {
     if (buckets?.length) {
@@ -191,6 +185,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const dataset = new Map<string, any>();
   let sortKeys = ['level_1', 'level_2', 'level_3', 'level_4', 'level_5', 'level_6', 'others'];
+
+  const isMatchedGroup = (group, fieldValue) => {
+    return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
+  };
+
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
 
@@ -236,13 +235,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         let isMatched = false;
 
         sortKeys.forEach(dstKey => {
-          const { group, dst, dataMap } = dataset.get(dstKey);
+          const { group, dataMap } = dataset.get(dstKey);
 
           let count = dataMap.get(key)?.[1] ?? 0;
 
           if (!isMatched) {
-            const regExp = new RegExp(group.regExp);
-            if (dstKey === 'others' || regExp.test(fieldValue)) {
+            if (dstKey === 'others' || isMatchedGroup(group, fieldValue)) {
               isMatched = true;
               count += d.doc_count ?? 0;
             }
@@ -289,7 +287,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     } else {
       options.series[0].data = data;
     }
-
+    options.color = COLOR_LIST;
     updateChart(isInit);
     opt_data.clear();
     opt_data = null;
@@ -365,7 +363,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
     if (cachedBatch === null && !batch.dblclick) {
-      cachedBatch = batch;
+      const { start_time, end_time } = store.state.indexItem;
+      cachedBatch = { startValue: start_time, endValue: end_time };
     }
 
     if (batch.startValue && batch.endValue) {
@@ -388,27 +387,30 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     chartInstance?.resize();
   });
 
+  const handleDblClick = () => {
+    if (cachedBatch !== null) {
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        dblclick: true,
+        batch: [
+          {
+            startValue: cachedBatch.startValue,
+            endValue: cachedBatch.endValue,
+            start: cachedBatch.startValue,
+            end: cachedBatch.endValue,
+          },
+        ],
+      });
+
+      cachedBatch = null;
+    }
+  };
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
 
       chartInstance.on('dataZoom', handleDataZoom);
-      chartInstance.on('dblclick', () => {
-        chartInstance.dispatchAction({
-          type: 'dataZoom',
-          dblclick: true,
-          batch: [
-            {
-              startValue: cachedBatch.startValue,
-              endValue: cachedBatch.endValue,
-              start: cachedBatch.startValue,
-              end: cachedBatch.endValue,
-            },
-          ],
-        });
-
-        cachedBatch = null;
-      });
+      target.value?.addEventListener('dblclick', handleDblClick);
 
       addListener(target.value, handleCanvasResize);
     }
@@ -417,6 +419,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
+      target.value.removeEventListener('dblclick', handleDblClick);
     }
   });
 
