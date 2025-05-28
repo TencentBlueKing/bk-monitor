@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apm.constants import OperatorGroupRelation
 from apm_web.constants import QueryMode
 from apm_web.models import (
     Application,
@@ -20,6 +19,7 @@ from apm_web.models import (
     LogServiceRelation,
 )
 from apm_web.trace.constants import EnabledStatisticsDimension
+from constants.apm import OperatorGroupRelation
 
 
 class StatusCodeSerializer(serializers.Serializer):

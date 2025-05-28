@@ -13,8 +13,8 @@ import copy
 from luqum.tree import FieldGroup, OrOperation, SearchField, Word
 from luqum.visitor import TreeTransformer
 
-from apm.constants import OperatorGroupRelation
 from constants.elasticsearch import QueryStringCharacters, QueryStringLogicOperators, QueryStringOperators
+from constants.apm import OperatorGroupRelation
 
 
 class BaseTreeTransformer(TreeTransformer):

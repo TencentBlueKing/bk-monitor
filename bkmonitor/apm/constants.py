@@ -662,14 +662,3 @@ class StatisticsProperty(Enum):
     DISTINCT_COUNT = "distinct_count"
     FIELD_COUNT = "field_count"
     MEDIAN = "median"
-
-
-class OperatorGroupRelation(str, Enum):
-    """操作符组间关系"""
-
-    AND = "AND"
-    OR = "OR"
-
-    @classmethod
-    def choices(cls):
-        return [(relation.name, relation.value) for relation in cls]
