@@ -190,9 +190,6 @@ export default defineComponent({
         query: route.query,
         params: route.params,
       });
-      // const queryStr = location.hash.match(/\?([^]*)/)?.[1] || '';
-      // const url = `${location.origin}${location.pathname}${location.search}#/trace/old${queryStr ? `?${queryStr}` : ''}`;
-      // location.href = url;
     }
 
     return {
