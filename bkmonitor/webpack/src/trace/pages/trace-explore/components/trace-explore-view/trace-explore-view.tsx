@@ -103,7 +103,7 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后触发的回调
+     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调
      * @param checkedGroup
      *
      */
@@ -112,7 +112,7 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组） 渲染方法
+     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组） 渲染方法
      *
      */
     function filtersCheckBoxGroupRender() {
@@ -126,24 +126,24 @@ export default defineComponent({
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.RootSpan}
                   v-bk-tooltips={{
-                    content: t('整个Trace的第一个Span'),
+                    content: t('整个 Trace 的第一个 Span'),
                     placement: 'top',
                     theme: 'light',
                   }}
                   label={TableCheckBoxFiltersEnum.RootSpan}
                 >
-                  {t('根Span')}
+                  {t('根 Span')}
                 </Checkbox>,
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.EntrySpan}
                   v-bk-tooltips={{
-                    content: t('每个Service的第一个Span'),
+                    content: t('每个 Service 的第一个 Span'),
                     placement: 'top',
                     theme: 'light',
                   }}
                   label={TableCheckBoxFiltersEnum.EntrySpan}
                 >
-                  {t('入口Span')}
+                  {t('入口 Span')}
                 </Checkbox>,
               ]
             : null}
@@ -179,6 +179,7 @@ export default defineComponent({
       handleScrollToTop,
       handleConditionChange,
       handleClearRetrievalFilter,
+      t,
     };
   },
   render() {
@@ -191,7 +192,7 @@ export default defineComponent({
           <ChartWrapper collapseTitle={window.i18n.t('总览')} />
         </div>
         <div class='trace-explore-view-filter'>
-          <span class='filter-label'>{this.$t('包含')}：</span>
+          <span class='filter-label'>{this.t('包含')}：</span>
           {filtersCheckBoxGroupRender()}
         </div>
         <div class='trace-explore-view-table'>

@@ -52,6 +52,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     displayFields: [
       'span_id',
       'span_name',
+      'resource.service.name',
       'start_time',
       'end_time',
       'elapsed_time',

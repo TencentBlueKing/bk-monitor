@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0211_auto_20250326_1534"),
+        ("metadata", "0210_spacerelatedstorageinfo"),
     ]
 
     operations = [

@@ -18,11 +18,11 @@
   }
 
   .aiops-dimension-line-tooltip-content {
-    min-width: 168px; 
+    min-width: 168px;
     max-height: 270px;
     padding: 0px 12px;
     overflow-y: auto;
-  
+
     // &::-webkit-scrollbar {display: none;}
     li:first-child {
       padding-top: 0px;
@@ -30,13 +30,13 @@
 
     li {
       padding: 12px 0px;
-      border-bottom: 1px solid #63656e;;
+      border-bottom: 1px solid #63656e;
     }
-  
+
     li:last-child {
       border: none;
     }
-  
+
     p {
       margin: 0px;
       line-height: 24px;
@@ -49,27 +49,27 @@
 
     .tooltip-content-label {
       // height: 22px;
-      display: box;
+      display: flex;
       margin-bottom: 6px;
 
       /* autoprefixer: on */
       overflow: hidden;
-      font-weight: 700;
-      color: #979ba5;
       text-overflow: ellipsis;
       -webkit-line-clamp: 3;
+      font-weight: 700;
+      color: #979ba5;
       word-break: break-all;
       white-space: normal;
 
       /*! autoprefixer: off */
       -webkit-box-orient: vertical;
-  
+
       &:hover {
         i:not(.hide-tips-icon) {
           visibility: visible;
         }
       }
-  
+
       i {
         visibility: hidden;
       }
@@ -89,18 +89,18 @@
     margin-bottom: 10px;
     line-height: 28px;
     color: white;
-    background-color: rgba(0, 0, 0, .8);
+    background-color: rgba(0, 0, 0, 0.8);
     border-radius: 4px;
   }
 
   .aiops-dimension-line-tooltip-warp {
-    background-color: rgba(0, 0, 0, .8);
+    background-color: rgba(0, 0, 0, 0.8);
     border-radius: 4px;
   }
 }
 
 .aiops-dimension-line-tooltip-median {
-  padding: 0px 12px; 
+  padding: 0px 12px;
   line-height: 0px;
   color: white;
 }

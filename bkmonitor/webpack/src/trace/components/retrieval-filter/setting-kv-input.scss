@@ -1,14 +1,15 @@
 .vue3_resident-setting__setting-kv-input-component {
-  .bk-input {
+  .t-input {
     min-width: 180px;
     max-width: 560px;
+    padding-left: 0px;
     border: 1px solid #dcdee5;
 
     &:hover {
       border: 1px solid #dcdee5;
     }
 
-    &.is-focused {
+    &.t-input--focused {
       outline: 0;
       border-color: #3a84ff;
       box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);

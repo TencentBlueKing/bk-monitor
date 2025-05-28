@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, shallowRef, computed, useTemplateRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { promiseTimeout, onClickOutside } from '@vueuse/core';
 
@@ -42,6 +43,7 @@ export default defineComponent({
   emits: VALUE_TAG_SELECTOR_EMITS,
   setup(props, { emit }) {
     const elRef = useTemplateRef<HTMLDivElement>('el');
+    const { t } = useI18n();
 
     const localValue = shallowRef<IValue[]>([]);
     const isShowDropDown = shallowRef(false);
@@ -174,7 +176,11 @@ export default defineComponent({
       }
       localValue.value.push({ id: inputValue.value, name: inputValue.value });
       triggerShallowRef(localValue);
-      activeIndex.value += 1;
+      if (activeIndex.value === -1 && localValue.value.length) {
+        activeIndex.value = localValue.value.length - 1;
+      } else {
+        activeIndex.value += 1;
+      }
       inputValue.value = '';
       handleChange();
       isFocus.value = true;
@@ -255,6 +261,7 @@ export default defineComponent({
       handleDelete,
       handleIsChecked,
       handleCheck,
+      t,
     };
   },
   render() {
@@ -265,7 +272,7 @@ export default defineComponent({
         class='mb-4 mr-4'
         fontSize={12}
         isFocus={this.isFocus}
-        placeholder={this.placeholder || `${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
+        placeholder={this.placeholder || `${this.t('请输入')} ${this.t('或')} ${this.t('选择')}`}
         value={this.inputValue}
         onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}
@@ -283,16 +290,19 @@ export default defineComponent({
           onClick={this.handleClick}
         >
           {this.localValue.length
-            ? this.localValue.map((item, index) => [
-                <ValueTagInput
-                  key={item.id}
-                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-                  value={item.id}
-                  onChange={v => this.handleTagUpdate(v, index)}
-                  onDelete={() => this.handleDelete(index)}
-                />,
-                this.activeIndex === index && inputRender(`${item.id}_input`),
-              ])
+            ? [
+                this.localValue.map((item, index) => [
+                  <ValueTagInput
+                    key={item.id}
+                    class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+                    value={item.id}
+                    onChange={v => this.handleTagUpdate(v, index)}
+                    onDelete={() => this.handleDelete(index)}
+                  />,
+                  this.activeIndex === index && inputRender(`${item.id}_input`),
+                ]),
+                this.activeIndex === -1 && inputRender('input'),
+              ]
             : inputRender('input')}
         </div>
         {this.isShowDropDown && (

@@ -199,6 +199,7 @@ export default defineComponent({
       handleAllAdd,
       handleSearchValueChangeDebounce,
       handleSearchValueChange,
+      t,
     };
   },
   render() {
@@ -240,12 +241,12 @@ export default defineComponent({
         <div class='component-top'>
           <div class='component-top-left'>
             <div class='top-header'>
-              <span class='header-title'>{`${this.$t('待选列表')}（${this.localFields.length}）`}</span>
+              <span class='header-title'>{`${this.t('待选列表')}（${this.localFields.length}）`}</span>
               {/* <span
                 class='header-btn'
                 onClick={this.handleAllAdd}
               >
-                {this.$t('全部添加')}
+                {this.t('全部添加')}
               </span> */}
             </div>
             <div class='content-wrap'>
@@ -256,7 +257,7 @@ export default defineComponent({
                   clearable={true}
                   left-icon='bk-icon icon-search'
                   modelValue={this.searchValue}
-                  placeholder={this.$t('请输入关键字')}
+                  placeholder={this.t('请输入关键字')}
                   onClear={() => this.handleSearchValueChange('')}
                   onInput={this.handleSearchValueChangeDebounce}
                 />
@@ -284,12 +285,12 @@ export default defineComponent({
           </div>
           <div class='component-top-right'>
             <div class='top-header'>
-              <span class='header-title'>{`${this.$t('常驻筛选')}（${this.selectedFields.length}）`}</span>
+              <span class='header-title'>{`${this.t('常驻筛选')}（${this.selectedFields.length}）`}</span>
               <span
                 class='header-btn'
                 onClick={this.handleClear}
               >
-                {this.$t('清空')}
+                {this.t('清空')}
               </span>
             </div>
             <div class='content-wrap'>
@@ -324,9 +325,9 @@ export default defineComponent({
               theme='primary'
               onClick={() => this.handleConfirm()}
             >
-              {this.$t('确定')}
+              {this.t('确定')}
             </Button>
-            <Button onClick={() => this.handleCancel()}>{this.$t('取消')}</Button>
+            <Button onClick={() => this.handleCancel()}>{this.t('取消')}</Button>
           </div>
         </div>
       </div>

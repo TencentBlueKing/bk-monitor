@@ -177,22 +177,22 @@ export const useTimeRangeInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KE
 export const useTimezoneProvider = (timezone: Ref<string>) => {
   provide(TIMEZONE_KEY, timezone);
 };
-export const useTimezoneInject = () => inject<Ref<string>>(TIMEZONE_KEY);
+export const useTimezoneInject = () => inject<Ref<string>>(TIMEZONE_KEY, undefined);
 
 export const useRefreshIntervalProvider = (refreshInterval: Ref<number>) => {
   provide(REFRESH_INTERVAL_KEY, refreshInterval);
 };
-export const useRefreshIntervalInject = () => inject<Ref<number>>(REFRESH_INTERVAL_KEY);
+export const useRefreshIntervalInject = () => inject<Ref<number>>(REFRESH_INTERVAL_KEY, undefined);
 
 export const useViewOptionsProvider = (viewOptions: IViewOptions) => {
   provide(VIEW_OPTIONS_KEY, viewOptions);
 };
-export const useViewOptionsInject = () => inject<Ref<IViewOptions>>(VIEW_OPTIONS_KEY);
+export const useViewOptionsInject = () => inject<Ref<IViewOptions>>(VIEW_OPTIONS_KEY, undefined);
 
 export const useRefreshImmediateProvider = (refreshImmediate: boolean) => {
   provide(REFRESH_IMMEDIATE_KEY, refreshImmediate);
 };
-export const useRefreshImmediateInject = () => inject<Ref<boolean>>(REFRESH_IMMEDIATE_KEY);
+export const useRefreshImmediateInject = () => inject<Ref<boolean>>(REFRESH_IMMEDIATE_KEY, undefined);
 
 export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);
@@ -204,12 +204,12 @@ export const useQueryDataProvider = (queryData: Ref<object>) => {
   provide(QUERY_DATA_KEY, queryData);
 };
 // 好像用不着
-export const useQueryDataInject = () => inject<Ref<object>>(QUERY_DATA_KEY);
+export const useQueryDataInject = () => inject<Ref<object>>(QUERY_DATA_KEY, undefined);
 
 export const useCompareTypeProvider = (compareType: PanelToolsType.CompareId) => {
   provide(COMPARE_TYPE, compareType);
 };
-export const useCompareTypeInject = () => inject<Ref<PanelToolsType.CompareId>>(COMPARE_TYPE);
+export const useCompareTypeInject = () => inject<Ref<PanelToolsType.CompareId>>(COMPARE_TYPE, undefined);
 
 export const useReadonlyProvider = (v: boolean) => {
   provide(READONLY, v);

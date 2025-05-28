@@ -24,7 +24,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.query.base import FakeQuery
+from apm.core.handlers.query.base import FakeQuery, FilterOperator
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
@@ -111,6 +111,27 @@ class QueryProxy:
     def is_trace_query_valid(self):
         return isinstance(self.trace_query, TraceQuery)
 
+    @classmethod
+    def is_trace_or_span_id_query(cls, filters: list[types.Filter], query_string: str) -> bool:
+        """判断是否是 TraceId 或 SpanId 精确查询"""
+        if not filters and not query_string:
+            return False
+
+        for filter_item in filters:
+            if all(
+                [
+                    filter_item["key"] in (OtlpKey.TRACE_ID, OtlpKey.SPAN_ID),
+                    filter_item.get("operator") == FilterOperator.EQUAL,
+                ]
+            ):
+                return True
+
+        if query_string:
+            if f'{OtlpKey.TRACE_ID}: "' in query_string or f'{OtlpKey.SPAN_ID}: "' in query_string:
+                return True
+
+        return False
+
     def query_list(
         self,
         query_mode: str,
@@ -124,6 +145,10 @@ class QueryProxy:
         sort: list[str] | None = None,
     ):
         """查询列表"""
+        if self.is_trace_or_span_id_query(filters, query_string):
+            # 如果是 TraceId 或 SpanId 精确查询，重置查询范围，默认使用应用数据过期时间。
+            start_time, end_time = None, None
+
         data, size = self.query_mode[query_mode].query_list(
             start_time, end_time, offset, limit, filters, exclude_fields, query_string, sort
         )
@@ -267,9 +292,6 @@ class QueryProxy:
                 raise ValueError(_(f"{field} topk 值查询出错"))
             topk_values.append({"field_value": field_value, "count": count})
         return topk_values
-
-    def query_total(self, query_mode, start_time, end_time, filters: list[types.Filter], query_string: str):
-        return self.query_mode[query_mode].query_total(start_time, end_time, filters, query_string)
 
     def query_field_aggregated_value(
         self,

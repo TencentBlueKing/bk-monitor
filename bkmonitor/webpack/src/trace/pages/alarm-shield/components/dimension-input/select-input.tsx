@@ -104,7 +104,7 @@ export default defineComponent({
       default: (_item, _meta, _strategy) => {},
     },
   },
-  setup(props) {
+  setup(props, { emit }) {
     const popoverRef = ref(null);
     const strategySearchRef = ref(null);
     const { t } = useI18n();
@@ -532,7 +532,7 @@ export default defineComponent({
                               size='small'
                               onChange={v => this.handleStrategyChange(v)}
                             >
-                              {[{ id: ALL, name: this.$t('全部') }, ...this.selectData.strategyList].map(item => (
+                              {[{ id: ALL, name: this.t('全部') }, ...this.selectData.strategyList].map(item => (
                                 <Radio
                                   key={item.id}
                                   label={item.id}
@@ -602,7 +602,7 @@ export default defineComponent({
                         onClick={() => this.handleDelete()}
                       >
                         <span class='icon-monitor icon-mc-delete-line' />
-                        <span>{this.$t('删除')}</span>
+                        <span>{this.t('删除')}</span>
                       </div>
                     </div>
                   </div>

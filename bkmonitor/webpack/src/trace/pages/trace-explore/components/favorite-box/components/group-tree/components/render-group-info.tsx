@@ -51,7 +51,7 @@ export default defineComponent({
     fixedSelectedFavorite: Boolean,
   },
   emits: ['toggleExpand'],
-  setup(props, context) {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const favoriteType = useFavoriteType();
     const { run: refreshGroupList, data: groupList } = useGroupList(favoriteType.value);
@@ -147,7 +147,7 @@ export default defineComponent({
     };
 
     const handleToggleExpand = () => {
-      context.emit('toggleExpand', !props.expanded);
+      emit('toggleExpand', !props.expanded);
     };
 
     const handleShowEdit = () => {

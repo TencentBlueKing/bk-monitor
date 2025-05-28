@@ -127,20 +127,20 @@ export interface IMealData {
 }
 
 export const templateSignalName = {
-  abnormal: window.i18n.tc('告警触发时'),
-  recovered: window.i18n.tc('告警恢复时'),
-  closed: window.i18n.tc('告警关闭时'),
-  ack: window.i18n.tc('告警确认时'),
+  abnormal: window.i18n.t('告警触发时'),
+  recovered: window.i18n.t('告警恢复时'),
+  closed: window.i18n.t('告警关闭时'),
+  ack: window.i18n.t('告警确认时'),
 };
 
 export const executionName = {
-  1: window.i18n.tc('高危'),
-  2: window.i18n.tc('谨慎'),
-  3: window.i18n.tc('普通'),
+  1: window.i18n.t('高危'),
+  2: window.i18n.t('谨慎'),
+  3: window.i18n.t('普通'),
 };
 export const intervalModeName = {
-  standard: window.i18n.tc('固定'),
-  increasing: window.i18n.tc('递增'),
+  standard: window.i18n.t('固定'),
+  increasing: window.i18n.t('递增'),
 };
 
 // 敏感度
@@ -537,21 +537,21 @@ export const timeTransform = (timeValue: number | string | unknown, isToStr = fa
     const time = Number(cur);
     if (minIsMinute) {
       if (index === 0) {
-        acc += time * 60;
+        return acc + time * 60;
       }
       if (index === 1) {
-        acc += time;
+        return acc + time;
       }
-    } else {
-      if (index === 0) {
-        acc += time * 60 * 60;
-      }
-      if (index === 1) {
-        acc += time * 60;
-      }
-      if (index === 2) {
-        acc += time;
-      }
+      return acc;
+    }
+    if (index === 0) {
+      return acc + time * 60 * 60;
+    }
+    if (index === 1) {
+      return acc + time * 60;
+    }
+    if (index === 2) {
+      return acc + time;
     }
     return acc;
   }, 0);

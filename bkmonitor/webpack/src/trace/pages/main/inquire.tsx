@@ -145,7 +145,7 @@ export default defineComponent({
       isAlreadyAccurateQuery: false,
       isAlreadyScopeQuery: false,
       /** 最近一次检索的应用 */
-      cacheQueryAppName: localStorage.getItem('trace_query_app') || '',
+      cacheQueryAppName: (route.query.app_name as string) || localStorage.getItem('trace_query_app') || '',
     });
     // 自定义筛选列表
     const conditionFilter = [];
