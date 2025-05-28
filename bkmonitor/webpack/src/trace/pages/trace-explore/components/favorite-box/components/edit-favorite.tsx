@@ -45,7 +45,7 @@ export default defineComponent({
   name: 'EditFavorite',
   props: {
     data: {
-      type: Object as PropType<IFavoriteGroup['favorites'][number]>,
+      type: Object as PropType<IFavoriteGroup['favorites'][number] | null>,
       required: true,
     },
     isShow: {
@@ -115,7 +115,7 @@ export default defineComponent({
         {
           validator: (value: string) => {
             const favorite = _.find(allFavoriteList.value, item => item.name === value);
-            return !favorite || favorite.id === props.data.id;
+            return !favorite || favorite.id === props.data?.id;
           },
           message: t('注意: 名字冲突'),
           trigger: 'blur',
@@ -138,7 +138,7 @@ export default defineComponent({
         await formRef.value.validate();
         if (props.isCreate) {
           await createFavorite({
-            ...props.data,
+            ...(props.data || {}),
             type: favoriteType.value,
             name: formData.name,
             group_id: formData.group_id === 'null' || formData.group_id === '' ? null : formData.group_id,

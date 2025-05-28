@@ -138,7 +138,7 @@ export default defineComponent({
     const { handleSliderClose } = this;
     return (
       <Sideslider
-        width={this.fullscreen ? '100%' : '80%'}
+        width={this.fullscreen ? '100%' : '85%'}
         class='explore-trace-slider'
         v-slots={{
           header: () => (

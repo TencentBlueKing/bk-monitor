@@ -587,7 +587,7 @@ export default defineComponent({
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
           colKey: 'trace_id',
-          title: t('Trace ID'),
+          title: 'Trace ID',
           width: 240,
           fixed: 'left',
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
