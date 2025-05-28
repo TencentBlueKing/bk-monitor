@@ -334,7 +334,7 @@ export default defineComponent({
           >
             {{
               value: DURATION_KEYS.includes(item.key.id)
-                ? () => <span class='value-name'>{this.getDurationDisplay(item.value.map(item => item.id))}</span>
+                ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
                 : undefined,
             }}
           </KvTag>
