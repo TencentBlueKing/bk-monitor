@@ -39,14 +39,20 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
-import { random } from 'monitor-common/utils';
+import { copyText, random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
+import {
+  EMode,
+  type IWhereItem,
+  type IGetValueFnParams,
+  EMethod,
+  EFieldType,
+} from '../../components/retrieval-filter/typing';
 import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
   mergeWhereList,
@@ -151,8 +157,11 @@ export default defineComponent({
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
       return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
     });
+    /* 默认设置筛选字段 */
     const defaultResidentSetting = computed(() => {
-      return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
+      return store.mode === 'span'
+        ? store.currentApp?.view_config?.span_config?.resident_setting || SPAN_DEFAULT_RESIDENT_SETTING_KEY
+        : store.currentApp?.view_config?.trace_config?.resident_setting || TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
     const appName = computed(() => store.appName);
     /** 当前应用是否开启 profiling 功能 */
@@ -613,6 +622,47 @@ export default defineComponent({
       handleQuery();
     }
 
+    async function handleCopyWhereQueryString(whereParams: IWhereItem[]) {
+      const filters = whereParams.map(item => {
+        if (item.key === '*') {
+          return {
+            ...item,
+            options: {},
+          };
+        }
+        const type = fieldList.value.find(v => v.name === item.key)?.type || 'keyword';
+        return {
+          ...item,
+          value: [EFieldType.integer, EFieldType.long].includes(type as EFieldType)
+            ? item.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : item.value,
+        };
+      });
+      if (filters.length) {
+        const copyStr = await traceGenerateQueryString({
+          filters,
+        }).catch(() => {
+          return '';
+        });
+        if (copyStr) {
+          copyText(copyStr, msg => {
+            Message({
+              message: msg,
+              theme: 'error',
+            });
+            return;
+          });
+          Message({
+            message: t('复制成功'),
+            theme: 'success',
+          });
+        }
+      }
+    }
+
     return {
       t,
       traceExploreLayoutRef,
@@ -664,6 +714,7 @@ export default defineComponent({
       handleEditFavoriteShow,
       handleCreateApp,
       handleClearRetrievalFilter,
+      handleCopyWhereQueryString,
     };
   },
   render() {
@@ -715,6 +766,7 @@ export default defineComponent({
                 selectFavorite={this.currentFavorite}
                 where={this.where}
                 onCommonWhereChange={this.handleCommonWhereChange}
+                onCopyWhere={this.handleCopyWhereQueryString}
                 onFavorite={this.handleFavoriteSave}
                 onModeChange={this.handleFilterModeChange}
                 onQueryStringChange={this.handleQueryStringChange}
