@@ -293,15 +293,25 @@ const MonitorTraceLog = () =>
   );
 // #endif
 
-const getRoutes = (spaceId, bkBizId) => {
-  const defRouteName = window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true' ? 'manage' : 'retrieve';
+const getRoutes = (spaceId, bkBizId, externalMenu) => {
+  const getDefRouteName = () => {
+    if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
+      if (externalMenu?.includes('retrieve')) {
+        return 'retrieve';
+      }
+
+      return 'manage';
+    }
+
+    return 'retrieve';
+  };
 
   return [
     {
       path: '',
       redirect: () => {
         return {
-          name: defRouteName,
+          name: getDefRouteName(),
           query: {
             spaceUid: spaceId,
             bizId: bkBizId,
@@ -1129,8 +1139,8 @@ export function getRouteConfigById(id, space_uid, bk_biz_id) {
   return flatConfig.find(item => item.meta?.navId === id);
 }
 
-export default (spaceId, bkBizId) => {
-  const routes = getRoutes(spaceId, bkBizId);
+export default (spaceId, bkBizId, externalMenu) => {
+  const routes = getRoutes(spaceId, bkBizId, externalMenu);
   const router = new VueRouter({
     routes,
   });
