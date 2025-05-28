@@ -395,8 +395,6 @@
     popover?.hideHandler()
   }
   const onlyOptionShow =  (parentIndex,childIndex,item)=>{
-    console.log(item);
-    
     if(!item.showList || item.showList.length !== item.value.length){
       set(item, 'showList', new Array(item.value.length).fill(true))
     }
