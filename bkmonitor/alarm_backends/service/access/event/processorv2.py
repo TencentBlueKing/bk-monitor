@@ -39,6 +39,7 @@ from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
 from alarm_backends.service.access.priority import PriorityChecker
+from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -281,7 +282,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
-        offset = min([total_events, 10000])
+        offset = min([total_events, MAX_RETRIEVE_NUMBER])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
             return []
@@ -291,6 +292,12 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
         if records:
             client.ltrim(data_channel, 0, -offset - 1)
+        if offset == MAX_RETRIEVE_NUMBER:
+            # 队列中时间量级超过单次处理上限。
+            logger.info("data_id(%s) topic(%s) run_access_event_handler_v2 immediately", self.data_id, self.topic)
+            from alarm_backends.service.access.tasks import run_access_event_handler_v2
+
+            run_access_event_handler_v2.delay(self.data_id)
         return records
 
     def get_pull_type(self):
