@@ -165,9 +165,7 @@ export default defineComponent({
     });
     const appName = computed(() => store.appName);
     /** 当前应用是否开启 profiling 功能 */
-    const enableProfiling = computed(
-      () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
-    );
+    const enableProfiling = computed(() => !!store?.currentApp?.is_enabled_profiling);
     /* 过滤栏组件无需拉取枚举值的field */
     const notSupportEnumKeys = computed(() => {
       return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
