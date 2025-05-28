@@ -479,10 +479,9 @@ export default defineComponent({
             {{
               default: () => (
                 <Input
-                  modelValue={this.localValue}
+                  v-model={this.localValue}
                   placeholder={this.t('请选择维度')}
-                  onInput={this.handleInput}
-                  onUpdate:modelValue={v => (this.localValue = v)}
+                  onChange={this.handleInput}
                 />
               ),
               content: () =>
