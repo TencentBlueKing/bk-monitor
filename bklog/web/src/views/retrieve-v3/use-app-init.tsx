@@ -191,10 +191,19 @@ export default () => {
         if (!indexSetIdList.value.length) {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
-            store.commit('updateIndexItem', { ids: lastIndexSetIds });
-            store.commit('updateStorage', {
-              [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: lastIndexSetIds.length > 1 ? 'union' : 'single',
-            });
+            const validateIndexSetIds = lastIndexSetIds.filter(id =>
+              resp[1].some(item => `${item.index_set_id}` === `${id}`),
+            );
+            if (validateIndexSetIds.length) {
+              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
+              });
+            } else {
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+              });
+            }
           }
         }
 
@@ -232,7 +241,17 @@ export default () => {
           }
         }
 
-        const indexId =
+        if (!indexSetIdList.value.length) {
+          const defaultId = [resp[1][0]?.index_set_id];
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+          }
+        }
+
+        let indexId =
           store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
             ? store.state.indexItem.ids[0]
             : undefined;
@@ -249,7 +268,7 @@ export default () => {
           }
 
           if (type === 'union') {
-            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [...unionList] });
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [...(unionList ?? [])] });
           }
 
           store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
