@@ -119,7 +119,9 @@ export const request = (method, url) => {
           const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
           try {
             message.detail = message?.detail ? JSON.parse(message.detail) : undefined;
-          } catch {}
+          } catch (e) {
+            console.log(e);
+          }
           if (message && config.needMessage) {
             bkMessage(message);
           }
@@ -173,7 +175,9 @@ export const request = (method, url) => {
         const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
         try {
           message.detail = message?.detail ? JSON.parse(message.detail) : undefined;
-        } catch {}
+        } catch (e) {
+          console.log(e);
+        }
         if (message && config.needMessage && !noMessageCode.includes(err.code)) {
           bkMessage(message);
         }
