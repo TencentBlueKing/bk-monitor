@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
@@ -273,13 +273,13 @@ export default () => {
 
           store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
 
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
           store.dispatch('requestIndexSetFieldInfo').then(() => {
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
             store.dispatch('requestIndexSetQuery').then(() => {
               RetrieveHelper.setSearchingValue(false);
             });
-            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         }
 
