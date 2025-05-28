@@ -330,6 +330,7 @@ export default defineComponent({
                   class='icon-monitor icon-a-sousuo'
                   v-bk-tooltips={{
                     content: `${localField.value} = ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('equal', item)}
                 />
@@ -337,6 +338,7 @@ export default defineComponent({
                   class='icon-monitor icon-sousuo-'
                   v-bk-tooltips={{
                     content: `${localField.value} != ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('not_equal', item)}
                 />
