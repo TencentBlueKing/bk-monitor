@@ -535,7 +535,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
-        ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
         (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
