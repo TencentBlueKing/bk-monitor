@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
 from rest_framework import serializers
 
@@ -18,6 +18,8 @@ from core.drf_resource import APIResource
 
 
 class BkUserApiResource(APIResource):
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
     def use_apigw(self):
         """
         是否使用apigw
@@ -86,7 +88,7 @@ class GetAllUserResource(BkUserApiResource):
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
             return []
-        return super(GetAllUserResource, self).perform_request(params)
+        return super().perform_request(params)
 
 
 class ListDepartmentsResource(BkUserApiResource):
@@ -253,3 +255,26 @@ class GetUserSensitiveInfo(UnityUserBaseResource):
     class RequestSerializer(serializers.Serializer):
         usernames = serializers.CharField(required=True)
         fields = serializers.CharField(required=True)
+
+
+class BatchLookupVirtualUserResource(BkUserApiResource):
+    """
+    批量查询虚拟用户
+    """
+
+    action = "/api/v3/open/tenant/virtual-users/-/lookup/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        lookup_field = serializers.ChoiceField(choices=["bk_username", "login_name"])
+        # 精确查询的值（可以为 bk_username、login_name），多个以逗号分隔，限制数量为 100，每个值最大输入长度为 64
+        lookups = serializers.CharField()
+
+
+class ListCommonUserResource(BkUserApiResource):
+    """
+    查询公共用户列表
+    """
+
+    action = "/api/v3/open/tenant/common-variables/"
+    method = "GET"
