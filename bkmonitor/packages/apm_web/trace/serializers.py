@@ -172,4 +172,7 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
 
 
 class TraceGenerateQueryStringRequestSerializer(serializers.Serializer):
-    filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])
+    class QueryStringFilterSerializer(FilterSerializer):
+        value = serializers.ListSerializer(label="查询值", child=serializers.JSONField(), allow_empty=True)
+
+    filters = serializers.ListSerializer(label="查询条件", child=QueryStringFilterSerializer(), default=[])
