@@ -47,7 +47,7 @@
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label>高亮</label>
+            <label>{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
