@@ -113,7 +113,6 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.IS_EXTERNAL = true;
     mountedVueInstance();
     Vue.config.devtools = true;
   });
