@@ -875,9 +875,6 @@ const store = new Vuex.Store({
     initMonitorState(state, payload) {
       Object.assign(state, payload);
     },
-    resetState(state) {
-      Object.assign(state, deepClone(stateTpl));
-    },
     updateLocalSort(state, payload) {
       state.localSort = payload;
     },

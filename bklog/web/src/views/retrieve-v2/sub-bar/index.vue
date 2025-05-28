@@ -1,9 +1,6 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, defineComponent } from 'vue';
   import { bkMessage } from 'bk-magic-vue';
-
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -13,11 +10,24 @@
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
+  // #else
+  // #code const TimeSetting = () => null;
+  // #code const FieldSetting = () => null;
+  // #code const VersionSwitch = () => null;
+  // #code const ClusterSetting = () => null;
+  // #code const BarGlobalSetting = () => null;
+  // #code const MoreSetting = () => null;
+  // #code const WarningSetting = () => null;
+  // #endif
+
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import * as authorityMap from '@/common/authority-map';
@@ -51,6 +61,9 @@
     return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
   });
 
+  /** 是否是监控组件 */
+  const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
+
   const spaceUid = computed(() => store.state.spaceUid);
 
   const textDir = computed(() => {
@@ -67,23 +80,41 @@
 
   const isExternal = computed(() => store.state.isExternal);
 
-  const isFieldSettingShow = computed(() => {
-    return !store.getters.isUnionSearch && !isExternal.value;
-  });
+    const setRouteParams = (ids, isUnionIndex) => {
+      const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
+
+      if (isUnionIndex) {
+        router.replace({
+          params: {
+            ...route.params,
+            indexId: undefined,
+          },
+          query: {
+            ...route.query,
+            ...queryTab,
+            unionList: JSON.stringify(ids),
+            clusterParams: undefined,
+            [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+            [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+          },
+        });
+
+        return;
+      }
 
   const setRouteParams = (ids, isUnionIndex) => {
-    const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
-
     if (isUnionIndex) {
       router.replace({
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
         params: {
           ...route.params,
           indexId: undefined,
         },
+        // #endif
         query: {
           ...route.query,
           ...queryTab,
-          unionList: JSON.stringify(ids),
+          unionList: undefined,
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
           [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
@@ -94,13 +125,17 @@
     }
 
     router.replace({
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       params: {
         ...route.params,
         indexId: ids[0],
       },
+      // #endif
       query: {
         ...route.query,
-        ...queryTab,
+        // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+        indexId: ids[0],
+        // #endif
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -126,20 +161,34 @@
 
     Object.assign(query, resolver.resolveParamsToUrl());
 
-    router.replace({
-      query,
-    });
-  };
+        store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+        store.commit('updateIndexItem', payload);
 
   const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
       RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
 
+      setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
       store.commit('updateIndexItem', payload);
 
-      if (!payload.isUnionIndex) {
-        store.commit('updateIndexId', payload.ids[0]);
+        store.dispatch('requestIndexSetFieldInfo').then(() => {
+          store.dispatch('requestIndexSetQuery');
+        });
+
+        setRouteParams(payload.ids, payload.isUnionIndex);
+      }
+    };
+
+    const updateSearchParam = payload => {
+      const { keyword, addition, ip_chooser, search_mode } = payload;
+      const foramtAddition = (addition ?? []).map(item => {
+        const instance = new ConditionOperator(item);
+        return instance.formatApiOperatorToFront();
+      });
+
+      if (Object.keys(ip_chooser).length) {
+        foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
       }
 
       store.commit('updateSqlQueryFieldList', []);
@@ -151,8 +200,79 @@
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
+    };
 
-      setRouteParams(payload.ids, payload.isUnionIndex);
+    const handleActiveTypeChange = type => {
+      const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
+      if (['union', 'single'].includes(type)) {
+        Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+        store.commit('updateIndexItem', {
+          isUnionIndex: type === 'union',
+        });
+      }
+
+      store.commit('updateStorage', storage);
+    };
+
+    const handleIndexSetValueChange = (values, type, id) => {
+      const storage = {};
+      if (['single', 'union'].includes(type)) {
+        store.commit('updateIndexItem', {
+          isUnionIndex: type === 'union',
+        });
+
+        if (type === 'union') {
+          store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
+        }
+
+        Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+      }
+
+      if ('favorite' === indexSetTab.value) {
+        Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: id, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+      }
+
+      if ('history' === indexSetTab.value) {
+        Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
+      }
+
+      store.commit('updateStorage', storage);
+      const items = indexSetList.value.filter(item => (values ?? []).includes(item.index_set_id));
+      handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union', items });
+    };
+
+    const handleAuthRequest = item => {
+      try {
+        store
+          .dispatch('getApplyData', {
+            action_ids: [authorityMap.SEARCH_LOG_AUTH],
+            resources: [
+              {
+                type: 'indices',
+                id: item.index_set_id,
+              },
+            ],
+          })
+          .then(res => {
+            window.open(res.data.apply_url);
+          });
+      } catch (err) {
+        console.warn(err);
+      }
+    };
+
+    /**
+     * @description: 打开 索引集配置 抽屉页
+     */
+    function handleIndexConfigSliderOpen() {
+      if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+        fieldSettingRef.value?.handleShowSlider?.();
+      } else {
+        bkMessage({
+          theme: 'primary',
+          message: '第三方ES、计算平台索引集类型不支持自定义分词',
+        });
+      }
     }
   };
 
@@ -205,10 +325,6 @@
         isUnionIndex: type === 'union',
       });
 
-      if (type === 'union') {
-        store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
-      }
-
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
     }
 
@@ -219,10 +335,8 @@
     if ('history' === indexSetTab.value) {
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
     }
-
     store.commit('updateStorage', storage);
-    const items = indexSetList.value.filter(item => (values ?? []).includes(item.index_set_id));
-    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union', items });
+    handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union' });
   };
 
   const handleAuthRequest = item => {
@@ -279,8 +393,10 @@
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
-
-    <div class="box-right-option">
+    <div
+      v-if="!isMonitorComponent"
+      class="box-right-option"
+    >
       <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"

@@ -24,18 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, defineComponent } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
+
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
-import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
-import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
-import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+// #else
+// #code const GraphAnalysis = () => null
+// #endif
+import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+// #else
+// #code const SearchResultTab = () => null;
+// #endif
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-result-container',
-  setup(_, {}) {
+  name: 'V3ResultContainer',
+  setup() {
     const router = useRouter();
     const route = useRoute();
 
@@ -71,9 +82,9 @@ export default defineComponent({
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}
-        ></SearchResultTab>
+        />
         {showAnalysisTab.value ? (
-          <GraphAnalysis></GraphAnalysis>
+          <GraphAnalysis />
         ) : (
           <SearchResultPanel
             active-tab={activeTab.value}
@@ -82,7 +93,7 @@ export default defineComponent({
                 'update:active-tab': v => handleTabChange(v, true),
               },
             }}
-          ></SearchResultPanel>
+          />
         )}
       </div>
     );

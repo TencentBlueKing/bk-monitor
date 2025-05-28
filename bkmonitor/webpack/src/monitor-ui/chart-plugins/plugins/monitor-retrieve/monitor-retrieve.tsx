@@ -28,7 +28,7 @@ import { Component, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  MonitorRetrieve as Log,
+  MonitorApmLog as Log,
   initMonitorState,
   initGlobalComponents,
   logStore,
@@ -43,7 +43,7 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
 
-export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId'];
+export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId', 'unionList'];
 @Component
 export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;

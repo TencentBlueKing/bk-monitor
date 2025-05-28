@@ -2,25 +2,22 @@
   import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import { throttle } from 'lodash';
 
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
-  import { throttle } from 'lodash';
-
-  // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
+
+  // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
   import LogClustering from './log-clustering/index';
+  // #else
+  // #code const LogClustering = () => null;
   // #endif
 
-  // #else
-  // #code const SearchResultChart = defineComponent(() => h('div'));
-  // #code const FieldFilter = defineComponent(() => h('div'));
-  // #code const LogClustering = defineComponent(() => h('div'));
-  // #endif
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import LogResult from './log-result/index';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -117,7 +114,6 @@
     <template v-else>
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
-          :value="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
@@ -131,8 +127,9 @@
             onWidthChange: handleFilterWidthChange,
           }"
           v-show="isOriginShow"
-          :width="fieldFilterWidth"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
+          :value="isShowFieldStatistics"
+          :width="fieldFilterWidth"
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
@@ -141,8 +138,8 @@
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
-          :class="RetrieveHelper.randomTrendGraphClassName"
           v-show="isOriginShow"
+          :class="RetrieveHelper.randomTrendGraphClassName"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"
           @toggle-change="handleToggleChange"
