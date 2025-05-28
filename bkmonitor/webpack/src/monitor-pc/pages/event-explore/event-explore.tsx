@@ -34,6 +34,7 @@ import { copyText, Debounce, deepClone } from 'monitor-common/utils';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
   ECondition,
+  EFieldType,
   EMethod,
   EMode,
   mergeWhereList,
@@ -530,8 +531,21 @@ export default class EventExplore extends tsc<
   }
 
   async handleCopyWhere(where) {
+    const whereParams = where.map(w => {
+      const type = this.fieldList.find(item => item.name === w.key)?.type;
+      return {
+        ...w,
+        value:
+          EFieldType.integer === type
+            ? w.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : w.value,
+      };
+    });
     const copyStr = await eventGenerateQueryString({
-      where,
+      where: whereParams,
     }).catch(() => {
       return '';
     });
