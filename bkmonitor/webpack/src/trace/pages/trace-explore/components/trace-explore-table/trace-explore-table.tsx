@@ -206,8 +206,8 @@ export default defineComponent({
       }
     );
 
-    /** table 显示列配置 */
-    const displayColumnFields = deepRef<string[]>([]);
+    /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
+    const customDisplayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -247,9 +247,21 @@ export default defineComponent({
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** table 列配置本地缓存时的 key */
-    const displayColumnFieldsCacheKey = computed(
+    const customDisplayColumnFieldsCacheKey = computed(
       () => `${props.mode}_${props.appName}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
     );
+    /** table 显示列配置 */
+    const displayColumnFields = computed(() => {
+      // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
+      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
+      const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
+      // 需要展示的字段列名数组
+      return customDisplayColumnFields.value?.length
+        ? customDisplayColumnFields.value
+        : applicationColumnConfig?.length
+          ? applicationColumnConfig
+          : ((defaultColumnsConfig?.displayFields || []) as string[]);
+    });
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
     /** table 数据（所有请求返回的数据） */
@@ -387,9 +399,9 @@ export default defineComponent({
     });
 
     watch(
-      () => displayColumnFieldsCacheKey.value,
+      () => customDisplayColumnFieldsCacheKey.value,
       () => {
-        getDisplayColumnFields();
+        getCustomDisplayColumnFields();
       }
     );
 
@@ -418,7 +430,7 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      getDisplayColumnFields();
+      getCustomDisplayColumnFields();
       debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
@@ -706,14 +718,11 @@ export default defineComponent({
      * @description: 获取 table 表格列配置
      *
      */
-    async function getDisplayColumnFields() {
+    async function getCustomDisplayColumnFields() {
+      customDisplayColumnFields.value = [];
       if (!props.appName || !props.mode) return;
-      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
-      const cacheColumns = (await handleGetUserConfig<string[]>(displayColumnFieldsCacheKey.value)) || [];
-      // 需要展示的字段列名数组
-      displayColumnFields.value = cacheColumns?.length
-        ? cacheColumns
-        : ((defaultColumnsConfig?.displayFields || []) as string[]);
+      customDisplayColumnFields.value =
+        (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || [];
     }
 
     /**
@@ -839,7 +848,7 @@ export default defineComponent({
      *
      */
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
-      displayColumnFields.value = displayFields;
+      customDisplayColumnFields.value = displayFields;
       // 缓存列配置
       handleSetUserConfig(JSON.stringify(displayFields));
     }
@@ -957,36 +966,6 @@ export default defineComponent({
     }
 
     /**
-     * @description traceId详情抽屉 渲染方法
-     *
-     */
-    // function traceSliderRender() {
-    //   return (
-    //     <ExploreTraceSlider
-    //       appName={props.appName}
-    //       isShow={sliderMode.value === 'trace'}
-    //       traceId={activeSliderId.value}
-    //       onSliderClose={() => handleSliderShowChange('', '')}
-    //     />
-    //   );
-    // }
-
-    // /**
-    //  * @description spanId详情抽屉 渲染方法
-    //  *
-    //  */
-    // function spanSliderRender() {
-    //   return (
-    //     <ExploreSpanSlider
-    //       appName={props.appName}
-    //       isShow={sliderMode.value === 'span'}
-    //       spanId={activeSliderId.value}
-    //       onSliderClose={() => handleSliderShowChange('', '')}
-    //     />
-    //   );
-    // }
-
-    /**
      * @description 字段分析组件渲染方法
      *
      */
@@ -998,7 +977,6 @@ export default defineComponent({
           ref='statisticsListRef'
           commonParams={props.commonParams}
           fieldType={fieldOptions?.type}
-          isDimensions={fieldOptions?.is_dimensions}
           isShow={showStatisticsPopover.value}
           selectField={fieldOptions?.name}
           onConditionChange={handleConditionChange}
