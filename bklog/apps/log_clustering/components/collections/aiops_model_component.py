@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
@@ -66,7 +66,8 @@ class CreateModelComponent(Component):
     bound_service = CreateModelService
 
 
-class CreateModel(object):
+# 可以删
+class CreateModel:
     def __init__(self, model_name: str):
         self.create_model = ServiceActivity(component_code="create_model", name=f"create_model:{model_name}")
         self.create_model.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
@@ -95,7 +96,8 @@ class UpdateTrainingScheduleComponent(Component):
     bound_service = UpdateTrainingScheduleService
 
 
-class UpdateTrainingSchedule(object):
+# 可以删
+class UpdateTrainingSchedule:
     def __init__(self, model_name: str):
         self.update_training_schedule = ServiceActivity(
             component_code="update_training_schedule", name=f"update_training_schedule:{model_name}"
@@ -129,7 +131,8 @@ class CreateExperimentComponent(Component):
     bound_service = CreateExperimentService
 
 
-class CreateExperiment(object):
+# 可以删
+class CreateExperiment:
     def __init__(self, experiment_alias: str):
         self.create_experiment = ServiceActivity(
             component_code="create_experiment", name=f"create_experiment:{experiment_alias}"
@@ -175,7 +178,8 @@ class UpdateExecuteConfigComponent(Component):
     bound_service = UpdateExecuteConfigService
 
 
-class UpdateExecuteConfig(object):
+# 可以删
+class UpdateExecuteConfig:
     def __init__(self, experiment_alias: str):
         self.update_execute_config = ServiceActivity(
             component_code="update_execute_config", name=f"update_execute_config:{experiment_alias}"
@@ -185,6 +189,7 @@ class UpdateExecuteConfig(object):
         self.update_execute_config.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
+# 可以删
 class SampleSetLoadingService(BaseService):
     name = _("执行样本准备")
     __need_schedule__ = True
@@ -223,7 +228,7 @@ class SampleSetLoadingService(BaseService):
             step_name=StepName.SAMPLE_LOADING, node_id_list=node_id_list, model_id=model_id, experiment_id=experiment_id
         )
         if get_execute_status_result["step_status"] == "failed":
-            raise Exception("poll execute status return failed: {}".format(get_execute_status_result))
+            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
         if get_execute_status_result["step_status"] == "finished":
             experiment_model.status = StepName.SAMPLE_LOADING
             experiment_model.save()
@@ -231,13 +236,15 @@ class SampleSetLoadingService(BaseService):
         return True
 
 
+# 可以删
 class SampleSetLoadingComponent(Component):
     name = "SampleSetLoading"
     code = "sample_set_loading"
     bound_service = SampleSetLoadingService
 
 
-class SampleSetLoading(object):
+# 可以删
+class SampleSetLoading:
     def __init__(self, experiment_alias: str):
         self.sample_set_loading = ServiceActivity(
             component_code="sample_set_loading", name=f"sample_set_loading:{experiment_alias}"
@@ -247,6 +254,7 @@ class SampleSetLoading(object):
         self.sample_set_loading.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
+# 可以删
 class SampleSetPreparationService(BaseService):
     name = _("执行样本切分")
     __need_schedule__ = True
@@ -285,7 +293,7 @@ class SampleSetPreparationService(BaseService):
             experiment_id=experiment_id,
         )
         if get_execute_status_result["step_status"] == "failed":
-            raise Exception("poll execute status return failed: {}".format(get_execute_status_result))
+            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
         if get_execute_status_result["step_status"] == "finished":
             experiment_model.status = StepName.SAMPLE_PREPARATION
             experiment_model.save()
@@ -293,13 +301,15 @@ class SampleSetPreparationService(BaseService):
         return True
 
 
+# 可以删
 class SampleSetPreparationComponent(Component):
     name = "SampleSetPreparation"
     code = "sample_set_preparation"
     bound_service = SampleSetPreparationService
 
 
-class SampleSetPreparation(object):
+# 可以删
+class SampleSetPreparation:
     def __init__(self, experiment_alias: str):
         self.sample_set_preparation = ServiceActivity(
             component_code="sample_set_preparation", name=f"sample_set_preparation:{experiment_alias}"
@@ -310,6 +320,7 @@ class SampleSetPreparation(object):
         )
 
 
+# 可以删
 class ModelTrainService(BaseService):
     name = _("执行模型训练")
     __need_schedule__ = True
@@ -362,7 +373,7 @@ class ModelTrainService(BaseService):
         experiment_id = experiment_model.experiment_id
         training_status_result = AiopsModelHandler().training_status(model_id=model_id, experiment_id=experiment_id)
         if training_status_result["step_status"] == "failed":
-            raise Exception("poll execute status return failed: {}".format(training_status_result))
+            raise Exception(f"poll execute status return failed: {training_status_result}")
         if training_status_result["step_status"] == "finished":
             experiment_model.status = StepName.MODEL_TRAIN
             experiment_model.save()
@@ -370,13 +381,15 @@ class ModelTrainService(BaseService):
         return True
 
 
+# 可以删
 class ModelTrainComponent(Component):
     name = "ModelTrain"
     code = "model_train"
     bound_service = ModelTrainService
 
 
-class ModelTrain(object):
+# 可以删
+class ModelTrain:
     def __init__(self, experiment_alias: str):
         self.model_train = ServiceActivity(component_code="model_train", name=f"model_train:{experiment_alias}")
         self.model_train.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
@@ -389,6 +402,7 @@ class ModelTrain(object):
         self.model_train.component.inputs.is_case_sensitive = Var(type=Var.SPLICE, value="${is_case_sensitive}")
 
 
+# 可以删
 class ModelEvaluationService(BaseService):
     name = _("执行模型评估")
     __need_schedule__ = True
@@ -421,7 +435,7 @@ class ModelEvaluationService(BaseService):
             model_id=model_id, experiment_id=experiment_id
         )
         if get_execute_status_result["step_status"] == "failed":
-            raise Exception("poll execute status return failed: {}".format(get_execute_status_result))
+            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
         if get_execute_status_result["step_status"] == "finished":
             experiment_model.status = StepName.MODEL_EVALUATION
             basic_model, *_ = get_execute_status_result["list"]
@@ -431,13 +445,15 @@ class ModelEvaluationService(BaseService):
         return True
 
 
+# 可以删
 class ModelEvaluationComponent(Component):
     name = "ModelEvaluation"
     code = "model_valuation"
     bound_service = ModelEvaluationService
 
 
-class ModelEvaluation(object):
+# 可以删
+class ModelEvaluation:
     def __init__(self, experiment_alias: str):
         self.model_valuation = ServiceActivity(
             component_code="model_valuation", name=f"model_valuation:{experiment_alias}"
@@ -474,7 +490,8 @@ class BasicModelEvaluationResultComponent(Component):
     bound_service = BasicModelEvaluationResultService
 
 
-class BasicModelEvaluationResult(object):
+# 可以删
+class BasicModelEvaluationResult:
     def __init__(self, experiment_alias: str):
         self.basic_model_evaluation_result = ServiceActivity(
             component_code="basic_model_evaluation_result", name=f"basic_model_evaluation_result:{experiment_alias}"
@@ -510,7 +527,8 @@ class CommitComponent(Component):
     bound_service = CommitService
 
 
-class CommitResult(object):
+# 可以删
+class CommitResult:
     def __init__(self, experiment_alias: str):
         self.commit = ServiceActivity(component_code="commit", name=f"commit:{experiment_alias}")
         self.commit.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
@@ -547,7 +565,8 @@ class ReleaseComponent(Component):
     bound_service = ReleaseService
 
 
-class Release(object):
+# 可以删
+class Release:
     def __init__(self, experiment_alias: str):
         self.release = ServiceActivity(component_code="release", name=f"release:{experiment_alias}")
         self.release.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
@@ -576,7 +595,8 @@ class SyncPatternComponent(Component):
     bound_service = SyncPatternService
 
 
-class SyncPattern(object):
+# 可以删
+class SyncPattern:
     def __init__(self, model_name: str):
         self.sync_pattern = ServiceActivity(component_code="sync_pattern", name=f"sync_pattern:{model_name}")
         self.sync_pattern.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
@@ -616,7 +636,7 @@ class CloseContinuousTrainingComponent(Component):
     bound_service = CloseContinuousTrainingService
 
 
-class CloseContinuousTraining(object):
+class CloseContinuousTraining:
     def __init__(self, experiment_alias: str):
         self.close_continuous_training = ServiceActivity(
             component_code="close_continuous_training", name=f"close_continuous_training:{experiment_alias}"

@@ -91,6 +91,7 @@ class ClusteringConfigHandler:
     def retrieve(self):
         return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
 
+    # 可以删
     def start(self):
         from apps.log_clustering.handlers.pipline_service.aiops_service import (
             operator_aiops_service,

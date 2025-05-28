@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
@@ -60,7 +60,8 @@ class CreateSampleSetComponent(Component):
     bound_service = CreateSampleSetService
 
 
-class CreateSampleSet(object):
+# 可以删
+class CreateSampleSet:
     def __init__(self, sample_set_name: str):
         self.create_sample_set = ServiceActivity(
             component_code="create_sample_set", name=f"create_sample_set:{sample_set_name}"
@@ -101,7 +102,8 @@ class AddRtToSampleSetComponent(Component):
     bound_service = AddRtToSampleSetService
 
 
-class AddRtToSampleSet(object):
+# 可以删
+class AddRtToSampleSet:
     def __init__(self, sample_set_name: str):
         self.add_rt_to_sample_set = ServiceActivity(
             component_code="add_rt_to_sample_set", name=f"add_rt_to_sample_set:{sample_set_name}"
@@ -132,7 +134,8 @@ class CollectConfigsComponent(Component):
     bound_service = CollectConfigsService
 
 
-class CollectConfigs(object):
+# 可以删
+class CollectConfigs:
     def __init__(self, sample_set_name: str):
         self.collect_config = ServiceActivity(component_code="collect_config", name=f"collect_config:{sample_set_name}")
         self.collect_config.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
@@ -173,7 +176,8 @@ class ApplySampleSetComponent(Component):
     bound_service = ApplySampleSetService
 
 
-class ApplySampleSet(object):
+# 可以删
+class ApplySampleSet:
     def __init__(self, sample_set_name: str):
         self.apply_sample_set = ServiceActivity(
             component_code="apply_sample_set", name=f"apply_sample_set:{sample_set_name}"

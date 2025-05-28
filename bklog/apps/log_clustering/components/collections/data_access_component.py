@@ -55,6 +55,7 @@ class ChangeDataStreamComponent(Component):
     bound_service = ChangeDataStreamService
 
 
+# 可以删除
 class ChangeDataStream:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.change_data_stream = ServiceActivity(
@@ -87,6 +88,7 @@ class CreateBkdataAccessComponent(Component):
     bound_service = CreateBkdataAccessService
 
 
+# 可以删除
 class CreateBkdataAccess:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_bkdata_access = ServiceActivity(
@@ -113,6 +115,7 @@ class SyncBkdataEtlComponent(Component):
     bound_service = SyncBkdataEtlService
 
 
+# 不能删
 class SyncBkdataEtl:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.sync_bkdata_etl = ServiceActivity(
@@ -149,6 +152,7 @@ class AddProjectDataComponent(Component):
     bound_service = AddProjectDataService
 
 
+# 不能删
 class AddProjectData:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.add_project_data = ServiceActivity(

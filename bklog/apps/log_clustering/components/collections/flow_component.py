@@ -77,6 +77,7 @@ class CreatePreTreatFlowComponent(Component):
     bound_service = CreatePreTreatFlowService
 
 
+# 可以删
 class CreatePreTreatFlow:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.create_pre_treat_flow = ServiceActivity(
@@ -127,6 +128,7 @@ class CreateAfterTreatFlowComponent(Component):
     bound_service = CreateAfterTreatFlowService
 
 
+# 可以删
 class CreateAfterTreatFlow:
     def __init__(self, index_set_id, collector_config_id: int = None):
         self.create_after_treat_flow = ServiceActivity(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass
 
 from pipeline.parser import PipelineParser
@@ -42,7 +42,7 @@ from apps.log_clustering.handlers.pipline_service.base_pipline_service import Ba
 
 
 @dataclass
-class AiopsModelDataCls(object):
+class AiopsModelDataCls:
     model_name: str
     description: str
     experiment_alias: str
@@ -55,6 +55,7 @@ class AiopsModelDataCls(object):
     sample_set_name: str
 
 
+# 可以删
 class AiopsModelService(BasePipeLineService):
     def build_data_context(self, params: AiopsModelDataCls, *args, **kwargs) -> Data:
         data_context = Data()
@@ -70,6 +71,7 @@ class AiopsModelService(BasePipeLineService):
         data_context.inputs["${sample_set_name}"] = Var(type=Var.PLAIN, value=params.sample_set_name)
         return data_context
 
+    # 可以删
     def build_pipeline(self, data_context: Data, *args, **kwargs):
         start = EmptyStartEvent()
         end = EmptyEndEvent()
@@ -79,25 +81,15 @@ class AiopsModelService(BasePipeLineService):
             UpdateTrainingSchedule(model_name=model_name).update_training_schedule
         ).extend(CreateExperiment(experiment_alias=experiment_alias).create_experiment).extend(
             UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config
-        ).extend(
-            SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading
-        ).extend(
+        ).extend(SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading).extend(
             SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation
-        ).extend(
-            ModelTrain(experiment_alias=experiment_alias).model_train
-        ).extend(
+        ).extend(ModelTrain(experiment_alias=experiment_alias).model_train).extend(
             ModelEvaluation(experiment_alias=experiment_alias).model_valuation
-        ).extend(
-            BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result
-        ).extend(
+        ).extend(BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result).extend(
             CommitResult(experiment_alias=experiment_alias).commit
-        ).extend(
-            Release(experiment_alias=experiment_alias).release
-        ).extend(
+        ).extend(Release(experiment_alias=experiment_alias).release).extend(
             SyncPattern(model_name=model_name).sync_pattern
-        ).extend(
-            end
-        )
+        ).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass
 
 from pipeline.parser import PipelineParser
@@ -40,6 +40,7 @@ class SampleSetDataCls:
     result_table_id: str
 
 
+# 可以删
 class SampleSetService(BasePipeLineService):
     def build_data_context(self, params: SampleSetDataCls, *args, **kwargs):
         data_context = Data()
@@ -56,9 +57,7 @@ class SampleSetService(BasePipeLineService):
             AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set
         ).extend(CollectConfigs(sample_set_name=sample_set_name).collect_config).extend(
             ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set
-        ).extend(
-            end
-        )
+        ).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()

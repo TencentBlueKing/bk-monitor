@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import arrow
 from django.conf import settings
 from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
@@ -72,25 +72,27 @@ from apps.log_clustering.models import (
 )
 
 
+# 可以删
 class AiopsLogService(BasePipeLineService):
-    def build_data_context(self, params, *args, **kwargs) -> Data:
-        data_context = Data()
-        data_context.inputs["${sample_set_name}"] = Var(type=Var.PLAIN, value=params["sample_set_name"])
-        data_context.inputs["${description}"] = Var(type=Var.PLAIN, value=params["description"])
-        data_context.inputs["${model_name}"] = Var(type=Var.PLAIN, value=params["model_name"])
-        data_context.inputs["${experiment_alias}"] = Var(type=Var.PLAIN, value=params["experiment_alias"])
-        data_context.inputs["${min_members}"] = Var(type=Var.PLAIN, value=params["min_members"])
-        data_context.inputs["${max_dist_list}"] = Var(type=Var.PLAIN, value=params["max_dist_list"])
-        data_context.inputs["${predefined_varibles}"] = Var(type=Var.PLAIN, value=params["predefined_varibles"])
-        data_context.inputs["${delimeter}"] = Var(type=Var.PLAIN, value=params["delimeter"])
-        data_context.inputs["${max_log_length}"] = Var(type=Var.PLAIN, value=params["max_log_length"])
-        data_context.inputs["${is_case_sensitive}"] = Var(type=Var.PLAIN, value=params["is_case_sensitive"])
-        data_context.inputs["${topic_name}"] = Var(type=Var.PLAIN, value=params["topic_name"])
-        data_context.inputs["${collector_config_id}"] = Var(type=Var.PLAIN, value=params["collector_config_id"])
-        data_context.inputs["${project_id}"] = Var(type=Var.PLAIN, value=params["project_id"])
-        data_context.inputs["${bk_biz_id}"] = Var(type=Var.PLAIN, value=params["bk_biz_id"])
-        data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
-        return data_context
+    # def build_data_context(self, params, *args, **kwargs) -> Data:
+    # data_context = Data()
+    # data_context.inputs["${sample_set_name}"] = Var(type=Var.PLAIN, value=params["sample_set_name"])
+    # data_context.inputs["${description}"] = Var(type=Var.PLAIN, value=params["description"])
+    # data_context.inputs["${model_name}"] = Var(type=Var.PLAIN, value=params["model_name"])
+    # data_context.inputs["${experiment_alias}"] = Var(type=Var.PLAIN, value=params["experiment_alias"])
+    # data_context.inputs["${min_members}"] = Var(type=Var.PLAIN, value=params["min_members"])
+    # data_context.inputs["${max_dist_list}"] = Var(type=Var.PLAIN, value=params["max_dist_list"])
+    # data_context.inputs["${predefined_varibles}"] = Var(type=Var.PLAIN, value=params["predefined_varibles"])
+    # data_context.inputs["${delimeter}"] = Var(type=Var.PLAIN, value=params["delimeter"])
+    # data_context.inputs["${max_log_length}"] = Var(type=Var.PLAIN, value=params["max_log_length"])
+    # data_context.inputs["${is_case_sensitive}"] = Var(type=Var.PLAIN, value=params["is_case_sensitive"])
+    # data_context.inputs["${topic_name}"] = Var(type=Var.PLAIN, value=params["topic_name"])
+    # data_context.inputs["${collector_config_id}"] = Var(type=Var.PLAIN, value=params["collector_config_id"])
+    # data_context.inputs["${project_id}"] = Var(type=Var.PLAIN, value=params["project_id"])
+    # data_context.inputs["${bk_biz_id}"] = Var(type=Var.PLAIN, value=params["bk_biz_id"])
+    # data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
+    # return data_context
+    # pass
 
     def build_pipeline(self, data_context: Data, *args, **kwargs):
         start = EmptyStartEvent()
@@ -110,37 +112,21 @@ class AiopsLogService(BasePipeLineService):
             AddProjectData(index_set_id=index_set_id, collector_config_id=collector_config_id).add_project_data
         ).extend(
             CreatePreTreatFlow(index_set_id=index_set_id, collector_config_id=collector_config_id).create_pre_treat_flow
-        ).extend(
-            CreateSampleSet(sample_set_name=sample_set_name).create_sample_set
-        ).extend(
+        ).extend(CreateSampleSet(sample_set_name=sample_set_name).create_sample_set).extend(
             AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set
-        ).extend(
-            CollectConfigs(sample_set_name=sample_set_name).collect_config
-        ).extend(
+        ).extend(CollectConfigs(sample_set_name=sample_set_name).collect_config).extend(
             ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set
-        ).extend(
-            CreateModel(model_name=model_name).create_model
-        ).extend(
+        ).extend(CreateModel(model_name=model_name).create_model).extend(
             UpdateTrainingSchedule(model_name=model_name).update_training_schedule
-        ).extend(
-            CreateExperiment(experiment_alias=experiment_alias).create_experiment
-        ).extend(
+        ).extend(CreateExperiment(experiment_alias=experiment_alias).create_experiment).extend(
             UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config
-        ).extend(
-            SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading
-        ).extend(
+        ).extend(SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading).extend(
             SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation
-        ).extend(
-            ModelTrain(experiment_alias=experiment_alias).model_train
-        ).extend(
+        ).extend(ModelTrain(experiment_alias=experiment_alias).model_train).extend(
             ModelEvaluation(experiment_alias=experiment_alias).model_valuation
-        ).extend(
-            BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result
-        ).extend(
+        ).extend(BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result).extend(
             CommitResult(experiment_alias=experiment_alias).commit
-        ).extend(
-            Release(experiment_alias=experiment_alias).release
-        ).extend(
+        ).extend(Release(experiment_alias=experiment_alias).release).extend(
             SyncPattern(model_name=model_name).sync_pattern
         ).extend(
             CreateAfterTreatFlow(
@@ -150,15 +136,14 @@ class AiopsLogService(BasePipeLineService):
             CreateNewClsStrategy(
                 index_set_id=index_set_id, collector_config_id=collector_config_id
             ).create_new_cls_strategy
-        ).extend(
-            end
-        )
+        ).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()
         return pipeline
 
 
+# 可以删
 class AiopsBkdataService(BasePipeLineService):
     def build_data_context(self, params, *args, **kwargs) -> Data:
         data_context = Data()
@@ -190,49 +175,30 @@ class AiopsBkdataService(BasePipeLineService):
             AddProjectData(index_set_id=index_set_id).add_project_data
         ).extend(CreatePreTreatFlow(index_set_id=index_set_id).create_pre_treat_flow).extend(
             CreateSampleSet(sample_set_name=sample_set_name).create_sample_set
-        ).extend(
-            AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set
-        ).extend(
+        ).extend(AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set).extend(
             CollectConfigs(sample_set_name=sample_set_name).collect_config
-        ).extend(
-            ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set
-        ).extend(
+        ).extend(ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set).extend(
             CreateModel(model_name=model_name).create_model
-        ).extend(
-            UpdateTrainingSchedule(model_name=model_name).update_training_schedule
-        ).extend(
+        ).extend(UpdateTrainingSchedule(model_name=model_name).update_training_schedule).extend(
             CreateExperiment(experiment_alias=experiment_alias).create_experiment
-        ).extend(
-            UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config
-        ).extend(
+        ).extend(UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config).extend(
             SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading
-        ).extend(
-            SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation
-        ).extend(
+        ).extend(SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation).extend(
             ModelTrain(experiment_alias=experiment_alias).model_train
-        ).extend(
-            ModelEvaluation(experiment_alias=experiment_alias).model_valuation
-        ).extend(
+        ).extend(ModelEvaluation(experiment_alias=experiment_alias).model_valuation).extend(
             BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result
-        ).extend(
-            CommitResult(experiment_alias=experiment_alias).commit
-        ).extend(
+        ).extend(CommitResult(experiment_alias=experiment_alias).commit).extend(
             Release(experiment_alias=experiment_alias).release
-        ).extend(
-            SyncPattern(model_name=model_name).sync_pattern
-        ).extend(
+        ).extend(SyncPattern(model_name=model_name).sync_pattern).extend(
             CreateAfterTreatFlow(index_set_id=index_set_id).create_after_treat_flow
-        ).extend(
-            CreateNewIndexSet(index_set_id=index_set_id).create_new_index_set
-        ).extend(
-            end
-        )
+        ).extend(CreateNewIndexSet(index_set_id=index_set_id).create_new_index_set).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()
         return pipeline
 
 
+# 可以删
 class UpdateModelService(BasePipeLineService):
     def build_data_context(self, params, *args, **kwargs) -> Data:
         data_context = Data()
@@ -261,29 +227,20 @@ class UpdateModelService(BasePipeLineService):
             CreateExperiment(experiment_alias=experiment_alias).create_experiment
         ).extend(UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config).extend(
             SampleSetLoading(experiment_alias=experiment_alias).sample_set_loading
-        ).extend(
-            SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation
-        ).extend(
+        ).extend(SampleSetPreparation(experiment_alias=experiment_alias).sample_set_preparation).extend(
             ModelTrain(experiment_alias=experiment_alias).model_train
-        ).extend(
-            ModelEvaluation(experiment_alias=experiment_alias).model_valuation
-        ).extend(
+        ).extend(ModelEvaluation(experiment_alias=experiment_alias).model_valuation).extend(
             BasicModelEvaluationResult(experiment_alias=experiment_alias).basic_model_evaluation_result
-        ).extend(
-            CommitResult(experiment_alias=experiment_alias).commit
-        ).extend(
+        ).extend(CommitResult(experiment_alias=experiment_alias).commit).extend(
             Release(experiment_alias=experiment_alias).release
-        ).extend(
-            SyncPattern(model_name=model_name).sync_pattern
-        ).extend(
-            end
-        )
+        ).extend(SyncPattern(model_name=model_name).sync_pattern).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()
         return pipeline
 
 
+# 可以删
 def operator_aiops_service(index_set_id, operator=OperatorServiceEnum.CREATE):
     conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
@@ -309,7 +266,7 @@ def operator_aiops_service(index_set_id, operator=OperatorServiceEnum.CREATE):
         "description": f"{clustering_config.bk_biz_id}_bklog_{rt_name}",
         "experiment_alias": experiment_alias,
         "collector_config_id": clustering_config.collector_config_id,
-        "topic_name": f"queue_{conf['bk_biz_id']}_bklog_{settings.ENVIRONMENT}_" f"{rt_name}",
+        "topic_name": f"queue_{conf['bk_biz_id']}_bklog_{settings.ENVIRONMENT}_{rt_name}",
         "project_id": conf["project_id"],
         "is_case_sensitive": clustering_config.is_case_sensitive,
         "max_log_length": clustering_config.max_log_length,
@@ -332,7 +289,8 @@ def operator_aiops_service(index_set_id, operator=OperatorServiceEnum.CREATE):
     return pipeline.id
 
 
-class ClusteringService(object):
+# 可以删
+class ClusteringService:
     @classmethod
     def get_instance(cls, clustering_config, operator):
         if operator == OperatorServiceEnum.UPDATE:
