@@ -217,7 +217,7 @@ class AccessHandler(base.BaseHandler):
         elif self.access_type == AccessType.RealTimeData:
             self.handle_real_time()
         elif self.access_type == AccessType.Event:
-            self.handle_event()
+            self.handle_event_v2()
         elif self.access_type == AccessType.Incident:
             self.handle_incident()
 

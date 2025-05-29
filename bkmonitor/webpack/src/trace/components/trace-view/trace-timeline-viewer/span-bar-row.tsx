@@ -25,6 +25,7 @@
  */
 
 import { type PropType, computed, defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
@@ -124,6 +125,7 @@ export default defineComponent({
 
     const spanBarCurrentStore = useSpanBarCurrentInject();
     const childrenHiddenStore = useChildrenHiddenInject();
+    const { t } = useI18n();
 
     // 是否跨应用调用 span
 
@@ -167,6 +169,31 @@ export default defineComponent({
       emit('toggleCollapse', groupID, status);
     };
 
+    /**
+     * @description: span错误icon hover 鼠标移入弹出内容详情 popover
+     * @param title popover 标题
+     * @param detail 需要展示的kv结构数据
+     */
+    const handleErrorPopoverContent = (title: string, detail: Record<string, any>) => {
+      return (
+        <div class='span-row-content-popover'>
+          <div class='span-row-content-popover-title'>{title}</div>
+          <div class='span-row-content-popover-main'>
+            {Object.entries(detail).map(([label, value]) => (
+              <div
+                key={label}
+                class='popover-main-item'
+              >
+                <span class='content-item-key'>{label}</span>
+                <span class='content-item-colon'>:</span>
+                <span class='content-item-value'>{value || '--'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
     return {
       detailToggle,
       childrenToggle,
@@ -176,6 +203,8 @@ export default defineComponent({
       ellipsisDirection,
       showDuration,
       handleToggleCollapse,
+      handleErrorPopoverContent,
+      t,
     };
   },
 
@@ -212,6 +241,7 @@ export default defineComponent({
       ebpf_tap_port_name: ebpfTapPortName = '',
       group_info: groupInfo,
       is_expand: isExpand,
+      attributes,
     } = span as Record<string, any>;
     /** 折叠节点的耗时取自 group_info.duration */
     const realDuration = groupInfo && groupInfo.id === spanID && !isExpand ? groupInfo.duration : duration;
@@ -232,14 +262,34 @@ export default defineComponent({
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
+    let errorDetail = {
+      'span.status_message': '',
+      'trpc.status_msg': '',
+    };
+    if (showErrorIcon) {
+      errorDetail = attributes?.reduce?.(
+        (prev, curr) => {
+          if (!['span.status_message', 'trpc.status_msg'].includes(curr.key)) {
+            return prev;
+          }
+          prev[curr.key] = curr.value;
+          return prev;
+        },
+        {
+          'span.status_message': '',
+          'trpc.status_msg': '',
+        }
+      );
+    }
+
     let longLabel: string;
     let hintSide: string;
     if (viewStart && viewEnd && viewStart > 1 - viewEnd) {
       longLabel = `${labelDetail}${label ? ` | ${label}` : ''}`;
-      hintSide = 'left';
+      hintSide = 'right';
     } else {
       longLabel = `${label ? `${label} | ` : ''}${labelDetail}`;
-      hintSide = 'right';
+      hintSide = 'left';
     }
 
     return (
@@ -257,7 +307,7 @@ export default defineComponent({
       >
         {isHaveRead && (
           <Popover
-            content={this.$t('已读')}
+            content={this.t('已读')}
             placement='left'
             theme='dark'
           >
@@ -293,7 +343,7 @@ export default defineComponent({
                   src={CrossAppTag}
                 />
                 <span class='cross-span-name'>{this.crossRelationInfo.app_name}</span>
-                <span class='cross-description'>{`${this.$t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
+                <span class='cross-description'>{`${this.t('所属空间：')}${this.crossRelationInfo.bk_biz_name}`}</span>
               </a>
             </div>
           </TimelineRowCell>
@@ -322,11 +372,21 @@ export default defineComponent({
                   tabindex={0}
                 >
                   {showErrorIcon && (
-                    <img
-                      class='error-icon'
-                      alt='error'
-                      src={ErrorIcon}
-                    />
+                    <Popover
+                      key={label}
+                      extCls='span-error-icon'
+                      v-slots={{
+                        content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDetail),
+                      }}
+                      placement='bottom'
+                      popoverDelay={[300, 0]}
+                    >
+                      <img
+                        class='error-icon'
+                        alt='error'
+                        src={ErrorIcon}
+                      />
+                    </Popover>
                   )}
                   {span?.icon && (
                     <img
@@ -379,17 +439,17 @@ export default defineComponent({
                         content: () =>
                           isExpand ? (
                             <span>
-                              {this.$t('点击折叠')}
+                              {this.t('点击折叠')}
                               <br />
-                              {this.$t('相同"Service + Span name + status"的 Span')}
+                              {this.t('相同"Service + Span name + status"的 Span')}
                             </span>
                           ) : (
                             <span>
-                              {this.$t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
+                              {this.t('已折叠 {count} 个相同"Service + Span name + status"的 Span', {
                                 count: groupInfo.members.length,
                               })}
                               <br />
-                              {this.$t('点击展开')}
+                              {this.t('点击展开')}
                             </span>
                           ),
                       }}
@@ -427,13 +487,13 @@ export default defineComponent({
                 v-slots={{
                   content: () => (
                     <div>
-                      <div>{`${this.$t('服务')}: ${displayServiceName}`}</div>
-                      <div>{`${this.$t('接口')}: ${displayOperationName}`}</div>
+                      <div>{`${this.t('服务')}: ${displayServiceName}`}</div>
+                      <div>{`${this.t('接口')}: ${displayOperationName}`}</div>
                       {}
-                      <div>{`${this.$t('类型')}: ${
-                        isVirtual ? this.$t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
+                      <div>{`${this.t('类型')}: ${
+                        isVirtual ? this.t('推断') : source === 'ebpf' ? ebpfKind : SPAN_KIND_MAPS[kind]
                       }`}</div>
-                      <div>{`${this.$t('耗时')}: ${formatDuration(realDuration)}`}</div>
+                      <div>{`${this.t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
                   ),
                 }}

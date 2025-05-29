@@ -1540,3 +1540,14 @@ class PrecalculateStorageConfig:
             "description": "常见标准字段数据",
         },
     ]
+
+
+class OperatorGroupRelation(str, Enum):
+    """操作符组间关系"""
+
+    AND = "AND"
+    OR = "OR"
+
+    @classmethod
+    def choices(cls):
+        return [(relation.name, relation.value) for relation in cls]

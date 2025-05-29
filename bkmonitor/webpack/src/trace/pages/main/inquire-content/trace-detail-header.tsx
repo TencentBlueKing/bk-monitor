@@ -105,7 +105,7 @@ export default defineComponent({
         <div class='trace-header-title'>
           <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
           <Popover
-            content={this.$t('复制 TraceID')}
+            content={this.t('复制 TraceID')}
             placement='right'
             theme='light'
           >
@@ -115,7 +115,7 @@ export default defineComponent({
             />
           </Popover>
           <Popover
-            content={this.$t('复制链接')}
+            content={this.t('复制链接')}
             placement='right'
             theme='light'
           >

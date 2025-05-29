@@ -457,3 +457,22 @@ def update_alias_settings(collector_config_id, alias_settings):
             collector_config_id,
             e,
         )
+
+
+@high_priority_task(ignore_result=True)
+def modify_result_table(params):
+    """
+    更新结果表
+    """
+    try:
+        TransferApi.modify_result_table(params)
+        logger.info(
+            "[modify_result_table] executed successfully, table_id->%s",
+            params["table_id"],
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "[modify_result_table] executed failed, table_id->%s, reason: %s",
+            params["table_id"],
+            e,
+        )

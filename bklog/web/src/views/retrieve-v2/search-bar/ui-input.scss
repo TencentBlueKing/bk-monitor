@@ -207,6 +207,12 @@ ul.search-items {
           text-overflow: ellipsis;
           white-space: nowrap;
 
+          .match-value-more{
+            &:hover{
+              text-decoration: underline
+            }
+          }
+          
           > span {
             display: flex;
             align-items: center;

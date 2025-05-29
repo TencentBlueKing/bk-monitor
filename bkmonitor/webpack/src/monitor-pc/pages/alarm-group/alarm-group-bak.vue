@@ -30,15 +30,15 @@
 -->
 <template>
   <div
-    v-monitor-loading="{ isLoading: loading }"
     class="alarm-group"
+    v-monitor-loading="{ isLoading: loading }"
   >
     <!-- 列表页 -->
     <div class="alarm-group-tool">
       <bk-button
+        class="tool-btn mc-btn-add"
         v-authority="{ active: !authority.MANAGE_AUTH }"
         theme="primary"
-        class="tool-btn mc-btn-add"
         @click="authority.MANAGE_AUTH ? handleShowAddView('add') : handleShowAuthorityDetail()"
       >
         {{ $t('新建') }}
@@ -54,13 +54,13 @@
     <div>
       <bk-table
         class="alarm-group-table"
-        :empty-text="$t('无数据')"
         :data="table.data"
+        :empty-text="$t('无数据')"
       >
         <bk-table-column
+          width="70"
           label="ID"
           prop="id"
-          width="70"
         >
           <template slot-scope="scope"> #{{ scope.row.id }} </template>
         </bk-table-column>
@@ -80,14 +80,14 @@
         <!-- <bk-table-column :label="$t('所属')" prop="bkBizId" min-width="100">
                 </bk-table-column> -->
         <bk-table-column
-          :label="$t('应用策略数')"
           width="200"
+          :label="$t('应用策略数')"
         >
           <template slot-scope="scope">
             <div class="col-appstrategy">
               <span
-                v-authority="{ active: scope.row.relatedStrategy > 0 && !authority.STRATEGY_VIEW_AUTH }"
                 class="strategy-num"
+                v-authority="{ active: scope.row.relatedStrategy > 0 && !authority.STRATEGY_VIEW_AUTH }"
                 :class="{ 'btn-disabled': scope.row.relatedStrategy === 0 }"
                 @click="handleToAppStrategy(scope.row)"
               >
@@ -98,32 +98,32 @@
         </bk-table-column>
         <bk-table-column
           :label="$t('说明')"
-          prop="message"
           min-width="180"
+          prop="message"
         >
           <template slot-scope="scope">
             {{ scope.row.message || '--' }}
           </template>
         </bk-table-column>
         <bk-table-column
-          :label="$t('操作')"
           width="130"
+          :label="$t('操作')"
         >
           <template slot-scope="scope">
             <bk-button
-              v-authority="{ active: !authority.MANAGE_AUTH }"
-              :text="true"
-              :disabled="!scope.row.editAllowed"
               class="col-btn"
+              v-authority="{ active: !authority.MANAGE_AUTH }"
+              :disabled="!scope.row.editAllowed"
+              :text="true"
               @click="authority.MANAGE_AUTH ? handleShowAddView('edit', scope.row.id) : handleShowAuthorityDetail()"
             >
               {{ $t('编辑') }}
             </bk-button>
             <bk-button
-              v-authority="{ active: !authority.MANAGE_AUTH }"
-              :text="true"
-              :disabled="!scope.row.deleteAllowed"
               class="col-btn"
+              v-authority="{ active: !authority.MANAGE_AUTH }"
+              :disabled="!scope.row.deleteAllowed"
+              :text="true"
               @click="authority.MANAGE_AUTH ? handleDeleteRow(scope.row.id) : handleShowAuthorityDetail()"
             >
               {{ $t('删除') }}
@@ -134,15 +134,15 @@
       <div class="alarm-group-pagination">
         <template v-if="tableInstance">
           <bk-pagination
-            v-show="tableInstance.total"
             class="config-pagination list-pagination"
+            v-show="tableInstance.total"
+            :count="tableInstance.total"
+            :current="tableInstance.page"
+            :limit="tableInstance.pageSize"
+            :limit-list="tableInstance.pageList"
             align="right"
             size="small"
             pagination-able
-            :current="tableInstance.page"
-            :limit="tableInstance.pageSize"
-            :count="tableInstance.total"
-            :limit-list="tableInstance.pageList"
             show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
@@ -152,10 +152,10 @@
     </div>
     <!-- 详情页 组件 -->
     <alarm-group-detail
-      :id="detail.id"
-      :detail="detail"
       :authority="authority"
+      :detail="detail"
       :handle-show-authority-detail="handleShowAuthorityDetail"
+      :id="detail.id"
       @detail-close="handleDetailClose"
       @edit-group="handleEditGroup"
     />

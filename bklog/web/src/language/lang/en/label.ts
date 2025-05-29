@@ -786,4 +786,9 @@ export default {
   分级展示: 'Level Display',
   '文本溢出（省略设置）': 'Text overflow (ellipsis setting)',
   快捷键: 'Shortcut Key',
+  收藏管理: 'Favorite management',
+  全部收藏: 'All favorites',
+  分组名称: 'Group name',
+  批量操作: 'Batch operation',
+  收藏详情: 'Favorite details',
 };

@@ -134,7 +134,7 @@ class CallerLineChart extends CommonSimpleChart {
   metrics = [];
   options: Record<string, any> = {};
   empty = true;
-  emptyText = window.i18n.tc('暂无数据');
+  emptyText = window.i18n.t('暂无数据');
   cancelTokens = [];
 
   /** 导出csv数据时候使用 */
@@ -236,7 +236,7 @@ class CallerLineChart extends CommonSimpleChart {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.initialized) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       const series = [];
@@ -556,13 +556,13 @@ class CallerLineChart extends CommonSimpleChart {
         }, 100);
       } else {
         this.initialized = this.metrics.length > 0;
-        this.emptyText = window.i18n.tc('暂无数据');
+        this.emptyText = window.i18n.t('暂无数据');
         this.empty = true;
       }
     } catch (e) {
       console.error(e);
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
@@ -585,7 +585,7 @@ class CallerLineChart extends CommonSimpleChart {
     }
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-      : val.replace('current', window.i18n.tc('当前'));
+      : val.replace('current', window.i18n.t('当前'));
   }
 
   handleSeriesName(item: DataQuery, set) {
@@ -1241,7 +1241,10 @@ class CallerLineChart extends CommonSimpleChart {
                 theme='light common-monitor'
                 trigger='click'
                 on-show={this.handleEventAnalyzeShow}
-                tippyOptions={{ hideOnClick: !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags }}
+                tippyOptions={{
+                  hideOnClick:
+                    !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags,
+                }}
               >
                 <div
                   class='event-analyze tips-icon'
@@ -1309,7 +1312,7 @@ class CallerLineChart extends CommonSimpleChart {
                         {this.$t('确定')}
                       </bk-button>
                       <bk-button
-                        v-bk-tooltips={{ placement: 'top',content: this.$t('服务下其他图表一并生效') }}
+                        v-bk-tooltips={{ placement: 'top', content: this.$t('服务下其他图表一并生效') }}
                         style={{ width: '108px' }}
                         outline={true}
                         size='small'

@@ -67,7 +67,7 @@ class RatioRingChart extends CommonSimpleChart {
   legendData = [];
   initialized = false;
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.t('查无数据');
   empty = true;
   chartOption: MonitorEchartOptions;
   panelTitle = '';
@@ -115,7 +115,7 @@ class RatioRingChart extends CommonSimpleChart {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -158,12 +158,12 @@ class RatioRingChart extends CommonSimpleChart {
           this.handleResetLegendHeight();
         });
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);

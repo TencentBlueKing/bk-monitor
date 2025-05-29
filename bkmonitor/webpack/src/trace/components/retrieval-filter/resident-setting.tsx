@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import tippy from 'tippy.js';
 
@@ -59,6 +60,7 @@ export default defineComponent({
   emits: RESIDENT_SETTING_EMITS,
   setup(props, { emit }) {
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+    const { t } = useI18n();
 
     const elRef = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
@@ -318,6 +320,7 @@ export default defineComponent({
       // handleTimeConsumingValueChange,
       handleCancel,
       handleConfirm,
+      t,
     };
   },
   render() {
@@ -331,7 +334,7 @@ export default defineComponent({
           onClick={this.handleShowSettingTransfer}
         >
           <span class='icon-monitor icon-shezhi1' />
-          <span class='setting-text'>{this.$t('设置筛选')}</span>
+          <span class='setting-text'>{this.t('设置筛选')}</span>
         </span>
         <div class='right-content'>
           {this.localValue.length ? (
@@ -370,7 +373,7 @@ export default defineComponent({
               );
             })
           ) : (
-            <span class='placeholder-text'>{`（${this.$t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
+            <span class='placeholder-text'>{`（${this.t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
           )}
         </div>
         <div style='display: none;'>

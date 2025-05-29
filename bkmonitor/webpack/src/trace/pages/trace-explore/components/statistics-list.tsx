@@ -66,10 +66,6 @@ export default defineComponent({
       type: String as PropType<DimensionType>,
       default: 'text',
     },
-    isDimensions: {
-      type: Boolean,
-      default: false,
-    },
     isShow: {
       type: Boolean,
       default: false,
@@ -333,16 +329,16 @@ export default defineComponent({
                 <i
                   class='icon-monitor icon-a-sousuo'
                   v-bk-tooltips={{
-                    content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} = ${item.value || '""'}`,
-                    boundary: 'parent',
+                    content: `${localField.value} = ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('equal', item)}
                 />
                 <i
                   class='icon-monitor icon-sousuo-'
                   v-bk-tooltips={{
-                    content: `${props.isDimensions ? 'dimensions.' : ''}${localField.value} != ${item.value || '""'}`,
-                    boundary: 'parent',
+                    content: `${localField.value} != ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('not_equal', item)}
                 />

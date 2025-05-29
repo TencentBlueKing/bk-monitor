@@ -209,13 +209,12 @@
     }
 
     .object-arrow {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 12px;
-      height: 12px;
-      // display: none;
-      font-size: 12px;
+      font-size: 20px;
+      transition: transform 0.1s;
+
+      &.expand {
+        transform: rotateZ(90deg);
+      }
     }
 
     .dimension-name {

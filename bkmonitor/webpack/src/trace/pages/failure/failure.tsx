@@ -50,33 +50,34 @@ export const commonAlertFieldMap = {
   status: [
     {
       id: isEn ? 'ABNORMAL' : '未恢复',
-      name: window.i18n.tc('未恢复'),
+      name: window.i18n.t('未恢复'),
     },
     {
       id: isEn ? 'RECOVERED' : '已恢复',
-      name: window.i18n.tc('已恢复'),
+      name: window.i18n.t('已恢复'),
     },
     {
       id: isEn ? 'CLOSED' : '已失效',
-      name: window.i18n.tc('已失效'),
+      name: window.i18n.t('已失效'),
     },
   ],
   severity: [
     {
       id: isEn ? 1 : '致命',
-      name: window.i18n.tc('致命'),
+      name: window.i18n.t('致命'),
     },
     {
       id: isEn ? 2 : '预警',
-      name: window.i18n.tc('预警'),
+      name: window.i18n.t('预警'),
     },
     {
       id: isEn ? 3 : '提醒',
-      name: window.i18n.tc('提醒'),
+      name: window.i18n.t('提醒'),
     },
   ],
 };
 export default defineComponent({
+  name: 'FailureWrapper',
   props: {
     id: {
       type: String,

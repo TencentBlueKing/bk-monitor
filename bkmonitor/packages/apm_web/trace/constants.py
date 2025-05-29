@@ -12,6 +12,8 @@ from enum import Enum
 
 from django.utils.translation import gettext_lazy as _
 
+from constants.elasticsearch import QueryStringOperators
+
 
 class EnabledStatisticsDimension(Enum):
     """
@@ -63,6 +65,20 @@ class OperatorEnum:
         "label": _("不包含"),
         "placeholder": _("请选择或直接输入，Enter分隔"),
         "options": [OperatorOptions.IS_WILDCARD, OperatorOptions.GROUP_RELATION],
+    }
+
+    QueryStringOperatorMapping = {
+        EXISTS["operator"]: QueryStringOperators.EXISTS,
+        NOT_EXISTS["operator"]: QueryStringOperators.NOT_EXISTS,
+        EQUAL["operator"]: QueryStringOperators.EQUAL,
+        NOT_EQUAL["operator"]: QueryStringOperators.NOT_EQUAL,
+        LIKE["operator"]: QueryStringOperators.INCLUDE,
+        NOT_LIKE["operator"]: QueryStringOperators.NOT_INCLUDE,
+        GT["operator"]: QueryStringOperators.GT,
+        LT["operator"]: QueryStringOperators.LT,
+        GTE["operator"]: QueryStringOperators.GTE,
+        LTE["operator"]: QueryStringOperators.LTE,
+        "between": QueryStringOperators.BETWEEN,
     }
 
 

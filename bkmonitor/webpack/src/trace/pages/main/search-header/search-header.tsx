@@ -26,7 +26,7 @@
 
 import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
@@ -85,6 +85,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const router = useRouter();
+    const route = useRoute();
     function handleDeleteCollect(id: number | string) {
       emit('deleteCollect', id);
     }
@@ -100,6 +101,7 @@ export default defineComponent({
     function handleGotoOld() {
       router.push({
         name: 'home',
+        query: route.query,
       });
     }
     return () => (

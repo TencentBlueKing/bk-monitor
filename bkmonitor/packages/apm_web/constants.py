@@ -707,6 +707,102 @@ class QueryMode:
         ]
 
 
+# TRPC 场景默认设置（表头、常用筛选项）
+TRPC_TRACE_VIEW_CONFIG = {
+    "span_config": {
+        "resident_setting": [
+            "trace_id",
+            "elapsed_time",
+            "attributes.trpc.namespace",  # "物理环境"
+            "attributes.trpc.envname",  # "用户环境"
+            "attributes.trpc.caller_server",  # "主调服务"
+            "attributes.trpc.caller_service",  # "主调 Service"
+            "attributes.trpc.caller_method",  # "主调接口"
+            "attributes.trpc.caller_ip",  # "主调 IP"
+            "attributes.trpc.caller_container",  # "主调容器"
+            "attributes.trpc.callee_server",  # "被调服务"
+            "attributes.trpc.callee_service",  # "被调 Service"
+            "attributes.trpc.callee_method",  # "被调接口"
+            "attributes.trpc.callee_ip",  # "被调 IP"
+            "attributes.trpc.callee_container",  # "被调容器"
+            "attributes.trpc.status_code",  # "tRPC 状态码"
+        ],
+        "display_columns": [
+            "span_id",
+            "kind",
+            "start_time",
+            "elapsed_time",
+            "attributes.trpc.caller_service",  # "主调 Service"
+            "attributes.trpc.caller_method",  # "主调接口"
+            "attributes.trpc.callee_service",  # "被调 Service"
+            "attributes.trpc.callee_method",  # "被调接口"
+            "attributes.trpc.status_code",  # "tRPC 状态码"
+            "attributes.trpc.envname",  # "用户环境"
+            "status.code",
+            "trace_id",
+        ],
+    },
+    "trace_config": {
+        "resident_setting": [
+            "trace_id",
+            "trace_duration",
+            "collections.resource.service.name",
+            "collections.span_name",
+        ],
+        "display_columns": [
+            "trace_id",
+            "min_start_time",
+            "root_span_name",
+            "root_service",
+            "root_service_span_name",
+            "root_service_category",
+            "root_service_status_code",
+            "trace_duration",
+            "span_count",
+            "service_count",
+        ],
+    },
+}
+
+# Trace 检索下默认场景的设置（表头、常用筛选项）
+DEFAULT_TRACE_VIEW_CONFIG = {
+    "span_config": {
+        "resident_setting": ["trace_id", "elapsed_time", "resource.service.name", "span_name"],
+        "display_columns": [
+            "span_id",
+            "span_name",
+            "start_time",
+            "end_time",
+            "elapsed_time",
+            "status.code",
+            "kind",
+            "resource.service.name",
+            "trace_id",
+        ],
+    },
+    "trace_config": {
+        "resident_setting": [
+            "trace_id",
+            "trace_duration",
+            "collections.resource.service.name",
+            "collections.span_name",
+        ],
+        "display_columns": [
+            "trace_id",
+            "min_start_time",
+            "root_span_name",
+            "root_service",
+            "root_service_span_name",
+            "root_service_category",
+            "root_service_status_code",
+            "trace_duration",
+            "span_count",
+            "service_count",
+        ],
+    },
+}
+
+
 # Span 顶层字段展示顺序
 SPAN_SORTED_FIELD = [
     "trace_id",

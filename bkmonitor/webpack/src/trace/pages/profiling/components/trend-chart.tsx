@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, provide, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
@@ -101,6 +102,8 @@ export default defineComponent({
       const appName = (props.queryParams as IQueryParams)?.app_name ?? '';
       return setTraceTooltip(chartRef.value, appName);
     });
+
+    const { t } = useI18n();
 
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
@@ -205,6 +208,7 @@ export default defineComponent({
       chartCustomTooltip,
       handleChartData,
       handleLoading,
+      t,
     };
   },
   render() {
@@ -243,8 +247,8 @@ export default defineComponent({
               v-model={this.chartType}
               type='capsule'
             >
-              <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
-              <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>
+              <Radio.Button label='all'>{this.t('总趋势')}</Radio.Button>
+              <Radio.Button label='trace'>{this.t('Trace 数据')}</Radio.Button>
             </Radio.Group>
             {this.loading ? (
               <img

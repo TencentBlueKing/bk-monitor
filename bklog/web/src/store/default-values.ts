@@ -333,6 +333,7 @@ export const getStorageOptions = (values?: any) => {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,
       },
+      [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
     },
     storage,
   );

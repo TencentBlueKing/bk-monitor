@@ -535,6 +535,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
+        ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
         (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
@@ -638,8 +639,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
-        # 新版自定义时序灰度业务列表
-        ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
         # 事件中心AIOps功能灰度业务列表
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]

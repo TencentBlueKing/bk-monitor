@@ -26,12 +26,13 @@ from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
-from apm.constants import AggregatedMethod, OperatorGroupRelation
+from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.apm import OperatorGroupRelation
 
 logger = logging.getLogger("apm")
 
@@ -72,6 +73,8 @@ class FilterOperator:
     def operator_handler_mapping(cls) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
         return {
             cls.BETWEEN: cls._between_operator_handler,
+            cls.EXISTS: cls._existence_operator_handler,
+            cls.NOT_EXISTS: cls._existence_operator_handler,
         }
 
     @classmethod
@@ -84,6 +87,10 @@ class FilterOperator:
     def _default_operator_handler(
         cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
     ) -> Q:
+        # 字段不等于 "" 的情况下，需要过滤出字段存在的情况
+        if operator == FilterOperator.NOT_EQUAL and "" in value:
+            q &= Q(**{f"{field}__{FilterOperator.EXISTS}": [""]})
+
         # 操作符映射，如果是通配符查询的话需要映射到特定操作符
         if operator in cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING and options.get("is_wildcard"):
             operator = cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING[operator]
@@ -99,6 +106,16 @@ class FilterOperator:
             result_q = Q(**{f"{field}__{operator}": value})
 
         return q & result_q
+
+    @classmethod
+    def _existence_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
+        """
+        处理存在性相关操作符 (exists/not exists)
+        """
+        operator = cls.UNIFY_QUERY_OPERATOR_MAPPING[operator]
+        return q & Q(**{f"{field}__{operator}": [""]})
 
     @classmethod
     def get_handler(cls, operator: str) -> Q:

@@ -344,6 +344,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-back2:before {
 	content: "\e1ec";
 }
+.bklog-circle-add:before {
+	content: "\e20c";
+}
 .bklog-close:before {
 	content: "\e1e9";
 }
@@ -676,4 +679,16 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-suoyin-ronghe:before {
 	content: "\e20b";
+}
+.bklog-all:before {
+	content: "\e20d";
+}
+.bklog-ab:before {
+	content: "\e20e";
+}
+.bklog-daxiaoxie:before {
+	content: "\e20f";
+}
+.bklog-tongpeifu:before {
+	content: "\e210";
 }

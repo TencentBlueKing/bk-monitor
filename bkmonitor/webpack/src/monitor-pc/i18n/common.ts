@@ -40,6 +40,7 @@ import tableContent from '../lang/table-content';
 import tips from '../lang/tips';
 import title from '../lang/title';
 import tooltips from '../lang/tooltips';
+import trace from '../lang/trace';
 import validate from '../lang/validate';
 
 export type MonitorLang = typeof MonitorLangData;
@@ -62,6 +63,7 @@ const MonitorLangData = {
   strategy,
   newHome,
   newMetricView,
+  trace,
 };
 
 // 比较两个翻译文件是否多出来的词条
@@ -69,15 +71,15 @@ export function compareJson(
   a: Record<string, string>,
   b: Record<string, string>,
   needLogChange = false,
-  needAddLable = false
+  needAddLabel = false
 ) {
-  Object.keys(a).forEach(key => {
+  for (const key of Object.keys(a)) {
     if (!b[key]) {
-      console.log(`${needAddLable ? '多出来的词条：' : ''}'${key}': '${a[key]}',`);
+      console.log(`${needAddLabel ? '多出来的词条：' : ''}'${key}': '${a[key]}',`);
     } else if (needLogChange && a[key] !== b[key]) {
       console.log(`翻译不相同的词条：${key}：${a[key]}`);
     }
-  });
+  }
 }
 // console.info('============监控相较于产品翻译button====================');
 // compareJson(button, frontendButton, false, false);
