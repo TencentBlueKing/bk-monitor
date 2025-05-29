@@ -322,6 +322,7 @@ RETRIEVE_LIST = {
     "view_roles": [],
     "bkdata_project_id": None,
     "bk_biz_id": 2,
+    "bk_tenant_id": "system",
     "apply_status": "normal",
     "apply_status_name": "正常",
     "storage_cluster_name": "",
