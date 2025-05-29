@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import copy
-import base64
 import re
 import json
 from typing import Any
@@ -50,6 +49,8 @@ from apps.log_databus.constants import (
     LabelSelectorOperator,
     DEFAULT_RETENTION,
     CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS,
+    CollectStatus,
+    RunStatus,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -130,35 +131,6 @@ class K8sCollectorHandler(CollectorHandler):
     def _pre_destroy(self):
         if self.data.is_container_environment:
             ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).delete()
-
-    def add_container_configs(self, collector_config, context):
-        """
-        add_container_configs
-        @param collector_config:
-        @param context:
-        @return:
-        """
-        if not self.data.is_container_environment:
-            return collector_config
-
-        container_configs = []
-        for config in ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id):
-            container_configs.append(model_to_dict(config))
-
-        collector_config["configs"] = container_configs
-        return collector_config
-
-    def encode_yaml_config(self, collector_config, context):
-        """
-        encode_yaml_config
-        @param collector_config:
-        @param context:
-        @return:
-        """
-        if not collector_config["yaml_config"]:
-            return collector_config
-        collector_config["yaml_config"] = base64.b64encode(collector_config["yaml_config"].encode("utf-8"))
-        return collector_config
 
     def retry_instances(self, instance_id_list):
         return self.retry_container_collector(instance_id_list)
@@ -1268,10 +1240,8 @@ class K8sCollectorHandler(CollectorHandler):
 
         collectors = CollectorConfig.objects.filter(rule_id=bcs_rule.id)
         for collector in collectors:
-            # 此处定义self.data是让self.get_instance()不报错
-            self.data = collector
             self._deal_self_call(
-                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().destroy
+                collector_config_id=collector.collector_config_id, collector=collector, func=self.destroy
             )
         bcs_rule.delete()
         return {"rule_id": rule_id}
@@ -1279,21 +1249,15 @@ class K8sCollectorHandler(CollectorHandler):
     def start_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
-            # 此处定义self.data是让self.get_instance()不报错
-            self.data = collector
             self._deal_self_call(
-                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().start
+                collector_config_id=collector.collector_config_id, collector=collector, func=self.start
             )
         return {"rule_id": rule_id}
 
     def stop_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
-            # 此处定义self.data是让self.get_instance()不报错
-            self.data = collector
-            self._deal_self_call(
-                collector_config_id=collector.collector_config_id, collector=collector, func=self.get_instance().stop
-            )
+            self._deal_self_call(collector_config_id=collector.collector_config_id, collector=collector, func=self.stop)
         return {"rule_id": rule_id}
 
     @transaction.atomic
@@ -2295,12 +2259,6 @@ class K8sCollectorHandler(CollectorHandler):
 
         return self.generate_objs(workload_handler().to_dict(), namespaces=namespaces)
 
-    def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
-        pass
-
-    def create_or_update_subscription(self, params):
-        pass
-
     @staticmethod
     def _convert_lower_cluster_id(bcs_cluster_id: str):
         """
@@ -2308,3 +2266,51 @@ class K8sCollectorHandler(CollectorHandler):
         例如: BCS-K8S-12345 -> bcs_k8s_12345
         """
         return bcs_cluster_id.lower().replace("-", "_")
+
+    def _pre_get_subscription_status_by_list(
+        self, collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
+    ):
+        is_continue = False
+        if collector_obj.is_container_environment:
+            container_collector_configs = container_collector_mapping[collector_obj.collector_config_id]
+
+            failed_count = 0
+            success_count = 0
+            pending_count = 0
+
+            # 默认是成功
+            status = CollectStatus.SUCCESS
+            status_name = RunStatus.SUCCESS
+
+            for config in container_collector_configs:
+                if config.status == ContainerCollectStatus.FAILED.value:
+                    failed_count += 1
+                elif config.status in [ContainerCollectStatus.PENDING.value, ContainerCollectStatus.RUNNING.value]:
+                    pending_count += 1
+                    status = CollectStatus.RUNNING
+                    status_name = RunStatus.RUNNING
+                else:
+                    success_count += 1
+
+            if failed_count:
+                status = CollectStatus.FAILED
+                if success_count:
+                    # 失败和成功都有，那就是部分失败
+                    status_name = RunStatus.PARTFAILED
+                else:
+                    status_name = RunStatus.FAILED
+
+            return_data.append(
+                {
+                    "collector_id": collector_obj.collector_config_id,
+                    "subscription_id": None,
+                    "status": status,
+                    "status_name": status_name,
+                    "total": len(container_collector_configs),
+                    "success": success_count,
+                    "failed": failed_count,
+                    "pending": pending_count,
+                }
+            )
+            is_continue = True
+        return return_data, subscription_id_list, subscription_collector_map, is_continue

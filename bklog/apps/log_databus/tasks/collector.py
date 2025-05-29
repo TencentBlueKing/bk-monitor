@@ -112,7 +112,7 @@ def collector_status():
             and BkDataDatabusApi.get_cleans(params={"raw_data_id": _collector.bkdata_data_id})
         ):
             continue
-        CollectorHandler(collector_config_id=_collector.collector_config_id).get_instance().stop()
+        CollectorHandler.get_instance(_collector.collector_config_id).stop()
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -337,7 +337,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
 
     for collector in collectors:
         try:
-            collect_config = CollectorHandler(collector.collector_config_id).get_instance().retrieve()
+            collect_config = CollectorHandler.get_instance(collector.collector_config_id).retrieve()
             if collect_config["storage_cluster_id"] == storage_cluster_id:
                 logger.info(
                     "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
@@ -378,8 +378,8 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
-            handler = CollectorHandler(collector.collector_config_id)
-            collect_config = handler.get_instance().retrieve()
+            handler = CollectorHandler.get_instance(collector.collector_config_id)
+            collect_config = handler.retrieve()
             clean_stash = handler.get_clean_stash()
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
             etl_fields = (
@@ -419,8 +419,8 @@ def update_alias_settings(collector_config_id, alias_settings):
     更新别名配置
     """
     try:
-        handler = CollectorHandler(collector_config_id)
-        collect_config = handler.get_instance().retrieve()
+        handler = CollectorHandler.get_instance(collector_config_id)
+        collect_config = handler.retrieve()
         clean_stash = handler.get_clean_stash()
 
         etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]

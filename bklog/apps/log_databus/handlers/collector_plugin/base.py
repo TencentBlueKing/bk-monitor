@@ -30,6 +30,7 @@ from apps.log_databus.exceptions import (
     CollectorPluginNotExistException,
 )
 from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin, DataLinkConfig
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
@@ -361,7 +362,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 创建采集项
-        return CollectorHandler().get_instance().update_or_create(params)
+        return HostCollectorHandler().update_or_create(params)
 
     def update_instance(self, params: dict) -> dict:
         """
@@ -372,7 +373,7 @@ class CollectorPluginHandler:
         params = self.build_instance_params(params)
 
         # 更新采集项
-        return CollectorHandler(params["collector_config_id"]).get_instance().update_or_create(params)
+        return HostCollectorHandler(params["collector_config_id"]).update_or_create(params)
 
     def create_instance_etl(self, instance: CollectorConfig, params: dict) -> dict:
         """

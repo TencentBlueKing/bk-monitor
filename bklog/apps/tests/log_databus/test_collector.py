@@ -28,8 +28,8 @@ from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
-from apps.log_databus.handlers.collector_handler.k8s_collector import K8sCollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
+from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 from ...log_databus.models import ContainerCollectorConfig
@@ -1220,7 +1220,7 @@ class TestCollector(TestCase):
         scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
 
         # 指定订阅节点
-        collector1 = CollectorHandler(collector_config_id=collector_config_id)
+        collector1 = HostCollectorHandler(collector_config_id=collector_config_id)
         result1 = collector1._run_subscription_task(scope=scope)
         self.assertEqual(result1, collector1.data.task_id_list)
 

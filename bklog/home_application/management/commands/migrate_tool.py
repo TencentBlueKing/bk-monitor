@@ -6,9 +6,8 @@ from typing import Any
 
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_databus.handlers.collector_handler.base import (
-    CollectorHandler,
-)
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.serializers import FastCollectorCreateSerializer
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -564,7 +563,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         }
         slz = FastCollectorCreateSerializer(data=params)
         slz.is_valid()
-        return CollectorHandler().get_instance().fast_create(params=slz.data)
+        return HostCollectorHandler().fast_create(params=slz.data)
 
     def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.info(

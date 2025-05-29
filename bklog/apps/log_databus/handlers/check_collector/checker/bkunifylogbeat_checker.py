@@ -111,8 +111,7 @@ class BkunifylogbeatChecker(Checker):
             self.append_normal_info(_("自定义容器采集, 不检查采集任务状态"))
             return
         task_status_contents = (
-            CollectorHandler(self.collector_config.collector_config_id)
-            .get_instance()
+            CollectorHandler.get_instance(self.collector_config.collector_config_id)
             .get_task_status(id_list=[])
             .get("contents", [])
         )

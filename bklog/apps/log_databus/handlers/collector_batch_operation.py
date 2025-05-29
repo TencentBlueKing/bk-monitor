@@ -60,11 +60,11 @@ class CollectorBatchHandler:
                 "description": f"{self.operation} operation executed successfully",
             }
             try:
-                handler = CollectorHandler(collector_config_id=collector.collector_config_id)
+                handler = CollectorHandler.get_instance(collector_config_id=collector.collector_config_id)
                 if self.operation == CollectorBatchOperationType.STOP.value:
-                    handler.get_instance().stop()
+                    handler.stop()
                 else:
-                    handler.get_instance().start()
+                    handler.start()
 
             except Exception as e:
                 collector_info.update(
@@ -92,8 +92,8 @@ class CollectorBatchHandler:
                 "status": "SUCCESS",
                 "description": f"{self.operation} operation executed successfully",
             }
-            handler = CollectorHandler(collector.collector_config_id)
-            collect_config = handler.get_instance().retrieve()
+            handler = CollectorHandler.get_instance(collector.collector_config_id)
+            collect_config = handler.retrieve()
             clean_stash = handler.get_clean_stash()
 
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]

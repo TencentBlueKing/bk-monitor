@@ -26,8 +26,7 @@ from django.test import TestCase
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host_collector import HostCollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 
 BK_DATA_ID = 1
 BK_DATA_NAME = "2_log_test_collector"
@@ -310,7 +309,7 @@ class TestCollectorHandler(TestCase):
     @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsFilterTest())
     def test_filter_illegal_ips(self, *args, **kwargs):
         self.assertEqual(
-            CollectorHandler._filter_illegal_ip_and_host_id(
+            HostCollectorHandler._filter_illegal_ip_and_host_id(
                 bk_biz_id=FILTER_ILLEGAL_IPS_BIZ_ID, ips=FILTER_ILLEGAL_IPS_IP_LIST
             )[0],
             ["127.0.0.1"],

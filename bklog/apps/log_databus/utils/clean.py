@@ -141,11 +141,11 @@ class CleanFilterUtils:
 
     @staticmethod
     def delete(collector_config_id: int):
-        from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+        from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
         from apps.log_databus.serializers import FastCollectorUpdateSerializer
 
         params = {"etl_config": EtlConfig.BK_LOG_TEXT, "etl_params": {}}
         ser = FastCollectorUpdateSerializer(data=params)
         ser.is_valid(raise_exception=True)
-        CollectorHandler(collector_config_id=collector_config_id).get_instance().fast_update(ser.data)
+        HostCollectorHandler(collector_config_id).fast_update(ser.data)
         return True

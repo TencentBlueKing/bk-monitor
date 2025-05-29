@@ -458,7 +458,7 @@ class ClusteringConfigHandler:
         :param partition:
         :return:
         """
-        collector_handler = CollectorHandler(self.data.collector_config_id)
+        collector_handler = CollectorHandler.get_instance(self.data.collector_config_id)
         if not self.data.log_bk_data_id:
             self.data.log_bk_data_id = CollectorScenario.change_data_stream(
                 collector_handler.data, mq_topic=topic, mq_partition=partition
@@ -467,7 +467,7 @@ class ClusteringConfigHandler:
         # 设置request线程变量
         activate_request(generate_request())
 
-        collector_detail = collector_handler.get_instance().retrieve(use_request=False)
+        collector_detail = collector_handler.retrieve(use_request=False)
 
         # need drop built in field
         collector_detail["fields"] = map_if(collector_detail["fields"], if_func=lambda field: not field["is_built_in"])
