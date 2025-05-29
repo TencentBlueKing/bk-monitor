@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,12 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import socket
+import uuid
 
-import arrow
 import kafka
 import kafka.errors
 from django.conf import settings
-from six.moves import map, range
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.storage.redis import Cache
@@ -23,22 +22,23 @@ from alarm_backends.core.storage.redis import Cache
 logger = logging.getLogger("core.storage.kafka")
 
 
-class KafkaQueue(object):
+class KafkaQueue:
     reconnect_seconds = getattr(settings, "KAFKA_RECONNECT_SECONDS", 60)
     msg_push_batch_size = 1000
 
     def __init__(self, topic="", group_prefix="", redis_offset=True, kfk_conf=None, timeout=6):
         self.redis_offset = redis_offset
         if kfk_conf:
-            kafka_hosts = "{}:{}".format(kfk_conf["domain"], kfk_conf["port"])
+            self.bootstrap_servers = ["{}:{}".format(kfk_conf["domain"], kfk_conf["port"])]
         else:
-            kafka_hosts = f"{settings.KAFKA_HOST[0]}:{settings.KAFKA_PORT}"
-        self._client = kafka.SimpleClient(hosts=kafka_hosts, timeout=timeout)
-        self._client_init_time = arrow.utcnow()
-        self.producer = kafka.producer.SimpleProducer(self.client)
+            self.bootstrap_servers = [f"{settings.KAFKA_HOST[0]}:{settings.KAFKA_PORT}"]
+
+        self.timeout_ms = timeout * 1000  # 转换为毫秒
+        self._producer = None
         self.consumer_pool = {}
         self.offset_manager_pool = {}
         self.set_topic(topic, group_prefix)
+        self.pod_id = socket.gethostname().rsplit("-", 1)[-1] or str(uuid.uuid4())[:8]
 
     def __del__(self):
         self.close()
@@ -54,31 +54,30 @@ class KafkaQueue(object):
         return cls(kfk_conf=kfk_conf)
 
     def close(self):
-        self.client.close()
-
-    @property
-    def client(self):
-        now = arrow.utcnow()
-        delta = (now - self._client_init_time).total_seconds()
-        if delta > self.reconnect_seconds:
-            self._client_init_time = now
-            self._client.reinit()
-        return self._client
+        if self._producer:
+            self._producer.close()
+        for consumer in self.consumer_pool.values():
+            consumer.close()
 
     def set_topic(self, topic, group_prefix=""):
         if topic:
             self.topic = topic
         if group_prefix:
-            self.group_name = "{}{}".format(group_prefix, settings.KAFKA_CONSUMER_GROUP)
+            self.group_name = f"{group_prefix}{settings.KAFKA_CONSUMER_GROUP}"
 
     def get_producer(self):
-        if hasattr(self, "producer"):
-            return self.producer
-        self.producer = kafka.producer.SimpleProducer(self.client)
-        return self.producer
+        if not self._producer:
+            self._producer = kafka.KafkaProducer(
+                bootstrap_servers=self.bootstrap_servers,
+                request_timeout_ms=self.timeout_ms,
+                acks=1,
+                retries=3,
+                max_request_size=1048576,
+            )
+        return self._producer
 
     def get_consumer(self):
-        consumer_pool_key = "{}-{}".format(self.topic, self.group_name)
+        consumer_pool_key = f"{self.topic}-{self.group_name}"
         # 增加初始化判断机制 关键值未赋值 则初始化不成功
         consumer = self.consumer_pool.get(consumer_pool_key)
         if not consumer:
@@ -87,7 +86,7 @@ class KafkaQueue(object):
         return consumer
 
     def get_offset_manager(self):
-        offset_manager_pool_key = "{}-{}".format(self.topic, self.group_name)
+        offset_manager_pool_key = f"{self.topic}-{self.group_name}"
         # 增加初始化判断机制 关键值未赋值 则初始化不成功
         if self.offset_manager_pool.get(offset_manager_pool_key):
             offset_manager = self.offset_manager_pool.get(offset_manager_pool_key)
@@ -100,8 +99,17 @@ class KafkaQueue(object):
     def _create_consumer(self, topic, group_name):
         for i in range(3):
             try:
-                consumer = kafka.consumer.SimpleConsumer(
-                    self.client, group_name, topic, auto_commit=settings.KAFKA_AUTO_COMMIT, max_buffer_size=None
+                consumer = kafka.KafkaConsumer(
+                    topic,
+                    bootstrap_servers=self.bootstrap_servers,
+                    group_id=group_name,
+                    client_id=f"{group_name}-{self.pod_id}",
+                    enable_auto_commit=settings.KAFKA_AUTO_COMMIT,
+                    auto_offset_reset="latest",
+                    consumer_timeout_ms=self.timeout_ms,
+                    max_partition_fetch_bytes=1024 * 1024 * 5,
+                    session_timeout_ms=30000,
+                    request_timeout_ms=self.timeout_ms,
                 )
             except Exception as e:
                 logger.exception(
@@ -111,26 +119,42 @@ class KafkaQueue(object):
                     e,
                 )
                 continue
-            if consumer.offsets:
-                return consumer
-            else:
-                logger.warning("topic(%s) load metadata failed %d times", topic, i + 1)
+
+            # 检查consumer是否正常创建
+            try:
+                # 尝试获取分区信息来验证连接
+                partitions = consumer.partitions_for_topic(topic)
+                if partitions:
+                    return consumer
+                else:
+                    logger.warning("topic(%s) load metadata failed %d times", topic, i + 1)
+                    continue
+            except Exception as e:
+                logger.warning("topic(%s) verify consumer failed %d times: %s", topic, i + 1, e)
                 continue
         else:
             logger.error("topic %s load metadata failed", topic)
-            raise Exception("topic {} load metadata failed".format(topic))
+            raise Exception(f"topic {topic} load metadata failed")
 
     def _put(self, value, topic=""):
+        producer = self.get_producer()
         try:
             if topic:
-                return self.get_producer().send_messages(topic, *value)
+                for msg in value:
+                    producer.send(topic, msg)
             else:
-                return self.get_producer().send_messages(self.topic, *value)
-        except kafka.errors.FailedPayloadsError:
+                for msg in value:
+                    producer.send(self.topic, msg)
+            producer.flush()  # 确保消息发送完成
+        except kafka.errors.KafkaError:
+            # 重试一次
             if topic:
-                return self.get_producer().send_messages(topic, *value)
+                for msg in value:
+                    producer.send(topic, msg)
             else:
-                return self.get_producer().send_messages(self.topic, *value)
+                for msg in value:
+                    producer.send(self.topic, msg)
+            producer.flush()
 
     def put(self, value, topic=""):
         if not isinstance(value, list):
@@ -149,31 +173,50 @@ class KafkaQueue(object):
         self.get_offset_manager().set_offset(new_offset, True)
 
     def take_raw(self, count=1, timeout=5):
+        consumer = self.get_consumer()
         if self.redis_offset:
             self.get_offset_manager().reset_consumer_offset(count)
+
         try:
-            messages = self.get_consumer().get_messages(count=count, timeout=timeout)
+            # 使用poll方法获取消息
+            timeout_ms = timeout * 1000
+            records = consumer.poll(timeout_ms=timeout_ms, max_records=count)
+            messages = []
+            for topic_partition, msgs in records.items():
+                messages.extend(msgs)
+
         except kafka.errors.OffsetOutOfRangeError:
-            self.get_consumer().seek(-1, 2)
-            messages = self.get_consumer().get_messages(count=count, timeout=timeout)
-        except kafka.errors.FailedPayloadsError:
+            # 重置到最新位置
+            consumer.seek_to_end()
+            records = consumer.poll(timeout_ms=timeout_ms, max_records=count)
+            messages = []
+            for topic_partition, msgs in records.items():
+                messages.extend(msgs)
+        except kafka.errors.KafkaError:
             # retry
-            messages = self.get_consumer().get_messages(count=count, timeout=timeout)
+            records = consumer.poll(timeout_ms=timeout_ms, max_records=count)
+            messages = []
+            for topic_partition, msgs in records.items():
+                messages.extend(msgs)
         finally:
-            if settings.KAFKA_AUTO_COMMIT:
-                if self.get_consumer().commit() is False:
+            if settings.KAFKA_AUTO_COMMIT and messages:
+                try:
+                    consumer.commit()
+                except Exception:
                     logger.warning("Kafka commit failure")
+
         if self.redis_offset:
             self.get_offset_manager().update_consumer_offset(count, messages)
         return messages
 
     def take(self, count=1, timeout=0.1):
-        return [m.message.value for m in self.take_raw(count, timeout)]
+        messages = self.take_raw(count, timeout)
+        return [m.value for m in messages]
 
 
-class KafkaOffsetManager(object):
+class KafkaOffsetManager:
     TIMEOUT = CONST_ONE_DAY
-    KEY_PREFIX = "{}_kafka_offset".format(settings.APP_CODE)
+    KEY_PREFIX = f"{settings.APP_CODE}_kafka_offset"
 
     def __init__(self, consumer):
         self.consumer = consumer
@@ -183,7 +226,11 @@ class KafkaOffsetManager(object):
 
     @property
     def key(self):
-        return "_".join(map(str, [self.KEY_PREFIX, self.consumer.group, self.consumer.topic]))
+        # 新版consumer的group_id和主题信息获取方式
+        group_id = getattr(self.consumer, "_group_id", "unknown")
+        topics = list(self.consumer.subscription() or ["unknown"])
+        topic = topics[0] if topics else "unknown"
+        return "_".join(map(str, [self.KEY_PREFIX, group_id, topic]))
 
     @property
     def reset_key(self):
@@ -206,8 +253,21 @@ class KafkaOffsetManager(object):
         return self.get_offset()
 
     def set_seek(self, *args, **kwargs):
-        self.consumer.seek(*args, **kwargs)
-        remote_offset = max(self.consumer.offsets.values())
+        # 新版API的seek方法需要TopicPartition对象
+        topics = list(self.consumer.subscription() or [])
+        if topics:
+            partitions = self.consumer.assignment()
+            if partitions:
+                for tp in partitions:
+                    self.consumer.seek(tp, args[0] if args else 0)
+
+        # 获取当前offset
+        try:
+            committed = self.consumer.committed(list(self.consumer.assignment())[0])
+            remote_offset = committed.offset if committed else 0
+        except (IndexError, AttributeError):
+            remote_offset = 0
+
         self.cache.set(self.key, remote_offset, self.TIMEOUT)
         return self.get_offset()
 
@@ -217,9 +277,16 @@ class KafkaOffsetManager(object):
         return self.set_offset(offset, force=True)
 
     def _set_consumer_offset(self, new_remote_offset):
-        remote_offset = max(self.consumer.offsets.values())
-        logger.debug("Kafka_offset remote %s: %s to %s", self.key, remote_offset, new_remote_offset)
-        self.consumer.seek(new_remote_offset - remote_offset, 1)
+        # 获取当前位置
+        assignment = self.consumer.assignment()
+        if assignment:
+            tp = list(assignment)[0]  # 取第一个分区
+            try:
+                current_position = self.consumer.position(tp)
+                logger.debug("Kafka_offset remote %s: %s to %s", self.key, current_position, new_remote_offset)
+                self.consumer.seek(tp, new_remote_offset)
+            except Exception as e:
+                logger.warning("Failed to set consumer offset: %s", e)
 
     def reset_consumer_offset(self, count):
         reset_offset = self.get_reset_offset()
@@ -227,31 +294,26 @@ class KafkaOffsetManager(object):
         if reset_offset and reset_offset != self.reset_offset:
             self.instance_offset = self.reset_offset = reset_offset
         # 如果第一次读这个 topic，那么当前游标设置为最新前 3 条
-        if self._get_offset() is None:
-            self.consumer.seek(0, 2)
-            self.instance_offset = max(self.consumer.offsets.values()) - 3
-        # 否则从 redis 读取游标
-        else:
-            self.instance_offset = self.get_offset()
-
-        # 更新 client 的游标
+        if not self.instance_offset:
+            self.instance_offset = self.get_tail() - 3
         self._set_consumer_offset(self.instance_offset)
 
-        new_local_offset = self.instance_offset + count
-        if self.get_offset() < new_local_offset:
-            self.instance_offset = self.set_offset(new_local_offset)
-
     def get_tail(self):
-        self.consumer.seek(0, 2)
-        if len(list(self.consumer.offsets.values())) > 0:
-            return max(self.consumer.offsets.values())
-        else:
-            return 0
+        # 获取最新的offset
+        assignment = self.consumer.assignment()
+        if assignment:
+            tp = list(assignment)[0]
+            try:
+                end_offsets = self.consumer.end_offsets([tp])
+                return end_offsets.get(tp, 0)
+            except Exception:
+                return 0
+        return 0
 
     def update_consumer_offset(self, count, messages):
         if not messages:
-            self.instance_offset = self.set_offset(self.consumer.fetch_offsets[0])
-        elif len(messages) < count:
-            offset = messages[-1].offset + 1
-            logger.debug("Kafka_offset local_desc %s: %s to %s", self.key, self.instance_offset, offset)
-            self.instance_offset = self.set_offset(offset)
+            return
+        # 更新到最后一条消息的offset + 1
+        last_offset = messages[-1].offset + 1
+        self.instance_offset = last_offset
+        self.set_offset(last_offset)
