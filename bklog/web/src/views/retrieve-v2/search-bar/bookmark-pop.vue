@@ -28,14 +28,14 @@
     },
     activeFavorite: {
       default: true,
-      type: Boolean,
+      type: Boolean | String,
     },
     matchSQLStr: {
       default: false,
       type: Boolean,
     },
   });
-  const emit = defineEmits(['refresh', 'save-current-active-favorite']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -43,9 +43,15 @@
 
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
-  const indexSetItemList = computed(() => store.state.indexItem.items);
+  // const indexSetItemList = computed(() => store.state.indexItem.items);
+  // const indexSetName = computed(() => {
+  //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+  // });
   const indexSetName = computed(() => {
-    return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+    const indexSetList = store.state.retrieve.indexSetList || [];
+    const indexSetId = store.state.indexId;
+    const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
   });
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
@@ -305,8 +311,9 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
+    emit('instanceShow',false);
     nextTick(() => {
-      popoverContentRef.value.clearError();
+      popoverContentRef.value?.clearError();
     });
   };
   // popover组件Ref
@@ -315,6 +322,11 @@
   const popoverShow = ref(false);
   // 弹窗按钮打开逻辑
   const handleCollection = () => {
+    popoverShow.value ? hidePopover() : showPopover();
+  };
+  // 历史记录弹窗按钮打开逻辑
+  const handleHistoryCollection = () => {
+    emit('instanceShow',true);
     popoverShow.value ? hidePopover() : showPopover();
   };
   const showPopover = () => {
@@ -337,7 +349,7 @@
   };
   const tippyOptions = {
     theme: 'light',
-    placement: 'bottom-end',
+    placement: props.activeFavorite === 'history'? 'right' : 'bottom-end',
     offset: '22',
     interactive: true,
     trigger: 'manual',
@@ -358,8 +370,15 @@
     :on-show="handlePopoverShow"
     :tippy-options="tippyOptions"
   >
+    <span v-if="activeFavorite === 'history'">
+      <span
+        class="bklog-icon bklog-lc-star-shape"
+        @click.stop="handleHistoryCollection"
+      >
+      </span>
+    </span>
     <span
-      v-if="activeFavorite"
+      v-else-if="activeFavorite"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"

@@ -141,6 +141,7 @@ export default defineComponent({
       handleAlarmConfirm,
       handleShowChange,
       handleToMeal,
+      t,
     };
   },
   render() {
@@ -157,11 +158,11 @@ export default defineComponent({
                   v-slots={{
                     title: (
                       <div>
-                        <div>{`${this.$t(
+                        <div>{`${this.t(
                           '当该告警确认需要处理，并且希望该告警不再通知时，可以直接进行告警确认'
                         )}。`}</div>
                         <div>
-                          {`${this.$t('注意')}：${this.$t(
+                          {`${this.t('注意')}：${this.t(
                             '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行'
                           )}。`}
                         </div>
@@ -172,7 +173,7 @@ export default defineComponent({
                 />
                 {this.infoContent.length
                   ? [
-                      <div class='info-content-title'>{this.$t('关联的处理套餐')}</div>,
+                      <div class='info-content-title'>{this.t('关联的处理套餐')}</div>,
                       <div class='info-content'>
                         {this.infoContent.map(item => (
                           <div class='lint-item'>
@@ -181,7 +182,7 @@ export default defineComponent({
                               onClick={() => this.handleToMeal(item.id)}
                             >
                               {item.name}
-                              {this.$t('套餐')}
+                              {this.t('套餐')}
                             </span>
                             <span class='item-id'>{`(#${item.id})`}</span>
                           </div>
@@ -192,7 +193,7 @@ export default defineComponent({
                 <Input
                   class='alarm-config-content'
                   v-model={this.content}
-                  placeholder={this.$t('填写告警确认备注信息')}
+                  placeholder={this.t('填写告警确认备注信息')}
                   rows={5}
                   type='textarea'
                 />
@@ -207,19 +208,19 @@ export default defineComponent({
               theme='primary'
               onClick={this.handleAlarmConfirm}
             >
-              {this.$t('确认')}
+              {this.t('确认')}
             </Button>,
             <Button
               key={'cancel'}
               onClick={() => this.handleShowChange(false)}
             >
-              {this.$t('取消')}
+              {this.t('取消')}
             </Button>,
           ],
         }}
         header-position={'left'}
         is-show={this.show}
-        title={this.$t('告警确认')}
+        title={this.t('告警确认')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
       />

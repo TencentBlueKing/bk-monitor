@@ -20,6 +20,10 @@
     border-right: none;
     border-radius: 2px;
 
+    &.not-value-wrap {
+      border-right: 1px solid #dcdee5;
+    }
+
     .key-wrap {
       z-index: 2;
       align-self: flex-start;

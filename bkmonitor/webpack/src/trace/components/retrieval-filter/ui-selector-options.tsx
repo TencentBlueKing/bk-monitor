@@ -52,6 +52,7 @@ import {
   fieldTypeMap,
   GROUP_RELATION_KEY,
   isNumeric,
+  NOT_VALUE_METHODS,
   WILDCARD_KEY,
 } from './utils';
 import ValueTagSelector from './value-tag-selector';
@@ -65,7 +66,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
-    const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
+    // const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
     const searchValue = shallowRef('');
@@ -124,6 +125,10 @@ export default defineComponent({
     const isDurationKey = computed(() => {
       return DURATION_KEYS.includes(checkedItem.value?.name);
     });
+    /* 是否选择了无需检索值的操作符 */
+    const notValueOfMethod = computed(() => {
+      return NOT_VALUE_METHODS.includes(method.value);
+    });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
       enterSelection(isFocus);
@@ -176,9 +181,9 @@ export default defineComponent({
           } else {
             handleCheck(props.fields[0]);
             // 需要等待popover 动画执行完毕 300ms
-            setTimeout(() => {
-              searchInputRef.value?.focus();
-            }, 300);
+            // setTimeout(() => {
+            //   searchInputRef.value?.focus();
+            // }, 300);
           }
         } else {
           cleanup?.();
@@ -338,7 +343,7 @@ export default defineComponent({
             cursorIndex.value = searchLocalFields.value.length - 1;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
 
@@ -349,7 +354,7 @@ export default defineComponent({
             cursorIndex.value = 0;
           }
           updateSelection(cursorIndex.value);
-          enterSelectionDebounce();
+          // enterSelectionDebounce();
           break;
         }
         case 'Enter': {
@@ -359,12 +364,22 @@ export default defineComponent({
         }
       }
     }
+    function isElementVisible(element: HTMLElement, container: HTMLElement) {
+      const elementRect = element?.getBoundingClientRect();
+      const containerRect = container?.getBoundingClientRect();
+      if (elementRect && containerRect) {
+        return elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
+      }
+      return true;
+    }
     function updateSelection(index: number) {
       nextTick(() => {
-        const listEl = elRef.value.querySelector('.component-top-left .options-wrap');
+        const listEl = elRef.value?.querySelector('.component-top-left .options-wrap');
         const el = listEl?.children?.[index];
         if (el) {
-          el.scrollIntoView(false);
+          if (!isElementVisible(el as HTMLElement, listEl as HTMLElement)) {
+            el.scrollIntoView(false);
+          }
         }
       });
     }
@@ -484,6 +499,14 @@ export default defineComponent({
       handleSearchChange();
     }
 
+    function handleMethodChange(value) {
+      if (NOT_VALUE_METHODS.includes(value)) {
+        values.value = [];
+        groupRelation.value = groupRelationItem.value?.default || DEFAULT_GROUP_RELATION;
+        isWildcard.value = wildcardItem.value?.default || false;
+      }
+    }
+
     return {
       checkedItem,
       queryString,
@@ -502,6 +525,8 @@ export default defineComponent({
       isMacSystem,
       placeholderStr,
       timeConsumingValue,
+      notValueOfMethod,
+      isDurationKey,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -513,6 +538,8 @@ export default defineComponent({
       handleCancel,
       defaultOptions,
       handleClearSearch,
+      handleMethodChange,
+      t,
     };
   },
   render() {
@@ -523,12 +550,12 @@ export default defineComponent({
             key={'all'}
             class='form-item'
           >
-            <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
+            <div class='form-item-label mt-16'>{this.t('检索内容')}</div>
             <div class='form-item-content mt-8'>
               <Input
                 ref={'allInput'}
                 v-model={this.queryString}
-                placeholder={this.$t('请输入')}
+                placeholder={this.t('请输入')}
                 rows={15}
                 type={'textarea'}
               />
@@ -538,13 +565,12 @@ export default defineComponent({
       }
       return this.checkedItem
         ? [
-            !DURATION_KEYS.includes(this.checkedItem?.name) && (
+            !this.isDurationKey && (
               <div
                 key={'method'}
                 class='form-item mt-34'
-                // onClick={e => e.stopPropagation()}
               >
-                <div class='form-item-label'>{this.$t('条件')}</div>
+                <div class='form-item-label'>{this.t('条件')}</div>
                 <div class='form-item-content mt-6'>
                   <Select
                     ext-cls={'method-select'}
@@ -553,6 +579,7 @@ export default defineComponent({
                       boundary: 'parent',
                     }}
                     clearable={false}
+                    onChange={this.handleMethodChange}
                   >
                     {this.checkedItem.supported_operations.map(item => (
                       <Select.Option
@@ -565,70 +592,74 @@ export default defineComponent({
                 </div>
               </div>
             ),
-            <div
-              key={'value'}
-              class={['form-item', DURATION_KEYS.includes(this.checkedItem.name) ? 'mt-34' : 'mt-16']}
-            >
-              <div class='form-item-label'>
-                <span class='left'>{this.$t('检索值')}</span>
-                {!!this.wildcardItem && (
-                  <span class='right'>
-                    <Checkbox
-                      v-model={this.isWildcard}
-                      // onChange={this.handleIsWildcardChange}
-                    >
-                      {this.wildcardItem?.label || '使用通配符'}
-                    </Checkbox>
-                  </span>
-                )}
-              </div>
-              <div class='form-item-content mt-6'>
-                {DURATION_KEYS.includes(this.checkedItem.name) ? (
-                  <TimeConsuming
-                    key={this.rightRefreshKey}
-                    fieldInfo={
-                      {
-                        field: this.checkedItem.name,
-                      } as any
-                    }
-                    styleType={'form'}
-                    value={this.timeConsumingValue}
-                    onChange={this.handleTimeConsumingValueChange}
-                  />
-                ) : (
-                  <ValueTagSelector
-                    key={this.rightRefreshKey}
-                    ref='valueSelector'
-                    fieldInfo={this.valueSelectorFieldInfo}
-                    getValueFn={this.getValueFnProxy}
-                    placeholder={''}
-                    value={this.values}
-                    autoFocus
-                    onChange={this.handleValueChange}
-                    onSelectorBlur={this.handleValueSelectorBlur}
-                    onSelectorFocus={this.handleSelectorFocus}
-                  />
-                )}
-              </div>
-              {this.isIntegerError ? <div class='error-msg'>{this.$tc('仅支持输入数值类型')}</div> : undefined}
-            </div>,
-            !!this.groupRelationItem && (
-              <div
-                key='group_relation'
-                class='form-item mt-16'
-              >
-                <div class='form-item-label'>{this.groupRelationItem?.label || '组件关系'}</div>
-                <div class='form-item-content mt-6'>
-                  <Radio.Group v-model={this.groupRelation}>
-                    {this.groupRelationItem?.children?.map(g => (
-                      <Radio
-                        key={g.value}
-                        label={g.value}
+            !this.notValueOfMethod && (
+              <>
+                <div
+                  key={'value'}
+                  class={['form-item', this.isDurationKey ? 'mt-34' : 'mt-16']}
+                >
+                  <div class='form-item-label'>
+                    <span class='left'>{this.t('检索值')}</span>
+                    {!!this.wildcardItem && (
+                      <span class='right'>
+                        <Checkbox
+                          v-model={this.isWildcard}
+                          // onChange={this.handleIsWildcardChange}
+                        >
+                          {this.wildcardItem?.label || '使用通配符'}
+                        </Checkbox>
+                      </span>
+                    )}
+                  </div>
+                  <div class='form-item-content mt-6'>
+                    {this.isDurationKey ? (
+                      <TimeConsuming
+                        key={this.rightRefreshKey}
+                        fieldInfo={
+                          {
+                            field: this.checkedItem.name,
+                          } as any
+                        }
+                        styleType={'form'}
+                        value={this.timeConsumingValue}
+                        onChange={this.handleTimeConsumingValueChange}
                       />
-                    ))}
-                  </Radio.Group>
+                    ) : (
+                      <ValueTagSelector
+                        key={this.rightRefreshKey}
+                        ref='valueSelector'
+                        fieldInfo={this.valueSelectorFieldInfo}
+                        getValueFn={this.getValueFnProxy}
+                        placeholder={''}
+                        value={this.values}
+                        autoFocus
+                        onChange={this.handleValueChange}
+                        onSelectorBlur={this.handleValueSelectorBlur}
+                        onSelectorFocus={this.handleSelectorFocus}
+                      />
+                    )}
+                  </div>
+                  {this.isIntegerError ? <div class='error-msg'>{this.t('仅支持输入数值类型')}</div> : undefined}
                 </div>
-              </div>
+                {!!this.groupRelationItem && (
+                  <div
+                    key='group_relation'
+                    class='form-item mt-16'
+                  >
+                    <div class='form-item-label'>{this.groupRelationItem?.label || '组件关系'}</div>
+                    <div class='form-item-content mt-6'>
+                      <Radio.Group v-model={this.groupRelation}>
+                        {this.groupRelationItem?.children?.map(g => (
+                          <Radio
+                            key={g.value}
+                            label={g.value}
+                          />
+                        ))}
+                      </Radio.Group>
+                    </div>
+                  </div>
+                )}
+              </>
             ),
           ]
         : undefined;
@@ -646,7 +677,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior='simplicity'
                 clearable={true}
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.t('请输入关键字')}
                 stopPropagation={false}
                 onClear={this.handleSearchChangeDebounce}
                 onInput={this.handleSearchChangeDebounce}
@@ -718,19 +749,19 @@ export default defineComponent({
             <span class='desc-item-icon'>
               <span class='icon-monitor icon-mc-arrow-down' />
             </span>
-            <span class='desc-item-name'>{this.$t('移动光标')}</span>
+            <span class='desc-item-name'>{this.t('移动光标')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>Enter</span>
-            <span class='desc-item-name'>{this.$t('选中')}</span>
+            <span class='desc-item-name'>{this.t('选中')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>Esc</span>
-            <span class='desc-item-name'>{this.$t('收起查询')}</span>
+            <span class='desc-item-name'>{this.t('收起查询')}</span>
           </span>
           <span class='desc-item'>
             <span class='desc-item-box'>{`${this.isMacSystem ? 'Cmd' : 'Ctrl'}+Enter`}</span>
-            <span class='desc-item-name'>{this.$t('提交查询')}</span>
+            <span class='desc-item-name'>{this.t('提交查询')}</span>
           </span>
           <div class='operate-btns'>
             <Button
@@ -741,9 +772,9 @@ export default defineComponent({
                 this.handleConfirm();
               }}
             >
-              {`${this.$t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
+              {`${this.t('确定')} ${this.isMacSystem ? 'Cmd' : 'Ctrl'} + Enter`}
             </Button>
-            <Button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</Button>
+            <Button onClick={() => this.handleCancel()}>{`${this.t('取消')}`}</Button>
           </div>
         </div>
       </div>

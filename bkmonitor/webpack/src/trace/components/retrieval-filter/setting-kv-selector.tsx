@@ -26,14 +26,15 @@
 
 import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-import { useResizeObserver } from '@vueuse/core';
+import { promiseTimeout, useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
 import tippy, { sticky } from 'tippy.js';
 
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, OPTIONS_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
-import { onClickOutside, triggerShallowRef } from './utils';
+import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
+import { NOT_VALUE_METHODS, onClickOutside, triggerShallowRef } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -58,6 +59,8 @@ export default defineComponent({
     const isChecked = shallowRef(false);
     const hideIndex = shallowRef(-1);
     const optionsWidth = shallowRef(0);
+    const keyWrapMinWidth = shallowRef(0);
+    const { t } = useI18n();
 
     let clickOutsideFn = () => {};
 
@@ -65,9 +68,12 @@ export default defineComponent({
       return new Set(localValue.value);
     });
     const isHighLight = computed(() => !!inputValue.value || showSelector.value || expand.value);
+    const notNeedValueWrap = computed(() => NOT_VALUE_METHODS.includes(localMethod.value));
 
     init();
-    onMounted(() => {
+    onMounted(async () => {
+      keyWrapMinWidth.value = getTextWidth(props.fieldInfo?.alias || props.fieldInfo?.field || '');
+      await promiseTimeout(100);
       overviewCount();
       const valueWrap = elRef.value?.querySelector('.component-main > .value-wrap') as any;
       if (valueWrap) {
@@ -248,6 +254,9 @@ export default defineComponent({
       handleChange();
     }
     function handleChange() {
+      if (notNeedValueWrap.value) {
+        localValue.value = [];
+      }
       emit('change', {
         ...props.value,
         key: props.fieldInfo.field,
@@ -274,6 +283,18 @@ export default defineComponent({
         handleChange();
       }
     }
+    function getTextWidth(text: string) {
+      const span = document.createElement('span');
+      span.style.visibility = 'hidden';
+      span.style.position = 'absolute';
+      span.style.whiteSpace = 'nowrap';
+      span.style.fontSize = '12px';
+      document.body.appendChild(span);
+      span.textContent = text;
+      const width = span.offsetWidth;
+      document.body.removeChild(span);
+      return width;
+    }
 
     return {
       isHighLight,
@@ -287,6 +308,8 @@ export default defineComponent({
       isHover,
       optionsWidth,
       showSelector,
+      notNeedValueWrap,
+      keyWrapMinWidth,
       handleIsChecked,
       handleMouseenter,
       handleMouseleave,
@@ -300,6 +323,7 @@ export default defineComponent({
       handleInput,
       handleClear,
       handleSelectOption,
+      t,
     };
   },
   render() {
@@ -309,14 +333,17 @@ export default defineComponent({
         class={['vue3_resident-setting__setting-kv-selector-component', { active: this.isHighLight }]}
       >
         <div
-          class={['component-main', { expand: this.expand }]}
+          class={['component-main', { expand: this.expand, 'not-value-wrap': this.notNeedValueWrap }]}
           onMouseenter={this.handleMouseenter}
           onMouseleave={this.handleMouseleave}
         >
           <span
+            style={{
+              minWidth: `${this.keyWrapMinWidth < 120 ? this.keyWrapMinWidth : 120}px`,
+            }}
             class='key-wrap'
-            v-overflow-tips={{
-              content: this.fieldInfo?.alias || this.fieldInfo?.field,
+            v-bk-tooltips={{
+              content: this.fieldInfo?.field || this.fieldInfo?.alias,
               placement: 'top',
             }}
           >
@@ -331,7 +358,7 @@ export default defineComponent({
             >
               {{
                 default: () => (
-                  <span class={['method-span', { 'red-text': OPTIONS_METHODS.includes(this.localMethod as any) }]}>
+                  <span class={['method-span', { 'red-text': NOT_TYPE_METHODS.includes(this.localMethod as any) }]}>
                     {this.methodMap[this.localMethod] || this.localMethod}
                   </span>
                 ),
@@ -351,9 +378,11 @@ export default defineComponent({
               }}
             </Dropdown>
           </span>
+
           <div
             style={{
               borderBottomWidth: this.localValue?.length ? '1px' : '0',
+              display: this.notNeedValueWrap ? 'none' : 'flex',
             }}
             class='value-wrap'
             onClick={this.handleClickValueWrap}
@@ -394,7 +423,7 @@ export default defineComponent({
               <AutoWidthInput
                 height={22}
                 isFocus={this.isFocus}
-                placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
+                placeholder={`${this.t('请输入')} ${this.t('或')} ${this.t('选择')}`}
                 value={this.inputValue}
                 onBackspaceNull={this.handleBackspaceNull}
                 onBlur={this.handleBlur}

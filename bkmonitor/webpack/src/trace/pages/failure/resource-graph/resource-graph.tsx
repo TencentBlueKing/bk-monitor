@@ -1534,6 +1534,7 @@ export default defineComponent({
       exceptionData,
       handleException,
       handleCollapseResource,
+      t,
     };
   },
   render() {
@@ -1545,7 +1546,7 @@ export default defineComponent({
           loading={this.loading}
         >
           <div class='graph-title'>
-            <span class='graph-title_label'>{this.$t('从属关系')}</span>
+            <span class='graph-title_label'>{this.t('从属关系')}</span>
             {this.entityName && <span class='graph-title_line' />}
             <span
               key={this.entityName}

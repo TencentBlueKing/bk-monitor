@@ -19,6 +19,7 @@ from apm_web.models import (
     LogServiceRelation,
 )
 from apm_web.trace.constants import EnabledStatisticsDimension
+from constants.apm import OperatorGroupRelation
 
 
 class StatusCodeSerializer(serializers.Serializer):
@@ -69,9 +70,15 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 
 
 class FilterSerializer(serializers.Serializer):
+    class OptionsSerializer(serializers.Serializer):
+        is_wildcard = serializers.BooleanField(label="是否使用通配符", default=False)
+        group_relation = serializers.ChoiceField(
+            label="分组关系", choices=OperatorGroupRelation.choices(), default=OperatorGroupRelation.OR
+        )
+
     key = serializers.CharField(label="查询键")
     operator = serializers.CharField(label="操作符")
-    options = serializers.DictField(label="操作符选项", required=False)
+    options = OptionsSerializer(label="操作符选项", default={})
     value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
 
 
@@ -116,7 +123,6 @@ class SpanIdInputSerializer(serializers.Serializer):
 class BaseTraceRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     app_name = serializers.CharField(label="应用名称")
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class BaseTraceFilterSerializer(serializers.Serializer):
@@ -163,3 +169,7 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))
         return attrs
+
+
+class TraceGenerateQueryStringRequestSerializer(serializers.Serializer):
+    filters = serializers.ListSerializer(label="查询条件", child=FilterSerializer(), default=[])

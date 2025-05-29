@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import IconFont from '../icon-font/icon-font';
 import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
@@ -90,6 +91,7 @@ export default defineComponent({
   props: IProps,
   setup(props, { emit }) {
     const { list, value } = toRefs(props);
+    const { t } = useI18n();
 
     /** 选中的值 */
     const localValue = ref(value.value);
@@ -126,6 +128,7 @@ export default defineComponent({
       isShow,
       handleSelect,
       handeRefreshImmediately,
+      t,
     };
   },
   render() {
@@ -137,7 +140,7 @@ export default defineComponent({
           v-slots={{
             default: item => {
               let triggerText = item?.name || this.list[0].name;
-              if (triggerText === `${this.$t('关闭')}（off）`) {
+              if (triggerText === `${this.t('关闭')}（off）`) {
                 triggerText = 'off';
               }
 

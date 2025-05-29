@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { watchDebounced, useEventListener } from '@vueuse/core';
 import tippy from 'tippy.js';
@@ -56,6 +57,8 @@ export default defineComponent({
     // const fieldsMap = shallowRef<Map<string, IFilterField>>(new Map());
     let onClickOutsideFn = () => {};
     let cleanup = () => {};
+
+    const { t } = useI18n();
 
     init();
     onBeforeUnmount(() => {
@@ -192,7 +195,10 @@ export default defineComponent({
       if (regex.test(field)) {
         fieldStr = field.replace(regex, '');
       }
-      if (curTokenType.value === EQueryStringTokenType.condition && type === EQueryStringTokenType.key) {
+      if (
+        (EQueryStringTokenType.condition === type && type === EQueryStringTokenType.key) ||
+        EQueryStringTokenType.method === type
+      ) {
         search.value = '';
       }
       curTokenType.value = type;
@@ -283,6 +289,7 @@ export default defineComponent({
       curTokenType,
       handleSelectOption,
       handleSelectFavorite,
+      t,
     };
   },
   render() {
@@ -291,7 +298,7 @@ export default defineComponent({
         ref='elRef'
         class='vue3_retrieval-filter__qs-selector-component-wrap'
         data-placeholder={
-          !this.inputValue && !this.localValue ? `${this.placeholder || this.$t('快速定位到搜索，请输入关键词')}` : ''
+          !this.inputValue && !this.localValue ? `${this.placeholder || this.t('快速定位到搜索，请输入关键词')}` : ''
         }
       >
         <div class='retrieval-filter__qs-selector-component' />

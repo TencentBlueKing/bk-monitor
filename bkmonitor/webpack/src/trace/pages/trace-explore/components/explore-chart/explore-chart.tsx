@@ -26,6 +26,7 @@
 import { computed, defineComponent, useTemplateRef, watch, type PropType } from 'vue';
 import { getCurrentInstance } from 'vue';
 import VueEcharts from 'vue-echarts';
+import { useI18n } from 'vue-i18n';
 
 import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 import ChartTitle from '../../../../plugins/components/chart-title';
@@ -54,6 +55,7 @@ export default defineComponent({
   },
   setup(props) {
     const store = useTraceExploreStore();
+    const { t } = useI18n();
     // const panelModels = shallowRef<PanelModel[]>([]);
     // const dashboardId = random(10);
     // const traceStore = useTraceExploreStore();
@@ -130,6 +132,7 @@ export default defineComponent({
       handleSelectLegend,
       handleDataZoom,
       handleMouseInChange,
+      t,
     };
   },
   render() {
@@ -175,7 +178,7 @@ export default defineComponent({
             />
           </>
         ) : (
-          <div class='empty-chart'>{this.$t('暂无数据')}</div>
+          <div class='empty-chart'>{this.t('暂无数据')}</div>
         )}
       </div>
     );

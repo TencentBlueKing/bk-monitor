@@ -75,13 +75,13 @@ export default defineComponent({
     const localHeaderInfo = ref<IHeaderInfo[]>([
       {
         key: 'Params',
-        name: `${window.i18n.t('参数')}`,
+        name: `${t('参数')}`,
         desc: '',
         value: [],
       },
       {
         key: 'Authorization',
-        name: `${window.i18n.t('认证')}`,
+        name: `${t('认证')}`,
         desc: '',
         type: 'none',
         bearer_token: { token: '' },
@@ -89,14 +89,14 @@ export default defineComponent({
       },
       {
         key: 'Headers',
-        name: `${window.i18n.t('头信息')}`,
+        name: `${t('头信息')}`,
         desc: '',
         hide: true,
         value: [],
       },
       {
         key: 'Body',
-        name: `${window.i18n.t('主体')}`,
+        name: `${t('主体')}`,
         desc: '',
         type: 'default',
         form_data: [],
@@ -105,7 +105,7 @@ export default defineComponent({
       },
       {
         key: 'Seting',
-        name: `${window.i18n.t('设置')}`,
+        name: `${t('设置')}`,
         desc: '',
         value: {
           timeout: 10,
@@ -119,48 +119,48 @@ export default defineComponent({
 
     const methodList = ref(['POST', 'GET']);
     const authRadioList = ref<ISelectListItem[]>([
-      { id: 'none', name: `${window.i18n.t('无需认证')}` },
+      { id: 'none', name: `${t('无需认证')}` },
       { id: 'bearer_token', name: 'Bearer Token' },
       { id: 'basic_auth', name: 'Basic Auth' },
     ]);
     const BodyRadioList = ref<ISelectListItem[]>([
-      { id: 'default', name: `${window.i18n.t('默认')}` },
+      { id: 'default', name: `${t('默认')}` },
       { id: 'form_data', name: 'form-data' },
       { id: 'x_www_form_urlencoded', name: 'x-www-form-urlencoded' },
       { id: 'raw', name: 'raw' },
     ]);
 
     const setingInputList = ref<ISelectListItem[]>([
-      { id: 'timeout', name: `${window.i18n.t('请求超时')}`, unit: 's' },
-      { id: 'retryInterval', name: `${window.i18n.t('重试间隔')}`, unit: 's' },
-      { id: 'maxRetryTimes', name: `${window.i18n.t('重试次数')}`, unit: `${window.i18n.t('次')}` },
-      { id: 'needPoll', name: `${window.i18n.t('是否周期回调')}`, unit: '' },
-      { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` },
+      { id: 'timeout', name: `${t('请求超时')}`, unit: 's' },
+      { id: 'retryInterval', name: `${t('重试间隔')}`, unit: 's' },
+      { id: 'maxRetryTimes', name: `${t('重试次数')}`, unit: `${t('次')}` },
+      { id: 'needPoll', name: `${t('是否周期回调')}`, unit: '' },
+      { id: 'notifyInterval', name: `${t('回调间隔')}`, unit: `${t('分钟')}` },
     ]);
 
     const paramTableColumns = ref([
       { title: '', field: 'isEnabled', colKey: 'isEnabled', width: 31, minWidth: 31 },
-      { title: `${window.i18n.t('字段名')}`, colKey: 'key', field: 'key' },
-      { title: `${window.i18n.t('值')}`, colKey: 'value', field: 'value' },
-      { title: `${window.i18n.t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: `${t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${t('描述')}`, colKey: 'desc', field: 'desc' },
       { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
     const headersTableColumns = ref([
       { title: '', colKey: 'isEnabled', field: 'isEnabled', width: 31, minWidth: 31, type: 'selection' },
-      { title: `${window.i18n.t('字段名')}`, colKey: 'key', field: 'key' },
-      { title: `${window.i18n.t('值')}`, colKey: 'value', field: 'value' },
-      { title: `${window.i18n.t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: `${t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${t('描述')}`, colKey: 'desc', field: 'desc' },
       { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
 
     const headerHideTips = ref({
       true: {
         placement: 'top',
-        content: `${window.i18n.t('点击展开全部')}`,
+        content: `${t('点击展开全部')}`,
       },
       false: {
         placement: 'top',
-        content: `${window.i18n.t('点击隐藏默认')}`,
+        content: `${t('点击隐藏默认')}`,
       },
     });
     /**
@@ -820,6 +820,7 @@ export default defineComponent({
       urlFocus,
       urlChange,
       methodChange,
+      t,
     };
   },
   render() {
@@ -860,7 +861,7 @@ export default defineComponent({
                       class='url-input'
                       v-model={this.httpData.url}
                       behavior='simplicity'
-                      placeholder={this.$t('输入请求 URL')}
+                      placeholder={this.t('输入请求 URL')}
                       onChange={this.urlChange}
                       onFocus={this.urlFocus}
                     />
@@ -914,14 +915,14 @@ export default defineComponent({
                 outline
                 onClick={this.handleDebug}
               >
-                {this.$t('调试')}
+                {this.t('调试')}
               </Button>
             )}
             {this.isEdit ? (
               <div class='sensitivity-failure-judgment'>
                 <CommonItem
                   class='failure'
-                  title={this.$t('失败判断')}
+                  title={this.t('失败判断')}
                 >
                   <i18n
                     class='failure-text'
@@ -943,7 +944,7 @@ export default defineComponent({
                   style={{ marginTop: '16px' }}
                   class='content-form-item'
                 >
-                  <div class='form-item-label'>{this.$t('失败处理')}</div>
+                  <div class='form-item-label'>{this.t('失败处理')}</div>
                   <div class='form-item-content'>
                     <i18n
                       class='failure-text'

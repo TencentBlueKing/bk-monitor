@@ -28,56 +28,56 @@ import type { IDimensionField, IDimensionFieldTreeItem } from './typing';
 
 export const fieldTypeMap = {
   integer: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
 
   long: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   double: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   keyword: {
-    name: window.i18n.tc('字符串'),
+    name: window.i18n.t('字符串'),
     icon: 'icon-monitor icon-Str',
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
   text: {
-    name: window.i18n.tc('文本'),
+    name: window.i18n.t('文本'),
     icon: 'icon-monitor icon-text1',
     color: '#508CC8',
     bgColor: '#E1E7F2',
   },
   date: {
-    name: window.i18n.tc('时间'),
+    name: window.i18n.t('时间'),
     icon: 'icon-monitor icon-Time',
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },
   object: {
-    name: window.i18n.tc('对象'),
+    name: window.i18n.t('对象'),
     icon: 'icon-monitor icon-Object',
     color: '#979BA5',
     bgColor: '#E8EAF0',
   },
   boolean: {
-    name: window.i18n.tc('布尔'),
+    name: window.i18n.t('布尔'),
     icon: 'icon-monitor icon-buer',
     color: '#cb7979',
     bgColor: '#F5E1E1',
   },
   other: {
-    name: window.i18n.tc('其他'),
+    name: window.i18n.t('其他'),
     icon: 'icon-monitor icon-Others',
     fontSize: '10px',
     color: '#B59D8D',

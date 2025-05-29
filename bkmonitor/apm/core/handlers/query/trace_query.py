@@ -114,8 +114,15 @@ class TraceQuery(BaseQuery):
     @classmethod
     def _translate_field(cls, field: str) -> str:
         for prefix, translated_prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
+            # OtlpKey.KIND 和 OtlpKey.SPAN_NAME 没有下级，字段名必须相等才加上 translated_prefix
+            if prefix in {OtlpKey.KIND, OtlpKey.SPAN_NAME}:
+                if field == prefix:
+                    return f"{translated_prefix}.{field}"
+                continue
+
             if field.startswith(prefix):
                 return f"{translated_prefix}.{field}"
+
         return super()._translate_field(field)
 
     @classmethod
@@ -173,15 +180,6 @@ class TraceQuery(BaseQuery):
         query_string: str | None = None,
     ):
         return self._query_field_topk(self.build_query_q(filters, query_string), start_time, end_time, field, limit)
-
-    def query_total(
-        self,
-        start_time: int | None,
-        end_time: int | None,
-        filters: list[types.Filter] | None = None,
-        query_string: str | None = None,
-    ):
-        return self._query_total(self.build_query_q(filters, query_string), start_time, end_time)
 
     def query_field_aggregated_value(
         self,

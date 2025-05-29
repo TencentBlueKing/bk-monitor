@@ -29,7 +29,6 @@ import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input } from 'bkui-vue';
-import { AngleDownLine } from 'bkui-vue/lib/icon';
 import { storeToRefs } from 'pinia';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
@@ -137,26 +136,12 @@ export default defineComponent({
               >
                 {item.count}
               </span>,
-              <span
+              <i
                 key='object-arrow'
-                class='object-arrow'
-              >
-                <AngleDownLine />
-              </span>,
+                class={['icon-monitor icon-arrow-right object-arrow', { expand: item.expand }]}
+              />,
             ]}
-            {item.is_dimensions &&
-              !item.children && [
-                <span
-                  key={`${item.name}__count`}
-                  class='dimension-count'
-                />,
-                !item.children && (
-                  <i
-                    key={`${item.name}__statistics`}
-                    class='icon-monitor icon-Chart statistics-icon'
-                  />
-                ),
-              ]}
+            {item.is_dimensions && !item.children && <i class='icon-monitor icon-Chart statistics-icon' />}
           </div>
 
           {item.children && item.expand && (

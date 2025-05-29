@@ -580,3 +580,52 @@ def clean_datasource_from_consul():
         #         continue
 
     logger.info("delete datasource from consul successfully")
+
+
+@share_lock(identify="metadata_check_es_clusters_key_settings")
+def check_es_clusters_key_settings():
+    """
+    检查ES集群关键配置
+    现阶段检查是否关闭auto_create_index
+    """
+    clusters = models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_ES)
+    logger.info(
+        "check_es_clusters_key_settings: start to check es clusters key settings,total clusters->[%s]", clusters.count()
+    )
+    for cluster in clusters:
+        cluster_id = cluster.cluster_id
+        logger.info("check_es_clusters_key_settings: start to check cluster_id->[%s]", cluster_id)
+        try:
+            # 获取 ES 存储配置
+            storage_instance = models.ESStorage.objects.filter(storage_cluster_id=cluster_id).last()
+            if not storage_instance:
+                continue
+
+            # 获取 Elasticsearch 客户端
+            es_client = storage_instance.es_client
+
+            # 设置超时（例如5秒）
+            cluster_settings = es_client.cluster.get_settings(include_defaults=True, request_timeout=5)
+
+            # 获取 action 设置
+            action_settings = cluster_settings.get("defaults", {}).get("action", {})
+
+            # 检查 auto_create_index
+            auto_create_index = action_settings.get("auto_create_index", None)
+            has_issue = False
+            if auto_create_index:
+                if isinstance(auto_create_index, str):
+                    has_issue = auto_create_index.lower() == "true"
+                else:
+                    has_issue = True
+
+            if has_issue:
+                logger.info(
+                    "check_es_clusters_key_settings: cluster_id->[%s],auto_create_index is on->[%s],please check!",
+                    cluster_id,
+                    action_settings,
+                )
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("check_es_clusters_key_settings: cluster_id->[%s] check failed,error->[%s]", cluster_id, e)
+            continue
