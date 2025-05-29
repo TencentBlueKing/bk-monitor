@@ -171,6 +171,7 @@ class EventPoller:
     def push_to_redis(self, topic, messages):
         if not messages:
             return
+        messages = [m[:-1] if m[-1] == "\x00" or m[-1] == "\n" else m for m in messages]
         data_id = self.topics_map[topic]
         redis_client = key.EVENT_LIST_KEY.client
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=data_id)
