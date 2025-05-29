@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import List, Tuple
+from typing import Any
+from collections.abc import Callable
 
+from django.db.models import Q
 from django.utils.functional import classproperty
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Q, Search
+from elasticsearch_dsl import Q as ESQ, Search
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
@@ -24,12 +25,15 @@ from apm_web.constants import (
     METRIC_VALUE_COUNT_TUPLE,
 )
 from apm_web.handlers.component_handler import ComponentHandler
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.apm import OtlpKey
+from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import api
 
 
-class EsOperator:
-    # 走ES查询可以使用的操作符
+class FilterOperator:
+    """检索支持的操作符"""
+
     EXISTS = "exists"
     NOT_EXISTS = "not exists"
     EQUAL = "equal"
@@ -106,15 +110,24 @@ class DbQuery:
 
     DEFAULT_SORT_FIELD = "start_time"
 
+    _OPERATOR_MAPPING: dict[str, Callable[[Q, str, list], Q]] = {
+        FilterOperator.EXISTS: lambda q, k, v: q & Q(**{f"{k}__exists": ""}),
+        FilterOperator.NOT_EXISTS: lambda q, k, v: q & Q(**{f"{k}__nexists": ""}),
+        FilterOperator.EQUAL: lambda q, k, v: q & Q(**{f"{k}__eq": v}),
+        FilterOperator.NOT_EQUAL: lambda q, k, v: q & Q(**{f"{k}__neq": v}),
+        FilterOperator.BETWEEN: lambda q, k, v: q & Q(**{f"{k}__gte": v[0], f"{k}__lte": v[1]}),
+        FilterOperator.LIKE: lambda q, k, v: q & Q(**{f"{k}__wildcard": f"*{v[0]}*"}),
+    }
+
     @classproperty
     def operator_mapping(self):
         return {
-            EsOperator.EXISTS: lambda q, k, v: q.filter(Q("exists", field=k)),
-            EsOperator.NOT_EXISTS: lambda q, k, v: q.filter("bool", must_not=[Q("exists", field=k)]),
-            EsOperator.EQUAL: lambda q, k, v: q.filter(Q("terms", **{k: v})),
-            EsOperator.NOT_EQUAL: lambda q, k, v: q.filter("bool", must_not=[Q("terms", **{k: v})]),
-            EsOperator.BETWEEN: lambda q, k, v: q.filter(Q("range", **{k: {"gte": v[0], "lte": v[1]}})),
-            EsOperator.LIKE: lambda q, k, v: q.filter(Q("wildcard", **{k: f'*{v[0]}*'})),
+            FilterOperator.EXISTS: lambda q, k, v: q.filter(ESQ("exists", field=k)),
+            FilterOperator.NOT_EXISTS: lambda q, k, v: q.filter("bool", must_not=[ESQ("exists", field=k)]),
+            FilterOperator.EQUAL: lambda q, k, v: q.filter(ESQ("terms", **{k: v})),
+            FilterOperator.NOT_EQUAL: lambda q, k, v: q.filter("bool", must_not=[ESQ("terms", **{k: v})]),
+            FilterOperator.BETWEEN: lambda q, k, v: q.filter(ESQ("range", **{k: {"gte": v[0], "lte": v[1]}})),
+            FilterOperator.LIKE: lambda q, k, v: q.filter(ESQ("wildcard", **{k: f"*{v[0]}*"})),
         }
 
     @classmethod
@@ -127,7 +140,7 @@ class DbQuery:
     @classmethod
     def add_filter_param(cls, query, filter_param):
         if filter_param["operator"] not in cls.operator_mapping:
-            raise ValueError(_("不支持的查询操作符: %s") % (filter_param['operator']))
+            raise ValueError(_("不支持的查询操作符: %s") % (filter_param["operator"]))
         return cls.operator_mapping[filter_param["operator"]](query, filter_param["key"], filter_param["value"])
 
     @classmethod
@@ -140,7 +153,7 @@ class DbQuery:
 
         if not time_field:
             time_field = cls.DEFAULT_SORT_FIELD
-        return query.filter(Q("range", **{time_field: time_query}))
+        return query.filter(ESQ("range", **{time_field: time_query}))
 
     def build_param(self, start_time=None, end_time=None, filter_params=None, es_dsl=None, exclude_field=None) -> dict:
         query = self.search_object
@@ -157,6 +170,31 @@ class DbQuery:
             query = query.source(exclude=exclude_field)
 
         return query.to_dict()
+
+    @classmethod
+    def get_q(
+        cls,
+        table_id: str,
+    ) -> QueryConfigBuilder:
+        return (
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(table_id).time_field(OtlpKey.END_TIME)
+        )
+
+    @classmethod
+    def get_qs(cls, bk_biz_id: int, start_time: int, end_time: int) -> UnifyQuerySet:
+        return (
+            UnifyQuerySet().scope(bk_biz_id).time_align(False).start_time(start_time * 1000).end_time(end_time * 1000)
+        )
+
+    @classmethod
+    def build_filter_params(cls, filter_params: list[dict[str, Any]]) -> Q:
+        """根据过滤参数构建查询条件"""
+        q: Q = Q()
+        for filter_param in filter_params:
+            if filter_param["operator"] not in cls._OPERATOR_MAPPING:
+                raise ValueError(_("不支持的查询操作符: %s") % (filter_param["operator"]))
+            q = cls._OPERATOR_MAPPING[filter_param["operator"]](q, filter_param["key"], filter_param["value"])
+        return q
 
 
 class DbInstanceHandler:
@@ -186,7 +224,7 @@ class DbInstanceHandler:
         return rules[0]
 
     @staticmethod
-    def get_topo_instance_key(keys: List[Tuple[str, str]], item):
+    def get_topo_instance_key(keys: list[tuple[str, str]], item):
         instance_keys = []
         for first_key, second_key in keys:
             key = item.get(first_key, item).get(second_key, "")
