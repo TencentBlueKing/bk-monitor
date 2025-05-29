@@ -15,6 +15,7 @@ import traceback
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata.models import (
     DataSource,
     DataSourceOption,
@@ -87,12 +88,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         plugin_id = options["plugin_id"]
+        bk_tenant_id = options["bk_tenant_id"]
         if settings.ROLE != "api":
             print(f"try with: ./bin/api_manage.sh check_plugin_status --plugin_id={plugin_id}")
             return
         # 获取 plugin 信息
         try:
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_tenant_id=bk_tenant_id)
         except CollectorPluginMeta.DoesNotExist:
             print(f"can not find plugin, plugin_id:{plugin_id}")
             return
@@ -223,4 +225,5 @@ class Command(BaseCommand):
             return
 
     def add_arguments(self, parser):
+        parser.add_argument("--bk_tenant_id", type=str, default=DEFAULT_TENANT_ID, help="租户 ID")
         parser.add_argument("--plugin_id", type=str, required=True, help="插件 ID")

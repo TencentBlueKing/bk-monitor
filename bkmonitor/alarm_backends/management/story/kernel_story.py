@@ -87,7 +87,7 @@ class PollEventDelayCheck(CheckStep):
             committed_offsets = {}
             for tp in topic_partitions:
                 committed_offsets[tp] = consumer.committed(tp)
-                if end_offsets[tp] - committed_offsets[tp] > threshold:
+                if committed_offsets[tp] and (end_offsets[tp] - committed_offsets[tp]) > threshold:
                     self.story.warning(
                         f"{consumer.config['bootstrap_servers']} {topic} congestion occurs, {end_offsets[tp] - committed_offsets[tp]}"
                     )
