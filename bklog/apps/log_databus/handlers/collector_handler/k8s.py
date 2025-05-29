@@ -2267,50 +2267,46 @@ class K8sCollectorHandler(CollectorHandler):
         """
         return bcs_cluster_id.lower().replace("-", "_")
 
-    def _pre_get_subscription_status_by_list(
-        self, collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
-    ):
-        is_continue = False
-        if collector_obj.is_container_environment:
-            container_collector_configs = container_collector_mapping[collector_obj.collector_config_id]
+    @classmethod
+    def get_container_return_data(cls, collector_obj, container_collector_mapping, return_data):
+        container_collector_configs = container_collector_mapping[collector_obj.collector_config_id]
 
-            failed_count = 0
-            success_count = 0
-            pending_count = 0
+        failed_count = 0
+        success_count = 0
+        pending_count = 0
 
-            # 默认是成功
-            status = CollectStatus.SUCCESS
-            status_name = RunStatus.SUCCESS
+        # 默认是成功
+        status = CollectStatus.SUCCESS
+        status_name = RunStatus.SUCCESS
 
-            for config in container_collector_configs:
-                if config.status == ContainerCollectStatus.FAILED.value:
-                    failed_count += 1
-                elif config.status in [ContainerCollectStatus.PENDING.value, ContainerCollectStatus.RUNNING.value]:
-                    pending_count += 1
-                    status = CollectStatus.RUNNING
-                    status_name = RunStatus.RUNNING
-                else:
-                    success_count += 1
+        for config in container_collector_configs:
+            if config.status == ContainerCollectStatus.FAILED.value:
+                failed_count += 1
+            elif config.status in [ContainerCollectStatus.PENDING.value, ContainerCollectStatus.RUNNING.value]:
+                pending_count += 1
+                status = CollectStatus.RUNNING
+                status_name = RunStatus.RUNNING
+            else:
+                success_count += 1
 
-            if failed_count:
-                status = CollectStatus.FAILED
-                if success_count:
-                    # 失败和成功都有，那就是部分失败
-                    status_name = RunStatus.PARTFAILED
-                else:
-                    status_name = RunStatus.FAILED
+        if failed_count:
+            status = CollectStatus.FAILED
+            if success_count:
+                # 失败和成功都有，那就是部分失败
+                status_name = RunStatus.PARTFAILED
+            else:
+                status_name = RunStatus.FAILED
 
-            return_data.append(
-                {
-                    "collector_id": collector_obj.collector_config_id,
-                    "subscription_id": None,
-                    "status": status,
-                    "status_name": status_name,
-                    "total": len(container_collector_configs),
-                    "success": success_count,
-                    "failed": failed_count,
-                    "pending": pending_count,
-                }
-            )
-            is_continue = True
-        return return_data, subscription_id_list, subscription_collector_map, is_continue
+        return_data.append(
+            {
+                "collector_id": collector_obj.collector_config_id,
+                "subscription_id": None,
+                "status": status,
+                "status_name": status_name,
+                "total": len(container_collector_configs),
+                "success": success_count,
+                "failed": failed_count,
+                "pending": pending_count,
+            }
+        )
+        return return_data

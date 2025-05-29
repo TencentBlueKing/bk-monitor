@@ -968,11 +968,22 @@ class CollectorHandler:
 
         return return_data
 
-    @abc.abstractmethod
+    @staticmethod
     def _pre_get_subscription_status_by_list(
-        self, collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
+        collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
     ):
-        raise NotImplementedError
+        if collector_obj.is_container_environment:
+            collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+            return_data = collector_handler.get_container_return_data(
+                collector_obj, container_collector_mapping, return_data
+            )
+            return return_data, subscription_id_list, subscription_collector_map
+
+        collector_handler = import_string("apps.log_databus.handlers.collector_handler.host.HostCollectorHandler")
+        return_data, subscription_id_list, subscription_collector_map = collector_handler.get_subscription_dispose(
+            collector_obj, return_data, subscription_collector_map, subscription_id_list
+        )
+        return return_data, subscription_id_list, subscription_collector_map
 
     def get_subscription_status_by_list(self, collector_id_list: list) -> list:
         """
@@ -992,17 +1003,13 @@ class CollectorHandler:
             container_collector_mapping[config.collector_config_id].append(config)
 
         for collector_obj in collector_list:
-            return_data, subscription_id_list, subscription_collector_map, is_continue = (
-                self._pre_get_subscription_status_by_list(
-                    collector_obj,
-                    container_collector_mapping,
-                    return_data,
-                    subscription_collector_map,
-                    subscription_id_list,
-                )
+            return_data, subscription_id_list, subscription_collector_map = self._pre_get_subscription_status_by_list(
+                collector_obj,
+                container_collector_mapping,
+                return_data,
+                subscription_collector_map,
+                subscription_id_list,
             )
-            if is_continue:
-                continue
 
         status_result = NodeApi.subscription_statistic(
             params={"subscription_id_list": subscription_id_list, "plugin_name": LogPluginInfo.NAME}

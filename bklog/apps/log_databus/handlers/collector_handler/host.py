@@ -1312,10 +1312,8 @@ class HostCollectorHandler(CollectorHandler):
                 # 创建数据平台data_id
                 async_create_bkdata_data_id.delay(self.data.collector_config_id)
 
-    def _pre_get_subscription_status_by_list(
-        self, collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
-    ):
-        is_continue = False
+    @classmethod
+    def get_subscription_dispose(cls, collector_obj, return_data, subscription_collector_map, subscription_id_list):
         # 若订阅ID未写入
         if not collector_obj.subscription_id:
             return_data.append(
@@ -1330,13 +1328,12 @@ class HostCollectorHandler(CollectorHandler):
                     "pending": 0,
                 }
             )
-            is_continue = True
-            return return_data, subscription_id_list, subscription_collector_map, is_continue
+            return return_data, subscription_id_list, subscription_collector_map
 
         # 订阅ID和采集配置ID的映射关系 & 需要查询订阅ID列表
         subscription_collector_map[collector_obj.subscription_id] = collector_obj.collector_config_id
         subscription_id_list.append(collector_obj.subscription_id)
-        return return_data, subscription_id_list, subscription_collector_map, is_continue
+        return return_data, subscription_id_list, subscription_collector_map
 
     def list_collectors_by_host(self, params):
         bk_biz_id = params.get("bk_biz_id")
