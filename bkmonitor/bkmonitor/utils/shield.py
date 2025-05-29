@@ -231,7 +231,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
             case ShieldCycleType.EVERY_MONTH:
                 day_list = cycle_config.get("day_list")
                 day_list = [str(day) for day in day_list]
-                return f"每月 {'/'.join(day_list)} {time_cycle}"
+                return f"每月 {'/'.join(day_list)} 日 {time_cycle}"
 
             case _:
                 return ""
