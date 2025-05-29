@@ -56,12 +56,18 @@
       }
     }
 
-    .bg-fff0f0 {
-      background: #fff0f0;
-    }
+    
 
     .filter-content {
       flex: 1;
+
+      &:hover {
+        background: #FAFBFD;
+
+        & + .component-right {
+          background: #FAFBFD;
+        }
+      }
     }
 
     .component-right {
@@ -153,6 +159,10 @@
           color: #fff;
         }
       }
+    }
+
+    .bg-fff0f0 {
+      background: #fff0f0;
     }
   }
 

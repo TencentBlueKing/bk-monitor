@@ -40,6 +40,7 @@ import { useQueryStringParseErrorState } from './query-string-utils';
 import ResidentSetting from './resident-setting';
 import {
   ECondition,
+  EFieldType,
   type EMethod,
   EMode,
   type IFilterField,
@@ -76,7 +77,9 @@ export default defineComponent({
         .filter(item => item?.is_searched)
         .map(item => ({
           ...item,
-          isEnableOptions: props.notSupportEnumKeys.includes(item.name) ? false : !!item?.is_dimensions,
+          isEnableOptions: props.notSupportEnumKeys.includes(item.name)
+            ? false
+            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
           supported_operations:
             item?.supported_operations?.map(s => ({
               ...s,
@@ -112,6 +115,9 @@ export default defineComponent({
     });
     const isShowQueryStringError = computed(() => {
       return mode.value === EMode.queryString && queryStringError.value.show;
+    });
+    const operatorBtnDisabled = computed(() => {
+      return mode.value === EMode.ui ? !uiValue.value.length : !qsValue.value;
     });
 
     init();
@@ -203,7 +209,7 @@ export default defineComponent({
         handleCommonWhereChange([]);
         handleChange();
         Message({
-          message: t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'),
+          message: t('"常驻筛选"面板被折叠，过滤条件已填充到上方搜索框。'),
           theme: 'success',
         });
       }
@@ -261,6 +267,9 @@ export default defineComponent({
     }
 
     function handleChange() {
+      emit('whereChange', uiValueToWhere());
+    }
+    function uiValueToWhere() {
       const where = [];
       setCacheUIData(uiValue.value);
       for (const item of uiValue.value) {
@@ -283,7 +292,7 @@ export default defineComponent({
           value: item.value,
           options: item?.options || undefined,
         }));
-      emit('whereChange', props.isTraceRetrieval ? traceWhere : where);
+      return props.isTraceRetrieval ? traceWhere : where;
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
@@ -411,24 +420,8 @@ export default defineComponent({
       }
     }
     function handleCopy(_event: MouseEvent) {
-      let str = '';
-      if (mode.value === EMode.ui && uiValue.value.length) {
-        const where = [];
-        for (const item of uiValue.value) {
-          if (!item?.hide) {
-            where.push({
-              key: item.key.id,
-              value: item.value.map(v => v.id),
-              operator: item.method.id,
-            });
-          }
-        }
-        str = JSON.stringify(where);
-      } else if (mode.value === EMode.queryString && qsValue.value) {
-        str = qsValue.value;
-      }
-      if (str) {
-        copyText(str, msg => {
+      if (mode.value === EMode.queryString && qsValue.value) {
+        copyText(qsValue.value, msg => {
           Message({
             message: msg,
             theme: 'error',
@@ -439,6 +432,8 @@ export default defineComponent({
           message: t('复制成功'),
           theme: 'success',
         });
+      } else if (mode.value === EMode.ui && uiValue.value.length) {
+        emit('copyWhere', uiValueToWhere());
       }
     }
 
@@ -454,6 +449,7 @@ export default defineComponent({
       localFields,
       queryStringError,
       isShowQueryStringError,
+      operatorBtnDisabled,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -466,6 +462,7 @@ export default defineComponent({
       handleClickSearchBtn,
       handleQsValueChange,
       handleCommonWhereChange,
+      t,
     };
   },
   render() {
@@ -527,7 +524,7 @@ export default defineComponent({
                   theme: 'light',
                   content: (
                     <div style='max-width: 280px;line-height: 20px;'>
-                      <div style='color: #313238; font-size: 12px;'>{this.$t('语法错误')}:</div>
+                      <div style='color: #313238; font-size: 12px;'>{this.t('语法错误')}:</div>
                       <div style='word-break: break-all; padding: 6px 8px; color: #e71818; background: #f5f7fa;border-radius: 2px;'>
                         {this.queryStringError.message}
                       </div>
@@ -538,9 +535,9 @@ export default defineComponent({
                 <span class='icon-monitor icon-mind-fill' />
               </div>
               <div
-                class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
+                class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
                 v-bk-tooltips={{
-                  content: window.i18n.tc('清空'),
+                  content: this.t('清空'),
                   delay: 300,
                 }}
                 onClick={this.handleClear}
@@ -548,9 +545,9 @@ export default defineComponent({
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
               <div
-                class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
+                class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
                 v-bk-tooltips={{
-                  content: window.i18n.tc('复制'),
+                  content: this.t('复制'),
                   delay: 300,
                 }}
                 onClick={this.handleCopy}
@@ -561,7 +558,7 @@ export default defineComponent({
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
-                    content: window.i18n.tc('常驻筛选'),
+                    content: this.t('常驻筛选'),
                     delay: 300,
                   }}
                   onClick={() => this.handleShowResidentSetting()}
@@ -584,7 +581,7 @@ export default defineComponent({
                         <div
                           class='favorite-btn'
                           v-bk-tooltips={{
-                            content: window.i18n.tc('收藏'),
+                            content: this.t('收藏'),
                             delay: 300,
                           }}
                           onClick={this.handleFavoriteClick}
@@ -604,13 +601,13 @@ export default defineComponent({
                             class='favorite-btn-item'
                             onClick={() => this.handleFavorite(true)}
                           >
-                            {this.$t('覆盖当前收藏')}
+                            {this.t('覆盖当前收藏')}
                           </div>
                           <div
                             class='favorite-btn-item'
                             onClick={() => this.handleFavorite(false)}
                           >
-                            {this.$t('另存为新收藏')}
+                            {this.t('另存为新收藏')}
                           </div>
                         </div>
                       );

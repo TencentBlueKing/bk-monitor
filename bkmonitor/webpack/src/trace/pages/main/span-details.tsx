@@ -286,9 +286,6 @@ export default defineComponent({
         events,
         process,
         source,
-        error,
-        message,
-
         stage_duration,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
@@ -373,7 +370,7 @@ export default defineComponent({
             title: resource['telemetry.sdk.version'] || '',
           },
           {
-            label: t('所属Trace'),
+            label: t('所属 Trace'),
             content: (
               <span
                 class='link'
@@ -503,58 +500,36 @@ export default defineComponent({
         });
       }
       /** Events信息 来源：status_message & events */
-      if (error || events?.length) {
+      if (events?.length) {
         const eventList = [];
-        if (error) {
-          eventList.push({
-            isExpan: false,
-            header: {
-              date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message',
-            },
-            content: [
-              {
-                label: 'span.status_message',
-                content: message || '--',
-                type: 'string',
-                isFormat: false,
-                // 这里固定写死
-                query_key: 'status.message',
-                query_value: message,
-              },
-            ],
-          });
-        }
-        if (events?.length) {
-          eventList.push(
-            ...events
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(
-                (item: {
-                  timestamp: number;
-                  duration: number;
-                  name: any;
-                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-                }) => ({
-                  isExpan: false,
-                  header: {
-                    timestamp: item.timestamp,
-                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                    duration: formatDuration(item.duration),
-                    name: item.name,
-                  },
-                  content: item.attributes.map(attribute => ({
-                    label: attribute.key,
-                    content: attribute.value || '--',
-                    type: attribute.type,
-                    isFormat: false,
-                    query_key: attribute?.query_key || '',
-                    query_value: attribute?.query_value || '',
-                  })),
-                })
-              )
-          );
-        }
+        eventList.push(
+          ...events
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .map(
+              (item: {
+                timestamp: number;
+                duration: number;
+                name: any;
+                attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
+              }) => ({
+                isExpan: false,
+                header: {
+                  timestamp: item.timestamp,
+                  date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                  duration: formatDuration(item.duration),
+                  name: item.name,
+                },
+                content: item.attributes.map(attribute => ({
+                  label: attribute.key,
+                  content: attribute.value || '--',
+                  type: attribute.type,
+                  isFormat: false,
+                  query_key: attribute?.query_key || '',
+                  query_value: attribute?.query_value || '',
+                })),
+              })
+            )
+        );
         info.list.push({
           type: EListItemType.events,
           isExpan: true,
@@ -625,23 +600,18 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      // const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
-      // const url = location.href.replace(
-      //   location.hash,
-      //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
-      // );
-      // window.open(url, '_blank');
-
-      const where = JSON.stringify([
-        {
-          key: content.query_key,
-          operator: 'equal',
-          value: safeParseJsonValueForWhere(content.query_value),
-        },
-      ]);
+      const where = encodeURIComponent(
+        JSON.stringify([
+          {
+            key: content.query_key,
+            operator: 'equal',
+            value: safeParseJsonValueForWhere(content.query_value),
+          },
+        ])
+      );
       const url = location.href.replace(
         location.hash,
-        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&where=${where}&filterMode=ui`
+        `#/trace/home?app_name=${appName.value}&sceneMode=span&where=${where}&filterMode=ui`
       );
       window.open(url, '_blank');
     };
@@ -692,7 +662,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${appName.value}&sceneMode=trace&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -1470,7 +1440,7 @@ export default defineComponent({
                               );
                             })}
                           </div>,
-                          '',
+                          ` (${content.list.length})`,
                           isExpan => handleExpanChange(isExpan, index)
                         );
                       }
@@ -1604,7 +1574,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={fullscreen.value ? '100%' : 1280}
+        width={fullscreen.value ? '100%' : '80%'}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{

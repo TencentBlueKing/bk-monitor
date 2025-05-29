@@ -276,6 +276,7 @@ export default defineComponent({
       handleSuccessLoad,
       isShowAlarmStyle,
       metricTitleTooltips,
+      t,
     };
   },
   render() {
@@ -308,7 +309,7 @@ export default defineComponent({
               {this.$slots.title ? this.$slots.title() : this.title}
             </div>
             {this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
-              <Popover content={this.$t('数据步长')}>
+              <Popover content={this.t('数据步长')}>
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
             ) : undefined}
@@ -332,7 +333,7 @@ export default defineComponent({
             ) : undefined}
             <span class='title-center' />
             {this.showMetricAlarm && this.metricTitleData ? (
-              <Popover content={this.$t('添加策略')}>
+              <Popover content={this.t('添加策略')}>
                 <i
                   style={{
                     display: this.isToolsShow && this.showAddMetric ? 'flex' : 'none',
@@ -356,7 +357,7 @@ export default defineComponent({
                   onSuccessLoad={this.handleSuccessLoad}
                 />
               )}
-              <Popover content={this.$t('更多')}>
+              <Popover content={this.t('更多')}>
                 <span
                   style={{
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',

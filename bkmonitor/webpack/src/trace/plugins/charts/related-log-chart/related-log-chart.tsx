@@ -34,7 +34,7 @@ import {
   ref,
   watch,
 } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
+import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
 import { PrimaryTable, type TableProps } from '@blueking/tdesign-ui';
@@ -635,6 +635,7 @@ export default defineComponent({
       isScrollLoading,
       selectedOptionAlias,
       handleQueryTable,
+      t,
     };
   },
   render() {
@@ -656,7 +657,7 @@ export default defineComponent({
                           class='link'
                           onClick={() => this.goLink()}
                         >
-                          {this.$t('route-日志检索')}
+                          {this.t('route-日志检索')}
                           <i class='icon-monitor icon-fenxiang' />
                         </span>
                       ) : (
@@ -679,10 +680,10 @@ export default defineComponent({
                 <div class='log-chart-collapse'>
                   <div class='collapse-header'>
                     <span class='collapse-title'>
-                      <span class='title'>{this.$t('总趋势')}</span>
+                      <span class='title'>{this.t('总趋势')}</span>
                       {!this.emptyChart && (
                         <div class='title-tool'>
-                          <span class='interval-label'>{this.$t('汇聚周期')}</span>
+                          <span class='interval-label'>{this.t('汇聚周期')}</span>
 
                           <Select
                             class='interval-select'
@@ -706,7 +707,7 @@ export default defineComponent({
                     </span>
                     {!this.emptyChart && (
                       <Popover
-                        content={this.$t('截图到本地')}
+                        content={this.t('截图到本地')}
                         placement='top'
                       >
                         <i
@@ -733,7 +734,7 @@ export default defineComponent({
                           />
                         </div>
                       ) : (
-                        <div class='empty-chart'>{this.$t('查无数据')}</div>
+                        <div class='empty-chart'>{this.t('查无数据')}</div>
                       )}
                     </div>
                   </div>
@@ -765,7 +766,7 @@ export default defineComponent({
                     theme='primary'
                     onClick={this.handleQueryTable}
                   >
-                    {this.$t('查询')}
+                    {this.t('查询')}
                   </Button>
                 </div>
                 <div class='related-table-container'>
@@ -793,14 +794,14 @@ export default defineComponent({
               this.emptyText
             ) : (
               <Exception type='building'>
-                <span>{this.$t('暂无关联日志')}</span>
+                <span>{this.t('暂无关联日志')}</span>
                 <div class='text-wrap'>
-                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <span class='text-row'>{this.t('可前往配置页去配置相关日志')}</span>
                   <Button
                     theme='primary'
                     onClick={() => this.handleRelated()}
                   >
-                    {this.$t('关联日志')}
+                    {this.t('关联日志')}
                   </Button>
                 </div>
               </Exception>

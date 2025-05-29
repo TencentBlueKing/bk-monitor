@@ -52,6 +52,7 @@ export const TABLE_DEFAULT_CONFIG = Object.freeze({
     displayFields: [
       'span_id',
       'span_name',
+      'resource.service.name',
       'start_time',
       'end_time',
       'elapsed_time',
@@ -126,6 +127,7 @@ export const transformFieldName = (id: string, name: number | string) => {
     case 'kind':
     case 'root_span_kind':
     case 'root_service_kind':
+    case 'collections.kind':
       return SPAN_KIND_MAPS[name]?.alias || '';
     case 'root_service_category':
       return SERVICE_CATEGORY_MAP[name] || '';

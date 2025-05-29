@@ -37,15 +37,22 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { listTraceViewConfig } from 'monitor-api/modules/apm_trace';
+import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { updateFavorite } from 'monitor-api/modules/model';
-import { random } from 'monitor-common/utils';
+import { copyText, random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode, type IWhereItem, type IGetValueFnParams, EMethod } from '../../components/retrieval-filter/typing';
+import {
+  EMode,
+  type IWhereItem,
+  type IGetValueFnParams,
+  EMethod,
+  EFieldType,
+} from '../../components/retrieval-filter/typing';
 import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
   mergeWhereList,
@@ -104,7 +111,7 @@ export default defineComponent({
     const applicationList = shallowRef<IApplicationItem[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     /** 是否展示收藏夹 */
-    const isShowFavorite = shallowRef(true);
+    const isShowFavorite = shallowRef(false);
     /** 视角切换查询 */
     const cacheSceneQuery = new Map<string, Record<string, any>>();
 
@@ -117,7 +124,7 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
     /** 不同视角下维度字段的列表 */
     const fieldListMap = shallowRef<ExploreFieldList>({ trace: [], span: [] });
-    /** table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）选中的值 */
+    /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）选中的值 */
     const checkboxFilters = deepRef([]);
     /** 维度字段列表 */
     const fieldList = computed(() => {
@@ -150,20 +157,21 @@ export default defineComponent({
       const RESIDENT_SETTING = 'TRACE_RESIDENT_SETTING';
       return `${store.mode}_${store.appName}_${RESIDENT_SETTING}`;
     });
+    /* 默认设置筛选字段 */
     const defaultResidentSetting = computed(() => {
-      return store.mode === 'span' ? SPAN_DEFAULT_RESIDENT_SETTING_KEY : TRACE_DEFAULT_RESIDENT_SETTING_KEY;
+      return store.mode === 'span'
+        ? store.currentApp?.view_config?.span_config?.resident_setting || SPAN_DEFAULT_RESIDENT_SETTING_KEY
+        : store.currentApp?.view_config?.trace_config?.resident_setting || TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
     const appName = computed(() => store.appName);
     /** 当前应用是否开启 profiling 功能 */
-    const enableProfiling = computed(
-      () => !!applicationList.value.find(item => item.app_name === store.appName)?.is_enabled_profiling
-    );
+    const enableProfiling = computed(() => !!store?.currentApp?.is_enabled_profiling);
     /* 过滤栏组件无需拉取枚举值的field */
     const notSupportEnumKeys = computed(() => {
       return store.mode === 'trace' ? TRACE_NOT_SUPPORT_ENUM_KEYS : SPAN_NOT_SUPPORT_ENUM_KEYS;
     });
     const retrievalFilterPlaceholder = computed(() => {
-      return t('快捷键 / ，可直接输入TraceID/SpanID快捷检索');
+      return t('快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索');
       // return store.mode === 'trace'
       //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
       //   : t('快捷键 / ，可直接输入SpanID快捷检索');
@@ -299,7 +307,7 @@ export default defineComponent({
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'true');
+      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
         handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
@@ -349,12 +357,12 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        where.value = JSON.parse((queryWhere as string) || '[]');
-        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        where.value = JSON.parse(decodeURIComponent((queryWhere as string) || '[]'));
+        commonWhere.value = JSON.parse(decodeURIComponent((queryCommonWhere as string) || '[]'));
+        checkboxFilters.value = JSON.parse(decodeURIComponent((selectedType as string) || '[]'));
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
-        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
@@ -425,7 +433,7 @@ export default defineComponent({
     }
 
     /**
-     * @description table上方快捷筛选操作区域（ “包含” 区域中的 复选框组）值改变后回调
+     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后回调
      *
      */
     function handleCheckboxFiltersChange(checkboxGroupEvent: string[]) {
@@ -574,13 +582,17 @@ export default defineComponent({
             mode: store.mode,
           },
         },
-      };
+      } as any;
       if (isEdit) {
         await updateFavorite(currentFavorite.value.id, {
           type: 'trace',
           ...params,
         });
         favoriteBox.value.refreshGroupList();
+        Message({
+          theme: 'success',
+          message: t('收藏成功'),
+        });
       } else {
         editFavoriteData.value = params;
         editFavoriteShow.value = true;
@@ -606,6 +618,47 @@ export default defineComponent({
       defaultFavoriteId.value = null;
       currentFavorite.value = null;
       handleQuery();
+    }
+
+    async function handleCopyWhereQueryString(whereParams: IWhereItem[]) {
+      const filters = whereParams.map(item => {
+        if (item.key === '*') {
+          return {
+            ...item,
+            options: {},
+          };
+        }
+        const type = fieldList.value.find(v => v.name === item.key)?.type || 'keyword';
+        return {
+          ...item,
+          value: [EFieldType.integer, EFieldType.long].includes(type as EFieldType)
+            ? item.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : item.value,
+        };
+      });
+      if (filters.length) {
+        const copyStr = await traceGenerateQueryString({
+          filters,
+        }).catch(() => {
+          return '';
+        });
+        if (copyStr) {
+          copyText(copyStr, msg => {
+            Message({
+              message: msg,
+              theme: 'error',
+            });
+            return;
+          });
+          Message({
+            message: t('复制成功'),
+            theme: 'success',
+          });
+        }
+      }
     }
 
     return {
@@ -659,6 +712,7 @@ export default defineComponent({
       handleEditFavoriteShow,
       handleCreateApp,
       handleClearRetrievalFilter,
+      handleCopyWhereQueryString,
     };
   },
   render() {
@@ -710,6 +764,7 @@ export default defineComponent({
                 selectFavorite={this.currentFavorite}
                 where={this.where}
                 onCommonWhereChange={this.handleCommonWhereChange}
+                onCopyWhere={this.handleCopyWhereQueryString}
                 onFavorite={this.handleFavoriteSave}
                 onModeChange={this.handleFilterModeChange}
                 onQueryStringChange={this.handleQueryStringChange}
@@ -727,7 +782,7 @@ export default defineComponent({
                 >
                   <p class='subTitle'>
                     <i18n-t keypath='无法查询调用链，请先 {0}'>
-                      <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                      <span onClick={() => this.handleCreateApp()}>{this.t('创建应用')}</span>
                     </i18n-t>
                   </p>
                 </EmptyStatus>

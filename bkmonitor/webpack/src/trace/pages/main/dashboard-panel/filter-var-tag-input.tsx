@@ -51,8 +51,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentInstance = getCurrentInstance();
-    const startTime = inject<Ref>('startTime') || ref('');
-    const endTime = inject<Ref>('endTime') || ref('');
+    const startTime = inject<Ref>('startTime', ref(''));
+    const endTime = inject<Ref>('endTime', ref(''));
     const startTimeMinusOneHour = dayjs
       .tz(startTime.value || undefined)
       .subtract(1, 'hour')

@@ -120,7 +120,7 @@ export default class ViewContentProcess extends Vue {
       // 无数据
       tipsText: window.i18n.t('原因:bkmonitorbeat进程采集器未安装或者状态异常'),
       linkText: window.i18n.t('前往节点管理处理'),
-      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+      linkUrl: `${this.$store.getters.bkNodeManHost}#/plugin-manager/list`,
     },
     3: {},
   };

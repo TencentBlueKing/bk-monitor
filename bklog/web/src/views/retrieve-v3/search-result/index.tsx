@@ -56,8 +56,12 @@ export default defineComponent({
 
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
 
-    const handleTabChange = (tab: string) => {
+    const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
+
+      if (triggerTrend) {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      }
     };
 
     RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, item => {

@@ -209,7 +209,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         ...list,
         ...handleThresholdOption(config?.thresholds?.[0], level, unitConversion, val => {
           const value = unitConversion ? unitConversion.unit_conversion * val.threshold : val.threshold;
-          return `${window.i18n.tc('阈值')}(${methodMap[val.method]}${value})`;
+          return `${window.i18n.t('阈值')}(${methodMap[val.method]}${value})`;
         }),
       ];
       // config?.[0].forEach((cfg) => {

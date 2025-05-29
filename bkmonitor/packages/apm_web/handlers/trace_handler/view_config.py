@@ -148,10 +148,17 @@ class TraceFieldsHandler:
 
         return field_type not in {"object", "nested"}
 
-    def is_dimensions(self, field_type: str) -> bool:
+    def is_dimensions(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
         """判断字段是否可以用于聚合和获取枚举值"""
 
-        return field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]
+        if field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]:
+            if mode == QueryMode.TRACE:
+                return field_name not in ["min_start_time", "max_end_time", "root_span_id", "trace_id"]
+            elif mode == QueryMode.SPAN:
+                return field_name not in ["time", "start_time", "end_time", "span_id", "trace_id"]
+            else:
+                return True
+        return False
 
     def can_displayed(self, field_type: str) -> bool:
         """判断字段是否可以显示"""
@@ -190,7 +197,7 @@ class TraceFieldsHandler:
                     alias=self.get_field_alias(field_name),
                     type=field_type,
                     is_searched=self.is_searched(field_type),
-                    is_dimensions=self.is_dimensions(field_type),
+                    is_dimensions=self.is_dimensions(mode, field_name, field_type),
                     can_displayed=self.can_displayed(field_type),
                     supported_operations=self.get_supported_operations(field_type),
                 )
@@ -207,6 +214,8 @@ class TraceFieldsHandler:
             field_names.sort(key=lambda field_name: "." in field_name)
         elif mode == QueryMode.SPAN:
             field_names = list(self.span_fields_info)
+            # 去除 Span 协议中没有的字段（比如：监控内置字段、bkbase 内置字段等）
+            field_names = [f for f in field_names if f.split(".")[0] in SPAN_SORTED_FIELD]
             field_names.sort(
                 key=lambda field_name: (
                     # 顶层字段优先

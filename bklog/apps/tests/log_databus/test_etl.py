@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 from unittest.mock import patch
 
@@ -376,7 +376,7 @@ class TestEtl(TestCase):
                 etl_time = etl_handler.etl_time(format["id"], 8, format["description"])
             except Exception as e:  # pylint: disable=broad-except
                 etl_time = {"epoch_millis": "exception:" + str(e)}
-            print(f'[{format["id"]}][{format["name"]}] {format["description"]} => {etl_time}')
+            print(f"[{format['id']}][{format['name']}] {format['description']} => {etl_time}")
             self.assertEqual(etl_time["epoch_millis"], "1136185445000")
 
     def test_etl_param(self):
@@ -427,7 +427,8 @@ class TestEtl(TestCase):
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_text(self, mock_index_set):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_text(self, mock_modify_delay, mock_index_set):
         collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
         mock_index_set.return_value = LOG_INDEX_DATA
 
@@ -447,7 +448,9 @@ class TestEtl(TestCase):
         doc_values_nums = [item for item in result["params"]["field_list"] if "es_doc_values" in item.get("option", {})]
         self.assertEqual(result["params"]["time_alias_name"], "utctime")
         self.assertEqual(len(doc_values_nums), 0, "直接入库不需要设置任何doc_values")
-        self.assertTrue("es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values")
+        self.assertTrue(
+            "es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values"
+        )
 
         etl_config = etl_storage.parse_result_table_config(result["params"])
         self.assertIsInstance(etl_config["etl_params"]["es_unique_field_list"], list)
@@ -460,7 +463,8 @@ class TestEtl(TestCase):
     @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_json(self, mock_index_set):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_json(self, mock_modify_delay, mock_index_set):
         """
         JSON清洗
         """
@@ -494,7 +498,9 @@ class TestEtl(TestCase):
         # 时间字段
         self.assertEqual(fields_user["time1"]["option"]["es_type"], "keyword")
         self.assertEqual(result["params"]["time_alias_name"], "time1")
-        self.assertTrue("es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values")
+        self.assertTrue(
+            "es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values"
+        )
         # option
         self.assertEqual(result["params"]["option"]["separator_fields_remove"], "delete1")
 
@@ -522,7 +528,8 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_regexp(self, mock_index_set, mock_preview):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_regexp(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         正则清洗
         """
@@ -562,7 +569,9 @@ class TestEtl(TestCase):
         # 时间字段
         self.assertEqual(fields_user["request_ip"]["option"]["es_type"], "keyword")
         self.assertEqual(result["params"]["time_alias_name"], "request_time")
-        self.assertTrue("es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values")
+        self.assertTrue(
+            "es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values"
+        )
 
         # 字段解析
         etl_param = copy.deepcopy(result["params"])
@@ -579,7 +588,8 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl_storage.utils.transfer.preview")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
-    def test_bk_log_delimiter(self, mock_index_set, mock_preview):
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_bk_log_delimiter(self, mock_modify_delay, mock_index_set, mock_preview):
         """
         分隔符清洗
         """

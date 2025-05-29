@@ -55,6 +55,7 @@ import ExploreFieldSetting from '../explore-field-setting/explore-field-setting'
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 
+import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
@@ -185,10 +186,10 @@ export default defineComponent({
             triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
             triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
           ) {
-            handleSetActiveConditionMenu();
+            setActiveConditionMenu();
             return;
           }
-          handleSetActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+          setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
           const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
           return {
             content: conditionMenuRef.value.$el,
@@ -196,7 +197,7 @@ export default defineComponent({
           };
         },
         onHide: () => {
-          handleSetActiveConditionMenu();
+          setActiveConditionMenu();
         },
         popoverOptions: {
           theme: 'light padding-0',
@@ -205,8 +206,8 @@ export default defineComponent({
       }
     );
 
-    /** table 显示列配置 */
-    const displayColumnFields = deepRef<string[]>([]);
+    /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
+    const customDisplayColumnFields = deepRef<string[]>([]);
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -246,9 +247,21 @@ export default defineComponent({
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
     /** table 列配置本地缓存时的 key */
-    const displayColumnFieldsCacheKey = computed(
+    const customDisplayColumnFieldsCacheKey = computed(
       () => `${props.mode}_${props.appName}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
     );
+    /** table 显示列配置 */
+    const displayColumnFields = computed(() => {
+      // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
+      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
+      const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
+      // 需要展示的字段列名数组
+      return customDisplayColumnFields.value?.length
+        ? customDisplayColumnFields.value
+        : applicationColumnConfig?.length
+          ? applicationColumnConfig
+          : ((defaultColumnsConfig?.displayFields || []) as string[]);
+    });
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
     /** table 数据（所有请求返回的数据） */
@@ -386,9 +399,9 @@ export default defineComponent({
     });
 
     watch(
-      () => displayColumnFieldsCacheKey.value,
+      () => customDisplayColumnFieldsCacheKey.value,
       () => {
-        getDisplayColumnFields();
+        getCustomDisplayColumnFields();
       }
     );
 
@@ -417,7 +430,7 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      getDisplayColumnFields();
+      getCustomDisplayColumnFields();
       debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
@@ -432,6 +445,7 @@ export default defineComponent({
       removeScrollListener();
       abortController?.abort?.();
       abortController = null;
+      store.updateTableList([]);
     });
 
     /**
@@ -454,34 +468,46 @@ export default defineComponent({
     }
 
     /**
-     * @description 滚动触发事件，滚动触底加载更多
+     * @description 滚动触发事件
      *
      */
     function handleScroll(event: Event) {
       if (!tableData.value?.length) {
         return;
       }
-      const target = event.target as HTMLElement;
       updateTablePointEvents('none');
       ellipsisPopoverHide();
       descriptionPopoverHide();
       conditionMenuPopoverHide();
+      handleScrollToEnd(event.target as HTMLElement);
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      scrollPointerEventsTimer = setTimeout(() => {
+        updateTablePointEvents('auto');
+      }, 600);
+    }
+
+    /**
+     * @description 滚动触底加载更多
+     *
+     */
+    function handleScrollToEnd(target: HTMLElement) {
+      if (!tableHasScrollLoading.value) {
+        return;
+      }
       const { scrollHeight, scrollTop, clientHeight } = target;
-      const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+      const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
+      const noScrollBar = scrollHeight <= clientHeight + 1;
+      const shouldRequest = noScrollBar || isEnd;
       if (
         !(
           tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.SCROLL]
         ) &&
-        isEnd
+        shouldRequest
       ) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointEvents('auto');
-      }, 600);
     }
 
     /**
@@ -506,6 +532,7 @@ export default defineComponent({
             colKey: 'span_id',
             title: t('Span ID'),
             width: 160,
+            fixed: 'left',
             clickCallback: row => handleSliderShowChange('span', row.span_id),
           },
           span_name: {
@@ -563,7 +590,7 @@ export default defineComponent({
           trace_id: {
             renderType: ExploreTableColumnTypeEnum.CLICK,
             colKey: 'trace_id',
-            title: t('所属Trace'),
+            title: t('所属 Trace'),
             width: 240,
             clickCallback: row => handleSliderShowChange('trace', row.trace_id),
           },
@@ -573,8 +600,9 @@ export default defineComponent({
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
           colKey: 'trace_id',
-          title: t('Trace ID'),
+          title: 'Trace ID',
           width: 240,
+          fixed: 'left',
           clickCallback: row => handleSliderShowChange('trace', row.trace_id),
         },
         min_start_time: {
@@ -592,15 +620,15 @@ export default defineComponent({
         root_span_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_span_name',
-          headerDescription: t('整个Trace的第一个Span'),
-          title: t('根Span'),
+          headerDescription: t('整个 Trace 的第一个 Span'),
+          title: t('根 Span'),
           width: 160,
           getRenderValue: getJumpToApmApplicationLinkItem,
         },
         root_service: {
           renderType: ExploreTableColumnTypeEnum.LINK,
           colKey: 'root_service',
-          headerDescription: t('服务端进程的第一个Service'),
+          headerDescription: t('服务端进程的第一个 Service'),
           title: t('入口服务'),
           width: 160,
           getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
@@ -691,14 +719,11 @@ export default defineComponent({
      * @description: 获取 table 表格列配置
      *
      */
-    async function getDisplayColumnFields() {
+    async function getCustomDisplayColumnFields() {
+      customDisplayColumnFields.value = [];
       if (!props.appName || !props.mode) return;
-      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
-      const cacheColumns = (await handleGetUserConfig<string[]>(displayColumnFieldsCacheKey.value)) || [];
-      // 需要展示的字段列名数组
-      displayColumnFields.value = cacheColumns?.length
-        ? cacheColumns
-        : ((defaultColumnsConfig?.displayFields || []) as string[]);
+      customDisplayColumnFields.value =
+        (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || [];
     }
 
     /**
@@ -728,8 +753,6 @@ export default defineComponent({
         updateTableDataFn = list => {
           store.updateTableList(list);
         };
-      } else if (!tableHasScrollLoading.value) {
-        return;
       }
 
       tableLoading[loadingType] = true;
@@ -750,6 +773,15 @@ export default defineComponent({
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
       updateTableDataFn(res.data);
       tableHasMoreData.value = res.data?.length === limit;
+      requestAnimationFrame(() => {
+        // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
+        // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
+        // 所以该场景处理只能通过多次请求的方案来兼容，不能通过首次请求加大页码的方式来兼容
+        // 否则在某些边界场景下会出现首次请求返回的不为空数据已经是全部数据了
+        // 还是但未出现滚动条，导致无法触发触底逻辑再次请求接口判断是否已是全部数据
+        // 从而导致触底loading一直存在但实际已没有更多数据
+        handleScrollToEnd(document.querySelector(SCROLL_ELEMENT_CLASS_NAME));
+      });
     }
     const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
@@ -787,7 +819,7 @@ export default defineComponent({
       };
     }
 
-    function handleSetActiveConditionMenu(colKey = '', cellSource = '') {
+    function setActiveConditionMenu(colKey = '', cellSource = '') {
       activeConditionMenuTarget.conditionKey = colKey;
       activeConditionMenuTarget.conditionValue = cellSource;
     }
@@ -817,7 +849,7 @@ export default defineComponent({
      *
      */
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
-      displayColumnFields.value = displayFields;
+      customDisplayColumnFields.value = displayFields;
       // 缓存列配置
       handleSetUserConfig(JSON.stringify(displayFields));
     }
@@ -851,6 +883,15 @@ export default defineComponent({
      */
     function handleConditionChange(value: ConditionChangeEvent) {
       emit('conditionChange', value);
+    }
+
+    /**
+     * @description 字段分析统计菜单项点击后回调
+     *
+     */
+    function handleMenuClick() {
+      setActiveConditionMenu();
+      conditionMenuPopoverHide();
     }
 
     /**
@@ -926,36 +967,6 @@ export default defineComponent({
     }
 
     /**
-     * @description traceId详情抽屉 渲染方法
-     *
-     */
-    // function traceSliderRender() {
-    //   return (
-    //     <ExploreTraceSlider
-    //       appName={props.appName}
-    //       isShow={sliderMode.value === 'trace'}
-    //       traceId={activeSliderId.value}
-    //       onSliderClose={() => handleSliderShowChange('', '')}
-    //     />
-    //   );
-    // }
-
-    // /**
-    //  * @description spanId详情抽屉 渲染方法
-    //  *
-    //  */
-    // function spanSliderRender() {
-    //   return (
-    //     <ExploreSpanSlider
-    //       appName={props.appName}
-    //       isShow={sliderMode.value === 'span'}
-    //       spanId={activeSliderId.value}
-    //       onSliderClose={() => handleSliderShowChange('', '')}
-    //     />
-    //   );
-    // }
-
-    /**
      * @description 字段分析组件渲染方法
      *
      */
@@ -967,7 +978,6 @@ export default defineComponent({
           ref='statisticsListRef'
           commonParams={props.commonParams}
           fieldType={fieldOptions?.type}
-          isDimensions={fieldOptions?.is_dimensions}
           isShow={showStatisticsPopover.value}
           selectField={fieldOptions?.name}
           onConditionChange={handleConditionChange}
@@ -1006,12 +1016,17 @@ export default defineComponent({
      */
     function tableDescriptionHeaderRender(title, tipText, column) {
       const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
+      const fieldType = fieldOptions?.type || '';
       const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
       return () => (
         <div
           key={title}
           class={`explore-header-col ${chartIconActive}`}
         >
+          <FieldTypeIcon
+            class='col-type-icon'
+            type={fieldType}
+          />
           <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
             <span
               class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
@@ -1161,17 +1176,17 @@ export default defineComponent({
       }
       return (
         <div class='explore-col explore-link-col '>
-          <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-            <a
-              style={{ color: 'inherit' }}
-              href={item.url}
-              rel='noreferrer'
-              target='_blank'
-            >
-              {item.alias}
-            </a>
-          </div>
-          <i class='icon-monitor icon-mc-goto' />
+          <a
+            style={{ color: 'inherit' }}
+            href={item.url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+              <span>{item.alias}</span>
+            </div>
+            <i class='icon-monitor icon-mc-goto' />
+          </a>
         </div>
       );
     }
@@ -1283,7 +1298,7 @@ export default defineComponent({
       statisticsDomRender,
       handleSliderShowChange,
       handleClearRetrievalFilter,
-      conditionMenuPopoverHide,
+      handleMenuClick,
       handleConditionChange,
     };
   },
@@ -1399,7 +1414,7 @@ export default defineComponent({
             conditionKey={this.activeConditionMenuTarget.conditionKey}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
             onConditionChange={this.handleConditionChange}
-            onOnMenuClick={this.conditionMenuPopoverHide}
+            onMenuClick={this.handleMenuClick}
           />
         </div>
         {this.statisticsDomRender()}

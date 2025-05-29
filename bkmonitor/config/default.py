@@ -14,8 +14,8 @@ import importlib
 import ntpath
 import os
 import sys
-from urllib.parse import urljoin
 import warnings
+from urllib.parse import urljoin
 
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
@@ -545,6 +545,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+# {2:["app1", "app2"], 3:["app_name"]}
+APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
@@ -1135,7 +1137,7 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
+BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1182,8 +1184,6 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
 BK_IAM_SYSTEM_NAME = _("监控平台")
-
-BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST") or "http://bkiam.service.consul:5001")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
@@ -1613,11 +1613,13 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
+# IAM多租户配置
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 新版自定义时序灰度业务列表
-ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
-
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
+
+# 用户管理web api地址
+BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"

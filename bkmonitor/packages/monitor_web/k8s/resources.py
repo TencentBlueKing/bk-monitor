@@ -408,23 +408,45 @@ class GetResourceDetail(Resource):
             }
         )
 
-        # 获取 pod 关于 service 和 ingress 的联系
-        if resource_type == "pod":
-            self.add_pod_service_ingress_relation(items, validated_request_data)
-        elif resource_type == "node":
-            """
-            删除不需要的属性
-            """
-            ignore_keys = [
+        resource_ignore_keys:dict[str,list[str]] = {
+            "pod":[
+                "request_cpu_usage_ratio",# CPU使用率（request）
+                "limit_cpu_usage_ratio",# CPU使用率（limit）
+                "request_memory_usage_ratio",# 内存使用率（request）
+                "limit_memory_usage_ratio",# 内存使用率（limit）
+                "resource_usage_cpu",
+                "resource_usage_memory",
+                "resource_usage_disk",
+                "resource_requests_cpu",
+                "resource_limits_cpu",
+                "resource_requests_memory",
+                "resource_limits_memory"
+            ],
+            "container": [
+                "resource_usage_cpu",# CPU 使用量
+                "resource_usage_memory",# 内存使用量
+                "resource_usage_disk",# 磁盘使用量
+            ],
+            "node": [
                 "system_cpu_summary_usage",
                 "system_mem_pct_used",
                 "system_io_util",
                 "system_disk_in_use",
                 "system_load_load15",
-            ]
-            items = self.remove_items_with_keys(items, ignore_keys)
+            ],
+            "cluster":[
+                "cpu_usage_ratio", # CPU使用率
+                "memory_usage_ratio", # 内存使用率
+                "disk_usage_ratio",  # 磁盘使用率
+            ],
+        }
+        if resource_ignore_keys.get(resource_type):
+            items = self.remove_items_with_keys(items, resource_ignore_keys[resource_type])
 
+        if resource_type == "pod":
+            self.add_pod_service_ingress_relation(items, validated_request_data)
 
+        # 获取 pod 关于 service 和 ingress 的联系
         for item in items:
             self.link_to_string(item)
 

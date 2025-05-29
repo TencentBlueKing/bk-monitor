@@ -47,7 +47,7 @@ export default defineComponent({
       type: String,
     },
   },
-  emits: ['conditionChange', 'onMenuClick'],
+  emits: ['conditionChange', 'menuClick'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
@@ -122,7 +122,7 @@ export default defineComponent({
         method: method,
         value: props.conditionValue,
       });
-      emit('onMenuClick');
+      emit('menuClick');
     }
 
     /**
@@ -165,7 +165,7 @@ export default defineComponent({
       const targetRoute = router.resolve({
         query,
       });
-      emit('onMenuClick');
+      emit('menuClick');
       window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
     }
 
@@ -185,7 +185,7 @@ export default defineComponent({
         message: t('复制成功'),
         theme: 'success',
       });
-      emit('onMenuClick');
+      emit('menuClick');
     }
 
     return {

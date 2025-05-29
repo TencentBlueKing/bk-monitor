@@ -41,7 +41,6 @@ from alarm_backends.service.access.event.records.custom_event import (
 from alarm_backends.service.access.priority import PriorityChecker
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
-from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
 logger = logging.getLogger("access.event")
@@ -163,7 +162,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         logger.info("push %s event_record to match queue finished(%s)", self.__class__.__name__, len(self.record_list))
 
 
-class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
+class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
     TYPE_OS_RESTART = 0
     TYPE_CLOCK_UNSYNC = 1
     TYPE_AGENT = 2
@@ -278,38 +277,12 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             elif alarm_type == self.TYPE_GSE_PROCESS_EVENT:
                 return GseProcessEventRecord(raw_data, self.strategies)
 
-    def _pull_from_kafka(self, kafka_queue):
-        with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-{kafka_queue.pod_id}"):
-            while not kafka_queue.has_reassigned_partitions():
-                result = kafka_queue.take(count=MAX_RETRIEVE_NUMBER, timeout=1)
-                if not result:
-                    continue
-                logger.info(
-                    "data_id(%s) topic(%s) poll alarm list from kafka(%s)", self.data_id, self.topic, len(result)
-                )
-                self._push_message_to_redis(result)
-                metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "kafka").inc(len(result))
-
-    def _push_message_to_redis(self, messages):
-        if not messages:
-            return
-        redis_client = key.EVENT_LIST_KEY.client
-        data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
-        redis_client.lpush(data_channel, *messages)
-        logger.info(
-            "data_id(%s) topic(%s) push alarm list(%s) to redis %s",
-            self.data_id,
-            self.topic,
-            len(messages),
-            data_channel,
-        )
-
     def _pull_from_redis(self):
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
-        offset = min([total_events, 10000])
+        offset = min([total_events, MAX_RETRIEVE_NUMBER])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
             return []
@@ -319,6 +292,12 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
         if records:
             client.ltrim(data_channel, 0, -offset - 1)
+        if offset == MAX_RETRIEVE_NUMBER:
+            # 队列中时间量级超过单次处理上限。
+            logger.info("data_id(%s) topic(%s) run_access_event_handler_v2 immediately", self.data_id, self.topic)
+            from alarm_backends.service.access.tasks import run_access_event_handler_v2
+
+            run_access_event_handler_v2.delay(self.data_id)
         return records
 
     def get_pull_type(self):
@@ -342,30 +321,6 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             logger.warning("[access] dataid:(%s) no topic" % self.data_id)
             return
 
-        # group_prefix
-        cluster_name = get_cluster().name
-        if cluster_name == "default":
-            group_prefix = f"access.event.{self.data_id}"
-        else:
-            group_prefix = f"{cluster_name}.access.event.{self.data_id}"
-        kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
-        pull_type = "kafka" if kafka_queue.has_assigned_partitions() else "redis"
-        logger.info(
-            "[access event] group_prefix(%s) dataid(%s) topic(%s) pull type(%s)",
-            group_prefix,
-            self.data_id,
-            self.topic,
-            pull_type,
-        )
-        if pull_type == "kafka":
-            try:
-                self._pull_from_kafka(kafka_queue)
-                self.record_list = []
-                return
-            except LockError:
-                logger.info(f"[get service lock fail] access event dataid:({self.data_id}). will process later")
-
-                pass
         with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-[redis]"):
             result = self._pull_from_redis()
         for m in result:
@@ -380,7 +335,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             except Exception as e:
                 logger.exception("topic(%s) loads alarm(%s) failed, %s", self.topic, m, e)
         self.record_list.extend(record_list)
-        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id, "redis").inc(len(record_list))
+        metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id).inc(len(record_list))
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():

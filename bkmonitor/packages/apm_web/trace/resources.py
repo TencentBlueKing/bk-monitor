@@ -17,6 +17,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm_web.trace.constants import OperatorEnum
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -39,9 +40,11 @@ from apm_web.trace.serializers import (
     TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
+    TraceGenerateQueryStringRequestSerializer,
 )
 from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
     OtlpKey,
     PreCalculateSpecificField,
@@ -61,13 +64,6 @@ from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
 from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
-from .mock_data import (
-    API_FIELDS_OPTION_VALUE_DATA,
-    API_GRAPH_DATA,
-    API_INFO_DATA,
-    API_TOPK_DATA,
-    API_VIEW_CONFIG_DATA,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -1137,9 +1133,6 @@ class GetFieldsOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return API_FIELDS_OPTION_VALUE_DATA
-        validated_request_data.pop("is_mock", None)
         option_values_dict = QueryHandler.get_fields_option_values(**validated_request_data)
         data = {}
         for field_name, option_value_list in option_values_dict.items():
@@ -1326,9 +1319,6 @@ class ListTraceViewConfigResource(Resource):
     RequestSerializer = BaseTraceRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return API_VIEW_CONFIG_DATA
-
         fields_handler = TraceFieldsHandler(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
 
         return {
@@ -1343,8 +1333,6 @@ class TraceFieldsTopKResource(Resource):
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
     def perform_request(self, validated_data):
-        if validated_data.get("is_mock"):
-            return API_TOPK_DATA
         return DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
 
@@ -1354,8 +1342,6 @@ class TraceFieldStatisticsInfoResource(Resource):
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_data):
-        if validated_data.get("is_mock"):
-            return API_INFO_DATA
         return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
@@ -1365,8 +1351,6 @@ class TraceFieldStatisticsGraphResource(Resource):
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
     def perform_request(self, validated_data):
-        if validated_data.get("is_mock"):
-            return API_GRAPH_DATA
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
@@ -1389,3 +1373,15 @@ class ListFlattenTraceResource(Resource):
             data_list.append(flatten_es_dict_data(trace_data_dict))
         response["data"] = data_list
         return response
+
+
+class TraceGenerateQueryStringResource(Resource):
+    RequestSerializer = TraceGenerateQueryStringRequestSerializer
+
+    def perform_request(self, data):
+        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+        for f in data["filters"]:
+            generator.add_filter(
+                f["key"], f["operator"], f["value"], f["options"]["is_wildcard"], f["options"]["group_relation"]
+            )
+        return generator.to_query_string()
