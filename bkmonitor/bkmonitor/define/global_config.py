@@ -420,7 +420,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
-        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
+        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=True)),
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),

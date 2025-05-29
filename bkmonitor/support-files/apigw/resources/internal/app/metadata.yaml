@@ -2015,3 +2015,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: create or update log route config
+  /app/metadata/get_or_create_agent_event_data_id/:
+    get:
+      operationId: metadata_get_or_create_agent_event_data_id
+      description: 查询或创建Agent事件数据ID
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_or_create_agent_event_data_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get or create agent event data id
