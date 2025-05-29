@@ -622,13 +622,19 @@ class SearchHandler:
             once_size = MAX_RESULT_WINDOW
             self.size = MAX_RESULT_WINDOW
 
+        # 有聚合时, 不启用预查询
+        if self.aggs or settings.PRE_SEARCH_SECONDS == 0:
+            pre_search = False
+        else:
+            pre_search = True
+
         # 预查询
-        result = self._multi_search(once_size=once_size, pre_search=True)
+        result = self._multi_search(once_size=once_size, pre_search=pre_search)
         time_difference = 0
         if self.start_time and self.end_time:
             # 计算时间差
             time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
-        if len(result["hits"]["hits"]) != self.size and time_difference > settings.PRE_SEARCH_SECONDS:
+        if pre_search and len(result["hits"]["hits"]) != self.size and time_difference > settings.PRE_SEARCH_SECONDS:
             # 全量查询
             result = self._multi_search(once_size=once_size)
 
