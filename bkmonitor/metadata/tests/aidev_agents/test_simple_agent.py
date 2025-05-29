@@ -9,6 +9,7 @@ from aidev_agent.api.bk_aidev import BKAidevApi
 from aidev_agent.core.extend.models.llm_gateway import ChatModel
 from aidev_agent.services.chat import ChatCompletionAgent, ExecuteKwargs
 from aidev_agent.services.pydantic_models import ChatPrompt
+from django.conf import settings
 
 
 def _collect_complete_answer(agent):
@@ -41,7 +42,7 @@ def _collect_complete_answer(agent):
 
         except json.JSONDecodeError:
             continue
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             continue
 
     return {
@@ -55,17 +56,23 @@ def test_simple_agent():
     """简单的Agent工具测试"""
 
     # 1. 初始化模型和客户端
-    llm = ChatModel.get_setup_instance(model="hunyuan-turbos")
+    llm_model_name = settings.AIDEV_LLM_MODEL_NAME
+    llm = ChatModel.get_setup_instance(model=llm_model_name)
     client = BKAidevApi.get_client()
 
-    # 2. 获取工具（这里使用NBA工具作为示例）
-    tools = [client.construct_tool("nba_game_assistant")]
+    # 2. 获取工具（工具注册在AIDEV平台）
+    tool_code_list = settings.AIDEV_METADATA_TOOL_CODE_LIST
+    tools = [client.construct_tool(tool_code) for tool_code in tool_code_list]
 
     # 3. 构建简单的对话历史（用户提问）
-    user_question = "how about recent nba games"
-    chat_history = [ChatPrompt(role="user", content=user_question)]
+    user_question = "请帮我分析123456的链路情况"
 
-    # 4. 创建Agent
+    with open("metadata/agents/prompts/diagnostic.md", encoding="utf-8") as f:
+        prompt = f.read()
+
+    chat_history = [ChatPrompt(role="system", content=prompt), ChatPrompt(role="user", content=user_question)]
+
+    # 4. 创建Agent实例
     agent = ChatCompletionAgent(
         chat_model=llm,
         chat_history=chat_history,
