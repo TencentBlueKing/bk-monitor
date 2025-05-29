@@ -19,46 +19,37 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from dataclasses import dataclass
 
-from pipeline.parser import PipelineParser
-from pipeline.builder import Data, Var, EmptyStartEvent, EmptyEndEvent, build_tree
-
-from apps.log_clustering.components.collections.sample_set_component import (
-    CreateSampleSet,
-    AddRtToSampleSet,
-    CollectConfigs,
-    ApplySampleSet,
-)
-from apps.log_clustering.handlers.pipline_service.base_pipline_service import BasePipeLineService
-
-
-@dataclass
-class SampleSetDataCls:
-    sample_set_name: str
-    description: str
-    result_table_id: str
+# @dataclass
+# class SampleSetDataCls:
+#     sample_set_name: str
+#     description: str
+#     result_table_id: str
 
 
 # 可以删
-class SampleSetService(BasePipeLineService):
-    def build_data_context(self, params: SampleSetDataCls, *args, **kwargs):
-        data_context = Data()
-        data_context.inputs["${sample_set_name}"] = Var(type=Var.PLAIN, value=params.sample_set_name)
-        data_context.inputs["${description}"] = Var(type=Var.PLAIN, value=params.description)
-        data_context.inputs["${result_table_id}"] = Var(type=Var.PLAIN, value=params.result_table_id)
-        return data_context
-
-    def build_pipeline(self, data_context: Data, *args, **kwargs):
-        start = EmptyStartEvent()
-        end = EmptyEndEvent()
-        sample_set_name = kwargs.get("sample_set_name")
-        start.extend(CreateSampleSet(sample_set_name=sample_set_name).create_sample_set).extend(
-            AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set
-        ).extend(CollectConfigs(sample_set_name=sample_set_name).collect_config).extend(
-            ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set
-        ).extend(end)
-        tree = build_tree(start, data=data_context)
-        parser = PipelineParser(pipeline_tree=tree)
-        pipeline = parser.parse()
-        return pipeline
+# class SampleSetService(BasePipeLineService):
+#     # def build_data_context(self, params: SampleSetDataCls, *args, **kwargs):
+#     #     data_context = Data()
+#     #     data_context.inputs["${sample_set_name}"] = Var(type=Var.PLAIN, value=params.sample_set_name)
+#     #     data_context.inputs["${description}"] = Var(type=Var.PLAIN, value=params.description)
+#     #     data_context.inputs["${result_table_id}"] = Var(type=Var.PLAIN, value=params.result_table_id)
+#     #     return data_context
+#
+#     def build_pipeline(self, data_context: Data, *args, **kwargs):
+#         start = EmptyStartEvent()
+#         end = EmptyEndEvent()
+#         sample_set_name = kwargs.get("sample_set_name")
+#         start.extend(
+#             # CreateSampleSet(sample_set_name=sample_set_name).create_sample_set
+#         ).extend(
+#             # AddRtToSampleSet(sample_set_name=sample_set_name).add_rt_to_sample_set
+#         ).extend(
+#             # CollectConfigs(sample_set_name=sample_set_name).collect_config
+#         ).extend(
+#             # ApplySampleSet(sample_set_name=sample_set_name).apply_sample_set
+#         ).extend(end)
+#         tree = build_tree(start, data=data_context)
+#         parser = PipelineParser(pipeline_tree=tree)
+#         pipeline = parser.parse()
+#         return pipeline

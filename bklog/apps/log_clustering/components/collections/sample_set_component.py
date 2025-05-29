@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 from django.utils.translation import gettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
@@ -61,17 +60,17 @@ class CreateSampleSetComponent(Component):
 
 
 # 可以删
-class CreateSampleSet:
-    def __init__(self, sample_set_name: str):
-        self.create_sample_set = ServiceActivity(
-            component_code="create_sample_set", name=f"create_sample_set:{sample_set_name}"
-        )
-        self.create_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
-        self.create_sample_set.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
-        self.create_sample_set.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class CreateSampleSet:
+#     def __init__(self, sample_set_name: str):
+#         self.create_sample_set = ServiceActivity(
+#             component_code="create_sample_set", name=f"create_sample_set:{sample_set_name}"
+#         )
+#         self.create_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
+#         self.create_sample_set.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
+#         self.create_sample_set.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.create_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class AddRtToSampleSetService(BaseService):
@@ -103,16 +102,16 @@ class AddRtToSampleSetComponent(Component):
 
 
 # 可以删
-class AddRtToSampleSet:
-    def __init__(self, sample_set_name: str):
-        self.add_rt_to_sample_set = ServiceActivity(
-            component_code="add_rt_to_sample_set", name=f"add_rt_to_sample_set:{sample_set_name}"
-        )
-        self.add_rt_to_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
-        self.add_rt_to_sample_set.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.add_rt_to_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class AddRtToSampleSet:
+#     def __init__(self, sample_set_name: str):
+#         self.add_rt_to_sample_set = ServiceActivity(
+#             component_code="add_rt_to_sample_set", name=f"add_rt_to_sample_set:{sample_set_name}"
+#         )
+#         self.add_rt_to_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
+#         self.add_rt_to_sample_set.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.add_rt_to_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class CollectConfigsService(BaseService):
@@ -135,10 +134,10 @@ class CollectConfigsComponent(Component):
 
 
 # 可以删
-class CollectConfigs:
-    def __init__(self, sample_set_name: str):
-        self.collect_config = ServiceActivity(component_code="collect_config", name=f"collect_config:{sample_set_name}")
-        self.collect_config.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
+# class CollectConfigs:
+#     def __init__(self, sample_set_name: str):
+#         self.collect_config = ServiceActivity(component_code="collect_config", name=f"collect_config:{sample_set_name}")
+#         self.collect_config.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
 
 
 class ApplySampleSetService(BaseService):
@@ -177,9 +176,9 @@ class ApplySampleSetComponent(Component):
 
 
 # 可以删
-class ApplySampleSet:
-    def __init__(self, sample_set_name: str):
-        self.apply_sample_set = ServiceActivity(
-            component_code="apply_sample_set", name=f"apply_sample_set:{sample_set_name}"
-        )
-        self.apply_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
+# class ApplySampleSet:
+#     def __init__(self, sample_set_name: str):
+#         self.apply_sample_set = ServiceActivity(
+#             component_code="apply_sample_set", name=f"apply_sample_set:{sample_set_name}"
+#         )
+#         self.apply_sample_set.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")

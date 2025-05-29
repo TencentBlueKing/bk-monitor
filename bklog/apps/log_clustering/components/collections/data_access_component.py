@@ -56,16 +56,16 @@ class ChangeDataStreamComponent(Component):
 
 
 # 可以删除
-class ChangeDataStream:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.change_data_stream = ServiceActivity(
-            component_code="change_data_stream", name=f"change_data_stream:{index_set_id}-{collector_config_id}"
-        )
-        self.change_data_stream.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.change_data_stream.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
-        self.change_data_stream.component.inputs.topic_name = Var(type=Var.SPLICE, value="${topic_name}")
+# class ChangeDataStream:
+#     def __init__(self, index_set_id: int, collector_config_id: int = None):
+#         self.change_data_stream = ServiceActivity(
+#             component_code="change_data_stream", name=f"change_data_stream:{index_set_id}-{collector_config_id}"
+#         )
+#         self.change_data_stream.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.change_data_stream.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+#         self.change_data_stream.component.inputs.topic_name = Var(type=Var.SPLICE, value="${topic_name}")
 
 
 class CreateBkdataAccessService(BaseService):
@@ -89,15 +89,15 @@ class CreateBkdataAccessComponent(Component):
 
 
 # 可以删除
-class CreateBkdataAccess:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_bkdata_access = ServiceActivity(
-            component_code="create_bkdata_access", name=f"create_bkdata_access:{index_set_id}_{collector_config_id}"
-        )
-        self.create_bkdata_access.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_bkdata_access.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class CreateBkdataAccess:
+#     def __init__(self, index_set_id: int, collector_config_id: int = None):
+#         self.create_bkdata_access = ServiceActivity(
+#             component_code="create_bkdata_access", name=f"create_bkdata_access:{index_set_id}_{collector_config_id}"
+#         )
+#         self.create_bkdata_access.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.create_bkdata_access.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class SyncBkdataEtlService(BaseService):
@@ -193,6 +193,7 @@ class AddResourceGroupComponent(Component):
     bound_service = AddResourceGroupService
 
 
+# 不能删
 class AddResourceGroupSet:
     def __init__(self, index_set_id: int, collector_config_id: int = None):
         self.add_resource_group = ServiceActivity(

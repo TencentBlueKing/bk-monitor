@@ -78,15 +78,15 @@ class CreatePreTreatFlowComponent(Component):
 
 
 # 可以删
-class CreatePreTreatFlow:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_pre_treat_flow = ServiceActivity(
-            component_code="create_pre_treat_flow", name=f"create_pre_treat_flow:{index_set_id}_{collector_config_id}"
-        )
-        self.create_pre_treat_flow.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_pre_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class CreatePreTreatFlow:
+#     def __init__(self, index_set_id: int, collector_config_id: int = None):
+#         self.create_pre_treat_flow = ServiceActivity(
+#             component_code="create_pre_treat_flow", name=f"create_pre_treat_flow:{index_set_id}_{collector_config_id}"
+#         )
+#         self.create_pre_treat_flow.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.create_pre_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class CreateAfterTreatFlowService(BaseService):
@@ -129,16 +129,16 @@ class CreateAfterTreatFlowComponent(Component):
 
 
 # 可以删
-class CreateAfterTreatFlow:
-    def __init__(self, index_set_id, collector_config_id: int = None):
-        self.create_after_treat_flow = ServiceActivity(
-            component_code="create_after_treat_flow",
-            name=f"create_after_treat_flow:{index_set_id}_{collector_config_id}",
-        )
-        self.create_after_treat_flow.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_after_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class CreateAfterTreatFlow:
+#     def __init__(self, index_set_id, collector_config_id: int = None):
+#         self.create_after_treat_flow = ServiceActivity(
+#             component_code="create_after_treat_flow",
+#             name=f"create_after_treat_flow:{index_set_id}_{collector_config_id}",
+#         )
+#         self.create_after_treat_flow.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.create_after_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class CreateNewIndexSetService(BaseService):
@@ -185,15 +185,16 @@ class CreateNewIndexSetComponent(Component):
     bound_service = CreateNewIndexSetService
 
 
-class CreateNewIndexSet:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_new_index_set = ServiceActivity(
-            component_code="create_new_index_set", name=f"create_new_index_set:{index_set_id}_{collector_config_id}"
-        )
-        self.create_new_index_set.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_new_index_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# 可以删
+# class CreateNewIndexSet:
+#     def __init__(self, index_set_id: int, collector_config_id: int = None):
+#         self.create_new_index_set = ServiceActivity(
+#             component_code="create_new_index_set", name=f"create_new_index_set:{index_set_id}_{collector_config_id}"
+#         )
+#         self.create_new_index_set.component.inputs.collector_config_id = Var(
+#             type=Var.SPLICE, value="${collector_config_id}"
+#         )
+#         self.create_new_index_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class CreatePredictFlowService(BaseService):

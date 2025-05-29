@@ -67,12 +67,12 @@ class CreateModelComponent(Component):
 
 
 # 可以删
-class CreateModel:
-    def __init__(self, model_name: str):
-        self.create_model = ServiceActivity(component_code="create_model", name=f"create_model:{model_name}")
-        self.create_model.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.create_model.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
-        self.create_model.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class CreateModel:
+#     def __init__(self, model_name: str):
+#         self.create_model = ServiceActivity(component_code="create_model", name=f"create_model:{model_name}")
+#         self.create_model.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.create_model.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
+#         self.create_model.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class UpdateTrainingScheduleService(BaseService):
@@ -97,12 +97,12 @@ class UpdateTrainingScheduleComponent(Component):
 
 
 # 可以删
-class UpdateTrainingSchedule:
-    def __init__(self, model_name: str):
-        self.update_training_schedule = ServiceActivity(
-            component_code="update_training_schedule", name=f"update_training_schedule:{model_name}"
-        )
-        self.update_training_schedule.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+# class UpdateTrainingSchedule:
+#     def __init__(self, model_name: str):
+#         self.update_training_schedule = ServiceActivity(
+#             component_code="update_training_schedule", name=f"update_training_schedule:{model_name}"
+#         )
+#         self.update_training_schedule.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
 
 
 class CreateExperimentService(BaseService):
@@ -132,13 +132,13 @@ class CreateExperimentComponent(Component):
 
 
 # 可以删
-class CreateExperiment:
-    def __init__(self, experiment_alias: str):
-        self.create_experiment = ServiceActivity(
-            component_code="create_experiment", name=f"create_experiment:{experiment_alias}"
-        )
-        self.create_experiment.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.create_experiment.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+# class CreateExperiment:
+#     def __init__(self, experiment_alias: str):
+#         self.create_experiment = ServiceActivity(
+#             component_code="create_experiment", name=f"create_experiment:{experiment_alias}"
+#         )
+#         self.create_experiment.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.create_experiment.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
 class UpdateExecuteConfigService(BaseService):
@@ -179,14 +179,14 @@ class UpdateExecuteConfigComponent(Component):
 
 
 # 可以删
-class UpdateExecuteConfig:
-    def __init__(self, experiment_alias: str):
-        self.update_execute_config = ServiceActivity(
-            component_code="update_execute_config", name=f"update_execute_config:{experiment_alias}"
-        )
-        self.update_execute_config.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.update_execute_config.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
-        self.update_execute_config.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+# class UpdateExecuteConfig:
+#     def __init__(self, experiment_alias: str):
+#         self.update_execute_config = ServiceActivity(
+#             component_code="update_execute_config", name=f"update_execute_config:{experiment_alias}"
+#         )
+#         self.update_execute_config.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.update_execute_config.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+#         self.update_execute_config.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 # 可以删
@@ -244,14 +244,14 @@ class SampleSetLoadingComponent(Component):
 
 
 # 可以删
-class SampleSetLoading:
-    def __init__(self, experiment_alias: str):
-        self.sample_set_loading = ServiceActivity(
-            component_code="sample_set_loading", name=f"sample_set_loading:{experiment_alias}"
-        )
-        self.sample_set_loading.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
-        self.sample_set_loading.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.sample_set_loading.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+# class SampleSetLoading:
+#     def __init__(self, experiment_alias: str):
+#         self.sample_set_loading = ServiceActivity(
+#             component_code="sample_set_loading", name=f"sample_set_loading:{experiment_alias}"
+#         )
+#         self.sample_set_loading.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
+#         self.sample_set_loading.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.sample_set_loading.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
 # 可以删
@@ -309,15 +309,15 @@ class SampleSetPreparationComponent(Component):
 
 
 # 可以删
-class SampleSetPreparation:
-    def __init__(self, experiment_alias: str):
-        self.sample_set_preparation = ServiceActivity(
-            component_code="sample_set_preparation", name=f"sample_set_preparation:{experiment_alias}"
-        )
-        self.sample_set_preparation.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.sample_set_preparation.component.inputs.experiment_alias = Var(
-            type=Var.SPLICE, value="${experiment_alias}"
-        )
+# class SampleSetPreparation:
+#     def __init__(self, experiment_alias: str):
+#         self.sample_set_preparation = ServiceActivity(
+#             component_code="sample_set_preparation", name=f"sample_set_preparation:{experiment_alias}"
+#         )
+#         self.sample_set_preparation.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.sample_set_preparation.component.inputs.experiment_alias = Var(
+#             type=Var.SPLICE, value="${experiment_alias}"
+#         )
 
 
 # 可以删
@@ -389,17 +389,17 @@ class ModelTrainComponent(Component):
 
 
 # 可以删
-class ModelTrain:
-    def __init__(self, experiment_alias: str):
-        self.model_train = ServiceActivity(component_code="model_train", name=f"model_train:{experiment_alias}")
-        self.model_train.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.model_train.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
-        self.model_train.component.inputs.min_members = Var(type=Var.SPLICE, value="${min_members}")
-        self.model_train.component.inputs.max_dist_list = Var(type=Var.SPLICE, value="${max_dist_list}")
-        self.model_train.component.inputs.predefined_varibles = Var(type=Var.SPLICE, value="${predefined_varibles}")
-        self.model_train.component.inputs.delimeter = Var(type=Var.SPLICE, value="${delimeter}")
-        self.model_train.component.inputs.max_log_length = Var(type=Var.SPLICE, value="${max_log_length}")
-        self.model_train.component.inputs.is_case_sensitive = Var(type=Var.SPLICE, value="${is_case_sensitive}")
+# class ModelTrain:
+#     def __init__(self, experiment_alias: str):
+#         self.model_train = ServiceActivity(component_code="model_train", name=f"model_train:{experiment_alias}")
+#         self.model_train.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.model_train.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+#         self.model_train.component.inputs.min_members = Var(type=Var.SPLICE, value="${min_members}")
+#         self.model_train.component.inputs.max_dist_list = Var(type=Var.SPLICE, value="${max_dist_list}")
+#         self.model_train.component.inputs.predefined_varibles = Var(type=Var.SPLICE, value="${predefined_varibles}")
+#         self.model_train.component.inputs.delimeter = Var(type=Var.SPLICE, value="${delimeter}")
+#         self.model_train.component.inputs.max_log_length = Var(type=Var.SPLICE, value="${max_log_length}")
+#         self.model_train.component.inputs.is_case_sensitive = Var(type=Var.SPLICE, value="${is_case_sensitive}")
 
 
 # 可以删
@@ -453,13 +453,13 @@ class ModelEvaluationComponent(Component):
 
 
 # 可以删
-class ModelEvaluation:
-    def __init__(self, experiment_alias: str):
-        self.model_valuation = ServiceActivity(
-            component_code="model_valuation", name=f"model_valuation:{experiment_alias}"
-        )
-        self.model_valuation.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.model_valuation.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+# class ModelEvaluation:
+#     def __init__(self, experiment_alias: str):
+#         self.model_valuation = ServiceActivity(
+#             component_code="model_valuation", name=f"model_valuation:{experiment_alias}"
+#         )
+#         self.model_valuation.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.model_valuation.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
 class BasicModelEvaluationResultService(BaseService):
@@ -491,15 +491,15 @@ class BasicModelEvaluationResultComponent(Component):
 
 
 # 可以删
-class BasicModelEvaluationResult:
-    def __init__(self, experiment_alias: str):
-        self.basic_model_evaluation_result = ServiceActivity(
-            component_code="basic_model_evaluation_result", name=f"basic_model_evaluation_result:{experiment_alias}"
-        )
-        self.basic_model_evaluation_result.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.basic_model_evaluation_result.component.inputs.experiment_alias = Var(
-            type=Var.SPLICE, value="${experiment_alias}"
-        )
+# class BasicModelEvaluationResult:
+#     def __init__(self, experiment_alias: str):
+#         self.basic_model_evaluation_result = ServiceActivity(
+#             component_code="basic_model_evaluation_result", name=f"basic_model_evaluation_result:{experiment_alias}"
+#         )
+#         self.basic_model_evaluation_result.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.basic_model_evaluation_result.component.inputs.experiment_alias = Var(
+#             type=Var.SPLICE, value="${experiment_alias}"
+#         )
 
 
 class CommitService(BaseService):
@@ -528,11 +528,11 @@ class CommitComponent(Component):
 
 
 # 可以删
-class CommitResult:
-    def __init__(self, experiment_alias: str):
-        self.commit = ServiceActivity(component_code="commit", name=f"commit:{experiment_alias}")
-        self.commit.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.commit.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+# class CommitResult:
+#     def __init__(self, experiment_alias: str):
+#         self.commit = ServiceActivity(component_code="commit", name=f"commit:{experiment_alias}")
+#         self.commit.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.commit.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
 class ReleaseService(BaseService):
@@ -566,12 +566,12 @@ class ReleaseComponent(Component):
 
 
 # 可以删
-class Release:
-    def __init__(self, experiment_alias: str):
-        self.release = ServiceActivity(component_code="release", name=f"release:{experiment_alias}")
-        self.release.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.release.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
-        self.release.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
+# class Release:
+#     def __init__(self, experiment_alias: str):
+#         self.release = ServiceActivity(component_code="release", name=f"release:{experiment_alias}")
+#         self.release.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.release.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
+#         self.release.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
 
 
 class SyncPatternService(BaseService):
@@ -596,12 +596,13 @@ class SyncPatternComponent(Component):
 
 
 # 可以删
-class SyncPattern:
-    def __init__(self, model_name: str):
-        self.sync_pattern = ServiceActivity(component_code="sync_pattern", name=f"sync_pattern:{model_name}")
-        self.sync_pattern.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+# class SyncPattern:
+#     def __init__(self, model_name: str):
+#         self.sync_pattern = ServiceActivity(component_code="sync_pattern", name=f"sync_pattern:{model_name}")
+#         self.sync_pattern.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
 
 
+# # 可以删 未调用
 class CloseContinuousTrainingService(BaseService):
     name = _("删除持续训练")
 
@@ -630,12 +631,14 @@ class CloseContinuousTrainingService(BaseService):
         return True
 
 
+# 可以删 未调用
 class CloseContinuousTrainingComponent(Component):
     name = "CloseContinuousTraining"
     code = "close_continuous_training"
     bound_service = CloseContinuousTrainingService
 
 
+# 可以删
 class CloseContinuousTraining:
     def __init__(self, experiment_alias: str):
         self.close_continuous_training = ServiceActivity(
