@@ -129,7 +129,9 @@ export default defineComponent({
 
     const isLoading = ref(false);
 
-    const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values));
+    const fieldList = computed(() =>
+      (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword'),
+    );
 
     const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));
     const fieldSearchValueList = computed(() => {

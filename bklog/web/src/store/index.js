@@ -674,7 +674,10 @@ const store = new Vuex.Store({
           return aWeight - bWeight; 
         });
       }
-      Object.assign(state.indexFieldInfo, processedData);
+      // Object.assign(state.indexFieldInfo, processedData);
+      Object.keys(processedData ?? {}).forEach(key => {
+        set(state.indexFieldInfo, key, processedData[key]);
+      });
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;

@@ -61,7 +61,7 @@ export default defineComponent({
 
     const { $t } = useLocale();
 
-    const hiddenEmptyItem = ref(false);
+    const hiddenEmptyItem = ref(true);
     const searchText = ref('');
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
