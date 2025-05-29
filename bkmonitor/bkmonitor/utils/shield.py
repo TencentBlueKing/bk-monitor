@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import time
 from datetime import datetime
 from typing import Dict, List
 
@@ -23,6 +24,7 @@ from constants.shield import (
     SHIELD_CATEGORY_NAME_MAPPING,
     ScopeType,
     ShieldCategory,
+    ShieldCycleType,
 )
 
 STRATEGY_NAME_TEMPLATE = _("策略名称：{}")
@@ -151,7 +153,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
     def get_cycle_duration(self, shield):
         """
-        获取屏蔽的持续周期及市场
+        获取屏蔽的持续周期及时长
         """
         cycle_mapping = {1: CYCLE_ONCE, 2: CYCLE_DAILY, 3: CYCLE_WEEKLY, 4: CYCLE_MONTHLY}
         cycle_config = shield["cycle_config"]
@@ -184,6 +186,138 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         cycle_duration = LESS_THAN_AN_HOUR_TEMPLATE.format(unit) if hours == 0 else HOURS_TEMPLATE.format(hours, unit)
 
         return cycle_duration
+
+    def get_shield_cycle(self, shield) -> str:
+        """
+        获取屏蔽周期
+
+        cycle_config 对应数据格式
+        ```python
+        # 单次
+        {"type": 1, "week_list": [], "day_list": [], "begin_time": "", "end_time": ""}
+        # 每天
+        {"type": 2, "week_list": [], "day_list": [], "begin_time": "00:00:00", "end_time": "23:59:59"}
+        # 每周
+        {"type": 3, "week_list": [2, 3], "day_list": [], "begin_time": "00:00:00", "end_time": "23:59:59"}
+        # 每月
+        {"type": 4, "week_list": [], "day_list": [17, 21, 26], "begin_time": "00:00:00", "end_time": "23:59:59"}
+        ```
+
+        return:
+        - 单次
+        - 每月 1/2/14日 (00:00 ~ 23:00)
+        - 每周二/四 (00:00 ~ 23:00)
+        - 每天 (00:00 ~ 23:00)
+        """
+        cycle_config: dict[str, int | str | list[int]] = shield.get("cycle_config")
+        begin_time = cycle_config.get("begin_time")[:5].strip()
+        end_time = cycle_config.get("end_time")[:5].strip()
+        time_cycle = f"({begin_time} ~ {end_time})"
+
+        match cycle_config.get("type"):
+            case ShieldCycleType.ONCE:
+                return "单次"
+
+            case ShieldCycleType.EVERYDAY:
+                return f"每天 {time_cycle}"
+
+            case ShieldCycleType.EVERY_WEEK:
+                weekday_map = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "日"}
+                week_list = cycle_config.get("week_list")
+                week_list.sort()
+                week_list = [weekday_map[day] for day in week_list]
+                return f"每周{'/'.join(week_list)} {time_cycle}"
+
+            case ShieldCycleType.EVERY_MONTH:
+                day_list = cycle_config.get("day_list")
+                day_list = [str(day) for day in day_list]
+                return f"每月 {'/'.join(day_list)} {time_cycle}"
+
+            case _:
+                return ""
+
+    def get_current_cycle_ramaining_time(self, shield) -> str | None:
+        """
+        获取当前周期剩余时间
+
+        当前周期剩余时间 = 结束时间 - 当前时间
+
+        如果不在改周期内，返回 None
+        """
+        now_datetime = datetime.now()
+        cycle_config = shield.get("cycle_config")
+        remaining_time = None
+        begin_time = time.strptime(cycle_config.get("begin_time"), "%H:%M:%S") if cycle_config.get("begin_time") != "" else ""
+        end_time = time.strptime(cycle_config.get("end_time"), "%H:%M:%S") if cycle_config.get("end_time") != "" else ""
+
+        begin_datetime = datetime.strptime(shield.get("begin_time"), "%Y-%m-%d %H:%M:%S")
+        end_datetime = datetime.strptime(shield.get("end_time"), "%Y-%m-%d %H:%M:%S")
+
+        if now_datetime < begin_datetime or now_datetime > end_datetime:
+            return None
+
+        match cycle_config.get("type"):
+            case ShieldCycleType.ONCE:
+                remaining_time = self._get_remainint_time(begin_datetime, end_datetime, now_datetime)
+
+            case ShieldCycleType.EVERYDAY:
+                # 开始时间和结束时间都是当天
+                begin_datetime, end_datetime = self._get_current_begin_and_end_datetime(
+                    now_datetime, begin_time, end_time
+                )
+                remaining_time = self._get_remainint_time(begin_datetime, end_datetime, now_datetime)
+
+            case ShieldCycleType.EVERY_WEEK:
+                week_list = cycle_config.get("week_list")
+                now_weekday = now_datetime.weekday() + 1
+                if now_weekday in week_list:
+                    begin_datetime, end_datetime = self._get_current_begin_and_end_datetime(
+                        now_datetime, begin_time, end_time
+                    )
+                    remaining_time = self._get_remainint_time(begin_datetime, end_datetime, now_datetime)
+
+            case ShieldCycleType.EVERY_MONTH:
+                day_list = cycle_config.get("day_list")
+                now_day = now_datetime.day
+                if now_day in day_list:
+                    begin_datetime, end_datetime = self._get_current_begin_and_end_datetime(
+                        now_datetime, begin_time, end_time
+                    )
+                    remaining_time = self._get_remainint_time(begin_datetime, end_datetime, now_datetime)
+
+        return remaining_time
+
+    def _get_current_begin_and_end_datetime(
+        self, now_datetime: datetime, begin_time: time.struct_time, end_time: time.struct_time
+    ) -> tuple[datetime, datetime]:
+        """
+        获取当前周期的开始时间和结束时间
+
+        return: begin_datetime, end_datetime
+        """
+        begin_datetime = now_datetime.replace(
+            hour=begin_time.tm_hour, minute=begin_time.tm_min, second=begin_time.tm_sec
+        )
+        end_datetime = now_datetime.replace(hour=end_time.tm_hour, minute=end_time.tm_min, second=end_time.tm_sec)
+
+        return begin_datetime, end_datetime
+
+    def _get_remainint_time(self, begin_datetime: datetime, end_datetime: datetime, now_datetime: datetime) -> str:
+        """
+        获取剩余时间
+        返回格式为: 1 天 2 小时 3 分
+        """
+        if now_datetime <= end_datetime and now_datetime >= begin_datetime:
+            remaining_time = end_datetime - now_datetime
+
+            mm, _ = divmod(remaining_time.seconds, 60)
+            _hour, _minute = divmod(mm, 60)
+
+            day = f"{str(remaining_time.days)} 天" if remaining_time.days > 0 else ""
+            hour = f"{str(_hour)} 小时"
+            minute = f"{str(_minute)} 分"
+
+            return f"{day}{' ' if day else ''}{hour} {minute}"
 
     def get_category_name(self, shield):
         """
