@@ -33,8 +33,9 @@ from iam.contrib.iam_migration.migrator import IAMMigrator
 from iam.exceptions import AuthAPIError
 
 from apps.api import TransferApi
-from apps.iam import ActionEnum, Permission, ResourceEnum
+from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
+from apps.iam.handlers.compatible import CompatibleIAM
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import GlobalConfig, LogIndexSet, Space
@@ -96,7 +97,7 @@ class Command(BaseCommand):
             str(cluster["cluster_config"]["cluster_id"]): cluster["cluster_config"]["cluster_name"]
             for cluster in TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
         }
-        self.iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
+        self.iam_client: CompatibleIAM | None = None
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 

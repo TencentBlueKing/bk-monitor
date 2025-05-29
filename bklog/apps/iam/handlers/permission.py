@@ -50,7 +50,7 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
-from apps.utils.local import get_request, get_request_username
+from apps.utils.local import get_request, get_request_username, get_local_username
 from apps.utils.log import logger
 
 
@@ -65,12 +65,21 @@ class Permission:
             self.bk_tenant_id = bk_tenant_id
         else:
             try:
-                request = request or get_request()
+                request = request or get_request(peaceful=True)
+                # web请求
+                if request:
+                    self.username = request.user.username
+                    self.bk_tenant_id = request.user.tenant_id
+                else:
+                    logger.warning("IAM Permission init with local username, use default bk_tenant_id")
+                    # 后台设置
+                    self.username = get_local_username()
+                    if self.username is None:
+                        raise ValueError("must provide `username` or `request` param to init")
+                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
                 self.bk_tenant_id = bk_tenant_id
-                self.bk_token = request.COOKIES.get("bk_token", "")
                 self.username = request.user.username
             except Exception:  # pylint: disable=broad-except
-                self.bk_token = ""
                 self.username = get_request_username()
 
         self.iam_client = self.get_iam_client(bk_tenant_id)
@@ -421,7 +430,7 @@ class Permission:
         grant_result = None
 
         try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application, self.bk_token, self.username)
+            grant_result = self.iam_client.grant_resource_creator_actions(application)
             logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")
