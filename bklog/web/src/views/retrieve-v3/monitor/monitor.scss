@@ -31,7 +31,13 @@
         }
       }
     }
+  }
 
+  &.is-sticky-top .search-result-panel.flex .field-list-sticky.is-show {
+    position: sticky;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    top: 48px !important;
   }
 }
 
