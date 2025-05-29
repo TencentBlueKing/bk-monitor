@@ -35,7 +35,9 @@ from apps.iam.views.resources import (
 
 from apps.iam.views import resources
 
-dispatcher = resources.ResourceApiDispatcher(Permission.get_iam_client(), settings.BK_IAM_SYSTEM_ID)
+dispatcher = resources.ResourceApiDispatcher(
+    Permission.get_iam_client(settings.DEFAULT_TENANT_ID), settings.BK_IAM_SYSTEM_ID
+)
 dispatcher.register("collection", CollectionResourceProvider())
 dispatcher.register("es_source", EsSourceResourceProvider())
 dispatcher.register("indices", IndicesResourceProvider())

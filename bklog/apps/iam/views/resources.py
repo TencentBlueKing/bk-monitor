@@ -158,7 +158,7 @@ class CollectionResourceProvider(BaseResourceProvider):
 
 class EsSourceResourceProvider(BaseResourceProvider):
     @classmethod
-    def list_clusters(cls):
+    def list_clusters(cls, bk_tenant_id):
         """
         获取非系统内置集群列表
         """
@@ -209,13 +209,14 @@ class EsSourceResourceProvider(BaseResourceProvider):
             for cluster in clusters
             if cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT
             and cluster["cluster_config"]["custom_option"].get("bk_biz_id")
-            and settings.DEFAULT_TENANT_ID in cluster["cluster_config"]["custom_option"]["admin"]
+            and bk_tenant_id in cluster["cluster_config"]["custom_option"]["admin"]
         ]
         return clusters
 
     def list_instance(self, filter, page, **options):
+        bk_tenant_id = options["bk_tenant_id"]
         # 获取集群信息
-        clusters = self.list_clusters()
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
 
         with_path = False
         if filter.parent:
@@ -265,7 +266,8 @@ class EsSourceResourceProvider(BaseResourceProvider):
         return ListResult(results=results, count=len(clusters))
 
     def fetch_instance_info(self, filter, **options):
-        clusters = self.list_clusters()
+        bk_tenant_id = options["bk_tenant_id"]
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
 
         if filter.ids:
             ids = [str(i) for i in filter.ids]
@@ -284,8 +286,9 @@ class EsSourceResourceProvider(BaseResourceProvider):
 
         expr = make_expression(expression)
 
-        clusters = self.list_clusters()
-        iam_client = Permission.get_iam_client()
+        bk_tenant_id = options["bk_tenant_id"]
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
+        iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
 
         filtered_clusters = []
 
@@ -305,7 +308,8 @@ class EsSourceResourceProvider(BaseResourceProvider):
         return ListResult(results=results, count=len(filtered_clusters))
 
     def search_instance(self, filter, page, **options):
-        clusters = self.list_clusters()
+        bk_tenant_id = options["bk_tenant_id"]
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
         if filter.parent and "id" in filter.parent:
             parent_id = filter.parent.get("id")
             clusters = [

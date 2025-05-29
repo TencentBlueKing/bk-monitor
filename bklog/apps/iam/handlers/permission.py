@@ -59,20 +59,21 @@ class Permission:
     权限中心鉴权封装
     """
 
-    def __init__(self, username: str = "", request=None):
-        if username:
+    def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
+        if username and bk_tenant_id:
             self.username = username
-            self.bk_token = ""
+            self.bk_tenant_id = bk_tenant_id
         else:
             try:
                 request = request or get_request()
+                self.bk_tenant_id = bk_tenant_id
                 self.bk_token = request.COOKIES.get("bk_token", "")
                 self.username = request.user.username
             except Exception:  # pylint: disable=broad-except
                 self.bk_token = ""
                 self.username = get_request_username()
 
-        self.iam_client = self.get_iam_client()
+        self.iam_client = self.get_iam_client(bk_tenant_id)
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
@@ -80,15 +81,9 @@ class Permission:
             self.skip_check = True
 
     @classmethod
-    def get_iam_client(cls):
+    def get_iam_client(cls, bk_tenant_id: str):
         app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
-
-        bk_apigateway_url = (
-            settings.IAM_API_BASE_URL
-            if settings.IAM_API_BASE_URL
-            else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-        )
-        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_INNER_HOST, None, bk_apigateway_url)
+        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id)
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
