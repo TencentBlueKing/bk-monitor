@@ -27,6 +27,16 @@
   const editorFocusPosition = ref(null);
   const refPopElement = ref(null);
 
+  // 记录输入状态
+  const inputState = ref({
+    focusPos: null, // focus时的光标位置
+    newContent: '', // focus后新增的内容
+    hasNewInput: false, // 是否有新增输入
+    hasSpace: false, // 是否包含空格
+    lastSpacePos: null, // 最后一个空格的位置
+    isSelecting: false, // 是否正在选择填充
+  });
+
   // SQL查询提示选中可选项索引
   const sqlActiveParamsIndex = ref(null);
 
@@ -139,97 +149,132 @@
     }
   };
 
-  const onFocusPosChange = state => {
-    editorFocusPosition.value = state.selection.main.to;
-    isSelectedText = state.selection.main.to > state.selection.main.from;
+  // 重置输入状态
+  const resetInputState = () => {
+    inputState.value = {
+      focusPos: null,
+      newContent: '',
+      hasNewInput: false,
+      hasSpace: false,
+      lastSpacePos: null,
+      isSelecting: false,
+    };
   };
 
-  const createEditorInstance = () => {
-    editorInstance = CreateLuceneEditor({
-      value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
-      target: refEditorParent.value,
-      stopDefaultKeyboard: () => {
-        return getTippyInstance()?.state?.isShown ?? false;
-      },
-      onChange: e => onEditorContextChange(e),
-      onKeyEnter: () => {
-        debounceRetrieve();
-        return true;
-      },
-      onFocusChange: (_, isFocusing) => {
-        if (isFocusing && !(getTippyInstance()?.state?.isShown ?? false)) {
-          delayShowInstance(refEditorParent.value);
-          return;
+  // 更新输入状态
+  const updateInputState = state => {
+    const currentPos = state.selection.main.to;
+    const currentValue = state.doc.toString();
+
+    // 如果是新的focus，记录位置
+    if (inputState.value.focusPos === null) {
+      inputState.value.focusPos = currentPos;
+      inputState.value.hasNewInput = false;
+      inputState.value.hasSpace = false;
+      inputState.value.lastSpacePos = null;
+      inputState.value.isSelecting = false;
+      return;
+    }
+
+    // 如果正在选择填充，不更新输入状态
+    if (inputState.value.isSelecting) {
+      return;
+    }
+
+    // 如果光标位置在focus位置之后，说明有新增内容
+    if (currentPos > inputState.value.focusPos) {
+      const newContent = currentValue.slice(inputState.value.focusPos, currentPos);
+      // 检查是否包含空格
+      const hasSpace = /\s/.test(newContent);
+
+      inputState.value.newContent = newContent;
+      inputState.value.hasNewInput = true;
+      inputState.value.hasSpace = hasSpace;
+
+      // 如果包含空格，找到最后一个空格的位置
+      if (hasSpace) {
+        const spaceMatch = newContent.match(/\s+$/);
+        if (spaceMatch) {
+          // 计算最后一个空格在文档中的位置
+          inputState.value.lastSpacePos = inputState.value.focusPos + spaceMatch.index;
         }
-      },
-      onFocusPosChange,
-    });
-  };
-
-  const handleEditorClick = () => {
-    if (editorInstance === null) {
-      createEditorInstance();
+      }
+    } else if (currentPos < inputState.value.focusPos) {
+      // 如果光标位置在focus位置之前，说明用户移动了光标，重置状态
+      resetInputState();
+      inputState.value.focusPos = currentPos;
     }
-
-    if (!(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
-    }
-  };
-
-  /**
-   * @description 获取当前输入框左侧内容
-   */
-  const getFocusLeftValue = () => {
-    if (editorFocusPosition.value !== null && editorFocusPosition.value >= 0) {
-      return modelValue.value.slice(0, modelValue.focusPosition);
-    }
-
-    return modelValue.value;
-  };
-
-  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
-  const getMatchFieldLength = () => {
-    const leftValue = getFocusLeftValue();
-    const lastFragments = leftValue.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1] ?? '';
-    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
-
-    return inputField?.length ?? 0;
   };
 
   const getSelectionRenage = (value, replace, type) => {
-    const matchLen = type === 'field' ? getMatchFieldLength(value) : 0;
+    // 如果是替换模式，替换全部内容
     if (replace) {
       return {
         from: 0,
         to: Infinity,
-        buffer: undefined,
       };
     }
 
+    // 如果是选择填充，替换当前光标位置的内容
+    if (inputState.value.isSelecting) {
+      return {
+        from: editorFocusPosition.value,
+        to: editorFocusPosition.value,
+      };
+    }
+
+    // 如果有focus位置且有新增输入，只替换新增的部分
+    if (inputState.value.focusPos !== null && inputState.value.hasNewInput) {
+      // 如果有空格，在最后一个空格的位置插入
+      if (inputState.value.hasSpace && inputState.value.lastSpacePos !== null) {
+        // 在最后一个空格的位置插入，保留空格
+        return {
+          from: inputState.value.lastSpacePos + 1, // 在空格后插入
+          to: inputState.value.focusPos + inputState.value.newContent.length,
+          insertSpace: false,
+        };
+      }
+
+      // 如果没有空格，替换整个新增内容
+      return {
+        from: inputState.value.focusPos,
+        to: inputState.value.focusPos + inputState.value.newContent.length,
+      };
+    }
+
+    // 如果没有新增输入，在光标位置追加
     return {
-      from: editorFocusPosition.value - matchLen,
-      to: editorFocusPosition.value + value.length,
-      buffer: matchLen > 0 ? matchLen : undefined,
+      from: editorFocusPosition.value,
+      to: editorFocusPosition.value,
     };
   };
 
   const handleQueryChange = (value, retrieve, replace = true, type = undefined) => {
-    const { from, buffer, to } = getSelectionRenage(value, replace, type);
-    let toValue = undefined;
-
-    if (to === Infinity) {
-      toValue = to;
-    }
     if (modelValue.value !== value) {
-      if (buffer && type === 'field') {
-        toValue = from + buffer;
+      // 确保编辑器实例存在
+      if (!editorInstance) {
+        return;
       }
-      setEditorContext(value, from, toValue);
+
+      // 标记为选择填充状态
+      inputState.value.isSelecting = true;
+
+      const range = getSelectionRenage(value, replace, type);
+      const { from, to, insertSpace } = range;
+
+      // 如果需要插入空格，在值后面添加空格
+      const finalValue = insertSpace ? `${value} ` : value;
+      setEditorContext(finalValue, from, to);
+
+      // 更新光标位置
       nextTick(() => {
-        if (retrieve) {
-          const resolvedValue = editorInstance?.getValue();
-          closeAndRetrieve(resolvedValue);
+        if (editorInstance) {
+          if (retrieve) {
+            const resolvedValue = editorInstance.getValue();
+            closeAndRetrieve(resolvedValue);
+          }
+          // 重置选择状态
+          inputState.value.isSelecting = false;
         }
       });
     }
@@ -257,6 +302,47 @@
     }
 
     hideTippyInstance();
+  };
+
+  const handleEditorClick = () => {
+    if (editorInstance === null) {
+      createEditorInstance();
+    }
+
+    if (!(getTippyInstance()?.state?.isShown ?? false)) {
+      delayShowInstance(refEditorParent.value);
+    }
+  };
+
+  const createEditorInstance = () => {
+    editorInstance = CreateLuceneEditor({
+      value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
+      target: refEditorParent.value,
+      stopDefaultKeyboard: () => {
+        return getTippyInstance()?.state?.isShown ?? false;
+      },
+      onChange: e => {
+        onEditorContextChange(e);
+      },
+      onKeyEnter: () => {
+        debounceRetrieve();
+        return true;
+      },
+      onFocusChange: (state, isFocusing) => {
+        if (isFocusing) {
+          if (!(getTippyInstance()?.state?.isShown ?? false)) {
+            delayShowInstance(refEditorParent.value);
+          }
+          // 重置选择状态
+          inputState.value.isSelecting = false;
+        }
+      },
+      onFocusPosChange: state => {
+        editorFocusPosition.value = state.selection.main.to;
+        isSelectedText = state.selection.main.to > state.selection.main.from;
+        updateInputState(state);
+      },
+    });
   };
 
   onMounted(() => {
