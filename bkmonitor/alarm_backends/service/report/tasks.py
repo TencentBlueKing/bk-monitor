@@ -164,6 +164,7 @@ def render_mails(
     receivers,
     is_superuser,
     channel_name=ReportItems.Channel.USER,
+    with_actual_size=False,
 ):
     """
     渲染并发送邮件
@@ -173,6 +174,7 @@ def render_mails(
     :param report_item: 订阅报表
     :param report_item_contents: 报表内容
     :param receivers: 接收者
+    :param with_actual_size: 是否使用实际大小渲染仪表盘图表,只有在wx的时候才会使用
     """
     if not receivers:
         # 没有订阅者的情况下，直接返回
@@ -220,6 +222,7 @@ def render_mails(
             is_superuser,
             is_link_enabled=report_item.is_link_enabled,
             channel_name=channel_name,
+            with_actual_size=with_actual_size,
         )
         status["mail_title"] = f"{report_item.mail_title} {render_args['mail_title_time']}"
         if err_msg:
