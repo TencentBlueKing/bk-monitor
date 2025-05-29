@@ -857,6 +857,8 @@ if not os.path.exists(LOG_PATH):
 LOG_LEVEL_MAP = {
     "iam": "ERROR",
     "bk_dataview": "ERROR",
+    "elasticsearch": "WARNING",
+    "kafka": "WARNING",
 }
 
 warnings.filterwarnings(
