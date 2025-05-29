@@ -277,17 +277,28 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             elif alarm_type == self.TYPE_GSE_PROCESS_EVENT:
                 return GseProcessEventRecord(raw_data, self.strategies)
 
-    def _pull_from_redis(self):
+    def _pull_from_redis(self, max_records=MAX_RETRIEVE_NUMBER):
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
-        offset = min([total_events, MAX_RETRIEVE_NUMBER])
+        offset = min([total_events, max_records])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
             return []
 
-        records = client.lrange(data_channel, -offset, -1)
+        try:
+            records = client.lrange(data_channel, -offset, -1)
+        except UnicodeDecodeError as e:
+            logger.error(
+                "ERROR: data_id(%s) topic(%s) poll alarm list(%s) from redis failed: %s",
+                self.data_id,
+                self.topic,
+                offset,
+                e,
+            )
+            client.ltrim(data_channel, 0, -offset - 1)
+            return []
 
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
         if records:
