@@ -47,11 +47,11 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
+import { createMenuList } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { createDrillDownList } from './utils';
 import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
 
 import type { IMetricAnalysisConfig } from '../type';
@@ -586,12 +586,12 @@ class NewMetricChart extends CommonSimpleChart {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
-                    if (seriesList[0].unit !== 'none') {
-                      const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                      return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                      if (seriesList[0].unit !== 'none') {
+                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                        return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                      }
+                      return v;
                     }
-                    return v;
-                  }
                   : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
@@ -659,7 +659,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (customSave) return dataUrl;
         downFile(dataUrl, `${title}.png`);
       })
-      .catch(() => { });
+      .catch(() => {});
   }
   dataZoom(startTime: string, endTime: string) {
     this.showRestore = !!startTime;
@@ -698,6 +698,7 @@ class NewMetricChart extends CommonSimpleChart {
         dashboardId: this.generateRandomDashboardId(),
         subTitle: this.panel.sub_title,
         type: 'graph',
+        groupId: null,
         id: this.panel.sub_title,
         end_time: endTime,
         start_time: startTime,
@@ -862,20 +863,19 @@ class NewMetricChart extends CommonSimpleChart {
   handleChartContextmenu(event: MouseEvent) {
     if (this.isNeedMenu) {
       event.preventDefault();
-      console.log('右键菜单');
-      // if (this.enableContextmenu) {
-      const { pageX, pageY } = event;
-      const instance = (this.$refs.baseChart as any).instance;
-      createDrillDownList(
-        this.contextmenuInfo.options,
-        { x: pageX, y: pageY },
-        (id: string) => {
-          console.log(id, '右键菜单点击');
-          // this.handleIconClick(id);
-        },
-        instance
-      );
-      // }
+      if (this.enableContextmenu) {
+        const { pageX, pageY } = event;
+        const instance = (this.$refs.baseChart as any).instance;
+        createMenuList(
+          this.contextmenuInfo.options,
+          { x: pageX, y: pageY },
+          (id: string) => {
+            this.$emit('contextmenuClick', id, instance);
+          },
+          instance,
+          'drill-down-chart-tab'
+        );
+      }
     }
   }
   render() {

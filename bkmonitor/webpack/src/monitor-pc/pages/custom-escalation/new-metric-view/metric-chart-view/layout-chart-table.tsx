@@ -181,6 +181,10 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       targets: [chart.targets[ind]],
     };
   }
+  /** 查看大图里面的右键维度下钻 */
+  contextMenuClick(panel: IPanelModel) {
+    this.handelDrillDown(panel, 0);
+  }
   handleLegendData(list: ILegendItem[], loading: boolean) {
     this.tableList = list;
     this.loading = loading;
@@ -192,7 +196,6 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    */
   handleFullScreen(config: IPanelModel, compareValue?: any) {
     this.showViewDetail = true;
-    console.log('===', compareValue, this.showViewDetail, this.compareValue, this.filterOption);
     this.viewQueryConfig = {
       config: JSON.parse(JSON.stringify(config)),
       compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
@@ -444,6 +447,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             panel={this.viewQueryConfig}
             timeRangeData={this.timeRange}
             onClose={() => (this.showViewDetail = false)}
+            onContextMenuClick={this.contextMenuClick}
           />
         )}
         {/* 收藏到仪表盘 */}

@@ -30,7 +30,7 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import type { ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
 
 interface NestedObject<T = unknown> {
-  [key: string]: T | NestedObject<T>;
+  [key: string]: NestedObject<T> | T;
 }
 export const refreshList = [
   // 刷新间隔列表
@@ -279,86 +279,4 @@ export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
   const str2 = JSON.stringify(sortKeys(obj2));
 
   return str1 === str2;
-};
-
-export const createDrillDownList = (
-  menuList: { id: string; name: string; disabled: boolean; selected: boolean }[],
-  position: { x: number; y: number },
-  clickHandler: (id: string) => void,
-  instance: any
-) => {
-  const id = 'contextmenu-list-pop-wrapper';
-
-  const removeEl = () => {
-    const remove = document.getElementById(id);
-    if (remove) {
-      remove.remove();
-      setTimeout(() => {
-        instance?.dispatchAction({
-          type: 'restore',
-        });
-        instance?.dispatchAction({
-          type: 'takeGlobalCursor',
-          key: 'dataZoomSelect',
-          dataZoomSelectActive: true,
-        });
-      }, 500);
-    }
-  };
-
-  removeEl();
-  const el = document.createElement('div');
-  el.className = `${id} pop-drill-down-list`;
-  el.id = id;
-  el.style.left = `${(() => {
-    const { clientWidth } = document.body;
-    if (position.x + 110 > clientWidth) {
-      return position.x - 110;
-    }
-    return position.x;
-  })()}px`;
-  el.style.top = `${(() => {
-    const MAX_HEIGHT = 260;
-    const { clientHeight } = document.body;
-    if (position.y + MAX_HEIGHT > clientHeight) {
-      return position.y - MAX_HEIGHT;
-    }
-    return position.y;
-  })()}px`;
-  el.addEventListener('click', (e: any | Event) => {
-    const { dataset } = e.target;
-    if (e.target.classList.contains('contextmenu-list-item') && !e.target.classList.contains('active')) {
-      clickHandler?.(dataset.id);
-      document.removeEventListener('click', removeWrap);
-      removeEl();
-    }
-  });
-  const listEl = menuList
-    .map(
-      item =>
-        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.t('当前维度外层已选中') : ''}">${item.name}</div>`
-    )
-    .join('');
-  el.innerHTML = `${listEl}
-`;
-  document.body.appendChild(el);
-  console.log(el);
-  const eventHasId = (event: any | Event, id: string) => {
-    let target = event.target;
-    let has = false;
-    while (target) {
-      if (target.id === id) {
-        has = true;
-        break;
-      }
-      target = target?.parentNode;
-    }
-    return has;
-  };
-  function removeWrap(event: MouseEvent) {
-    if (!eventHasId(event, id)) {
-      removeEl();
-    }
-  }
-  document.addEventListener('click', removeWrap);
 };

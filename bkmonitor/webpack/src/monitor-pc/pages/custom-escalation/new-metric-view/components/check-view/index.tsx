@@ -221,6 +221,10 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     this.metricChartRef?.handleSelectLegend({ actionType: 'click', item });
   }
 
+  handleContextMenuClick() {
+    this.$emit('contextMenuClick', this.panelData);
+  }
+
   render() {
     return (
       <div
@@ -304,6 +308,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   isShowLegend={false}
                   isToolIconShow={false}
                   panel={this.panelData}
+                  onContextmenuClick={this.handleContextMenuClick}
                   onLegendData={this.handleLegendData}
                   onSeriesData={this.handleGetSeriesData}
                 />
