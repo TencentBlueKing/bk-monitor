@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
@@ -62,13 +62,15 @@ export default (indexSetApi) => {
     });
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
       '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
-      '--left-collection-width': `0px`,
+      '--left-collection-width': '0px',
       '--trend-graph-height': `${trendGraphHeight.value}px`,
+      '--header-height': fromMonitor.value ? '0px' : '52px',
     };
   });
 
@@ -270,10 +272,13 @@ export default (indexSetApi) => {
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
-  /** * 结束计算 ***/
-  onMounted(() => {
-    RetrieveHelper.onMounted();
-  });
+  watch(() => isPreApiLoaded.value, (val) => {
+    if(val) {
+      nextTick(() => {
+        RetrieveHelper.onMounted();
+      });
+    }  
+  }, { immediate: true })
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
