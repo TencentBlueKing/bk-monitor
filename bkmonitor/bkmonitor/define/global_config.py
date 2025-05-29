@@ -350,6 +350,7 @@ ADVANCED_OPTIONS = OrderedDict(
             "AIDEV_METADATA_TOOL_CODE_LIST",
             slz.ListField(label="元数据AIDEV工具代码列表", default=[]),
         ),
+        ("ENABLE_AIDEV_AGENT", slz.BooleanField(label="是否开启AI Agent能力", default=False)),
         ("AIDEV_LLM_MODEL_NAME", slz.CharField(label="LLM模型名称", default="")),
         ("ENABLE_V2_METADATA_AI_DIAGNOSIS", slz.BooleanField(label="是否启用新版元数据智能诊断方案", default=True)),
         (

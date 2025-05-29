@@ -19,11 +19,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
-
-from aidev_agent.api.bk_aidev import BKAidevApi
-from aidev_agent.core.extend.models.llm_gateway import ChatModel
-from aidev_agent.services.chat import ChatCompletionAgent, ExecuteKwargs
-from aidev_agent.services.pydantic_models import ChatPrompt
 from django.conf import settings
 
 logger = logging.getLogger("metadata")
@@ -150,6 +145,17 @@ class MetadataDiagnosisAgent:
         """
         请求AIDEV LLM,结构化封装返回数据
         """
+
+        if not settings.ENABLE_AIDEV_AGENT:  # 若未开启AI Agent能力,直接返回
+            logger.info("MetadataDiagnosisAgent: AIDEV Agent is disabled")
+            return None
+
+        try:
+            from aidev_agent.services.chat import ExecuteKwargs
+        except ImportError:
+            logger.error("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+            return None
+
         thinking_content = ""
         answer_content = ""
 
@@ -223,6 +229,20 @@ class MetadataDiagnosisAgent:
         @param bk_data_id: 数据源ID
         """
 
+        # 0. 现阶段AI Agent能力选择性开启
+        if not settings.ENABLE_AIDEV_AGENT:  # 若未开启AI Agent能力,直接返回
+            logger.info("MetadataDiagnosisAgent: AIDEV Agent is disabled")
+            return None
+
+        try:
+            from aidev_agent.api.bk_aidev import BKAidevApi
+            from aidev_agent.core.extend.models.llm_gateway import ChatModel
+            from aidev_agent.services.chat import ChatCompletionAgent
+            from aidev_agent.services.pydantic_models import ChatPrompt
+        except ImportError:
+            logger.error("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+            return None
+
         # 1. 初始化LLM模型服务
         llm_model_name = settings.AIDEV_LLM_MODEL_NAME
         llm = ChatModel.get_setup_instance(model=llm_model_name)
@@ -252,7 +272,7 @@ class MetadataDiagnosisAgent:
             tools=tools,
         )
 
-        # 6. Agent 启动！
+        # 6. Agent,启动！
         result = cls._collect_complete_answer(agent)
 
         logger.info("MetadataDiagnosisAgent: diagnose_by_agent_sdk finished,answer->[%s]", result["answer"])
