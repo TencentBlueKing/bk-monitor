@@ -187,6 +187,10 @@ export default defineComponent({
       return (
         <div class='favorite-group-tree'>
           <div
+            style='margin-bottom: 2px;'
+            class='favorite-group-split-line'
+          />
+          <div
             class={{
               'favorite-create': true,
               'is-active': !activeFavoriteId.value,
@@ -194,8 +198,12 @@ export default defineComponent({
             onClick={handleSelectCreateGroup}
           >
             <i class='icon-monitor icon-xinjiansuo' />
-            {t('新检索')}
+            {t('新建检索')}
           </div>
+          <div
+            style='margin-top: 2px; margin-bottom: 8px;'
+            class='favorite-group-split-line'
+          />
           <div class='favorite-group-wrapper'>
             {renderGroupList.value.map(renderGroup)}
             {renderGroupList.value.length < 1 && (
