@@ -205,7 +205,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
         return:
         - 单次
-        - 每月 1/2/14日 (00:00 ~ 23:00)
+        - 每月 1/2/14 日 (00:00 ~ 23:00)
         - 每周二/四 (00:00 ~ 23:00)
         - 每天 (00:00 ~ 23:00)
         """
