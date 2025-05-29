@@ -64,6 +64,7 @@ class CheckResult:
 
 
 class CheckCollectorRecord:
+
     @staticmethod
     def generate_check_record_id(collector_config_id: int, hosts: List[Dict[str, Any]] = None) -> str:
         """
