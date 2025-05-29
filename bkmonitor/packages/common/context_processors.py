@@ -20,7 +20,9 @@ from bkm_space.define import Space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
+from bkmonitor.utils.request import get_request_tenant_id
 from common.log import logger
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
 
@@ -157,6 +159,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "is_superuser": str(request.user.is_superuser).lower(),
             "SPACE_LIST": space_list,
             "BK_BIZ_ID": bk_biz_id,
+            "BK_TENANT_ID": get_request_tenant_id(request) or DEFAULT_TENANT_ID,
             # 服务拨测设置最大 duration
             "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
             # 所有图表渲染必须
