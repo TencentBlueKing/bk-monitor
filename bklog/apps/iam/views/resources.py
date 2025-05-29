@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import abc
 
 from django.db.models import Q
@@ -33,6 +33,16 @@ from iam import PathEqDjangoQuerySetConverter, make_expression, ObjectSet, Djang
 from iam.eval.constants import KEYWORD_BK_IAM_PATH_FIELD_SUFFIX, OP
 from iam.resource.provider import ResourceProvider, ListResult
 
+from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
+from django.conf import settings
+
+
+class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
+    def _get_options(self, request):
+        options = super()._get_options(request)
+        options["bk_tenant_id"] = request.META.get("HTTP_X_BK_TENANT_ID", settings.DEFAULT_TENANT_ID)
+        return options
+
 
 class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
     def list_attr(self, **options):
@@ -46,9 +56,10 @@ class CollectionResourceProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         queryset = []
         with_path = False
+        bk_tenant_id = options["bk_tenant_id"]
 
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = CollectorConfig.objects.all()
+            queryset = CollectorConfig.objects.filter(bk_tenant_id=bk_tenant_id).all()
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -63,7 +74,7 @@ class CollectionResourceProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(collector_config_name__icontains=keyword)
 
-            queryset = CollectorConfig.objects.filter(q_filter)
+            queryset = CollectorConfig.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
 
         if not with_path:
             results = [
@@ -96,7 +107,7 @@ class CollectionResourceProvider(BaseResourceProvider):
         if filter.ids:
             ids = [int(i) for i in filter.ids]
 
-        queryset = CollectorConfig.objects.filter(pk__in=ids)
+        queryset = CollectorConfig.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
 
         results = [
             {"id": str(item.pk), "display_name": item.collector_config_name, "_bk_iam_approver_": item.created_by}
@@ -118,7 +129,7 @@ class CollectionResourceProvider(BaseResourceProvider):
             value_hooks={"bk_biz_id": lambda value: value[1:-1].split(",")[1]},
         )
         filters = converter.convert(expression)
-        queryset = CollectorConfig.objects.filter(filters)
+        queryset = CollectorConfig.objects.filter(filters, bk_tenant_id=options["bk_tenant_id"])
         results = [
             {"id": str(item.pk), "display_name": item.collector_config_name}
             for item in queryset[page.slice_from : page.slice_to]
@@ -127,9 +138,11 @@ class CollectionResourceProvider(BaseResourceProvider):
         return ListResult(results=results, count=queryset.count())
 
     def search_instance(self, filter, page, **options):
-
         if not filter.parent or "id" not in filter.parent:
-            queryset = CollectorConfig.objects.filter(collector_config_name__icontains=filter.keyword)
+            queryset = CollectorConfig.objects.filter(
+                collector_config_name__icontains=filter.keyword,
+                bk_tenant_id=options["bk_tenant_id"],
+            )
         else:
             parent_id = filter.parent.get("id")
             queryset = CollectorConfig.objects.filter(
@@ -189,12 +202,14 @@ class EsSourceResourceProvider(BaseResourceProvider):
                 "bk_biz_id": str(cluster["cluster_config"]["custom_option"]["bk_biz_id"]),
                 "owner": cluster["cluster_config"]["creator"],
                 "_bk_iam_path_": "/{},{}/".format(
-                    ResourceEnum.BUSINESS.id, cluster["cluster_config"]["custom_option"]["bk_biz_id"],
+                    ResourceEnum.BUSINESS.id,
+                    cluster["cluster_config"]["custom_option"]["bk_biz_id"],
                 ),
             }
             for cluster in clusters
             if cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT
             and cluster["cluster_config"]["custom_option"].get("bk_biz_id")
+            and settings.DEFAULT_TENANT_ID in cluster["cluster_config"]["custom_option"]["admin"]
         ]
         return clusters
 
@@ -320,9 +335,10 @@ class IndicesResourceProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         queryset = []
         with_path = False
+        bk_tenant_id = options["bk_tenant_id"]
 
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = LogIndexSet.objects.all()
+            queryset = LogIndexSet.objects.filter(bk_tenant_id=bk_tenant_id)
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -337,7 +353,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(index_set_name__icontains=keyword)
 
-            queryset = LogIndexSet.objects.filter(q_filter)
+            queryset = LogIndexSet.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
 
         if not with_path:
             results = [
@@ -373,7 +389,7 @@ class IndicesResourceProvider(BaseResourceProvider):
         if filter.ids:
             ids = [int(i) for i in filter.ids]
 
-        queryset = LogIndexSet.objects.filter(pk__in=ids)
+        queryset = LogIndexSet.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
 
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name, "_bk_iam_approver_": item.created_by}
@@ -395,7 +411,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             key_mapping, {"space_uid": lambda value: bk_biz_id_to_space_uid(value[1:-1].split(",")[1])}
         )
         filters = converter.convert(expression)
-        queryset = LogIndexSet.objects.filter(filters)
+        queryset = LogIndexSet.objects.filter(filters, bk_tenant_id=options["bk_tenant_id"])
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name}
             for item in queryset[page.slice_from : page.slice_to]
@@ -411,7 +427,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             queryset = LogIndexSet.objects.filter(
                 space_uid=bk_biz_id_to_space_uid(parent_id), index_set_name__icontains=filter.keyword
             )
-
+        queryset = queryset.filter(bk_tenant_id=options["bk_tenant_id"])
         return ListResult(
             results=[
                 {"id": item.index_set_id, "display_name": item.index_set_name}

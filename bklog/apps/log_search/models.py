@@ -386,6 +386,8 @@ class LogIndexSet(SoftDeleteModel):
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
     doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
+    # 租户id
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
 
     def get_name(self):
         return self.index_set_name

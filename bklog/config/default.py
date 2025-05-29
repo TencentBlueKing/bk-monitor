@@ -411,6 +411,7 @@ BK_HOT_WARM_CONFIG_URL = (
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
+IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
 
 # ===============================================================================
 # 企业版登录重定向
