@@ -1,14 +1,14 @@
-#!/usr/bin/env python3
 """
-最简化的AI Agent工具测试
-单轮对话，带工具调用，返回完整回答数据
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
 """
 
 import json
-from aidev_agent.api.bk_aidev import BKAidevApi
-from aidev_agent.core.extend.models.llm_gateway import ChatModel
-from aidev_agent.services.chat import ChatCompletionAgent, ExecuteKwargs
-from aidev_agent.services.pydantic_models import ChatPrompt
 from django.conf import settings
 
 
@@ -16,6 +16,12 @@ def _collect_complete_answer(agent):
     """收集完整的回答数据"""
     thinking_content = ""
     answer_content = ""
+
+    try:
+        from aidev_agent.services.chat import ExecuteKwargs
+    except ImportError:
+        print("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+        return None
 
     for chunk in agent.execute(ExecuteKwargs(stream=True)):
         # 跳过非数据行
@@ -52,8 +58,16 @@ def _collect_complete_answer(agent):
     }
 
 
-def test_simple_agent():
-    """简单的Agent工具测试"""
+def test_metadata_agent():
+    """Metadata 排障Agent测试"""
+
+    try:
+        from aidev_agent.api.bk_aidev import BKAidevApi
+        from aidev_agent.core.extend.models.llm_gateway import ChatModel
+        from aidev_agent.services.chat import ChatCompletionAgent
+        from aidev_agent.services.pydantic_models import ChatPrompt
+    except ImportError:
+        print("MetadataDiagnosisAgent: failed to import AIDEV SDK")
 
     # 1. 初始化模型和客户端
     llm_model_name = settings.AIDEV_LLM_MODEL_NAME
