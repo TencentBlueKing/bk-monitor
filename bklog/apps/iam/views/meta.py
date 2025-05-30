@@ -25,7 +25,6 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam import Permission, ActionEnum, ResourceEnum
-from apps.utils.local import get_request_tenant_id
 
 
 class MetaViewSet(APIViewSet):
@@ -47,7 +46,7 @@ class MetaViewSet(APIViewSet):
             "result":true
         }
         """
-        result = Permission(bk_tenant_id=get_request_tenant_id()).get_system_info()
+        result = Permission().get_system_info()
         return Response(result)
 
     @action(methods=["POST"], detail=False)
@@ -94,7 +93,7 @@ class MetaViewSet(APIViewSet):
         resources = request.data.get("resources", [])
 
         result = []
-        client = Permission(bk_tenant_id=get_request_tenant_id())
+        client = Permission()
         resources = client.batch_make_resource(resources)
         for action_id in action_ids:
             is_allowed = True
@@ -189,7 +188,7 @@ class MetaViewSet(APIViewSet):
         """
         action_ids = request.data.get("action_ids", [])
         resources = request.data.get("resources", [])
-        client = Permission(bk_tenant_id=get_request_tenant_id())
+        client = Permission()
         resources = client.batch_make_resource(resources)
         apply_data, apply_url = client.get_apply_data(action_ids, resources)
         return Response({"apply_data": apply_data, "apply_url": apply_url})

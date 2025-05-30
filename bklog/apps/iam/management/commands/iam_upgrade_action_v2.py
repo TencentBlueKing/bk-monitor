@@ -33,7 +33,7 @@ from iam.contrib.iam_migration.migrator import IAMMigrator
 from iam.exceptions import AuthAPIError
 
 from apps.api import TransferApi
-from apps.iam import ActionEnum, ResourceEnum
+from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
@@ -101,7 +101,11 @@ class Command(BaseCommand):
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 
-    def handle(self, action=None, concurrency=None, username=None, **options):
+    def handle(self, action=None, concurrency=None, username=None, bk_tenant_id=None, **options):
+        if not bk_tenant_id:
+            bk_tenant_id = settings.DEFAULT_TENANT_ID
+        self.iam_client = Permission.get_iam_client(bk_tenant_id)
+
         start_time = time.time()
         print("[upgrade_iam_action_v2] ##### START #####")
 

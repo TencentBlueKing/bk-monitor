@@ -71,14 +71,14 @@ class Permission:
                     self.username = request.user.username
                     self.bk_tenant_id = request.user.tenant_id
                 else:
-                    logger.warning("IAM Permission init with local username, use default bk_tenant_id")
+                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
+                    logger.warning(
+                        "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
+                    )
                     # 后台设置
                     self.username = get_local_username()
                     if self.username is None:
                         raise ValueError("must provide `username` or `request` param to init")
-                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
-                self.bk_tenant_id = bk_tenant_id
-                self.username = request.user.username
             except Exception:  # pylint: disable=broad-except
                 self.username = get_request_username()
 
@@ -91,8 +91,9 @@ class Permission:
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
-        app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
-        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id)
+        return CompatibleIAM(
+            settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
+        )
 
     def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """

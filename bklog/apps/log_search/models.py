@@ -386,8 +386,6 @@ class LogIndexSet(SoftDeleteModel):
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
     doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
-    # 租户id
-    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
 
     def get_name(self):
         return self.index_set_name
@@ -1307,6 +1305,13 @@ class Space(SoftDeleteModel):
             return space.bk_tenant_id
 
         return default_tenant_id
+
+    @classmethod
+    def get_space_uid_list(cls, tenant_id: str) -> list:
+        """
+        获取租户的所有空间ID
+        """
+        return cls.objects.filter(bk_tenant_id=tenant_id).values_list("space_uid", flat=True)
 
 
 class SpaceApi(AbstractSpaceApi):

@@ -27,7 +27,7 @@ from apps.api import TransferApi
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, REGISTERED_SYSTEM_DEFAULT
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from iam import PathEqDjangoQuerySetConverter, make_expression, ObjectSet, DjangoQuerySetConverter
 from iam.eval.constants import KEYWORD_BK_IAM_PATH_FIELD_SUFFIX, OP
@@ -331,6 +331,8 @@ class EsSourceResourceProvider(BaseResourceProvider):
 
 
 class IndicesResourceProvider(BaseResourceProvider):
+    ENABLE_MULTI_TENANT_MODE = settings.ENABLE_MULTI_TENANT_MODE
+
     class PathInDjangoQuerySetConverter(DjangoQuerySetConverter):
         def operator_map(self, operator, field, value):
             if field.endswith(KEYWORD_BK_IAM_PATH_FIELD_SUFFIX) and operator == OP.STARTS_WITH:
@@ -342,7 +344,10 @@ class IndicesResourceProvider(BaseResourceProvider):
         bk_tenant_id = options["bk_tenant_id"]
 
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = LogIndexSet.objects.filter(bk_tenant_id=bk_tenant_id)
+            queryset = LogIndexSet.objects.all()
+            if self.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list = Space.get_space_uid_list(bk_tenant_id)
+                queryset.filter(space_uid__in=space_uid_list)
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -357,7 +362,10 @@ class IndicesResourceProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(index_set_name__icontains=keyword)
 
-            queryset = LogIndexSet.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
+            queryset = LogIndexSet.objects.filter(q_filter)
+            if self.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list = Space.get_space_uid_list(bk_tenant_id)
+                queryset.filter(space_uid__in=space_uid_list)
 
         if not with_path:
             results = [
@@ -393,7 +401,10 @@ class IndicesResourceProvider(BaseResourceProvider):
         if filter.ids:
             ids = [int(i) for i in filter.ids]
 
-        queryset = LogIndexSet.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
+        queryset = LogIndexSet.objects.filter(pk__in=ids)
+        if self.ENABLE_MULTI_TENANT_MODE:
+            space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+            queryset.filter(space_uid__in=space_uid_list)
 
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name, "_bk_iam_approver_": item.created_by}
@@ -415,7 +426,10 @@ class IndicesResourceProvider(BaseResourceProvider):
             key_mapping, {"space_uid": lambda value: bk_biz_id_to_space_uid(value[1:-1].split(",")[1])}
         )
         filters = converter.convert(expression)
-        queryset = LogIndexSet.objects.filter(filters, bk_tenant_id=options["bk_tenant_id"])
+        queryset = LogIndexSet.objects.filter(filters)
+        if self.ENABLE_MULTI_TENANT_MODE:
+            space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+            queryset.filter(space_uid__in=space_uid_list)
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name}
             for item in queryset[page.slice_from : page.slice_to]
@@ -431,7 +445,9 @@ class IndicesResourceProvider(BaseResourceProvider):
             queryset = LogIndexSet.objects.filter(
                 space_uid=bk_biz_id_to_space_uid(parent_id), index_set_name__icontains=filter.keyword
             )
-        queryset = queryset.filter(bk_tenant_id=options["bk_tenant_id"])
+        if self.ENABLE_MULTI_TENANT_MODE:
+            space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+            queryset.filter(space_uid__in=space_uid_list)
         return ListResult(
             results=[
                 {"id": item.index_set_id, "display_name": item.index_set_name}
