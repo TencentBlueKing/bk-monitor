@@ -56,6 +56,7 @@ export interface TableCellRenderValueType {
   [ExploreTableColumnTypeEnum.TIME]: number;
   [ExploreTableColumnTypeEnum.TAGS]: {
     alias: string;
+    value: string;
     tagColor: string;
     tagBgColor: string;
   }[];

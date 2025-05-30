@@ -129,16 +129,34 @@ export default defineComponent({
         disabled: false,
         sortable: true,
       },
+      // {
+      //   id: EColumn.failureTime,
+      //   name: t('失效时间'),
+      //   width: 150,
+      //   disabled: false,
+      //   sortable: true,
+      // },
+      // {
+      //   id: EColumn.cycleDuration,
+      //   name: t('持续周期及时长'),
+      //   width: 150,
+      //   disabled: false,
+      // },
       {
-        id: EColumn.failureTime,
-        name: t('失效时间'),
+        id: EColumn.endTime,
+        name: t('结束时间'),
         width: 150,
         disabled: false,
-        sortable: true,
       },
       {
-        id: EColumn.cycleDuration,
-        name: t('持续周期及时长'),
+        id: EColumn.shieldCycle,
+        name: t('屏蔽周期'),
+        width: 150,
+        disabled: false,
+      },
+      {
+        id: EColumn.currentCycleRamainingTime,
+        name: t('当前周期剩余时长'),
         width: 150,
         disabled: false,
       },
@@ -532,11 +550,25 @@ export default defineComponent({
         case EColumn.beginTime: {
           return <span>{row.begin_time}</span>;
         }
-        case EColumn.failureTime: {
-          return <span>{row.failure_time}</span>;
+        // case EColumn.failureTime: {
+        //   return <span>{row.failure_time}</span>;
+        // }
+        // case EColumn.cycleDuration: {
+        //   return <span>{row.cycle_duration}</span>;
+        // }
+        case EColumn.endTime: {
+          return <span>{row.end_time}</span>;
         }
-        case EColumn.cycleDuration: {
-          return <span>{row.cycle_duration}</span>;
+        case EColumn.shieldCycle: {
+          return <span>{row.shield_cycle}</span>;
+        }
+        case EColumn.currentCycleRamainingTime: {
+          // 后端null：不在屏蔽周期内
+          return (
+            <span class={!row.current_cycle_ramaining_time ? 'overdue' : ''}>
+              {row.current_cycle_ramaining_time || t('不在屏蔽周期内')}
+            </span>
+          );
         }
         case EColumn.description: {
           return <span>{row.description || '--'}</span>;
