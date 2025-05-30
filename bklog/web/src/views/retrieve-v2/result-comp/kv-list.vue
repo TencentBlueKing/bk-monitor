@@ -110,6 +110,8 @@
   import { mapGetters, mapState } from 'vuex';
 
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+
   export default {
     components: {
       TextSegmentation,
@@ -179,9 +181,9 @@
         retrieveParams: 'retrieveParams',
       }),
       ...mapState({
-        formatJson: state => state.storage.tableJsonFormat,
-        showFieldAlias: state => state.storage.showFieldAlias,
-        isAllowEmptyField: state => state.storage.tableAllowEmptyField,
+        formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+        showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+        isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -399,7 +401,20 @@
       },
       // 显示或隐藏字段
       handleShowOrHiddenItem(visible, field) {
-        this.$store.dispatch('toggleFieldVisible', { visible, field });
+        const displayFields = [];
+        this.visibleFields.forEach(child => {
+          if (field.field_name !== child.field_name) {
+            displayFields.push(child.field_name);
+          }
+        });
+
+        if (visible) {
+          displayFields.push(field.field_name);
+        }
+        this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
+          this.$store.commit('resetVisibleFields', displayFields);
+          this.$store.commit('updateIsSetDefaultTableColumn');
+        });
       },
     },
   };

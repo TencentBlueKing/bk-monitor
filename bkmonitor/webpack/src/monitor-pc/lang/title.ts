@@ -157,7 +157,7 @@ export default {
   例如: 'For example',
   // 调用分析
   维度值分布: 'Dimension value distribution',
-  K8S对象: 'K8S object',
+  K8S对象: 'K8s object',
 
   去重后的字段统计: 'Field statistics after deduplication',
   '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
@@ -173,4 +173,9 @@ export default {
   选择维度信息: 'Select dimension information',
   已选列表: 'Selected list',
   全部移除: 'Remove all',
+
+  数值分布直方图: 'Numerical distribution histogram',
+  'TOP 5 时序图': 'TOP 5 Time Series Chart',
+  'Trace 检索': 'Trace Search',
+  'Tracing 检索': 'Tracing Search',
 };

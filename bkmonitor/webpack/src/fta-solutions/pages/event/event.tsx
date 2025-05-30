@@ -1292,7 +1292,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           actionOverview,
           faultOverview,
           ...(overview?.children || []),
-          ...actionOverview.children,
+          ...(actionOverview?.children || []),
           ...(faultOverview.children ? faultOverview.children : []),
         ].find(item => item.id === this.activeFilterId)?.name || '';
       if (!this.activeFilterName) {

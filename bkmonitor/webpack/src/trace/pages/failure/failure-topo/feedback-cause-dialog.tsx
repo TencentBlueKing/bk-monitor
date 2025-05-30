@@ -171,8 +171,9 @@ export default defineComponent({
       return <span class='empty-text'>--</span>;
     };
     const newFeedback = () => {
-      const { bk_biz_id, bk_biz_name, entity } = this.$props.data;
-      const { entity_type, rank, entity_id } = entity;
+      const { bk_biz_name, entity } = this.$props.data;
+      const { entity_type, rank, entity_id, properties } = entity;
+      const bk_biz_id = this.$props.data.bk_biz_id || entity.bk_biz_id;
       return (
         <Form
           ref='formRef'
@@ -181,8 +182,10 @@ export default defineComponent({
           model={this.formData}
         >
           <Form.FormItem label={`${this.t('根因所属节点')}:`}>{entity_id}</Form.FormItem>
-          <Form.FormItem label={`${this.t('分类')}:`}>{rank?.rank_alias || '--'}</Form.FormItem>
-          <Form.FormItem label={`${this.t('节点类型')}:`}>{entity_type}</Form.FormItem>
+          <Form.FormItem label={`${this.t('分类')}:`}>
+            {rank?.rank_category?.layer_alias || rank?.rank_category?.category_alias || '--'}
+          </Form.FormItem>
+          <Form.FormItem label={`${this.t('节点类型')}:`}>{properties?.entity_category || entity_type}</Form.FormItem>
           <Form.FormItem label={`${this.t('所属业务')}:`}>{`[${bk_biz_id}] ${bk_biz_name}`}</Form.FormItem>
           <Form.FormItem
             label={`${this.t('故障根因描述')}:`}
@@ -192,7 +195,7 @@ export default defineComponent({
             <Input
               v-model={this.formData.feedbackContent}
               maxlength={300}
-              placeholder={this.$tc('请输入')}
+              placeholder={this.t('请输入')}
               type='textarea'
             />
           </Form.FormItem>
@@ -206,7 +209,7 @@ export default defineComponent({
     return (
       <Dialog
         width={660}
-        ext-cls='feedback-cause-dialog'
+        class='feedback-cause-dialog'
         v-slots={{
           footer: () => (
             <div>
@@ -228,23 +231,24 @@ export default defineComponent({
               </Button>
             </div>
           ),
+          default: () => (
+            <Collapse
+              class='feedback-cause-collapse'
+              v-model={this.activeIndex}
+              v-slots={{
+                content: (item: any) => item.renderFn(),
+              }}
+              header-icon='right-shape'
+              list={collapseList}
+            />
+          ),
         }}
         dialog-type='operation'
         is-loading={this.btnLoading}
         is-show={this.$props.visible}
         title={this.t('反馈新根因')}
         onUpdate:isShow={this.valueChange}
-      >
-        <Collapse
-          class='feedback-cause-collapse'
-          v-model={this.activeIndex}
-          v-slots={{
-            content: (item: any) => item.renderFn(),
-          }}
-          header-icon='right-shape'
-          list={collapseList}
-        />
-      </Dialog>
+      />
     );
   },
 });

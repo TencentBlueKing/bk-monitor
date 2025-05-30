@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 import sys
 
-from django.conf import settings
 from jinja2 import DebugUndefined
 
 from config.tools.consul import get_consul_settings
@@ -21,10 +20,9 @@ from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
-    ENVIRONMENT,
     IS_CONTAINER_MODE,
     NEW_ENV,
-    ROLE,
+    ENVIRONMENT,
 )
 
 # 按照环境变量中的配置，加载对应的配置文件
@@ -32,7 +30,7 @@ try:
     _module = __import__(f"config.{NEW_ENV}", globals(), locals(), ["*"])
 except ImportError as e:
     logging.exception(e)
-    raise ImportError("Could not import config '{}' (Is it on sys.path?): {}".format(DJANGO_CONF_MODULE, e))
+    raise ImportError(f"Could not import config '{DJANGO_CONF_MODULE}' (Is it on sys.path?): {e}")
 
 for _setting in dir(_module):
     if _setting == _setting.upper():
@@ -266,6 +264,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
     # 计算平台元数据一致性 Redis Watch
     ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
+    # ES集群关键配置检查,六小时检查一次
+    ("metadata.task.config_refresh.check_es_clusters_key_settings", "0 */6 * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -300,6 +300,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
     # BkBase数据兜底任务,2h一次
     ("metadata.task.bkbase.sync_bkbase_metadata_all", "0 */2 * * *", "global"),
+    # BkBase RT 路由同步任务，6h一次
+    ("metadata.task.bkbase.sync_bkbase_rt_meta_info_all", "0 */6 * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次
@@ -349,91 +351,46 @@ PYTHON_HOME = sys.executable.rsplit("/", 1)[0]  # virtualenv path
 PYTHON = PYTHON_HOME + "/python"  # python bin
 GUNICORN = PYTHON_HOME + "/gunicorn"  # gunicorn bin
 
+# 日志轮转配置
 LOG_LOGFILE_MAXSIZE = 1024 * 1024 * 200  # 200m
 LOG_LOGFILE_BACKUP_COUNT = 12
 LOG_PROCESS_CHECK_TIME = 60 * 60 * 4
 LOG_LOGFILE_BACKUP_GZIP = True
 
+
 # LOGGING
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
-LOG_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log")
-LOG_IMAGE_EXPORTER_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_image_exporter.log")
-LOG_METADATA_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_metadata.log")
-LOGGER_DEFAULT = {"level": LOGGER_LEVEL, "handlers": ["console", "file"]}
+if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
+    LOGGER_HANDLERS = ["console"]
+else:
+    LOGGER_HANDLERS = ["file", "console"]
 
 
-def get_logger_config(log_path, logger_level, log_file_prefix):
-    return {
-        "version": 1,
-        "loggers": {
-            "root": LOGGER_DEFAULT,
-            "core": LOGGER_DEFAULT,
-            "cron": LOGGER_DEFAULT,
-            "cache": LOGGER_DEFAULT,
-            "service": LOGGER_DEFAULT,
-            "detect": LOGGER_DEFAULT,
-            "nodata": LOGGER_DEFAULT,
-            "access": LOGGER_DEFAULT,
-            "trigger": LOGGER_DEFAULT,
-            "event": LOGGER_DEFAULT,
-            "alert": LOGGER_DEFAULT,
-            "composite": LOGGER_DEFAULT,
-            "recovery": LOGGER_DEFAULT,
-            "preparation": LOGGER_DEFAULT,
-            "fta_action": LOGGER_DEFAULT,
-            "bkmonitor": LOGGER_DEFAULT,
-            "apm_ebpf": LOGGER_DEFAULT,
-            "apm": LOGGER_DEFAULT,
-            "data_source": LOGGER_DEFAULT,
-            "alarm_backends": LOGGER_DEFAULT,
-            "self_monitor": LOGGER_DEFAULT,
-            "calendars": LOGGER_DEFAULT,
-            "celery": LOGGER_DEFAULT,
-            "kubernetes": LOGGER_DEFAULT,
-            "metadata": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["metadata"]},
-            "image_exporter": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["image_exporter"]},
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "loggers": {
+        "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": LOGGER_LEVEL, "formatter": "standard"},
+        "file": {
+            "class": "logging.handlers.WatchedFileHandler",
+            "level": LOGGER_LEVEL,
+            "formatter": "standard",
+            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log"),
+            "encoding": "utf-8",
         },
-        "handlers": {
-            "console": {"class": "logging.StreamHandler", "level": "DEBUG", "formatter": "standard"},
-            "file": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel.log"),
-                "encoding": "utf-8",
-            },
-            "image_exporter": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel_image_exporter.log"),
-                "encoding": "utf-8",
-            },
-            "metadata": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel_metadata.log"),
-                "encoding": "utf-8",
-            },
-        },
-        "formatters": {
-            "standard": {
-                "format": (
-                    "%(asctime)s %(levelname)-8s %(process)-8d" "%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"
-                ),
-                "datefmt": "%Y-%m-%d %H:%M:%S",
-            }
-        },
-    }
+    },
+    "formatters": {
+        "standard": {
+            "format": ("%(asctime)s %(levelname)-8s %(process)-8d%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"),
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        }
+    },
+}
 
-
-LOGGING = LOGGER_CONF = get_logger_config(LOG_PATH, LOGGER_LEVEL, LOG_FILE_PREFIX)
-
-if IS_CONTAINER_MODE:
-    for logger in LOGGING["loggers"]:
-        if "null" not in LOGGING["loggers"][logger]["handlers"]:
-            LOGGING["loggers"][logger]["handlers"] = ["console"]
 
 # Consul
 (
@@ -514,18 +471,18 @@ CACHES = {
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "locmem": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
-            'CULL_FREQUENCY': 0,
+        "OPTIONS": {
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 0,
         },
     },
     "space": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "space",
-        'OPTIONS': {
+        "OPTIONS": {
             # 5w空间支持
-            'MAX_ENTRIES': 50000,
-            'CULL_FREQUENCY': 0,
+            "MAX_ENTRIES": 50000,
+            "CULL_FREQUENCY": 0,
         },
     },
 }

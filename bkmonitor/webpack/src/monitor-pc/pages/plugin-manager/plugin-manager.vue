@@ -36,7 +36,7 @@
       <page-tips
         style="margin-bottom: 16px"
         :link-text="$t('采集器安装前往节点管理')"
-        :link-url="`${$store.getters.bkNodemanHost}#/plugin-manager/list`"
+        :link-url="`${$store.getters.bkNodeManHost}#/plugin-manager/list`"
         :tips-text="$t('可以通过制作各种监控插件满足数据采集的需求，该功能依赖服务器安装bkmonitorbeat采集器。')"
       />
       <div class="plugin-manager-header">
@@ -410,7 +410,7 @@
           :text="true"
           @click="
             tablePopover.data.delete_allowed &&
-              handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)
+            handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)
           "
         >
           {{ $t('删除') }}
@@ -1461,8 +1461,8 @@ export default {
             .desc-category,
             %desc-category {
               overflow: hidden;
-              line-height: 16px;
               text-overflow: ellipsis;
+              line-height: 16px;
               white-space: nowrap;
               cursor: pointer;
             }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, ProvideReactive } from 'vue-property-decorator';
+import { Component, Watch, ProvideReactive, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -52,7 +52,57 @@ export default class NewMetricView extends tsc<object> {
     showStatisticalValue: false,
     viewColumn: 2,
   };
+  cacheTimeRange = [];
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
+  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
+  @ProvideReactive('containerScrollTop') containerScrollTop = 0;
+
+  @Ref('panelChartView') panelChartView!: PanelChartView;
+
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
+
+  @Watch('isCustomTsMetricGroupsLoading')
+  isCustomTsMetricGroupsLoadingChange(v) {
+    if (!v) {
+      this.$nextTick(() => {
+        this.initScroll();
+      });
+    }
+  }
+  initScroll() {
+    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
+    if (container) {
+      container.removeEventListener('scroll', this.handleScroll);
+      container.addEventListener('scroll', this.handleScroll);
+    }
+  }
+
+  removeScrollEvent() {
+    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
+    if (container) {
+      container.removeEventListener('scroll', this.handleScroll);
+    }
+  }
+
+  handleScroll(e) {
+    if (e.target.scrollTop > 0) {
+      this.containerScrollTop = e.target.scrollTop;
+    }
+  }
 
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
@@ -72,7 +122,7 @@ export default class NewMetricView extends tsc<object> {
         function: 'top', // top/bottom
         limit: 10, // 0不限制
       },
-      view_column: 1,
+      view_column: 2,
       ...this.dimenstionParams,
       // start_time: this.startTime,
       // end_time: this.endTime,
@@ -144,6 +194,10 @@ export default class NewMetricView extends tsc<object> {
     };
   }
 
+  beforeDestroy() {
+    this.removeScrollEvent();
+  }
+
   render() {
     return (
       <div class='bk-monitor-new-metric-view'>
@@ -151,7 +205,7 @@ export default class NewMetricView extends tsc<object> {
           <DashboardTools
             isSplitPanel={false}
             showListMenu={false}
-            timeRange={[this.startTime, this.endTime]}
+            timeRange={this.timeRange}
             onImmediateRefresh={this.handleImmediateRefresh}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
@@ -192,6 +246,7 @@ export default class NewMetricView extends tsc<object> {
                   </HeaderBox>
                   <div class='metric-view-dashboard-container'>
                     <PanelChartView
+                      ref='panelChartView'
                       config={this.graphConfigParams as any}
                       showStatisticalValue={this.state.showStatisticalValue}
                       viewColumn={this.state.viewColumn}

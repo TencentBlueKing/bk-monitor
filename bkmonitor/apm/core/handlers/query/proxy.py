@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,15 +14,17 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.query.base import FakeQuery
+from apm.core.handlers.query.base import FakeQuery, FilterOperator
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
@@ -110,6 +111,27 @@ class QueryProxy:
     def is_trace_query_valid(self):
         return isinstance(self.trace_query, TraceQuery)
 
+    @classmethod
+    def is_trace_or_span_id_query(cls, filters: list[types.Filter], query_string: str) -> bool:
+        """判断是否是 TraceId 或 SpanId 精确查询"""
+        if not filters and not query_string:
+            return False
+
+        for filter_item in filters:
+            if all(
+                [
+                    filter_item["key"] in (OtlpKey.TRACE_ID, OtlpKey.SPAN_ID),
+                    filter_item.get("operator") == FilterOperator.EQUAL,
+                ]
+            ):
+                return True
+
+        if query_string:
+            if f'{OtlpKey.TRACE_ID}: "' in query_string or f'{OtlpKey.SPAN_ID}: "' in query_string:
+                return True
+
+        return False
+
     def query_list(
         self,
         query_mode: str,
@@ -117,13 +139,18 @@ class QueryProxy:
         end_time: int,
         limit: int,
         offset: int,
-        filters: Optional[List[types.Filter]] = None,
-        es_dsl: Optional[Dict[str, Any]] = None,
-        exclude_fields: Optional[List[str]] = None,
+        filters: list[types.Filter] | None = None,
+        exclude_fields: list[str] | None = None,
+        query_string: str | None = None,
+        sort: list[str] | None = None,
     ):
         """查询列表"""
-        data, size = self.query_mode[query_mode].list(
-            start_time, end_time, offset, limit, filters, es_dsl, exclude_fields
+        if self.is_trace_or_span_id_query(filters, query_string):
+            # 如果是 TraceId 或 SpanId 精确查询，重置查询范围，默认使用应用数据过期时间。
+            start_time, end_time = None, None
+
+        data, size = self.query_mode[query_mode].query_list(
+            start_time, end_time, offset, limit, filters, exclude_fields, query_string, sort
         )
         return asdict(TraceInfoList(total=size, data=data))
 
@@ -178,12 +205,28 @@ class QueryProxy:
     def query_span_detail(self, span_id):
         return self.span_query.query_by_span_id(span_id)
 
-    def query_option_values(self, query_mode, datasource_type: str, start_time, end_time, fields):
+    def query_option_values(
+        self,
+        query_mode,
+        datasource_type: str,
+        start_time,
+        end_time,
+        fields,
+        limit,
+        filters,
+        query_string,
+    ):
         """获取候选值"""
-        return self.query_mode[query_mode].query_option_values(datasource_type, start_time, end_time, fields)
+        return self.query_mode[query_mode].query_option_values(
+            datasource_type, start_time, end_time, fields, limit, filters, query_string
+        )
 
-    def query_statistics(self, query_mode, start_time, end_time, limit, offset, filters=None, es_dsl=None):
-        return self.statistics_query.query_statistics(query_mode, start_time, end_time, limit, offset, filters, es_dsl)
+    def query_statistics(
+        self, query_mode, start_time, end_time, limit, offset, filters=None, query_string=None, sort=None
+    ):
+        return self.statistics_query.query_statistics(
+            query_mode, start_time, end_time, limit, offset, filters, query_string, sort
+        )
 
     def _get_trace_relation(self, trace_id: str):
         """获取 trace_id 的跨应用关联"""
@@ -207,13 +250,13 @@ class QueryProxy:
 
     @classmethod
     def query_trace_by_ids(
-        cls, bk_biz_id: int, trace_ids: List[str], start_time: Optional[int], end_time: Optional[int]
-    ) -> Dict[str, Dict[str, Any]]:
+        cls, bk_biz_id: int, trace_ids: list[str], start_time: int | None, end_time: int | None
+    ) -> dict[str, dict[str, Any]]:
         """不指定 APP_NAME 下根据 TraceId 查询 Trace"""
-        trace_id__info_map: Dict[str, Dict[str, Any]] = {}
-        result_table_ids: List[str] = PrecalculateStorage.fetch_result_table_ids(bk_biz_id)
+        trace_id__info_map: dict[str, dict[str, Any]] = {}
+        result_table_ids: list[str] = PrecalculateStorage.fetch_result_table_ids(bk_biz_id)
         # 这里取哪一个业务的数据过期时间都不合适，但时间范围后续切换查询方式可能起到加速查询、跨集群检索的能力，先给个极值 30
-        trace_infos: List[Dict[str, Any]] = TraceQuery.query_by_trace_ids(
+        trace_infos: list[dict[str, Any]] = TraceQuery.query_by_trace_ids(
             result_table_ids, trace_ids, 30, start_time, end_time
         )
         for trace_info in trace_infos:
@@ -221,8 +264,56 @@ class QueryProxy:
         return trace_id__info_map
 
     def query_simple_info(self, start_time, end_time, offset, limit):
-        trace_id__info_map: Dict[str, Dict[str, Any]] = {}
+        trace_id__info_map: dict[str, dict[str, Any]] = {}
         trace_infos, total = self.trace_query.query_simple_info(start_time, end_time, offset, limit)
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
+
+    def query_field_topk(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        topk_values = []
+        for topk_item in self.query_mode[query_mode].query_field_topk(
+            start_time, end_time, field, limit, filters, query_string
+        ):
+            try:
+                field_value = topk_item[field]
+                count = topk_item["_result_"]
+            except (IndexError, KeyError) as exc:
+                logger.warning("failed to query %s topk, err -> %s", field, exc)
+                raise ValueError(_(f"{field} topk 值查询出错"))
+            topk_values.append({"field_value": field_value, "count": count})
+        return topk_values
+
+    def query_field_aggregated_value(
+        self,
+        query_mode,
+        start_time: int,
+        end_time: int,
+        field: str,
+        method: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return self.query_mode[query_mode].query_field_aggregated_value(
+            start_time, end_time, field, method, filters, query_string
+        )
+
+    def query_graph_config(
+        self,
+        query_mode: str,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return self.query_mode[query_mode].query_graph_config(start_time, end_time, field, filters, query_string)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,80 +14,27 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import copy
 import datetime
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 from django.db.models import Q
 from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
+from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
-from bkmonitor.data_source import dict_to_q
+from apm.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.apm import OperatorGroupRelation
 
 logger = logging.getLogger("apm")
-
-
-def dsl_to_filter_dict(query: Dict[str, Any], depth=1, width=1) -> Dict[str, Any]:
-    filter_dict: Dict[str, Any] = {}
-
-    if "nested" in query:
-        nested_query = query["nested"]
-        if "query" in nested_query:
-            return dsl_to_filter_dict(nested_query["query"], depth + 1, width)
-    elif "bool" in query:
-        bool_query = query["bool"]
-        for clause in ["must", "should"]:
-            if clause not in bool_query:
-                continue
-
-            sub_filters = [
-                dsl_to_filter_dict(sub_query, depth + 1, idx) for idx, sub_query in enumerate(bool_query[clause])
-            ]
-            is_all_query_string: bool = all(
-                [len(sub_filter.keys()) == 1 and "__" in list(sub_filter.keys())[0] for sub_filter in sub_filters]
-            )
-            for sub_filter in sub_filters:
-                if clause == "must":
-                    for field, values in sub_filter.items():
-                        if is_all_query_string and (field.startswith("wildcard")):
-                            filter_dict.setdefault(field, []).extend(values)
-                        else:
-                            filter_dict[field] = values
-                elif clause == "should":
-                    filter_dict.setdefault("or", []).append(sub_filter)
-    else:
-        op: str = ""
-        lookup: str = ""
-        child_query: Dict[str, Any] = {}
-        for op, lookup in {"query_string": "qs", "term": "eq", "wildcard": "include"}.items():
-            if op in query:
-                child_query = query[op]
-                break
-
-        if not op:
-            return filter_dict
-
-        if op == "query_string":
-            field: str = child_query["default_field"]
-            if field == "*":
-                filter_dict[f"{field}__*__{lookup}__nested"] = [child_query["query"]]
-            else:
-                if "." not in field:
-                    path = "*"
-                else:
-                    path, __ = field.split(".", 1)
-                filter_dict[f"{field}__{path}__{lookup}__nested"] = [child_query["query"]]
-        else:
-            for field, value in child_query.items():
-                path, __ = field.split(".", 1)
-                filter_dict[f"{field}__{path}__{lookup}__nested"] = [value["value"]]
-    return filter_dict
 
 
 class FilterOperator:
@@ -99,6 +45,83 @@ class FilterOperator:
     NOT_EQUAL = "not_equal"
     BETWEEN = "between"
     LIKE = "like"
+    NOT_LIKE = "not_like"
+    GT = "gt"
+    LT = "lt"
+    GTE = "gte"
+    LTE = "lte"
+
+    UNIFY_QUERY_OPERATOR_MAPPING = {
+        EXISTS: "exists",
+        NOT_EXISTS: "nexists",
+        EQUAL: "eq",
+        NOT_EQUAL: "neq",
+        LIKE: "include",
+        NOT_LIKE: "exclude",
+        GT: "gt",
+        LT: "lt",
+        GTE: "gte",
+        LTE: "lte",
+    }
+
+    UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING = {
+        LIKE: "wildcard",
+        NOT_LIKE: "nwildcard",
+    }
+
+    @classproperty
+    def operator_handler_mapping(cls) -> dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
+        return {
+            cls.BETWEEN: cls._between_operator_handler,
+            cls.EXISTS: cls._existence_operator_handler,
+            cls.NOT_EXISTS: cls._existence_operator_handler,
+        }
+
+    @classmethod
+    def _between_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
+        return q & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]})
+
+    @classmethod
+    def _default_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
+        # 字段不等于 "" 的情况下，需要过滤出字段存在的情况
+        if operator == FilterOperator.NOT_EQUAL and "" in value:
+            q &= Q(**{f"{field}__{FilterOperator.EXISTS}": [""]})
+
+        # 操作符映射，如果是通配符查询的话需要映射到特定操作符
+        if operator in cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING and options.get("is_wildcard"):
+            operator = cls.UNIFY_QUERY_WILDCARD_OPERATOR_MAPPING[operator]
+        else:
+            operator = cls.UNIFY_QUERY_OPERATOR_MAPPING[operator]
+
+        # 处理组间关系查询
+        if options.get("group_relation") == OperatorGroupRelation.AND:
+            result_q = Q()
+            for v in value:
+                result_q &= Q(**{f"{field}__{operator}": v})
+        else:
+            result_q = Q(**{f"{field}__{operator}": value})
+
+        return q & result_q
+
+    @classmethod
+    def _existence_operator_handler(
+        cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
+    ) -> Q:
+        """
+        处理存在性相关操作符 (exists/not exists)
+        """
+        operator = cls.UNIFY_QUERY_OPERATOR_MAPPING[operator]
+        return q & Q(**{f"{field}__{operator}": [""]})
+
+    @classmethod
+    def get_handler(cls, operator: str) -> Q:
+        if operator in cls.UNIFY_QUERY_OPERATOR_MAPPING or operator in cls.operator_handler_mapping:
+            return cls.operator_handler_mapping.get(operator, cls._default_operator_handler)
+        raise ValueError(_(f"不支持的查询操作符: {operator}"))
 
 
 class LogicSupportOperator:
@@ -107,11 +130,11 @@ class LogicSupportOperator:
 
 
 class BaseQuery:
-    USING_LOG: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+    USING_LOG: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
-    USING_METRIC: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
+    USING_METRIC: tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
 
-    DEFAULT_DATASOURCE_CONFIGS: Dict[str, Dict[str, Any]] = {
+    DEFAULT_DATASOURCE_CONFIGS: dict[str, dict[str, Any]] = {
         ApmDataSourceConfigBase.METRIC_DATASOURCE: {
             "using": USING_METRIC,
             "get_table_id_func": MetricDataSource.get_table_id,
@@ -131,40 +154,24 @@ class BaseQuery:
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
 
-    # 字段候选值最多获取500个
-    OPTION_VALUES_MAX_SIZE = 500
-
     # 查询字段映射
-    KEY_REPLACE_FIELDS: Dict[str, str] = {}
+    KEY_REPLACE_FIELDS: dict[str, str] = {}
 
     def __init__(
         self,
         bk_biz_id: int,
         app_name: str,
         retention: int,
-        overwrite_datasource_configs: Optional[Dict[str, Dict[str, Any]]] = None,
+        overwrite_datasource_configs: dict[str, dict[str, Any]] | None = None,
     ):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
         self.retention: int = retention
-        self.overwrite_datasource_configs: Dict[str, Dict[str, Any]] = overwrite_datasource_configs or {}
-
-    @classproperty
-    def operator_mapping(self) -> Dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
-        return {
-            FilterOperator.EXISTS: lambda q, field, value: q & Q(**{f"{field}__exists": value}),
-            FilterOperator.NOT_EXISTS: lambda q, field, value: q & Q(**{f"{field}__nexists": value}),
-            FilterOperator.EQUAL: lambda q, field, value: q & q & Q(**{f"{field}__eq": value}),
-            FilterOperator.NOT_EQUAL: lambda q, field, value: q & Q(**{f"{field}__neq": value}),
-            FilterOperator.BETWEEN: lambda q, field, value: q
-            & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]}),
-            FilterOperator.LIKE: lambda q, field, value: q & Q(**{f"{field}__include": value[0]}),
-            LogicSupportOperator.LOGIC: lambda q, field, value: self._add_logic_filter(q, field, value),
-        }
+        self.overwrite_datasource_configs: dict[str, dict[str, Any]] = overwrite_datasource_configs or {}
 
     @cached_property
-    def _datasource_configs(self) -> Dict[str, Dict[str, Any]]:
-        datasource_configs: Dict[str, Dict[str, Any]] = copy.deepcopy(self.DEFAULT_DATASOURCE_CONFIGS)
+    def _datasource_configs(self) -> dict[str, dict[str, Any]]:
+        datasource_configs: dict[str, dict[str, Any]] = copy.deepcopy(self.DEFAULT_DATASOURCE_CONFIGS)
         for datasource_type, conf in self.overwrite_datasource_configs.items():
             datasource_configs.setdefault(datasource_type, {}).update(conf)
         return datasource_configs
@@ -174,7 +181,7 @@ class BaseQuery:
         return get_table_id_func(self.bk_biz_id, self.app_name)
 
     def _get_q(self, datasource_type: str):
-        datasource_config: Dict[str, Any] = self._datasource_configs[datasource_type]
+        datasource_config: dict[str, Any] = self._datasource_configs[datasource_type]
         return QueryConfigBuilder(datasource_config["using"]).table(self._get_table_id(datasource_type))
 
     @property
@@ -191,8 +198,8 @@ class BaseQuery:
 
     def time_range_queryset(
         self,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
         using_scope: bool = True,
     ) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
@@ -203,24 +210,27 @@ class BaseQuery:
         return queryset
 
     def _query_option_values(
-        self, q: QueryConfigBuilder, fields: List[str], start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Dict[str, List[str]]:
-        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(self.OPTION_VALUES_MAX_SIZE)
+        self,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        q: QueryConfigBuilder,
+        limit: int,
+    ) -> dict[str, list[str]]:
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？
         # 在性能差距不大的情况下，尽可能构造通用查询，便于后续屏蔽存储差异
-        option_values: Dict[str, List[str]] = {}
+        # 默认构建字段的空列表，字段无候选项时候返回空列表
+        option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
-
-        # UnifyQuery tag_values 目前还不支持 limit，此处进行截断，避免返回量大导致前端组件卡死的问题
-        # 后续会支持 limit，并且请求速度会进一步加快，可以考虑放开一个更大的 limit
-        return {field: values[: self.OPTION_VALUES_MAX_SIZE] for field, values in option_values.items()}
+        return option_values
 
     @classmethod
     def _collect_option_values(
-        cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: Dict[str, List[str]]
+        cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: dict[str, list[str]]
     ):
         if q.using == cls.USING_LOG:
             q = q.metric(field=field, method="count", alias="a").group_by(field)
@@ -229,14 +239,17 @@ class BaseQuery:
             q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 
         for bucket in queryset.add_query(q):
-            option_values.setdefault(field, []).append(bucket[field])
+            # 指标来源没有 _result_，需要先判断。
+            if "_result_" in bucket and bucket["_result_"] == 0:
+                continue
+            option_values[field].append(bucket[field])
 
     @classmethod
     def _get_data_page(
         cls,
         q: QueryConfigBuilder,
         queryset: UnifyQuerySet,
-        select_fields: List[str],
+        select_fields: list[str],
         count_field: str,
         offset: int,
         limit: int,
@@ -245,7 +258,7 @@ class BaseQuery:
             _q: QueryConfigBuilder = q.values(*select_fields)
             page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
 
-        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {"total": 0}
+        page_data: dict[str, int | list[dict[str, Any]]] = {"total": 0}
 
         _fill_data()
 
@@ -256,19 +269,19 @@ class BaseQuery:
         return cls.KEY_REPLACE_FIELDS.get(field) or field
 
     @classmethod
-    def _build_filters(cls, filters: Optional[List[types.Filter]]) -> Q:
+    def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
         if not filters:
             return Q()
 
         q: Q = Q()
         for f in filters:
-            if f["operator"] not in cls.operator_mapping:
-                raise ValueError(_("不支持的查询操作符: %s") % (f['operator']))
-
+            operator = f["operator"]
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
-            q = cls.operator_mapping[f["operator"]](q, key, f["value"])
-
+            if operator == LogicSupportOperator.LOGIC:
+                cls._add_logic_filter(q, key, f["value"])
+            else:
+                q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
         return q
 
     @classmethod
@@ -277,8 +290,8 @@ class BaseQuery:
 
     @classmethod
     def _get_time_range(
-        cls, retention: int, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Tuple[int, int]:
+        cls, retention: int, start_time: int | None = None, end_time: int | None = None
+    ) -> tuple[int, int]:
         now: int = int(datetime.datetime.now().timestamp())
         # 最早可查询时间
         earliest_start_time: int = now - int(datetime.timedelta(days=retention).total_seconds())
@@ -294,80 +307,65 @@ class BaseQuery:
 
         return start_time, end_time
 
-    @classmethod
-    def _add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: Dict[str, Any]) -> QueryConfigBuilder:
-        logger.info("[add_query_string] dsl -> %s", dsl)
+    def build_query_q(self, filters: list[types.Filter], query_string: str) -> QueryConfigBuilder:
+        return self.q.filter(self._build_filters(filters)).query_string(query_string)
+
+    def _query_field_topk(
+        self, q: QueryConfigBuilder, start_time: int, end_time: int, field: str, limit: int
+    ) -> list[dict[str, Any]]:
+        q: QueryConfigBuilder = q.metric(field=field, method="COUNT", alias="a").group_by(field).order_by("_value desc")
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(limit)
         try:
-            filter_dict: Dict[str, Any] = dsl_to_filter_dict(dsl["query"])
-            logger.info("[add_query_string] filter_dict -> %s", filter_dict)
-            if filter_dict:
-                return q.filter(dict_to_q(filter_dict))
-        except Exception:  # pylint: disable=broad-except
-            # 可忽略异常，仅打印 warn 日志
-            logger.warning("[add_query_string] failed to parse dsl but skipped -> %s", dsl)
+            field_topk_values = list(queryset)
+        except Exception as e:
+            logger.warning("failed to query field %s topk, error: %s", field, e)
+            raise ValueError(_(f"字段 {field} topk值查询出错"))
+        # 去除0值和兜底排序
+        return sorted(
+            [topk_item for topk_item in field_topk_values if topk_item["_result_"] > 0],
+            key=lambda item: item["_result_"],
+            reverse=True,
+        )
 
-        query_string, nested_paths = cls._parse_query_string_from_dsl(dsl)
-        logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)
-        return q.query_string(query_string, nested_paths)
-
-    @classmethod
-    def _parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, Dict[str, str]]:
-        """
-        【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
-        :param dsl:
-        :return:
-        """
+    def _query_total(self, q: QueryConfigBuilder, start_time: int, end_time: int) -> int:
+        q: QueryConfigBuilder = q.metric(field="_index", method="COUNT", alias="a")
+        queryset = self.time_range_queryset(start_time, end_time).add_query(q).time_agg(False).instant().limit(1)
         try:
-            return dsl["query"]["query_string"]["query"], {}
-        except KeyError:
-            pass
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query total, err -> %s", exc)
+            raise ValueError(_("总记录数查询出错"))
 
-        try:
-            should_list: List[Dict[str, Any]] = dsl["query"]["bool"]["should"]
-        except KeyError:
-            return "*", {}
-
-        query_string: str = "*"
-        nested_paths: Dict[str, str] = {}
-        for should in should_list:
-            try:
-                nested_paths[should["nested"]["path"]] = should["nested"]["query"]["query_string"]["query"]
-            except KeyError:
-                try:
-                    # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
-                    query_string = should["query_string"]["query"]
-                except KeyError:
-                    continue
-
-        return query_string, nested_paths
-
-    @classmethod
-    def _parse_ordering_from_dsl(cls, dsl: Dict[str, Any]) -> List[str]:
+    def _query_field_aggregated_value(
+        self, q: QueryConfigBuilder, start_time: int, end_time: int, field: str, method: str
+    ) -> int | float:
         """
-        【待废弃】在 dsl 中提取字段排序信息
-        :param dsl:
-        :return:
+        查询字段聚合值
         """
-
-        ordering: List[str] = []
+        queryset = (
+            self.time_range_queryset(start_time, end_time)
+            .add_query(q.metric(field=field, method=method, alias="a"))
+            .time_agg(False)
+            .instant()
+            .limit(1)
+        )
         try:
-            for sort_item in dsl["sort"]:
-                if isinstance(sort_item, str):
-                    # handle case: 'start_time'
-                    ordering.append(sort_item)
+            return list(queryset)[0]["_result_"]
+        except (IndexError, KeyError) as exc:
+            logger.warning("failed to query field %s with method %s, error: %s", field, method, exc)
+            raise ValueError(_(f"字段 {field} 使用 {method} 方法聚合值查询出错"))
 
-                elif isinstance(sort_item, dict):
-                    for field, option in sort_item.items():
-                        if isinstance(option, str):
-                            # handle case: {'end_time': 'desc'}
-                            ordering.append(f"{field} {option}")
-                        elif isinstance(option, dict):
-                            # handle case: {'hierarchy_count': {'order': 'desc'}}
-                            ordering.append(f"{field} {option['order']}")
-        except (KeyError, TypeError, IndexError):
-            pass
-
-        return ordering
+    def query_graph_config(self, start_time, end_time, field, filters: list[types.Filter], query_string: str):
+        """
+        获取查询配置
+        """
+        q: QueryConfigBuilder = (
+            self.build_query_q(filters, query_string)
+            .interval(get_bar_interval_number(start_time, end_time))
+            .metric(field=field, method=AggregatedMethod.COUNT.value, alias="a")
+            .group_by(field)
+        )
+        return self.time_range_queryset(start_time, end_time).add_query(q).instant().time_agg(False).config
 
 
 class FakeQuery:

@@ -833,15 +833,13 @@
         }
         if (aliasName) {
           // 设置了重命名
-          if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
-            // 重命名只支持【英文、数字、下划线】，并且不能以数字开头
-            row.fieldErr = this.$t('重命名只支持【英文、数字、下划线】，并且不能以数字开头');
+          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
+            row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
             return false;
           }else if (aliasName === fieldName) {
             row.fieldErr = this.$t('重命名与字段名重复');
           }
           if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-            // 重命名不能与内置字段名相同
             row.fieldErr = this.$t('重命名不能与内置字段名相同');
             return false;
           }

@@ -46,7 +46,7 @@ export interface IDataIdItem {
   [key: string]: any;
 }
 
-export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
+export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
 
 export interface IDimensionOperation {
   alias: string;
@@ -82,6 +82,21 @@ export interface ITopKField {
     proportions: number;
     value: string;
   }[];
+}
+
+/** 统计信息 */
+export interface IStatisticsInfo {
+  field: string;
+  total_count: number;
+  field_count: number;
+  distinct_count: number;
+  field_percent: number;
+  value_analysis?: {
+    max: number;
+    min: number;
+    avg: number;
+    median: number;
+  };
 }
 
 /**

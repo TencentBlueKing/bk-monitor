@@ -33,6 +33,19 @@ export const fieldTypeMap = {
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
+
+  long: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  double: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
   keyword: {
     name: window.i18n.tc('字符串'),
     icon: 'icon-monitor icon-Str',
@@ -51,7 +64,21 @@ export const fieldTypeMap = {
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },
+  object: {
+    name: window.i18n.tc('对象'),
+    icon: 'icon-monitor icon-Object',
+    color: '#979BA5',
+    bgColor: '#E8EAF0',
+  },
+  boolean: {
+    name: window.i18n.tc('布尔'),
+    icon: 'icon-monitor icon-buer',
+    color: '#cb7979',
+    bgColor: '#F5E1E1',
+  },
 };
+
+export const topKColorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
 
 /**
  * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序

@@ -65,7 +65,7 @@
 
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   const setDefaultIndexsetId = () => {
     if (!route.params.indexId) {
@@ -99,12 +99,12 @@
   const getIndexSetList = () => {
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-        setDefaultIndexsetId();
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery');
-        });
-      });
+      // store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+      //   setDefaultIndexsetId();
+      //   store.dispatch('requestIndexSetFieldInfo').then(() => {
+      //     store.dispatch('requestIndexSetQuery');
+      //   });
+      // });
     });
   };
 
@@ -153,7 +153,6 @@
     favoriteRef.value.isShowManageDialog = true;
   };
 
-  const activeTab = ref('origin');
   const isRefreshList = ref(false);
   const searchBarHeight = ref(0);
   /** 刷新收藏夹列表 */
@@ -164,25 +163,26 @@
     searchBarHeight.value = height;
   };
 
-  const initIsShowClusterWatch = watch(
-    () => store.state.clusterParams,
-    () => {
-      if (!!store.state.clusterParams) {
-        activeTab.value = 'clustering';
-        initIsShowClusterWatch();
-      }
-    },
-    { deep: true },
-  );
+  const debounceUpdateTabValue = debounce(value => {
+    const isClustering = value === 'clustering';
+    router.replace({
+      params: { ...(route.params ?? {}) },
+      query: {
+        ...(route.query ?? {}),
+        tab: value,
+        ...(isClustering ? {} : { clusterParams: undefined }),
+      },
+    });
+  }, 60);
 
-  watch(
-    () => store.state.indexItem.isUnionIndex,
-    () => {
-      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
-        activeTab.value = 'origin';
-      }
+  const activeTab = computed({
+    get() {
+      return route.query.tab ?? 'origin';
     },
-  );
+    set(val) {
+      debounceUpdateTabValue(val);
+    },
+  });
 
   const stickyStyle = computed(() => {
     return {
@@ -195,26 +195,6 @@
       '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
     };
   });
-
-  const debounceUpdateTabValue = debounce(() => {
-    const isClustering = activeTab.value === 'clustering';
-    router.replace({
-      params: { ...(route.params ?? {}) },
-      query: {
-        ...(route.query ?? {}),
-        tab: activeTab.value,
-        ...(isClustering ? {} : { clusterParams: undefined }),
-      },
-    });
-  }, 60);
-
-  watch(
-    () => activeTab.value,
-    () => {
-      debounceUpdateTabValue();
-    },
-    { immediate: true },
-  );
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
   const activeFavorite = ref();

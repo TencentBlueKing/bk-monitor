@@ -19,28 +19,33 @@
 
       .metric-func-selector {
         margin-top: 2px;
+
         .func-label {
           display: none;
         }
+
         .function-menu-anchor,
         .func-item {
           margin-top: 1px;
           border-color: #e9eaeb;
         }
+
         .init-add-input {
           width: 176px;
           border: none;
         }
       }
+
       .slide-cycle-unit-input {
         .input-popover .bk-form-input {
-          border-color: #e9eaeb;
           height: 30px;
+          border-color: #e9eaeb;
         }
+
         .cycle-unit-popover {
           .cycle-unit {
-            border-color: #e9eaeb;
             height: 30px;
+            border-color: #e9eaeb;
           }
         }
       }
@@ -58,6 +63,7 @@
           &:hover {
             cursor: pointer;
             border: 1px solid #a3c5fd;
+
             &:has(input:focus) {
               border: none;
             }
@@ -76,9 +82,11 @@
 
         &:has(.is-error) {
           border: 1px solid #ff5656;
+
           &:has(input:focus) {
             border: none;
           }
+
           &:hover {
             border: 1px solid #ff5656;
           }
@@ -148,11 +156,12 @@
             box-sizing: border-box;
             border: 1px solid #3a84ff;
           }
+
           input {
-            @include text-x-ellipsis();
             width: 100%;
             height: 37px;
             border: none;
+            @include text-x-ellipsis();
           }
         }
 
@@ -190,6 +199,45 @@
                   border: 1px solid #3a84ff;
                 }
               }
+
+              .no-item {
+                border: none;
+              }
+            }
+          }
+        }
+
+        .name-col, .new-name-col, .name-header {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          height: 100%;
+          padding-left: 2px;
+
+          .bk-form-checkbox {
+            width: 20px;
+            margin-right: 4px;
+          }
+        }
+
+        &:has(.new-name-col) {
+          padding-left: 10px;
+          background-color: #F5F7FA;
+        }
+
+        &:has(.name-col) {
+          background-color: #F5F7FA;
+        }
+
+        &:has(.name-header) {
+          justify-content: start;
+
+          .name-header {
+            display: flex;
+            align-items: center;
+
+            .bk-tooltip {
+              display: none;
             }
           }
         }
@@ -235,6 +283,31 @@
           }
         }
       }
+
+      .bk-table-header-wrapper {
+        th {
+          background: #F0F1F5;
+        }
+
+        .bk-tooltip-ref {
+          display: flex;
+
+          .has-popover {
+            height: 32px;
+            border-bottom: 2px dotted #C4C6CC;
+          }
+
+          .icon-monitor {
+            margin-left: 6px;
+            font-size: 13px;
+            color: #3A84FF;
+          }
+
+          &:hover {
+            cursor: pointer;
+          }
+        }
+      }
     }
 
     .slider-footer {
@@ -267,5 +340,82 @@
     font-size: 12px;
     line-height: 1;
     color: #ff5656;
+  }
+}
+
+.metric-table-header {
+  .tippy-tooltip {
+    .tippy-content {
+      padding: 8px 12px 12px 12px;
+      border: 1px solid #DCDEE5;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px 0 #0000001a;
+
+      .unit-config-header {
+        margin-bottom: 12px;
+
+        .unit-range {
+          margin-bottom: 5px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #313238;
+        }
+
+        .unit-radio {
+          label {
+            margin-right: 16px;
+          }
+        }
+      }
+
+      .unit-selection {
+        margin-bottom: 24px;
+
+        .unit-title {
+          margin-bottom: 8px;
+        }
+
+        .dimension-input {
+          width: 100%;
+          text-wrap: nowrap;
+
+          .bk-tag-selector {
+            .bk-tag-input {
+              padding: 0;
+
+              .tag-list {
+                width: 100%;
+                max-height: 1000px;
+                padding: 0 4px;
+              }
+
+              &.active {
+                .tag-list {
+                  height: auto;
+                  min-height: 32px;
+                  border: 1px solid #3a84ff;
+                }
+              }
+
+              .no-item {
+                min-height: 32px;
+              }
+            }
+          }
+        }
+      }
+
+      .unit-config-footer {
+        button {
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}
+
+.slider-header-hidden-popover {
+  .bk-tooltip-content {
+    color: #fff;
   }
 }

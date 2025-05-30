@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -420,7 +419,7 @@ DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 def redirect_func(request):
     login_page_url = reverse("account:login_page")
-    next_url = "{}?refer_url={}".format(login_page_url, request.path)
+    next_url = f"{login_page_url}?refer_url={request.path}"
     return HttpResponseRedirect(next_url)
 
 
@@ -1089,8 +1088,8 @@ BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 # 外部版PAAS地址
 EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
-# 监控网关地址（新）
-MONITOR_APIGATEWAY_ROOT_NEW = os.getenv("BKAPP_BKMONITOR_APIGW_HOST", "")
+# 是否使用新监控网关地址
+USE_NEW_MONITOR_APIGATEWAY = os.getenv("BKAPP_USE_NEW_MONITOR_APIGATEWAY", "off").lower() == "on"
 
 # 外部版网关密钥
 EXTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_EXTERNAL_APIGW_PUBLIC_KEY", "")
@@ -1250,6 +1249,12 @@ IS_GLOBAL_TENANT = True
 DEFAULT_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
+
+# 预查询时间, 默认6h小时, 0代表禁用
+try:
+    PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
+except ValueError:
+    PRE_SEARCH_SECONDS = 6 * 60 * 60
 
 """
 以下为框架代码 请勿修改

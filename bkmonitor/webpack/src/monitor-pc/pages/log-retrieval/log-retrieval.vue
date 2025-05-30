@@ -45,7 +45,7 @@ export default class LogRetrieval extends Vue {
   @Ref('iframe') private iframeRef: HTMLIFrameElement;
   private initRouteString = '';
   private initBizId = -1;
-  private indexId: number | string = '';
+  private indexId: string | string[] = '';
 
   getUrlParamsString() {
     const { from, spaceUid, bizId, indexId, ...otherQuery } = this.$route.query;
@@ -57,6 +57,7 @@ export default class LogRetrieval extends Vue {
       },
       {
         bizId: this.$store.getters.bizId,
+        spaceUid: this.$store.getters.spaceUid,
       }
     );
     const str = Object.entries({
@@ -97,7 +98,6 @@ export default class LogRetrieval extends Vue {
     // 获取来自iframe的内容
     if ('_LOG_TO_MONITOR_' in data) {
       // 测试代码，验证成功后就删除
-      console.log(event.data, event.origin, location.origin);
       this.$router
         .replace({
           query: { ...data._MONITOR_URL_PARAMS_, ...data._MONITOR_URL_QUERY_ },

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -26,7 +25,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from apps.exceptions import ApiRequestError, ApiResultError
-from apps.log_databus.constants import LogPluginInfo, WorkLoadType
+from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_search.models import Space
@@ -904,7 +903,7 @@ CONFIG_DATA = {
 FAILED_SUBSCRIPTION_STATUS = [{"instance_id": "xxx", "status": "FAILED"}]
 
 
-class CCModuleTest(object):
+class CCModuleTest:
     """
     mock CCApi.search_module
     """
@@ -913,7 +912,7 @@ class CCModuleTest(object):
         return []
 
 
-class CCBizHostsTest(object):
+class CCBizHostsTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -922,7 +921,7 @@ class CCBizHostsTest(object):
         return []
 
 
-class CCSetTest(object):
+class CCSetTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -933,7 +932,7 @@ class CCSetTest(object):
 
 BK_BIZ_ID = -200
 SPACE_ID = "1ce0ae294d63478ea46a2a1772acd8a7"
-SPACE_UID = "bcs__{}".format(SPACE_ID)
+SPACE_UID = f"bcs__{SPACE_ID}"
 BCS_CLUSTER_ID = "BCS-K8S-10000"
 PROJECTS = [
     {
@@ -1155,14 +1154,12 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": LAST_TASK_ID})
     def _test_run_subscription_task(self, collector_config_id):
-        target_nodes = [{"ip": "127.0.0.1", "bk_cloud_id": 0}]
+        scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
 
         # 指定订阅节点
         collector1 = CollectorHandler(collector_config_id=collector_config_id)
-        task_id_one = copy.deepcopy(collector1.data.task_id_list)
-        task_id_one.append(str(LAST_TASK_ID))
-        result1 = collector1._run_subscription_task(nodes=target_nodes)
-        self.assertEqual(result1, task_id_one)
+        result1 = collector1._run_subscription_task(scope=scope)
+        self.assertEqual(result1, collector1.data.task_id_list)
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 6})
     def _test_start(self, collector_config_id):
@@ -1424,9 +1421,9 @@ class TestCollector(TestCase):
         )
         self.assertEqual(result["allowed"], True)
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_validate_container_config_yaml(self, *args, **kwargs):
         yaml_config = """
 ---
@@ -1463,7 +1460,7 @@ namespaceSelector:
         )
         self.assertTrue(result["parse_status"])
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
     def test_list_bcs_clusters(self, *args, **kwargs):
         clusters = CollectorHandler().list_bcs_clusters(BK_BIZ_ID)
@@ -1477,9 +1474,9 @@ namespaceSelector:
             [WorkLoadType.DEPLOYMENT, WorkLoadType.JOB, WorkLoadType.DAEMON_SET, WorkLoadType.STATEFUL_SET],
         )
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 

@@ -45,14 +45,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import {
-  type IK8SMetricItem,
-  type ICommonParams,
-  K8sNewTabEnum,
-  K8sTableColumnKeysEnum,
-  SceneEnum,
-  EDimensionKey,
-} from './typings/k8s-new';
+import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 
@@ -68,7 +61,7 @@ const networkDefaultHideMetrics = [
 
 const tabList = [
   {
-    label: window.i18n.t('K8S对象列表'),
+    label: window.i18n.t('K8s对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
@@ -78,7 +71,7 @@ const tabList = [
     icon: 'icon-zhibiao',
   },
   {
-    label: window.i18n.t('K8S集群数据详情'),
+    label: window.i18n.t('K8s集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-Component',
   },
@@ -225,7 +218,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   @Watch('groupFilters')
   watchGroupFiltersChange() {
-    this.setRouteParams();
+    this.setRouteParams({
+      tableSort: '',
+      tableOrder: '',
+      tableMethod: '',
+    });
   }
 
   @Watch('filterBy', { deep: true })
@@ -438,7 +435,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项 */
+    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项一致直接初始化 */
     if (
       this.scene === SceneEnum.Network &&
       this.hideMetrics.length === networkDefaultHideMetrics.length &&
@@ -463,7 +460,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
     this.initFilterBy();
-    this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
+    this.groupInstance.initGroupFilter();
     this.showCancelDrill = false;
     this.getScenarioMetricList();
     this.setRouteParams();
@@ -516,7 +513,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       to = 'now',
       refreshInterval = '-1',
       filterBy,
-      groupBy = '[]',
+      groupBy,
       cluster = '',
       scene = SceneEnum.Performance,
       activeTab = K8sNewTabEnum.LIST,
@@ -526,8 +523,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.cluster = cluster as string;
     this.scene = scene as SceneEnum;
     this.activeTab = activeTab as K8sNewTabEnum;
-    if (JSON.parse(groupBy as string).length) {
-      this.initGroupBy();
+    this.initGroupBy();
+    if (groupBy && Array.isArray(JSON.parse(groupBy as string))) {
       this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
     }
     if (!filterBy) {

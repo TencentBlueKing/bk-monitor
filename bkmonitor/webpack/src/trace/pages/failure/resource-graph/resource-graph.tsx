@@ -1223,7 +1223,7 @@ export default defineComponent({
             cursor: 'pointer',
             lineAppendWidth: 15,
             endArrow:
-              isInvoke && is_anomaly
+              isInvoke || is_anomaly
                 ? {
                     path: Arrow.triangle(12, 12, 0),
                     d: 0,
@@ -1534,6 +1534,7 @@ export default defineComponent({
       exceptionData,
       handleException,
       handleCollapseResource,
+      t,
     };
   },
   render() {
@@ -1545,12 +1546,12 @@ export default defineComponent({
           loading={this.loading}
         >
           <div class='graph-title'>
-            <span class='graph-title_label'>{this.$t('从属关系')}</span>
+            <span class='graph-title_label'>{this.t('从属关系')}</span>
             {this.entityName && <span class='graph-title_line' />}
             <span
               key={this.entityName}
               class='graph-title_value'
-              v-overflowText={{
+              v-overflow-tips={{
                 text: this.entityName,
               }}
             >

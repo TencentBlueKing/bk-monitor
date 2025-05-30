@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
@@ -64,6 +65,7 @@ export default defineComponent({
   },
   emits: ['update:loading', 'spanListChange', 'showSpanDetail'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const mermaidRef = ref<HTMLElement>();
     const thumbnailRef = ref<HTMLCanvasElement>();
     const sequenceGraphRef = ref<HTMLElement>();
@@ -513,7 +515,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       const xMultiple = mainDom.scrollWidth / mainWidth;
       const yMultiple = mainDom.scrollHeight / mainHeight;
       const useWidthScale = xMultiple > 1 || yMultiple > 1 ? xMultiple > yMultiple : mainWidth > mainHeight;
-
       let thumbnailWidth = useWidthScale ? MaxImgWidth : mainDom.scrollWidth / (mainDom.scrollHeight / MaxImgHeight);
 
       let thumbnailHeight = useWidthScale ? mainDom.scrollHeight / (mainDom.scrollWidth / MaxImgWidth) : MaxImgHeight;
@@ -618,13 +619,14 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       handleScaleChange,
       handleThumbnailViewMouseDown,
       handleShowLegend,
+      t,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );
@@ -659,7 +661,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
               renderType='auto'
               theme='light'
               trigger='manual'
-              zIndex={1001}
+              zIndex={300001}
             >
               {{
                 default: () => (
@@ -678,10 +680,11 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                 ),
                 content: () => [
                   this.showLegend ? (
-                    <ViewLegend />
+                    <ViewLegend key={0} />
                   ) : (
                     <div
                       id='sequence-thumbnail'
+                      key={1}
                       ref='sequenceThumbnailRef'
                       class='sequence-thumbnail'
                     >

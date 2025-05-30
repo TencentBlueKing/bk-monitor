@@ -29,6 +29,7 @@ import { Instance } from 'tippy.js';
 
 import useLocale from '../../../hooks/use-locale';
 import useStore from '../../../hooks/use-store';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import './bar-global-setting.scss';
 
@@ -79,8 +80,8 @@ export default defineComponent({
     const textEllipsisDir = ref('end');
 
     const initDefaultSettings = () => {
-      showFieldAlias.value = store.state.storage.showFieldAlias;
-      textEllipsisDir.value = store.state.storage.textEllipsisDir;
+      showFieldAlias.value = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+      textEllipsisDir.value = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     };
 
     onMounted(() => {
