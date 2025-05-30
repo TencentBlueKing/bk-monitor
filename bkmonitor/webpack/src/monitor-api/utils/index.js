@@ -43,16 +43,33 @@ export const authorityStore = () => {
   return vue.config?.globalProperties?.$authorityStore;
 };
 
+const isJson = str => {
+  const trimmed = str.trim();
+  // 扩展预检查：允许所有 JSON 值类型（对象、数组、字符串、数字、布尔、null）
+  const isLikelyJson = /^(\s*)({|\[|"|true|false|null|-?\d|\.\d)/.test(trimmed);
+  if (!isLikelyJson) return false;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return false;
+  }
+}
+
 export const makeMessage = (message, traceparent, needTraceId) => {
   const list = traceparent?.split('-');
   let traceId = traceparent;
   if (list?.length) {
     traceId = list[1];
   }
+  let { detail } = message;
+  if (detail) {
+    detail = isJson(detail) || detail;
+  }
   if (message && needTraceId && traceId && typeof message === 'object') {
     return {
       ...message,
       trace_id: traceId,
+      detail,
     };
   }
   return message;
