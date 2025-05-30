@@ -165,7 +165,7 @@ export default defineComponent({
           <bk-select
             class='grep-cli-select'
             value={field.value}
-            onChange={handleFieldChange}
+            on-change={handleFieldChange}
             popover-min-width={200}
             size='small'
             style='min-width: 80px; border: none;'

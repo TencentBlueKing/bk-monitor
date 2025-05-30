@@ -166,6 +166,7 @@ export default class OptimizedHighlighter {
   public destroy(): void {
     this.observer.disconnect();
     this.unmarkChunks();
+    this.resetState();
   }
 
   public unmark(): void {

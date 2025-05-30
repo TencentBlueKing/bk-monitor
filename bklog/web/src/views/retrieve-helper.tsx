@@ -90,11 +90,15 @@ class RetrieveHelper extends RetrieveBase {
    * // 初始化 Mark.js 实例
    * @param target
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string, root?: HTMLElement) {
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
     this.markInstance = new OptimizedHighlighter({
       target: target ?? (() => document.getElementById(this.logRowsContainerId)),
       chunkStrategy: 'fixed',
     });
+  }
+
+  destroyMarkInstance() {
+    this.markInstance?.destroy();
   }
 
   highlightElement(target) {
