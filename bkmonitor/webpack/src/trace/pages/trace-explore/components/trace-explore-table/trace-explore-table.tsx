@@ -48,7 +48,6 @@ import ChartFiltering from '../../../../components/chart-filtering/chart-filteri
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { formatDuration, formatTraceTableDate } from '../../../../components/trace-view/utils/date';
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
@@ -59,7 +58,6 @@ import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
-import TagsCell from './components/table-cell/tags-cell';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
@@ -72,6 +70,7 @@ import {
   TABLE_DEFAULT_CONFIG,
   TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from './constants';
+import { useTableCell } from './hooks/use-table-cell';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
 import {
   type ExploreTableColumn,
@@ -138,6 +137,7 @@ export default defineComponent({
     const store = useTraceExploreStore();
 
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+    const { tableCellRender } = useTableCell();
 
     /** table 默认配置项 */
     const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
@@ -325,7 +325,7 @@ export default defineComponent({
           // 表格列表头渲染方法
           const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText, column);
           // 表格单元格渲染方法
-          const tableCell = (_, { row }) => handleSetFormatter(column, row);
+          const tableCell = (_, { row }) => tableCellRender(column, row);
 
           return {
             ...defaultTableConfig,
@@ -1057,219 +1057,6 @@ export default defineComponent({
           ) : null}
         </div>
       );
-    }
-
-    /**
-     * @description 获取表格单元格渲染值（允许列通过 getRenderValue 自定义获取值逻辑）
-     * @param row 当前行数据
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function getTableCellRenderValue<T extends ExploreTableColumnTypeEnum>(
-      row,
-      column: ExploreTableColumn<T>
-    ): GetTableCellRenderValue<T> {
-      const defaultGetRenderValue = row => {
-        const alias = row?.[column.colKey];
-        if (typeof alias !== 'object' || alias == null) {
-          return alias;
-        }
-        return JSON.stringify(alias);
-      };
-      const getRenderValue = column?.getRenderValue || defaultGetRenderValue;
-      return getRenderValue(row, column);
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.CLICK  可点击触发回调 列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
-      const alias = getTableCellRenderValue(row, column);
-      return (
-        <div class={`explore-col explore-click-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-          <span
-            class='explore-click-text '
-            onClick={event => column?.clickCallback?.(row, column, event)}
-          >
-            {alias}
-          </span>
-        </div>
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.PREFIX_ICON  带有前置 icon 列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function iconColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>, row) {
-      const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
-      const { alias, prefixIcon } = item;
-      if (alias == null || alias === '') {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => alias,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
-      const value = row?.[column.colKey];
-      return (
-        <div class='explore-col explore-prefix-icon-col'>
-          <i class={`prefix-icon ${prefixIcon}`} />
-          <span
-            class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
-          >
-            {alias}
-          </span>
-        </div>
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.ELAPSED_TIME 日期时间列渲染方法 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss)
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
-      const timestamp = getTableCellRenderValue(row, column);
-      const alias = formatTraceTableDate(timestamp);
-      const value = row?.[column.colKey];
-      return (
-        <div class={`explore-col explore-time-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-          <span
-            class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
-          >
-            {alias}
-          </span>
-        </div>
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.DURATION 持续时间列渲染方法 (将 时间戳 自适应转换为 带单位的时间-例如 10s、10ms...)
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row) {
-      const timestamp = getTableCellRenderValue(row, column);
-      const alias = formatDuration(+timestamp);
-      const value = row?.[column.colKey];
-      return (
-        <div class={`explore-col explore-duration-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-          <span
-            class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
-          >
-            {alias}
-          </span>
-        </div>
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.LINK  点击链接跳转列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function linkColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>, row) {
-      const item = getTableCellRenderValue(row, column);
-      // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
-      if (!item?.url) {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => item?.alias,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
-      return (
-        <div class='explore-col explore-link-col '>
-          <a
-            style={{ color: 'inherit' }}
-            href={item.url}
-            rel='noreferrer'
-            target='_blank'
-          >
-            <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-              <span>{item.alias}</span>
-            </div>
-            <i class='icon-monitor icon-mc-goto' />
-          </a>
-        </div>
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.TAGS 类型文本类型表格列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function tagsColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>, row) {
-      const tags = getTableCellRenderValue(row, column);
-      if (!tags?.length) {
-        const textColumn = {
-          ...column,
-          getRenderValue: () => defaultTableConfig.emptyPlaceholder,
-        };
-        return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-      }
-      return (
-        <TagsCell
-          column={column}
-          tags={tags}
-        />
-      );
-    }
-
-    /**
-     * @description ExploreTableColumnTypeEnum.TEXT 类型文本类型表格列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
-      const alias = getTableCellRenderValue(row, column);
-      const value = row?.[column.colKey];
-      return (
-        <div class={`explore-col explore-text-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-          <span
-            class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={Array.isArray(value) ? JSON.stringify(value || '') : value}
-            data-col-key={column.colKey}
-          >
-            {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
-          </span>
-        </div>
-      );
-    }
-
-    /**
-     * @description 根据列类型，获取对应的表格列渲染方法
-     * @param {ExploreTableColumn} column 当前列配置项
-     *
-     */
-    function handleSetFormatter(column, row) {
-      switch (column.renderType) {
-        case ExploreTableColumnTypeEnum.CLICK:
-          return clickColumnFormatter(column, row);
-        case ExploreTableColumnTypeEnum.PREFIX_ICON:
-          return iconColumnFormatter(column, row);
-        case ExploreTableColumnTypeEnum.TIME:
-          return timeColumnFormatter(column, row);
-        case ExploreTableColumnTypeEnum.DURATION:
-          return durationColumnFormatter(column, row);
-        case ExploreTableColumnTypeEnum.LINK:
-          return linkColumnFormatter(column, row);
-        case ExploreTableColumnTypeEnum.TAGS:
-          return tagsColumnFormatter(column, row);
-        default:
-          return textColumnFormatter(column, row);
-      }
     }
 
     function handleClearRetrievalFilter() {
