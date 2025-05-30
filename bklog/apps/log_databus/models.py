@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -22,6 +21,7 @@ the project delivered to anyone in the future.
 
 from typing import Union
 
+from django.conf import settings
 from apps.exceptions import ApiResultError
 from apps.log_databus.exceptions import ArchiveNotFound, CollectorPluginNotImplemented
 from apps.models import MultiStrSplitByCommaFieldText
@@ -127,10 +127,16 @@ class CollectorConfig(CollectorBase):
     )
     category_id = models.CharField(_("数据分类"), max_length=64)
     target_object_type = models.CharField(
-        _("对象类型"), max_length=32, choices=TargetObjectTypeEnum.get_choices(), default=TargetObjectTypeEnum.HOST.value
+        _("对象类型"),
+        max_length=32,
+        choices=TargetObjectTypeEnum.get_choices(),
+        default=TargetObjectTypeEnum.HOST.value,
     )
     target_node_type = models.CharField(
-        _("节点类型"), max_length=32, choices=TargetNodeTypeEnum.get_choices(), default=TargetNodeTypeEnum.INSTANCE.value
+        _("节点类型"),
+        max_length=32,
+        choices=TargetNodeTypeEnum.get_choices(),
+        default=TargetNodeTypeEnum.INSTANCE.value,
     )
     target_nodes = JsonField(_("采集目标"), null=True, default=None)
     target_subscription_diff = JsonField(_("与上一次采集订阅的差异"), null=True)
@@ -157,7 +163,10 @@ class CollectorConfig(CollectorBase):
     params = JsonField(_("params"), null=True, default=None)
     itsm_ticket_sn = models.CharField(_("itsm单据号"), max_length=255, null=True, default=None, blank=True)
     itsm_ticket_status = models.CharField(
-        _("采集接入单据状态"), max_length=20, choices=CollectItsmStatus.get_choices(), default=CollectItsmStatus.NOT_APPLY.value
+        _("采集接入单据状态"),
+        max_length=20,
+        choices=CollectItsmStatus.get_choices(),
+        default=CollectItsmStatus.NOT_APPLY.value,
     )
     can_use_independent_es_cluster = models.BooleanField(_("是否能够使用独立es集群"), default=True, blank=True)
     collector_package_count = models.IntegerField(_("采集打包数量"), null=True, default=10)
@@ -179,6 +188,8 @@ class CollectorConfig(CollectorBase):
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
+    # 租户id
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
 
     def get_name(self):
         return self.collector_config_name
@@ -319,7 +330,11 @@ class CollectorConfig(CollectorBase):
     def generate_itsm_title(self):
         space = Space.objects.get(bk_biz_id=self.bk_biz_id)
         return str(
-            _("【日志采集】{}-{}-{}".format(space.space_name, self.collector_config_name, self.created_at.strftime("%Y%m%d")))
+            _(
+                "【日志采集】{}-{}-{}".format(
+                    space.space_name, self.collector_config_name, self.created_at.strftime("%Y%m%d")
+                )
+            )
         )
 
     def get_cur_cap(self, bytes="mb"):
@@ -658,7 +673,10 @@ class CollectorPlugin(CollectorBase):
     processing_id = models.CharField(_("计算平台清洗id"), max_length=255, null=True, blank=True)
     is_allow_alone_etl_config = models.BooleanField(_("是否允许独立配置清洗规则"), default=True)
     etl_processor = models.CharField(
-        _("数据处理器"), max_length=32, choices=ETLProcessorChoices.get_choices(), default=ETLProcessorChoices.TRANSFER.value
+        _("数据处理器"),
+        max_length=32,
+        choices=ETLProcessorChoices.get_choices(),
+        default=ETLProcessorChoices.TRANSFER.value,
     )
     etl_config = models.CharField(
         _("清洗配置"), max_length=32, null=True, default=None, choices=EtlConfigChoices.get_choices()
@@ -741,17 +759,17 @@ class FieldDateFormat(OperateRecordModel):
     es_format = models.CharField(
         max_length=32,
         choices=[
-            ('epoch_millis', 'epoch_millis'),
-            ('strict_date_optional_time_nanos', 'strict_date_optional_time_nanos'),
+            ("epoch_millis", "epoch_millis"),
+            ("strict_date_optional_time_nanos", "strict_date_optional_time_nanos"),
         ],
         verbose_name="ES数据格式",
     )
     es_type = models.CharField(
-        max_length=32, choices=[('date', 'date'), ('date_nanos', 'date_nanos')], verbose_name="ES数据类型"
+        max_length=32, choices=[("date", "date"), ("date_nanos", "date_nanos")], verbose_name="ES数据类型"
     )
     timestamp_unit = models.CharField(
         max_length=32,
-        choices=[('s', 'seconds'), ('ms', 'milliseconds'), ('µs', 'microseconds'), ('ns', 'nanoseconds')],
+        choices=[("s", "seconds"), ("ms", "milliseconds"), ("µs", "microseconds"), ("ns", "nanoseconds")],
         verbose_name="时间格式精度",
     )
 
