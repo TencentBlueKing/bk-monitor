@@ -98,7 +98,7 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   highlightElement(target) {
-    this.markInstance.highlightElement(target);
+    this.markInstance?.highlightElement(target);
   }
 
   highLightKeywords(keywords?: string[], reset = true) {

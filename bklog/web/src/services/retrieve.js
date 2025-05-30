@@ -230,6 +230,15 @@ const getProxyHost = {
   url: '/databus/collectors/proxy_host_info/',
   method: 'get',
 };
+
+/**
+ * 请求grep结果
+ */
+const requestGrepResult = {
+  url: '/search/index_set/$index_set_id/grep_query/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -277,4 +286,5 @@ export {
   generateQueryString,
   setIndexSetCustomConfig,
   getProxyHost,
+  requestGrepResult
 };

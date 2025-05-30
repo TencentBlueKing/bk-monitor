@@ -53,7 +53,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['change'],
+  emits: ['change', 'enter'],
   setup(props, { emit }) {
     const editorRef = ref<HTMLDivElement>();
     const currentHeight = ref(props.height);
@@ -74,6 +74,16 @@ export default defineComponent({
 
       // 手动配置扩展，不包含行号
       const extensions = [
+        keymap.of([
+          {
+            key: 'Ctrl-Enter',
+            mac: 'Cmd-Enter',
+            run: view => {
+              emit('enter', view.state.doc.toString());
+              return true;
+            },
+          },
+        ]),
         // 基础编辑功能
         history(),
         drawSelection(),

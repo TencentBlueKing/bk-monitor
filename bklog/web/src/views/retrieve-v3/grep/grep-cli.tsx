@@ -8,9 +8,9 @@ export default defineComponent({
   components: {
     GrepCliEditor,
   },
-  emits: ['search-change', 'match-mode'],
+  emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   setup(props, { emit }) {
-    const field = ref('log');
+    const field = ref();
     const value = ref('');
     const searchValue = ref('');
     const isCaseSensitive = ref(false);
@@ -46,20 +46,21 @@ export default defineComponent({
     // 选择字段
     const handleFieldChange = (id: string) => {
       field.value = id;
+      emit('field-change', id);
     };
 
     // 编辑器内容变化
     const handleEditorChange = (newValue: string) => {
       value.value = newValue;
-      emit('search-change', {
-        content: newValue,
-        searchValue: searchValue.value,
-        matchMode: {
-          caseSensitive: isCaseSensitive.value,
-          regexMode: isRegexMode.value,
-          wordMatch: isWordMatch.value,
-        },
-      });
+      // emit('search-change', {
+      //   content: newValue,
+      //   searchValue: searchValue.value,
+      //   matchMode: {
+      //     caseSensitive: isCaseSensitive.value,
+      //     regexMode: isRegexMode.value,
+      //     wordMatch: isWordMatch.value,
+      //   },
+      // });
     };
 
     // 搜索输入
@@ -79,7 +80,7 @@ export default defineComponent({
     // 切换大小写敏感
     const toggleCaseSensitive = () => {
       isCaseSensitive.value = !isCaseSensitive.value;
-      emit('update:match-mode', {
+      emit('match-mode', {
         caseSensitive: isCaseSensitive.value,
         regexMode: isRegexMode.value,
         wordMatch: isWordMatch.value,
@@ -140,6 +141,10 @@ export default defineComponent({
       }
     };
 
+    const handleEditorEnter = (value: string) => {
+      emit('grep-enter', value);
+    };
+
     // 处理导航点击事件
     const handlePrevClick = () => {
       if (hasResults.value) {
@@ -181,6 +186,7 @@ export default defineComponent({
               minHeight='34px'
               maxHeight='160px'
               on-change={handleEditorChange}
+              on-enter={handleEditorEnter}
             />
           </div>
         </div>
