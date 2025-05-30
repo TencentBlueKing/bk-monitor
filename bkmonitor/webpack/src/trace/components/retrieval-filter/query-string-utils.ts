@@ -149,7 +149,7 @@ export function parseQueryString(query: string): IStrItem[] {
       tokens.push({ value: quoted, type: EQueryStringTokenType.value });
     } else if (word) {
       const match = word.match(/[)\]}]/);
-      if (match && new RegExp(`${match?.[0]}$`).test(match.input)) {
+      if (match?.input?.endsWith(match?.[0])) {
         tokens.push({ value: word.slice(0, match.index), type: EQueryStringTokenType.value });
         tokens.push({ value: match[0], type: EQueryStringTokenType.bracket });
       } else {
