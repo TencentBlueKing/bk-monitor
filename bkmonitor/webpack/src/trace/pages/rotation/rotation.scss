@@ -135,11 +135,15 @@
 
   .bk-switcher.is-checked.bk-switcher-small:after {
     top: 50%;
-    transform: translate(-100%,-50%);
+    transform: translate(-100%, -50%);
   }
 
   .bk-switcher.bk-switcher-small:after {
     top: 50%;
-    transform: translate(0,-50%);
+    transform: translate(0, -50%);
+  }
+
+  .t-table__pagination-wrap {
+    display: none;
   }
 }

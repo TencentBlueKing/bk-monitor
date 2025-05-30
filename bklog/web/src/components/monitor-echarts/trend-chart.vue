@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -23,7 +23,7 @@
   const refDataTrendCanvas = ref(null);
   const dynamicHeight = ref(130);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
-  const { initChartData, setChartData, clearChartData } = useTrendChart({
+  const { initChartData, setChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
     dynamicHeight,
@@ -31,6 +31,7 @@
 
   const finishPolling = ref(false);
   const isStart = ref(false);
+
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
@@ -143,7 +144,7 @@
         )
         .then(res => {
           if (res?.data) {
-            sumCount += setChartData(res?.data?.aggs, gradeOptions.value?.field, isInit);
+            sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
             isInit = false;
 
             store.commit('retrieve/updateTrendDataCount', sumCount);
@@ -176,11 +177,10 @@
   let runningTimer = null;
   const loadTrendData = () => {
     logChartCancel?.();
+    setChartData(null, null, true);
 
     runningTimer && clearTimeout(runningTimer);
     runningTimer = setTimeout(() => {
-      clearChartData();
-
       finishPolling.value = false;
       isStart.value = false;
       getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
@@ -193,31 +193,13 @@
       RetrieveEvent.SEARCH_TIME_CHANGE,
       RetrieveEvent.TREND_GRAPH_SEARCH,
       RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      RetrieveEvent.INDEX_SET_ID_CHANGE,
     ],
     loadTrendData,
   );
 
-  const isRenderLoading = ref(false);
-  watch(
-    () => isLoading.value,
-    () => {
-      if (isLoading.value) {
-        isRenderLoading.value = true;
-        return;
-      }
-
-      setTimeout(() => {
-        isRenderLoading.value = false;
-      }, 300);
-    },
-  );
-
   onBeforeUnmount(() => {
     logChartCancel?.();
-  });
-
-  onMounted(() => {
-    loadTrendData();
   });
 </script>
 <script>
@@ -227,7 +209,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isRenderLoading }"
+    v-bkloading="{ isLoading: isLoading, zIndex: 10, size: 'mini' }"
     class="monitor-echart-wrap"
   >
     <div

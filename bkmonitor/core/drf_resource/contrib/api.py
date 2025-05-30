@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,10 +11,8 @@ specific language governing permissions and limitations under the License.
 import abc
 import json
 import logging
-from typing import Optional
 
 import requests
-import six
 from blueapps.account.conf import ConfFixture
 from blueapps.account.utils import load_backend
 from django.conf import settings
@@ -61,7 +58,7 @@ def get_bk_login_ticket(request):
         if request.is_wechat():
             form_cls = "WeixinAuthenticationForm"
 
-        AuthenticationForm = load_backend("{}.forms.{}".format(ConfFixture.BACKEND_TYPE, form_cls))
+        AuthenticationForm = load_backend(f"{ConfFixture.BACKEND_TYPE}.forms.{form_cls}")
 
     for form in (AuthenticationForm(c) for c in context):
         if form.is_valid():
@@ -70,7 +67,7 @@ def get_bk_login_ticket(request):
     return {}
 
 
-class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
+class APIResource(CacheResource, metaclass=abc.ABCMeta):
     """
     API类型的Resource
     """
@@ -79,6 +76,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     # 是否直接使用标准格式数据，兼容BCS非标准返回的情况
     IS_STANDARD_FORMAT = True
     METRIC_REPORT_NOW = True
+    # CMDB API 已在请求头的 x-bkapi-authorization 中包含了 bk_username，不需要在请求参数中重复添加
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = True
 
     ignore_error_msg_list = []
 
@@ -134,11 +133,13 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         return non_file_data, file_data
 
     def __init__(self, *args, **kwargs):
-        super(APIResource, self).__init__(*args, **kwargs)
-        assert self.method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"], _("method仅支持GET或POST或PUT或DELETE或PATCH")
+        super().__init__(*args, **kwargs)
+        assert self.method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"], _(
+            "method仅支持GET或POST或PUT或DELETE或PATCH"
+        )
         self.method = self.method.upper()
         self.session = requests.session()
-        self.bk_tenant_id: Optional[str] = None
+        self.bk_tenant_id: str | None = None
 
     def request(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
@@ -150,21 +151,33 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         if "bk_tenant_id" in request_data:
             self.bk_tenant_id = request_data["bk_tenant_id"]
 
-        return super(APIResource, self).request(request_data, **kwargs)
+        return super().request(request_data, **kwargs)
 
     def full_request_data(self, validated_request_data):
         # 如果请求参数中传递了用户信息，则直接返回
-        if "bk_username" in validated_request_data:
+        if "bk_username" in validated_request_data or not self.INSERT_BK_USERNAME_TO_REQUEST_DATA:
             return validated_request_data
 
         # 组装通用参数： 1. 用户信息 2. SaaS凭证
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
         else:
-            user_info = make_userinfo()
-            self.bk_username = user_info.get('bk_username')
+            user_info = make_userinfo(bk_tenant_id=self._get_tenant_id())
+            self.bk_username = user_info.get("bk_username")
             validated_request_data.update(user_info)
         return validated_request_data
+
+    def _get_tenant_id(self) -> str:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            if self.bk_tenant_id:
+                return self.bk_tenant_id
+            request = get_request(peaceful=True)
+            if request and request.user.tenant_id:
+                return request.user.tenant_id
+            logger.warning(f"get_tenant_id: 获取租户ID失败，使用默认租户ID, {self.module_name} {self.action}")
+            return DEFAULT_TENANT_ID
+        else:
+            return DEFAULT_TENANT_ID
 
     def before_request(self, kwargs):
         return kwargs
@@ -185,23 +198,13 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            auth_params.update(make_userinfo())
+            auth_params.update(make_userinfo(bk_tenant_id=self._get_tenant_id()))
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         # 多租户模式下添加租户ID
         # 如果是web请求，通过用户名获取租户ID
         # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            request = get_request(peaceful=True)
-            if self.bk_tenant_id:
-                headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
-            elif request and request.user.tenant_id:
-                headers["X-Bk-Tenant-Id"] = request.user.tenant_id
-            else:
-                headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
-        else:
-            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
-            headers["X-Bk-Tenant-Id"] = "default"
+        headers["X-Bk-Tenant-Id"] = self._get_tenant_id()
         return headers
 
     def perform_request(self, validated_request_data):
@@ -209,7 +212,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         发起http请求
         """
         validated_request_data = dict(validated_request_data)
-        validated_request_data = self.full_request_data(validated_request_data)
 
         # 获取租户ID
         if not self.bk_tenant_id:
@@ -220,16 +222,19 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 validated_request_data.get("bk_biz_id") and isinstance(validated_request_data.get("bk_biz_id"), int)
             ) or (validated_request_data.get("space_uid") and isinstance(validated_request_data.get("space_uid"), str)):
                 # 如果传递了业务ID或空间ID，则获取关联的租户ID
-                space: Optional[Space] = SpaceApi.get_space_detail(
+                space: Space | None = SpaceApi.get_space_detail(
                     bk_biz_id=validated_request_data.get("bk_biz_id", 0),
                     space_uid=validated_request_data.get("space_uid"),
                 )
                 if space:
                     self.bk_tenant_id = space.bk_tenant_id
 
+        # 补充用户字段
+        validated_request_data = self.full_request_data(validated_request_data)
+
         # 拼接最终请求的url
         request_url = self.get_request_url(validated_request_data)
-        logger.debug("request: {}".format(request_url))
+        logger.debug(f"request: {request_url}")
 
         # 是否是流式响应
         is_stream = getattr(self, "IS_STREAM", False)
@@ -273,14 +278,14 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 result = self.session.request(**kwargs)
         except ReadTimeout as error:
             # 上报API调用失败统计指标
-            self.report_api_failure_metric(error_code=getattr(error, 'code', 0), exception_type=type(error).__name__)
+            self.report_api_failure_metric(error_code=getattr(error, "code", 0), exception_type=type(error).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
 
         try:
             result.raise_for_status()
         except HTTPError as err:
-            logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url))
-            self.report_api_failure_metric(error_code=getattr(err, 'code', 0), exception_type=type(err).__name__)
+            logger.exception(f"【模块：{self.module_name}】请求APIGW错误：{err}，请求url: {request_url} ")
+            self.report_api_failure_metric(error_code=getattr(err, "code", 0), exception_type=type(err).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
 
         if is_stream:
@@ -354,7 +359,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 code=error_code,
                 role=settings.ROLE,
                 exception=exception_type,
-                user_name=getattr(self, 'bk_username', ''),
+                user_name=getattr(self, "bk_username", ""),
             ).inc()
             if self.METRIC_REPORT_NOW:
                 metrics.report_all()
@@ -389,7 +394,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         eg: data(基础事件下发)
         """
         if self.label:
-            return "{}-{}".format(self.module_name, self.label)
+            return f"{self.module_name}-{self.label}"
         return self.module_name
 
     def get_request_url(self, validated_request_data):
@@ -411,7 +416,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 if not line:
                     continue
 
-                result = line.decode('utf-8') + '\n\n'
+                result = line.decode("utf-8") + "\n\n"
                 yield result
 
         # 返回 StreamingHttpResponse

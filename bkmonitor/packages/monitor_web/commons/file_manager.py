@@ -19,6 +19,7 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.models.file import UploadedFileInfo
 from monitor_web.models.plugin import CollectorPluginMeta
 
@@ -162,7 +163,7 @@ class PluginFileManager(BaseFileManager):
         plugin_id = kwargs.get("plugin_id")
         if plugin_id:
             try:
-                plugin_meta = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+                plugin_meta = CollectorPluginMeta.objects.get(bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id)
                 return super(PluginFileManager, cls).save_file(
                     file_data=file_data, file_name=file_name, is_dir=False, plugin_id=plugin_meta.plugin_id
                 )

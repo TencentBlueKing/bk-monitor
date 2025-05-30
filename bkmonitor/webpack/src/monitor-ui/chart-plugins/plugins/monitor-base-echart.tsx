@@ -304,7 +304,11 @@ class MonitorBaseEchart extends BaseEchart {
     let liHtmlList = [];
     let ulStyle = '';
     let hasWrapText = true;
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    let pointTime = '';
+    try {
+      pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    } catch {}
+
     if (params[0]?.data?.tooltips) {
       liHtmlList.push(params[0].data.tooltips);
     } else {

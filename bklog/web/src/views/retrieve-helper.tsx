@@ -25,185 +25,65 @@
  */
 
 import { Ref } from 'vue';
-import { random } from '../common/util';
 
-import OptimizedHighlighter from './optimized-highlighter';
-import { getRgbaColors } from './colors';
-
-// 滚动条查询条件
-const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
-
-export interface GradeSetting {
-  id: string;
-  color: string;
-  name: string;
-  regExp: string;
-  enable: boolean;
-}
-
-interface GradeConfiguration {
-  disabled: boolean;
-  type: 'custom' | 'normal';
-  field: string; // 'field' is null, but we can define it as any unless more specific information is available
-  settings: GradeSetting[];
-}
+import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
+import RetrieveEvent from './retrieve-core/retrieve-events';
+import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
+import RetrieveBase from './retrieve-core/base';
+import { RouteQueryTab } from './retrieve-v3/index.type';
+import { parseTableRowData } from '@/common/util';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
+  STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
 }
 
-export enum RetrieveEvent {
-  /**
-   * 展示收藏内容
-   */
-  FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',
-
-  /**
-   * 收藏栏是否展示
-   */
-  FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
-
-  /**
-   * 收藏栏宽度变化
-   */
-  FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
-
-  /**
-   * 左侧字段信息初始化
-   */
-  LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',
-
-  /**
-   * 左侧字段设置宽度变化
-   */
-  LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
-
-  /**
-   * 左侧字段设置是否展示
-   */
-  LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
-
-  /**
-   * 搜索栏高度变化
-   */
-  SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
-
-  /**
-   * 趋势图高度变化
-   */
-  TREND_GRAPH_HEIGHT_CHANGE = 'trend-graph-height-change',
-
-  /**
-   * 趋势图搜索
-   */
-  TREND_GRAPH_SEARCH = 'trend-graph-search',
-
-  /**
-   * 趋势图缩放
-   */
-  TREND_GRAPH_ZOOM = 'trend-graph-zoom',
-
-  /**
-   * localStorage 变化
-   */
-  STORAGE_CHANGE = 'storage-change',
-
-  /**
-   * 打开索引配置
-   */
-  INDEX_CONFIG_OPEN = 'index-config-open',
-
-  /**
-   * 触发高亮设置
-   */
-  HILIGHT_TRIGGER = 'hilight-trigger',
-
-  /**
-   * 搜索条件改变
-   */
-  SEARCH_VALUE_CHANGE = 'search-value-change',
-
-  /**
-   * 搜索时间变化
-   */
-  SEARCH_TIME_CHANGE = 'search-time-change',
-
-  /**
-   * 全局滚动
-   */
-  GLOBAL_SCROLL = 'global-scroll',
-}
-
-class RetrieveHelper {
-  // 滚动条查询条件
-  globalScrollSelector: string;
-
-  // 搜索栏高度
-  searchBarHeight: number;
-
-  // 左侧字段设置宽度
-  leftFieldSettingWidth: number;
-
-  // 左侧字段设置是否展示
-  leftFieldSettingShown: boolean = true;
-
-  // 收藏栏宽度
-  favoriteWidth: number;
-
-  // 收藏栏是否展示
-  isFavoriteShown: boolean;
-
-  // 趋势图添加随机类名
-  // 用于监听趋势图高度变化
-  randomTrendGraphClassName: string;
-
-  // 趋势图高度
-  trendGraphHeight: number;
-
-  // 事件列表
-  events: Map<string, ((...args) => void)[]>;
-
-  markInstance: OptimizedHighlighter = undefined;
-
-  // 正则表达式提取日志级别
-  logLevelRegex = {
-    level_1: '(?<FATAL>\\b(?:FATAL|CRITICAL|EMERGENCY)\\b)',
-    level_2: '(?<ERROR>\\b(?:ERROR|ERRORCODE|ERR|FAIL(?:ED|URE)?)\\b)',
-    level_3: '(?<WARNING>\\b(?:WARNING|WARN|ALERT|NOTICE)\\b)',
-    level_4: '(?<INFO>\\b(?:INFO|INFORMATION|LOG|STATUS)\\b)',
-    level_5: '(?<DEBUG>\\b(?:DEBUG|DIAGNOSTIC)\\b)',
-    level_6: '(?<TRACE>\\b(?:TRACE|TRACING|VERBOSE|DETAIL)\\b)',
-  };
-
-  logRowsContainerId: string;
-
-  RGBA_LIST: string[];
-
-  constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
+export { RetrieveEvent, GradeSetting, GradeConfiguration };
+// 滚动条查询条件
+const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
+class RetrieveHelper extends RetrieveBase {
+  scrollEventAdded = false;
+  constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
+    super({});
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
+    this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
-    this.randomTrendGraphClassName = `random-${random(12)}`;
-    this.events = new Map();
-    this.logRowsContainerId = `result_container_key_${random(12)}`;
-    this.RGBA_LIST = getRgbaColors(0.3);
   }
 
-  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
-    const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    targetEvents.forEach(event => {
-      if (this.events.has(event)) {
-        if (!this.events.get(event).includes(callbackFn)) {
-          this.events.get(event)?.push(callbackFn);
-        }
-        return this;
+  /**
+   * 添加滚动监听
+   */
+  private setContentScroll() {
+    if (!this.scrollEventAdded) {
+      const target = document.querySelector(this.globalScrollSelector);
+      if (target) {
+        target.addEventListener('scroll', this.handleScroll);
+        this.scrollEventAdded = true;
       }
+    }
+  }
 
-      this.events.set(event, [callbackFn]);
-    });
+  /**
+   * 设置查询状态
+   * @param isSearching
+   */
+  setSearchingValue(isSearching: boolean) {
+    this.isSearching = isSearching;
+    this.runEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching);
+  }
 
-    return this;
+  /**
+   * 更新索引集id
+   * @param id
+   */
+  setIndexsetId(idList: string[], type: string, fireEvent = true) {
+    this.indexSetIdList = idList;
+    this.indexSetType = type;
+    if (fireEvent) {
+      this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    }
   }
 
   /**
@@ -245,9 +125,44 @@ class RetrieveHelper {
     this.markInstance.incrementalUpdate();
   }
 
+  isMatchedGroup(group, fieldValue, isGradeMatchValue) {
+    if (isGradeMatchValue) {
+      return group.fieldValue?.includes(fieldValue) ?? false;
+    }
+
+    const regExp = new RegExp(group.regExp);
+    return regExp.test(fieldValue);
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): string | null {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
   /**
    * 解析日志级别
-   * @param str
+   * @param field
+   * @param options
    * @returns
    */
   getLogLevel(field: any, options: GradeConfiguration) {
@@ -256,12 +171,21 @@ class RetrieveHelper {
     }
 
     if ((options?.type ?? 'normal') === 'normal') {
-      const str = field?.log ?? '';
+      const str = this.convertToMatchableString(field?.log);
 
       if (!str?.trim()) return null;
 
       const levelRegExpList = [];
-      (options?.settings ?? []).forEach((item: GradeSetting) => {
+      (
+        options?.settings ?? [
+          { id: 'level_1', enable: true },
+          { id: 'level_2', enable: true },
+          { id: 'level_3', enable: true },
+          { id: 'level_4', enable: true },
+          { id: 'level_5', enable: true },
+          { id: 'level_6', enable: true },
+        ]
+      ).forEach((item: GradeSetting) => {
         if (item.enable && this.logLevelRegex[item.id]) {
           levelRegExpList.push(this.logLevelRegex[item.id]);
         }
@@ -285,17 +209,25 @@ class RetrieveHelper {
 
       // 按优先级顺序查找最高级别
       const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
-      return PRIORITY_ORDER.find(level => levelSet.has(level)) || null;
+      return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
-    if (options.type === 'custom' && field[options.field]) {
-      const target = `${field[options.field]}`;
+    const fieldValue = parseTableRowData(field, options.field, options.fieldType);
+
+    if (options.type === 'custom' && fieldValue) {
+      const target = this.convertToMatchableString(fieldValue);
+
+      if (!target) {
+        return null;
+      }
+
       const levels = [];
       // 截取前1000字符避免性能问题
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
+            levels.push(item.id);
         }
       });
 
@@ -343,8 +275,10 @@ class RetrieveHelper {
    * @param width
    */
   setLeftFieldSettingWidth(width: number) {
-    this.leftFieldSettingWidth = width;
-    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    if (this.leftFieldSettingWidth !== width) {
+      this.leftFieldSettingWidth = width;
+      this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
+    }
   }
 
   /**
@@ -389,6 +323,16 @@ class RetrieveHelper {
   }
 
   /**
+   * 收藏栏是否仅查看当前索引集
+   * @param show
+   */
+  setViewCurrentIndexn(show: boolean) {
+    this.isViewCurrentIndex = show;
+    localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE, `${show}`);
+    this.runEvent(RetrieveEvent.FAVORITE_VIEW_CURRENT_CHANGE, show);
+  }
+
+  /**
    * 更新滚动条查询条件
    * @param selector
    */
@@ -427,29 +371,40 @@ class RetrieveHelper {
   }
 
   /**
-   * 触发指定事件
-   * 功能相当于 event bus
-   * @param eventName
-   * @param args
+   * 修复路由参数中的 tab 值
+   * @param indexSetItem
+   * @param tabValue
+   * @returns
    */
-  fire(eventName: RetrieveEvent, ...args) {
-    this.runEvent(eventName, ...args);
-  }
+  routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
+    const isclusteringEnable = () => {
+      return (
+        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
+        indexSetItem?.scenario_id === 'bkdata'
+      );
+    };
 
-  /**
-   * 移除事件
-   * @param eventName
-   * @param fn
-   */
-  off(eventName: RetrieveEvent, fn?: (...args) => void) {
-    if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item === fn);
-      if (index !== -1) {
-        this.events.get(eventName)?.splice(index, 1);
+    const isChartEnable = () => indexSetItem?.support_doris && !isUnionSearch;
+
+    if (indexSetItem) {
+      if (tabValue === RouteQueryTab.CLUSTERING) {
+        if (!isclusteringEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
       }
-      return;
+
+      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
+        if (!isChartEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
+      }
     }
-    this.events.delete(eventName);
+
+    if (tabValue) {
+      return { tab: tabValue };
+    }
+
+    return {};
   }
 
   private handleScroll = (e: MouseEvent) => {
@@ -457,24 +412,18 @@ class RetrieveHelper {
   };
 
   onMounted() {
-    document.querySelector(this.globalScrollSelector)?.addEventListener('scroll', this.handleScroll);
+    this.setContentScroll();
   }
 
   destroy() {
     this.events.clear();
     document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
-  }
-
-  private runEvent(event: RetrieveEvent, ...args) {
-    this.events.get(event)?.forEach(item => {
-      if (typeof item === 'function') {
-        item(...args);
-      }
-    });
+    this.scrollEventAdded = false;
   }
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
-export default new RetrieveHelper({ isFavoriteShow, favoriteWidth });
+export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

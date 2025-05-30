@@ -1,54 +1,78 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span class="history-button">
+    <span class="history-button" @click="handleClickHistoryButton">
       <span class="bklog-icon bklog-history-2"></span>
-      <span @click="handleClickHistoryButton">{{ $t('历史查询') }}</span>
+      <span >{{ $t('历史查询') }}</span>
     </span>
     <div v-show="false">
-      <ul
-        ref="historyUlRef"
-        class="retrieve-history-list"
-        v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
-      >
-        <template v-if="isHistoryRecords">
-          <li
-            v-for="item in historyRecords"
-            :key="item.id"
-            class="list-item"
-            @click="handleClickHistory(item)"
-          >
-            <div class="item-text">
-              <sapn
-                class="bklog-icon"
-                :class="getClass(item.search_mode)"
-              >
-                <!-- {{ getText(item.search_mode) }} -->
-              </sapn>
-
-              <div
-                class="text"
+      <div ref="historyUlRef">
+          <div class="input-box">
+            <bk-input
+              behavior="simplicity"
+              :left-icon="'bklog-icon bklog-shoudongchaxun'"
+              :clearable="true"
+              :placeholder="$t('请输入关键字')"
+              v-model="searchInput"
+              ext-cls="search-input"
+            ></bk-input>
+          </div>
+        <ul
+          ref="historyUlRef"
+          class="retrieve-history-list"
+          v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
+        >
+          <template v-if="isHistoryRecords">
+            <li
+              v-for="item in filterHistoryRecords"
+              :key="item.id"
+              class="list-item"
+              @click="handleClickHistory(item)"
+            >
+              <div class="item-text"
                 v-bk-tooltips="{
-                  content: item.query_string,
+                  allowHTML:true,
+                  placement:'top',
+                  content: getContent(item),
                   disabled: item.query_string.length < 5,
                 }"
               >
-                {{ item.query_string }}
+                <span
+                  class="bklog-icon"
+                  :class="getClass(item.search_mode)"
+                >
+                  <!-- {{ getText(item.search_mode) }} -->
+                </span>
+
+                <div
+                  class="text"
+                >
+                  {{ item.query_string }}
+                </div>
+                <BookmarkPop
+                :sql="item.query_string"
+                :addition="item.params.addition"
+                searchMode='sql'
+                active-favorite="history"
+                @instanceShow="instanceShow"
+                ></BookmarkPop>
               </div>
-            </div>
+            </li>
+          </template>
+          <li
+            v-else
+            class="list-item not-history"
+          >
+            {{ this.$t('暂无历史记录') }}
           </li>
-        </template>
-        <li
-          v-else
-          class="list-item not-history"
-        >
-          {{ this.$t('暂无历史记录') }}
-        </li>
-      </ul>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
+  import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  import dayjs from 'dayjs';
   export default {
     data() {
       return {
@@ -56,7 +80,12 @@
         isHistoryRecords: true,
         popoverInstance: null,
         historyRecords: [],
+        searchInput: "",
+        bookmarkPopRefsShow: false
       };
+    },
+    components:{
+      BookmarkPop
     },
     computed: {
       isUnionSearch() {
@@ -70,6 +99,13 @@
       },
       indexId() {
         return this.indexItem.ids[0];
+      },
+      filterHistoryRecords() {
+        if (!this.searchInput?.trim()) return this.historyRecords;
+        const searchTerm = this.searchInput.toLowerCase();
+        return this.historyRecords.filter((item) => {
+          return item.query_string?.toLowerCase().includes(searchTerm);
+        });
       },
     },
     methods: {
@@ -87,6 +123,10 @@
         };
         return textMap[searchMode] || '';
       },
+      getContent(item){
+        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>语句：${item.query_string}</div></div>`
+      },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
         const popoverWidth = '560px';
@@ -101,6 +141,11 @@
           interactive: true,
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
+          onHide: () => {
+            if(this.bookmarkPopRefsShow){
+              return false
+            }
+          },
           onHidden: () => {
             this.historyRecords = [];
             this.isHistoryRecords = true;
@@ -147,6 +192,9 @@
             this.historyLoading = false;
           });
       },
+      instanceShow(val){
+        this.bookmarkPopRefsShow = val
+      }
     },
   };
 </script>

@@ -26,8 +26,6 @@
 import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-const { i18n: I18N } = window;
-
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce, deepClone } from 'monitor-common/utils';
@@ -39,16 +37,10 @@ import { METHOD_LIST } from '../../../constant/constant';
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { matchRuleFn } from '../group-manage-dialog';
+import { DEFAULT_HEIGHT_OFFSET, statusMap } from './type';
 
 import './metric-table.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
-
-export const statusMap = new Map([
-  [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
-  [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
-]);
-/** 默认高度偏移量 */
-const DEFAULT_HEIGHT_OFFSET = 8;
 
 interface ILabel {
   name: string;
@@ -71,6 +63,7 @@ interface IMetricDetail {
   reportInterval: string;
   create_time: number;
   update_time: number;
+  last_time?: number;
   latestData?: {
     value: string;
     timestamp: string;
@@ -93,17 +86,15 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) groupSelectList: IListItem[];
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => [], type: Array }) dimensionTable;
-  @Prop({ default: () => {} }) allDataPreview;
+  @Prop({ default: () => { } }) allDataPreview;
   @Prop({ default: 0 }) allCheckValue;
   @Prop({ default: () => [] }) cycleOption: [];
-  @Prop({ default: () => [] }) search: [];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
   @Prop({ default: () => new Map(), type: Map }) metricGroupsMap: Map<string, any>;
 
   @InjectReactive('metricFunctions') metricFunctions;
 
   @Ref() readonly descriptionInput!: HTMLInputElement;
-  @Ref() readonly unitInput!: HTMLInputElement;
   @Ref() readonly aggConditionInput!: HTMLInputElement;
   @Ref() readonly intervalInput!: HTMLInputElement;
   @Ref() readonly batchAddGroupPopover!: HTMLInputElement;
@@ -117,8 +108,6 @@ export default class IndicatorTable extends tsc<any, any> {
 
   canEditName = false; // 编辑别名
   copyDescription = ''; // 别名备份
-  canEditUnit = false; // 编辑单位
-  copyUnit = ''; // 单位备份
   canEditFunction = false; // 编辑函数
   copyFunction = ''; // 函数备份
   canEditAgg = false; // 编辑聚合
@@ -149,7 +138,7 @@ export default class IndicatorTable extends tsc<any, any> {
   header = {
     value: 0,
     dropdownShow: false,
-    list: [{ id: 0, name: I18N.t('添加至分组') }],
+    list: [{ id: 0, name: this.$t('添加至分组') }],
   };
   editingIndex = -1;
 
@@ -157,6 +146,8 @@ export default class IndicatorTable extends tsc<any, any> {
   groupWidth = 200;
   resizeObserver = null;
   rectHeight = 32;
+  /** 表格搜索 */
+  search = [];
 
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
@@ -186,42 +177,42 @@ export default class IndicatorTable extends tsc<any, any> {
   get metricSearchData() {
     return [
       {
-        name: window.i18n.t('名称'),
+        name: this.$t('名称'),
         id: 'name',
         multiple: false,
         children: [],
       },
       {
-        name: window.i18n.t('别名'),
+        name: this.$t('别名'),
         id: 'description',
         multiple: false,
         children: [],
       },
       {
-        name: window.i18n.t('单位'),
+        name: this.$t('单位'),
         id: 'unit',
         multiple: false,
         children: this.unitList,
       },
       // {
-      //   name: window.i18n.t('函数'),
+      //   name: this.$t('函数'),
       //   id: 'func',
       //   multiple: false,
       //   children: this.metricFunctions,
       // },
       {
-        name: window.i18n.t('汇聚方法'),
+        name: this.$t('汇聚方法'),
         id: 'aggregate',
         multiple: false,
         children: METHOD_LIST,
       },
       {
-        name: window.i18n.t('显/隐'),
+        name: this.$t('显/隐'),
         id: 'show',
         multiple: false,
         children: [
-          { id: 'true', name: window.i18n.t('显示') },
-          { id: 'false', name: window.i18n.t('隐藏') },
+          { id: 'true', name: this.$t('显示') },
+          { id: 'false', name: this.$t('隐藏') },
         ],
       },
     ];
@@ -301,6 +292,7 @@ export default class IndicatorTable extends tsc<any, any> {
 
   /** 获取展示时间 */
   getShowTime(timeStr: number) {
+    if (!timeStr) return '-';
     const timestamp = new Date(timeStr * 1000);
     return dayjs.tz(timestamp).format('YYYY-MM-DD HH:mm:ss');
   }
@@ -582,7 +574,7 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   @Emit('rowCheck')
-  handleRowCheck() {}
+  handleRowCheck() { }
 
   handleCheckChange({ value }) {
     this.updateAllSelection(value === 2);
@@ -599,7 +591,10 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   @Emit('searchChange')
-  handleSearchChange() {}
+  handleSearchChange(list) {
+    this.search = list;
+    return list;
+  }
 
   async updateCustomFields(k, v, metricName, showMsg = false) {
     try {
@@ -647,25 +642,11 @@ export default class IndicatorTable extends tsc<any, any> {
   /** 编辑单位 */
   async handleEditUnit(isShow, metricInfo) {
     if (isShow) return;
-    this.canEditUnit = false;
-    if (!this.copyUnit || this.copyUnit === metricInfo.unit) {
-      return;
-    }
-    metricInfo.unit = this.copyUnit;
-    await this.updateCustomFields('unit', this.copyUnit, metricInfo.name);
-  }
-
-  handleShowEditUnit(unit) {
-    this.canEditUnit = true;
-    this.copyUnit = unit;
-    // this.$nextTick(() => {
-    //   this.unitInput?.getPopoverInstance?.()?.show?.();
-    // });
+    await this.updateCustomFields('unit', metricInfo.unit, metricInfo.name);
   }
 
   /** 编辑函数 */
   async editFunction(func, metricInfo) {
-    metricInfo.function = func;
     await this.updateCustomFields('function', func, metricInfo.name);
   }
 
@@ -736,11 +717,11 @@ export default class IndicatorTable extends tsc<any, any> {
               !this.getIsDisable(row.name, item.id)
                 ? { disabled: true }
                 : {
-                    content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
-                    placements: ['right'],
-                    boundary: 'window',
-                    allowHTML: false,
-                  }
+                  content: this.$t('由匹配规则{0}生成', [this.getDisableTip(row.name, item.id)]),
+                  placements: ['right'],
+                  boundary: 'window',
+                  allowHTML: false,
+                }
             }
             disabled={this.getIsDisable(row.name, item.id)}
             name={item.name}
@@ -836,18 +817,10 @@ export default class IndicatorTable extends tsc<any, any> {
 
             <div class='info-item'>
               <span class='info-label'>{this.$t('单位')}：</span>
-              {!this.canEditUnit ? (
-                <div
-                  class='info-content'
-                  onClick={() => this.handleShowEditUnit(metricData.unit)}
-                >
-                  {metricData.unit ?? '-'}
-                </div>
-              ) : (
+              {
                 <bk-select
-                  ref='unitInput'
-                  ext-cls='unit-content'
-                  v-model={this.copyUnit}
+                  ext-cls='unit-content unit-ext'
+                  v-model={metricData.unit}
                   clearable={false}
                   allow-create
                   searchable
@@ -868,7 +841,7 @@ export default class IndicatorTable extends tsc<any, any> {
                     </bk-option-group>
                   ))}
                 </bk-select>
-              )}
+              }
             </div>
             {/* 汇聚方法 */}
             <div class='info-item'>
@@ -903,10 +876,10 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='info-label'>{this.$t('函数')}：</span>
               <div class='info-content'>
                 <FunctionSelect
-                  key={getKey(metricData.function[0])}
+                  key={`${metricData.name}_${getKey(metricData.function[0])}`}
                   class='metric-func-selector-add'
-                  v-model={metricData.function}
                   isMultiple={false}
+                  value={metricData.function}
                   onValueChange={params => this.editFunction(params, metricData)}
                 />
               </div>
@@ -968,7 +941,12 @@ export default class IndicatorTable extends tsc<any, any> {
             {renderInfoItem({ label: '创建时间', value: this.getShowTime(metricData.create_time) }, true)}
             {renderInfoItem({ label: '更新时间', value: this.getShowTime(metricData.update_time) }, true)}
             {renderInfoItem(
-              { label: '最近数据', value: this.allDataPreview[metricData.name] || `(${this.$t('近5分钟无数据上报')})` },
+              {
+                label: '最近数据',
+                value: this.allDataPreview[metricData.name]
+                  ? `${this.allDataPreview[metricData.name]}(数据时间: ${this.getShowTime(metricData?.last_time)})`
+                  : `(${this.$t('近5分钟无数据上报')})`,
+              },
               true
             )}
             <div class='info-item'>

@@ -1056,4 +1056,17 @@ export default {
   个收藏: 'favorite items',
   '暂无配置责任人，无法自动创建告警策略':
     'No configured responsible person, unable to automatically create alarm strategy',
+  '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
+  检索中: 'Searching',
+  '输入组名,30个字符': 'Enter group name, 30 characters',
+  组名不规范: 'Group name is not standard',
+  名称冲突: 'Name conflict',
+  最大30字符: 'Up to 30 characters',
+  '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorites?',
+  '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be restored. Please operate with caution!',
+  '已选择以下{0}个收藏对象': 'The following {0} favorite objects have been selected',
+  批量删除成功: 'Batch deletion succeeded',
+  '组名不规范, 包含了特殊符号.': 'The group name is not standard, and special symbols are included.',
+  '注意: 名字冲突': 'Note: name conflict',
+  '注意：最大值为30个字符': 'Note: the maximum value is 30 characters',
 };

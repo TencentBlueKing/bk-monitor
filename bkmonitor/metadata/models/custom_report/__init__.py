@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,12 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from .event import Event, EventGroup
 from .log import LogGroup
 from .subscription_config import (
     CustomReportSubscription,
-    CustomReportSubscriptionConfig,
     LogSubscriptionConfig,
 )
 from .time_series import TimeSeriesGroup, TimeSeriesMetric, TimeSeriesTag
@@ -25,7 +22,6 @@ __all__ = [
     "TimeSeriesMetric",
     "TimeSeriesGroup",
     "TimeSeriesTag",
-    "CustomReportSubscriptionConfig",
     "CustomReportSubscription",
     "LogSubscriptionConfig",
     "LogGroup",

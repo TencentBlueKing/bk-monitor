@@ -36,12 +36,6 @@ import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { defineStore } from 'pinia';
 
-// const { i18n } = window;
-const i18n = {
-  t: v => v,
-  tc: v => v,
-};
-
 export interface ISetMealAddState {
   noticeWayList: any;
   getNoticeWayList: any;
@@ -81,9 +75,9 @@ export default defineStore('SetMealAdd', {
     },
 
     levelList: [
-      { id: 1, name: i18n.t('致命') },
-      { id: 2, name: i18n.t('预警') },
-      { id: 3, name: i18n.t('提醒') },
+      { id: 1, name: window.i18n.t('致命') },
+      { id: 2, name: window.i18n.t('预警') },
+      { id: 3, name: window.i18n.t('提醒') },
     ],
 
     // 变量数据
@@ -224,10 +218,7 @@ export default defineStore('SetMealAdd', {
     },
 
     setMessageTemplateList(data) {
-      let res = data.reduce((total, cur) => {
-        total = total.concat(cur.items.map(item => ({ ...item, group: cur.group })));
-        return total;
-      }, []);
+      let res = data.reduce((total, cur) => total.concat(cur.items.map(item => ({ ...item, group: cur.group }))), []);
       res = res.map(item => ({
         id: item.name,
         name: item.desc,
@@ -248,13 +239,13 @@ export default defineStore('SetMealAdd', {
           width: undefined,
         };
         if (item.type === 'wxwork-bot') {
-          data.tip = i18n.t(
+          data.tip = window.i18n.t(
             "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
             { name: item.name }
           );
         }
         if (item.type === 'bkchat') {
-          data.tip = i18n.tc(
+          data.tip = window.i18n.t(
             '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。'
           );
           data.width = 240;

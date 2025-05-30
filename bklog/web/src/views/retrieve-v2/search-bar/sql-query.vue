@@ -42,7 +42,6 @@
    */
   const setEditorContext = (val, from = 0, to = undefined) => {
     editorInstance?.setValue(val, from, to);
-    // return editorInstance?.getValue();
   };
 
   /**
@@ -154,7 +153,7 @@
       },
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
-        closeAndRetrieve();
+        debounceRetrieve();
         return true;
       },
       onFocusChange: (_, isFocusing) => {
@@ -337,7 +336,16 @@
             color: #b17313;
 
             .ͼb {
+              font-weight: bold;
               color: #7c609e;
+              font-family: RobotoMono-BoldItalic;
+              font-style: italic;
+            }
+
+            .cm-not-keyword {
+              .ͼb {
+                color: #ea3636;
+              }
             }
 
             .ͼi,

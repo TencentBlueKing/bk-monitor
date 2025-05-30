@@ -48,10 +48,14 @@
       .group-item {
         height: 32px;
         padding: 0 13px;
+        overflow: hidden;
         font-size: 12px;
         line-height: 32px;
         color: #4D4F56;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         cursor: pointer;
+        
   
         &:hover {
           background: #F5F7FA;

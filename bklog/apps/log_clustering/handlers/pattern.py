@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
-from typing import List
 
 import arrow
+from django.conf import settings
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -31,6 +31,8 @@ from django.utils.functional import cached_property
 from apps.api import MonitorApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
+    DEFAULT_ACTION_NOTICE,
+    DEFAULT_ALERT_NOTICE,
     DEFAULT_LABEL,
     DOUBLE_PERCENTAGE,
     HOUR_MINUTES,
@@ -308,7 +310,7 @@ class PatternHandler:
     def new_class_field(self) -> str:
         return f"{NEW_CLASS_FIELD_PREFIX}_{self._pattern_level}"
 
-    def _parse_pattern_aggs_result(self, pattern_field: str, aggs_result: dict) -> List[dict]:
+    def _parse_pattern_aggs_result(self, pattern_field: str, aggs_result: dict) -> list[dict]:
         aggs = aggs_result.get("aggs")
         pattern_field_aggs = aggs.get(pattern_field)
         if not pattern_field_aggs:
@@ -387,7 +389,9 @@ class PatternHandler:
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
                 .where("signature", "IN", patterns)
-                .time_range(start_time=int(start_time.shift(days=-1).timestamp()))  # 只查开始时间前1天的数据，避免历史数据膨胀
+                .time_range(
+                    start_time=int(start_time.shift(days=-1).timestamp())
+                )  # 只查开始时间前1天的数据，避免历史数据膨胀
                 .limit(50000)  # 最多只拉取 5w 条
                 .query()
             )
@@ -400,7 +404,7 @@ class PatternHandler:
             )
             records = []
         for record in records:
-            record["pattern"] = re.sub(r'\$([a-zA-Z-_]+)', r'#\1#', record["pattern"])
+            record["pattern"] = re.sub(r"\$([a-zA-Z-_]+)", r"#\1#", record["pattern"])
         return records
 
     def set_clustering_owner(self, params: dict):
@@ -439,12 +443,28 @@ class PatternHandler:
         if not remark_obj.strategy_id or not remark_obj.strategy_enabled:
             return model_to_dict(remark_obj)
         # 更新告警组
-        MonitorApi.save_notice_group(
-            params={
-                "id": remark_obj.notice_group_id,
-                "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
-            }
-        )
+        if settings.USE_NEW_MONITOR_APIGATEWAY:
+            user_group = MonitorApi.search_user_groups(
+                {"bk_biz_ids": [self._clustering_config.bk_biz_id], "ids": [remark_obj.notice_group_id]}
+            )[0]
+            MonitorApi.save_notice_group(
+                params={
+                    "id": remark_obj.notice_group_id,
+                    "name": user_group["name"],
+                    "bk_biz_id": user_group["bk_biz_id"],
+                    "duty_arranges": [{"users": [{"type": "user", "id": name} for name in remark_obj.owners]}],
+                    "alert_notice": DEFAULT_ALERT_NOTICE,
+                    "action_notice": DEFAULT_ACTION_NOTICE,
+                }
+            )
+        else:
+            MonitorApi.save_notice_group(
+                params={
+                    "id": remark_obj.notice_group_id,
+                    "notice_receiver": [{"type": "user", "id": name} for name in remark_obj.owners],
+                    "bk_biz_id": self._clustering_config.bk_biz_id,
+                }
+            )
 
         return model_to_dict(remark_obj)
 
@@ -539,7 +559,7 @@ class PatternHandler:
         owners = ClusteringRemark.objects.filter(
             bk_biz_id=self._clustering_config.bk_biz_id,
             source_app_code=get_external_app_code(),
-        ).values_list('owners', flat=True)
+        ).values_list("owners", flat=True)
         result = set()
         for owner in owners:
             result.update(owner)

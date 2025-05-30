@@ -197,7 +197,6 @@ export default defineComponent({
             onClick={handleQueryBtnClick}
           >
             <i class='bklog-icon bklog-bofang'></i>
-            {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
             class='sql-editor-view-button'
@@ -207,23 +206,8 @@ export default defineComponent({
             onClick={handleStopBtnClick}
           >
             <i class='bk-icon icon-stop-shape' />
-            {/* <span>{$t('中止')}</span> */}
           </bk-button>
-          {/* <bk-popconfirm
-            width='288'
-            content={$t('此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作')}
-            trigger='click'
-            onConfirm={handleSyncAdditionToSQL}
-          >
-            <bk-button
-              class='sql-editor-view-button'
-              v-bk-tooltips={{ content: $t('同步查询条件到SQL'), theme: 'light' }}
-              loading={isSyncSqlRequesting.value}
-              size='small'
-            >
-              <i class='bklog-icon bklog-tongbu'></i>
-            </bk-button>
-          </bk-popconfirm> */}
+
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
@@ -326,7 +310,7 @@ export default defineComponent({
     });
 
     onMounted(async () => {
-      handleSyncAdditionToSQL(debounceQuery);
+      debounceSyncAdditionToSQL(debounceQuery);
     });
 
     const sqlRootStyle = computed(() => {

@@ -78,6 +78,7 @@ interface IEvent {
   onCommonWhereChange?: (where: IWhereItem[]) => void;
   onShowResidentBtnChange?: (v: boolean) => void;
   onSearch: () => void;
+  onCopyWhere: (v: IWhereItem[]) => void;
 }
 
 @Component
@@ -310,6 +311,12 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   }
 
   handleChange() {
+    const where = this.uiValueToWhere();
+    const whereStr = JSON.stringify(where);
+    this.cacheWhereStr = whereStr;
+    this.$emit('whereChange', where);
+  }
+  uiValueToWhere() {
     const where = [];
     setCacheUIData(this.uiValue);
     for (const item of this.uiValue) {
@@ -323,9 +330,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
         });
       }
     }
-    const whereStr = JSON.stringify(where);
-    this.cacheWhereStr = whereStr;
-    this.$emit('whereChange', where);
+    return where;
   }
 
   /**
@@ -437,28 +442,8 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   handleCopy(_event: MouseEvent) {
     let str = '';
     if (this.mode === EMode.ui && this.uiValue.length) {
-      const where = [];
-      for (const item of this.uiValue) {
-        if (!item?.hide) {
-          where.push({
-            key: item.key.id,
-            condition: ECondition.and,
-            value: item.value.map(v => v.id),
-            ...(item?.options?.is_wildcard ? { options: { is_wildcard: true } } : {}),
-            method: item.method.id,
-          });
-        }
-      }
-      str = JSON.stringify(where);
-      // str = this.uiValue
-      //   .map(item => {
-      //     const value =
-      //       item.value.length > 1
-      //         ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' OR ')})`
-      //         : `"${item.value?.[0]?.id || '*'}"`;
-      //     return `${item.key.id} ${item.method.id} ${value}`;
-      //   })
-      //   .join(' AND ');
+      const where = this.uiValueToWhere();
+      this.$emit('copyWhere', where);
     } else if (this.mode === EMode.queryString && this.qsValue) {
       str = this.qsValue;
     }

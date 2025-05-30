@@ -237,6 +237,7 @@
             }"
           >
             <bk-user-selector
+              v-if="!isExternal"
               style="margin-top: 4px"
               class="principal-input"
               :api="userApi"
@@ -247,11 +248,23 @@
               @change="val => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
+            <bk-tag-input
+              v-else
+              style="margin-top: 4px"
+              v-model="row.owners"
+              placeholder=" "
+              :allow-create="true"
+              :clearable="false"
+              :has-delete-icon="true"
+              @blur="val => handleChangePrincipal(null, row)"
+            >
+            </bk-tag-input>
           </div>
         </template>
       </bk-table-column>
 
       <bk-table-column
+        v-if="!isExternal"
         width="200"
         :label="$t('创建告警策略')"
         :render-header="renderAlertPolicyHeader"
@@ -269,6 +282,7 @@
               <span
                 class="button-view"
                 @click="handleStrategyInfoClick(row)"
+                v-if="row.strategy_id"
                 >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
               ></span>
             </div>
@@ -432,6 +446,8 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper from '@/views/retrieve-helper';
 
   export default {
     components: {
@@ -550,7 +566,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -575,6 +591,9 @@
       },
       username() {
         return this.$store.state.userMeta?.username;
+      },
+      isExternal() {
+        return window.IS_EXTERNAL === true;
       },
     },
     watch: {
@@ -704,7 +723,7 @@
        * @param { String } state 新增或删除
        */
       scrollEvent(state = 'add') {
-        const scrollEl = document.querySelector('.finger-container');
+        const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
         if (!scrollEl) return;
         if (state === 'add') {
           scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
@@ -903,6 +922,11 @@
           });
           return;
         }
+
+        if (!row.owners.length) {
+          return;
+        }
+
         this.curEditUniqueVal = {
           signature: row.signature,
           group: row.group,
@@ -914,7 +938,7 @@
             },
             data: {
               signature: this.getHoverRowValue.signature,
-              owners: val,
+              owners: val ?? row.owners,
               origin_pattern: this.getHoverRowValue.origin_pattern,
               groups: this.getGroupsValue(row.group),
             },
@@ -1220,7 +1244,7 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
       },
       changeStrategy(val, row) {
@@ -1426,6 +1450,23 @@
               background: #eaebf0 !important;
             }
           }
+        }
+      }
+
+      :deep(.bk-tag-input) {
+        background-color: transparent;
+        border: none;
+
+        .input {
+          background-color: transparent;
+        }
+      }
+
+      :deep(.bk-tag-input):hover {
+        background-color: #eaebf0;
+
+        .input {
+          background-color: #eaebf0;
         }
       }
 

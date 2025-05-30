@@ -34,6 +34,7 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
+import { BK_LOG_STORAGE } from '../../store/store.type';
 
 import './index.scss';
 
@@ -42,12 +43,33 @@ export default defineComponent({
   setup() {
     const store = useStore();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle } = useAppInit();
-    const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
+      useAppInit();
+    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+
+    const renderResultContent = () => {
+      if (isPreApiLoaded.value) {
+        return [
+          <V3Toolbar></V3Toolbar>,
+          <V3Container>
+            <V3Searchbar
+              class={{
+                'is-sticky-top': isSearchContextStickyTop.value,
+                'is-sticky-top-result': isSearchResultStickyTop.value,
+              }}
+            ></V3Searchbar>
+            <V3SearchResult></V3SearchResult>
+          </V3Container>,
+        ];
+      }
+
+      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
+    };
 
     return () => (
       <div
         style={stickyStyle.value}
+        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
@@ -59,16 +81,7 @@ export default defineComponent({
           style={contentStyle.value}
           class='v3-bklog-content'
         >
-          <V3Toolbar></V3Toolbar>
-          <V3Container>
-            <V3Searchbar
-              class={{
-                'is-sticky-top': isSearchContextStickyTop.value,
-                'is-sticky-top-result': isSearchResultStickyTop.value,
-              }}
-            ></V3Searchbar>
-            <V3SearchResult></V3SearchResult>
-          </V3Container>
+          {renderResultContent()}
         </div>
       </div>
     );

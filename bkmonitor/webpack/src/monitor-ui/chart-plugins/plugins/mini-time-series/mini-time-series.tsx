@@ -80,7 +80,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
   @Prop({ type: String, default: '' }) unit: string;
   @Prop({ type: Number, default: 2 }) unitDecimal: number;
   /* tips显示值标题 */
-  @Prop({ type: String, default: window.i18n.tc('数量') }) valueTitle: string;
+  @Prop({ type: String, default: window.i18n.t('数量') }) valueTitle: string;
   /* 是否标记最后一个点并且右侧显示其值 */
   @Prop({ type: Boolean, default: true }) showLastMarkPoint: boolean;
   /* 固定右侧值的显示宽度 */
