@@ -32,7 +32,6 @@ from apps.log_databus.handlers.collector_handler.host import HostCollectorHandle
 from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
-from ...log_databus.models import ContainerCollectorConfig
 
 from ...log_databus.serializers import CollectorCreateSerializer
 from ...utils.drf import custom_params_valid
@@ -1253,12 +1252,6 @@ class TestCollector(TestCase):
         result = collector.retry_instances(params)
         self.assertEqual(result, task_id_list)
 
-        ContainerCollectorConfig.objects.create(**CREATE_CONFIG_PARAMS)
-        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
-        params = [6]
-        result = collector.retry_instances(params)
-        self.assertEqual(result, params)
-
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 8})
     @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)
     def _test_destroy(self, collector_config_id):
@@ -1423,7 +1416,7 @@ class TestCollector(TestCase):
         collector = HostCollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO
-        result = collector.get_subscription_task_status(collector.data.task_id_list)
+        result = collector.get_task_status(collector.data.task_id_list)
         self.assertTrue(result["contents"][0]["is_label"])
         self.assertEqual(result["contents"][0]["label_name"], "add")
         self.assertEqual(result["contents"][0]["bk_obj_id"], "module")
@@ -1431,7 +1424,7 @@ class TestCollector(TestCase):
 
         # 采集目标是HOST-INSTANCE
         collector.data.target_node_type = "INSTANCE"
-        result2 = collector.get_subscription_task_status(collector.data.task_id_list)
+        result2 = collector.get_task_status(collector.data.task_id_list)
         self.assertFalse(result2["contents"][0]["is_label"])
         self.assertEqual(result2["contents"][0]["bk_obj_name"], "主机")
         self.assertEqual(result2["contents"][0]["node_path"], "主机")

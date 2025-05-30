@@ -143,7 +143,7 @@ class Command(BaseCommand):
 
     @classmethod
     def create_data_id(cls, collect_config):
-        data_name = CollectorHandler().build_bk_data_name(
+        data_name = CollectorHandler.build_bk_data_name(
             collect_config.bk_biz_id, collect_config.collector_config_name_en
         )
         params = {

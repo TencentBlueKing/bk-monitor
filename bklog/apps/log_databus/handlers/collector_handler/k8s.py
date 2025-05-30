@@ -85,7 +85,13 @@ from apps.log_databus.models import (
     ContainerCollectorConfig,
     BcsStorageClusterConfig,
 )
-from apps.log_databus.serializers import ContainerCollectorYamlSerializer
+from apps.log_databus.serializers import (
+    ContainerCollectorYamlSerializer,
+    FastContainerCollectorCreateSerializer,
+    FastContainerCollectorUpdateSerializer,
+    CreateContainerCollectorSerializer,
+    UpdateContainerCollectorSerializer,
+)
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_search.constants import (
     CollectorScenarioEnum,
@@ -105,6 +111,11 @@ from bkm_space.define import SpaceTypeEnum
 
 
 class K8sCollectorHandler(CollectorHandler):
+    FAST_CREATE_SERIALIZER = FastContainerCollectorCreateSerializer
+    FAST_UPDATE_SERIALIZER = FastContainerCollectorUpdateSerializer
+    CREATE_SERIALIZER = CreateContainerCollectorSerializer
+    UPDATE_SERIALIZER = UpdateContainerCollectorSerializer
+
     def _pre_start(self):
         # 如果是容器环境 则创建容器采集配置
         if self.data.is_container_environment:
@@ -112,31 +123,57 @@ class K8sCollectorHandler(CollectorHandler):
             for container_config in container_configs:
                 self.create_container_release(container_config)
 
-    @transaction.atomic
-    def start(self, **kwargs):
-        super().start()
-        return True
-
     def _pre_stop(self):
         if self.data.is_container_environment:
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.delete_container_release(container_config)
 
-    @transaction.atomic
-    def stop(self, **kwargs):
-        super().stop()
-        return True
-
     def _pre_destroy(self):
         if self.data.is_container_environment:
             ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).delete()
 
-    def retry_instances(self, instance_id_list):
-        return self.retry_container_collector(instance_id_list)
+    def retry_instances(self, container_collector_config_id_list, **kwargs):
+        """
+        retry_container_collector
+        @param container_collector_config_id_list:
+        @return:
+        """
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
+        if container_collector_config_id_list:
+            container_configs = container_configs.filter(id__in=container_collector_config_id_list)
+
+        for container_config in container_configs:
+            self.create_container_release(container_config)
+        return [config.id for config in container_configs]
 
     def get_task_status(self, id_list):
-        return self.get_container_collect_status(container_collector_config_id_list=id_list)
+        """
+        查询容器采集任务状态
+        """
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
+        if id_list:
+            container_configs = container_configs.filter(id__in=id_list)
+
+        contents = []
+        for container_config in container_configs:
+            contents.append(
+                {
+                    "message": container_config.status_detail,
+                    "status": container_config.status,
+                    "container_collector_config_id": container_config.id,
+                    "name": self._generate_bklog_config_name(container_config.id),
+                }
+            )
+        return {
+            "contents": [
+                {
+                    "collector_config_id": self.data.collector_config_id,
+                    "collector_config_name": self.data.collector_config_name,
+                    "child": contents,
+                }
+            ]
+        }
 
     def get_subscription_status(self):
         """
@@ -207,6 +244,13 @@ class K8sCollectorHandler(CollectorHandler):
                 }
             ]
         }
+
+    def update_or_create(self, params: dict, action=None) -> dict:
+        if action == "create":
+            return self.create_container_config(params)
+        elif action == "update":
+            return self.update_container_config(params)
+        return {}
 
     def update_container_config(self, data):
         bk_biz_id = data["bk_biz_id"]
@@ -404,7 +448,7 @@ class K8sCollectorHandler(CollectorHandler):
 
         return yaml.safe_dump_all(result)
 
-    def fast_container_update(self, params: dict) -> dict:
+    def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
         # 补充缺少的清洗配置参数
@@ -587,7 +631,7 @@ class K8sCollectorHandler(CollectorHandler):
             "task_id_list": self.data.task_id_list,
         }
 
-    def fast_container_create(self, params: dict) -> dict:
+    def fast_create(self, params: dict) -> dict:
         # 补充缺少的容器参数
         container_configs = params["configs"]
         for container_config in container_configs:
@@ -1481,27 +1525,13 @@ class K8sCollectorHandler(CollectorHandler):
                 )
         return path_container_config, std_container_config
 
-    def retry_container_collector(self, container_collector_config_id_list=None, **kwargs):
-        """
-        retry_container_collector
-        @param container_collector_config_id_list:
-        @return:
-        """
-        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.data.collector_config_id)
-        if container_collector_config_id_list:
-            container_configs = container_configs.filter(id__in=container_collector_config_id_list)
-
-        for container_config in container_configs:
-            self.create_container_release(container_config)
-        return [config.id for config in container_configs]
-
     def retry_bcs_config(self, rule_id):
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         for collector in collectors:
             self._deal_self_call(
                 collector_config_id=collector.collector_config_id,
                 collector=collector,
-                func=self.retry_container_collector,
+                func=self.retry_instances,
             )
         return {"rule_id": rule_id}
 

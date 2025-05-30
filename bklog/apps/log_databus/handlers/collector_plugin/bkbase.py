@@ -36,10 +36,10 @@ class BKBaseCollectorPluginHandler(CollectorPluginHandler):
         创建metadata后赋值给数据平台
         """
 
-        metadata_bk_data_id = CollectorHandler().update_or_create_data_id(
+        metadata_bk_data_id = CollectorHandler.update_or_create_data_id(
             self.collector_plugin, etl_processor=ETLProcessorChoices.TRANSFER.value
         )
-        return CollectorHandler().update_or_create_data_id(self.collector_plugin, bk_data_id=metadata_bk_data_id)
+        return CollectorHandler.update_or_create_data_id(self.collector_plugin, bk_data_id=metadata_bk_data_id)
 
     def _create_metadata_result_table(self) -> None:
         """

@@ -30,6 +30,12 @@ from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_databus.models import CollectorConfig
+from apps.log_databus.serializers import (
+    FastCollectorCreateSerializer,
+    FastCollectorUpdateSerializer,
+    CollectorCreateSerializer,
+    CollectorUpdateSerializer,
+)
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
@@ -75,6 +81,11 @@ from apps.utils.log import logger
 
 
 class HostCollectorHandler(CollectorHandler):
+    FAST_CREATE_SERIALIZER = FastCollectorCreateSerializer
+    FAST_UPDATE_SERIALIZER = FastCollectorUpdateSerializer
+    CREATE_SERIALIZER = CollectorCreateSerializer
+    UPDATE_SERIALIZER = CollectorUpdateSerializer
+
     def _pre_start(self):
         # 启动节点管理订阅功能
         if self.data.subscription_id:
@@ -156,7 +167,7 @@ class HostCollectorHandler(CollectorHandler):
         ]
         return add_nodes + delete_nodes
 
-    def update_or_create(self, params: dict) -> dict:
+    def update_or_create(self, params: dict, action=None) -> dict:
         """
         创建采集配置
         :return:
@@ -589,7 +600,25 @@ class HostCollectorHandler(CollectorHandler):
         return res
 
     def retry_instances(self, instance_id_list):
-        return self.retry_target_nodes(instance_id_list)
+        """
+        重试部分实例或主机
+        @param instance_id_list:
+        @return:
+        """
+        res = self._retry_subscription(instance_id_list=instance_id_list)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": self.data.bk_biz_id,
+            "record_type": UserOperationTypeEnum.COLLECTOR,
+            "record_object_id": self.data.collector_config_id,
+            "action": UserOperationActionEnum.RETRY,
+            "params": {"instance_id_list": instance_id_list},
+        }
+        user_operation_record.delay(operation_record)
+
+        return res
 
     @classmethod
     def _check_task_ready_exception(cls, error: BaseException):
@@ -842,10 +871,10 @@ class HostCollectorHandler(CollectorHandler):
 
         return node_path, bk_obj_name, bk_inst_name
 
-    def get_subscription_task_status(self, task_id_list):
+    def get_task_status(self, id_list):
         """
         查询物理机采集任务状态
-        :param  [list] task_id_list:
+        :param  [list] id_list:
         :return: [dict]
         {
             "contents": [
@@ -964,9 +993,6 @@ class HostCollectorHandler(CollectorHandler):
                     content_obj["child"].append(instance_obj)
             content_data.append(content_obj)
         return {"task_ready": task_ready, "contents": content_data}
-
-    def get_task_status(self, id_list):
-        return self.get_subscription_task_status(task_id_list=id_list)
 
     @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):

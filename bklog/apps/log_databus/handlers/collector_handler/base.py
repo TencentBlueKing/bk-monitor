@@ -75,6 +75,7 @@ from apps.log_databus.exceptions import (
     RegexMatchException,
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
+    CollectorIdNotExistException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -122,30 +123,44 @@ COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 class CollectorHandler:
     data: CollectorConfig
 
-    def __init__(self, collector_config_id=None):
+    def __init__(self, collector_config_id=None, data=None):
         self.collector_config_id = collector_config_id
-        self.data = None
-        if collector_config_id:
+        self.data = data if data else None
+
+        if collector_config_id and not data:
             try:
                 self.data = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
             except CollectorConfig.DoesNotExist:
                 raise CollectorConfigNotExistException()
 
     @classmethod
-    def get_instance(cls, collector_config_id=None):
-        data = None
+    def get_instance(cls, collector_config_id=None, env=None):
+        if env and not collector_config_id:
+            if env == Environment.CONTAINER:
+                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                return collector_handler()
+            else:
+                collector_handler = import_string(
+                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
+                )
+                return collector_handler()
+
         if collector_config_id:
             try:
                 data = CollectorConfig.objects.get(collector_config_id=collector_config_id)
             except CollectorConfig.DoesNotExist:
                 raise CollectorConfigNotExistException()
 
-        if data and data.is_container_environment:
-            collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
-            return collector_handler(collector_config_id)
-
-        collector_handler = import_string("apps.log_databus.handlers.collector_handler.host.HostCollectorHandler")
-        return collector_handler(collector_config_id)
+            if data.is_container_environment:
+                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                return collector_handler(collector_config_id, data)
+            else:
+                collector_handler = import_string(
+                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
+                )
+                return collector_handler(collector_config_id, data)
+        else:
+            raise CollectorIdNotExistException()
 
     def _multi_info_get(self, use_request=True):
         """
@@ -392,6 +407,7 @@ class CollectorHandler:
     def _pre_start(self):
         raise NotImplementedError
 
+    @transaction.atomic
     def start(self):
         """
         启动采集配置
@@ -425,11 +441,13 @@ class CollectorHandler:
             "params": "",
         }
         user_operation_record.delay(operation_record)
+        return True
 
     @abc.abstractmethod
     def _pre_stop(self):
         raise NotImplementedError
 
+    @transaction.atomic
     def stop(self):
         """
         停止采集配置
@@ -461,6 +479,7 @@ class CollectorHandler:
             "params": "",
         }
         user_operation_record.delay(operation_record)
+        return True
 
     def retrieve(self, use_request=True):
         """
@@ -832,8 +851,9 @@ class CollectorHandler:
 
         return data
 
+    @classmethod
     def update_or_create_data_id(
-        self, instance: CollectorConfig | CollectorPlugin, etl_processor: str = None, bk_data_id: int = None
+        cls, instance: CollectorConfig | CollectorPlugin, etl_processor: str = None, bk_data_id: int = None
     ) -> int:
         """
         创建或更新数据源
@@ -852,7 +872,7 @@ class CollectorHandler:
             bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=instance.bk_data_id,
                 data_link_id=instance.data_link_id,
-                data_name=self.build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
+                data_name=cls.build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
             )
@@ -1496,8 +1516,8 @@ class CollectorHandler:
 
         return 0
 
-    @staticmethod
-    def build_bk_data_name(bk_biz_id: int, collector_config_name_en: str) -> str:
+    @classmethod
+    def build_bk_data_name(cls, bk_biz_id: int, collector_config_name_en: str) -> str:
         """
         根据bk_biz_id和collector_config_name_en构建bk_data_name
         @param bk_biz_id:
@@ -1513,8 +1533,8 @@ class CollectorHandler:
             )
         return bk_data_name
 
-    @staticmethod
-    def build_result_table_id(bk_biz_id: int, collector_config_name_en: str) -> str:
+    @classmethod
+    def build_result_table_id(cls, bk_biz_id: int, collector_config_name_en: str) -> str:
         """
         根据bk_biz_id和collector_config_name_en构建result_table_id
         @param bk_biz_id:
@@ -1529,22 +1549,3 @@ class CollectorHandler:
                 f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
             )
         return result_table_id
-
-    @classmethod
-    def get_fast_create_update(
-        cls,
-        request,
-        params_valid,
-        container_collector_serializer,
-        fast_collectors_serializer,
-        action,
-        collector_config_id=None,
-    ):
-        if request.data.get("environment") == Environment.CONTAINER:
-            collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
-            data = params_valid(container_collector_serializer)
-            return getattr(collector_handler(collector_config_id), f"fast_container_{action}")(data)
-
-        data = params_valid(fast_collectors_serializer)
-        collector_handler = import_string("apps.log_databus.handlers.collector_handler.host.HostCollectorHandler")
-        return getattr(collector_handler(collector_config_id), f"fast_{action}")(data)

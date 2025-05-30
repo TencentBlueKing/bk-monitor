@@ -170,7 +170,7 @@ class BKBaseEtlHandler(EtlHandler):
                 table_name = collector_plugin.get_en_name()
             else:
                 table_name = instance.get_en_name()
-            table_id = CollectorHandler().build_result_table_id(instance.get_bk_biz_id(), table_name)
+            table_id = CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_name)
             storage_params["physical_table_name"] = f"write_{timestamp_format}_{table_id}"
 
         has_storage = BkDataDatabusApi.get_config_db_list({"raw_data_id": instance.bk_data_id})

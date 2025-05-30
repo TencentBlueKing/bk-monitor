@@ -494,7 +494,7 @@ class EtlStorage:
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
-            "table_id": CollectorHandler().build_result_table_id(instance.get_bk_biz_id(), table_id),
+            "table_id": CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_id),
             "is_enable": True,
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,

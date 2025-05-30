@@ -38,7 +38,7 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
+from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig
 from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
@@ -60,13 +60,8 @@ from apps.log_databus.serializers import (
     CollectorRegexDebugSerializer,
     CollectorUpdateSerializer,
     ContainerCollectorConfigToYamlSerializer,
-    CreateContainerCollectorSerializer,
     CustomCreateSerializer,
     CustomUpdateSerializer,
-    FastCollectorCreateSerializer,
-    FastCollectorUpdateSerializer,
-    FastContainerCollectorCreateSerializer,
-    FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
@@ -82,7 +77,6 @@ from apps.log_databus.serializers import (
     TaskDetailSerializer,
     TaskStatusSerializer,
     UpdateAliasSettingsSerializers,
-    UpdateContainerCollectorSerializer,
     ValidateContainerCollectorYamlSerializer,
 )
 from apps.log_search.constants import (
@@ -657,12 +651,9 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(CreateContainerCollectorSerializer)
-            return Response(K8sCollectorHandler().create_container_config(data))
-
-        data = self.params_valid(CollectorCreateSerializer)
-        return Response(HostCollectorHandler().update_or_create(data))
+        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        data = self.params_valid(handler.CREATE_SERIALIZER)
+        return Response(handler.update_or_create(data, "create"))
 
     def update(self, request, *args, collector_config_id=None, **kwargs):
         """
@@ -820,12 +811,9 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(UpdateContainerCollectorSerializer)
-            return Response(K8sCollectorHandler(collector_config_id=collector_config_id).update_container_config(data))
-
-        data = self.params_valid(CollectorUpdateSerializer)
-        return Response(HostCollectorHandler(collector_config_id).update_or_create(data))
+        handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
+        data = self.params_valid(handler.UPDATE_SERIALIZER)
+        return Response(handler.update_or_create(data, "update"))
 
     def destroy(self, request, *args, collector_config_id=None, **kwargs):
         """
@@ -2394,15 +2382,9 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        return Response(
-            CollectorHandler.get_fast_create_update(
-                request,
-                self.params_valid,
-                FastContainerCollectorCreateSerializer,
-                FastCollectorCreateSerializer,
-                "create",
-            )
-        )
+        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        data = self.params_valid(handler.FAST_CREATE_SERIALIZER)
+        return Response(handler.fast_create(data))
 
     @detail_route(methods=["POST"])
     def fast_update(self, request, collector_config_id):
@@ -2474,16 +2456,9 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        return Response(
-            CollectorHandler.get_fast_create_update(
-                request,
-                self.params_valid,
-                FastContainerCollectorUpdateSerializer,
-                FastCollectorUpdateSerializer,
-                "update",
-                collector_config_id=collector_config_id,
-            )
-        )
+        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        data = self.params_valid(handler.FAST_UPDATE_SERIALIZER)
+        return Response(handler.fast_update(data))
 
     @list_route(methods=["POST"], url_path="container_configs_to_yaml")
     def container_configs_to_yaml(self, request):
