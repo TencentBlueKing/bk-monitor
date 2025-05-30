@@ -157,7 +157,7 @@ export default {
   例如: 'For example',
   // 调用分析
   维度值分布: 'Dimension value distribution',
-  K8S对象: 'K8S object',
+  K8S对象: 'K8s object',
 
   去重后的字段统计: 'Field statistics after deduplication',
   '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
