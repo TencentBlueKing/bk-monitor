@@ -735,7 +735,7 @@ class K8sNodeMeta(K8sResourceMeta):
         filter_string = ",".join([filter_string] + ['resource="cpu"'])
         return (
             f"sum ({self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{filter_string},phase!=""}}))'
+            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{self.bcs_cluster_id_filter + "," if self.bcs_cluster_id_filter else ""}phase!="Evicted"}}))'
             f"/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
@@ -779,7 +779,7 @@ class K8sNodeMeta(K8sResourceMeta):
         filter_string = ",".join([filter_string] + ['resource="memory"'])
         return (
             f"sum({self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{filter_string},phase!=""}}))'
+            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{self.bcs_cluster_id_filter + "," if self.bcs_cluster_id_filter else ""}phase!="Evicted"}}))'
             f"/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
