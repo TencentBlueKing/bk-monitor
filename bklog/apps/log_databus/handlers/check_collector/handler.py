@@ -53,7 +53,8 @@ class CheckCollectorHandler:
     HANDLER_NAME = _("启动入口")
 
     def __init__(
-        self, collector_config_id: int, hosts: List[Dict[str, Any]] = None, gse_path: str = None, ipc_path: str = None
+            self, collector_config_id: int, hosts: List[Dict[str, Any]] = None, gse_path: str = None,
+            ipc_path: str = None
     ):
         self.collector_config_id = collector_config_id
         self.hosts = hosts
@@ -188,3 +189,33 @@ def async_run_check(collector_config_id: int, hosts: List[Dict[str, Any]] = None
     handler.run()
     handler.record.append_normal_info("check finish", handler.HANDLER_NAME)
     handler.record.change_status(CheckStatusEnum.FINISH.value)
+
+
+@high_priority_task(ignore_result=True)
+def async_atomic_check(collector_config_id, hosts: List[Dict[str, Any]], check_record_id):
+    record = CheckCollectorRecord(check_record_id=check_record_id)
+    record.append_normal_info("check start", "atomic check")
+    record.change_status(CheckStatusEnum.STARTED.value)
+    collector_config = CollectorConfig.objects.get(pk=collector_config_id)
+    target_server = JobHelper.adapt_hosts_target_server(
+        bk_biz_id=collector_config.bk_biz_id,
+        hosts=hosts
+    )
+    if collector_config.is_container_environment:
+        checker = BkunifylogbeatChecker(
+            collector_config=collector_config,
+            check_collector_record=record
+        )
+    else:
+        checker = AgentChecker(
+            target_server=target_server,
+            bk_biz_id=collector_config.bk_biz_id,
+            subscription_id=collector_config.subscription_id or 0,
+            gse_path=os.environ.get("GSE_ROOT_PATH", GSE_PATH),
+            ipc_path=os.environ.get("GSE_IPC_PATH", IPC_PATH),
+            check_collector_record=record,
+            collector_config_id=collector_config_id
+        )
+    checker.run()
+    record.append_normal_info("check finish", "atomic check")
+    record.change_status(CheckStatusEnum.FINISH.value)

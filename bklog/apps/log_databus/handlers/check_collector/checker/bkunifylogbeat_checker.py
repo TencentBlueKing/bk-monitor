@@ -64,10 +64,10 @@ class BkunifylogbeatChecker(Checker):
     CHECKER_NAME = _("采集器检查")
 
     def __init__(
-        self,
-        collector_config: CollectorConfig,
-        *args,
-        **kwargs,
+            self,
+            collector_config: CollectorConfig,
+            *args,
+            **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.collector_config = collector_config
@@ -103,6 +103,7 @@ class BkunifylogbeatChecker(Checker):
         self.check_daemonset()
         self.get_match_pod()
         self.check_pod()
+        self.check_log_paths()
         self.filter_target_server()
 
     def check_task_status(self):
@@ -410,8 +411,96 @@ class BkunifylogbeatChecker(Checker):
                 size = int(size) / 1024 / 1024
                 continue
         self.append_normal_info(
-            _("子配置文件中路径: {filepath}, 最后修改时间: {mtime}, 文件大小: {size}MB").format(filepath=filepath, mtime=mtime, size=size)
+            _("子配置文件中路径: {filepath}, 最后修改时间: {mtime}, 文件大小: {size}MB").format(
+                filepath=filepath,
+                mtime=mtime,
+                size=size)
         )
+
+    def _check_path_match(self, paths: List[str]):
+        for pod in self.pod_list:
+            if not pod.sub_config_list:
+                continue
+            missing_paths = []
+            existing_files = []
+            for path in paths:
+                # 在容器内执行ls命令检查路径
+                cmd = ["/bin/ls", "-d", "--", path]
+                ls_output = self.k8s_client.exec_command(
+                    pod_name=pod.name,
+                    namespace=self.namespace,
+                    command=cmd,
+                    container_name=self.container_name
+                )
+                if "No such file or directory" in ls_output:
+                    missing_paths.append(path)
+                else:
+                    existing_files.extend(ls_output.splitlines())
+            if missing_paths:
+                self.append_error_info(
+                    _("Pod[{pod_name}] 以下路径无匹配文件: {paths}").format(
+                        pod_name=pod.name,
+                        paths=", ".join(missing_paths)
+                    )
+                )
+                if existing_files:
+                    self.append_normal_info(
+                        _("Pod[{pod_name}] 已存在的文件:\n{files}").format(
+                            pod_name=pod.name,
+                            files="\n".join(existing_files[:10])
+                        )
+                    )
+            else:
+                self.append_normal_info(
+                    _("Pod[{pod_name}] 所有路径检查通过").format(pod_name=pod.name)
+                )
+                if existing_files:
+                    self.append_normal_info(
+                        _("Pod[{pod_name}] 匹配到的文件:\n{files}").format(
+                            pod_name=pod.name,
+                            files="\n".join(existing_files[:10])
+                        )
+                    )
+
+    def _check_file_held(self, paths: List[str]):
+        """检查文件是否被占用"""
+        for pod in self.pod_list:
+            if not pod.sub_config_list:
+                continue
+            # 获取bkunifylogbeat进程打开的文件
+            cmd = ["/usr/bin/lsof", "-c", "bkunifylogbeat"]
+            lsof_output = self.k8s_client.exec_command(
+                pod_name=pod.name,
+                namespace=self.namespace,
+                command=cmd,
+                container_name=self.container_name
+            )
+            held_files = {parts[8] for line in lsof_output.splitlines()
+                          if line.strip() and len(parts := line.split()) > 8}
+            conflict_files = []
+            for path in paths:
+                cmd = ["/bin/ls", "-d", "--", path]
+                matched_files = self.k8s_client.exec_command(
+                    pod_name=pod.name,
+                    namespace=self.namespace,
+                    command=cmd,
+                    container_name=self.container_name
+                )
+                if matched_files:
+                    for file_path in matched_files.splitlines():
+                        if file_path in held_files:
+                            conflict_files.append(file_path)
+            if conflict_files:
+                self.append_error_info(
+                    _("Pod[{pod_name}] 文件被占用: {files}").format(
+                        pod_name=pod.name,
+                        files=", ".join(conflict_files[:3])
+                    )
+                )
+            else:
+                self.append_normal_info(
+                    _("Pod[{pod_name}] 无文件占用冲突").format(pod_name=pod.name)
+                )
 
     def filter_target_server(self):
         node_ip_list = [pod.node_ip for pod in self.pod_list]
@@ -446,3 +535,22 @@ class BkunifylogbeatChecker(Checker):
                     {"ip": item["bk_host_innerip"], "bk_cloud_id": item["bk_cloud_id"]} for item in result["info"]
                 ]
             }
+
+    def check_log_paths(self):
+        paths = self.get_log_paths()
+        if not paths:
+            self.append_error_info(_("未配置日志采集路径"))
+            return
+        self._check_path_match(paths)
+        self._check_file_held(paths)
+
+    def get_log_paths(self) -> List[str]:
+        params = getattr(self.collector_config, "params", {}) or {}
+        log_paths = params.get("paths", [])
+        paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
+        # 处理路径格式，确保返回的是列表
+        if isinstance(paths, str):
+            return [path.strip() for path in paths.split(",") if path.strip()]
+        elif isinstance(paths, list):
+            return paths
+        return []

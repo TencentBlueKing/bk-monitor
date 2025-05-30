@@ -43,6 +43,7 @@ from apps.log_databus.constants import (
     WAIT_FOR_RETRY,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
+from apps.log_databus.models import CollectorConfig
 from config import BASE_DIR
 
 
@@ -54,14 +55,15 @@ class AgentChecker(Checker):
     CHECKER_NAME = "agent checker"
 
     def __init__(
-        self,
-        bk_biz_id: int,
-        target_server: dict,
-        subscription_id: int,
-        gse_path: str,
-        ipc_path: str,
-        *args,
-        **kwargs,
+            self,
+            bk_biz_id: int,
+            target_server: dict,
+            subscription_id: int,
+            gse_path: str,
+            ipc_path: str,
+            collector_config_id: int,
+            *args,
+            **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.bk_biz_id = bk_biz_id
@@ -73,6 +75,7 @@ class AgentChecker(Checker):
         self.step_instance_id = 0
         self.ip_status = []
         self.ip_logs = []
+        self.collector_config_id = collector_config_id
 
     def _run(self):
         self.execute_script()
@@ -81,9 +84,20 @@ class AgentChecker(Checker):
         self.format_ip_logs()
 
     def execute_script(self):
+        try:
+            collector_config = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
+            paths = collector_config.params.get("paths", [])
+            paths_param = ",".join(paths) if paths else ""
+        except CollectorConfig.DoesNotExist:
+            paths_param = ""
         script_param = (
-            f"--subscription_id={self.subscription_id} --ipc_socket_file={self.ipc_path} --gse_path={self.gse_path}"
+            f"--subscription_id={self.subscription_id}"
+            f" --ipc_socket_file={self.ipc_path} "
+            f"--gse_path={self.gse_path}"
+            f"--collector_config_id={self.collector_config_id}"
         )
+        if paths_param:
+            script_param += f" --log_paths={paths_param}"
         params = {
             "bk_biz_id": self.bk_biz_id,
             "bk_username": DEFAULT_BK_USERNAME,
@@ -101,7 +115,8 @@ class AgentChecker(Checker):
                 params["script_content"] = base64.b64encode(f.read().encode()).decode()
                 f.close()
         except Exception as e:  # pylint: disable=broad-except
-            self.append_error_info(_("[快速执行脚本] 打开脚本{script_pwd}失败, 报错为: {e}").format(script_pwd=script_pwd, e=e))
+            self.append_error_info(
+                _("[快速执行脚本] 打开脚本{script_pwd}失败, 报错为: {e}").format(script_pwd=script_pwd, e=e))
             return
 
         try:
@@ -169,12 +184,14 @@ class AgentChecker(Checker):
         try:
             result = JobApi.batch_get_job_instance_ip_log(params=params, request_cookies=False)
             self.ip_logs = result.get("script_task_logs", [])
+            print(self.ip_logs)
         except Exception as e:  # pylint: disable=broad-except
             error_msg = _("[获取作业执行结果] 作业: {job_instance_id}, 报错为: {e}").format(
                 job_instance_id=self.job_instance_id, e=e
             )
         if not self.ip_logs:
-            error_msg = _("[获取作业执行结果] 作业: {job_instance_id}, 数据为空").format(job_instance_id=self.job_instance_id)
+            error_msg = _("[获取作业执行结果] 作业: {job_instance_id}, 数据为空").format(
+                job_instance_id=self.job_instance_id)
         if len(self.ip_status) != len(self.ip_logs):
             self.append_warning_info(
                 _("[获取作业执行结果] 作业: {job_instance_id}, 数据不完整").format(job_instance_id=self.job_instance_id)
@@ -226,7 +243,8 @@ class AgentChecker(Checker):
 
                     except Exception as e:  # pylint: disable=broad-except
                         self.append_error_info(
-                            _("[获取作业执行结果] [{host}] 获取脚本执行结果失败, 报错为: {e}").format(host=host, e=str(e))
+                            _("[获取作业执行结果] [{host}] 获取脚本执行结果失败, 报错为: {e}").format(host=host,
+                                                                                                      e=str(e))
                         )
             else:
                 self.append_error_info(
