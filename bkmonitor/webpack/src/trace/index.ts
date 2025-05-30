@@ -48,7 +48,7 @@ import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
-import { asignWindowField } from 'monitor-common/utils/asign-window';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
@@ -74,7 +74,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      asignWindowField(data);
+      assignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -96,7 +96,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          asignWindowField(data);
+          assignWindowField(data);
         });
     })
     .catch(e => console.error(e))

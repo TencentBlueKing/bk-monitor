@@ -152,6 +152,8 @@ declare global {
      * 灰度业务是否开启故障事件中心
      */
     enable_aiops_event_center_biz_list?: number[];
+    // 多租户用户中心接口地址
+    bk_user_web_api_url?: string;
   }
   interface HTMLElement {
     ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
