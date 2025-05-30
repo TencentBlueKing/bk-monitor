@@ -169,7 +169,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
               namespace: this.resourceDetail?.namespace,
               resource_type: this.groupByField,
               workload_name: workload_name,
-              workload_kind: workload_kind,
+              workload_type: workload_kind,
               pod_name: this.resourceDetail?.pod,
               container_name: this.resourceDetail?.container,
               service_name: this.resourceDetail?.service,
