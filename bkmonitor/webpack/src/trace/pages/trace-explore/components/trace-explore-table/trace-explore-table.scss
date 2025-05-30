@@ -97,6 +97,9 @@
     &.explore-prefix-icon-col {
       display: flex;
       align-items: center;
+      .prefix-icon {
+        flex-shrink: 0;
+      }
 
       .status-code-icon {
         &-normal {
@@ -173,6 +176,12 @@
             border-radius: 50%;
           }
         }
+      }
+
+      .span-kind-icon {
+        width: 22px;
+        flex-shrink: 0;
+        margin-right: 4px;
       }
     }
   }

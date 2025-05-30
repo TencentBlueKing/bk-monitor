@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { OptionData, PrimaryTableCol } from 'tdesign-vue-next';
+import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-next';
 
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
@@ -62,7 +62,7 @@ export interface TableCellRenderValueType {
   }[];
   [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
     alias: string;
-    prefixIcon: string;
+    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
   };
   [ExploreTableColumnTypeEnum.LINK]: {
     alias: string;
