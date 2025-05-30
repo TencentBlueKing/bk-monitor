@@ -625,6 +625,7 @@ export default defineComponent({
         if (item.key === '*') {
           return {
             ...item,
+            operator: 'equal',
             options: {},
           };
         }
