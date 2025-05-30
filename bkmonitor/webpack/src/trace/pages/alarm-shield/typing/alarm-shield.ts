@@ -39,12 +39,15 @@ export const categoryMap = {
 
 export enum EColumn {
   beginTime = 'begin_time',
+  currentCycleRamainingTime = 'currentCycleRamainingTime',
   cycleDuration = 'cycleDuration',
   description = 'description',
+  endTime = 'endTime',
   failureTime = 'failure_time',
   id = 'id',
   operate = 'operate',
   shieldContent = 'shieldContent',
+  shieldCycle = 'shieldCycle',
   shieldType = 'shieldType',
   status = 'status',
   updateUser = 'update_user',

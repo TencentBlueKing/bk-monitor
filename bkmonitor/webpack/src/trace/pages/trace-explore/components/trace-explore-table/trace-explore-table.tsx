@@ -445,6 +445,7 @@ export default defineComponent({
       removeScrollListener();
       abortController?.abort?.();
       abortController = null;
+      store.updateTableList([]);
     });
 
     /**

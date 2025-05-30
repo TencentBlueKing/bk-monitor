@@ -24,6 +24,7 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.middlewares.authentication import NoCsrfSessionAuthentication
 from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import utc2biz_str
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -85,6 +86,15 @@ class MetricPluginViewSet(PermissionMixin, ResourceViewSet):
 class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
     queryset = CollectorPluginMeta.objects.all()
     serializer_class = Serializer
+
+    # 使用plugin_id作为key
+    lookup_field = "plugin_id"
+
+    def get_queryset(self):
+        """
+        根据租户ID过滤插件
+        """
+        return super().get_queryset().filter(bk_tenant_id=self.request.user.tenant_id)
 
     def get_authenticators(self):
         authenticators = super().get_authenticators()
@@ -166,6 +176,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         return plugin_configs
 
     def list(self, request, *args, **kwargs):
+        bk_tenant_id = get_request_tenant_id()
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 10))
         bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
@@ -177,43 +188,41 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 是否包含虚拟插件
         with_virtual = request.query_params.get("with_virtual", "false").lower() == "true"
 
-        # 获取全量的插件数据（包含外键数据）
-        all_versions = (
-            PluginVersionHistory.objects.exclude(plugin__plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE)
-            .select_related("plugin", "config", "info")
-            .defer("info__metric_json", "info__description_md")
-        )
+        # 过滤插件
+        plugins = self.get_queryset().exclude(plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE)
         if bk_biz_id:
-            all_versions = all_versions.filter(plugin__bk_biz_id__in=[0, bk_biz_id])
+            plugins = plugins.filter(bk_biz_id__in=[0, bk_biz_id])
         else:
             assert_manage_pub_plugin_permission()
-
-        exact_search_map = {
-            "stage": status,
-        }
+        # 标签过滤
         if labels:
-            exact_search_map.update({"plugin__label__in": labels.split(",")})
+            plugins = plugins.filter(label__in=labels.split(","))
+        # 关键字搜索
+        if search_key:
+            for search_item in ["plugin_id", "create_user", "update_user", "plugin_display_name"]:
+                plugins = plugins.filter(**{f"{search_item}__icontains": search_key})
 
-        for k, v in list(exact_search_map.items()):
-            if v:
-                all_versions = all_versions.filter((k, v))
+        plugin_dict = {plugin.plugin_id: plugin for plugin in plugins}
 
-        fuzzy_search_list = ["plugin.plugin_id", "plugin.create_user", "plugin.update_user", "info.plugin_display_name"]
-        return_version = []
-        for fuzzy_key in fuzzy_search_list:
-            for v in all_versions:
-                if search_key in getattr(getattr(v, fuzzy_key.split(".")[0]), fuzzy_key.split(".")[1]):
-                    return_version.append(v)
+        # 获取全量的插件数据（包含外键数据）
+        all_versions = (
+            PluginVersionHistory.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=list(plugin_dict.keys()))
+            .select_related("config", "info")
+            .defer("info__metric_json", "info__description_md")
+        )
 
-        # 取出每个plugin的最新版本
-        plugin_dict = {}
-        for version in return_version:
-            plugin_id = version.plugin.plugin_id
+        if status:
+            all_versions = all_versions.filter(stage=status)
+
+        # 取出每个plugin的最新版本进行预缓存
+        plugin_latest_versions: dict[str, PluginVersionHistory] = {}
+        for version in all_versions:
+            version.plugin = plugin_dict[version.plugin_id]
             # 当前面有一条release版本，后面的一定都是旧版本。debug和unregister不能共存，且只能有一条
-            if plugin_id not in plugin_dict or version.is_release:
-                plugin_dict[plugin_id] = version
+            if version.plugin_id not in plugin_latest_versions or version.is_release:
+                plugin_latest_versions[version.plugin_id] = version
 
-        return_version = list(plugin_dict.values())
+        return_version = list(plugin_latest_versions.values())
         return_version.sort(key=lambda x: x.update_time, reverse=True)
         # 排序
         if order:
@@ -247,13 +256,15 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
         # 生产插件采集的统计值和插件发布版本数量的统计值
         plugin_ids = list({item.plugin.plugin_id for item in return_version})
-        plugin_queryset = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids)
+        plugin_queryset = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
         if bk_biz_id:
             plugin_queryset = plugin_queryset.filter(bk_biz_id=bk_biz_id)
         plugin_count_queryset = plugin_queryset.values("plugin_id").annotate(count=Count("plugin_id"))
         plugin_counts = {item["plugin_id"]: item["count"] for item in plugin_count_queryset}
         version_count_queryset = (
-            PluginVersionHistory.objects.filter(plugin_id__in=plugin_ids, stage=PluginVersionHistory.Stage.RELEASE)
+            PluginVersionHistory.objects.filter(
+                bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids, stage=PluginVersionHistory.Stage.RELEASE
+            )
             .values("plugin_id")
             .annotate(count=Count("plugin_id"))
         )
@@ -297,13 +308,15 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         return Response(search_result)
 
     def retrieve(self, request, *args, **kwargs):
-        if kwargs["pk"] in ["snmp_v1", "snmp_v2c", "snmp_v3"]:
-            plugin_manager = PluginManagerFactory.get_manager(plugin=kwargs["pk"], plugin_type=PluginType.SNMP_TRAP)
+        if kwargs["plugin_id"] in ["snmp_v1", "snmp_v2c", "snmp_v3"]:
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=get_request_tenant_id(), plugin=kwargs["plugin_id"], plugin_type=PluginType.SNMP_TRAP
+            )
             return Response(plugin_manager.get_default_trap_plugin())
 
         # 腾讯云指标采集插件
-        if kwargs["pk"] == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
-            plugins = self.get_virtual_plugins(plugin_id=kwargs["pk"], with_detail=True)
+        if kwargs["plugin_id"] == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
+            plugins = self.get_virtual_plugins(plugin_id=kwargs["plugin_id"], with_detail=True)
             if plugins:
                 return Response(plugins[0])
 
@@ -355,7 +368,9 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
             # 全业务插件 》 单业务插件，判断是否有关联项
             if not bk_biz_id and new_bk_biz_id:
-                collect_config = CollectConfigMeta.objects.filter(plugin__plugin_id=instance.plugin_id)
+                collect_config = CollectConfigMeta.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=instance.plugin_id
+                )
                 if collect_config and [x for x in collect_config if x.bk_biz_id != new_bk_biz_id]:
                     raise RelatedItemsExist({"msg": _("存在其余业务的关联项")})
 
@@ -401,7 +416,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         param = request.data
         plugin_ids = param["plugin_ids"]
         # TODO: 检查是否存在关联项
-        plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_ids)
+        plugins = self.get_queryset().filter(plugin_id__in=plugin_ids)
         for plugin in plugins:
             # 检查插件的删除权限
             if not plugin.delete_allowed:
@@ -409,14 +424,20 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             for plugin_id in plugin_ids:
-                plugin = CollectorPluginMeta.origin_objects.filter(plugin_id=plugin_id)
-                if plugin.first():
-                    PluginVersionHistory.origin_objects.filter(plugin=plugin.first()).delete()
+                PluginVersionHistory.origin_objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
+                ).delete()
+
+                plugin = CollectorPluginMeta.origin_objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
+                ).first()
+                if plugin:
                     plugin.delete()
-                    try:
-                        api.node_man.delete_plugin(name=plugin_id)
-                    except BKAPIError:
-                        raise NodeManDeleteError
+
+                try:
+                    api.node_man.delete_plugin(name=plugin.plugin_id)
+                except BKAPIError:
+                    raise NodeManDeleteError
 
         return Response({"result": True})
 
@@ -437,7 +458,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=False)
     def replace_plugin(self, request, *args, **kwargs):
-        instance = CollectorPluginMeta.objects.get(plugin_id=request.data["plugin_id"])
+        instance = self.get_queryset().get(plugin_id=request.data["plugin_id"])
         current_config_version = instance.current_version.config_version
         current_info_version = instance.current_version.info_version
         plugin_manager = PluginManagerFactory.get_manager(plugin=instance)
@@ -527,7 +548,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         serializer = ReleaseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            plugin = CollectorPluginMeta.objects.get(plugin_id=kwargs.get("pk"))
+            plugin = self.get_queryset().get(plugin_id=kwargs.get("plugin_id"))
         except CollectorPluginMeta.DoesNotExist:
             raise PluginIDNotExist
 
