@@ -242,7 +242,7 @@ export default defineComponent({
       inputValue.value = val.replace(/^\s+|\s+$/g, '');
     }
     function handleKeyDownSlash(event) {
-      if (event.key === '/') {
+      if (event.key === '/' && event.target?.tagName !== 'INPUT') {
         handlePopUp(EQueryStringTokenType.key, '');
         setTimeout(() => {
           queryStringEditor.value.editorEl?.focus?.();

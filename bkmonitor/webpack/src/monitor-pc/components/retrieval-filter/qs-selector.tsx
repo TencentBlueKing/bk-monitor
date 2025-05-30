@@ -317,7 +317,7 @@ export default class QsSelector extends tsc<IProps> {
    * @param event
    */
   handleKeyDownSlash(event) {
-    if (event.key === '/') {
+    if (event.key === '/' && event.target?.tagName !== 'INPUT') {
       this.handlePopUp(EQueryStringTokenType.key, '');
       setTimeout(() => {
         this.queryStringEditor.editorEl?.focus?.();
