@@ -327,7 +327,7 @@ export default class K8SCharts extends tsc<
         content += `,${podName}=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
       case K8sTableColumnKeysEnum.WORKLOAD:
-        content += `,workload_kind=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_TYPE)})$",workload_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
+        content += `,workload_kind=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_KIND)})$",workload_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
         break;
       case K8sTableColumnKeysEnum.INGRESS:
       case K8sTableColumnKeysEnum.SERVICE:
@@ -732,7 +732,7 @@ export default class K8SCharts extends tsc<
       [K8sTableColumnKeysEnum.POD, ''],
       [K8sTableColumnKeysEnum.SERVICE, ''],
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
-      [K8sTableColumnKeysEnum.WORKLOAD_TYPE, ''],
+      [K8sTableColumnKeysEnum.WORKLOAD_KIND, ''],
     ]);
     let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) {
@@ -788,7 +788,7 @@ export default class K8SCharts extends tsc<
         resourceMap.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
-        resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_KIND, Array.from(workloadKind).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.INGRESS, Array.from(ingress).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.SERVICE, Array.from(service).filter(Boolean).join('|'));
         resourceMap.set(K8sTableColumnKeysEnum.NODE, Array.from(node).filter(Boolean).join('|'));

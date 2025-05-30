@@ -163,7 +163,7 @@ export default {
   workload: 'workload',
   namespace: 'namespace',
   cluster: 'cluster',
-  workload_type: 'workload_type',
+  workload_kind: 'workload_kind',
   container: 'container',
   ingress: 'ingress',
   service: 'service',
