@@ -153,7 +153,6 @@ def fetch_request_username():
     return request_username
 
 
-
 def add_highlight_mark(data_list: List[dict], match_field: str, pattern: str, ignore_case: bool = False):
     """
     添加高亮标记
@@ -180,7 +179,7 @@ def add_highlight_mark(data_list: List[dict], match_field: str, pattern: str, ig
     return data_list
 
 
-def split_object_fields(fields_list: list[str]):
+def split_object_fields(fields_list: List[str]):
     """
     把列表中包含逗号的字符串进行分割
     """

@@ -1750,12 +1750,6 @@ class AlertStatusEnum(ChoicesEnum):
 
 MAX_WORKERS = 5
 
-
-
-class HighlightConfig(object):
-    PRE_TAG = "<mark>"
-    POST_TAG = "</mark>"
-
     
 class DateFormat:
     """
@@ -1764,3 +1758,7 @@ class DateFormat:
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
     ARROW_FORMAT = "YYYY-MM-DD HH:mm:ss.SSSSSS"
 
+
+class HighlightConfig(object):
+    PRE_TAG = "<mark>"
+    POST_TAG = "</mark>"
