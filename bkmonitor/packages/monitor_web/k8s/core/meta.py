@@ -280,7 +280,7 @@ class K8sResourceMeta:
                     if point[0]:
                         max_data_point = max(max_data_point, point[1])
         for line in series:
-            last_data_points_value:  float | int | None = line["datapoints"][-1][0]
+            last_data_points_value: float | int | None = line["datapoints"][-1][0]
             last_data_points = line["datapoints"][-1][1]
             if last_data_points == max_data_point:
                 # 如果 len(series) <= page_size，则保留实际值为None的情况
@@ -650,6 +650,7 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string += ","
         filter_string += 'role=~"master|control-plane"'
         return f"""count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
+
     @property
     def meta_prom_with_worker_node_count(self):
         """count by(bcs_cluster_id)(kube_node_labels) - count(sum by (bcs_cluster_id, node)(kube_node_role{role=~"master|control-plane"}))"""
@@ -729,10 +730,12 @@ class K8sNodeMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_node_cpu_capacity_ratio(self):
+        # 过滤被标记为已驱逐的Pod
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="cpu"'])
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
+            f"sum ({self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
+            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{filter_string},phase!=""}}))'
             f"/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
@@ -775,7 +778,8 @@ class K8sNodeMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="memory"'])
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
+            f"sum({self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
+            f'on (pod) group_right() count by (pod)(kube_pod_status_phase{{{filter_string},phase!=""}}))'
             f"/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
