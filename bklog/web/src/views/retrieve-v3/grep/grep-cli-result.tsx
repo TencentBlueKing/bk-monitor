@@ -1,8 +1,9 @@
-import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import TextSegmentation from '../../retrieve-v2/search-result-panel/log-result/text-segmentation';
 import RetrieveHelper from '../../retrieve-helper';
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import useLocale from '@/hooks/use-locale';
+import useTextAction from '../../retrieve-v2/hooks/use-text-action';
 
 import './grep-cli-result.scss';
 
@@ -35,11 +36,12 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['load-more'],
+  emits: ['load-more', 'params-change'],
   setup(props, { emit }) {
     const refRootElement = ref<HTMLDivElement>();
     const refLoadMoreElement = ref<HTMLDivElement>();
     const { t } = useLocale();
+    const { handleOperation } = useTextAction(emit, 'grep');
 
     useIntersectionObserver(refLoadMoreElement, () => {
       emit('load-more');
@@ -59,6 +61,24 @@ export default defineComponent({
     onBeforeUnmount(() => {
       RetrieveHelper.destroyMarkInstance();
     });
+
+    const handleMenuClick = event => {
+      const { option, isLink } = event;
+      const isParamsChange = handleOperation(option.operation, {
+        value: option.value,
+        fieldName: option.fieldName,
+        operation: option.operation,
+        isLink,
+        depth: option.depth,
+        displayFieldNames: option.displayFieldNames,
+      });
+
+      if (isParamsChange) {
+        nextTick(() => {
+          emit('params-change');
+        });
+      }
+    };
 
     const getResultRender = () => {
       if (props.list.length === 0) {
@@ -81,6 +101,7 @@ export default defineComponent({
               field={{ field_name: props.fieldName, is_analyzed: true }}
               content={row[props.fieldName] ?? ''}
               data={row}
+              onMenu-click={handleMenuClick}
             />
           </div>
         </div>

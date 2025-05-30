@@ -1,7 +1,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue';
 import GrepCli from './grep-cli';
 import GrepCliResult from './grep-cli-result';
-import RetrieveHelper from '../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import RequestPool from '@/store/request-pool';
 import { axiosInstance } from '@/api';
 import useStore from '@/hooks/use-store';
@@ -122,7 +122,7 @@ export default defineComponent({
     const handleGrepEnter = (value: string) => {
       grepQuery.value = value;
       offset.value = 0;
-      list.value = [];
+      list.value.splice(0, list.value.length);
 
       if (grepQuery.value === '' || field.value === '') {
         return;
@@ -137,6 +137,22 @@ export default defineComponent({
       }
 
       offset.value += 100;
+      requestGrepList();
+    };
+
+    RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
+      offset.value = 0;
+      total.value = 0;
+      list.value.splice(0, list.value.length);
+
+      requestGrepList();
+    });
+
+    const handleParamsChange = () => {
+      offset.value = 0;
+      total.value = 0;
+      list.value.splice(0, list.value.length);
+
       requestGrepList();
     };
 
@@ -165,6 +181,7 @@ export default defineComponent({
           list={list.value}
           matchMode={matchMode.value}
           onUpdate:total-matches={handleTotalMatchesUpdate}
+          on-params-change={handleParamsChange}
           on-load-more={handleLoadMore}
         />
       </div>
