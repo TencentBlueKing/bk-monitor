@@ -180,7 +180,7 @@ export default defineComponent({
               autoHeight={true}
               minHeight='34px'
               maxHeight='160px'
-              onChange={handleEditorChange}
+              on-change={handleEditorChange}
             />
           </div>
         </div>

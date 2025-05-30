@@ -7,141 +7,15 @@
   border-radius: 4px;
   overflow: hidden;
   font-size: 12px;
-}
+  padding-right: 10px;
 
-.cli-result-log-panel {
-  flex: 1;
-  overflow-y: auto;
-  position: relative;
-  width: 100%;
-}
-
-.virtual-scroll-spacer {
-  position: relative;
-  width: 100%;
-}
-
-.virtual-scroll-content {
-  position: absolute;
-  left: 0;
-  right: 0;
-  width: 100%;
-}
-
-.cli-result-line {
-  display: flex;
-  width: 100%;
-  padding: 4px 0;
-  transition: background-color 0.2s;
-  align-items: flex-start;
-
-  &:hover {
-    background-color: #f5f7fa;
+  .cli-result-line-number {
+    flex: 0 0 40px;
+    padding: 0 10px;
+    color: #c78500;
+    font-size: 12px;
+    text-align: right;
+    user-select: none;
+    line-height: 20px;
   }
-}
-
-.cli-result-line-number {
-  flex: 0 0 40px;
-  padding: 0 10px;
-  color: #c78500;
-  font-size: 12px;
-  text-align: right;
-  user-select: none;
-  line-height: 20px;
-}
-
-.cli-result-line-content-wrapper {
-  flex: 1;
-  min-width: 0;
-  padding: 0 10px;
-  position: relative;
-}
-
-.cli-result-line-content {
-  font-size: 12px;
-  line-height: 20px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: #313238;
-  transition: max-height 0.3s ease;
-  position: relative;
-  max-height: 160px;
-  overflow-y: auto;
-  display: inline-flex;
-
-  &.is-expanded {
-    max-height: none;
-  }
-}
-
-.log-line-item {
-  white-space: pre-wrap;
-  word-break: break-all;
-  padding: 0;
-  line-height: 20px;
-}
-
-.expand-button,
-.collapse-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
-  margin: 4px 0;
-  background: #f0f7ff;
-  border: 1px solid #3a84ff;
-  border-radius: 4px;
-  color: #3a84ff;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-
-  &:hover {
-    background: #3a84ff;
-    color: #fff;
-  }
-
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(58, 132, 255, 0.2);
-  }
-}
-
-.loading-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 0;
-  color: #979ba5;
-  font-size: 12px;
-
-  .loading-spinner {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    margin-right: 4px;
-    border: 2px solid #3a84ff;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.cli-result-right-panel {
-  width: 366px;
-  min-width: 366px;
-  max-width: 366px;
-  background: #fff;
-  border-left: 1px solid #e6e9ea;
-  height: 100%;
 }
