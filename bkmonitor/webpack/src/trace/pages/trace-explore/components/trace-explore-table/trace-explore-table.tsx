@@ -59,6 +59,7 @@ import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
+import TagsCell from './components/table-cell/tags-cell';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
@@ -399,13 +400,6 @@ export default defineComponent({
     });
 
     watch(
-      () => customDisplayColumnFieldsCacheKey.value,
-      () => {
-        getCustomDisplayColumnFields();
-      }
-    );
-
-    watch(
       [
         () => isSpanVisual.value,
         () => props.appName,
@@ -421,9 +415,11 @@ export default defineComponent({
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
         store.updateTableList([]);
         emit('backTop');
-        if (nVal[0] !== oVal[0]) {
+
+        if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
           sortContainer.sortBy = '';
           sortContainer.descending = null;
+          getCustomDisplayColumnFields();
         }
         debouncedGetExploreList();
       }
@@ -654,12 +650,13 @@ export default defineComponent({
           title: t('状态码'),
           width: 100,
           getRenderValue: row => {
-            const alias = row?.root_service_status_code as string;
-            if (!alias) return [];
+            const value = row?.root_service_status_code as string;
+            if (!value) return [];
             const type = row?.root_service_status_code === 200 ? 'normal' : 'error';
             return [
               {
-                alias: alias,
+                alias: value,
+                value,
                 ...SERVICE_STATUS_COLOR_MAP[type],
               },
             ];
@@ -711,6 +708,23 @@ export default defineComponent({
           title: t('状态'),
           width: 100,
           getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
+        },
+        'collections.kind': {
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          colKey: 'collections.kind',
+          title: t('状态码'),
+          width: 120,
+          getRenderValue: row => {
+            let value = row?.['collections.kind'];
+            if (!value) return [];
+            if (!Array.isArray(value)) value = [value];
+            return value.map(v => ({
+              alias: SPAN_KIND_MAPS[v]?.alias,
+              value: v,
+              tagColor: '#63656e',
+              tagBgColor: 'rgba(151,155,165,.1)',
+            }));
+          },
         },
       };
     }
@@ -1206,26 +1220,10 @@ export default defineComponent({
         return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
       }
       return (
-        <div class='explore-col explore-tags-col '>
-          {tags.map(tag => (
-            <div
-              key={tag.alias}
-              style={{
-                '--tag-color': tag.tagColor,
-                '--tag-bg-color': tag.tagBgColor,
-              }}
-              class='tag-item'
-            >
-              <span
-                class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-                data-cell-source={tag.alias}
-                data-col-key={column.colKey}
-              >
-                {tag.alias}
-              </span>
-            </div>
-          ))}
-        </div>
+        <TagsCell
+          column={column}
+          tags={tags}
+        />
       );
     }
 
@@ -1241,7 +1239,7 @@ export default defineComponent({
         <div class={`explore-col explore-text-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={JSON.stringify(value || '')}
+            data-cell-source={Array.isArray(value) ? JSON.stringify(value || '') : value}
             data-col-key={column.colKey}
           >
             {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}

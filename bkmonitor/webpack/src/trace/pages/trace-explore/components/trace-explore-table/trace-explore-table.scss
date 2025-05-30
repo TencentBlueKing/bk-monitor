@@ -52,6 +52,7 @@
 
   .explore-col {
     width: 100%;
+    height: 23px;
     font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
 
     &.explore-click-col {
@@ -90,22 +91,6 @@
         .icon-monitor {
           display: inline-block;
         }
-      }
-    }
-
-    &.explore-tags-col {
-      display: flex;
-      column-gap: 4px;
-      align-items: center;
-
-      .tag-item {
-        display: flex;
-        align-items: center;
-        height: 18px;
-        padding: 0 10px;
-        color: var(--tag-color);
-        background-color: var(--tag-bg-color);
-        border-radius: 2px;
       }
     }
 
