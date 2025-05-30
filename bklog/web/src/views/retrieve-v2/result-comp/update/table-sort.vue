@@ -144,9 +144,10 @@
   };
   watch(
     () => [props.initData, props.shouldRefresh],
-    () => {
-      if (props.shouldRefresh && props.initData.length) {
-        sortList.value = deepClone(props.initData).map(sorts => ({ key: random(8), sorts }));
+    ([newInitData, newShouldRefresh]) => {
+      // 当有初始数据时，直接更新
+      if (Array.isArray(newInitData) && newInitData.length) {
+        sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
       } else {
         sortList.value = [];
       }

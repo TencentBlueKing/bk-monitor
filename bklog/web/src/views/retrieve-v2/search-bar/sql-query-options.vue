@@ -371,8 +371,8 @@
 
     // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
     if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
-      // stopEventPreventDefault(e);
-      // handleRetrieve();
+      stopEventPreventDefault(e);
+      handleRetrieve();
       emits('cancel');
       return;
     }
@@ -395,9 +395,9 @@
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
         emitValueChange(props.value, false, true);
-        nextTick(() => {
-          handleRetrieve();
-        });
+        // nextTick(() => {
+        //   handleRetrieve();
+        // });
       }
     }
 

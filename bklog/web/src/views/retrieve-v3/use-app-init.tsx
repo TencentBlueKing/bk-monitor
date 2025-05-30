@@ -327,7 +327,13 @@ export default () => {
   beforeMounted();
 
   const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
+    store.commit('resetIndexsetItemParams', {
+      start_time,
+      end_time,
+      timezone,
+      datePickerValue,
+    });
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
