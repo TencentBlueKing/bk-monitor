@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
@@ -261,7 +261,7 @@ DEFAULT_COLLECTOR_LENGTH = 2
 PARSE_FAILURE_FIELD = "__parse_failure"
 
 
-class AsyncStatus(object):
+class AsyncStatus:
     RUNNING = "RUNNING"
     DONE = "DONE"
 
@@ -327,7 +327,7 @@ class CleanProviderEnum(ChoicesEnum):
     )
 
 
-class CollectStatus(object):
+class CollectStatus:
     """
     采集任务状态-结合以下两种状态
     subscription_instance_status.instances[0].status
@@ -350,7 +350,7 @@ class CollectStatus(object):
     UNKNOWN = "UNKNOWN"
 
 
-class LogPluginInfo(object):
+class LogPluginInfo:
     """
     采集插件信息
     """
@@ -359,12 +359,12 @@ class LogPluginInfo(object):
     VERSION = "latest"
 
 
-class ActionStatus(object):
+class ActionStatus:
     START = "START"
     INSTALL = "INSTALL"
 
 
-class RunStatus(object):
+class RunStatus:
     RUNNING = _("部署中")
     SUCCESS = _("正常")
     FAILED = _("失败")
@@ -374,7 +374,7 @@ class RunStatus(object):
     PREPARE = _("准备中")
 
 
-class EtlConfig(object):
+class EtlConfig:
     BK_LOG_TEXT = "bk_log_text"
     BK_LOG_JSON = "bk_log_json"
     BK_LOG_DELIMITER = "bk_log_delimiter"
@@ -436,13 +436,13 @@ DEFAULT_ES_TRANSPORT = 9300
 DEFAULT_ES_TAGS = ["BK-LOG"]
 
 
-class Environment(object):
+class Environment:
     LINUX = "linux"
     WINDOWS = "windows"
     CONTAINER = "container"
 
 
-class ContainerCollectorType(object):
+class ContainerCollectorType:
     CONTAINER = "container_log_config"
     NODE = "node_log_config"
     STDOUT = "std_log_config"
@@ -474,14 +474,14 @@ class TopoType(ChoicesEnum):
     )
 
 
-class WorkLoadType(object):
+class WorkLoadType:
     DEPLOYMENT = "Deployment"
     DAEMON_SET = "DaemonSet"
     JOB = "Job"
     STATEFUL_SET = "StatefulSet"
 
 
-class LabelSelectorOperator(object):
+class LabelSelectorOperator:
     IN = "In"
     NOT_IN = "NotIn"
     EXISTS = "Exists"
@@ -599,7 +599,7 @@ class ArchiveInstanceType(TextChoices):
     INDEX_SET = "index_set", _("索引集")
 
 
-class ArchiveExpireTime(object):
+class ArchiveExpireTime:
     PERMANENT = _("永久")
 
 
@@ -710,7 +710,7 @@ class CollectorBatchOperationType(ChoicesEnum):
     )
 
 
-class OTLPProxyHostConfig(object):
+class OTLPProxyHostConfig:
     """
     OTLP代理主机配置信息
     """
@@ -718,5 +718,5 @@ class OTLPProxyHostConfig(object):
     GRPC = "grpc"
     GRPC_TRACE_PATH = ":4317"
     HTTP = "http"
-    HTTP_TRACE_PATH = ":4318/v1/traces"
+    HTTP_TRACE_PATH = ":4318/v1/logs"
     HTTP_SCHEME = "http://"
