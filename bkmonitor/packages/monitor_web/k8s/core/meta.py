@@ -595,7 +595,7 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = ",".join([filter_string] + ['resource="cpu"'])
         if self.agg_method:
             return (
-                "sum by ()(sum by (pod) "
+                "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
                 f"on (pod) group_left() count by (pod)"
@@ -604,7 +604,7 @@ class K8sClusterMeta(K8sResourceMeta):
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
         return (
-            "sum by ()(sum by (pod) "
+            "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
             f"on (pod) group_left() count by (pod)"
@@ -651,7 +651,7 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = ",".join([filter_string] + ['resource="memory"'])
         if self.agg_method:
             return (
-                "sum by (node)(sum by (node,pod) "
+                "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
                 f"on (pod) group_left() count by (pod)"
@@ -660,7 +660,7 @@ class K8sClusterMeta(K8sResourceMeta):
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
         return (
-            "sum by (node)(sum by (node,pod) "
+            "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
             f"on (pod) group_left() count by (pod)"
