@@ -55,7 +55,6 @@ CREATE_SUCCESS = {
     "result": True,
     "data": {
         "bcs_project_id": "",
-        "bk_tenant_id": "system",
         "index_set_id": 5,
         "view_roles": [],
         "bkdata_project_id": None,
@@ -104,7 +103,6 @@ DELETE_SUCCESS = {"message": "", "code": 0, "data": None, "result": True}
 
 UPDATE_INDEX_SET = {
     "bcs_project_id": "",
-    "bk_tenant_id": "system",
     "index_set_id": 102,
     "view_roles": [],
     "bkdata_project_id": None,
@@ -185,7 +183,6 @@ INDEX_SET_LISTS = {
     "list": [
         {
             "index_set_id": 31,
-            "bk_tenant_id": "system",
             "view_roles": [],
             "bkdata_project_id": None,
             "bcs_project_id": "",
@@ -325,7 +322,6 @@ RETRIEVE_LIST = {
     "view_roles": [],
     "bkdata_project_id": None,
     "bk_biz_id": 2,
-    "bk_tenant_id": "system",
     "apply_status": "normal",
     "apply_status_name": "正常",
     "storage_cluster_name": "",
