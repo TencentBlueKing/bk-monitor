@@ -26,6 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getDefaultUserGroupList } from '@/components/user-selector/user-group';
 import Schema, { type ErrorList, type Rules, type ValidateSource } from 'async-validator';
 import CustomTab, { type IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
@@ -41,9 +42,11 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
-import { getReceiver } from 'monitor-api/modules/notice_group';
+// import { getReceiver } from 'monitor-api/modules/notice_group';
 import { getBkchatGroup } from 'monitor-api/modules/user_groups';
 import { deepClone, random } from 'monitor-common/utils/utils';
+
+import UserSelector from '../../../../components/user-selector/user-selector';
 
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
@@ -107,7 +110,7 @@ const mentListDefaultItem = {
   username: 'all',
 };
 @Component({
-  components: { MemberSelector },
+  components: { MemberSelector, UserSelector },
 })
 export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   @Prop({ default: 'monitor', type: String, validator: (val: TGroupType) => ['monitor', 'fta'].includes(val) })
@@ -414,17 +417,17 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
    */
   async getReceiverGroup() {
     this.isShowOverInput = true;
-    await getReceiver()
+    await getDefaultUserGroupList()
       .then(data => {
         this.allRecerverData = data;
-        const groupData = data.find(item => item.id === 'group');
-        groupData.type = 'group';
-        groupData.children.map(item => (item.username = item.id));
-        this.defaultGroupList.push(groupData);
+        // const groupData = data.find(item => item.id === 'group');
+        // groupData.type = 'group';
+        // groupData.children.map(item => (item.username = item.id));
+        this.defaultGroupList = data;
         // 群提醒人 需要有一个固定选项。
-        const mentionList = deepClone(groupData);
-        mentionList.children.unshift(mentListDefaultItem);
-        this.mentionGroupList.push(mentionList);
+        const mentionList = deepClone(data);
+        mentionList.unshift(mentListDefaultItem);
+        this.mentionGroupList.push(...mentionList);
       })
       .finally(() => {
         this.isShowOverInput = false;
@@ -451,14 +454,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   handleNoticeReceiver() {
     const result = [];
     const groupMap = new Map();
-    this.allRecerverData.forEach(item => {
+    for (const item of this.allRecerverData) {
       const isGroup = item.type === 'group';
       isGroup &&
         item.children.forEach(chil => {
           groupMap.set(chil.id, chil);
         });
-    });
-    this.formData.users.forEach(id => {
+    }
+    for (const id of this.formData.users) {
       const isGroup = groupMap.has(id);
       result.push({
         display_name: isGroup ? groupMap.get(id)?.display_name : id,
@@ -467,7 +470,17 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         type: isGroup ? 'group' : 'user',
         members: isGroup ? groupMap.get(id)?.members : undefined,
       });
-    });
+    }
+    // this.formData.users.forEach(id => {
+    //   const isGroup = groupMap.has(id);
+    //   result.push({
+    //     display_name: isGroup ? groupMap.get(id)?.display_name : id,
+    //     logo: '',
+    //     id,
+    //     type: isGroup ? 'group' : 'user',
+    //     members: isGroup ? groupMap.get(id)?.members : undefined,
+    //   });
+    // });
     return result;
   }
 
@@ -534,6 +547,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
       };
       // 没有选择内部通知对象的情况，不需要加入对users的校验
       if (!this.channels.includes('user')) {
+        // biome-ignore lint/performance/noDelete: need it
         newRules.users && delete newRules.users;
       }
       Object.keys(newRules).forEach(key => {
@@ -830,20 +844,30 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   }
 
   /* 新增时默认通知用户传至轮值组件 */
-  handleSelectUser(user) {
-    if (this.dutyUserList.map(item => item.id).includes(user.username)) return;
-    this.dutyUserList.push({
-      id: user.username,
-      name: user.display_name,
-      type: user.type || 'user',
-    });
+  handleSelectUser(users: string[]) {
+    // if (this.dutyUserList.map(item => item.id).includes(user.username)) return;
+    // this.dutyUserList.push({
+    //   id: user.username,
+    //   name: user.display_name,
+    //   type: user.type || 'user',
+    // });
+    this.formData.users = users;
+    this.dutyUserList = users.map(user => ({
+      id: user,
+      name: user,
+      type: this.defaultGroupList.some(item => item.id === user) ? 'group' : 'user',
+    }));
   }
-  handleSelectMentionUser(user) {
-    if (this.formData.mention_list.map(item => item.id).includes(user.username)) return;
-    this.formData.mention_list.push({
-      id: user.id,
-      type: user.type,
-    });
+  handleSelectMentionUser(users: string[]) {
+    // if (this.formData.mention_list.map(item => item.id).includes(user.username)) return;
+    // this.formData.mention_list.push({
+    //   id: user.id,
+    //   type: user.type,
+    // });
+    this.formData.mention_list = users.map(user => ({
+      id: user,
+      type: this.mentionGroupList.some(item => item.id === user) ? 'group' : 'user',
+    }));
   }
   /* 选择通知类型 */
   handleSelectAlertType(item) {
@@ -870,7 +894,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
       <div
         class='alarm-group-add-wrap'
         v-bkloading={{ isLoading: this.loading }}
-        title={!!this.groupId ? this.pageTitle : ''}
+        title={this.groupId ? this.pageTitle : ''}
       >
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>
           <bk-form-item label={this.$t('所属')}>
@@ -989,12 +1013,12 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     </bk-radio-button>
                   </bk-radio-group>
                   {!this.formData.needDuty && (
-                    <member-selector
+                    <UserSelector
                       key={this.memberSelectorKey}
                       class='user-selector'
-                      v-model={this.formData.users}
-                      group-list={this.defaultGroupList}
-                      on-select-user={this.handleSelectUser}
+                      userGroupList={this.defaultGroupList}
+                      userIds={this.formData.users}
+                      onChange={this.handleSelectUser}
                     />
                   )}
                   {!this.formData.needDuty && this.errorsMsg.users && (
@@ -1003,7 +1027,10 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 </div>
                 {this.handleNoticeReceiver().map(item =>
                   item.type === 'group' ? (
-                    <div class='text-msg'>
+                    <div
+                      key={item.id}
+                      class='text-msg'
+                    >
                       {`${item.display_name}(${
                         ['bk_bak_operator', 'operator'].includes(item.id)
                           ? this.operatorText[item.id]
@@ -1068,12 +1095,12 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           )}
           {this.channels.includes('wxwork-bot') && (
             <bk-form-item label={this.$t('群提醒人')}>
-              <member-selector
+              <UserSelector
                 key={this.mentionMemberSelectorKey}
                 class='mention-user-selector'
-                v-model={this.selectedMentionList}
-                group-list={this.mentionGroupList}
-                on-select-user={this.handleSelectMentionUser}
+                userGroupList={this.mentionGroupList}
+                userIds={this.selectedMentionList}
+                onChange={this.handleSelectMentionUser}
               />
             </bk-form-item>
           )}

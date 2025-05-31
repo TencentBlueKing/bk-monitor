@@ -39,9 +39,10 @@ import Axios from 'monitor-api/axios/axios';
 import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
-import { asignWindowField } from 'monitor-common/utils/asign-window';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import './common/global-login';
+import { userDisplayNameConfigure } from './common/user-display-name';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -92,7 +93,7 @@ if (hasRouteHash) {
       })
       .then(data => {
         appLoadingNode && (appLoadingNode.style.display = 'none');
-        asignWindowField(data);
+        assignWindowField(data);
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -101,6 +102,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        userDisplayNameConfigure();
         // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
@@ -140,7 +142,7 @@ if (hasRouteHash) {
             context_type: 'extra',
           })
           .then(data => {
-            asignWindowField(data);
+            assignWindowField(data);
             store.commit('app/SET_APP_STATE', {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });

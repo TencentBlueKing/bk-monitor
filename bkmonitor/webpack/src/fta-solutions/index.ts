@@ -36,7 +36,7 @@ import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
-import { asignWindowField } from 'monitor-common/utils/asign-window';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import App from './pages/app';
 import router from './router/router';
@@ -85,7 +85,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
       context_type: 'basic',
     })
     .then(data => {
-      asignWindowField(data);
+      assignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -119,7 +119,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
           context_type: 'extra',
         })
         .then(data => {
-          asignWindowField(data);
+          assignWindowField(data);
         });
     })
     .catch(e => console.error(e))
