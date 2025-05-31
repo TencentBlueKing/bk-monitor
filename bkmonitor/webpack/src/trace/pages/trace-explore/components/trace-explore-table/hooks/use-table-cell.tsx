@@ -59,6 +59,18 @@ export function useTableCell() {
   }
 
   /**
+   * @description 表格单元格后置插槽渲染
+   *
+   */
+  function columnCellSuffixRender(column, row) {
+    const suffixSlot = column?.suffixSlot;
+    if (!suffixSlot) {
+      return null;
+    }
+    return suffixSlot(row, column);
+  }
+
+  /**
    * @description ExploreTableColumnTypeEnum.CLICK  可点击触发回调 列渲染方法
    * @param {ExploreTableColumn} column 当前列配置项
    *
@@ -66,13 +78,16 @@ export function useTableCell() {
   function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
     const alias = getTableCellRenderValue(row, column);
     return (
-      <div class={`explore-col explore-click-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-        <span
-          class='explore-click-text '
-          onClick={event => column?.clickCallback?.(row, column, event)}
-        >
-          {alias}
-        </span>
+      <div class={'explore-col explore-click-col'}>
+        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class='explore-click-text '
+            onClick={event => column?.clickCallback?.(row, column, event)}
+          >
+            {alias}
+          </span>
+        </div>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }
@@ -111,6 +126,7 @@ export function useTableCell() {
             {alias}
           </span>
         </div>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }
@@ -125,14 +141,17 @@ export function useTableCell() {
     const alias = formatTraceTableDate(timestamp);
     const value = row?.[column.colKey];
     return (
-      <div class={`explore-col explore-time-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-        <span
-          class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-          data-cell-source={value}
-          data-col-key={column.colKey}
-        >
-          {alias}
-        </span>
+      <div class={'explore-col explore-time-col'}>
+        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
+            {alias}
+          </span>
+        </div>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }
@@ -147,14 +166,17 @@ export function useTableCell() {
     const alias = formatDuration(+timestamp);
     const value = row?.[column.colKey];
     return (
-      <div class={`explore-col explore-duration-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-        <span
-          class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-          data-cell-source={value}
-          data-col-key={column.colKey}
-        >
-          {alias}
-        </span>
+      <div class={'explore-col explore-duration-col '}>
+        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={value}
+            data-col-key={column.colKey}
+          >
+            {alias}
+          </span>
+        </div>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }
@@ -187,6 +209,7 @@ export function useTableCell() {
           </div>
           <i class='icon-monitor icon-mc-goto' />
         </a>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }
@@ -222,14 +245,17 @@ export function useTableCell() {
     const alias = getTableCellRenderValue(row, column);
     const value = row?.[column.colKey];
     return (
-      <div class={`explore-col explore-text-col ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-        <span
-          class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-          data-cell-source={Array.isArray(value) ? JSON.stringify(value || '') : value}
-          data-col-key={column.colKey}
-        >
-          {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
-        </span>
+      <div class={'explore-col explore-text-col '}>
+        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <span
+            class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-cell-source={Array.isArray(value) ? JSON.stringify(value || '') : value}
+            data-col-key={column.colKey}
+          >
+            {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
+          </span>
+        </div>
+        {columnCellSuffixRender(column, row)}
       </div>
     );
   }

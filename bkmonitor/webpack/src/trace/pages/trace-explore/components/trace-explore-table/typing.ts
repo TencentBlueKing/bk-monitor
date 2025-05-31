@@ -36,6 +36,8 @@ export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = Explo
   renderType?: T;
   /** 列描述(popover形式展现) **/
   headerDescription?: string;
+  /** 单元格后置插槽（tag类型列暂未支持） */
+  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */

@@ -54,6 +54,8 @@
     width: 100%;
     height: 23px;
     font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
+    display: flex;
+    align-items: center;
 
     &.explore-click-col {
       color: #3a84ff;
@@ -64,8 +66,6 @@
     }
 
     &.explore-link-col {
-      display: flex;
-      align-items: center;
       color: #3a84ff;
 
       & > a {
@@ -95,8 +95,6 @@
     }
 
     &.explore-prefix-icon-col {
-      display: flex;
-      align-items: center;
       .prefix-icon {
         flex-shrink: 0;
       }
@@ -319,6 +317,16 @@
                 }
               }
             }
+          }
+        }
+        .icon-Tracing {
+          margin-left: 4px;
+          cursor: pointer;
+          display: none;
+        }
+        &:hover {
+          .icon-Tracing {
+            display: inline-block;
           }
         }
       }

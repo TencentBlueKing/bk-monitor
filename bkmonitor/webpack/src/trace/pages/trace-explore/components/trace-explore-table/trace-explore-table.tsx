@@ -37,6 +37,7 @@ import {
   // KeepAlive,
   defineAsyncComponent,
   KeepAlive,
+  type VNode,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -529,6 +530,14 @@ export default defineComponent({
             title: t('Span ID'),
             width: 160,
             fixed: 'left',
+            suffixSlot: row =>
+              (
+                <i
+                  class='icon-monitor icon-Tracing'
+                  v-bk-tooltips={{ content: t('查看关联 Trace') }}
+                  onClick={() => handleSliderShowChange('trace', row.trace_id)}
+                />
+              ) as unknown as VNode,
             clickCallback: row => handleSliderShowChange('span', row.span_id),
           },
           span_name: {
