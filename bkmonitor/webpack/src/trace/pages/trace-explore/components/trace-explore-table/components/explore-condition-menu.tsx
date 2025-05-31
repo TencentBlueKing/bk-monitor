@@ -40,11 +40,22 @@ import './explore-condition-menu.scss';
 export default defineComponent({
   name: 'ExploreConditionMenu',
   props: {
+    /** 当前选中的条件key值 */
     conditionKey: {
       type: String,
     },
+    /** 当前选中的条件value值 */
     conditionValue: {
       type: String,
+    },
+    /** 查看详情需要跳转的路径url */
+    linkUrl: {
+      type: String,
+    },
+    /** 条件菜单需要展示的菜单id数组 */
+    showMenuIdsSet: {
+      type: Set,
+      default: () => new Set(['copy', 'add', 'delete', 'new-page']),
     },
   },
   emits: ['conditionChange', 'menuClick'],
@@ -56,6 +67,12 @@ export default defineComponent({
     const menuRef = useTemplateRef<HTMLElement>('menuRef');
 
     const menuList = [
+      {
+        id: 'link',
+        name: t('查看详情'),
+        icon: 'icon-xiangqing1',
+        onClick: handleLink,
+      },
       {
         id: 'copy',
         name: t('复制'),
@@ -108,6 +125,18 @@ export default defineComponent({
           />
         </Popover>
       );
+    }
+
+    /**
+     * @description 查看详情 回调
+     *
+     */
+    function handleLink() {
+      if (!props.linkUrl) {
+        return;
+      }
+      window.open(props.linkUrl, '_blank');
+      emit('menuClick');
     }
 
     /**
@@ -198,17 +227,19 @@ export default defineComponent({
         ref='menuRef'
         class='explore-condition-menu'
       >
-        {this.menuList.map(item => (
-          <li
-            key={item.id}
-            class='menu-item'
-            onClick={item.onClick}
-          >
-            <i class={`icon-monitor ${item.icon}`} />
-            <span>{item.name}</span>
-            <div class='item-suffix'>{item?.suffixRender?.()}</div>
-          </li>
-        ))}
+        {this.menuList.map(item =>
+          this.$props.showMenuIdsSet.has(item.id) ? (
+            <li
+              key={item.id}
+              class='menu-item'
+              onClick={item.onClick}
+            >
+              <i class={`icon-monitor ${item.icon}`} />
+              <span>{item.name}</span>
+              <div class='item-suffix'>{item?.suffixRender?.()}</div>
+            </li>
+          ) : null
+        )}
       </ul>
     );
   },
