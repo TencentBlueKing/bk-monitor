@@ -117,23 +117,6 @@ export default defineComponent({
     /** 当前视角是否为 Span 视角 */
     const isSpanVisual = computed(() => props.mode === 'span');
 
-    const { tableCellRender } = useTableCell();
-    const {
-      tableColumns,
-      displayColumnFields,
-      tableDisplayColumns,
-      sortContainer,
-      getCustomDisplayColumnFields,
-      handleDisplayColumnFieldsChange,
-      handleDisplayColumnResize,
-    } = useExploreColumnConfig({
-      props,
-      isSpanVisual,
-      tableHeaderCellRender,
-      tableCellRender,
-      handleSliderShowChange,
-    });
-
     /** 表格单页条数 */
     const limit = 30;
     /** 表格logs数据请求中止控制器 */
@@ -159,6 +142,7 @@ export default defineComponent({
         },
       }
     );
+
     /** 表格功能单元格内容溢出弹出 popover 功能 */
     const { initListeners: initHeaderDescritionListeners, handlePopoverHide: descriptionPopoverHide } =
       useTableHeaderDescription(tableRef, {
@@ -167,38 +151,57 @@ export default defineComponent({
         },
       });
 
-    const { initListeners: initConditionMenuListeners, handlePopoverHide: conditionMenuPopoverHide } = useTablePopover(
-      tableRef,
-      {
-        trigger: {
-          selector: `.${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`,
-          eventType: 'click',
-          delay: 0,
-        },
-        getContentOptions: triggerDom => {
-          if (
-            triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
-            triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
-          ) {
-            setActiveConditionMenu();
-            return;
-          }
-          setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
-          const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
-          return {
-            content: conditionMenuRef.value.$el,
-            popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
-          };
-        },
-        onHide: () => {
+    const {
+      initListeners: initConditionMenuListeners,
+      handlePopoverShow: conditionMenuPopoverShow,
+      handlePopoverHide: conditionMenuPopoverHide,
+    } = useTablePopover(tableRef, {
+      trigger: {
+        selector: `.${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`,
+        eventType: 'click',
+        delay: 0,
+      },
+      getContentOptions: triggerDom => {
+        if (
+          triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
+          triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
+        ) {
           setActiveConditionMenu();
-        },
-        popoverOptions: {
-          theme: 'light padding-0',
-          placement: 'bottom',
-        },
-      }
-    );
+          return;
+        }
+        setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+        const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+        return {
+          content: conditionMenuRef.value.$el,
+          popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
+        };
+      },
+      onHide: () => {
+        setActiveConditionMenu();
+      },
+      popoverOptions: {
+        theme: 'light padding-0',
+        placement: 'bottom',
+      },
+    });
+
+    const { tableCellRender } = useTableCell();
+    const {
+      tableColumns,
+      displayColumnFields,
+      tableDisplayColumns,
+      sortContainer,
+      getCustomDisplayColumnFields,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
+    } = useExploreColumnConfig({
+      props,
+      isSpanVisual,
+      tableHeaderCellRender,
+      tableCellRender,
+      handleConditionMenuShow,
+      handleSliderShowChange,
+    });
 
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
@@ -226,6 +229,7 @@ export default defineComponent({
     const activeConditionMenuTarget = reactive({
       conditionKey: '',
       conditionValue: '',
+      linkUrl: '',
     });
 
     /** 表格行可用作 唯一主键值 的字段名 */
@@ -453,9 +457,24 @@ export default defineComponent({
     }
     const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
-    function setActiveConditionMenu(colKey = '', cellSource = '') {
+    /**
+     * @description: 修改条件菜单所需数据
+     *
+     */
+    function setActiveConditionMenu(colKey = '', cellSource = '', linkUrl = '') {
       activeConditionMenuTarget.conditionKey = colKey;
       activeConditionMenuTarget.conditionValue = cellSource;
+      activeConditionMenuTarget.linkUrl = linkUrl;
+    }
+
+    /**
+     * @description: 显示条件菜单
+     *
+     */
+    function handleConditionMenuShow(triggerDom, colKey, cellSource, linkUrl) {
+      setActiveConditionMenu(colKey, cellSource, linkUrl);
+      const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+      conditionMenuPopoverShow(isEllipsisActive ? triggerDom.parentElement : triggerDom, conditionMenuRef.value.$el);
     }
 
     /**
@@ -808,8 +827,14 @@ export default defineComponent({
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'
+            showMenuIdsSet={
+              this.activeConditionMenuTarget.linkUrl
+                ? new Set(['link', 'copy', 'add', 'delete', 'new-page'])
+                : undefined
+            }
             conditionKey={this.activeConditionMenuTarget.conditionKey}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
+            linkUrl={this.activeConditionMenuTarget.linkUrl}
             onConditionChange={this.handleConditionChange}
             onMenuClick={this.handleMenuClick}
           />

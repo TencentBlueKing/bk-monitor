@@ -57,6 +57,7 @@ export function useExploreColumnConfig({
   isSpanVisual,
   tableHeaderCellRender,
   tableCellRender,
+  handleConditionMenuShow,
   handleSliderShowChange,
 }) {
   /** table 默认配置项 */
@@ -233,7 +234,8 @@ export function useExploreColumnConfig({
    * @description 获取新开页跳转至apm页 概览tab 的 LINK 类型表格列所需数据格式
    *
    */
-  function getJumpToApmLinkItem(alias): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
+  function getJumpToApmLinkItem(row, column): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
+    const alias = row?.[column.colKey];
     const hash = `#/apm/service?filter-service_name=${alias}&filter-app_name=${props.appName}`;
     let url = '';
     if (alias) {
@@ -261,6 +263,16 @@ export function useExploreColumnConfig({
       alias: alias,
       url: url,
     };
+  }
+
+  /**
+   * @description 服务 或 接口 列点击后回调
+   *
+   */
+  function handleServiceOrApiColumnClick(row, column, e, linkUrl) {
+    const colKey = column.colKey;
+    const cellSource = row[colKey];
+    handleConditionMenuShow(e.target, colKey, cellSource, linkUrl);
   }
 
   /**
@@ -332,11 +344,14 @@ export function useExploreColumnConfig({
           getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
         },
         'resource.service.name': {
-          renderType: ExploreTableColumnTypeEnum.LINK,
+          renderType: ExploreTableColumnTypeEnum.CLICK,
           colKey: 'resource.service.name',
           title: t('所属服务'),
           width: 160,
-          getRenderValue: row => getJumpToApmLinkItem(row?.['resource.service.name']),
+          clickCallback: (row, column, e) => {
+            const item = getJumpToApmLinkItem(row, column);
+            handleServiceOrApiColumnClick(row, column, e, item.url);
+          },
         },
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -369,28 +384,37 @@ export function useExploreColumnConfig({
         width: 140,
       },
       root_span_name: {
-        renderType: ExploreTableColumnTypeEnum.LINK,
+        renderType: ExploreTableColumnTypeEnum.CLICK,
         colKey: 'root_span_name',
         headerDescription: t('整个 Trace 的第一个 Span'),
         title: t('根 Span'),
         width: 160,
-        getRenderValue: getJumpToApmApplicationLinkItem,
+        clickCallback: (row, column, e) => {
+          const item = getJumpToApmApplicationLinkItem(row, column);
+          handleServiceOrApiColumnClick(row, column, e, item.url);
+        },
       },
       root_service: {
-        renderType: ExploreTableColumnTypeEnum.LINK,
+        renderType: ExploreTableColumnTypeEnum.CLICK,
         colKey: 'root_service',
         headerDescription: t('服务端进程的第一个 Service'),
         title: t('入口服务'),
         width: 160,
-        getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
+        clickCallback: (row, column, e) => {
+          const item = getJumpToApmLinkItem(row, column);
+          handleServiceOrApiColumnClick(row, column, e, item.url);
+        },
       },
       root_service_span_name: {
-        renderType: ExploreTableColumnTypeEnum.LINK,
+        renderType: ExploreTableColumnTypeEnum.CLICK,
         colKey: 'root_service_span_name',
         headerDescription: t('入口服务的第一个接口'),
         title: t('入口接口'),
         width: 160,
-        getRenderValue: getJumpToApmApplicationLinkItem,
+        clickCallback: (row, column, e) => {
+          const item = getJumpToApmApplicationLinkItem(row, column);
+          handleServiceOrApiColumnClick(row, column, e, item.url);
+        },
       },
       root_service_category: {
         renderType: ExploreTableColumnTypeEnum.TEXT,
