@@ -43,6 +43,7 @@ import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/user-display-name';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
