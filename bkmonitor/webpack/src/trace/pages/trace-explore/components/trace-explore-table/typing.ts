@@ -101,3 +101,9 @@ export enum ExploreTableLoadingEnum {
   /** 滚动 -- 显示 表格底部 loading */
   SCROLL = 'scrollLoading',
 }
+
+/** 自定义显示列字段缓存配置 */
+export interface CustomDisplayColumnFieldsConfig {
+  displayFields: string[];
+  fieldsWidth: { [colKey: string]: number };
+}

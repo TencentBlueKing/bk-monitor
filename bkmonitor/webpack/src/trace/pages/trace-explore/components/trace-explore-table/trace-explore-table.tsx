@@ -74,6 +74,7 @@ import {
 import { useTableCell } from './hooks/use-table-cell';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
 import {
+  type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
@@ -209,7 +210,12 @@ export default defineComponent({
     );
 
     /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
-    const customDisplayColumnFields = deepRef<string[]>([]);
+    const customDisplayColumnFieldsConfig = reactive<CustomDisplayColumnFieldsConfig>({
+      /** 展示的列 */
+      displayFields: [],
+      /** 列宽度集合 */
+      fieldsWidth: {},
+    });
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -258,8 +264,8 @@ export default defineComponent({
       const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
       const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
       // 需要展示的字段列名数组
-      return customDisplayColumnFields.value?.length
-        ? customDisplayColumnFields.value
+      return customDisplayColumnFieldsConfig.displayFields?.length
+        ? customDisplayColumnFieldsConfig.displayFields
         : applicationColumnConfig?.length
           ? applicationColumnConfig
           : ((defaultColumnsConfig?.displayFields || []) as string[]);
@@ -323,6 +329,7 @@ export default defineComponent({
           }
           const tipText = column.headerDescription || column.colKey;
           column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
+          column.width = customDisplayColumnFieldsConfig.fieldsWidth?.[colKey] || column.width;
           // 表格列表头渲染方法
           const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText, column);
           // 表格单元格渲染方法
@@ -743,10 +750,20 @@ export default defineComponent({
      *
      */
     async function getCustomDisplayColumnFields() {
-      customDisplayColumnFields.value = [];
+      customDisplayColumnFieldsConfig.displayFields = [];
+      customDisplayColumnFieldsConfig.fieldsWidth = {};
       if (!props.appName || !props.mode) return;
-      customDisplayColumnFields.value =
-        (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || [];
+      const customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
+        displayFields: [],
+        fieldsWidth: {},
+      };
+      // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
+      if (Array.isArray(customCacheConfig)) {
+        customDisplayColumnFieldsConfig.displayFields = customCacheConfig;
+        return;
+      }
+      customDisplayColumnFieldsConfig.displayFields = customCacheConfig.displayFields;
+      customDisplayColumnFieldsConfig.fieldsWidth = customCacheConfig.fieldsWidth;
     }
 
     /**
@@ -872,9 +889,15 @@ export default defineComponent({
      *
      */
     function handleDisplayColumnFieldsChange(displayFields: string[]) {
-      customDisplayColumnFields.value = displayFields;
+      customDisplayColumnFieldsConfig.displayFields = displayFields;
       // 缓存列配置
-      handleSetUserConfig(JSON.stringify(displayFields));
+      handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
+    }
+
+    function handleDisplayColumnResize(context: { columnsWidth: { [colKey: string]: number } }) {
+      customDisplayColumnFieldsConfig.fieldsWidth = context?.columnsWidth || {};
+      // 缓存列配置
+      handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
     }
 
     /**
@@ -1089,6 +1112,7 @@ export default defineComponent({
       handleSortChange,
       handleDataSourceConfigClick,
       handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
       statisticsDomRender,
       handleSliderShowChange,
       handleClearRetrievalFilter,
@@ -1179,6 +1203,7 @@ export default defineComponent({
           sort={this.sortContainer}
           stripe={false}
           tableLayout='fixed'
+          onColumnResizeChange={this.handleDisplayColumnResize}
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
