@@ -348,8 +348,8 @@ importers:
         specifier: 0.3.25-beta.0
         version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-user-display-name':
-        specifier: 1.0.3-beta.1
-        version: 1.0.3-beta.1
+        specifier: 1.0.3-beta.3
+        version: 1.0.3-beta.3
       '@blueking/bk-user-selector':
         specifier: ^0.0.28
         version: 0.0.28(@blueking/bkui-library@0.0.0-beta.4)
@@ -604,6 +604,9 @@ importers:
       '@antv/g6':
         specifier: ^4.8.25
         version: 4.8.25
+      '@blueking/bk-user-display-name':
+        specifier: 1.0.3-beta.3
+        version: 1.0.3-beta.3
       '@blueking/date-picker':
         specifier: 2.0.0-beta.46
         version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
@@ -1504,8 +1507,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/bk-user-display-name@1.0.3-beta.1':
-    resolution: {integrity: sha512-gysZXQoYq5B/O5Er1g0xvrLvnW2EKK2dX2RjH4lvgN5Gs9fJ3LbQlJOr5pd89VTwx+2BxePKpgqwUg1f2Rmerw==}
+  '@blueking/bk-user-display-name@1.0.3-beta.3':
+    resolution: {integrity: sha512-6SKMombzfE23vHZCN8E++yh1CSDPVrCgi1hpgwNKD+xppepDNv35EDTc2y8iq1XmAomJptVPM3CxrqO8Wz7Jxg==}
 
   '@blueking/bk-user-selector@0.0.28':
     resolution: {integrity: sha512-0FEwNHo2F5GVRcDhPPHw3qFcRCbEu2q2AMOORhZH1Mae5jLe+bxu6ycjG8TWn+RkIbuIYAmGRcHKT9exJuFlqg==}
@@ -9579,7 +9582,7 @@ snapshots:
       vue: 2.7.16
       web-worker: 1.5.0
 
-  '@blueking/bk-user-display-name@1.0.3-beta.1': {}
+  '@blueking/bk-user-display-name@1.0.3-beta.3': {}
 
   '@blueking/bk-user-selector@0.0.28(@blueking/bkui-library@0.0.0-beta.4)':
     dependencies:
