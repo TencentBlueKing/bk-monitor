@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import UserDisplayName from '@blueking/bk-user-display-name';
-export type ConfigOptions = Parameters<typeof UserDisplayName.configure>[0];
-export const getUserComponentConfig = () => {
+import UserDisplayName, { type ConfigOptions } from '@blueking/bk-user-display-name';
+export const getUserComponentConfig = (): ConfigOptions => {
   return {
     tenantId: 'system',
     apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,

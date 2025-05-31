@@ -67,4 +67,11 @@ declare global {
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
   }
+  namespace JSX {
+    interface IntrinsicElements {
+      'bk-user-display-name': {
+        'user-id': string;
+      };
+    }
+  }
 }

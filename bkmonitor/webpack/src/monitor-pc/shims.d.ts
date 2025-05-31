@@ -188,6 +188,17 @@ declare global {
         true
       >;
       'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
+      'bk-user-display-name': base.CombinedTsxComponentAttrs<
+        | {
+            user_id: string;
+          }
+        | base.KnownAttrs,
+        object,
+        object,
+        object,
+        object,
+        false
+      >;
     }
   }
 }
