@@ -29,6 +29,7 @@ import { type MaybeRef, onBeforeUnmount } from 'vue';
 import { get } from '@vueuse/core';
 import { $bkPopover } from 'bkui-vue';
 
+import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
 import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
@@ -229,6 +230,7 @@ export const useTablePopover = (
   };
 
   return {
+    handlePopoverShow,
     handlePopoverHide,
     initListeners,
   };
@@ -243,7 +245,7 @@ export const useTableEllipsis = (
   options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
-    trigger: { selector: options?.trigger?.selector || '.explore-text-ellipsis' },
+    trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}` },
     getContentOptions: triggerDom => {
       const { isEllipsisActive, content } = isEllipsisActiveSingleLine(triggerDom);
       if (!isEllipsisActive) return;
@@ -263,7 +265,7 @@ export const useTableHeaderDescription = (
   options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
-    trigger: { selector: options?.trigger?.selector || '.explore-table-header-description' },
+    trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}` },
     getContentOptions: triggerDom => {
       const content = triggerDom.dataset.colDescription;
       if (!content) return;
