@@ -95,7 +95,7 @@ def register_alarm_cache_bmw_task():
 
     # 获取已注册的告警缓存刷新任务
     url = urllib.parse.urljoin(bmw_api_url, "bmw/task/")
-    r = requests.get(url=url, params={"task_type": "daemon"})
+    r = requests.get(url=url, params={"task_type": "daemon"}, timeout=10)
     if r.status_code != 200:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
     try:
