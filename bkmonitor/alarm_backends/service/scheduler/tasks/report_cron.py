@@ -101,7 +101,7 @@ def register_alarm_cache_bmw_task():
     try:
         result: list[dict] = r.json()["data"]
     except requests.JSONDecodeError:
-        logger.error(f"获取已注册的告警缓存刷新任务失败: {r.content}")
+        logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
         return
 
     need_delete_task_ids: list[str] = []
