@@ -26,10 +26,12 @@
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getUserComponentConfig, type ConfigOptions } from '@/common/user-display-name';
 import BkUserSelectorOrigin from '@blueking/bk-user-selector/vue2';
 
+import { getUserComponentConfig } from '../../common/user-display-name';
+
 import type { IUserGroup } from './user-group';
+import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
