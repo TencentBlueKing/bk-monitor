@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from itertools import chain
 
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.service.access.base import Fuller
+from alarm_backends.service.access.data.records import DataRecord
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -32,7 +31,7 @@ class TopoNodeFuller(Fuller):
         """
         return scenario in ("os", "host_process")
 
-    def full(self, record):
+    def full(self, record: DataRecord):
         """
         维度补充(当策略目标是CMDB节点时，需要在数据的维度中补充CMDB节点的信息)
 
