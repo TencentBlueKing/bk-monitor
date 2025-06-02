@@ -779,7 +779,7 @@ class PreCalculateSpecificField(TextChoices):
     @classmethod
     def hidden_fields(cls):
         """获取隐藏字段"""
-        return [cls.BIZ_ID, cls.BIZ_NAME, cls.APP_ID, cls.APP_NAME, cls.TIME, cls.COLLECTIONS]
+        return [cls.BK_TENANT_ID, cls.BIZ_ID, cls.BIZ_NAME, cls.APP_ID, cls.APP_NAME, cls.TIME, cls.COLLECTIONS]
 
     @classmethod
     def specific_fields(cls):
