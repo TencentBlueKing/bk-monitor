@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from collections import defaultdict
 
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from core.drf_resource import api
@@ -23,7 +22,7 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "service_template"
-    CACHE_KEY = "{prefix}.cmdb.service_template".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_template"
 
     @classmethod
     def key_to_internal_value(cls, service_template_id):
@@ -38,7 +37,7 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         """
         :param service_template_id: 服务模板ID
         """
-        return super(ServiceTemplateManager, cls).get(service_template_id)
+        return super().get(service_template_id)
 
     @classmethod
     def deserialize(cls, string):
@@ -63,9 +62,3 @@ class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
             service_template_to_module[str(module.service_template_id)].append(module.bk_module_id)
 
         return service_template_to_module
-
-
-def main():
-    if "service_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    ServiceTemplateManager.refresh()

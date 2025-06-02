@@ -447,6 +447,9 @@ SKIP_PLUGIN_DEBUG = False
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
 
+# bk-monitor-worker api 地址
+BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -1416,9 +1419,6 @@ DOC_LINK_MAPPING = {}
 
 # 插件授权给 bkci 空间使用
 BKCI_SPACE_ACCESS_PLUGIN_LIST = []
-
-# 禁用告警CMDB缓存刷新
-DISABLE_ALARM_CMDB_CACHE_REFRESH = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

@@ -367,7 +367,6 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
         ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
-        ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),

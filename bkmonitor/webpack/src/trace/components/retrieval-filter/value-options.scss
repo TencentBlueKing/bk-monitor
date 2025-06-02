@@ -72,7 +72,10 @@
       }
 
       .highlight {
+        overflow: hidden;
+        text-overflow: ellipsis;
         color: #3a84ff;
+        white-space: nowrap;
       }
 
       &.skeleton-item {
