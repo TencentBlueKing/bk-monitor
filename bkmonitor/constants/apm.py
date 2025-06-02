@@ -740,6 +740,7 @@ class PreCalculateSpecificField(TextChoices):
     """
 
     # 下面字段的顺序调整，会影响页面展示，需尽可能把最常用的字段放最前面
+    BK_TENANT_ID = "bk_tenant_id"
     BIZ_ID = "biz_id"
     BIZ_NAME = "biz_name"
     APP_ID = "app_id"
@@ -1315,6 +1316,14 @@ PRECALCULATE_RESULT_TABLE_OPTION = {
 
 class PrecalculateStorageConfig:
     TABLE_SCHEMA = [
+        {
+            "field_name": PreCalculateSpecificField.BK_TENANT_ID.value,
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Bk Tenant Id",
+        },
         {
             "field_name": PreCalculateSpecificField.BIZ_ID.value,
             "field_type": ResultTableField.FIELD_TYPE_STRING,
