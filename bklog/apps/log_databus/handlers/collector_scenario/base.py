@@ -129,7 +129,11 @@ class CollectorScenario:
             encoding=META_DATA_ENCODING,
         )
         TransferApi.modify_datasource_result_table(
-            {"bk_data_id": new_bk_data_id, "table_id": collector_config.table_id}
+            {
+                "bk_data_id": new_bk_data_id,
+                "table_id": collector_config.table_id,
+                "bk_biz_id": collector_config.bk_biz_id,
+            }
         )
         logger.info(
             f"[change_bk_data_id] "

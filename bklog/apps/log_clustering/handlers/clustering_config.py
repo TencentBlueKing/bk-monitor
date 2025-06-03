@@ -341,7 +341,9 @@ class ClusteringConfigHandler:
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
             # 此处简化流程，只检查模型预测 flow 的状态即可
-            result["flow_run"].update(self.check_dataflow_status(clustering_config.predict_flow_id))
+            result["flow_run"].update(
+                self.check_dataflow_status(clustering_config.predict_flow_id, bk_biz_id=clustering_config.bk_biz_id)
+            )
         else:
             # 如果 flow 不存在，说明基本流程没走完
             result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
@@ -369,13 +371,13 @@ class ClusteringConfigHandler:
 
         return result
 
-    def check_dataflow_status(self, flow_id):
+    def check_dataflow_status(self, flow_id, bk_biz_id):
         """
         检查 dataflow 状态
         """
         flow_status = ""
         try:
-            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id)
+            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if flow:
                 flow_status = flow["status"]
         except Exception as e:  # pylint:disable=broad-except
@@ -392,7 +394,7 @@ class ClusteringConfigHandler:
 
         task_detail = {}
         if flow_status == "running":
-            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id)
+            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if deploy_data["status"] == "failure":
                 flow_status = "failure"
             elif deploy_data["status"] == "success":

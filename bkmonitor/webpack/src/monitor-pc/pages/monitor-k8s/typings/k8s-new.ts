@@ -79,9 +79,9 @@ export enum K8sTableColumnKeysEnum {
    */
   WORKLOAD = 'workload',
   /**
-   * @description: workload_type - workload_type
+   * @description: workload_kind - workload_kind
    */
-  WORKLOAD_TYPE = 'workload_type',
+  WORKLOAD_KIND = 'workload_kind',
   /**
    * @description: ingress - 网络 场景特有维度字段
    */

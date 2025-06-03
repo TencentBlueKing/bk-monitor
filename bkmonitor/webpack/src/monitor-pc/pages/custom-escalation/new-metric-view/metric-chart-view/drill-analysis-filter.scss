@@ -3,27 +3,6 @@
   .filter-confition-wrapper {
     width: 100%;
     min-height: 53px;
-    display: flex;
-
-    .filter-left {
-      flex: 1;
-    }
-    .filter-right {
-      min-width: 240px;
-      display: flex;
-      align-items: center;
-      border-left: 1px solid #dcdee5;
-      border-bottom: 1px solid #dcdee5;
-      .right-line {
-        display: inline-block;
-        width: 1px;
-        height: 14px;
-        background: #dcdee5;
-      }
-    }
-    .filter-tools-interval {
-      width: 84px !important;
-    }
   }
 
   .filter-compare-view {

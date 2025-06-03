@@ -129,7 +129,6 @@ def q_to_dict(q: tree.Node):
             filter_dict.setdefault(_inner_or, []).append(sub_dict)
 
     cursor = 0
-    k_count_map: dict[str, int] = defaultdict(int)
     while True:
         and_k: str = f"{_inner_and}_{cursor}"
         sub: dict[str, Any] | None = filter_dict.get(and_k)
@@ -139,16 +138,6 @@ def q_to_dict(q: tree.Node):
         if isinstance(sub, dict) and list(sub.keys()) == [_inner_or]:
             # {"and_xx": {or: []}} -> {"or_xx": []}
             filter_dict[f"{_inner_or}_{cursor}"] = filter_dict.pop(and_k)[_inner_or]
-
-        if isinstance(sub, dict):
-            keys: list[str] = list(sub.keys())
-            for k in keys:
-                if k.startswith(_inner_or) or k.startswith(_inner_and):
-                    continue
-                k_count_map[k] += 1
-
-                if k_count_map[k] > 1:
-                    del sub[k]
 
         if not sub:
             filter_dict.pop(and_k, None)
@@ -403,19 +392,22 @@ def _parse_conditions(
         if conditions["field_list"]:
             conditions["condition_list"].append(condition.get("condition", "and"))
 
+        options: dict[str, Any] = condition.get("options") or {}
         value: list[Any] = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
         value = [str(v) for v in value]
         operator: str = operator_mapping.get(condition["method"], condition["method"])
         if operator in ["include", "exclude"]:
             value = [re.escape(v) for v in value]
 
-        # 通用处理，对 UnifyQuery 而言，存在与否通过 field !=/= "" 进行过滤。
-        if operator in ["exists", "nexists"]:
-            operator = {"exists": "ne", "nexists": "eq"}[operator]
-            # 强制 value 为 ""。
+        if operator in ["existed", "nexisted"]:
             value = [""]
 
-        options: dict[str, Any] = condition.get("options") or {}
+        # UnifyQuery 模糊检索通过 options.is_wildcard=true 的查询配置进行启用。
+        # 在 ORM 场景传递 options 并不优雅，于是抽象 wildcard / nwildcard 作为新 lookup。
+        if operator in ["wildcard", "nwildcard"]:
+            operator = {"wildcard": "contains", "nwildcard": "ncontains"}[operator]
+            options["is_wildcard"] = True
+
         conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator, **options})
     return conditions
 
@@ -1979,14 +1971,16 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
 
     OPERATOR_MAPPING: dict[str, str] = {
         "neq": "ne",
-        "exists": "exists",
-        "nexists": "nexists",
+        "exists": "existed",
+        "nexists": "nexisted",
         "include": "contains",
         "exclude": "ncontains",
         "gt": "gt",
         "lt": "lt",
         "gte": "gte",
         "lte": "lte",
+        "wildcard": "wildcard",
+        "nwildcard": "nwildcard",
     }
 
     # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
@@ -2010,15 +2004,28 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         for field_cond in self._get_conditions().get("field_list", []):
             # 如果存在 ES 检索的特殊操作符，则不使用 unify-query。
             # 背景：之前用户输入 events.a.b.c 时，SaaS 需要根据 mapping 判断是否为嵌套字段，增加 nested 检索关键字。
-            # TODO(crayon) unify-query 已支持上述逻辑，切换新版 Trace 时，将直接透传 query_string，SaaS 不再进行判断和转换。
             if field_cond.get("op") in ["nested"]:
                 return False
+
+            # 通配符检索，仅 UnifyQuery 支持。
+            if field_cond.get("is_wildcard"):
+                return True
 
             # 嵌套字段直接检索（eg：events.name = xxx）仅 UnifyQuery 支持。
             field_name: str = field_cond.get("field_name", "")
             for nested_field in self.NESTED_FIELDS:
                 if field_name.startswith(nested_field):
                     return True
+
+        for ordering in self.order_by or []:
+            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
+            field: str = ordering.split(maxsplit=1)[0]
+            if field == "_value":
+                return True
+
+        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
+        if self.query_string and self.query_string != "*":
+            return True
 
         return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
 
@@ -2082,15 +2089,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             "order_by": [],
         }
 
-        metrics: list[dict[str, Any]] = self.metrics
-        if self.distinct:
-            # 针对原始 Trace 检索（未开启预计算）场景，默认需要按指定时间字段进行排序。
-            # 后续如果有多字段排序的需求，也相应需要在这里进行调整扩展。
-            metrics = [{"method": "max", "field": self.time_field, "alias": "a"}]
-            group_by.append(self.distinct)
-
         query_list: list[dict[str, Any]] = []
-        for metric in metrics:
+        for metric in self.metrics:
             query: dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
@@ -2129,6 +2129,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if not query_list:
             query: dict[str, Any] = copy.deepcopy(base_query)
             query["reference_name"] = self.reference_name or "a"
+            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
+            if self.distinct:
+                query["collapse"] = {"field": self.distinct}
+
             for select_field in self.select:
                 if "(" in select_field and ")" in select_field:
                     continue

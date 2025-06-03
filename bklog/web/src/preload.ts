@@ -27,9 +27,9 @@
 import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
-const updateExternalMenuBySpace = curSpace => {
+export const getExternalMenuListBySpace = space => {
   const list = [];
-  (curSpace.external_permission || []).forEach(permission => {
+  (space.external_permission || []).forEach(permission => {
     if (permission === 'log_search') {
       list.push('retrieve');
     } else if (permission === 'log_extract') {
@@ -42,12 +42,15 @@ const updateExternalMenuBySpace = curSpace => {
 export default ({
   http,
   store,
-  isExternal,
 }: {
   http: { request: (...args) => Promise<any> };
   store: any;
   isExternal?: boolean;
 }) => {
+  /**
+   * 获取空间列表
+   * return
+   */
   const spaceRequest = http.request('space/getMySpaceList').then(resp => {
     const spaceList = resp.data;
     spaceList.forEach(item => {
@@ -74,7 +77,7 @@ export default ({
       space = spaceList?.[0];
     }
 
-    store.commit('updateSpace', space_uid);
+    store.commit('updateSpace', space?.space_uid);
 
     if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
       store.commit('updateStorage', {
@@ -83,23 +86,18 @@ export default ({
       });
     }
 
-    if (!space) {
-      return;
-    }
-
-    if (isExternal) {
-      const list = updateExternalMenuBySpace(space);
-      store.commit('updateExternalMenu', list);
-    }
+    return space;
   });
 
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
     store.commit('updateUserMeta', resp.data);
+    return resp.data;
   });
 
-  const collectRequest = http.request('collect/globals').then(res => {
+  const globalsRequest = http.request('collect/globals').then(res => {
     store.commit('globals/setGlobalsData', res.data);
+    return res.data;
   });
 
-  return Promise.all([spaceRequest, userInfoRequest, collectRequest]);
+  return Promise.all([spaceRequest, userInfoRequest, globalsRequest]);
 };

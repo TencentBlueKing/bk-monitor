@@ -46,7 +46,10 @@ class BKBaseEtlHandler(EtlHandler):
         """停止清洗任务"""
 
         BkDataDatabusApi.delete_tasks(
-            params={"result_table_id": bkdata_result_table_id, "bk_username": get_request_username()}
+            params={
+                "result_table_id": bkdata_result_table_id,
+                "bk_username": get_request_username(),
+            }
         )
 
     @staticmethod
@@ -173,7 +176,9 @@ class BKBaseEtlHandler(EtlHandler):
             table_id = CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_name)
             storage_params["physical_table_name"] = f"write_{timestamp_format}_{table_id}"
 
-        has_storage = BkDataDatabusApi.get_config_db_list({"raw_data_id": instance.bk_data_id})
+        has_storage = BkDataDatabusApi.get_config_db_list(
+            {"raw_data_id": instance.bk_data_id, "bk_biz_id": instance.bk_biz_id}
+        )
         # 创建入库
         if not has_storage:
             BkDataDatabusApi.databus_data_storages_post(storage_params)

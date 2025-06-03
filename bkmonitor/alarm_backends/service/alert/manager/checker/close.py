@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -132,7 +131,9 @@ class CloseStatusChecker(BaseChecker):
         metric_ids = [query["metric_id"] for query in origin_item["query_configs"]]
         if origin_metric_ids != metric_ids:
             logger.info(
-                "[close 处理结果] (closed) alert({}), strategy({}), " "策略监控项已被修改，告警关闭".format(alert.id, alert.strategy_id)
+                "[close 处理结果] (closed) alert({}), strategy({}), 策略监控项已被修改，告警关闭".format(
+                    alert.id, alert.strategy_id
+                )
             )
             self.close(alert, _("策略监控项已被修改，告警关闭"))
             return True
@@ -143,8 +144,7 @@ class CloseStatusChecker(BaseChecker):
             origin_dimensions = latest_query.get("agg_dimension", [])
             if set(latest_dimensions) != set(origin_dimensions):
                 logger.info(
-                    "[close 处理结果] (closed) alert({}), strategy({}), "
-                    "策略监控维度已被修改，告警关闭".format(
+                    "[close 处理结果] (closed) alert({}), strategy({}), 策略监控维度已被修改，告警关闭".format(
                         alert.id,
                         alert.strategy_id,
                     )
@@ -178,8 +178,7 @@ class CloseStatusChecker(BaseChecker):
                 latest_condition_md5 = get_agg_condition_md5(latest_condition)
                 if origin_condition_md5 != latest_condition_md5:
                     logger.info(
-                        "[close 处理结果] (closed) alert({}), strategy({}), "
-                        "策略过滤条件已被修改，告警关闭".format(
+                        "[close 处理结果] (closed) alert({}), strategy({}), 策略过滤条件已被修改，告警关闭".format(
                             alert.id,
                             alert.strategy_id,
                         )
@@ -190,8 +189,9 @@ class CloseStatusChecker(BaseChecker):
             # 4. 当前的是无数据告警，且无数据告警配置被关闭，则直接关闭告警
             if not latest_item["no_data_config"]["is_enabled"]:
                 logger.info(
-                    "[close 处理结果] (closed) alert({}), strategy({}), "
-                    "无数据告警设置被关闭，告警关闭".format(alert.id, alert.strategy_id)
+                    "[close 处理结果] (closed) alert({}), strategy({}), 无数据告警设置被关闭，告警关闭".format(
+                        alert.id, alert.strategy_id
+                    )
                 )
                 self.close(alert, _("无数据告警设置被关闭，告警关闭"))
                 return True
@@ -279,7 +279,9 @@ class CloseStatusChecker(BaseChecker):
             self.close(alert, _("在恢复检测周期内无数据上报，告警已失效"))
             logger.info(
                 "[close 处理结果] (closed) alert({}), strategy({}), last_check_timestamp({}), now_timestamp({}),"
-                "在恢复检测周期内无数据上报，进行事件关闭".format(alert.id, alert.strategy_id, last_check_timestamp, now_timestamp)
+                "在恢复检测周期内无数据上报，进行事件关闭".format(
+                    alert.id, alert.strategy_id, last_check_timestamp, now_timestamp
+                )
             )
             return True
         return False
@@ -294,7 +296,9 @@ class CloseStatusChecker(BaseChecker):
         current_time = int(time.time())
         if current_time - latest_time > settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA:
             self.close(
-                alert, _("在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已失效") % hms_string(settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA)
+                alert,
+                _("在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已失效")
+                % hms_string(settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA),
             )
             return True
         return False
@@ -312,11 +316,12 @@ class CloseStatusChecker(BaseChecker):
 
         target_dimensions = {}
         if alert.top_event["target_type"] == EventTargetType.HOST:
-            ip = target_dimensions["ip"] = alert.top_event["ip"]
-            bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event["bk_cloud_id"]
-
-            host = HostManager.get(ip, bk_cloud_id)
-
+            # CMDBEnricher 的 enrich_host 方法 会对event 设置ip字段，但如果主机缓存缺失，则会导致丢失ip字段
+            ip = target_dimensions["ip"] = alert.top_event.get("ip", "")
+            bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event.get("bk_cloud_id", "")
+            host = None
+            if ip and bk_cloud_id != "":
+                host = HostManager.get(ip, bk_cloud_id)
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
                 # 需要考虑一个问题，如何判断缓存未刷新的情况
@@ -325,7 +330,10 @@ class CloseStatusChecker(BaseChecker):
                         alert.id, alert.strategy_id, ip, bk_cloud_id
                     )
                 )
-                self.close(alert, _("CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭").format(ip, bk_cloud_id))
+                self.close(
+                    alert,
+                    _("CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭").format(ip, bk_cloud_id),
+                )
                 return True
 
             target_dimensions["bk_host_id"] = host.bk_host_id
@@ -345,7 +353,12 @@ class CloseStatusChecker(BaseChecker):
                         alert.id, alert.strategy_id, bk_service_instance_id
                     )
                 )
-                self.close(alert, _("CMDB 未查询到告警目标服务实例 ({}) 的信息，服务实例可能已被删除，告警关闭").format(bk_service_instance_id))
+                self.close(
+                    alert,
+                    _("CMDB 未查询到告警目标服务实例 ({}) 的信息，服务实例可能已被删除，告警关闭").format(
+                        bk_service_instance_id
+                    ),
+                )
                 return True
 
             topo_link = list(service_instance.topo_link.values())

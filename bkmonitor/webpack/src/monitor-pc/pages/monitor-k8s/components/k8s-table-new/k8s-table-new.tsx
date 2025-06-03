@@ -168,7 +168,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return row?.[column.id] || '--';
   }
 
-  /** workload / workload_type 不同场景下的获取值逻辑  */
+  /** workload / workload_kind 不同场景下的获取值逻辑  */
   static getWorkloadValue(columnKey: K8sTableColumnResourceKey, index: 0 | 1) {
     return row => (row?.[columnKey] as string)?.split(':')?.[index] || '--';
   }
@@ -314,7 +314,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         columns.push(column);
       }
       if (!this.isListTab && key === K8sTableColumnKeysEnum.WORKLOAD) {
-        columns.push(resourceMap[K8sTableColumnKeysEnum.WORKLOAD_TYPE]);
+        columns.push(resourceMap[K8sTableColumnKeysEnum.WORKLOAD_KIND]);
       }
     }
 
@@ -432,7 +432,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
-    const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE, NODE } =
+    const { CLUSTER, POD, WORKLOAD_KIND, WORKLOAD, NAMESPACE, CONTAINER, INGRESS, SERVICE, NODE } =
       K8sTableColumnKeysEnum;
 
     return {
@@ -455,9 +455,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
-      [WORKLOAD_TYPE]: {
-        id: WORKLOAD_TYPE,
-        name: this.$t('workload_type'),
+      [WORKLOAD_KIND]: {
+        id: WORKLOAD_KIND,
+        name: this.$t('workload_kind'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 140,
@@ -948,7 +948,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.sortContainer.prop = sortItem.prop;
     this.sortContainer.orderBy = sortItem.order === 'descending' ? 'desc' : 'asc';
     this.routerParamChange();
-    this.getK8sList();
+    this.getK8sList({
+      needRefresh: true,
+    });
   }
 
   /**

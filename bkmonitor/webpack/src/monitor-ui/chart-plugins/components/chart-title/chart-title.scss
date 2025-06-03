@@ -26,11 +26,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         }
 
         .title-icon-list {
-          visibility: inherit;
+          display: block;
         }
 
         .hover-show {
-          visibility: inherit;
+          display: block;
         }
       }
     }
@@ -42,7 +42,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       min-height: 30px;
 
       .title-icon-list {
-        visibility: hidden;
+        display: none;
       }
 
       .alarm-icon {
@@ -130,7 +130,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
       }
 
       .hover-show {
-        visibility: hidden;
+        display: none;
       }
 
       .tips-icon,

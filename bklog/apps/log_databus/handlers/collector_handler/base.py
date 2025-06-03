@@ -193,7 +193,7 @@ class CollectorHandler:
             multi_execute_func.append(
                 "subscription_config",
                 BKNodeApi.get_subscription_info,
-                params={"subscription_id_list": [self.data.subscription_id]},
+                params={"subscription_id_list": [self.data.subscription_id], "bk_biz_id": self.data.bk_biz_id},
                 use_request=use_request,
             )
         return multi_execute_func.run()

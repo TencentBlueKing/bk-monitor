@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import logging
 
@@ -17,6 +17,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm_web.trace.constants import OperatorEnum
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -27,14 +28,23 @@ from apm_web.handlers.trace_handler.query import (
     SpanQueryTransformer,
     TraceQueryTransformer,
 )
+from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
+    BaseTraceRequestSerializer,
+    GetFieldsOptionValuesRequestSerializer,
     QuerySerializer,
     QueryStatisticsSerializer,
     SpanIdInputSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
+    TraceFieldStatisticsInfoRequestSerializer,
+    TraceFieldsTopkRequestSerializer,
+    TraceGenerateQueryStringRequestSerializer,
 )
+from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
     OtlpKey,
     PreCalculateSpecificField,
@@ -48,6 +58,7 @@ from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
 from monitor_web.statistics.v2.query import unify_query_count
+from apm_web.handlers.trace_handler.dimension_statistics import DimensionStatisticsAPIHandler
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
@@ -125,6 +136,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -174,6 +186,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                 ],
@@ -237,6 +250,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                         "yAxisIndex": 0,
                         "chart_type": "bar",
@@ -317,6 +331,7 @@ class TraceChatsResource(Resource):
                                     },
                                 ],
                             },
+                            "fill_bar": True,
                         },
                         "yAxisIndex": 1,
                         "chart_type": "line",
@@ -408,6 +423,7 @@ class TraceChatsResource(Resource):
                                     },
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -457,6 +473,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -506,6 +523,7 @@ class TraceChatsResource(Resource):
                                     }
                                 ],
                             },
+                            "fill_bar": True,
                         },
                     },
                     {
@@ -623,8 +641,15 @@ class ListSpanResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        response = self.get_span_list_api_data(data)
+
+        QueryHandler.handle_span_list(response["data"])
+        return response
+
+    def get_span_list_api_data(self, data):
         bk_biz_id: int = data["bk_biz_id"]
         app_name: str = data["app_name"]
+        query_string = QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), data["query"])
         params = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
@@ -632,8 +657,10 @@ class ListSpanResource(Resource):
             "end_time": data["end_time"],
             "offset": data["offset"],
             "limit": data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]).es_dsl,
             "filters": data["filters"],
+            "exclude_field": ["bk_app_code"],
+            "query_string": query_string,
+            "sort": data["sort"],
         }
 
         try:
@@ -642,7 +669,6 @@ class ListSpanResource(Resource):
             raise CustomException(_lazy(f"Span列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
-        QueryHandler.handle_span_list(response["data"])
         return response
 
     def burial_point(self, bk_biz_id, app_name):
@@ -659,6 +685,13 @@ class ListTraceResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
+        response = self.get_trace_list_api_data(data)
+
+        QueryHandler.handle_trace_list(response["data"])
+
+        return response
+
+    def get_trace_list_api_data(self, data):
         bk_biz_id: int = data["bk_biz_id"]
         app_name: str = data["app_name"]
         params = {
@@ -669,6 +702,8 @@ class ListTraceResource(Resource):
             "offset": data["offset"],
             "limit": data["limit"],
             "filters": data["filters"],
+            "exclude_field": ["bk_app_code", "biz_name"],
+            "sort": data["sort"],
         }
 
         is_contain_non_standard_fields = QueryHandler.has_field_not_in_fields(
@@ -678,20 +713,20 @@ class ListTraceResource(Resource):
         )
 
         is_has_specific_fields = QueryHandler.has_field_not_in_fields(
-            data["query"], data["filters"], fields=PreCalculateSpecificField.search_fields(), opposite=True
+            data["query"], data["filters"], fields=PreCalculateSpecificField.specific_fields(), opposite=True
         )
 
         if is_contain_non_standard_fields:
             # 如果查询包含了非标准字段 -> 走原始表（预计算表无法查询非标准字段）
             qm = TraceListQueryMode.ORIGIN
-            params["es_dsl"] = QueryHandler(
-                SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
-            ).es_dsl
+            params["query_string"] = QueryHandler.process_query_string(
+                SpanQueryTransformer(bk_biz_id, app_name), data["query"]
+            )
         else:
             qm = TraceListQueryMode.PRE_CALCULATION
-            params["es_dsl"] = QueryHandler(
-                TraceQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
-            ).es_dsl
+            params["query_string"] = QueryHandler.process_query_string(
+                TraceQueryTransformer(bk_biz_id, app_name), data["query"]
+            )
 
         params["query_mode"] = qm
         try:
@@ -700,22 +735,16 @@ class ListTraceResource(Resource):
                 # 如果本次为预计算查询但是无数据时 切换为原始表再次查询 同时 es_dsl 也需要切换为 Span 表的 DSL 转换器
                 qm = TraceListQueryMode.ORIGIN
                 params["query_mode"] = qm
-                params["es_dsl"] = QueryHandler(
-                    SpanQueryTransformer(bk_biz_id, app_name), data["sort"], data["query"]
-                ).es_dsl
+                params["query_string"] = QueryHandler.process_query_string(
+                    SpanQueryTransformer(bk_biz_id, app_name), data["query"]
+                )
                 response = api.apm_api.query_trace_list(params)
         except BKAPIError as e:
             raise CustomException(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
-
-        QueryHandler.handle_trace_list(response["data"])
-
-        return {
-            # 前端针对不同类型做处理
-            "type": qm,
-            **response,
-        }
+        response["type"] = qm
+        return response
 
     def burial_point(self, bk_biz_id, app_name):
         # 查询指标埋点
@@ -799,7 +828,9 @@ class TraceDetailResource(Resource):
             validated_request_data.get("enabled_time_alignment"),
         )
         if not handled_data.get("original_data", []):
-            raise CustomException(_lazy("trace_id: {} 没有有效的 trace 数据").format(validated_request_data['trace_id']))
+            raise CustomException(
+                _lazy("trace_id: {} 没有有效的 trace 数据").format(validated_request_data["trace_id"])
+            )
 
         topo_data = trace_data_to_topo_data(handled_data["original_data"])
         handled_data["topo_relation"] = topo_data["relations"]
@@ -827,7 +858,9 @@ class TraceDiagramResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         trace_id = serializers.CharField(label="Trace ID")
 
-        diagram_type = serializers.ChoiceField(label="图表类型", choices=("flamegraph", "sequence", "topo", "statistics"))
+        diagram_type = serializers.ChoiceField(
+            label="图表类型", choices=("flamegraph", "sequence", "topo", "statistics")
+        )
         displays = serializers.ListField(
             child=serializers.ChoiceField(
                 choices=TraceWaterFallDisplayKey.choices(),
@@ -841,7 +874,9 @@ class TraceDiagramResource(Resource):
         prefer_raw = serializers.BooleanField(label="是否优先展示原始数据", required=False, default=False)
         absolute_time_sequence = serializers.BooleanField(label="是否展示绝对时间", required=False, default=False)
 
-        filter = TraceStatisticsResource.RequestSerializer.FilterSerializer(label="过滤", required=False, allow_null=True)
+        filter = TraceStatisticsResource.RequestSerializer.FilterSerializer(
+            label="过滤", required=False, allow_null=True
+        )
         group_fields = serializers.ListField(child=serializers.CharField(), label="分组字段列表", required=False)
 
     def get_comparison_details(self, bk_biz_id: str, app_name: str, trace_id: str, displays: list) -> dict:
@@ -930,8 +965,7 @@ class TraceDiagramResource(Resource):
 
 class TraceListByIdResource(Resource):
     TRACE_INFO_URL = (
-        "/?bizId={bk_biz_id}#/trace/home?"
-        "app_name={app_name}&search_id=traceID&search_type=accurate&trace_id={trace_id}"
+        "/?bizId={bk_biz_id}#/trace/home?app_name={app_name}&search_id=traceID&search_type=accurate&trace_id={trace_id}"
     )
 
     class RequestSerializer(serializers.Serializer):
@@ -977,8 +1011,7 @@ class TraceListByIdResource(Resource):
 
 class TraceListByHostInstanceResource(Resource):
     TRACE_INFO_URL = (
-        "/?bizId={bk_biz_id}#/trace/home?"
-        "app_name={app_name}&search_id=traceID&search_type=accurate&trace_id={trace_id}"
+        "/?bizId={bk_biz_id}#/trace/home?app_name={app_name}&search_id=traceID&search_type=accurate&trace_id={trace_id}"
     )
 
     class RequestSerializer(serializers.Serializer):
@@ -1037,6 +1070,25 @@ class ListOptionValuesResource(Resource):
     获取Span/Trace表头下拉框候选值
     """
 
+    TRACE_LIST_FIELDS = {
+        QueryMode.TRACE: [
+            "root_service",
+            "root_service_span_name",
+            "root_service_status_code",
+            "root_service_category",
+            "root_span_name",
+            "root_span_service",
+        ],
+        QueryMode.SPAN: [
+            "span_name",
+            "status.code",
+            "kind",
+            "resource.telemetry.sdk.version",
+            "resource.service.name",
+            "resource.bk.instance.id",
+        ],
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
@@ -1046,7 +1098,8 @@ class ListOptionValuesResource(Resource):
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_data):
-        return QueryHandler.query_option_values(**validated_data)
+        validated_data["fields"] = self.TRACE_LIST_FIELDS[validated_data["mode"]]
+        return QueryHandler.get_fields_option_values(**validated_data, filters=[], query_string="", limit=500)
 
 
 class GetFieldOptionValuesResource(Resource):
@@ -1073,6 +1126,21 @@ class GetFieldOptionValuesResource(Resource):
         return QueryHandler.get_file_option_values(**validated_request_data)
 
 
+class GetFieldsOptionValuesResource(Resource):
+    """获取指定字段列表的候选项值"""
+
+    RequestSerializer = GetFieldsOptionValuesRequestSerializer
+
+    @using_cache(CacheType.APM(60 * 1))
+    def perform_request(self, validated_request_data):
+        option_values_dict = QueryHandler.get_fields_option_values(**validated_request_data)
+        data = {}
+        for field_name, option_value_list in option_values_dict.items():
+            data[field_name] = [option_value_dict.get("value", "") for option_value_dict in option_value_list]
+
+        return data
+
+
 class ListSpanStatisticsResource(Resource):
     """
     接口统计
@@ -1083,6 +1151,9 @@ class ListSpanStatisticsResource(Resource):
     def perform_request(self, validated_data):
         bk_biz_id: int = validated_data["bk_biz_id"]
         app_name: str = validated_data["app_name"]
+        query_string = QueryHandler.process_query_string(
+            SpanQueryTransformer(bk_biz_id, app_name), validated_data["query"]
+        )
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
@@ -1090,7 +1161,7 @@ class ListSpanStatisticsResource(Resource):
             "end_time": validated_data["end_time"],
             "offset": validated_data["offset"],
             "limit": validated_data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), [], validated_data["query"]).es_dsl,
+            "query_string": query_string,
             "filters": validated_data["filters"],
         }
 
@@ -1112,7 +1183,9 @@ class ListServiceStatisticsResource(Resource):
     def perform_request(self, validated_data):
         bk_biz_id: int = validated_data["bk_biz_id"]
         app_name: str = validated_data["app_name"]
-
+        query_string = QueryHandler.process_query_string(
+            SpanQueryTransformer(bk_biz_id, app_name), validated_data["query"]
+        )
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
@@ -1120,7 +1193,7 @@ class ListServiceStatisticsResource(Resource):
             "end_time": validated_data["end_time"],
             "offset": validated_data["offset"],
             "limit": validated_data["limit"],
-            "es_dsl": QueryHandler(SpanQueryTransformer(bk_biz_id, app_name), [], validated_data["query"]).es_dsl,
+            "query_string": query_string,
             "filters": validated_data["filters"],
         }
 
@@ -1238,3 +1311,77 @@ class ListSpanHostInstancesResource(Resource):
 
     def perform_request(self, validated_request_data):
         return HostHandler.find_host_in_span(**validated_request_data)
+
+
+class ListTraceViewConfigResource(Resource):
+    """获取 trace 检索页面的视图配置"""
+
+    RequestSerializer = BaseTraceRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        fields_handler = TraceFieldsHandler(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+
+        return {
+            "trace_config": fields_handler.get_fields_by_mode(QueryMode.TRACE),
+            "span_config": fields_handler.get_fields_by_mode(QueryMode.SPAN),
+        }
+
+
+class TraceFieldsTopKResource(Resource):
+    """获取 trace 字段的 topk 数据"""
+
+    RequestSerializer = TraceFieldsTopkRequestSerializer
+
+    def perform_request(self, validated_data):
+        return DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
+
+
+class TraceFieldStatisticsInfoResource(Resource):
+    """获取 trace 字段的维度统计信息"""
+
+    RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
+
+    def perform_request(self, validated_data):
+        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
+
+
+class TraceFieldStatisticsGraphResource(Resource):
+    """获取 trace 字段的维度统计图表"""
+
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_data):
+        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
+
+
+class ListFlattenSpanResource(Resource):
+    RequestSerializer = QuerySerializer
+
+    def perform_request(self, data):
+        response = ListSpanResource().get_span_list_api_data(data)
+        response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
+        return response
+
+
+class ListFlattenTraceResource(Resource):
+    RequestSerializer = QuerySerializer
+
+    def perform_request(self, data):
+        response = ListTraceResource().get_trace_list_api_data(data)
+        data_list = []
+        for trace_data_dict in response["data"]:
+            data_list.append(flatten_es_dict_data(trace_data_dict))
+        response["data"] = data_list
+        return response
+
+
+class TraceGenerateQueryStringResource(Resource):
+    RequestSerializer = TraceGenerateQueryStringRequestSerializer
+
+    def perform_request(self, data):
+        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+        for f in data["filters"]:
+            generator.add_filter(
+                f["key"], f["operator"], f["value"], f["options"]["is_wildcard"], f["options"]["group_relation"]
+            )
+        return generator.to_query_string()

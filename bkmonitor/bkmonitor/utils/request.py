@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,36 +9,73 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import Optional
+import logging
 
+from django.conf import settings
 from django.http import HttpRequest
 
 from bkmonitor.utils.local import local
 from constants.cmdb import BIZ_ID_FIELD_NAMES
-from constants.common import SourceApp
+from constants.common import DEFAULT_TENANT_ID, SourceApp
 
 
-def get_request_tenant_id(peaceful=False) -> Optional[str]:
+logger = logging.getLogger(__name__)
+
+
+def get_request_tenant_id(peaceful=False) -> str | None:
     """
     获取当前请求的租户id
     """
+    from bkmonitor.utils.tenant import get_local_tenant_id
+
     request = get_request(peaceful=True)
+
+    # 单租户模式下，租户id为默认租户id
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        if not request:
+            logger.warning("get_request_tenant_id: cannot get request for bk_tenant_id from local.")
+        return DEFAULT_TENANT_ID
+
     if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
         if peaceful:
             return None
         else:
-            raise Exception("get_request_tenant_id: cannot get tenant_id from request.")
+            raise Exception("get_request_tenant_id: cannot get bk_tenant_id from request.")
 
-    return request.user.tenant_id
+    # 从local获取
+    tenant_id = get_local_tenant_id()
+    if tenant_id:
+        return tenant_id
+
+    # 如果peaceful为True，则不需要抛出异常
+    if peaceful:
+        return None
+
+    raise Exception("get_request_tenant_id: cannot get tenant_id.")
 
 
-def get_request(peaceful=False) -> Optional[HttpRequest]:
+def get_request(peaceful=False) -> HttpRequest | None:
+    """
+    获取当前请求
+    """
     if hasattr(local, "current_request"):
         return local.current_request
     elif peaceful:
         return None
 
     raise Exception("get_request: current thread hasn't request.")
+
+
+def set_request(request: HttpRequest):
+    """
+    设置当前请求
+    """
+    from bkmonitor.utils.tenant import set_local_tenant_id
+    from bkmonitor.utils.user import set_local_username
+
+    local.current_request = request
+    set_local_username(request.user.username)
+    set_local_tenant_id(request.user.tenant_id)
 
 
 def get_source_app(request=None):
@@ -111,7 +147,7 @@ def get_request_username(default=""):
     return username
 
 
-def set_request_username(username):
+def set_request_username(username: str):
     request = get_request(peaceful=True)
     if request:
         # 有请求对象，就设置请求对象
@@ -125,4 +161,4 @@ def is_ajax_request(request):
     """
     断是否是ajax请求
     """
-    return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    return request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"

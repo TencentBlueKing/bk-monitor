@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
+import { Component, Prop, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -66,6 +66,9 @@ import type {
 import './metric-chart.scss';
 const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 
+// 最小展示tooltips高度
+const MIN_SHOW_TOOLTIPS_HEIGHT = 200;
+
 interface INewMetricChartProps {
   chartHeight?: number;
   isToolIconShow?: boolean;
@@ -96,6 +99,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
+  @Ref('baseChart') readonly baseChart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
@@ -157,6 +162,11 @@ class NewMetricChart extends CommonSimpleChart {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get viewWidth() {
+    const viewColumn = Number(this.$route.query?.viewColumn) || 2;
+    return this.width / (viewColumn + 1) - 40;
+  }
+
   /** 操作的icon列表 */
   get handleIconList() {
     return [
@@ -170,7 +180,12 @@ class NewMetricChart extends CommonSimpleChart {
   }
   /** hover展示多个tooltips */
   get hoverAllTooltips() {
-    return this.panel.options?.time_series?.hoverAllTooltips;
+    // 根据图表是否在可视区域内来判断是否展示多个tooltips
+    const { top = MIN_SHOW_TOOLTIPS_HEIGHT } = this.$refs.baseChart?.$el?.getBoundingClientRect() || {};
+    return (
+      (this.panel.options?.time_series?.hoverAllTooltips && top >= this.containerScrollTop) ||
+      top >= MIN_SHOW_TOOLTIPS_HEIGHT
+    );
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -561,12 +576,12 @@ class NewMetricChart extends CommonSimpleChart {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
-                      if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
-                      }
-                      return v;
+                    if (seriesList[0].unit !== 'none') {
+                      const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                      return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                     }
+                    return v;
+                  }
                   : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
@@ -634,7 +649,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (customSave) return dataUrl;
         downFile(dataUrl, `${title}.png`);
       })
-      .catch(() => {});
+      .catch(() => { });
   }
   dataZoom(startTime: string, endTime: string) {
     this.showRestore = !!startTime;
@@ -854,7 +869,7 @@ class NewMetricChart extends CommonSimpleChart {
         >
           <span class='status-tab-view'>
             <StatusTab
-              maxWidth={this.width - 300}
+              maxWidth={this.viewWidth}
               statusList={this.methodList}
               value={this.method}
               onChange={this.handleMethodChange}

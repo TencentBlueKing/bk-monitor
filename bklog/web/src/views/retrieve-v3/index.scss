@@ -69,10 +69,10 @@
         .field-list-sticky {
           &.is-show {
             position: fixed;
-            top: calc(var(--top-searchbar-height) + 52px);
+            top: calc(var(--top-searchbar-height) + var(--header-height));
             bottom: 0;
             left: calc(var(--left-collection-width) + 8px);
-            height: calc(100vh - var(--top-searchbar-height) - 52px);
+            height: calc(100vh - var(--top-searchbar-height) - var(--header-height));
 
             .field-filter-box {
               .field-filter-container-new {

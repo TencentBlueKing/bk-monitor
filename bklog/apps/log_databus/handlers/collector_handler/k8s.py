@@ -1967,13 +1967,17 @@ class K8sCollectorHandler(CollectorHandler):
         space = Space.objects.get(bk_biz_id=bk_biz_id)
 
         if space.space_type_id == SpaceTypeEnum.BCS.value:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
             bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
             project_ids = {p["projectID"] for p in bcs_projects}
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
                 if project_id not in project_ids:
@@ -1982,7 +1986,9 @@ class K8sCollectorHandler(CollectorHandler):
                     namespaces.add(ns)
             return [{"id": n, "name": n} for n in namespaces]
         elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(
+                bcs_cluster_id=bcs_cluster_id, bk_tenant_id=space.bk_tenant_id
+            )
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
         else:
             return []

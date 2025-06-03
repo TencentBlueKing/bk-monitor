@@ -74,7 +74,7 @@ from apps.log_databus.handlers.collector_handler.base import (
 )
 
 from apps.log_search.handlers.biz import BizHandler
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
@@ -89,7 +89,9 @@ class HostCollectorHandler(CollectorHandler):
     def _pre_start(self):
         # 启动节点管理订阅功能
         if self.data.subscription_id:
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "enable", "bk_biz_id": self.data.bk_biz_id}
+            )
 
     @transaction.atomic
     def start(self, **kwargs):
@@ -101,7 +103,9 @@ class HostCollectorHandler(CollectorHandler):
     def _pre_stop(self):
         if self.data.subscription_id:
             # 停止节点管理订阅功能
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "disable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "disable", "bk_biz_id": self.data.bk_biz_id}
+            )
 
     @transaction.atomic
     def stop(self, **kwargs):
@@ -111,9 +115,19 @@ class HostCollectorHandler(CollectorHandler):
         return True
 
     def _pre_destroy(self):
+        """
+        删除订阅事件
+        :return: [dict]
+        {
+            "message": "",
+            "code": "OK",
+            "data": null,
+            "result": true
+        }
+        """
         if not self.data.subscription_id:
             return
-        subscription_params = {"subscription_id": self.data.subscription_id}
+        subscription_params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         return NodeApi.delete_subscription(subscription_params)
 
     def run(self, action, scope):
@@ -552,7 +566,11 @@ class HostCollectorHandler(CollectorHandler):
         :return: [dict]
         """
         # 详情接口查询，原始日志
-        param = {"subscription_id": self.data.subscription_id, "instance_id": instance_id}
+        param = {
+            "subscription_id": self.data.subscription_id,
+            "instance_id": instance_id,
+            "bk_biz_id": self.data.bk_biz_id,
+        }
         if task_id:
             param["task_id"] = task_id
         detail_result = NodeApi.get_subscription_task_detail(param)
@@ -571,7 +589,11 @@ class HostCollectorHandler(CollectorHandler):
         return {"log_detail": "\n".join(log), "log_result": detail_result}
 
     def _retry_subscription(self, instance_id_list):
-        params = {"subscription_id": self.data.subscription_id, "instance_id_list": instance_id_list}
+        params = {
+            "subscription_id": self.data.subscription_id,
+            "instance_id_list": instance_id_list,
+            "bk_biz_id": self.data.bk_biz_id,
+        }
 
         task_id = str(NodeApi.retry_subscription(params)["task_id"])
         self.data.task_id_list.append(task_id)
@@ -918,6 +940,7 @@ class HostCollectorHandler(CollectorHandler):
         # 查询采集任务状态
         param = {
             "subscription_id": self.data.subscription_id,
+            "bk_biz_id": self.data.bk_biz_id,
         }
         if self.data.task_id_list:
             param["task_id_list"] = self.data.task_id_list
@@ -934,6 +957,7 @@ class HostCollectorHandler(CollectorHandler):
                 "need_detail": False,
                 "need_aggregate_all_tasks": True,
                 "need_out_of_scope_snapshots": False,
+                "bk_biz_id": self.data.bk_biz_id,
             },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
@@ -1072,6 +1096,7 @@ class HostCollectorHandler(CollectorHandler):
                 "need_detail": False,
                 "need_aggregate_all_tasks": True,
                 "need_out_of_scope_snapshots": False,
+                "bk_biz_id": self.data.bk_biz_id,
             },
             get_data=lambda x: x["list"],
             get_count=lambda x: x["total"],
@@ -1085,6 +1110,7 @@ class HostCollectorHandler(CollectorHandler):
             params={"conditions": [], "page": 1, "pagesize": settings.BULK_REQUEST_LIMIT},
             chunk_values=bk_host_ids,
             chunk_key="bk_host_id",
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=self.data.bk_biz_id),
         )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
@@ -1176,7 +1202,9 @@ class HostCollectorHandler(CollectorHandler):
             if params.get("run_task", True):
                 self._run_subscription_task()
             # start nodeman subscription
-            NodeApi.switch_subscription({"subscription_id": self.data.subscription_id, "action": "enable"})
+            NodeApi.switch_subscription(
+                {"subscription_id": self.data.subscription_id, "action": "enable", "bk_biz_id": self.data.bk_biz_id}
+            )
         except Exception as error:  # pylint: disable=broad-except
             logger.exception(f"create or update collector config failed => [{error}]")
             if not is_create:
@@ -1306,7 +1334,7 @@ class HostCollectorHandler(CollectorHandler):
         :return: task_id 任务ID
         """
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
-        params = {"subscription_id": self.data.subscription_id}
+        params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         if action:
             params.update({"actions": {collector_scenario.PLUGIN_NAME: action}})
 

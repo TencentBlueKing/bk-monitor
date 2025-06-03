@@ -59,14 +59,14 @@ import {
   BkLogGlobalStorageKey,
   URL_ARGS,
 } from './default-values.ts';
-import { BK_LOG_STORAGE } from './store.type.ts';
 import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
+import { BK_LOG_STORAGE } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-
+import { builtInInitHiddenList } from '@/const/index.js';
 Vue.use(Vuex);
 const stateTpl = {
   userMeta: {}, // /meta/mine
@@ -167,7 +167,10 @@ const stateTpl = {
   apiErrorInfo: {},
   clusterParams: null,
   storage: {
-    ...getStorageOptions(),
+    ...getStorageOptions({
+      [BK_LOG_STORAGE.BK_BIZ_ID]: URL_ARGS.bizId,
+      [BK_LOG_STORAGE.BK_SPACE_UID]: URL_ARGS.spaceUid,
+    }),
   },
   features: {
     isAiAssistantActive: false,
@@ -246,7 +249,7 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => {
+        .map(({ field, operator, value, showList }) => {
           const addition = {
             field,
             operator,
@@ -255,6 +258,10 @@ const store = new Vuex.Store({
 
           if (['is true', 'is false'].includes(addition.operator)) {
             addition.value = [''];
+          } else {
+            if (showList) {
+              addition.value = value.filter((_, index) => !showList[index]);
+            }
           }
 
           return addition;
@@ -539,17 +546,24 @@ const store = new Vuex.Store({
       state.indexId = indexId;
     },
     updateUnionIndexList(state, unionIndexList) {
+      const updateIndexItem = unionIndexList.updateIndexItem ?? true;
+      const list = Array.isArray(unionIndexList) ? unionIndexList : unionIndexList.list;
+
       state.unionIndexList.splice(
         0,
         state.unionIndexList.length,
-        ...unionIndexList.filter(v => v !== null && v !== undefined),
+        ...list.filter(v => v !== null && v !== undefined),
       );
-      state.indexItem.ids.splice(
-        0,
-        state.indexItem.ids.length,
-        ...unionIndexList.filter(v => v !== null && v !== undefined),
-      );
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
+
+      if (updateIndexItem) {
+        state.indexItem.ids.splice(
+          0,
+          state.indexItem.ids.length,
+          ...list.filter(v => v !== null && v !== undefined),
+        );
+      }
+
+      const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {
@@ -644,7 +658,26 @@ const store = new Vuex.Store({
     },
 
     updateIndexFieldInfo(state, payload) {
-      Object.assign(state.indexFieldInfo, payload ?? {});
+      const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
+      const processedData = payload ? { ...payload } : {}; 
+      if (Array.isArray(processedData.fields)) {
+        processedData.fields = [...processedData.fields].sort((a, b) => {
+          // dtEventTimeStamp默认在第一个
+          if (a.field_name === 'dtEventTimeStamp') {
+            return -1;
+          }
+          if (b.field_name === 'dtEventTimeStamp') {
+            return 1;
+          }
+          const aWeight = HIDDEN_FIELDS.has(a.field_name) ? 1 : 0;
+          const bWeight = HIDDEN_FIELDS.has(b.field_name) ? 1 : 0;
+          return aWeight - bWeight; 
+        });
+      }
+      // Object.assign(state.indexFieldInfo, processedData);
+      Object.keys(processedData ?? {}).forEach(key => {
+        set(state.indexFieldInfo, key, processedData[key]);
+      });
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;
@@ -1638,11 +1671,11 @@ const store = new Vuex.Store({
             newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
           }
 
-          if (!/\s$/.test(keywords[0])) {
+          if (keywords.length > 0 && !/\s$/.test(keywords[0])) {
             keywords[0] = keywords[0] + ' ';
           }
 
-          const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
+          const newSearchKeyword = (keywords ?? []).concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');
         }

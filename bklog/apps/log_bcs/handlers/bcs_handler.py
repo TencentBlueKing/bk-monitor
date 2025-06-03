@@ -25,8 +25,10 @@ from bkm_space.define import SpaceTypeEnum
 
 class BcsHandler:
     @classmethod
-    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str) -> dict:
-        namespaces = BcsApi.list_namespaces({"project_code": "-", "cluster_id": bcs_cluster_id.upper()})
+    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str, bk_tenant_id: str) -> dict:
+        namespaces = BcsApi.list_namespaces(
+            {"project_code": "-", "cluster_id": bcs_cluster_id.upper()}, bk_tenant_id=bk_tenant_id
+        )
         project_id_to_ns = {}
         for ns in namespaces:
             project_id_to_ns.setdefault(ns["projectID"], []).append(ns["name"])
@@ -40,11 +42,13 @@ class BcsHandler:
 
         space = Space.objects.get(bk_biz_id=bk_biz_id)
         if space.space_type_id == SpaceTypeEnum.BKCC.value:
-            clusters = BcsApi.list_cluster_by_project_id({"businessID": bk_biz_id})
+            clusters = BcsApi.list_cluster_by_project_id({"businessID": bk_biz_id}, bk_tenant_id=space.bk_tenant_id)
         elif space.space_type_id == SpaceTypeEnum.BCS.value:
-            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_id})
+            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_id}, bk_tenant_id=space.bk_tenant_id)
         elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            clusters = BcsApi.list_cluster_by_project_id({"projectID": space.space_code})
+            clusters = BcsApi.list_cluster_by_project_id(
+                {"projectID": space.space_code}, bk_tenant_id=space.bk_tenant_id
+            )
         else:
             clusters = []
 

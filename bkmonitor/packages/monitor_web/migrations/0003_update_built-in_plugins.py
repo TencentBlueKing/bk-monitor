@@ -12,16 +12,10 @@ specific language governing permissions and limitations under the License.
 
 from django.db import migrations
 
-from monitor_web.migrations.plugin_data.update_plugin_data import update_plugin_data
-from monitor_web.migrations.plugin_data.update_signature import signature2db
-
 
 class Migration(migrations.Migration):
     dependencies = [
         ("monitor_web", "0002_create_operatesysterm"),
     ]
 
-    operations = [
-        # migrations.RunPython(update_plugin_data),
-        # migrations.RunPython(signature2db),
-    ]
+    operations = []

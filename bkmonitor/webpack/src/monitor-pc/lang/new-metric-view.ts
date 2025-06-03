@@ -120,4 +120,5 @@ export default {
   编辑范围: 'Edit Range',
   全量: 'Full',
   '新增 "{0}" 维度': 'Added "{0}" dimension',
+  视图管理: 'View Management',
 };

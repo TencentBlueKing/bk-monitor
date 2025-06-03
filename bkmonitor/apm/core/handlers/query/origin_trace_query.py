@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,7 +14,8 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from typing import Any, Dict, List, Optional, Union
+
+from typing import Any
 
 from django.db.models import Q
 from opentelemetry.semconv.trace import SpanAttributes
@@ -33,26 +33,28 @@ class OriginTraceQuery(BaseQuery):
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
 
-    def list(
+    def query_list(
         self,
-        start_time: Optional[int],
-        end_time: Optional[int],
+        start_time: int | None,
+        end_time: int | None,
         offset: int,
         limit: int,
-        filters: Optional[List[types.Filter]] = None,
-        es_dsl: Optional[Dict[str, Any]] = None,
-        exclude_fields: Optional[List[str]] = None,
+        filters: list[types.Filter] | None = None,
+        exclude_fields: list[str] | None = None,
+        query_string: str | None = None,
+        sort: list[str] | None = None,
     ):
-        page_data: Dict[str, Union[int, List[str]]] = {"total": 0}
+        page_data: dict[str, int | list[str]] = {"total": 0}
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters))
-        q = self._add_filters_from_dsl(q, es_dsl)
+        if query_string:
+            q = q.query_string(query_string)
 
         def _fill_data():
-            _trace_ids: List[str] = []
+            _trace_ids: list[str] = []
             _q: QueryConfigBuilder = q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID)
-            for _info in queryset.add_query(_q).offset(offset).limit(limit).time_agg(False).instant():
-                _trace_id: Union[str, List[str]] = _info[OtlpKey.TRACE_ID]
+            for _info in queryset.add_query(_q).offset(offset).limit(limit):
+                _trace_id: str | list[str] = _info[OtlpKey.TRACE_ID]
                 if isinstance(_trace_id, list):
                     _trace_id = _trace_id[0]
                 _trace_ids.append(_trace_id)
@@ -72,13 +74,13 @@ class OriginTraceQuery(BaseQuery):
 
         return res, page_data["total"]
 
-    def _query_trace_info(self, processor, trace_id: str) -> Dict[str, Any]:
+    def _query_trace_info(self, processor, trace_id: str) -> dict[str, Any]:
         q: QueryConfigBuilder = (
             self.q.time_field(OtlpKey.START_TIME)
             .order_by(OtlpKey.START_TIME)
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
         )
-        span_infos: List[Dict[str, Any]] = list(
+        span_infos: list[dict[str, Any]] = list(
             self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE)
         )
 

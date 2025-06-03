@@ -28,8 +28,10 @@ import { Ref } from 'vue';
 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
+import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
+import { RouteQueryTab } from './retrieve-v3/index.type';
+import { parseTableRowData } from '@/common/util';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
@@ -41,12 +43,26 @@ export { RetrieveEvent, GradeSetting, GradeConfiguration };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
+  scrollEventAdded = false;
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
     super({});
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
+  }
+
+  /**
+   * 添加滚动监听
+   */
+  private setContentScroll() {
+    if (!this.scrollEventAdded) {
+      const target = document.querySelector(this.globalScrollSelector);
+      if (target) {
+        target.addEventListener('scroll', this.handleScroll);
+        this.scrollEventAdded = true;
+      }
+    }
   }
 
   /**
@@ -62,10 +78,12 @@ class RetrieveHelper extends RetrieveBase {
    * 更新索引集id
    * @param id
    */
-  setIndexsetId(idList: string[], type: string) {
+  setIndexsetId(idList: string[], type: string, fireEvent = true) {
     this.indexSetIdList = idList;
     this.indexSetType = type;
-    this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    if (fireEvent) {
+      this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    }
   }
 
   /**
@@ -107,9 +125,44 @@ class RetrieveHelper extends RetrieveBase {
     this.markInstance.incrementalUpdate();
   }
 
+  isMatchedGroup(group, fieldValue, isGradeMatchValue) {
+    if (isGradeMatchValue) {
+      return group.fieldValue?.includes(fieldValue) ?? false;
+    }
+
+    const regExp = new RegExp(group.regExp);
+    return regExp.test(fieldValue);
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): string | null {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
   /**
    * 解析日志级别
-   * @param str
+   * @param field
+   * @param options
    * @returns
    */
   getLogLevel(field: any, options: GradeConfiguration) {
@@ -118,7 +171,7 @@ class RetrieveHelper extends RetrieveBase {
     }
 
     if ((options?.type ?? 'normal') === 'normal') {
-      const str = field?.log ?? '';
+      const str = this.convertToMatchableString(field?.log);
 
       if (!str?.trim()) return null;
 
@@ -159,14 +212,22 @@ class RetrieveHelper extends RetrieveBase {
       return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
-    if (options.type === 'custom' && field[options.field]) {
-      const target = `${field[options.field]}`;
+    const fieldValue = parseTableRowData(field, options.field, options.fieldType);
+
+    if (options.type === 'custom' && fieldValue) {
+      const target = this.convertToMatchableString(fieldValue);
+
+      if (!target) {
+        return null;
+      }
+
       const levels = [];
       // 截取前1000字符避免性能问题
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
+            levels.push(item.id);
         }
       });
 
@@ -270,7 +331,7 @@ class RetrieveHelper extends RetrieveBase {
     localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE, `${show}`);
     this.runEvent(RetrieveEvent.FAVORITE_VIEW_CURRENT_CHANGE, show);
   }
-  
+
   /**
    * 更新滚动条查询条件
    * @param selector
@@ -309,22 +370,60 @@ class RetrieveHelper extends RetrieveBase {
     return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
   }
 
+  /**
+   * 修复路由参数中的 tab 值
+   * @param indexSetItem
+   * @param tabValue
+   * @returns
+   */
+  routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
+    const isclusteringEnable = () => {
+      return (
+        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
+        indexSetItem?.scenario_id === 'bkdata'
+      );
+    };
+
+    const isChartEnable = () => indexSetItem?.support_doris && !isUnionSearch;
+
+    if (indexSetItem) {
+      if (tabValue === RouteQueryTab.CLUSTERING) {
+        if (!isclusteringEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
+      }
+
+      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
+        if (!isChartEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
+      }
+    }
+
+    if (tabValue) {
+      return { tab: tabValue };
+    }
+
+    return {};
+  }
+
   private handleScroll = (e: MouseEvent) => {
     this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
   };
 
   onMounted() {
-    document.querySelector(this.globalScrollSelector)?.addEventListener('scroll', this.handleScroll);
+    this.setContentScroll();
   }
 
   destroy() {
     this.events.clear();
     document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
+    this.scrollEventAdded = false;
   }
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false' ;
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
 export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

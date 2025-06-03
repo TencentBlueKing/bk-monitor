@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -19,6 +18,9 @@ import re
 import shutil
 import tarfile
 import time
+import pathlib
+import subprocess
+import json
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -26,13 +28,14 @@ from uuid import uuid4
 import yaml
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
+from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
 
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
 from constants.result_table import (
     RT_RESERVED_WORD_EXACT,
@@ -55,6 +58,9 @@ from core.errors.plugin import (
     RelatedItemsExist,
     SNMPMetricNumberError,
     UnsupportedPluginTypeError,
+    RegexParseError,
+    SubprocessCallError,
+    JsonParseError,
 )
 from monitor.models import GlobalConfig
 from monitor_web.commons.data_access import PluginDataAccessor
@@ -143,7 +149,9 @@ class DataDogPluginUploadResource(Resource):
 
 class SaveMetricResource(Resource):
     class RequestSerializer(MetricJsonBaseSerializer):
-        plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
+        plugin_id = serializers.RegexField(
+            required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID"
+        )
         plugin_type = serializers.ChoiceField(
             required=True, choices=[choice[0] for choice in CollectorPluginMeta.PLUGIN_TYPE_CHOICES], label="插件类型"
         )
@@ -182,7 +190,9 @@ class SaveMetricResource(Resource):
                 config, _ = GlobalConfig.objects.get_or_create(key="MAX_METRIC_NUM", defaults={"value": MAX_METRIC_NUM})
                 if metric_num > safe_int(config.value, dft=MAX_METRIC_NUM):
                     raise MetricNumberError(max_metric_num=safe_int(config.value, dft=MAX_METRIC_NUM))
-        plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
+        plugin_manager = PluginManagerFactory.get_manager(
+            bk_tenant_id=get_request_tenant_id(), plugin=plugin_id, plugin_type=plugin_type
+        )
         config_version, info_version, is_change, need_make = plugin_manager.update_metric(validated_request_data)
         if need_make:
             register_info = {"plugin_id": plugin_id, "config_version": config_version, "info_version": info_version}
@@ -215,7 +225,7 @@ class CreatePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(CreatePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, params):
         # 新建插件默认开启自动发现
@@ -223,8 +233,10 @@ class CreatePluginResource(Resource):
         plugin_id = params["plugin_id"]
         plugin_type = params["plugin_type"]
         import_plugin_metric_json = params.get("import_plugin_metric_json")
-        with transaction.atomic():
-            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
+        with atomic():
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=get_request_tenant_id(), plugin=plugin_id, plugin_type=plugin_type
+            )
             plugin_manager.validate_config_info(params["collector_json"], params["config_json"])
 
             try:
@@ -251,7 +263,7 @@ class CreatePluginResource(Resource):
 
 class PluginRegisterResource(Resource):
     def __init__(self):
-        super(PluginRegisterResource, self).__init__()
+        super().__init__()
         self.plugin_manager = None
         self.RequestSerializer = PluginRegisterRequestSerializer
         self.plugin_id = None
@@ -267,14 +279,18 @@ class PluginRegisterResource(Resource):
         return self.apply_async(request_data)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         self.plugin_id = validated_request_data["plugin_id"]
-        plugin = CollectorPluginMeta.objects.filter(plugin_id=self.plugin_id).first()
+        plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=self.plugin_id).first()
         if plugin is None:
             raise PluginIDNotExist
         config_version = validated_request_data["config_version"]
         info_version = validated_request_data["info_version"]
         version = PluginVersionHistory.objects.filter(
-            plugin_id=self.plugin_id, config_version=config_version, info_version=info_version
+            bk_tenant_id=bk_tenant_id,
+            plugin_id=self.plugin_id,
+            config_version=config_version,
+            info_version=info_version,
         ).first()
         if version is None:
             raise PluginVersionNotExist
@@ -317,7 +333,7 @@ class PluginRegisterResource(Resource):
             with open(file_name, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash.update(chunk)
-        except IOError:
+        except OSError:
             return "-1"
 
         return hash.hexdigest()
@@ -365,7 +381,7 @@ class PluginRegisterResource(Resource):
                 raise RegisterPackageError({"msg": result["message"]})
 
             if result["is_finish"]:
-                logger.info("register package task({}) result: {}".format(job_id, result))
+                logger.info(f"register package task({job_id}) result: {result}")
                 break
             time.sleep(1)
             to_be_continue -= 1
@@ -391,7 +407,7 @@ class PluginRegisterResource(Resource):
             for filename in filenames:
                 if not filename.endswith(".tpl"):
                     # 不以 .tpl 结尾的，不注册为模板
-                    logger.info("template name ({}) not endswith .tpl, skip".format(filename))
+                    logger.info(f"template name ({filename}) not endswith .tpl, skip")
                     continue
                 with open(os.path.join(root, filename), "rb") as f:
                     content = f.read()
@@ -407,7 +423,7 @@ class PluginImportResource(Resource):
     CollectorFile = namedtuple("CollectorFile", ["name", "data"])
 
     def __init__(self):
-        super(PluginImportResource, self).__init__()
+        super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
         self.filename_list = []
@@ -453,7 +469,7 @@ class PluginImportResource(Resource):
         try:
             with open(meta_yaml_path) as f:
                 meta_content = f.read()
-        except IOError:
+        except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
         meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -469,7 +485,9 @@ class PluginImportResource(Resource):
     def check_conflict_mes(self):
         self.create_params["conflict_ids"] = []
         if not self.current_version:
-            self.create_params["conflict_detail"] = """已经存在重名的插件, 上传的插件版本为: {}""".format(self.tmp_version.version)
+            self.create_params["conflict_detail"] = (
+                f"""已经存在重名的插件, 上传的插件版本为: {self.tmp_version.version}"""
+            )
             return
         if self.current_version.is_official:
             if self.tmp_version.is_official:
@@ -481,14 +499,18 @@ class PluginImportResource(Resource):
                     self.create_params["conflict_detail"] = ""
                     self.create_params["duplicate_type"] = None
             else:
-                self.create_params["conflict_detail"] = """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
                 self.check_conflict_title()
         else:
             if self.tmp_version.is_official:
-                self.create_params["conflict_detail"] = """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
+                        self.tmp_version.version, self.current_version.version
+                    )
                 )
             else:
                 self.create_params["conflict_detail"] = """导入插件包版本为: {}；当前插件版本为: {}""".format(
@@ -562,7 +584,9 @@ class PluginImportResource(Resource):
         except PluginIDExist:
             try:
                 # 判断是否当前数据库存在重名
-                self.current_version = CollectorPluginMeta.objects.get(plugin_id=self.plugin_id).current_version
+                self.current_version = CollectorPluginMeta.objects.get(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=self.plugin_id
+                ).current_version
                 self.create_params["duplicate_type"] = "official" if self.current_version.is_official else "custom"
             except CollectorPluginMeta.DoesNotExist:
                 self.create_params["duplicate_type"] = "custom"
@@ -575,7 +599,10 @@ class PluginImportResource(Resource):
             self.get_plugin()
             # 创建插件记录
             import_manager = PluginManagerFactory.get_manager(
-                plugin=self.plugin_id, plugin_type=self.plugin_type, tmp_path=self.tmp_path
+                bk_tenant_id=get_request_tenant_id(),
+                plugin=self.plugin_id,
+                plugin_type=self.plugin_type,
+                tmp_path=self.tmp_path,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
@@ -616,7 +643,9 @@ class CheckPluginIDResource(Resource):
         if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", plugin_id):
             raise PluginIDFormatError({"msg": _("插件ID只允许包含字母、数字、下划线，且必须以字母开头")})
 
-        if CollectorPluginMeta.origin_objects.filter(plugin_id=plugin_id).exists():
+        if CollectorPluginMeta.origin_objects.filter(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
+        ).exists():
             raise PluginIDExist({"msg": plugin_id})
 
         try:
@@ -646,51 +675,53 @@ class SaveAndReleasePluginResource(Resource):
             self.RequestSerializer = self.SERIALIZERS[request_data.get("plugin_type")]
         else:
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
-        return super(SaveAndReleasePluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
+    @atomic
     def perform_request(self, validated_request_data):
-        with transaction.atomic():
-            try:
-                # 导入创建官方插件
-                register_params = resource.plugin.create_plugin(**validated_request_data)
-            except PluginIDExist:
-                # 更新官方插件
-                plugin_id = validated_request_data["plugin_id"]
-                plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
-                serializer_class = plugin_manager.serializer_class
-                serializer = serializer_class(plugin, data=validated_request_data, partial=True)
-                serializer.is_valid(raise_exception=True)
-                data = serializer.validated_data
-                with transaction.atomic():
-                    instance_obj = serializer.save()
-                    plugin_manager.plugin = instance_obj
-                    version, need_debug = plugin_manager.update_version(
-                        data,
-                        data["config_version"],
-                        data["info_version"],
-                    )
-                register_params = validated_request_data
-                register_params.update(
-                    {
-                        "config_version": version.config_version,
-                        "info_version": version.info_version,
-                        "os_type_list": version.os_type_list,
-                        "stage": version.stage,
-                        "need_debug": check_skip_debug(need_debug),
-                    }
-                )
-
-            token_list = resource.plugin.plugin_register(**register_params)
-            plugin = CollectorPluginMeta.objects.get(plugin_id=register_params["plugin_id"])
+        try:
+            # 导入创建官方插件
+            register_params = resource.plugin.create_plugin(**validated_request_data)
+        except PluginIDExist:
+            # 更新官方插件
+            plugin_id = validated_request_data["plugin_id"]
+            plugin = CollectorPluginMeta.objects.get(bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id)
             plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
-            release_params = {
-                "config_version": register_params["config_version"],
-                "info_version": register_params["info_version"],
-                "token": token_list["token"],
-            }
-            plugin_manager.release(**release_params)
-            return True
+            serializer_class = plugin_manager.serializer_class
+            serializer = serializer_class(plugin, data=validated_request_data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            with atomic():
+                instance_obj = serializer.save()
+                plugin_manager.plugin = instance_obj
+                version, need_debug = plugin_manager.update_version(
+                    data,
+                    data["config_version"],
+                    data["info_version"],
+                )
+            register_params = validated_request_data
+            register_params.update(
+                {
+                    "config_version": version.config_version,
+                    "info_version": version.info_version,
+                    "os_type_list": version.os_type_list,
+                    "stage": version.stage,
+                    "need_debug": check_skip_debug(need_debug),
+                }
+            )
+
+        token_list = resource.plugin.plugin_register(**register_params)
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=register_params["plugin_id"]
+        )
+        plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
+        release_params = {
+            "config_version": register_params["config_version"],
+            "info_version": register_params["info_version"],
+            "token": token_list["token"],
+        }
+        plugin_manager.release(**release_params)
+        return True
 
 
 class GetReservedWordResource(Resource):
@@ -715,7 +746,9 @@ class PluginUpgradeInfoResource(Resource):
         info_version = serializers.IntegerField(required=True, label="插件信息版本")
 
     def perform_request(self, data):
-        plugin = CollectorPluginMeta.objects.filter(plugin_id=data["plugin_id"]).first()
+        plugin = CollectorPluginMeta.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=data["plugin_id"]
+        ).first()
         if plugin is None:
             raise PluginIDNotExist
         # 获取当前插件版本与最新版本之间的发行历史
@@ -804,7 +837,11 @@ class PluginTypeResource(Resource):
     """
 
     def perform_request(self, data):
-        plugin_type_list = CollectorPluginMeta.objects.values_list("plugin_type", flat=True).distinct()
+        plugin_type_list = (
+            CollectorPluginMeta.objects.filter(bk_tenant_id=get_request_tenant_id())
+            .values_list("plugin_type", flat=True)
+            .distinct()
+        )
         return list(plugin_type_list)
 
 
@@ -844,13 +881,18 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
 
             # 全>单判断是否有关联项
             if not self.current_version.plugin.bk_biz_id:
-                collect_config = CollectConfigMeta.objects.filter(plugin__plugin_id=self.plugin_id)
+                collect_config = CollectConfigMeta.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=self.plugin_id
+                )
                 if collect_config and [x for x in collect_config if x.bk_biz_id != self.create_params["bk_biz_id"]]:
                     raise RelatedItemsExist({"msg": "存在其余业务的关联项"})
 
         # 1.首次导入
         # 2.数据库不存在，节点管理存在时
-        if not self.create_params["duplicate_type"] or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]:
+        if (
+            not self.create_params["duplicate_type"]
+            or "已经存在重名的插件, 上传的插件版本为" in self.create_params["conflict_detail"]
+        ):
             return save_resource.request(self.create_params)
         else:
             # 导入与原有插件完全一致
@@ -868,8 +910,84 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
             # 版本小于等于当前版本
             if StrictVersion(self.tmp_version.version) < StrictVersion(self.current_version.version):
                 # 将低版本的信息写入高版本,只需要将version信息，create_params中改为与当前版本一致即可
-                self.tmp_version.config_version = self.create_params[
-                    "config_version"
-                ] = self.current_version.config_version
+                self.tmp_version.config_version = self.create_params["config_version"] = (
+                    self.current_version.config_version
+                )
                 self.tmp_version.info_version = self.create_params["info_version"] = self.current_version.info_version
             return save_resource.request(self.create_params)
+
+
+class ProcessCollectorDebugResource(Resource):
+    """
+    进程采集数据 debug 接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        processes = serializers.CharField(required=True)
+        match = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        exclude = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        dimensions = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+        process_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def perform_request(self, validated_request_data: dict):
+        # 参数正则校验
+        def _validate_regex(value_: str):
+            """通用正则表达式验证方法"""
+            if value_:
+                try:
+                    re.compile(value_)
+                except re.error:
+                    return False
+            return True
+
+        # 在此对参数进行正则校验
+        for field_name in ["exclude", "dimensions", "process_name"]:
+            value = validated_request_data.get(field_name, "")
+            if value:
+                if not _validate_regex(value):
+                    raise RegexParseError({"msg": f"对应字字段为 {field_name}"})
+
+        # 获取当前目录
+        current_dir = pathlib.Path(__file__).parent
+        cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
+
+        # 提取参数
+        match = validated_request_data.get("match", "")
+        exclude = validated_request_data.get("exclude", "")
+        dimensions = validated_request_data.get("dimensions", "")
+        process_name = validated_request_data.get("process_name", "")
+        processes = validated_request_data.get("processes", "")
+
+        # 执行命令
+        cmd_args = [
+            str(cmd_path),
+            f"--match={match}",
+            f"--exclude={exclude}",
+            f"--dimensions={dimensions}",
+            f"--process_name={process_name}",
+            f"--processes={processes}",
+        ]
+        try:
+            result = subprocess.run(cmd_args, check=True, capture_output=True, text=True, timeout=15)
+        except subprocess.TimeoutExpired as e:
+            # 调用超时
+            logger.error(f"Process matcher command timed out, error_message: {e}")
+            raise SubprocessCallError({"msg": "Process matcher command timed out"})
+        except subprocess.CalledProcessError as e:
+            # 命令执行失败
+            logger.error(f"Process matcher failed with code {e.returncode}: {e.stderr}")
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e.stderr}"})
+        except Exception as e:
+            # 未知错误
+            logger.error(f"Unexpected error executing process matcher: {e}")
+            raise SubprocessCallError({"msg": f"Process matcher command failed, error_message: {e}"})
+
+        # 返回结果
+        try:
+            # 解析 JSON 输出并返回结构化数据
+            # 如果直接返回 result.stdout， 则会包含多余的转义字符， 所以这里先反序列化
+            json_result = json.loads(result.stdout.strip())
+            return json_result
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse process matcher output: {e}")
+            raise JsonParseError({"msg": f"json解析 stdout 失败: {e}"})

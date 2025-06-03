@@ -22,15 +22,13 @@ the project delivered to anyone in the future.
 import copy
 import json
 import math
-from urllib import parse
 
 from django.conf import settings
-from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
-from io import StringIO
+from io import BytesIO
 
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -54,6 +52,7 @@ from apps.log_search.constants import (
     ExportStatus,
     ExportType,
     IndexSetType,
+    QueryMode,
     SearchScopeEnum,
 )
 from apps.log_search.decorators import search_history_record
@@ -80,6 +79,7 @@ from apps.log_search.serializers import (
     GetExportHistorySerializer,
     IndexSetCustomConfigSerializer,
     IndexSetFieldsConfigListSerializer,
+    LogGrepQuerySerializer,
     OriginalSearchAttrSerializer,
     QueryStringSerializer,
     SearchAttrSerializer,
@@ -98,6 +98,7 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
 )
+from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
 from apps.log_unifyquery.handler.async_export_handlers import UnifyQueryAsyncExportHandlers
@@ -631,7 +632,7 @@ class SearchViewSet(APIViewSet):
         else:
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
-        output = StringIO()
+        output = BytesIO()
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             query_handler = UnifyQueryHandler(data)
@@ -644,13 +645,11 @@ class SearchViewSet(APIViewSet):
             result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
         file_name = f"bk_log_search_{index}.log"
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = f'attachment;filename="{file_name}"'
+        response = create_download_response(output, file_name)
+
         AsyncTask.objects.create(
             request_param=request_data,
             scenario_id=data["scenario_id"],
@@ -1595,19 +1594,15 @@ class SearchViewSet(APIViewSet):
         request_data = copy.deepcopy(data)
         index_set_ids = sorted(data.get("index_set_ids", []))
 
-        output = StringIO()
+        output = BytesIO()
         search_handler = UnionSearchHandler(search_dict=data)
         result = search_handler.union_search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
-
-        file_name = "bk_log_union_search_{}.txt".format("_".join([str(i) for i in index_set_ids]))
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = f'attachment;filename="{file_name}"'
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
+        file_name = "bk_log_union_search_{}.log".format("_".join([str(i) for i in index_set_ids]))
+        response = create_download_response(output, file_name)
 
         # 保存下载历史
         AsyncTask.objects.create(
@@ -1938,3 +1933,46 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(QueryStringSerializer)
         querystring = QueryStringBuilder.to_querystring(params)
         return Response({"querystring": querystring})
+
+    @detail_route(methods=["POST"], url_path="grep_query")
+    def grep_query(self, request, index_set_id):
+        """
+        @api {post} /search/index_set/$index_set_id/grep_query/
+        @apiDescription grep语法查询
+        @apiName grep_query
+        @apiGroup 11_Search
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam keyword [String] 搜索关键字
+        @apiParam addition [List[dict]] 搜索条件
+        @apiParam grep_query [String] grep查询条件
+        @apiParam grep_field [String] 高亮字段
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "total": 2,
+                "took" 0.88,
+                "list": [
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:459][290]RPC",
+                    },
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:124][280]RPC",
+                    }
+                ],
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(LogGrepQuerySerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
+        data = instance.fetch_grep_query_data(params)
+        return Response(data)

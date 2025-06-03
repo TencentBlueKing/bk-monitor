@@ -6,10 +6,9 @@ import time
 from multiprocessing.pool import IMapIterator
 from typing import Any
 from collections.abc import Generator
-
+from datetime import timedelta
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from future.backports.datetime import timedelta
 
 from apm.models import DataLink
 from apm_web.models import Application
@@ -59,7 +58,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         """
         Get the allowed bk_biz_ids by username.
         """
-        permission = Permission(username)
+        permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         spaces = permission.filter_space_list_by_action(action)
 
         # 缓存业务信息
