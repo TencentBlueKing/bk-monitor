@@ -22,51 +22,51 @@ the project delivered to anyone in the future.
 from dataclasses import dataclass, field
 from typing import Any
 
+# 可以删
+# @dataclass
+# class CreateModelCls:
+#     """
+#     模型创建
+#     """
+#
+#     project_id: int
+#     model_name: str
+#     description: str
+#     processing_cluster_id: int
+#     storage_cluster_id: int
+#     scene_name: str = "custom"
+#     sensitivity: str = "private"
+#     run_env: str = "python"
+#     sample_type: str = "timeseries"
+#     modeling_type: str = "aiops"
+#     protocol_version: str = "1.2"
 
-@dataclass
-class CreateModelCls:
-    """
-    模型创建
-    """
+# # 可以删
+# @dataclass
+# class CreateExperimentsCls:
+#     """
+#     创建实验
+#     """
+#
+#     project_id: int
+#     template_id: str
+#     experiment_alias: str
+#     model_id: str
+#     experiment_training: bool = True
+#     continuous_training: bool = True
+#     protocol_version: str = "1.2"
 
-    project_id: int
-    model_name: str
-    description: str
-    processing_cluster_id: int
-    storage_cluster_id: int
-    scene_name: str = "custom"
-    sensitivity: str = "private"
-    run_env: str = "python"
-    sample_type: str = "timeseries"
-    modeling_type: str = "aiops"
-    protocol_version: str = "1.2"
-
-
-@dataclass
-class CreateExperimentsCls:
-    """
-    创建实验
-    """
-
-    project_id: int
-    template_id: str
-    experiment_alias: str
-    model_id: str
-    experiment_training: bool = True
-    continuous_training: bool = True
-    protocol_version: str = "1.2"
-
-
-@dataclass
-class GetExperimentsConfigCls:
-    """
-    查看实验配置
-    """
-
-    project_id: int
-    model_id: str
-    experiment_id: int
-    protocol_version: str = "1.1"
+# 可以删
+# @dataclass
+# class GetExperimentsConfigCls:
+#     """
+#     查看实验配置
+#     """
+#
+#     project_id: int
+#     model_id: str
+#     experiment_id: int
+#     protocol_version: str = "1.1"
 
 
 @dataclass
@@ -465,54 +465,55 @@ class NodeCls:
     execute_config: dict = field(default_factory=dict)
 
 
-@dataclass
-class SampleLoadingCls:
-    model_id: str
-    experiment_id: int
-    model_experiment_id: int
-    nodes: list[NodeCls]
-    pipeline_mode: Any = None
-    step_name: str = "sample_loading"
+# 可以删
+# @dataclass
+# class SampleLoadingCls:
+#     model_id: str
+#     experiment_id: int
+#     model_experiment_id: int
+#     nodes: list[NodeCls]
+#     pipeline_mode: Any = None
+#     step_name: str = "sample_loading"
 
+# 可以删除
+# @dataclass
+# class SamplePreparationCls:
+#     """
+#     执行样本切分
+#     """
+#
+#     model_id: str
+#     experiment_id: int
+#     model_experiment_id: int
+#     nodes: list[NodeCls]
+#     pipeline_mode: Any = None
+#     step_name: str = "sample_preparation"
 
-@dataclass
-class SamplePreparationCls:
-    """
-    执行样本切分
-    """
+# 可以删
+# @dataclass
+# class ExecuteStatusCls:
+#     """
+#     获取切分步骤状态
+#     """
+#
+#     step_name: str
+#     model_id: str
+#     experiment_id: int
+#     node_id_list: list[str]
 
-    model_id: str
-    experiment_id: int
-    model_experiment_id: int
-    nodes: list[NodeCls]
-    pipeline_mode: Any = None
-    step_name: str = "sample_preparation"
-
-
-@dataclass
-class ExecuteStatusCls:
-    """
-    获取切分步骤状态
-    """
-
-    step_name: str
-    model_id: str
-    experiment_id: int
-    node_id_list: list[str]
-
-
-@dataclass
-class ModelTrainCls:
-    """
-    执行实验训练
-    """
-
-    model_id: str
-    experiment_id: int
-    model_experiment_id: int
-    nodes: list[NodeCls]
-    pipeline_mode: Any = None
-    step_name: str = "model_train"
+# 可以删
+# @dataclass
+# class ModelTrainCls:
+#     """
+#     执行实验训练
+#     """
+#
+#     model_id: str
+#     experiment_id: int
+#     model_experiment_id: int
+#     nodes: list[NodeCls]
+#     pipeline_mode: Any = None
+#     step_name: str = "model_train"
 
 
 @dataclass
@@ -567,18 +568,19 @@ class ModelTrainNodesContentNodeConfigVisualizationValueCls:
     components: list[ModelTrainNodesContentNodeConfigVisualizationComponentsCls]
 
 
-@dataclass
-class ModelTrainTrainingStatusCls:
-    """
-    备选模型训练状态列表
-    """
-
-    model_id: str
-    experiment_id: int
-    project_id: int
-    order: str = "algorithm_alias"
-    order_type: Any = None
-    filter_extra: dict = field(default_factory=dict)
+# 可以删
+# @dataclass
+# class ModelTrainTrainingStatusCls:
+#     """
+#     备选模型训练状态列表
+#     """
+#
+#     model_id: str
+#     experiment_id: int
+#     project_id: int
+#     order: str = "algorithm_alias"
+#     order_type: Any = None
+#     filter_extra: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -591,33 +593,34 @@ class AiopsGetCostumAlgorithm:
     project_id: int
 
 
-@dataclass
-class ModelEvaluationCls:
-    """
-    模型评估
-    """
+# 可以删
+# @dataclass
+# class ModelEvaluationCls:
+#     """
+#     模型评估
+#     """
+#
+#     model_experiment_id: int
+#     model_id: str
+#     experiment_id: int
+#     nodes: list[NodeCls]
+#     pipeline_mode: Any = None
+#     step_name: str = "model_evaluation"
 
-    model_experiment_id: int
-    model_id: str
-    experiment_id: int
-    nodes: list[NodeCls]
-    pipeline_mode: Any = None
-    step_name: str = "model_evaluation"
-
-
-@dataclass
-class EvaluationStatusCls:
-    """
-    模型评估状态
-    """
-
-    project_id: int
-    model_id: str
-    experiment_id: int
-    filter_extra: dict
-    order: str = "algorithm_alias"
-    order_type: Any = None
-    experiment_instance_id: Any = None
+# 可以删
+# @dataclass
+# class EvaluationStatusCls:
+#     """
+#     模型评估状态
+#     """
+#
+#     project_id: int
+#     model_id: str
+#     experiment_id: int
+#     filter_extra: dict
+#     order: str = "algorithm_alias"
+#     order_type: Any = None
+#     experiment_instance_id: Any = None
 
 
 # 可以删
@@ -782,21 +785,21 @@ class ReleaseServingConfigCls:
 #     serving_config: ReleaseServingConfigCls
 #     sample_feedback: bool = False
 
-
-@dataclass
-class UpdateTrainingScheduleCls:
-    model_id: str
-    project_id: int
-    training_schedule: dict = field(
-        default_factory=lambda: {
-            "start_time": 0,
-            "training_freq": 1,
-            "success_rate_threshold": 0.8,
-            "training_freq_unit": "h",
-            "sample_change_count": 1,
-        }
-    )
-    release_config: dict = field(default_factory=lambda: {"release_mode": "auto"})
+# 可以删
+# @dataclass
+# class UpdateTrainingScheduleCls:
+#     model_id: str
+#     project_id: int
+#     training_schedule: dict = field(
+#         default_factory=lambda: {
+#             "start_time": 0,
+#             "training_freq": 1,
+#             "success_rate_threshold": 0.8,
+#             "training_freq_unit": "h",
+#             "sample_change_count": 1,
+#         }
+#     )
+#     release_config: dict = field(default_factory=lambda: {"release_mode": "auto"})
 
 
 @dataclass

@@ -19,48 +19,31 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.utils.translation import gettext_lazy as _
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
-from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
-    AiopsModelHandler,
-)
-from apps.log_clustering.handlers.aiops.aiops_model.constants import StepName
-from apps.log_clustering.models import (
-    AiopsModel,
-    AiopsModelExperiment,
-    ClusteringConfig,
-    SampleSet,
-)
-from apps.utils.pipline import BaseService
+# 可以删
+# class CreateModelService(BaseService):
+# name = _("创建模型")
+#
+# def inputs_format(self):
+#     return [
+#         Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         Service.InputItem(name="description", key="description", type="str", required=True),
+#     ]
+#
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     description = data.get_one_of_inputs("description")
+#     index_set_id = data.get_one_of_inputs("index_set_id")
+#     aiops_models = AiopsModelHandler().create_model(model_name=model_name, description=description)
+#     AiopsModel.objects.create(**{"model_id": aiops_models["model_id"], "model_name": model_name})
+#     ClusteringConfig.objects.filter(index_set_id=index_set_id).update(model_id=aiops_models["model_id"])
+#     return True
 
-
-class CreateModelService(BaseService):
-    name = _("创建模型")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="description", key="description", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        description = data.get_one_of_inputs("description")
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        aiops_models = AiopsModelHandler().create_model(model_name=model_name, description=description)
-        AiopsModel.objects.create(**{"model_id": aiops_models["model_id"], "model_name": model_name})
-        ClusteringConfig.objects.filter(index_set_id=index_set_id).update(model_id=aiops_models["model_id"])
-        return True
-
-
-class CreateModelComponent(Component):
-    name = "CreateModel"
-    code = "create_model"
-    bound_service = CreateModelService
+# 可以删
+# class CreateModelComponent(Component):
+#     name = "CreateModel"
+#     code = "create_model"
+#     bound_service = CreateModelService
 
 
 # 可以删
@@ -71,26 +54,26 @@ class CreateModelComponent(Component):
 #         self.create_model.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
 #         self.create_model.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
+# 可以删
+# class UpdateTrainingScheduleService(BaseService):
+#     name = _("更新持续训练")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         model_name = data.get_one_of_inputs("model_name")
+#         model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#         AiopsModelHandler().update_training_schedule(model_id=model_id)
+#         return True
 
-class UpdateTrainingScheduleService(BaseService):
-    name = _("更新持续训练")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        AiopsModelHandler().update_training_schedule(model_id=model_id)
-        return True
-
-
-class UpdateTrainingScheduleComponent(Component):
-    name = "UpdateTrainingSchedule"
-    code = "update_training_schedule"
-    bound_service = UpdateTrainingScheduleService
+# 可以删
+# class UpdateTrainingScheduleComponent(Component):
+#     name = "UpdateTrainingSchedule"
+#     code = "update_training_schedule"
+#     bound_service = UpdateTrainingScheduleService
 
 
 # 可以删
@@ -101,31 +84,31 @@ class UpdateTrainingScheduleComponent(Component):
 #         )
 #         self.update_training_schedule.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
 
+# 可以删
+# class CreateExperimentService(BaseService):
+#     name = _("创建实验")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         ]
 
-class CreateExperimentService(BaseService):
-    name = _("创建实验")
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment = AiopsModelHandler().create_experiment(model_id=model_id, experiment_alias=experiment_alias)
+#     AiopsModelExperiment.objects.create(
+#         **{"model_id": model_id, "experiment_id": experiment["experiment_id"], "experiment_alias": experiment_alias}
+#     )
+#     return True
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment = AiopsModelHandler().create_experiment(model_id=model_id, experiment_alias=experiment_alias)
-        AiopsModelExperiment.objects.create(
-            **{"model_id": model_id, "experiment_id": experiment["experiment_id"], "experiment_alias": experiment_alias}
-        )
-        return True
-
-
-class CreateExperimentComponent(Component):
-    name = "CreateExperiment"
-    code = "create_experiment"
-    bound_service = CreateExperimentService
+# 可以删
+# class CreateExperimentComponent(Component):
+#     name = "CreateExperiment"
+#     code = "create_experiment"
+#     bound_service = CreateExperimentService
 
 
 # 可以删
@@ -137,42 +120,42 @@ class CreateExperimentComponent(Component):
 #         self.create_experiment.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
 #         self.create_experiment.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
+# 可以删
+# class UpdateExecuteConfigService(BaseService):
+#     name = _("变更实验meta配置")
+#
+#     def inputs_format(self):
+#         return [Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True)]
+#
+#     def _execute(self, data, parent_data):
+#         index_set_id = data.get_one_of_inputs("index_set_id")
+#         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+#         python_backend = clustering_config.python_backend
+#         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+#         python_backend = python_backend if python_backend else conf.get("python_backend")
+#         model_name = data.get_one_of_inputs("model_name")
+#         experiment_alias = data.get_one_of_inputs("experiment_alias")
+#         experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#         experiment_id = experiment_model.experiment_id
+#
+#         if python_backend:
+#             AiopsModelHandler().update_execute_config1111(
+#                 experiment_id,
+#                 worker_nums=python_backend["worker_nums"],
+#                 memory=python_backend["memory"],
+#                 core=python_backend["core"],
+#             )
+#         else:
+#             AiopsModelHandler().update_execute_config111(experiment_id)
+#         experiment_model.status = "update_execute_config"
+#         experiment_model.save()
+#         return True
 
-class UpdateExecuteConfigService(BaseService):
-    name = _("变更实验meta配置")
-
-    def inputs_format(self):
-        return [Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True)]
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        python_backend = clustering_config.python_backend
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-        python_backend = python_backend if python_backend else conf.get("python_backend")
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-
-        if python_backend:
-            AiopsModelHandler().update_execute_config(
-                experiment_id,
-                worker_nums=python_backend["worker_nums"],
-                memory=python_backend["memory"],
-                core=python_backend["core"],
-            )
-        else:
-            AiopsModelHandler().update_execute_config(experiment_id)
-        experiment_model.status = "update_execute_config"
-        experiment_model.save()
-        return True
-
-
-class UpdateExecuteConfigComponent(Component):
-    name = "UpdateExecuteConfig"
-    code = "update_execute_config"
-    bound_service = UpdateExecuteConfigService
+# 可以删
+# class UpdateExecuteConfigComponent(Component):
+#     name = "UpdateExecuteConfig"
+#     code = "update_execute_config"
+#     bound_service = UpdateExecuteConfigService
 
 
 # 可以删
@@ -187,57 +170,57 @@ class UpdateExecuteConfigComponent(Component):
 
 
 # 可以删
-class SampleSetLoadingService(BaseService):
-    name = _("执行样本准备")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+# class SampleSetLoadingService(BaseService):
+# name = _("执行样本准备")
+# __need_schedule__ = True
+# interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+#
+# def inputs_format(self):
+#     return [
+#         Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
+#         Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#     ]
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
+# def _execute(self, data, parent_data):
+#     sample_set_name = data.get_one_of_inputs("sample_set_name")
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     sample_set_loading_result = AiopsModelHandler().sample_set_loading(
+#         sample_set_id=sample_set_id, model_id=model_id, experiment_id=experiment_id
+#     )
+#     experiment_model.node_id_list = sample_set_loading_result["nodes"]
+#     experiment_model.save()
+#     return True
 
-    def _execute(self, data, parent_data):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        sample_set_loading_result = AiopsModelHandler().sample_set_loading(
-            sample_set_id=sample_set_id, model_id=model_id, experiment_id=experiment_id
-        )
-        experiment_model.node_id_list = sample_set_loading_result["nodes"]
-        experiment_model.save()
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        node_id_list = experiment_model.node_id_list
-        get_execute_status_result = AiopsModelHandler().get_execute_status(
-            step_name=StepName.SAMPLE_LOADING, node_id_list=node_id_list, model_id=model_id, experiment_id=experiment_id
-        )
-        if get_execute_status_result["step_status"] == "failed":
-            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
-        if get_execute_status_result["step_status"] == "finished":
-            experiment_model.status = StepName.SAMPLE_LOADING
-            experiment_model.save()
-            self.finish_schedule()
-        return True
+# def _schedule(self, data, parent_data, callback_data=None):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     node_id_list = experiment_model.node_id_list
+#     get_execute_status_result = AiopsModelHandler().get_execute_status(
+#         step_name=StepName.SAMPLE_LOADING, node_id_list=node_id_list, model_id=model_id, experiment_id=experiment_id
+#     )
+#     if get_execute_status_result["step_status"] == "failed":
+#         raise Exception(f"poll execute status return failed: {get_execute_status_result}")
+#     if get_execute_status_result["step_status"] == "finished":
+#         experiment_model.status = StepName.SAMPLE_LOADING
+#         experiment_model.save()
+#         self.finish_schedule()
+#     return True
 
 
 # 可以删
-class SampleSetLoadingComponent(Component):
-    name = "SampleSetLoading"
-    code = "sample_set_loading"
-    bound_service = SampleSetLoadingService
+# class SampleSetLoadingComponent(Component):
+#     name = "SampleSetLoading"
+#     code = "sample_set_loading"
+#     bound_service = SampleSetLoadingService
 
 
 # 可以删
@@ -252,57 +235,57 @@ class SampleSetLoadingComponent(Component):
 
 
 # 可以删
-class SampleSetPreparationService(BaseService):
-    name = _("执行样本切分")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+# class SampleSetPreparationService(BaseService):
+# name = _("执行样本切分")
+# __need_schedule__ = True
+# interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+#
+# def inputs_format(self):
+#     return [
+#         Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#     ]
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     sample_set_preparation_result = AiopsModelHandler().sample_set_preparation(
+#         model_id=model_id, experiment_id=experiment_id
+#     )
+#     experiment_model.node_id_list = sample_set_preparation_result["nodes"]
+#     experiment_model.save()
+#     return True
 
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        sample_set_preparation_result = AiopsModelHandler().sample_set_preparation(
-            model_id=model_id, experiment_id=experiment_id
-        )
-        experiment_model.node_id_list = sample_set_preparation_result["nodes"]
-        experiment_model.save()
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        node_id_list = experiment_model.node_id_list
-        get_execute_status_result = AiopsModelHandler().get_execute_status(
-            step_name=StepName.SAMPLE_PREPARATION,
-            node_id_list=node_id_list,
-            model_id=model_id,
-            experiment_id=experiment_id,
-        )
-        if get_execute_status_result["step_status"] == "failed":
-            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
-        if get_execute_status_result["step_status"] == "finished":
-            experiment_model.status = StepName.SAMPLE_PREPARATION
-            experiment_model.save()
-            self.finish_schedule()
-        return True
+# def _schedule(self, data, parent_data, callback_data=None):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     node_id_list = experiment_model.node_id_list
+#     get_execute_status_result = AiopsModelHandler().get_execute_status11(
+#         step_name=StepName.SAMPLE_PREPARATION,
+#         node_id_list=node_id_list,
+#         model_id=model_id,
+#         experiment_id=experiment_id,
+#     )
+#     if get_execute_status_result["step_status"] == "failed":
+#         raise Exception(f"poll execute status return failed: {get_execute_status_result}")
+#     if get_execute_status_result["step_status"] == "finished":
+#         experiment_model.status = StepName.SAMPLE_PREPARATION
+#         experiment_model.save()
+#         self.finish_schedule()
+#     return True
 
 
 # 可以删
-class SampleSetPreparationComponent(Component):
-    name = "SampleSetPreparation"
-    code = "sample_set_preparation"
-    bound_service = SampleSetPreparationService
+# class SampleSetPreparationComponent(Component):
+#     name = "SampleSetPreparation"
+#     code = "sample_set_preparation"
+#     bound_service = SampleSetPreparationService
 
 
 # 可以删
@@ -318,71 +301,71 @@ class SampleSetPreparationComponent(Component):
 
 
 # 可以删
-class ModelTrainService(BaseService):
-    name = _("执行模型训练")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+# class ModelTrainService(BaseService):
+# name = _("执行模型训练")
+# __need_schedule__ = True
+# interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+#
+# def inputs_format(self):
+#     return [
+#         Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         Service.InputItem(name="min members", key="min_members", type="int", required=True),
+#         Service.InputItem(name="max dist list", key="max_dist_list", type="str", required=True),
+#         Service.InputItem(name="predefined varibles", key="predefined_varibles", type="str", required=True),
+#         Service.InputItem(name="delimeter", key="delimeter", type="str", required=True),
+#         Service.InputItem(name="max log length", key="max_log_length", type="int", required=True),
+#         Service.InputItem(name="is case sensitive", key="is_case_sensitive", type="int", required=True),
+#     ]
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-            Service.InputItem(name="min members", key="min_members", type="int", required=True),
-            Service.InputItem(name="max dist list", key="max_dist_list", type="str", required=True),
-            Service.InputItem(name="predefined varibles", key="predefined_varibles", type="str", required=True),
-            Service.InputItem(name="delimeter", key="delimeter", type="str", required=True),
-            Service.InputItem(name="max log length", key="max_log_length", type="int", required=True),
-            Service.InputItem(name="is case sensitive", key="is_case_sensitive", type="int", required=True),
-        ]
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     min_members = data.get_one_of_inputs("min_members")
+#     max_dist_list = data.get_one_of_inputs("max_dist_list")
+#     predefined_varibles = data.get_one_of_inputs("predefined_varibles")
+#     delimeter = data.get_one_of_inputs("delimeter")
+#     max_log_length = data.get_one_of_inputs("max_log_length")
+#     is_case_sensitive = data.get_one_of_inputs("is_case_sensitive")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
 
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        min_members = data.get_one_of_inputs("min_members")
-        max_dist_list = data.get_one_of_inputs("max_dist_list")
-        predefined_varibles = data.get_one_of_inputs("predefined_varibles")
-        delimeter = data.get_one_of_inputs("delimeter")
-        max_log_length = data.get_one_of_inputs("max_log_length")
-        is_case_sensitive = data.get_one_of_inputs("is_case_sensitive")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-
-        model_train_result = AiopsModelHandler().model_train(
-            model_id=model_id,
-            experiment_id=experiment_id,
-            is_case_sensitive=is_case_sensitive,
-            max_log_length=max_log_length,
-            delimeter=delimeter,
-            predefined_varibles=predefined_varibles,
-            max_dist_list=max_dist_list,
-            min_members=min_members,
-        )
-        experiment_model.node_id_list = model_train_result["nodes"]
-        experiment_model.save()
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        training_status_result = AiopsModelHandler().training_status(model_id=model_id, experiment_id=experiment_id)
-        if training_status_result["step_status"] == "failed":
-            raise Exception(f"poll execute status return failed: {training_status_result}")
-        if training_status_result["step_status"] == "finished":
-            experiment_model.status = StepName.MODEL_TRAIN
-            experiment_model.save()
-            self.finish_schedule()
-        return True
+# model_train_result = AiopsModelHandler().model_train(
+#     model_id=model_id,
+#     experiment_id=experiment_id,
+#     is_case_sensitive=is_case_sensitive,
+#     max_log_length=max_log_length,
+#     delimeter=delimeter,
+#     predefined_varibles=predefined_varibles,
+#     max_dist_list=max_dist_list,
+#     min_members=min_members,
+# )
+# experiment_model.node_id_list = model_train_result["nodes"]
+# experiment_model.save()
+# return True
+# 可以删
+# def _schedule(self, data, parent_data, callback_data=None):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment111(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     training_status_result = AiopsModelHandler().training_status(model_id=model_id, experiment_id=experiment_id)
+#     if training_status_result["step_status"] == "failed":
+#         raise Exception(f"poll execute status return failed: {training_status_result}")
+#     if training_status_result["step_status"] == "finished":
+#         experiment_model.status = StepName.MODEL_TRAIN
+#         experiment_model.save()
+#         self.finish_schedule()
+#     return True
 
 
 # 可以删
-class ModelTrainComponent(Component):
-    name = "ModelTrain"
-    code = "model_train"
-    bound_service = ModelTrainService
+# class ModelTrainComponent(Component):
+#     name = "ModelTrain"
+#     code = "model_train"
+#     bound_service = ModelTrainService
 
 
 # 可以删
@@ -400,53 +383,53 @@ class ModelTrainComponent(Component):
 
 
 # 可以删
-class ModelEvaluationService(BaseService):
-    name = _("执行模型评估")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        model_evaluation_result = AiopsModelHandler().model_evaluation(model_id=model_id, experiment_id=experiment_id)
-        experiment_model.node_id_list = model_evaluation_result["nodes"]
-        experiment_model.save()
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        get_execute_status_result = AiopsModelHandler().basic_models_evaluation_status(
-            model_id=model_id, experiment_id=experiment_id
-        )
-        if get_execute_status_result["step_status"] == "failed":
-            raise Exception(f"poll execute status return failed: {get_execute_status_result}")
-        if get_execute_status_result["step_status"] == "finished":
-            experiment_model.status = StepName.MODEL_EVALUATION
-            basic_model, *_ = get_execute_status_result["list"]
-            experiment_model.basic_model_id = basic_model["basic_model_id"]
-            experiment_model.save()
-            self.finish_schedule()
-        return True
+# class ModelEvaluationService(BaseService):
+#     name = _("执行模型评估")
+#     __need_schedule__ = True
+#     interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         ]
+#
+#     # def _execute(self, data, parent_data):
+#     #     model_name = data.get_one_of_inputs("model_name")
+#     #     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     #     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     #     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     #     experiment_id = experiment_model.experiment_id
+#     #     # model_evaluation_result = AiopsModelHandler().model_evaluation(model_id=model_id, experiment_id=experiment_id)
+#     #     experiment_model.node_id_list = model_evaluation_result["nodes"]
+#     #     experiment_model.save()
+#     #     return True
+#
+#     def _schedule(self, data, parent_data, callback_data=None):
+#         model_name = data.get_one_of_inputs("model_name")
+#         experiment_alias = data.get_one_of_inputs("experiment_alias")
+#         model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#         experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#         experiment_id = experiment_model.experiment_id
+#         get_execute_status_result = AiopsModelHandler().basic_models_evaluation_status(
+#             model_id=model_id, experiment_id=experiment_id
+#         )
+#         if get_execute_status_result["step_status"] == "failed":
+#             raise Exception(f"poll execute status return failed: {get_execute_status_result}")
+#         if get_execute_status_result["step_status"] == "finished":
+#             experiment_model.status = StepName.MODEL_EVALUATION
+#             basic_model, *_ = get_execute_status_result["list"]
+#             experiment_model.basic_model_id = basic_model["basic_model_id"]
+#             experiment_model.save()
+#             self.finish_schedule()
+#         return True
 
 
 # 可以删
-class ModelEvaluationComponent(Component):
-    name = "ModelEvaluation"
-    code = "model_valuation"
-    bound_service = ModelEvaluationService
+# class ModelEvaluationComponent(Component):
+#     name = "ModelEvaluation"
+#     code = "model_valuation"
+#     bound_service = ModelEvaluationService
 
 
 # 可以删
@@ -460,26 +443,26 @@ class ModelEvaluationComponent(Component):
 
 
 # 可以删
-class BasicModelEvaluationResultService(BaseService):
-    name = _("获取模型评估结果")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        basic_model_id = experiment_model.basic_model_id
-        AiopsModelHandler().basic_model_evaluation_result(
-            model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id
-        )
-        return True
+# class BasicModelEvaluationResultService(BaseService):
+#     name = _("获取模型评估结果")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         model_name = data.get_one_of_inputs("model_name")
+#         experiment_alias = data.get_one_of_inputs("experiment_alias")
+#         model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#         experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#         experiment_id = experiment_model.experiment_id
+#         basic_model_id = experiment_model.basic_model_id
+#         AiopsModelHandler().basic_model_evaluation_result(
+#             model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id
+#         )
+#         return True
 
 
 # 可以删

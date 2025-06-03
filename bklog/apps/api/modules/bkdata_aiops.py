@@ -115,25 +115,27 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-        self.create_model = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/",
-            module=self.MODULE,
-            description="模型创建",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.create_experiment = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/",
-            module=self.MODULE,
-            url_keys=["model_id"],
-            description="AIOps 创建实验",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.create_model = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/",
+        #     module=self.MODULE,
+        #     description="模型创建",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.create_experiment = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id"],
+        #     description="AIOps 创建实验",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         # 可以删
         # self.put_experiment = DataAPI(
         #     method="PUT",
@@ -145,16 +147,17 @@ class _BkDataAIOPSApi:
         #     after_request=None,
         #     default_timeout=300,
         # )
-        self.experiments_config = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/config/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="获取实验配置信息",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.experiments_config = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/config/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="获取实验配置信息",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         self.retrieve_execute_config = DataAPI(
             method="GET",
             url=AIOPS_APIGATEWAY_ROOT + "meta_data/retrieve_execute_config/",
@@ -173,36 +176,39 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-        self.execute_experiments = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/node/execute/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="执行实验配置",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.execute_experiments_node_status = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/node/execute/status/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="实验步骤状态 （当前用于切分状态捕获）",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.basic_models_training_status = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/basic_models/training_status/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="备选模型训练状态列表",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.execute_experiments = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/node/execute/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="执行实验配置",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.execute_experiments_node_status = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/node/execute/status/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="实验步骤状态 （当前用于切分状态捕获）",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.basic_models_training_status = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/basic_models/training_status/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="备选模型训练状态列表",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         self.aiops_get_costum_algorithm = DataAPI(
             method="GET",
             url=AIOPS_APIGATEWAY_ROOT + "algorithm/{algorithm_name}/",
@@ -213,16 +219,17 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-        self.basic_models_evaluation_status = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/basic_models/evaluation_status/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="备选模型评估状态列表",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.basic_models_evaluation_status = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/basic_models/evaluation_status/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="备选模型评估状态列表",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         # 可以删
         # self.basic_model_evaluation_result = DataAPI(
         #     method="GET",
@@ -279,16 +286,17 @@ class _BkDataAIOPSApi:
         #     after_request=None,
         #     default_timeout=300,
         # )
-        self.update_model_info = DataAPI(
-            method="PUT",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/",
-            module=self.MODULE,
-            url_keys=["model_id"],
-            description="修改模型",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.update_model_info = DataAPI(
+        #     method="PUT",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id"],
+        #     description="修改模型",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
 
         self.aiops_release = DataAPI(
             method="GET",

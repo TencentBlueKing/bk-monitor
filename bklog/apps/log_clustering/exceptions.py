@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -38,19 +38,20 @@ class ClusteringClosedException(BaseClusteringException):
     MESSAGE = _("聚类未开放")
 
 
-class NodeConfigException(BaseClusteringException):
-    ERROR_CODE = "002"
-    MESSAGE = _("获取node config异常{steps}")
+# 可以删
+# class NodeConfigException(BaseClusteringException):
+#     ERROR_CODE = "002"
+#     MESSAGE = _("获取node config异常{steps}")
 
+# 可以删
+# class NotSupportStepNameQueryException(BaseClusteringException):
+#     ERROR_CODE = "003"
+#     MESSAGE = _("不支持的step_name状态获取: {step_name}")
 
-class NotSupportStepNameQueryException(BaseClusteringException):
-    ERROR_CODE = "003"
-    MESSAGE = _("不支持的step_name状态获取: {step_name}")
-
-
-class EvaluationStatusResponseException(BaseClusteringException):
-    ERROR_CODE = "004"
-    MESSAGE = _("evaluation_status返回异常: {evaluation_status}")
+# 可以删
+# class EvaluationStatusResponseException(BaseClusteringException):
+#     ERROR_CODE = "004"
+#     MESSAGE = _("evaluation_status返回异常: {evaluation_status}")
 
 
 class ClusteringConfigNotExistException(BaseClusteringException):
