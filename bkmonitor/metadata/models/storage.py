@@ -3830,7 +3830,7 @@ class ESStorage(models.Model, StorageResultTable):
                     "will delete it and recreate.",
                     self.table_id,
                     field_name,
-                    current_config,
+                    current_mapping,
                 )
                 return False
 
