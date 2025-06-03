@@ -216,6 +216,7 @@ export default defineComponent({
     /** 应用切换 */
     function handleAppNameChange() {
       where.value = [];
+      commonWhere.value = [];
       getViewConfig();
       handleSetUserConfig(JSON.stringify(store.appName));
       handleQuery();
