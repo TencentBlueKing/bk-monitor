@@ -54,7 +54,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollTop from './scroll-top';
+import ScrollTop from '../../components/scroll-top/index';
 import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';

@@ -19,4 +19,10 @@
     user-select: none;
     line-height: 20px;
   }
+
+  [data-filter-item] {
+    &.current {
+      background: orange;
+    }
+  }
 }

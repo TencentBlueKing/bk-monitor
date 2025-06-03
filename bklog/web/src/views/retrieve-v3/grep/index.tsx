@@ -7,6 +7,7 @@ import { axiosInstance } from '@/api';
 import useStore from '@/hooks/use-store';
 import { readBlobRespToJson } from '@/common/util';
 import { messageError } from '@/common/bkmagic';
+import { debounce } from 'lodash';
 import './grep-cli.scss';
 
 export default defineComponent({
@@ -19,23 +20,23 @@ export default defineComponent({
     const searchValue = ref('');
     const field = ref(null);
     const offset = ref(0);
-    const total = ref(0);
+    const hasMoreList = ref(true);
     const isLoading = ref(false);
     const matchMode = ref({
       caseSensitive: false,
       regexMode: false,
       wordMatch: false,
     });
-    const currentIndex = ref(0);
+
     const totalMatches = ref(0);
     const list = ref([]);
-
     const grepQuery = ref('');
 
     const store = useStore();
+    const afterMarkComplete = debounce(() => {}, 180);
 
     const requestGrepList = () => {
-      if (total.value > 0 && list.value.length >= total.value) {
+      if (!hasMoreList.value) {
         return;
       }
 
@@ -79,7 +80,10 @@ export default defineComponent({
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
               if (result) {
                 list.value.push(...data.list);
-                total.value = data.total.toNumber();
+                hasMoreList.value = data.list.length > 0;
+                setTimeout(() => {
+                  RetrieveHelper.highLightKeywords([searchValue.value], offset.value === 0, afterMarkComplete);
+                });
                 return;
               }
               messageError(message);
@@ -89,6 +93,9 @@ export default defineComponent({
           isLoading.value = false;
         })
         .catch((err: any) => {
+          if (err.message === 'canceled') {
+            return;
+          }
           messageError(err.message ?? err);
         })
         .finally(() => {
@@ -100,26 +107,20 @@ export default defineComponent({
     const handleSearchUpdate = (data: any) => {
       searchValue.value = data.searchValue;
       matchMode.value = data.matchMode;
-      if (data.currentIndex) {
-        currentIndex.value = data.currentIndex;
-      }
+
+      RetrieveHelper.highLightKeywords([searchValue.value], true, afterMarkComplete);
     };
 
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
       matchMode.value = mode;
-    };
-
-    // 处理总匹配数更新
-    const handleTotalMatchesUpdate = (total: number) => {
-      totalMatches.value = total;
+      RetrieveHelper.highLightKeywords([searchValue.value], true, afterMarkComplete);
     };
 
     const handleFieldChange = (v: string) => {
       field.value = v;
-
       offset.value = 0;
-      total.value = 0;
+      hasMoreList.value = true;
       list.value.splice(0, list.value.length);
 
       requestGrepList();
@@ -131,7 +132,7 @@ export default defineComponent({
       offset.value = 0;
       list.value.splice(0, list.value.length);
 
-      if (grepQuery.value === '' || field.value === '') {
+      if (field.value === '') {
         return;
       }
 
@@ -139,7 +140,7 @@ export default defineComponent({
     };
 
     const handleLoadMore = () => {
-      if (grepQuery.value === '' || field.value === '') {
+      if (field.value === '') {
         return;
       }
 
@@ -149,7 +150,7 @@ export default defineComponent({
 
     RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
       offset.value = 0;
-      total.value = 0;
+      hasMoreList.value = true;
       list.value.splice(0, list.value.length);
 
       requestGrepList();
@@ -157,7 +158,7 @@ export default defineComponent({
 
     const handleParamsChange = () => {
       offset.value = 0;
-      total.value = 0;
+      hasMoreList.value = true;
       list.value.splice(0, list.value.length);
 
       requestGrepList();
@@ -165,17 +166,18 @@ export default defineComponent({
 
     onMounted(() => {
       offset.value = 0;
-      total.value = 0;
+      hasMoreList.value = true;
     });
 
     onBeforeUnmount(() => {
       offset.value = 0;
-      total.value = 0;
+      hasMoreList.value = true;
     });
 
     return () => (
       <div class='grep-view'>
         <GrepCli
+          searchCount={10}
           on-search-change={handleSearchUpdate}
           on-match-mode={handleMatchModeUpdate}
           on-grep-enter={handleGrepEnter}
@@ -183,11 +185,8 @@ export default defineComponent({
         />
         <GrepCliResult
           isLoading={isLoading.value}
-          searchValue={searchValue.value}
           fieldName={field.value}
           list={list.value}
-          matchMode={matchMode.value}
-          onUpdate:total-matches={handleTotalMatchesUpdate}
           on-params-change={handleParamsChange}
           on-load-more={handleLoadMore}
         />

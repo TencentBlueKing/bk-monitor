@@ -105,7 +105,13 @@ class RetrieveHelper extends RetrieveBase {
     this.markInstance?.highlightElement(target);
   }
 
-  highLightKeywords(keywords?: string[], reset = true) {
+  /**
+   * 高亮关键词
+   * @param keywords 关键词
+   * @param reset 是否重置
+   * @param afterMarkFn 高亮后回调
+   */
+  highLightKeywords(keywords?: string[], reset = true, afterMarkFn?: () => void) {
     if (!this.markInstance) {
       return;
     }

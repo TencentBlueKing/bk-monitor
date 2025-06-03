@@ -131,7 +131,7 @@ export default class OptimizedHighlighter {
     }
   }
 
-  public async highlight(keywords: KeywordItem[], reset = true): Promise<void> {
+  public async highlight(keywords: KeywordItem[], reset = true, afterMarkFn?: () => void): Promise<void> {
     if (reset) {
       this.resetState();
       if (keywords.length === 0) {
@@ -151,6 +151,7 @@ export default class OptimizedHighlighter {
       const chunk = this.chunkMap.get(element);
       if (chunk && !chunk.highlighted && chunk.isIntersecting) {
         this.instanceExecMark(chunk.instance);
+        afterMarkFn?.();
       }
     });
   }
@@ -274,6 +275,10 @@ export default class OptimizedHighlighter {
       exclude: ['mark'],
       done: resolve ?? (() => {}),
       each: (element: HTMLElement) => {
+        if (!element.hasAttribute('data-filter-item')) {
+          element.classList.add('data-filter-item');
+        }
+
         if (element.parentElement?.classList.contains('valid-text')) {
           element.classList.add('valid-text');
         }

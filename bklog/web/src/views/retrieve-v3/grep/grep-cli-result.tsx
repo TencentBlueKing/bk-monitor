@@ -1,28 +1,16 @@
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import TextSegmentation from '../../retrieve-v2/search-result-panel/log-result/text-segmentation';
 import RetrieveHelper from '../../retrieve-helper';
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import useLocale from '@/hooks/use-locale';
 import useTextAction from '../../retrieve-v2/hooks/use-text-action';
+import ScrollTop from '../../retrieve-v2/components/scroll-top/index';
 
 import './grep-cli-result.scss';
 
 export default defineComponent({
   name: 'CliResult',
   props: {
-    searchValue: {
-      type: String,
-      default: '',
-    },
-    matchMode: {
-      type: Object,
-      default: () => ({
-        caseSensitive: false,
-        regexMode: false,
-        wordMatch: false,
-      }),
-    },
-
     list: {
       type: Array,
       default: () => [],
@@ -43,19 +31,22 @@ export default defineComponent({
     const { t } = useLocale();
     const { handleOperation } = useTextAction(emit, 'grep');
 
-    useIntersectionObserver(refLoadMoreElement, () => {
-      emit('load-more');
-    });
+    const isLoadingValue = computed(() => props.isLoading);
 
-    watch(
-      () => [props.searchValue, props.matchMode],
-      () => {
-        RetrieveHelper.highLightKeywords([props.searchValue]);
+    useIntersectionObserver(
+      () => refLoadMoreElement.value,
+      (entry: IntersectionObserverEntry) => {
+        if (entry.isIntersecting) {
+          emit('load-more');
+        }
+      },
+      {
+        root: document.querySelector(RetrieveHelper.globalScrollSelector),
       },
     );
 
     onMounted(() => {
-      RetrieveHelper.setMarkInstance(() => refRootElement.value);
+      RetrieveHelper.setMarkInstance();
     });
 
     onBeforeUnmount(() => {
@@ -81,10 +72,6 @@ export default defineComponent({
     };
 
     const getResultRender = () => {
-      if (props.isLoading) {
-        return null;
-      }
-
       if (props.list.length === 0 || !props.fieldName) {
         return (
           <bk-exception
@@ -99,7 +86,10 @@ export default defineComponent({
       }
 
       return props.list.map((row, index) => (
-        <div class='cli-result-line'>
+        <div
+          class='cli-result-line'
+          key={index}
+        >
           <span class='cli-result-line-number'>{index + 1}</span>
           <div class='cli-result-line-content-wrapper'>
             <TextSegmentation
@@ -122,10 +112,13 @@ export default defineComponent({
         {getResultRender()}
         <div
           class='cli-result-line'
-          style={{ minHeight: '32px', width: '100%' }}
-          v-bkloading={{ isLoading: props.isLoading }}
+          style={{ minHeight: '32px', width: '100%', justifyContent: 'center' }}
           ref={refLoadMoreElement}
-        ></div>
+          id='load_more_element'
+        >
+          {isLoadingValue.value && <div>loading... </div>}
+        </div>
+        <ScrollTop></ScrollTop>
       </div>
     );
   },

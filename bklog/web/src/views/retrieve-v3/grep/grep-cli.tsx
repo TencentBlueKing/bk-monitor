@@ -1,44 +1,49 @@
 import { defineComponent, ref, computed } from 'vue';
 import GrepCliEditor from './grep-cli-editor';
-import './grep-cli.scss';
 import useStore from '../../../hooks/use-store';
+import './grep-cli.scss';
 
 export default defineComponent({
   name: 'GrepCli',
   components: {
     GrepCliEditor,
   },
+  props: {
+    searchCount: {
+      type: Number,
+      default: null,
+    },
+  },
   emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   setup(props, { emit }) {
     const field = ref();
-    const value = ref('');
+    const grepValue = ref('');
     const searchValue = ref('');
     const isCaseSensitive = ref(false);
     const isRegexMode = ref(false);
     const isWordMatch = ref(false);
-    const currentMatchIndex = ref(0);
-    const totalMatches = ref(0);
+    const currentMatchIndex = ref(1);
 
     const store = useStore();
     const fieldList = computed(() => store.state.indexFieldInfo.fields ?? []);
 
     // 计算是否有搜索结果
     const hasResults = computed(() => {
-      return searchValue.value && value.value && totalMatches.value > 0;
+      return props.searchCount > 0;
     });
 
     // 计算结果显示文本
     const resultText = computed(() => {
-      if (!searchValue.value) {
+      if (!props.searchCount || !searchValue.value) {
         return { text: '无结果', type: 'placeholder' };
       }
 
-      if (totalMatches.value === 0) {
+      if (props.searchCount === 0) {
         return { text: '无结果', type: 'no-result' };
       }
 
       return {
-        text: `${currentMatchIndex.value}/${totalMatches.value}`,
+        text: `${currentMatchIndex.value}/${props.searchCount}`,
         type: 'success',
       };
     });
@@ -51,16 +56,7 @@ export default defineComponent({
 
     // 编辑器内容变化
     const handleEditorChange = (newValue: string) => {
-      value.value = newValue;
-      // emit('search-change', {
-      //   content: newValue,
-      //   searchValue: searchValue.value,
-      //   matchMode: {
-      //     caseSensitive: isCaseSensitive.value,
-      //     regexMode: isRegexMode.value,
-      //     wordMatch: isWordMatch.value,
-      //   },
-      // });
+      grepValue.value = newValue;
     };
 
     // 搜索输入
@@ -110,9 +106,9 @@ export default defineComponent({
     // 上一个匹配
     const gotoPrevMatch = () => {
       if (hasResults.value) {
-        currentMatchIndex.value = currentMatchIndex.value > 1 ? currentMatchIndex.value - 1 : totalMatches.value;
+        currentMatchIndex.value = currentMatchIndex.value > 1 ? currentMatchIndex.value - 1 : props.searchCount;
         emit('search-change', {
-          content: value.value,
+          content: grepValue.value,
           searchValue: searchValue.value,
           matchMode: {
             caseSensitive: isCaseSensitive.value,
@@ -127,9 +123,9 @@ export default defineComponent({
     // 下一个匹配
     const gotoNextMatch = () => {
       if (hasResults.value) {
-        currentMatchIndex.value = currentMatchIndex.value < totalMatches.value ? currentMatchIndex.value + 1 : 1;
+        currentMatchIndex.value = currentMatchIndex.value < props.searchCount ? currentMatchIndex.value + 1 : 1;
         emit('search-change', {
-          content: value.value,
+          content: grepValue.value,
           searchValue: searchValue.value,
           matchMode: {
             caseSensitive: isCaseSensitive.value,
@@ -180,8 +176,8 @@ export default defineComponent({
           </bk-select>
           <div class='grep-cli-editor'>
             <GrepCliEditor
-              value={value.value}
-              placeholder='-- INSERT --'
+              value={grepValue.value}
+              placeholder='-- INSERT, Ctrl +Enter提交查询 --'
               autoHeight={true}
               minHeight='34px'
               maxHeight='160px'
@@ -198,7 +194,7 @@ export default defineComponent({
               class='grep-cli-search-input'
               placeholder='搜索'
               value={searchValue.value}
-              onInput={handleSearchInput}
+              on-enter={handleSearchInput}
               size='small'
             />
             <div class='grep-cli-tools'>
