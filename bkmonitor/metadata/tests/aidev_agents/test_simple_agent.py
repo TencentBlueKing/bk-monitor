@@ -9,19 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import uuid
+from aidev_agent.packages.langchain.tools.base import Tool, make_structured_tool
 from django.conf import settings
+from aidev_agent.api.bk_aidev import BKAidevApi
+from aidev_agent.core.extend.models.llm_gateway import ChatModel
+from aidev_agent.services.chat import ChatCompletionAgent, ExecuteKwargs
+from aidev_agent.services.pydantic_models import ChatPrompt
 
 
 def _collect_complete_answer(agent):
     """收集完整的回答数据"""
     thinking_content = ""
     answer_content = ""
-
-    try:
-        from aidev_agent.services.chat import ExecuteKwargs
-    except ImportError:
-        print("MetadataDiagnosisAgent: failed to import AIDEV SDK")
-        return None
 
     for chunk in agent.execute(ExecuteKwargs(stream=True)):
         # 跳过非数据行
@@ -58,16 +58,12 @@ def _collect_complete_answer(agent):
     }
 
 
-def test_metadata_agent():
-    """Metadata 排障Agent测试"""
+def generate_uuid():
+    return str(uuid.uuid4())
 
-    try:
-        from aidev_agent.api.bk_aidev import BKAidevApi
-        from aidev_agent.core.extend.models.llm_gateway import ChatModel
-        from aidev_agent.services.chat import ChatCompletionAgent
-        from aidev_agent.services.pydantic_models import ChatPrompt
-    except ImportError:
-        print("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+
+def test_metadata_agent_with_tools():
+    """Metadata 排障Agent测试"""
 
     # 1. 初始化模型和客户端
     llm_model_name = settings.AIDEV_LLM_MODEL_NAME
@@ -75,8 +71,53 @@ def test_metadata_agent():
     client = BKAidevApi.get_client()
 
     # 2. 获取工具（工具注册在AIDEV平台）
-    tool_code_list = settings.AIDEV_METADATA_TOOL_CODE_LIST
+    # tool_code_list = settings.AIDEV_METADATA_TOOL_CODE_LIST
+    tool_code_list = ["bkm-query-meta"]
     tools = [client.construct_tool(tool_code) for tool_code in tool_code_list]
+
+    tool_settings = {
+        "description": "根据DataId查询元数据信息",
+        # 'generate_type': 'user',
+        # 'icon': 'ai',
+        "is_sensitive": True,
+        "method": "get",
+        "property": {
+            "body": [
+                {
+                    "default": "",
+                    "description": "",
+                    "name": "",
+                    "required": False,
+                    "type": "string",
+                    "validate": {"enable": False, "rules": []},
+                }
+            ],
+            "header": [
+                {
+                    "default": "{}",
+                    "description": "",
+                    "name": "",
+                    "required": False,
+                    "type": "string",
+                    "validate": {"enable": False, "rules": []},
+                }
+            ],
+            "query": [
+                {
+                    "default": -1,
+                    "description": "数据源ID",
+                    "name": "bk_data_id",
+                    "required": False,
+                    "type": "integer",
+                    "validate": {"enable": False, "rules": []},
+                }
+            ],
+        },
+        "tool_code": "test",
+        "tool_name": "监控元数据--元数据信息获取",
+    }
+
+    handmake_tools = [make_structured_tool(Tool.model_validate(tool_settings))]
 
     # 3. 构建简单的对话历史（用户提问）
     user_question = "请帮我分析123456的链路情况"
@@ -90,8 +131,66 @@ def test_metadata_agent():
     agent = ChatCompletionAgent(
         chat_model=llm,
         chat_history=chat_history,
-        tools=tools,
     )
 
     result = _collect_complete_answer(agent)
     print(result)
+
+
+def test_init_agent_with_agent_code():
+    client = BKAidevApi.get_client()
+
+    agent_code = "aidev-metadata"
+    agent = client.construct_agent(agent_code)
+    assert agent
+
+
+def test_session_management():
+    """
+    测试Session管理
+    """
+    client = BKAidevApi.get_client()
+
+    # 生成一个随机的会话ID
+    session_code = generate_uuid()
+
+    # 创建一个会话
+    create_session_res = client.api.create_chat_session(
+        json={"session_code": session_code, "session_name": "ct-test-20250603"}
+    )
+    assert create_session_res
+
+    # 获取一个会话
+    retrieve_session_res = client.api.retrieve_chat_session(path_params={"session_code": session_code})
+    assert retrieve_session_res
+
+    # 创建会话
+    create_session_content_res = client.api.create_chat_session_content(
+        json={
+            "session_code": session_code,
+            "role": "user",
+            "content": "hello world",
+            "status": "success",
+        }
+    )
+
+    session_content_id = create_session_content_res["data"]["id"]
+    assert session_content_id
+
+    # 更新session content
+    update_session_content_res = client.api.update_chat_session_content(
+        path_params={"id": session_content_id},
+        json={
+            "session_code": session_code,
+            "role": "user",
+            "content": "what is python",
+            "status": "success",
+        },
+    )
+    assert update_session_content_res
+
+    # 获取session_contents
+    get_session_contents_res = client.api.get_chat_session_contents(params={"session_code": session_code})
+    assert get_session_contents_res
+
+    # 删除会话内容

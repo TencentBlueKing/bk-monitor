@@ -351,7 +351,7 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.ListField(label="元数据AIDEV工具代码列表", default=[]),
         ),
         ("ENABLE_AIDEV_AGENT", slz.BooleanField(label="是否开启AI Agent能力", default=False)),
-        ("AIDEV_LLM_MODEL_NAME", slz.CharField(label="LLM模型名称", default="")),
+        ("AIDEV_LLM_MODEL_NAME", slz.CharField(label="LLM模型名称", default="hunyuan-turbos")),
         ("ENABLE_V2_METADATA_AI_DIAGNOSIS", slz.BooleanField(label="是否启用新版元数据智能诊断方案", default=True)),
         (
             "SYNC_BKBASE_META_BIZ_BATCH_SIZE",

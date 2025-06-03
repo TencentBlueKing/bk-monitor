@@ -1517,7 +1517,7 @@ ENABLE_AIDEV_AGENT = False
 # 元数据工具代码列表
 AIDEV_METADATA_TOOL_CODE_LIST = ["get_meta"]
 # AIDEV LLM模型名称
-AIDEV_LLM_MODEL_NAME = None
+AIDEV_LLM_MODEL_NAME = "hunyuan-turbos"
 # 是否启用新版元数据智能诊断方案
 ENABLE_V2_METADATA_AI_DIAGNOSIS = True
 # AIDEV模型服务地址
