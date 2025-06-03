@@ -18,16 +18,21 @@ from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
 from apm_web.constants import (
-    DEFAULT_MAX_VALUE,
     METRIC_TUPLE,
     DbCategoryEnum,
     SceneEventKey,
+    METRIC_RATE_TUPLE,
+    METRIC_RELATION_MAP,
 )
+from django.db.models import Q
+from opentelemetry.trace import StatusCode
 from apm_web.db.db_utils import build_db_param, get_offset
 from apm_web.handlers.component_handler import ComponentHandler
-from apm_web.handlers.db_handler import DbInstanceHandler, DbQuery, DbStatisticsHandler
+from apm_web.handlers.db_handler import DbInstanceHandler, DbQuery
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
+from bkmonitor.data_source.unify_query.builder import UnifyQuerySet, QueryConfigBuilder
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources.base import PageListResource
@@ -59,6 +64,18 @@ class DbQuerySerializer(serializers.Serializer):
 class ListDbStatisticsResource(PageListResource):
     default_sort = "-request_count"
 
+    METRIC_MAP: dict[str, dict[str, str]] = {
+        "request_count": {"agg_method": "count", "field": "_index"},
+        "avg_duration": {"agg_method": "avg", "field": "elapsed_time"},
+        "error_request_count": {"agg_method": "count", "field": "_index"},
+        "slow_request_count": {"agg_method": "count", "field": "_index"},
+    }
+
+    METRIC_EXTRA_FILTER: dict[str, Q] = {
+        "error_request_count": Q(**{OtlpKey.STATUS_CODE: StatusCode.ERROR.value}),
+        "slow_request_count": Q(**{OtlpKey.get_attributes_key("attributes.db.is_slow"): 1}),
+    }
+
     class RequestSerializer(DbQuerySerializer):
         group_by_key = serializers.CharField(label="分组字段")
         metric_list = serializers.ListField(label="指标列表", child=serializers.CharField())
@@ -85,7 +102,7 @@ class ListDbStatisticsResource(PageListResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + "&listType=span",
+                        + "&sceneMode=span",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -124,14 +141,12 @@ class ListDbStatisticsResource(PageListResource):
 
     @classmethod
     def handle_data(cls, data, params):
-        res = DbStatisticsHandler.parse_buckets(data, params.get("metric_list", []))
-
-        for item in res:
+        for item in data:
             item["operation"] = {"trace": _("调用链"), "statistics": _("统计")}
             item["avg_duration"] = item["avg_duration"] / 1000
             item["slow_command_rate"] = item["slow_command_rate"] * 100
 
-        return res
+        return data
 
     def handle_format(self, data, column_formats, params):
         # 格式化数据
@@ -147,33 +162,59 @@ class ListDbStatisticsResource(PageListResource):
             service_name = ComponentHandler.get_component_belong_service(service_name)
         # url 拼接
         for item in items["data"]:
-            tmp = {
-                "span_name": {
-                    "selectedCondition": {"label": "=", "value": "equal"},
-                    "isInclude": True,
-                    "selectedConditionValue": [item["span_name"]],
-                }
-            }
+            filters: list[dict[str, Any]] = [
+                {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item["span_name"]]},
+            ]
             if service_name:
-                tmp[OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)] = {
-                    "selectedCondition": {"label": "=", "value": "equal"},
-                    "isInclude": True,
-                    "selectedConditionValue": [service_name],
-                }
+                filters.append(
+                    {
+                        "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                        "operator": "equal",
+                        "value": [service_name],
+                    }
+                )
 
             for i in item["operation"]:
-                i["url"] = i["url"] + "&conditionList=" + json.dumps(tmp)
+                i["url"] = i["url"] + "&where=" + json.dumps(filters)
 
         return items
 
+    @classmethod
+    def _get_limit(cls) -> int:
+        # span_name x sql 可能产生一个很大的基数（比如 Redis SET xxx），超过部分存储（例如 ES）的最大分桶限制。
+        # 此处
+        return 2000
+
+    @classmethod
+    def _query_field_aggregated_records(
+        cls, q: QueryConfigBuilder, qs: UnifyQuerySet, group_by: list[str], metric_field: str
+    ) -> list[dict[str, Any]]:
+        """按指定聚合方法（agg_method）计算指定字段（field）的聚合值"""
+        metric: dict[str, str] = cls.METRIC_MAP[metric_field]
+        q = q.metric(field=metric["field"], method=metric["agg_method"], alias="a").group_by(*group_by).alias("a")
+        if metric_field in cls.METRIC_EXTRA_FILTER:
+            # 添加额外的过滤条件
+            q = q.filter(cls.METRIC_EXTRA_FILTER[metric_field])
+
+        aggregated_records: list[dict[str, Any]] = []
+        for record in list(qs.add_query(q)):
+            aggregated_records.append(
+                {
+                    # 某个聚合维度不存在也要展示成空字符串。
+                    "dimensions": {field: record.get(field) or "" for field in group_by},
+                    "metric_field": metric_field,
+                    "value": record["_result_"],
+                }
+            )
+
+        return aggregated_records
+
     def perform_request(self, validated_data):
-        table_id = Application.get_trace_table_id(validated_data["bk_biz_id"], validated_data["app_name"])
-
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+        table_id = Application.get_trace_table_id(bk_biz_id, app_name)
         if not table_id:
-            raise ValueError(_("应用【{}】没有 trace 结果表").format(validated_data["app_name"]))
-
-        # 指标准入
-        metric_list = [metric for metric in validated_data["metric_list"] if metric in METRIC_TUPLE]
+            raise ValueError(_("应用【{}】没有 trace 结果表").format(app_name))
 
         # 构建查询条件
         filter_params = build_db_param(validated_data)
@@ -195,41 +236,58 @@ class ListDbStatisticsResource(PageListResource):
             {"key": OtlpKey.get_attributes_key(SpanAttributes.DB_STATEMENT), "operator": "exists", "value": [""]}
         )
 
-        query_body = DbQuery().build_param(
-            start_time=validated_data["start_time"],
-            end_time=validated_data["end_time"],
-            filter_params=filter_params,
+        metric_list: set[str] = set()
+        for metric in validated_data["metric_list"]:
+            if metric not in METRIC_TUPLE:
+                continue
+            if metric in METRIC_RATE_TUPLE:
+                metric_list.update(METRIC_RELATION_MAP.get(metric))
+                continue
+            metric_list.add(metric)
+
+        q: QueryConfigBuilder = DbQuery.get_q(table_id).filter(DbQuery.build_filter_params(filter_params))
+        qs: UnifyQuerySet = (
+            DbQuery.get_qs(bk_biz_id, validated_data["start_time"], validated_data["end_time"])
+            .limit(self._get_limit())
+            .time_agg(False)
+            .instant()
         )
 
-        # 添加aggregations
-        query_body["aggs"] = {
-            "group": {
-                "composite": {
-                    "sources": [
-                        {"span_name": {"terms": {"field": "span_name", "missing_bucket": True}}},
-                        {"summary": {"terms": {"field": "attributes.db.statement", "missing_bucket": True}}},
-                    ],
-                    "size": DEFAULT_MAX_VALUE,
-                },
-                "aggs": DbStatisticsHandler().build_es_dsl(
-                    metric_set=set(metric_list), group_by_key=validated_data["group_by_key"]
-                ),
-            }
-        }
-
-        # 额外参数
-        query_body["size"] = 0
-
-        response = api.apm_api.query_es(
-            {
-                "table_id": table_id,
-                "query_body": query_body,
-            }
+        pool = ThreadPool(5)
+        group_by: list[str] = [OtlpKey.SPAN_NAME, OtlpKey.get_attributes_key(SpanAttributes.DB_STATEMENT)]
+        field_aggregated_records_list = pool.imap_unordered(
+            lambda _metric_field: self._query_field_aggregated_records(q, qs, group_by, _metric_field),
+            metric_list,
         )
+        pool.close()
 
-        buckets = response["aggregations"]["group"]["buckets"]
+        dimensions_bucket_map: dict[frozenset, dict[str, Any]] = {}
+        for field_aggregated_records in field_aggregated_records_list:
+            for record in field_aggregated_records:
+                default_bucket: dict[str, Any] = {
+                    "span_name": record["dimensions"].get("span_name", ""),
+                    "summary": record["dimensions"].get(OtlpKey.get_attributes_key(SpanAttributes.DB_STATEMENT), ""),
+                }
+                dimensions_bucket_map.setdefault(frozenset(record["dimensions"].items()), default_bucket)[
+                    record["metric_field"]
+                ] = record["value"]
 
-        return self.get_pagination_data(buckets, validated_data)
+        # 默认值、计算值处理
+        processed_buckets: list[dict[str, Any]] = []
+        for bucket in dimensions_bucket_map.values():
+            for metric in metric_list:
+                if metric not in bucket:
+                    bucket[metric] = 0
+
+            if "slow_command_rate" in validated_data["metric_list"]:
+                if bucket["request_count"] == 0:
+                    bucket["slow_command_rate"] = 0
+                    continue
+                bucket["slow_command_rate"] = bucket["slow_request_count"] / bucket["request_count"]
+
+            processed_buckets.append(bucket)
+
+        return self.get_pagination_data(processed_buckets, validated_data)
 
 
 class ListDbSpanResource(PageListResource):
@@ -253,9 +311,8 @@ class ListDbSpanResource(PageListResource):
                         id="detail",
                         name=_("详情"),
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
-                        + "&search_type=accurate"
-                        + "&search_id=spanID"
-                        + "&trace_id={span_id}",
+                        + "&sceneMode=span"
+                        + '&where=[{{"key":"span_id","operator":"equal","value":["{span_id}"]}}]',
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
