@@ -36,6 +36,7 @@ import {
   type IFilterField,
   type IWhereItem,
   ECondition,
+  EFieldType,
 } from './utils';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
@@ -231,20 +232,24 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
 
   getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
     return new Promise((resolve, _reject) => {
+      const fieldType = this.fieldNameMap?.[params.field]?.type;
       this.getValueFn({
-        where: [
-          {
-            key: params.field,
-            method: 'include',
-            value: [params.search || ''],
-            condition: ECondition.and,
-            options: {
-              is_wildcard: true,
-            },
-          },
-        ],
+        where: params.search
+          ? [
+              {
+                key: params.field,
+                method: fieldType === EFieldType.integer ? 'eq' : 'include',
+                value: [params.search],
+                condition: ECondition.and,
+                options: {
+                  is_wildcard: true,
+                },
+              },
+            ]
+          : [],
         fields: [params.field],
         limit: params.limit,
+        isInit__: params?.isInit__ || false,
       })
         .then(data => {
           resolve(data);
