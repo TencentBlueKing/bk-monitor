@@ -63,7 +63,7 @@ export const makeMessage = (message, traceparent, needTraceId) => {
   }
   if (message && needTraceId && traceId && typeof message === 'object') {
     let { detail } = message;
-    if (detail) {
+    if (detail && typeof detail === 'string') {
       detail = formatJson(detail) || detail;
     }
     return {
