@@ -729,7 +729,6 @@ TRPC_TRACE_VIEW_CONFIG = {
         ],
         "display_columns": [
             "span_id",
-            "kind",
             "start_time",
             "elapsed_time",
             "attributes.trpc.caller_service",  # "主调 Service"
@@ -739,6 +738,7 @@ TRPC_TRACE_VIEW_CONFIG = {
             "attributes.trpc.status_code",  # "tRPC 状态码"
             "attributes.trpc.envname",  # "用户环境"
             "status.code",
+            "kind",
             "trace_id",
         ],
     },
