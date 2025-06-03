@@ -2,14 +2,12 @@ import json
 import os
 import sys
 import traceback
-from typing import Any, Dict, List
+from typing import Any
 
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_databus.handlers.collector import (
-    CollectorHandler,
-    get_random_public_cluster_id,
-)
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.serializers import FastCollectorCreateSerializer
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -105,16 +103,16 @@ class Prompt:
         sys.exit(1)
 
 
-class JsonFile(object):
+class JsonFile:
     """json文件读写"""
 
     @classmethod
     def read(cls, filepath: str, encoding: str = "utf-8") -> Any:
-        with open(filepath, "r", encoding=encoding) as f:
+        with open(filepath, encoding=encoding) as f:
             return json.load(f)
 
 
-def parse_str_int_list(str_list: str) -> List[int]:
+def parse_str_int_list(str_list: str) -> list[int]:
     """解析字符串为int列表"""
     try:
         if not str_list:
@@ -148,19 +146,19 @@ class Database:
             cursorclass=SSDictCursor,
         )
 
-    def execute_sql(self, sql: str) -> List[Dict[str, Any]]:
+    def execute_sql(self, sql: str) -> list[dict[str, Any]]:
         """执行SQL"""
         with self.conn.cursor() as cursor:
             cursor.execute(sql)
             result = cursor.fetchall()
             return result
 
-    def get_tables(self) -> List[str]:
+    def get_tables(self) -> list[str]:
         """获取所有表名"""
         sql = "SHOW TABLES"
         return [i[f"Tables_in_{self.db}"] for i in self.execute_sql(sql)]
 
-    def query_table(self, table_name: str, fields: List[str] = None) -> List[Dict[str, Any]]:
+    def query_table(self, table_name: str, fields: list[str] = None) -> list[dict[str, Any]]:
         """查询表数据"""
         if fields:
             fields = ",".join(fields)
@@ -169,12 +167,12 @@ class Database:
         sql = f"SELECT {fields} FROM {table_name}"
         return [i for i in self.execute_sql(sql)]
 
-    def desc_table(self, table_name: str) -> List[Dict[str, Any]]:
+    def desc_table(self, table_name: str) -> list[dict[str, Any]]:
         """查询表结构"""
         sql = f"DESC {table_name}"
         return [i for i in self.execute_sql(sql)]
 
-    def insert(self, table_name: str, data: Dict[str, Any]) -> None:
+    def insert(self, table_name: str, data: dict[str, Any]) -> None:
         """插入数据"""
         fields = ",".join(list(data.keys()))
         placeholder = ",".join(["%s" for _ in range(len(data))])
@@ -186,7 +184,10 @@ class Database:
             self.conn.commit()
         except Exception as e:
             Prompt.error(
-                "表: {table_name}插入数据失败: {e}, 数据为: {data}", table_name=table_name, e=str(e), data=json.dumps(data)
+                "表: {table_name}插入数据失败: {e}, 数据为: {data}",
+                table_name=table_name,
+                e=str(e),
+                data=json.dumps(data),
             )
             self.conn.rollback()
 
@@ -205,14 +206,21 @@ class Command(BaseCommand):
             help="需要导入的采集项数据, 默认为: log_databus_collectorconfig.json",
             default=os.path.join(BASE_DIR, "log_databus_collectorconfig.json"),
         )
-        parser.add_argument("--collector_config_id_list", help="需要导入的采集项ID, 不传时导入所有的采集项, 例如: 1,2", type=str, default="")
+        parser.add_argument(
+            "--collector_config_id_list",
+            help="需要导入的采集项ID, 不传时导入所有的采集项, 例如: 1,2",
+            type=str,
+            default="",
+        )
         parser.add_argument(
             "-i",
             "--index_set_data",
             help="需要导入的索引集数据, 默认为: log_search_logindexset.json",
             default=os.path.join(BASE_DIR, "log_search_logindexset.json"),
         )
-        parser.add_argument("--index_set_id_list", help="需要导入的索引集ID, 不传时导入所有的索引集, 例如: 1,2,3", type=str, default="")
+        parser.add_argument(
+            "--index_set_id_list", help="需要导入的索引集ID, 不传时导入所有的索引集, 例如: 1,2,3", type=str, default=""
+        )
         parser.add_argument("--mysql_host", type=str, help="公共数据库地址")
         parser.add_argument("--mysql_port", help="公共数据库端口", type=int, default=3306)
         parser.add_argument("--mysql_user", help="公共数据库用户", type=str, default="root")
@@ -226,7 +234,9 @@ class Command(BaseCommand):
             type=str,
             default=BK_LOG_SEARCH_RESOURCE_MAPPING_TABLE,
         )
-        parser.add_argument("-s", "--storage_cluster_id", help="采集项存储ID, 不传时则使用系统随机分配的公共集群", type=int, default=0)
+        parser.add_argument(
+            "-s", "--storage_cluster_id", help="采集项存储ID, 不传时则使用系统随机分配的公共集群", type=int, default=0
+        )
 
     def handle(self, *args, **options):
         mysql_config = {
@@ -297,7 +307,9 @@ class CCEnv:
         sql = f"SELECT * FROM {self.env_offset_table} WHERE env='{self.env}'"
         result = self.database.execute_sql(sql)
         if not result:
-            Prompt.panic(msg="环境{env}未配置偏移量(表:{table}), 请检查环境是否存在", env=self.env, table=self.env_offset_table)
+            Prompt.panic(
+                msg="环境{env}未配置偏移量(表:{table}), 请检查环境是否存在", env=self.env, table=self.env_offset_table
+            )
         self.offset = result[0]["offset"]
 
     def get_bk_biz_map(self) -> None:
@@ -305,7 +317,11 @@ class CCEnv:
         sql = f"SELECT * FROM {self.env_biz_map_table} WHERE bk_env='{self.env}'"
         result = self.database.execute_sql(sql)
         if not result:
-            Prompt.panic(msg="环境{env}未配置业务映射关系(表:{table}), 请检查环境是否存在", env=self.env, table=self.env_biz_map_table)
+            Prompt.panic(
+                msg="环境{env}未配置业务映射关系(表:{table}), 请检查环境是否存在",
+                env=self.env,
+                table=self.env_biz_map_table,
+            )
         self.bk_biz_map = {item["bk_old_biz_id"]: item["bk_new_biz_id"] for item in result}
 
     def handle(self):
@@ -322,8 +338,8 @@ class MigrateToolBase:
         self,
         bk_biz_id: int,
         filepath: str,
-        mysql_config: Dict[str, Any],
-        cc_env: Dict[str, Any],
+        mysql_config: dict[str, Any],
+        cc_env: dict[str, Any],
         bk_log_search_resource_mapping_table: str,
         collector_config_id_list: str = "",
         index_set_id_list: str = "",
@@ -358,12 +374,10 @@ class MigrateToolBase:
           `details` text ,
           PRIMARY KEY (`id`)
         ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-        """.format(
-            table_name=self.bk_log_search_resource_mapping_table
-        )
+        """.format(table_name=self.bk_log_search_resource_mapping_table)
         self.db.execute_sql(sql)
 
-    def migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def migrate(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         迁移数据, 各个子类实现
         各个类返回要求是一个字典, 且必须包含以下字段
@@ -371,7 +385,7 @@ class MigrateToolBase:
         """
         raise NotImplementedError
 
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         提供最基础的转换数据
         如果还有额外需要转换的, 先继承该方法, 然后继续转换
@@ -391,7 +405,7 @@ class MigrateToolBase:
         return mapping
 
     @staticmethod
-    def merge_success_mapping(mapping: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_success_mapping(mapping: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         """合并成功mapping"""
         mapping.update(
             {
@@ -402,12 +416,12 @@ class MigrateToolBase:
         return mapping
 
     @staticmethod
-    def merge_fail_mapping(mapping: Dict[str, Any], details: str) -> Dict[str, Any]:
+    def merge_fail_mapping(mapping: dict[str, Any], details: str) -> dict[str, Any]:
         """合并失败mapping"""
         mapping.update({"status": MigrateStatus.FAIL, "details": details})
         return mapping
 
-    def check_record(self, mapping: Dict[str, Any]) -> bool:
+    def check_record(self, mapping: dict[str, Any]) -> bool:
         """检查记录是否已经存在"""
         sql = "SELECT * FROM {table} WHERE origin_index_set_id={origin_index_set_id}".format(
             table=self.bk_log_search_resource_mapping_table, origin_index_set_id=mapping["origin_index_set_id"]
@@ -417,7 +431,9 @@ class MigrateToolBase:
             # 如果已经存在, 则检查状态
             status = result[0]["status"]
             if status == MigrateStatus.SUCCESS:
-                Prompt.info(msg="索引集{origin_index_set_id}已经迁移成功, 跳过", index_set_id=mapping["origin_index_set_id"])
+                Prompt.info(
+                    msg="索引集{origin_index_set_id}已经迁移成功, 跳过", index_set_id=mapping["origin_index_set_id"]
+                )
             else:
                 Prompt.warning(
                     msg="索引集{origin_index_set_id}已经迁移失败, 报错信息: {details}, 联系日志平台开发处理",
@@ -427,15 +443,15 @@ class MigrateToolBase:
             return True
         return False
 
-    def record(self, mapping: Dict[str, Any]) -> None:
+    def record(self, mapping: dict[str, Any]) -> None:
         """记录迁移结果"""
         self.db.insert(table_name=self.bk_log_search_resource_mapping_table, data=mapping)
 
-    def success(self, data: Dict[str, Any], result: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         """控制台输出成功信息"""
         raise NotImplementedError
 
-    def fail(self, data: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def fail(self, data: dict[str, Any], mapping: dict[str, Any]) -> None:
         """控制台输出失败信息"""
         raise NotImplementedError
 
@@ -458,7 +474,7 @@ class MigrateToolBase:
             # 如果采集项没有指定存储集群, 则查询该业务下存不存在公共集群，如果不存在，则跳过
             # 放在这里是避免进了业务逻辑后, 再去查询公共集群，导致迁移直接失败
             if "collector_config_name_en" in data and not self.storage_cluster_id:
-                storage_cluster_id = get_random_public_cluster_id(mapping["bk_biz_id"])
+                storage_cluster_id = CollectorHandler().get_random_public_cluster_id(mapping["bk_biz_id"])
                 if not storage_cluster_id:
                     Prompt.warning(msg="业务{bk_biz_id}没有可用的公共存储集群, 跳过", bk_biz_id=mapping["bk_biz_id"])
                     continue
@@ -485,7 +501,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
     """采集项迁移工具"""
 
     @staticmethod
-    def filter_collector_config_name_en(data: Dict[str, Any]) -> Dict[str, Any]:
+    def filter_collector_config_name_en(data: dict[str, Any]) -> dict[str, Any]:
         """
         由于旧采集项不存在采集项英文名, 所以根据table_id来生成采集项英文名
         """
@@ -506,7 +522,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         data["collector_config_name_en"] = collector_config_name_en
         return data
 
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: dict[str, Any]) -> dict[str, Any]:
         """转换数据"""
         mapping = super().transform(data)
         data = self.filter_collector_config_name_en(data)
@@ -524,7 +540,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         data["scenario_id"] = Scenario.LOG
         return mapping
 
-    def migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def migrate(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         利用fast_create迁移数据
         """
@@ -547,9 +563,9 @@ class CollectorConfigMigrateTool(MigrateToolBase):
         }
         slz = FastCollectorCreateSerializer(data=params)
         slz.is_valid()
-        return CollectorHandler().fast_create(params=slz.data)
+        return HostCollectorHandler().fast_create(params=slz.data)
 
-    def success(self, data: Dict[str, Any], result: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.info(
             msg=(
                 "采集项[{c_old_id}] {collector_config_name}迁移成功, 新采集项ID: {c_new_id}"
@@ -562,7 +578,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
             index_set_id=mapping["index_set_id"],
         )
 
-    def fail(self, data: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def fail(self, data: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.error(
             msg="采集项[{c_old_id}] {collector_config_name}迁移失败, 错误信息: {error}",
             c_old_id=data["collector_config_id"],
@@ -574,7 +590,7 @@ class CollectorConfigMigrateTool(MigrateToolBase):
 class IndexSetMigrateTool(MigrateToolBase):
     """索引集迁移工具"""
 
-    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform(self, data: dict[str, Any]) -> dict[str, Any]:
         """转换数据"""
         mapping = super().transform(data)
         # 更改view_roles的类型
@@ -594,7 +610,7 @@ class IndexSetMigrateTool(MigrateToolBase):
         return mapping
 
     @staticmethod
-    def _migrate_bkdata(data: Dict[str, Any]) -> Dict[str, Any]:
+    def _migrate_bkdata(data: dict[str, Any]) -> dict[str, Any]:
         # 把创建人给带过来
         activate_request(generate_request(data["created_by"]))
         params = {
@@ -616,7 +632,7 @@ class IndexSetMigrateTool(MigrateToolBase):
             "index_set_id": index_set.index_set_id,
         }
 
-    def migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def migrate(self, data: dict[str, Any]) -> dict[str, Any]:
         if data["scenario_id"] == Scenario.BKDATA or settings.RUN_VER == "tencent":
             storage_cluster_id = None
         elif data["scenario_id"] == Scenario.ES:
@@ -628,7 +644,7 @@ class IndexSetMigrateTool(MigrateToolBase):
             return self._migrate_bkdata(data)
         # TODO: 暂不迁移第三方ES索引集
 
-    def success(self, data: Dict[str, Any], result: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def success(self, data: dict[str, Any], result: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.info(
             msg="索引集[{i_old_id}] {index_set_name}迁移成功, 新索引集ID: {i_new_id}",
             i_old_id=mapping["origin_index_set_id"],
@@ -636,7 +652,7 @@ class IndexSetMigrateTool(MigrateToolBase):
             i_new_id=mapping["index_set_id"],
         )
 
-    def fail(self, data: Dict[str, Any], mapping: Dict[str, Any]) -> None:
+    def fail(self, data: dict[str, Any], mapping: dict[str, Any]) -> None:
         Prompt.error(
             msg="索引集[{i_old_id}] {index_set_name}迁移失败, 错误信息: {error}",
             i_old_id=mapping["origin_index_set_id"],
