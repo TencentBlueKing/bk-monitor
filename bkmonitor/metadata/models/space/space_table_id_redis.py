@@ -342,7 +342,7 @@ class SpaceTableIDRedis:
         for record in bkbase_rt_records:
             # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
             db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
-            fields = (all_fields.get(record.table_id) or [],)
+            fields = all_fields.get(record.table_id) or []
             data[record.table_id] = json.dumps(
                 {
                     "db": db,
