@@ -8,51 +8,89 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 from collections import defaultdict
-
-
-from alarm_backends.core.cache.cmdb import HostManager
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
-from api.cmdb.define import ServiceInstance
+import json
+from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.cmdb.host import HostManager
+from alarm_backends.core.storage.redis import Cache
+from api.cmdb.define import ServiceInstance, TopoTree
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 
-class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
+class ServiceInstanceManager:
     """
     CMDB 服务实例缓存
     """
 
-    type = "service_instance"
+    cache = Cache("cache-cmdb")
+
     CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
     HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
         prefix=CMDBCacheManager.CACHE_KEY_PREFIX
     )
-    ObjectClass = ServiceInstance
 
     @classmethod
-    def key_to_internal_value(cls, service_instance_id):
-        return str(service_instance_id)
+    def get_cache_key(cls, bk_tenant_id: str) -> str:
+        if bk_tenant_id == DEFAULT_TENANT_ID:
+            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
+        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
 
     @classmethod
-    def key_to_representation(cls, origin_key):
-        return int(origin_key)
+    def get_host_to_service_instance_id_cache_key(cls, bk_tenant_id: str) -> str:
+        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
 
     @classmethod
-    def get(cls, service_instance_id):
+    def get(cls, *, bk_tenant_id: str, service_instance_id: str) -> ServiceInstance | None:
         """
+        获取单个服务实例
+        :param bk_tenant_id: 租户ID
         :param service_instance_id: 服务实例ID
-        :rtype: ServiceInstance
         """
-        return super().get(service_instance_id)
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result = cls.cache.hget(cache_key, service_instance_id)
+        if not result:
+            return None
+        return ServiceInstance(**json.loads(result, ensure_ascii=False))
 
     @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
+    def mget(
+        cls, *, bk_tenant_id: str, service_instance_ids: list[str], skip_empty: bool = False
+    ) -> dict[str, ServiceInstance | None]:
+        """
+        批量获取服务实例
+        :param bk_tenant_id: 租户ID
+        :param service_instance_ids: 服务实例ID列表
+        """
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        results = cls.cache.hmget(cache_key, service_instance_ids)
+        return {
+            service_instance_id: ServiceInstance(**json.loads(result, ensure_ascii=False)) if result else None
+            for service_instance_id, result in zip(service_instance_ids, results)
+            if result or not skip_empty
+        }
+
+    @classmethod
+    def get_service_instance_id_by_host(cls, *, bk_tenant_id: str, bk_host_id: str) -> list[int]:
+        """
+        获取主机下的服务实例id列表
+        :param bk_tenant_id: 租户ID
+        :param bk_host_id: 主机ID
+        """
+        cache_key = cls.get_host_to_service_instance_id_cache_key(bk_tenant_id)
+        result = cls.cache.hget(cache_key, str(bk_host_id))
+        if not result:
+            return []
+        return [service_instance_id for service_instance_id in json.loads(result, ensure_ascii=False)]
+
+    @classmethod
+    def refresh_by_biz(cls, *, bk_tenant_id: str, bk_biz_id: int):
         """
         按业务ID刷新缓存
         """
-        instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)  # type: list[ServiceInstance]
-        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)  # type: TopoTree
+        instances: list[ServiceInstance] = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
+        topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+
         # 填充拓扑链
         topo_link_dict = topo_tree.convert_to_topo_link()
         host_to_service_instance = defaultdict(list)
@@ -68,16 +106,20 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
                 instance.ip = host.ip
                 instance.bk_cloud_id = host.bk_cloud_id
 
-        for host_id, service_instance_ids in host_to_service_instance.items():
-            cls.cache.hset(cls.HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY, host_id, json.dumps(service_instance_ids))
-        cls.cache.expire(cls.HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY, cls.CACHE_TIMEOUT)
-        return {cls.key_to_internal_value(instance.service_instance_id): instance for instance in instances}
+        # 刷新服务实例缓存
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        pipeline = cls.cache.pipeline()
+        for i in range(0, len(instances), 1000):
+            pipeline.hmset(
+                cache_key, {instance.service_instance_id: instance.to_dict() for instance in instances[i : i + 1000]}
+            )
+        pipeline.execute()
 
-    @classmethod
-    def get_service_instance_id_by_host(cls, bk_host_id):
-        """
-        获取主机下的服务实例id列表
-        """
-        result = cls.cache.hget(cls.HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY, str(bk_host_id)) or "[]"
-        service_instance_ids = json.loads(result)
-        return service_instance_ids
+        # 刷新主机与服务实例的映射关系
+        cache_key = cls.get_host_to_service_instance_id_cache_key(bk_tenant_id)
+        pipeline = cls.cache.pipeline()
+        for host_id, service_instance_ids in host_to_service_instance.items():
+            pipeline.hset(cache_key, host_id, json.dumps(service_instance_ids))
+        pipeline.execute()
+
+        return instances

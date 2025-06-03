@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +13,6 @@ import logging
 
 import arrow
 from django.utils.translation import gettext as _
-from six import string_types
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
@@ -31,13 +29,14 @@ from bkmonitor.utils.range import (
 from bkmonitor.utils.range.conditions import AndCondition, EqualCondition, OrCondition
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.shield import ScopeType, ShieldCategory
 from core.errors.alarm_backends import StrategyNotFound
 
 logger = logging.getLogger("fta_action")
 
 
-class ShieldObj(object):
+class ShieldObj:
     """
     每条屏蔽配置对应的obj
     """
@@ -126,10 +125,13 @@ class ShieldObj(object):
             # 查询动态分组所属的主机
             dynamic_groups = []
             if dynamic_group_ids:
-                dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+                bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.config["bk_biz_id"])
+                dynamic_groups = DynamicGroupManager.mget(
+                    bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids
+                )
 
             bk_host_ids = set()
-            for dynamic_group in dynamic_groups:
+            for dynamic_group in dynamic_groups.values():
                 if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
                     bk_host_ids.update(dynamic_group["bk_inst_ids"])
             if bk_host_ids:
@@ -151,7 +153,7 @@ class ShieldObj(object):
             :param : str|list
             :return: bool
             """
-            if isinstance(para, string_types):
+            if isinstance(para, str):
                 return "00" == para
             elif isinstance(para, list):
                 return "00" in para
@@ -163,7 +165,7 @@ class ShieldObj(object):
             :param parm:str
             :return: bool
             """
-            if isinstance(parm, string_types):
+            if isinstance(parm, str):
                 return parm[0] == "_"
             return False
 
@@ -174,7 +176,7 @@ class ShieldObj(object):
             :return: bool
             """
             category = parm.get("category")
-            if isinstance(category, string_types):
+            if isinstance(category, str):
                 return category == "all"
             elif isinstance(category, list):
                 return "all" in category
@@ -324,7 +326,9 @@ class ShieldObj(object):
                 ),
                 context=context,
             )
-            logger.debug("[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content))
+            logger.debug(
+                "[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content)
+            )
             notice_result = sender.send(notice_way, notice_receivers)
             all_notice_result[notice_way] = notice_result
 

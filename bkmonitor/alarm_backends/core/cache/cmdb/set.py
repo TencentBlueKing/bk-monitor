@@ -8,43 +8,45 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
+import json
+
+from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Set
-from core.drf_resource import api
+from constants.common import DEFAULT_TENANT_ID
 
 
-class SetManager(RefreshByBizMixin, CMDBCacheManager):
+class SetManager:
     """
     CMDB 集群缓存
     """
 
-    ObjectClass = Set
-    type = "set"
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
+    cache = Cache("cache-cmdb")
 
     @classmethod
-    def key_to_internal_value(cls, bk_set_id):
-        return str(bk_set_id)
+    def get_cache_key(cls, bk_tenant_id: str) -> str:
+        if bk_tenant_id == DEFAULT_TENANT_ID:
+            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
+        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
 
     @classmethod
-    def key_to_representation(cls, origin_key):
+    def mget(cls, *, bk_tenant_id: str, bk_set_ids: list[int]) -> dict[int, Set | None]:
         """
-        取出key时进行转化
+        批量获取集群
+        :param bk_tenant_id: 租户ID
+        :param bk_set_ids: 集群ID列表
         """
-        return int(origin_key)
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result = cls.cache.hmget(cache_key, bk_set_ids)
+        return {bk_set_id: Set(**json.loads(r)) if r else None for bk_set_id, r in zip(bk_set_ids, result)}
 
     @classmethod
-    def get(cls, bk_set_id):
+    def get(cls, *, bk_tenant_id: str, bk_set_id: int) -> Set | None:
         """
+        获取单个集群
+        :param bk_tenant_id: 租户ID
         :param bk_set_id: 集群ID
-        :rtype: Set
         """
-        return super().get(bk_set_id)
-
-    @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        """
-        按业务ID刷新缓存
-        """
-        biz_sets = api.cmdb.get_set(bk_biz_id=bk_biz_id)  # type: list[Set]
-        return {cls.key_to_internal_value(biz_set.bk_set_id): biz_set for biz_set in biz_sets}
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result = cls.cache.hget(cache_key, str(bk_set_id))
+        return Set(**json.loads(result)) if result else None

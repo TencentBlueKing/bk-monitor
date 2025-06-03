@@ -90,7 +90,8 @@ class HostDiscover(DiscoverBase):
     def list_bk_cloud_id(self, ips):
         from alarm_backends.core.cache.cmdb.host import HostManager
 
-        host_keys = HostManager.cache.hget(HostManager.get_biz_cache_key(), str(self.bk_biz_id))
+        # todo: 需要改为使用HostIpManager获取ip信息
+        host_keys = []
         if host_keys is None:
             return {}
 

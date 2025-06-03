@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
 
 from django.utils.functional import cached_property
 
@@ -20,7 +18,7 @@ from alarm_backends.core.cache.cmdb import (
     SetManager,
 )
 from alarm_backends.core.context import BaseContextObject
-from api.cmdb.define import Business
+from api.cmdb.define import Business, Module
 
 
 class MultiInstanceDisplay:
@@ -118,7 +116,7 @@ class Target(BaseContextObject):
         return {process["bk_func_name"]: process for process in self.processes}
 
     @cached_property
-    def processes(self) -> List[Dict]:
+    def processes(self) -> list[dict]:
         """
         进程列表
         """
@@ -126,9 +124,13 @@ class Target(BaseContextObject):
         if self.service_instance:
             processes = self.service_instance.process_instances or []
         elif self.host:
-            service_instance_ids = ServiceInstanceManager.get_service_instance_id_by_host(self.host.bk_host_id)
-            for service_instance_id in service_instance_ids:
-                service_instance = ServiceInstanceManager.get(service_instance_id)
+            service_instance_ids = ServiceInstanceManager.get_service_instance_id_by_host(
+                bk_tenant_id=self.business.bk_tenant_id, bk_host_id=self.host.bk_host_id
+            )
+            service_instances = ServiceInstanceManager.mget(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_ids=service_instance_ids
+            )
+            for service_instance in service_instances.values():
                 if service_instance and service_instance.process_instances:
                     processes.extend(service_instance.process_instances)
         return [process["process"] for process in processes]
@@ -143,7 +145,9 @@ class Target(BaseContextObject):
         event = self.parent.alert.event
 
         if event.bk_service_instance_id:
-            return ServiceInstanceManager.get(event.bk_service_instance_id)
+            return ServiceInstanceManager.get(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_id=event.bk_service_instance_id
+            )
 
     @cached_property
     def service_instances(self) -> MultiInstanceDisplay:
@@ -157,7 +161,9 @@ class Target(BaseContextObject):
             if not event.bk_service_instance_id:
                 continue
 
-            instance = ServiceInstanceManager.get(event.bk_service_instance_id)
+            instance = ServiceInstanceManager.get(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_id=event.bk_service_instance_id
+            )
 
             if instance:
                 instances.append(instance)
@@ -179,7 +185,7 @@ class Target(BaseContextObject):
         return self.service_instances
 
     @cached_property
-    def business(self):
+    def business(self) -> Business:
         """
         业务对象
         """
@@ -200,21 +206,13 @@ class Target(BaseContextObject):
     def sets(self):
         if not self.host:
             return []
-        bk_sets = []
-        for bk_set_id in self.host.bk_set_ids:
-            biz_set = SetManager.get(bk_set_id)
-            if biz_set:
-                bk_sets.append(SetManager.get(bk_set_id))
-        return bk_sets
+        sets = SetManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_set_ids=self.host.bk_set_ids)
+        return [set for set in sets.values() if set]
 
     @cached_property
-    def modules(self):
+    def modules(self) -> list[Module]:
         if not self.host:
             return []
-        bk_modules = []
-        for bk_module_id in self.host.bk_module_ids:
-            bk_module = ModuleManager.get(bk_module_id)
-            if bk_module:
-                # 可能出现缓存不存在的情况，仅缓存存在的情况下才进行记录
-                bk_modules.append(bk_module)
-        return bk_modules
+
+        modules = ModuleManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_module_ids=self.host.bk_module_ids)
+        return [module for module in modules.values() if module]

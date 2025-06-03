@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 
@@ -203,7 +203,9 @@ class StandardTranslateEnricher(BaseAlertEnricher):
 
     def enrich_service(self, alert: Alert):
         bk_service_instance_id = alert.top_event["target"]
-        instance = ServiceInstanceManager.get(bk_service_instance_id)
+        instance = ServiceInstanceManager.get(
+            bk_tenant_id=alert.bk_tenant_id, service_instance_id=bk_service_instance_id
+        )
         if not instance:
             alert.add_dimension(key="bk_service_instance_id", value=bk_service_instance_id, display_key=_("服务实例ID"))
         else:
@@ -217,7 +219,7 @@ class StandardTranslateEnricher(BaseAlertEnricher):
 
     def enrich_topo(self, alert: Alert):
         bk_obj_id, bk_inst_id = alert.top_event["target"].split("|")
-        node_info = TopoManager.get(bk_obj_id, bk_inst_id)
+        node_info = TopoManager.get(bk_tenant_id=alert.bk_tenant_id, bk_obj_id=bk_obj_id, bk_inst_id=int(bk_inst_id))
         if not node_info:
             alert.add_dimension(key="bk_topo_node", value=alert.top_event["target"], display_key=_("拓扑节点"))
         else:

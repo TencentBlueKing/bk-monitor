@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from datetime import datetime
@@ -50,7 +50,7 @@ class AlertShieldConfigShielder(BaseShielder):
         config_ids = client.get(key)
         if config_ids:
             # 已经进行过屏蔽匹配了， 这里直接返回
-            config_ids: [str] = json.loads(config_ids)
+            config_ids: list[str] = json.loads(config_ids)
             return [AlertShieldObj(config) for config in self.configs if str(config["id"]) in config_ids]
         return None
 
@@ -60,7 +60,7 @@ class AlertShieldConfigShielder(BaseShielder):
         if key is None:
             return False
         client = ALERT_SHIELD_SNAPSHOT.client
-        config_ids: [str] = [str(shield_obj.config["id"]) for shield_obj in self.shield_objs]
+        config_ids: list[str] = [str(shield_obj.config["id"]) for shield_obj in self.shield_objs]
         client.set(key, json.dumps(config_ids), ex=ALERT_SHIELD_SNAPSHOT.ttl)
         return True
 
@@ -68,7 +68,7 @@ class AlertShieldConfigShielder(BaseShielder):
         self.alert = alert
         try:
             self.configs = ShieldCacheManager.get_shields_by_biz_id(self.alert.event.bk_biz_id)
-            config_ids: [str] = ",".join([str(config["id"]) for config in self.configs])
+            config_ids: list[str] = ",".join([str(config["id"]) for config in self.configs])
             logger.debug(
                 "[load shield] alert(%s) strategy(%s) ids:(%s)",
                 self.alert.id,
@@ -183,7 +183,11 @@ class AlarmTimeShielder(BaseShielder):
             # 情况2：开始时间 > 结束时间，属于跨天的情况
             return True
         self.detail = extended_json.dumps(
-            {"message": _("当前时间({})不在设置的处理时间范围[{}]内").format(now_time, self.action.inputs.get("time_range"))}
+            {
+                "message": _("当前时间({})不在设置的处理时间范围[{}]内").format(
+                    now_time, self.action.inputs.get("time_range")
+                )
+            }
         )
         return False
 

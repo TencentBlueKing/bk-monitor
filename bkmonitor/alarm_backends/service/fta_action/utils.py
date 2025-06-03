@@ -28,9 +28,11 @@ from alarm_backends.core.context.utils import (
 from alarm_backends.core.i18n import i18n
 from alarm_backends.service.converge.dimension import DimensionCalculator
 from alarm_backends.service.converge.tasks import run_converge
+from api.cmdb.define import Host
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance, DutyArrange, DutyPlan, UserGroup
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionNoticeType,
@@ -637,7 +639,7 @@ class AlertAssignee:
         return group_users
 
     @classmethod
-    def get_host_operator(cls, host, operator_attr="operator"):
+    def get_host_operator(cls, host: Host, operator_attr="operator"):
         """
         获取主机负责人，如果没有则尝试获取第一个模块负责人
         :param host: 主机
@@ -650,7 +652,7 @@ class AlertAssignee:
         return getattr(host, operator_attr, []) or cls.get_host_module_operator(host)
 
     @classmethod
-    def get_host_module_operator(cls, host, operator_attr="operator"):
+    def get_host_module_operator(cls, host: Host, operator_attr="operator"):
         """
         获取主机第一个模块的负责人
         :param operator_attr: 模块负责人类型
@@ -659,8 +661,11 @@ class AlertAssignee:
         :param host: 主机
         :return: 人员列表
         """
-        for bk_module_id in host.bk_module_ids:
-            module = ModuleManager.get(bk_module_id)
+        bk_biz_id: int = host.bk_biz_id
+        bk_tenant_id: int = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
+        modules = ModuleManager.mget(bk_tenant_id=bk_tenant_id, bk_module_ids=host.bk_module_ids)
+        for module in modules.values():
             if module:
                 return getattr(module, operator_attr, [])
         return []

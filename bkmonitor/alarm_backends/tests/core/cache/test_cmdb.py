@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 
-import mock
+from unittest import mock
 from django.core.cache import caches
 from django.test import TestCase
 
@@ -50,7 +48,7 @@ class TestCMDBBaseTestCase(TestCase):
         ]
 
         self.get_service_instances = mock.patch(
-            "alarm_backends.core.cache.cmdb." "service_instance.api.cmdb.get_service_instance_by_topo_node"
+            "alarm_backends.core.cache.cmdb.service_instance.api.cmdb.get_service_instance_by_topo_node"
         )
         self.get_service_instances.start().side_effect = lambda bk_biz_id: [
             instance for instance in ALL_SERVICE_INSTANCES if instance.bk_biz_id == bk_biz_id
@@ -86,11 +84,9 @@ class TestCMDBBaseTestCase(TestCase):
 class TestBusinessManager(TestCMDBBaseTestCase):
     def setUp(self):
         super().setUp()
-        BusinessManager.clear()
 
     def tearDown(self):
         super().tearDown()
-        BusinessManager.clear()
 
     def test_serialize(self):
         biz_obj = Business(bk_biz_id=2)
@@ -331,11 +327,9 @@ class TestHostManager(TestCMDBBaseTestCase):
 class TestModuleManager(TestCMDBBaseTestCase):
     def setUp(self):
         super().setUp()
-        ModuleManager.clear()
 
     def tearDown(self):
         super().tearDown()
-        ModuleManager.clear()
 
     def test_serialize(self):
         module_obj = Module(bk_module_id=1, bk_module_name="test_module")
@@ -365,7 +359,7 @@ class TestModuleManager(TestCMDBBaseTestCase):
     def test_get(self):
         ModuleManager.refresh()
         for module in ALL_MODULES:
-            actual_module = ModuleManager.get(module.bk_module_id)
+            actual_module = ModuleManager.get(bk_tenant_id="system", bk_module_id=module.bk_module_id)
             self.assertEqual(module, actual_module)
 
     def test_all(self):
@@ -483,7 +477,7 @@ class TestTopoManager(TestCMDBBaseTestCase):
         keys = list(TopoManager.keys())
         expected_keys = set()
         for node in TOPO_TREE.convert_to_flat_nodes():
-            expected_keys.add("{}|{}".format(node.bk_obj_id, node.bk_inst_id))
+            expected_keys.add(f"{node.bk_obj_id}|{node.bk_inst_id}")
         self.assertSetEqual(set(keys), set(expected_keys))
 
     def test_get(self):

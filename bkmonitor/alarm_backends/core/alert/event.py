@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import time
@@ -16,6 +16,7 @@ from alarm_backends.constants import DEFAULT_DEDUPE_FIELDS
 from bkmonitor.documents import EventDocument
 from bkmonitor.utils.common_utils import count_md5
 from constants.alert import EventStatus, EventTargetType
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import LABEL_ORDER_LIST, DataTypeLabel, ResultTableLabelObj
 
 
@@ -285,6 +286,10 @@ class Event:
     @property
     def id(self) -> str:
         return self.data["id"]
+
+    @property
+    def bk_tenant_id(self) -> str:
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
 
     @property
     def event_id(self) -> str:

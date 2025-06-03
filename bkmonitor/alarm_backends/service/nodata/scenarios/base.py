@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 from itertools import chain
 
@@ -17,7 +17,9 @@ from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.service.nodata.scenarios.filters import DimensionRangeFilter
+from api.cmdb.define import ServiceInstance
 from bkmonitor.utils.cache import mem_cache
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.strategy import HOST_SCENARIO, SERVICE_SCENARIO
 
 SCENARIO_CLS = {}
@@ -30,7 +32,7 @@ def register_scenario(cls):
     return cls
 
 
-class BaseScenario(object):
+class BaseScenario:
     def __init__(self, item: Item):
         """
         :param Item 对象
@@ -216,11 +218,13 @@ class ServiceScenario(BaseScenario):
         target_data = self.item.target[0][0]
 
         if "bk_target_service_instance_id" in self.get_no_data_dimensions():
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.strategy.bk_biz_id)
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
-            all_services = ServiceInstanceManager.refresh_by_biz(self.strategy.bk_biz_id)
-            ServiceInstanceManager.cache_by_biz(self.strategy.bk_biz_id, all_services)
+            all_services: list[ServiceInstance] = ServiceInstanceManager.refresh_by_biz(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=self.strategy.bk_biz_id
+            )
             target_services = []
-            for service in list(all_services.values()):
+            for service in all_services:
                 service_topo = set({node.id for node in chain(*list(service.topo_link.values()))})
                 if service_topo & target_topo:
                     target_services.append(service)

@@ -8,77 +8,45 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Business
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import api
 
 
-class BusinessManager(CMDBCacheManager):
+class BusinessManager:
     """
     CMDB 业务缓存
     """
 
-    type = "biz"
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.business"
-    ObjectClass = Business
+    cache_key = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.business"
+    cache = Cache("cache-cmdb")
 
     @classmethod
-    def key_to_internal_value(cls, bk_biz_id):
-        return str(bk_biz_id)
+    def get(cls, bk_biz_id: int) -> Business | None:
+        result = cls.cache.hget(cls.cache_key, str(bk_biz_id))
+        if not result:
+            return None
+        result: dict = json.loads(result)
+
+        # 兼容旧数据，补充租户ID字段
+        if not result.get("bk_tenant_id"):
+            result["bk_tenant_id"] = DEFAULT_TENANT_ID
+
+        return Business(**result)
 
     @classmethod
-    def key_to_representation(cls, origin_key):
+    def keys(cls) -> list[int]:
         """
-        取出key时进行转化
+        获取业务ID列表
         """
-        return int(origin_key)
+        return [int(key) for key in cls.cache.hkeys(cls.cache_key)]
 
     @classmethod
-    def get(cls, bk_biz_id):
+    def all(cls) -> list[Business]:
         """
-        :param bk_biz_id: 获取业务ID
-        :rtype: Business
+        获取全部业务
         """
-        return super().get(bk_biz_id)
-
-    @classmethod
-    def get_tenant_id(cls, bk_biz_id):
-        """
-        获取业务租户ID
-        """
-        business = cls.get(bk_biz_id)
-        if not business:
-            raise ValueError(f"get_tenant_id failed, business not found, bk_biz_id: {bk_biz_id}")
-        return getattr(business, "bk_tenant_id", DEFAULT_TENANT_ID)
-
-    @classmethod
-    def refresh(cls):
-        """
-        刷新业务数据
-        """
-        cls.logger.info("refresh CMDB Business data started.")
-
-        business_list = api.cmdb.get_business(all=True)  # type: list[Business]
-        pipeline = cls.cache.pipeline()
-        for business in business_list:
-            pipeline.hset(cls.CACHE_KEY, cls.key_to_internal_value(business.bk_biz_id), cls.serialize(business))
-
-        pipeline.execute()
-
-        # 差值比对需要删除的业务
-        new_keys = [cls.key_to_internal_value(business.bk_biz_id) for business in business_list]
-        old_keys = cls.cache.hkeys(cls.CACHE_KEY)
-        deleted_keys = set(old_keys) - set(new_keys)
-        pipeline = cls.cache.pipeline()
-        for key in deleted_keys:
-            pipeline.hdel(cls.CACHE_KEY, key)
-
-        pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
-        pipeline.execute()
-
-        cls.logger.info(
-            "refresh CMDB Business data finished, amount: updated: {}, removed: {}".format(
-                len(new_keys), len(deleted_keys)
-            )
-        )
+        result = cls.cache.hgetall(cls.cache_key)
+        return [Business(**json.loads(value)) for value in result.values() if value]

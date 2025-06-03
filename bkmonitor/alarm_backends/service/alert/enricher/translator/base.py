@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import abc
 
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
-class TranslationField(object):
+
+class TranslationField:
     def __init__(self, name, value, display_name=None, display_value=None):
         self.name = name
         self.value = value
@@ -36,7 +36,7 @@ class TranslationField(object):
         )
 
 
-class BaseTranslator(object):
+class BaseTranslator:
     """
     字段翻译类
     """
@@ -44,6 +44,7 @@ class BaseTranslator(object):
     def __init__(self, item, strategy):
         self.item = item
         self.strategy = strategy
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
 
         self.data_source_label = item["query_configs"][0]["data_source_label"]
         self.data_type_label = item["query_configs"][0]["data_type_label"]
