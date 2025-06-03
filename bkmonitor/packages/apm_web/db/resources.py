@@ -182,7 +182,7 @@ class ListDbStatisticsResource(PageListResource):
     @classmethod
     def _get_limit(cls) -> int:
         # span_name x sql 可能产生一个很大的基数（比如 Redis SET xxx），超过部分存储（例如 ES）的最大分桶限制。
-        # 此处
+        # 此处限制每次仅获取 Top 2000。
         return 2000
 
     @classmethod
