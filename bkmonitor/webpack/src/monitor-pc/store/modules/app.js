@@ -85,7 +85,6 @@ const state = {
   k8sV2EnableList: [],
   defaultBizId: '',
   defaultBizIdApiId: '',
-  customMetricV2EnableList: [],
 };
 
 const mutations = {

@@ -31,6 +31,7 @@ from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -136,7 +137,9 @@ class GetObservationSceneStatusList(CacheResource):
     def check_plugin(cls, bk_biz_id: int, plugin_id: str = None, collect_config_id: int = None) -> bool:
         if plugin_id:
             plugin = (
-                CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id)
+                CollectorPluginMeta.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id
+                )
                 .only("plugin_id", "plugin_type")
                 .first()
             )
@@ -192,9 +195,7 @@ class GetObservationSceneStatusList(CacheResource):
         # 指标无数据判断
         if plugin.plugin_type == PluginType.PROCESS:
             db_name = "process"
-            metric_info = PluginManagerFactory.get_manager(
-                plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
-            ).gen_metric_info()
+            metric_info = PluginManagerFactory.get_manager(plugin=plugin).gen_metric_info()
             metric_json = [table for table in metric_info if table["table_name"] == "perf"]
         else:
             db_name = "{plugin_type}_{plugin_id}".format(plugin_type=plugin.plugin_type, plugin_id=plugin.plugin_id)
@@ -311,8 +312,10 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_collect_plugin_list(cls, bk_biz_id: int) -> List[Dict[str, Any]]:
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
         plugins: List[CollectorPluginMeta] = (
-            CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id])
+            CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=[0, bk_biz_id])
             .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG])
             .only("plugin_id", "label", "plugin_type")
         )
@@ -322,9 +325,7 @@ class GetObservationSceneList(Resource):
         collect_config_counter: Dict[str, int] = cls.collect_config_count_group_by_biz_plugin(bk_biz_id, plugin_ids)
 
         plugin_versions: List[PluginVersionHistory] = (
-            PluginVersionHistory.objects.filter(
-                id__in=CollectorPluginMeta.fetch_id__current_version_id_map(plugin_ids).values()
-            )
+            PluginVersionHistory.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
             .select_related("info")
             .only("plugin_id", "info__plugin_display_name")
         )
@@ -369,12 +370,12 @@ class GetObservationSceneList(Resource):
         collect_configs: List[CollectConfigMeta] = list(
             CollectConfigMeta.objects.filter(
                 bk_biz_id=bk_biz_id, collect_type__in=[PluginType.SNMP_TRAP, PluginType.LOG]
-            ).select_related("plugin")
+            )
         )
         id__event_group_name_map: Dict[int, str] = {}
         for collect_config in collect_configs:
             id__event_group_name_map[collect_config.id] = "{}_{}".format(
-                collect_config.plugin.plugin_type, collect_config.plugin.plugin_id
+                collect_config.collect_type, collect_config.plugin_id
             )
 
         event_group_name__info_map: Dict[str, Dict[str, Any]] = {}
@@ -384,7 +385,7 @@ class GetObservationSceneList(Resource):
             event_group_name__info_map[event_group_info["name"]] = event_group_info
 
         for collect_config in collect_configs:
-            event_group_name: str = "{}_{}".format(collect_config.plugin.plugin_type, collect_config.plugin.plugin_id)
+            event_group_name: str = "{}_{}".format(collect_config.collect_type, collect_config.plugin_id)
             group_info: Optional[Dict[str, Any]] = event_group_name__info_map.get(event_group_name)
             if not group_info:
                 continue
@@ -606,6 +607,7 @@ class GetPluginInfoByResultTable(Resource):
         """
         根据结果表名解析插件场景信息
         """
+        bk_tenant_id = get_request_tenant_id()
         data_label = validated_request_data.get("data_label", "")
         result_table_id = validated_request_data["result_table_id"]
         filter_params = {"bk_biz_id": validated_request_data["bk_biz_id"]}
@@ -616,7 +618,7 @@ class GetPluginInfoByResultTable(Resource):
         # 针对日志等类型的需要通过从DB表获取到table_name
         custom_event = CustomEventGroup.objects.filter(
             Q(bk_biz_id=validated_request_data["bk_biz_id"]) | Q(is_platform=True),
-            bk_tenant_id=get_request_tenant_id(),
+            bk_tenant_id=bk_tenant_id,
             table_id=result_table_id,
         ).first()
         plugin_type = plugin_id = ""
@@ -660,7 +662,7 @@ class GetPluginInfoByResultTable(Resource):
 
             if plugin_id in [PluginType.SNMP_TRAP, PluginType.LOG]:
                 collect_config = CollectConfigMeta.objects.filter(
-                    plugin_id=plugin_id, bk_biz_id=validated_request_data["bk_biz_id"]
+                    bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, bk_biz_id=validated_request_data["bk_biz_id"]
                 ).first()
                 scene_view_id = f"scene_collect_{collect_config.id}"
                 scene_view_name = collect_config.name
@@ -669,7 +671,7 @@ class GetPluginInfoByResultTable(Resource):
                 # 如果没有场景名称， 通过最新发布版本信息来获取
                 scene_view_name = plugin_id
                 plugin_version = PluginVersionHistory.objects.filter(
-                    plugin_id=plugin_id, stage=PluginVersionHistory.Stage.RELEASE
+                    bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, stage=PluginVersionHistory.Stage.RELEASE
                 ).last()
                 if plugin_version:
                     scene_view_name = plugin_version.info.plugin_display_name

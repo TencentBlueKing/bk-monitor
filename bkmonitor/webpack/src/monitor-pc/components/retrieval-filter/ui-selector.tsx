@@ -316,7 +316,7 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   handleKeyDownSlash(event) {
-    if (event.key === '/' && !this.inputValue && !this.showSelector) {
+    if (event.key === '/' && !this.inputValue && !this.showSelector && event.target?.tagName !== 'INPUT') {
       event.preventDefault();
       this.handleClickComponent();
       document.removeEventListener('keydown', this.handleKeyDownSlash);

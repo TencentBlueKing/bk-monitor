@@ -211,6 +211,7 @@ export default {
     'There are {slot0} {type} nodes in total, of which {slot1} are abnormal.',
   '10分钟内无数据': 'No data within 10 minutes',
   '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
+  '查看关联 Trace': 'View associated Trace',
   '可以切换到 范围查询，根据条件筛选 Trace': 'You can switch to range query, filter Trace according to conditions',
   点击上传或将文件拖到此处: 'Click to upload or drag the file here',
   '文件解析可能耗费较长时间，可先选择已解析文件查看':

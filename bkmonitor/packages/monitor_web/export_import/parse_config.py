@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.request import get_request_tenant_id
 from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
@@ -141,7 +142,10 @@ class CollectConfigParse(BaseParse):
                 raise PluginParseError({"msg": _("无法解析插件类型")})
 
             import_manager = PluginManagerFactory.get_manager(
-                plugin=self.file_content.get("plugin_id"), plugin_type=plugin_type, tmp_path=self.plugin_path
+                bk_tenant_id=get_request_tenant_id(),
+                plugin=self.file_content.get("plugin_id"),
+                plugin_type=plugin_type,
+                tmp_path=self.plugin_path,
             )
 
             tmp_version = import_manager.get_tmp_version()
