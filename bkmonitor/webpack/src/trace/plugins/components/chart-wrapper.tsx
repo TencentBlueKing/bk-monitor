@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, provide, ref } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeMount, provide, ref } from 'vue';
 
 import { bkTooltips } from 'bkui-vue';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { initLogRetrieveWindowsFields } from 'monitor-ui/chart-plugins/utils/init-windows';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
@@ -102,6 +103,10 @@ export default defineComponent({
     function handleErrorMsgChange(msg: string) {
       errorMsg.value = msg;
     }
+
+    onBeforeMount(() => {
+      initLogRetrieveWindowsFields();
+    });
 
     /**
      * @description: 清除错误
