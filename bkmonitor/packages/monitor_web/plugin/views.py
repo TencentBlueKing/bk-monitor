@@ -199,6 +199,11 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         if labels:
             plugins = plugins.filter(label__in=labels.split(","))
 
+        # 按插件过滤
+        all_versions = PluginVersionHistory.objects.filter(
+            bk_tenant_id=bk_tenant_id, plugin_id__in=list(plugins.values_list("plugin_id", flat=True))
+        )
+
         # 关键字搜索
         if search_key:
             # 先过滤出插件ID、创建人、更新人包含关键字的插件
@@ -211,23 +216,23 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                     ],
                 )
             )
+            all_versions = all_versions.filter(
+                Q(plugin_id__in=[plugin.plugin_id for plugin in plugins])
+                | Q(info__plugin_display_name__icontains=search_key)
+            )
 
-        plugin_dict = {plugin.plugin_id: plugin for plugin in plugins}
-
-        # 插件信息检索条件合并
-        plugin_query = Q(plugin_id__in=list(plugin_dict.keys()))
-        if search_key:
-            plugin_query |= Q(info__plugin_display_name__icontains=search_key)
-
-        # 获取全量的插件数据（包含外键数据）
-        all_versions = (
-            PluginVersionHistory.objects.filter(plugin_query, bk_tenant_id=bk_tenant_id)
-            .select_related("config", "info")
-            .defer("info__metric_json", "info__description_md")
-        )
-
+        # 按插件状态过滤
         if status:
             all_versions = all_versions.filter(stage=status)
+
+        # 获取全量的插件数据（包含外键数据）
+        all_versions = all_versions.select_related("config", "info").defer("info__metric_json", "info__description_md")
+
+        # 根据检索出的version重新获取插件数据
+        plugin_dict = {
+            plugin.plugin_id: plugin
+            for plugin in self.get_queryset().filter(plugin_id__in=[version.plugin_id for version in all_versions])
+        }
 
         # 取出每个plugin的最新版本进行预缓存
         plugin_latest_versions: dict[str, PluginVersionHistory] = {}
