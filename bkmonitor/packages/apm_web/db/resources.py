@@ -189,7 +189,7 @@ class ListDbStatisticsResource(PageListResource):
     def _query_field_aggregated_records(
         cls, q: QueryConfigBuilder, qs: UnifyQuerySet, group_by: list[str], metric_field: str
     ) -> list[dict[str, Any]]:
-        """按指定聚合方法（agg_method）计算指定字段（field）的聚合值"""
+        """按指定的指标字段（metric_field）进行聚合统计"""
         metric: dict[str, str] = cls.METRIC_MAP[metric_field]
         q = q.metric(field=metric["field"], method=metric["agg_method"], alias="a").group_by(*group_by).alias("a")
         if metric_field in cls.METRIC_EXTRA_FILTER:
