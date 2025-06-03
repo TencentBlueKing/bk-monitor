@@ -186,6 +186,7 @@ export default defineComponent({
         size: 10,
         start_time: startTime,
         end_time: endTime,
+        bk_biz_ids: [store.bizId || window.bk_biz_id],
       })
         .then(data => {
           const fieldItem = data.fields?.find(item => item.field === id);
