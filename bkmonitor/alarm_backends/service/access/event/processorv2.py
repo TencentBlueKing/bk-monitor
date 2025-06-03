@@ -282,6 +282,14 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
+        # 如果队列中事件数量超过1亿条，则记录日志，并进行清理
+        if total_events > 10**8:
+            logger.warning(
+                f"[access event] data_id({self.data_id}) has {total_events} events, cleaning up! drop all events."
+            )
+            client.delete(data_channel)
+            return []
+
         offset = min([total_events, max_records])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
@@ -291,14 +299,14 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             records = client.lrange(data_channel, -offset, -1)
         except UnicodeDecodeError as e:
             logger.error(
-                "ERROR: data_id(%s) topic(%s) poll alarm list(%s) from redis failed: %s",
+                "drop events: data_id(%s) topic(%s) poll alarm list(%s) from redis failed: %s",
                 self.data_id,
                 self.topic,
                 offset,
                 e,
             )
             client.ltrim(data_channel, 0, -offset - 1)
-            return []
+            return self._pull_from_redis(max_records=max_records)
 
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
         if records:
