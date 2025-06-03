@@ -85,6 +85,8 @@ export default defineComponent({
               messageError(message);
             });
           }
+
+          isLoading.value = false;
         })
         .catch((err: any) => {
           messageError(err.message ?? err);
@@ -114,8 +116,13 @@ export default defineComponent({
     };
 
     const handleFieldChange = (v: string) => {
-      console.log('handleFieldChange', v);
       field.value = v;
+
+      offset.value = 0;
+      total.value = 0;
+      list.value.splice(0, list.value.length);
+
+      requestGrepList();
     };
 
     // 处理grep enter

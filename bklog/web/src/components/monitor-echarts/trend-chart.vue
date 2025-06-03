@@ -199,6 +199,8 @@
   );
 
   onBeforeUnmount(() => {
+    finishPolling.value = true;
+    runningTimer && clearTimeout(runningTimer);
     logChartCancel?.();
   });
 </script>

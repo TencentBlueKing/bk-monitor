@@ -81,7 +81,11 @@ export default defineComponent({
     };
 
     const getResultRender = () => {
-      if (props.list.length === 0) {
+      if (props.isLoading) {
+        return null;
+      }
+
+      if (props.list.length === 0 || !props.fieldName) {
         return (
           <bk-exception
             class='exception-wrap-item exception-part'
@@ -89,10 +93,11 @@ export default defineComponent({
             scene='part'
             style={{ minHeight: '300px', paddingTop: '100px' }}
           >
-            {t('检索结果为空')}
+            {props.fieldName ? t('检索结果为空') : '请选择字段'}
           </bk-exception>
         );
       }
+
       return props.list.map((row, index) => (
         <div class='cli-result-line'>
           <span class='cli-result-line-number'>{index + 1}</span>
