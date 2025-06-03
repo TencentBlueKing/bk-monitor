@@ -167,7 +167,7 @@ class HostCollectorHandler(CollectorHandler):
         ]
         return add_nodes + delete_nodes
 
-    def update_or_create(self, params: dict, action=None) -> dict:
+    def update_or_create(self, params: dict) -> dict:
         """
         创建采集配置
         :return:

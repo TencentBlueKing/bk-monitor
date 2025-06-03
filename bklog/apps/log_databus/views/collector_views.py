@@ -653,7 +653,7 @@ class CollectorViewSet(ModelViewSet):
         """
         handler = CollectorHandler.get_instance(env=request.data.get("environment"))
         data = self.params_valid(handler.CREATE_SERIALIZER)
-        return Response(handler.update_or_create(data, "create"))
+        return Response(handler.update_or_create(data))
 
     def update(self, request, *args, collector_config_id=None, **kwargs):
         """
@@ -813,7 +813,7 @@ class CollectorViewSet(ModelViewSet):
         """
         handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
         data = self.params_valid(handler.UPDATE_SERIALIZER)
-        return Response(handler.update_or_create(data, "update"))
+        return Response(handler.update_or_create(data))
 
     def destroy(self, request, *args, collector_config_id=None, **kwargs):
         """

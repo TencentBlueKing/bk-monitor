@@ -245,12 +245,10 @@ class K8sCollectorHandler(CollectorHandler):
             ]
         }
 
-    def update_or_create(self, params: dict, action=None) -> dict:
-        if action == "create":
-            return self.create_container_config(params)
-        elif action == "update":
+    def update_or_create(self, params: dict) -> dict:
+        if self.data and self.data.collector_config_id:
             return self.update_container_config(params)
-        return {}
+        return self.create_container_config(params)
 
     def update_container_config(self, data):
         bk_biz_id = data["bk_biz_id"]
