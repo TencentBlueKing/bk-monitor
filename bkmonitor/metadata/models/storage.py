@@ -3263,7 +3263,9 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",self.table_id,new_index_name
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
+                self.table_id,
+                new_index_name,
             )
         except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
@@ -3769,19 +3771,28 @@ class ESStorage(models.Model, StorageResultTable):
 
         database_field_list = list(es_properties.keys())
 
-        # 获取ES中的当前别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
+        # 获取ES中的当前别名列表, 别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
         try:
+            # 别名字段列表
             alias_field_list = [k for k, v in current_mapping.items() if v.get("type") == "alias"]
         except KeyError:
             alias_field_list = []
 
-            # 获取DB中的别名字段类表
+        try:  # 配置了别名的原始字段列表
+            # Q：为什么要提取原始字段列表
+            # A：当用户对__ext.xxx 等动态字段配置了别名时,动态字段会出现在es_properties的keys中,而ES的current_mapping中不会有动态字段
+            # A：会导致索引非预期额外轮转
+            alias_path_list = [v.get("path") for k, v in current_mapping.items() if v.get("type") == "alias"]
+        except KeyError:
+            alias_path_list = []
+
+        # 获取DB中的别名字段类表
         try:
             db_alias_field_list = [k for k, v in es_properties.items() if v.get("type") == "alias"]
         except KeyError:
             db_alias_field_list = []
 
-        current_field_list = list(current_mapping.keys()) + alias_field_list
+        current_field_list = list(current_mapping.keys()) + alias_field_list + alias_path_list
 
         # 数据库中字段多于es的index中数据，则进行分裂
         field_diff_set = set(database_field_list) - set(current_field_list)
@@ -3804,12 +3815,22 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
+            # 如果字段是 __ext.xxx，跳过
+            # 动态字段不应参与mapping比对
+            if field_name.startswith("__ext."):
+                logger.info(
+                    "is_mapping_same: table_id->[%s] field->[%s] is dynamic fields, skip", self.table_id, field_name
+                )
+                continue
             try:
                 current_config = current_mapping[field_name]
             except KeyError:
                 logger.info(
-                    "is_mapping_same: table_id->[{}] found field->[{}] is missing in current_mapping->[{}], "
-                    "will delete it and recreate."
+                    "is_mapping_same: table_id->[%s] found field->[%s] is missing in current_mapping->[%s], "
+                    "will delete it and recreate.",
+                    self.table_id,
+                    field_name,
+                    current_config,
                 )
                 return False
 
@@ -3841,12 +3862,14 @@ class ESStorage(models.Model, StorageResultTable):
                     # object 字段动态写入数据后 不再有type这个字段 只有 properties
                     if current_field_properties and database_value != ResultTableField.FIELD_TYPE_OBJECT:
                         logger.info(
-                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
+                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es "
+                            "field type is object"
                             "so not same".format(self.table_id, index_name, field_name, field_config, database_value)
                         )
                         return False
                     logger.info(
-                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
+                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config "
+                        "is None,"
                         "so nothing will do.".format(
                             self.table_id, index_name, field_name, field_config, database_value
                         )
@@ -3855,7 +3878,8 @@ class ESStorage(models.Model, StorageResultTable):
 
                 if database_value != current_value:
                     logger.info(
-                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
+                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] "
+                        "is"
                         "not the same, ".format(
                             self.table_id, index_name, field_name, field_config, database_value, current_value
                         )
