@@ -21,7 +21,6 @@ the project delivered to anyone in the future.
 
 from typing import Union
 
-from django.conf import settings
 from apps.exceptions import ApiResultError
 from apps.log_databus.exceptions import ArchiveNotFound, CollectorPluginNotImplemented
 from apps.models import MultiStrSplitByCommaFieldText
@@ -188,8 +187,6 @@ class CollectorConfig(CollectorBase):
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
-    # 租户id
-    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
 
     def get_name(self):
         return self.collector_config_name

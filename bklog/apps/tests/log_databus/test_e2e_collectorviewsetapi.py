@@ -115,7 +115,6 @@ COLLECTORS_LIST = {
                 "collector_config_id": 231,
                 "collector_scenario_name": "行日志文件",
                 "collector_plugin_id": None,
-                "bk_tenant_id": "system",
                 "category_name": "操作系统",
                 "target_nodes": [{"bk_inst_id": 52, "bk_obj_id": "module"}],
                 "task_id_list": ["1331697"],

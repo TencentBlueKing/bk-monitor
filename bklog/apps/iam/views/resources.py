@@ -53,13 +53,20 @@ class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
 
 
 class CollectionResourceProvider(BaseResourceProvider):
+    ENABLE_MULTI_TENANT_MODE = settings.ENABLE_MULTI_TENANT_MODE
+
     def list_instance(self, filter, page, **options):
         queryset = []
         with_path = False
-        bk_tenant_id = options["bk_tenant_id"]
-
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = CollectorConfig.objects.filter(bk_tenant_id=bk_tenant_id).all()
+            queryset = CollectorConfig.objects.all()
+            if self.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+                collector_config_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list).values_list(
+                    "collector_config_id",
+                    flat=True,
+                )
+                queryset = queryset.filter(collector_config_id__in=collector_config_id_list)
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -74,7 +81,14 @@ class CollectionResourceProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(collector_config_name__icontains=keyword)
 
-            queryset = CollectorConfig.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
+            queryset = CollectorConfig.objects.filter(q_filter)
+            if self.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+                collector_config_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list).values_list(
+                    "collector_config_id",
+                    flat=True,
+                )
+                queryset = queryset.filter(collector_config_id__in=collector_config_id_list)
 
         if not with_path:
             results = [
@@ -107,7 +121,14 @@ class CollectionResourceProvider(BaseResourceProvider):
         if filter.ids:
             ids = [int(i) for i in filter.ids]
 
-        queryset = CollectorConfig.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
+        queryset = CollectorConfig.objects.filter(pk__in=ids)
+        if self.ENABLE_MULTI_TENANT_MODE:
+            space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+            collector_config_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list).values_list(
+                "collector_config_id",
+                flat=True,
+            )
+            queryset = queryset.filter(collector_config_id__in=collector_config_id_list)
 
         results = [
             {"id": str(item.pk), "display_name": item.collector_config_name, "_bk_iam_approver_": item.created_by}
@@ -129,7 +150,14 @@ class CollectionResourceProvider(BaseResourceProvider):
             value_hooks={"bk_biz_id": lambda value: value[1:-1].split(",")[1]},
         )
         filters = converter.convert(expression)
-        queryset = CollectorConfig.objects.filter(filters, bk_tenant_id=options["bk_tenant_id"])
+        queryset = CollectorConfig.objects.filter(filters)
+        if self.ENABLE_MULTI_TENANT_MODE:
+            space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+            collector_config_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list).values_list(
+                "collector_config_id",
+                flat=True,
+            )
+            queryset = queryset.filter(collector_config_id__in=collector_config_id_list)
         results = [
             {"id": str(item.pk), "display_name": item.collector_config_name}
             for item in queryset[page.slice_from : page.slice_to]
@@ -141,8 +169,14 @@ class CollectionResourceProvider(BaseResourceProvider):
         if not filter.parent or "id" not in filter.parent:
             queryset = CollectorConfig.objects.filter(
                 collector_config_name__icontains=filter.keyword,
-                bk_tenant_id=options["bk_tenant_id"],
             )
+            if self.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
+                collector_config_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list).values_list(
+                    "collector_config_id",
+                    flat=True,
+                )
+                queryset = queryset.filter(collector_config_id__in=collector_config_id_list)
         else:
             parent_id = filter.parent.get("id")
             queryset = CollectorConfig.objects.filter(
