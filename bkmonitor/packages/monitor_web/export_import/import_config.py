@@ -338,7 +338,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 config.pop("id", None)
                 config["bk_biz_id"] = bk_biz_id
 
-                while not not is_overwrite_mode and config['name'] in existed_action_names:
+                while not is_overwrite_mode and config['name'] in existed_action_names:
                     config['name'] = f"{config['name']}_clone"
 
                 # 避免重复创建处理套餐
