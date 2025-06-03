@@ -283,6 +283,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
 
         total_events = client.llen(data_channel)
         # 如果队列中事件数量超过1亿条，则记录日志，并进行清理
+        # 有损，但需要保证整体服务依赖redis稳定
         if total_events > 10**8:
             logger.warning(
                 f"[access event] data_id({self.data_id}) has {total_events} events, cleaning up! drop all events."
