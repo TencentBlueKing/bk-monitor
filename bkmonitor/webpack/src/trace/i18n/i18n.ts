@@ -59,4 +59,7 @@ window.i18n = i18n.global;
 window.mainComponent = {
   $t: window.i18n.t,
 };
+window.$t = function (key, params) {
+  return i18n.global.t(key, params);
+};
 export default i18n;
