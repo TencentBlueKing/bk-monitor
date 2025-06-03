@@ -459,6 +459,7 @@ class ModelEvaluationComponent(Component):
 #         self.model_valuation.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
 
+# 可以删
 class BasicModelEvaluationResultService(BaseService):
     name = _("获取模型评估结果")
 
@@ -481,10 +482,11 @@ class BasicModelEvaluationResultService(BaseService):
         return True
 
 
-class BasicModelEvaluationResultComponent(Component):
-    name = "BasicModelEvaluationResult"
-    code = "basic_model_evaluation_result"
-    bound_service = BasicModelEvaluationResultService
+# 可以删
+# class BasicModelEvaluationResultComponent(Component):
+#     name = "BasicModelEvaluationResult"
+#     code = "basic_model_evaluation_result"
+#     bound_service = BasicModelEvaluationResultService
 
 
 # 可以删
@@ -498,30 +500,30 @@ class BasicModelEvaluationResultComponent(Component):
 #             type=Var.SPLICE, value="${experiment_alias}"
 #         )
 
+# 可以删
+# class CommitService(BaseService):
+#     name = _("执行提交")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         ]
+#
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     AiopsModelHandler().commit(model_id=model_id, experiment_id=experiment_id)
+#     return True
 
-class CommitService(BaseService):
-    name = _("执行提交")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        AiopsModelHandler().commit(model_id=model_id, experiment_id=experiment_id)
-        return True
-
-
-class CommitComponent(Component):
-    name = "Commit"
-    code = "commit"
-    bound_service = CommitService
+# 可以删
+# class CommitComponent(Component):
+#     name = "Commit"
+#     code = "commit"
+#     bound_service = CommitService
 
 
 # 可以删
@@ -531,31 +533,31 @@ class CommitComponent(Component):
 #         self.commit.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
 #         self.commit.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 
+# 可以删
+# class ReleaseService(BaseService):
+#     name = _("执行发布")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#             Service.InputItem(name="description", key="description", type="str", required=True),
+#         ]
 
-class ReleaseService(BaseService):
-    name = _("执行发布")
+# def _execute(self, data, parent_data):
+#     model_name = data.get_one_of_inputs("model_name")
+#     experiment_alias = data.get_one_of_inputs("experiment_alias")
+#     description = data.get_one_of_inputs("description")
+#     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+#     experiment_id = experiment_model.experiment_id
+#     basic_model_id = experiment_model.basic_model_id
+#     AiopsModelHandler().release(
+#         model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id, description=description
+#     )
+#     return True
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-            Service.InputItem(name="description", key="description", type="str", required=True),
-        ]
-
-    # def _execute(self, data, parent_data):
-    #     model_name = data.get_one_of_inputs("model_name")
-    #     experiment_alias = data.get_one_of_inputs("experiment_alias")
-    #     description = data.get_one_of_inputs("description")
-    #     model_id = AiopsModel.objects.get(model_name=model_name).model_id
-    #     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-    #     experiment_id = experiment_model.experiment_id
-    #     basic_model_id = experiment_model.basic_model_id
-    #     AiopsModelHandler().release(
-    #         model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id, description=description
-    #     )
-    #     return True
-
-
+# 可以删
 # class ReleaseComponent(Component):
 #     name = "Release"
 #     code = "release"
@@ -570,7 +572,7 @@ class ReleaseService(BaseService):
 #         self.release.component.inputs.experiment_alias = Var(type=Var.SPLICE, value="${experiment_alias}")
 #         self.release.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
 
-
+# 可以删
 # class SyncPatternService(BaseService):
 #     name = _("获取pattern")
 #
@@ -585,7 +587,7 @@ class ReleaseService(BaseService):
 #         sync(model_id=model_id)
 #         return True
 
-
+# 可以删
 # class SyncPatternComponent(Component):
 #     name = "SyncPattern"
 #     code = "sync_pattern"

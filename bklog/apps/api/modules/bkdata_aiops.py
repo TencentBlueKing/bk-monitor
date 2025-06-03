@@ -223,57 +223,62 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-        self.basic_model_evaluation_result = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT
-            + "models/{model_id}/experiments/{experiment_id}/basic_models/{basic_model_id}/evaluation_result/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id", "basic_model_id"],
-            description="备选模型评估结果",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.pre_commit = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/pre_commit/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="实验提交前查看配置",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.experiment_commit = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/commit/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id"],
-            description="实验提交",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.release_config = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/release/{experiment_id}/{basic_model_id}/config/",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id", "basic_model_id"],
-            description="获取模型发布配置",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.release = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/release/{experiment_id}/{basic_model_id}",
-            module=self.MODULE,
-            url_keys=["model_id", "experiment_id", "basic_model_id"],
-            description="模型发布",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.basic_model_evaluation_result = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT
+        #     + "models/{model_id}/experiments/{experiment_id}/basic_models/{basic_model_id}/evaluation_result/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id", "basic_model_id"],
+        #     description="备选模型评估结果",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.pre_commit = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/pre_commit/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="实验提交前查看配置",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.experiment_commit = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/experiments/{experiment_id}/commit/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id"],
+        #     description="实验提交",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.release_config = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/release/{experiment_id}/{basic_model_id}/config/",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id", "basic_model_id"],
+        #     description="获取模型发布配置",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删除
+        # self.release = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/release/{experiment_id}/{basic_model_id}",
+        #     module=self.MODULE,
+        #     url_keys=["model_id", "experiment_id", "basic_model_id"],
+        #     description="模型发布",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         self.update_model_info = DataAPI(
             method="PUT",
             url=AIOPS_APIGATEWAY_ROOT + "models/{model_id}/",

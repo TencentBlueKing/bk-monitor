@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Union
+from typing import Any
 
 
 @dataclass
-class CreateModelCls(object):
+class CreateModelCls:
     """
     模型创建
     """
@@ -43,7 +43,7 @@ class CreateModelCls(object):
 
 
 @dataclass
-class CreateExperimentsCls(object):
+class CreateExperimentsCls:
     """
     创建实验
     """
@@ -58,7 +58,7 @@ class CreateExperimentsCls(object):
 
 
 @dataclass
-class GetExperimentsConfigCls(object):
+class GetExperimentsConfigCls:
     """
     查看实验配置
     """
@@ -70,7 +70,7 @@ class GetExperimentsConfigCls(object):
 
 
 @dataclass
-class GetExperimentsMetaDataCls(object):
+class GetExperimentsMetaDataCls:
     """
     查询metadata实验配置
     """
@@ -80,7 +80,7 @@ class GetExperimentsMetaDataCls(object):
 
 
 @dataclass
-class PythonBackendCls(object):
+class PythonBackendCls:
     worker_nums: int
     memory: int
     worker_group: str = "default"
@@ -88,14 +88,14 @@ class PythonBackendCls(object):
 
 
 @dataclass
-class MemoryStepScalingPolicyCls(object):
+class MemoryStepScalingPolicyCls:
     max_memory: int
     step: int = 1024
     target_worker_type: str = "python_backend"
 
 
 @dataclass
-class SessionAgentCls(object):
+class SessionAgentCls:
     worker_nums: int = 1
     worker_group: str = "default"
     core: int = 2
@@ -103,7 +103,7 @@ class SessionAgentCls(object):
 
 
 @dataclass
-class SessionServerCls(object):
+class SessionServerCls:
     worker_nums: int = 1
     worker_group: str = "default"
     core: int = 2
@@ -111,24 +111,24 @@ class SessionServerCls(object):
 
 
 @dataclass
-class PartitionNumberConfigCls(object):
+class PartitionNumberConfigCls:
     partition_number: int = 8
 
 
 @dataclass
-class ChunkPolicyCls(object):
+class ChunkPolicyCls:
     type: str = "partition"
     config: PartitionNumberConfigCls = field(default_factory=PartitionNumberConfigCls)
 
 
 @dataclass
-class ChunkedReadSampleSet(object):
+class ChunkedReadSampleSet:
     window: str
     chunk_policy: ChunkPolicyCls = field(default_factory=ChunkPolicyCls)
 
 
 @dataclass
-class SparkSessionCls(object):
+class SparkSessionCls:
     worker_nums: int = 1
     worker_group: str = "default"
     core: int = 2
@@ -136,7 +136,7 @@ class SparkSessionCls(object):
 
 
 @dataclass
-class SessionWorkspaceCls(object):
+class SessionWorkspaceCls:
     worker_group: str = "default"
     core: int = 2
     memory: int = 1024
@@ -144,23 +144,23 @@ class SessionWorkspaceCls(object):
 
 
 @dataclass
-class PipelineResourcesCls(object):
+class PipelineResourcesCls:
     python_backend: PythonBackendCls
     spark_session: SparkSessionCls = field(default_factory=SparkSessionCls)
     session_workspace: SessionWorkspaceCls = field(default_factory=SessionWorkspaceCls)
 
 
 @dataclass
-class ExecuteConfigCls(object):
+class ExecuteConfigCls:
     pipeline_resources: PipelineResourcesCls
     chunked_read_sample_set: ChunkedReadSampleSet
-    pipeline_execute_config: Dict
-    resource_preference: Dict
+    pipeline_execute_config: dict
+    resource_preference: dict
     pipeline_mode: str = "chunked_training"
 
 
 @dataclass
-class UpdateExecuteConfigCls(object):
+class UpdateExecuteConfigCls:
     """
     编辑实验metadata配置
     """
@@ -171,64 +171,64 @@ class UpdateExecuteConfigCls(object):
 
 
 @dataclass
-class OutputConfigCls(object):
-    field: List = field(default_factory=list)
+class OutputConfigCls:
+    field: list = field(default_factory=list)
 
 
 @dataclass
-class PropertiesCls(object):
+class PropertiesCls:
     is_required: bool
 
 
 @dataclass
-class AdvanceConfigCls(object):
+class AdvanceConfigCls:
     used_by: str
     allow_modified: bool
     is_advanced_arg: bool
 
 
 @dataclass
-class PropertiesAddOptionalAndDependConfCls(object):
+class PropertiesAddOptionalAndDependConfCls:
     is_required: bool
     optional_alias_mapping: dict
-    optional: List[str]
+    optional: list[str]
     depend: dict
 
 
 @dataclass
-class PropertiesAddOptionalConfCls(object):
+class PropertiesAddOptionalConfCls:
     is_required: bool
     optional_alias_mapping: dict
-    optional: List[str]
+    optional: list[str]
 
 
 @dataclass
-class PropertiesAddDependConfCls(object):
+class PropertiesAddDependConfCls:
     is_required: bool
     depend: dict
 
 
 @dataclass
-class PropertiesChangeToIncludeLabelCls(object):
+class PropertiesChangeToIncludeLabelCls:
     include_label: bool
 
 
 @dataclass
-class NodeConfigCls(object):
+class NodeConfigCls:
     id: int
     arg_name: str
     action_name: str
     arg_alias: str
     arg_index: int
     data_type: str
-    properties: Union[
-        PropertiesCls,
-        PropertiesAddOptionalConfCls,
-        PropertiesAddDependConfCls,
-        PropertiesChangeToIncludeLabelCls,
-        PropertiesAddOptionalAndDependConfCls,
-        dict,
-    ]
+    properties: (
+        PropertiesCls
+        | PropertiesAddOptionalConfCls
+        | PropertiesAddDependConfCls
+        | PropertiesChangeToIncludeLabelCls
+        | PropertiesAddOptionalAndDependConfCls
+        | dict
+    )
     description: str
     default_value: Any
     advance_config: AdvanceConfigCls
@@ -236,7 +236,7 @@ class NodeConfigCls(object):
 
 
 @dataclass
-class SampleLoadingContentNodeConfigCls(object):
+class SampleLoadingContentNodeConfigCls:
     sample_set_id: NodeConfigCls
     data_sampling: NodeConfigCls
     sampling_time_range: NodeConfigCls
@@ -245,7 +245,7 @@ class SampleLoadingContentNodeConfigCls(object):
 
 
 @dataclass
-class SamplePreparationContentNodeConfigCls(object):
+class SamplePreparationContentNodeConfigCls:
     data_split: NodeConfigCls
     split_func: NodeConfigCls
     group_enable: NodeConfigCls
@@ -254,7 +254,7 @@ class SamplePreparationContentNodeConfigCls(object):
 
 
 @dataclass
-class ModelTrainContentNodeConfigCls(object):
+class ModelTrainContentNodeConfigCls:
     upload_model_file: NodeConfigCls
     algorithm_selection: NodeConfigCls
     training_input: NodeConfigCls
@@ -269,48 +269,48 @@ class ModelTrainContentNodeConfigCls(object):
 
 
 @dataclass
-class ModelEvaluationContentNodeConfigCls(object):
+class ModelEvaluationContentNodeConfigCls:
     algorithm_node_id: NodeConfigCls
     evaluation_func: NodeConfigCls
     evaluate_input: NodeConfigCls
 
 
 @dataclass
-class SampleLoadingContentAlgorithmConfigCls(object):
+class SampleLoadingContentAlgorithmConfigCls:
     sample_set_table_name: Any = None
     sample_set_table_desc: Any = None
-    feature_columns: List[str] = field(default_factory=list)
-    add_on_input: List[str] = field(default_factory=list)
-    label_columns: List[str] = field(default_factory=list)
-    training_output: List[str] = field(default_factory=list)
-    predict_output: List[str] = field(default_factory=list)
-    training_args: List[str] = field(default_factory=list)
-    predict_args: List[str] = field(default_factory=list)
-    split_args: List[str] = field(default_factory=list)
-    sampling_args: List[str] = field(default_factory=list)
-    evaluate_args: List[str] = field(default_factory=list)
-    optimize_args: List[str] = field(default_factory=list)
-    timestamp_columns: List[str] = field(default_factory=list)
-    predicted_columns: List[str] = field(default_factory=list)
-    evaluate_output: List[str] = field(default_factory=list)
+    feature_columns: list[str] = field(default_factory=list)
+    add_on_input: list[str] = field(default_factory=list)
+    label_columns: list[str] = field(default_factory=list)
+    training_output: list[str] = field(default_factory=list)
+    predict_output: list[str] = field(default_factory=list)
+    training_args: list[str] = field(default_factory=list)
+    predict_args: list[str] = field(default_factory=list)
+    split_args: list[str] = field(default_factory=list)
+    sampling_args: list[str] = field(default_factory=list)
+    evaluate_args: list[str] = field(default_factory=list)
+    optimize_args: list[str] = field(default_factory=list)
+    timestamp_columns: list[str] = field(default_factory=list)
+    predicted_columns: list[str] = field(default_factory=list)
+    evaluate_output: list[str] = field(default_factory=list)
     feature_columns_changeable: bool = False
-    algorithm_properties: Dict = field(default_factory=dict)
+    algorithm_properties: dict = field(default_factory=dict)
     data_split: bool = False
     ts_depend: str = "0d"
 
 
 @dataclass
-class SamplePreparationContentAlgorithmConfigCls(object):
-    split_args: List = field(default_factory=list)
+class SamplePreparationContentAlgorithmConfigCls:
+    split_args: list = field(default_factory=list)
 
 
 @dataclass
-class FeatureColumnsCommonPropertiesCls(object):
+class FeatureColumnsCommonPropertiesCls:
     input_type: str
 
 
 @dataclass
-class FeatureColumnsPropertiesCls(object):
+class FeatureColumnsPropertiesCls:
     used_by: str
     allow_modified: bool
     is_advanced: bool
@@ -319,7 +319,7 @@ class FeatureColumnsPropertiesCls(object):
 
 
 @dataclass
-class FeatureColumnsPropertiesAddInputTypeCls(object):
+class FeatureColumnsPropertiesAddInputTypeCls:
     used_by: str
     allow_modified: bool
     is_advanced: bool
@@ -329,7 +329,7 @@ class FeatureColumnsPropertiesAddInputTypeCls(object):
 
 
 @dataclass
-class TrainingArgsPropertiesCls(object):
+class TrainingArgsPropertiesCls:
     input_type: str
     support: bool
     allow_null: bool
@@ -339,11 +339,11 @@ class TrainingArgsPropertiesCls(object):
     closed: Any
     is_required: bool
     placeholder: str
-    allowed_values_map: List[str] = field(default_factory=list)
+    allowed_values_map: list[str] = field(default_factory=list)
 
 
 @dataclass
-class AlgorithmConfigConfCls(object):
+class AlgorithmConfigConfCls:
     field_name: str
     field_alias: str
     field_index: int
@@ -354,40 +354,40 @@ class AlgorithmConfigConfCls(object):
     data_field_alias: None
     field_type: str
     roles: dict
-    properties: Union[
-        FeatureColumnsPropertiesCls,
-        TrainingArgsPropertiesCls,
-        FeatureColumnsPropertiesAddInputTypeCls,
-        FeatureColumnsCommonPropertiesCls,
-        dict,
-    ]
+    properties: (
+        FeatureColumnsPropertiesCls
+        | TrainingArgsPropertiesCls
+        | FeatureColumnsPropertiesAddInputTypeCls
+        | FeatureColumnsCommonPropertiesCls
+        | dict
+    )
     description: Any
     used_by: str
-    origin: List[str] = field(default_factory=list)
-    allowed_values: List[str] = field(default_factory=list)
+    origin: list[str] = field(default_factory=list)
+    allowed_values: list[str] = field(default_factory=list)
 
 
 @dataclass
-class ModelTrainContentAlgorithmConfigCls(object):
+class ModelTrainContentAlgorithmConfigCls:
     sample_set_table_name: Any
     sample_set_table_desc: Any
-    training_input: List[AlgorithmConfigConfCls]
-    training_meta: Dict
-    training_args: List[AlgorithmConfigConfCls]
+    training_input: list[AlgorithmConfigConfCls]
+    training_meta: dict
+    training_args: list[AlgorithmConfigConfCls]
     basic_model_id: str
-    add_on_input: List[str] = field(default_factory=list)
-    label_columns: List[str] = field(default_factory=list)
-    training_output: List[str] = field(default_factory=list)
-    predict_args: List[str] = field(default_factory=list)
-    split_args: List[str] = field(default_factory=list)
-    sampling_args: List[str] = field(default_factory=list)
-    evaluate_args: List[str] = field(default_factory=list)
-    optimize_args: List[str] = field(default_factory=list)
-    timestamp_columns: List[str] = field(default_factory=list)
-    predicted_columns: List[str] = field(default_factory=list)
-    evaluate_output: List[str] = field(default_factory=list)
+    add_on_input: list[str] = field(default_factory=list)
+    label_columns: list[str] = field(default_factory=list)
+    training_output: list[str] = field(default_factory=list)
+    predict_args: list[str] = field(default_factory=list)
+    split_args: list[str] = field(default_factory=list)
+    sampling_args: list[str] = field(default_factory=list)
+    evaluate_args: list[str] = field(default_factory=list)
+    optimize_args: list[str] = field(default_factory=list)
+    timestamp_columns: list[str] = field(default_factory=list)
+    predicted_columns: list[str] = field(default_factory=list)
+    evaluate_output: list[str] = field(default_factory=list)
     feature_columns_changeable: bool = True
-    algorithm_properties: Dict = field(default_factory=dict)
+    algorithm_properties: dict = field(default_factory=dict)
     data_split: bool = False
     ts_depend: str = "0d"
     run_env: str = "python"
@@ -396,7 +396,7 @@ class ModelTrainContentAlgorithmConfigCls(object):
 
 
 @dataclass
-class AlgorithmPropertiesCls(object):
+class AlgorithmPropertiesCls:
     algorithm_name: str
     logic: str
     algorithm_framework: str
@@ -405,47 +405,47 @@ class AlgorithmPropertiesCls(object):
 
 
 @dataclass
-class ModelEvaluationContentAlgorithmConfigCls(object):
-    algorithm_config: List[AlgorithmConfigConfCls]
-    predict_output: List[AlgorithmConfigConfCls]
-    training_args: List[AlgorithmConfigConfCls]
-    timestamp_columns: List[AlgorithmConfigConfCls]
+class ModelEvaluationContentAlgorithmConfigCls:
+    algorithm_config: list[AlgorithmConfigConfCls]
+    predict_output: list[AlgorithmConfigConfCls]
+    training_args: list[AlgorithmConfigConfCls]
+    timestamp_columns: list[AlgorithmConfigConfCls]
     feature_columns_changeable: bool
     algorithm_properties: AlgorithmPropertiesCls
-    label_columns: List[str] = field(default_factory=list)
-    training_output: List[str] = field(default_factory=list)
-    predict_args: List[str] = field(default_factory=list)
-    split_args: List[str] = field(default_factory=list)
-    evaluate_args: List[str] = field(default_factory=list)
-    optimize_args: List[str] = field(default_factory=list)
-    predicted_columns: List[str] = field(default_factory=list)
-    evaluate_output: List[str] = field(default_factory=list)
+    label_columns: list[str] = field(default_factory=list)
+    training_output: list[str] = field(default_factory=list)
+    predict_args: list[str] = field(default_factory=list)
+    split_args: list[str] = field(default_factory=list)
+    evaluate_args: list[str] = field(default_factory=list)
+    optimize_args: list[str] = field(default_factory=list)
+    predicted_columns: list[str] = field(default_factory=list)
+    evaluate_output: list[str] = field(default_factory=list)
     data_split: bool = False
     ts_depend: str = "0d"
     run_env: str = "python"
 
 
 @dataclass
-class ContentCls(object):
-    node_config: Union[
-        SampleLoadingContentNodeConfigCls,
-        SamplePreparationContentNodeConfigCls,
-        ModelTrainContentNodeConfigCls,
-        ModelEvaluationContentNodeConfigCls,
-    ]
-    algorithm_config: Union[
-        SampleLoadingContentAlgorithmConfigCls,
-        SamplePreparationContentAlgorithmConfigCls,
-        ModelTrainContentAlgorithmConfigCls,
-        ModelEvaluationContentAlgorithmConfigCls,
-    ]
+class ContentCls:
+    node_config: (
+        SampleLoadingContentNodeConfigCls
+        | SamplePreparationContentNodeConfigCls
+        | ModelTrainContentNodeConfigCls
+        | ModelEvaluationContentNodeConfigCls
+    )
+    algorithm_config: (
+        SampleLoadingContentAlgorithmConfigCls
+        | SamplePreparationContentAlgorithmConfigCls
+        | ModelTrainContentAlgorithmConfigCls
+        | ModelEvaluationContentAlgorithmConfigCls
+    )
     output_config: OutputConfigCls = field(default_factory=OutputConfigCls)
-    input_config: Dict = field(default_factory=dict)
-    prediction_algorithm_config: Dict = field(default_factory=dict)
+    input_config: dict = field(default_factory=dict)
+    prediction_algorithm_config: dict = field(default_factory=dict)
 
 
 @dataclass
-class NodeCls(object):
+class NodeCls:
     node_id: str
     model_id: str
     node_name: str
@@ -459,24 +459,24 @@ class NodeCls(object):
     action_name: str
     action_alias: str
 
-    properties: Dict = field(default_factory=dict)
+    properties: dict = field(default_factory=dict)
     active: int = 1
-    node_role: Dict = field(default_factory=dict)
-    execute_config: Dict = field(default_factory=dict)
+    node_role: dict = field(default_factory=dict)
+    execute_config: dict = field(default_factory=dict)
 
 
 @dataclass
-class SampleLoadingCls(object):
+class SampleLoadingCls:
     model_id: str
     experiment_id: int
     model_experiment_id: int
-    nodes: List[NodeCls]
+    nodes: list[NodeCls]
     pipeline_mode: Any = None
     step_name: str = "sample_loading"
 
 
 @dataclass
-class SamplePreparationCls(object):
+class SamplePreparationCls:
     """
     执行样本切分
     """
@@ -484,13 +484,13 @@ class SamplePreparationCls(object):
     model_id: str
     experiment_id: int
     model_experiment_id: int
-    nodes: List[NodeCls]
+    nodes: list[NodeCls]
     pipeline_mode: Any = None
     step_name: str = "sample_preparation"
 
 
 @dataclass
-class ExecuteStatusCls(object):
+class ExecuteStatusCls:
     """
     获取切分步骤状态
     """
@@ -498,11 +498,11 @@ class ExecuteStatusCls(object):
     step_name: str
     model_id: str
     experiment_id: int
-    node_id_list: List[str]
+    node_id_list: list[str]
 
 
 @dataclass
-class ModelTrainCls(object):
+class ModelTrainCls:
     """
     执行实验训练
     """
@@ -510,13 +510,13 @@ class ModelTrainCls(object):
     model_id: str
     experiment_id: int
     model_experiment_id: int
-    nodes: List[NodeCls]
+    nodes: list[NodeCls]
     pipeline_mode: Any = None
     step_name: str = "model_train"
 
 
 @dataclass
-class ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls(object):
+class ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls:
     field_type: str
     field_alias: str
     description: None
@@ -535,21 +535,21 @@ class ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls(object)
     deletable: bool
     err: dict
     is_save: bool
-    origin: List[str] = field(default_factory=list)
+    origin: list[str] = field(default_factory=list)
 
 
 @dataclass
-class ModelTrainNodesContentNodeConfigTrainingInputValueCls(object):
+class ModelTrainNodesContentNodeConfigTrainingInputValueCls:
     """
     模型训练 node_config中training_input value
     """
 
-    feature_columns: List[ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls]
-    label_columns: List[str] = field(default_factory=list)
+    feature_columns: list[ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls]
+    label_columns: list[str] = field(default_factory=list)
 
 
 @dataclass
-class ModelTrainNodesContentNodeConfigVisualizationComponentsCls(object):
+class ModelTrainNodesContentNodeConfigVisualizationComponentsCls:
     component_type: str
     component_name: str
     component_alias: str
@@ -559,16 +559,16 @@ class ModelTrainNodesContentNodeConfigVisualizationComponentsCls(object):
 
 
 @dataclass
-class ModelTrainNodesContentNodeConfigVisualizationValueCls(object):
+class ModelTrainNodesContentNodeConfigVisualizationValueCls:
     visualization_name: str
     target_name: str
     target_type: str
     scene_name: str
-    components: List[ModelTrainNodesContentNodeConfigVisualizationComponentsCls]
+    components: list[ModelTrainNodesContentNodeConfigVisualizationComponentsCls]
 
 
 @dataclass
-class ModelTrainTrainingStatusCls(object):
+class ModelTrainTrainingStatusCls:
     """
     备选模型训练状态列表
     """
@@ -578,11 +578,11 @@ class ModelTrainTrainingStatusCls(object):
     project_id: int
     order: str = "algorithm_alias"
     order_type: Any = None
-    filter_extra: Dict = field(default_factory=dict)
+    filter_extra: dict = field(default_factory=dict)
 
 
 @dataclass
-class AiopsGetCostumAlgorithm(object):
+class AiopsGetCostumAlgorithm:
     """
     获取单个自定义算法
     """
@@ -592,7 +592,7 @@ class AiopsGetCostumAlgorithm(object):
 
 
 @dataclass
-class ModelEvaluationCls(object):
+class ModelEvaluationCls:
     """
     模型评估
     """
@@ -600,13 +600,13 @@ class ModelEvaluationCls(object):
     model_experiment_id: int
     model_id: str
     experiment_id: int
-    nodes: List[NodeCls]
+    nodes: list[NodeCls]
     pipeline_mode: Any = None
     step_name: str = "model_evaluation"
 
 
 @dataclass
-class EvaluationStatusCls(object):
+class EvaluationStatusCls:
     """
     模型评估状态
     """
@@ -620,36 +620,37 @@ class EvaluationStatusCls(object):
     experiment_instance_id: Any = None
 
 
+# 可以删
+# @dataclass
+# class EvaluationResultCls(object):
+#     """
+#     模型评估结果
+#     """
+#
+#     project_id: int
+#     model_id: str
+#     experiment_id: int
+#     basic_model_id: str
+#     filter_extra: Dict = field(default_factory=dict)
+#     experiment_instance_id: Any = None
+
+# 可以删
+# @dataclass
+# class PreCommitCls(object):
+#     """
+#     实验提交前查看配置
+#     """
+#
+#     model_id: str
+#     project_id: int
+#     model_experiment_id: int
+#     experiment_id: int
+#     passed_config: Dict
+#     nodes: List[str] = field(default_factory=list)
+
+
 @dataclass
-class EvaluationResultCls(object):
-    """
-    模型评估结果
-    """
-
-    project_id: int
-    model_id: str
-    experiment_id: int
-    basic_model_id: str
-    filter_extra: Dict = field(default_factory=dict)
-    experiment_instance_id: Any = None
-
-
-@dataclass
-class PreCommitCls(object):
-    """
-    实验提交前查看配置
-    """
-
-    model_id: str
-    project_id: int
-    model_experiment_id: int
-    experiment_id: int
-    passed_config: Dict
-    nodes: List[str] = field(default_factory=list)
-
-
-@dataclass
-class CommitServingConfigFeatureColumnCls(object):
+class CommitServingConfigFeatureColumnCls:
     field_name: str
     field_type: str
     field_alias: str
@@ -662,21 +663,21 @@ class CommitServingConfigFeatureColumnCls(object):
     attr_type: str
     is_ts_field: bool
     roles: dict
-    origin: List[str]
+    origin: list[str]
     data_field_name: str
     data_field_alias: str
     used_by: str
 
 
 @dataclass
-class CommitServingConfigCls(object):
-    feature_columns: List[CommitServingConfigFeatureColumnCls]
-    predict_output: List[CommitServingConfigFeatureColumnCls]
-    predict_args: List[str] = field(default_factory=list)
+class CommitServingConfigCls:
+    feature_columns: list[CommitServingConfigFeatureColumnCls]
+    predict_output: list[CommitServingConfigFeatureColumnCls]
+    predict_args: list[str] = field(default_factory=list)
 
 
 @dataclass
-class CommitPassedConfigPredictResult(object):
+class CommitPassedConfigPredictResult:
     status: str
     status_alias: str
     used_time: float
@@ -684,7 +685,7 @@ class CommitPassedConfigPredictResult(object):
 
 
 @dataclass
-class CommitPassedConfigCls(object):
+class CommitPassedConfigCls:
     basic_model_id: str
     basic_model_name: str
     basic_model_alias: str
@@ -697,7 +698,7 @@ class CommitPassedConfigCls(object):
     model_id: str
     experiment_id: int
     experiment_instance_id: int
-    training_args: List[AlgorithmConfigConfCls]
+    training_args: list[AlgorithmConfigConfCls]
     evaluation_disable: bool
     indicators: dict
     predict_result: CommitServingConfigFeatureColumnCls
@@ -706,36 +707,37 @@ class CommitPassedConfigCls(object):
     index: int
 
 
+# 可以删
+# @dataclass
+# class CommitCls(object):
+#     """
+#     实验提交
+#     """
+#
+#     project_id: int
+#     model_id: str
+#     model_experiment_id: int
+#     experiment_id: int
+#     serving_config: CommitServingConfigCls
+#     passed_config: CommitPassedConfigCls
+#     experiment_config: Dict = field(default_factory=dict)
+#     nodes: List[str] = field(default_factory=list)
+
+
 @dataclass
-class CommitCls(object):
-    """
-    实验提交
-    """
-
-    project_id: int
-    model_id: str
-    model_experiment_id: int
-    experiment_id: int
-    serving_config: CommitServingConfigCls
-    passed_config: CommitPassedConfigCls
-    experiment_config: Dict = field(default_factory=dict)
-    nodes: List[str] = field(default_factory=list)
-
-
-@dataclass
-class ReleaseServingConfigAutomlCls(object):
+class ReleaseServingConfigAutomlCls:
     param_adjust_type: str
     evaluation_func: str
 
 
 @dataclass
-class ReleaseServingConfigCls(object):
-    feature_columns: List[CommitServingConfigFeatureColumnCls]
-    predict_output: List[CommitServingConfigFeatureColumnCls]
-    training_args: List[AlgorithmConfigConfCls]
-    timestamp_columns: List[AlgorithmConfigConfCls]
-    predicted_columns: List[AlgorithmConfigConfCls]
-    evaluate_output: List[AlgorithmConfigConfCls]
+class ReleaseServingConfigCls:
+    feature_columns: list[CommitServingConfigFeatureColumnCls]
+    predict_output: list[CommitServingConfigFeatureColumnCls]
+    training_args: list[AlgorithmConfigConfCls]
+    timestamp_columns: list[AlgorithmConfigConfCls]
+    predicted_columns: list[AlgorithmConfigConfCls]
+    evaluate_output: list[AlgorithmConfigConfCls]
     feature_columns_changeable: bool
     algorithm_properties: AlgorithmPropertiesCls
     data_split: bool
@@ -743,47 +745,49 @@ class ReleaseServingConfigCls(object):
     run_env: str
     algorithm_framework: str
     automl: ReleaseServingConfigAutomlCls
-    label_columns: List[str] = field(default_factory=list)
-    training_output: List[str] = field(default_factory=list)
-    predict_args: List[str] = field(default_factory=list)
-    split_args: List[str] = field(default_factory=list)
-    evaluate_args: List[str] = field(default_factory=list)
-    optimize_args: List[str] = field(default_factory=list)
+    label_columns: list[str] = field(default_factory=list)
+    training_output: list[str] = field(default_factory=list)
+    predict_args: list[str] = field(default_factory=list)
+    split_args: list[str] = field(default_factory=list)
+    evaluate_args: list[str] = field(default_factory=list)
+    optimize_args: list[str] = field(default_factory=list)
+
+
+# 可以删
+# @dataclass
+# class ReleaseConfigCls(object):
+#     """
+#     发布配置
+#     """
+#
+#     project_id: int
+#     model_id: str
+#     experiment_id: int
+#     basic_model_id: str
+
+
+# 可以删
+@dataclass
+# class ReleaseCls(object):
+#     """
+#     模型发布
+#     """
+#
+#     model_id: str
+#     model_experiment_id: int
+#     experiment_id: int
+#     basic_model_id: str
+#     project_id: int
+#     description: str
+#     serving_config: ReleaseServingConfigCls
+#     sample_feedback: bool = False
 
 
 @dataclass
-class ReleaseConfigCls(object):
-    """
-    发布配置
-    """
-
-    project_id: int
-    model_id: str
-    experiment_id: int
-    basic_model_id: str
-
-
-@dataclass
-class ReleaseCls(object):
-    """
-    模型发布
-    """
-
-    model_id: str
-    model_experiment_id: int
-    experiment_id: int
-    basic_model_id: str
-    project_id: int
-    description: str
-    serving_config: ReleaseServingConfigCls
-    sample_feedback: bool = False
-
-
-@dataclass
-class UpdateTrainingScheduleCls(object):
+class UpdateTrainingScheduleCls:
     model_id: str
     project_id: int
-    training_schedule: Dict = field(
+    training_schedule: dict = field(
         default_factory=lambda: {
             "start_time": 0,
             "training_freq": 1,
@@ -792,36 +796,36 @@ class UpdateTrainingScheduleCls(object):
             "sample_change_count": 1,
         }
     )
-    release_config: Dict = field(default_factory=lambda: {"release_mode": "auto"})
+    release_config: dict = field(default_factory=lambda: {"release_mode": "auto"})
 
 
 @dataclass
-class AiopsReleaseCls(object):
+class AiopsReleaseCls:
     model_id: str
     project_id: int
     extra_filters: str = "{}"
 
 
 @dataclass
-class AiopsReleaseModelReleaseIdModelFileCls(object):
+class AiopsReleaseModelReleaseIdModelFileCls:
     model_id: str
     model_release_id: str
     compat: str = "true"
 
 
 @dataclass
-class AiopsExperimentsDebugInputConfigCls(object):
+class AiopsExperimentsDebugInputConfigCls:
     algorithm_name: str
-    input_data: List
-    feature_columns: List
-    training_args: List
+    input_data: list
+    feature_columns: list
+    training_args: list
     result_table_id: str = "test"
     sql: str = "test"
-    label_columns: List = field(default_factory=list)
-    predict_args: List = field(default_factory=lambda: [{"value": 0, "field_name": "__start_time__"}])
+    label_columns: list = field(default_factory=list)
+    predict_args: list = field(default_factory=lambda: [{"value": 0, "field_name": "__start_time__"}])
 
 
 @dataclass
-class AiopsExperimentsDebugCls(object):
+class AiopsExperimentsDebugCls:
     input_config: AiopsExperimentsDebugInputConfigCls
     project_id: int
