@@ -320,7 +320,7 @@ class CloseStatusChecker(BaseChecker):
             ip = target_dimensions["ip"] = alert.top_event.get("ip", "")
             bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event.get("bk_cloud_id", "")
             host = None
-            if ip and bk_cloud_id:
+            if ip and bk_cloud_id != "":
                 host = HostManager.get(ip, bk_cloud_id)
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
