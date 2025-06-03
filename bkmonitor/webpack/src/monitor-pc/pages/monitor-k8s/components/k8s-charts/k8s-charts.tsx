@@ -534,11 +534,11 @@ export default class K8SCharts extends tsc<
       case 'node_cpu_seconds_total': // 节点CPU使用量
         return `${this.createCommonPromqlMethod()}(last_over_time(rate(node_cpu_seconds_total{${this.createCommonPromqlContent()},mode!="idle"}[$interval])[$interval:] $time_shift))`;
       case 'node_cpu_capacity_ratio': // 节点CPU装箱率
-        return `
-        ${this.createCommonPromqlMethod()}(last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()},resource="cpu"}[$interval:] $time_shift))
-        /
-        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()},resource="cpu"}[$interval:] $time_shift))
-      `;
+        return `${this.createCommonPromqlMethod()}(sum by (${this.groupByField},pod) (kube_pod_container_resource_requests{${this.createCommonPromqlContent()},container_name!="POD",resource="cpu"})
+ /
+ on (pod) group_left() count by (pod)(kube_pod_status_phase{bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}",phase!="Evicted"}))
+/
+${this.createCommonPromqlMethod()} (kube_node_status_allocatable{${this.createCommonPromqlContent()},container_name!="POD",resource="cpu"})`;
       case 'node_cpu_usage_ratio': // 节点CPU使用率
         if (this.groupByField === K8sTableColumnKeysEnum.NODE) {
           return `(1 - avg by(node)(rate(node_cpu_seconds_total{mode="idle",${this.createCommonPromqlContent()}}[$interval] $time_shift))) * 100`;
@@ -550,9 +550,11 @@ export default class K8SCharts extends tsc<
        ${this.createCommonPromqlMethod()} (last_over_time(node_memory_MemAvailable_bytes{${this.createCommonPromqlContent()}}[$interval:] $time_shift))`;
 
       case 'node_memory_capacity_ratio': // 节点内存装箱率
-        return ` ${this.createCommonPromqlMethod()} (last_over_time(kube_pod_container_resource_requests{${this.createCommonPromqlContent()},resource="memory"}[$interval:] $time_shift))
-        /
-        ${this.createCommonPromqlMethod()} (last_over_time(kube_node_status_allocatable{${this.createCommonPromqlContent()},resource="memory"}[$interval:] $time_shift))`;
+        return `${this.createCommonPromqlMethod()} (sum by (${this.groupByField},pod) (kube_pod_container_resource_requests{${this.createCommonPromqlContent()},container_name!="POD",resource="memory"})
+ /
+ on (pod) group_left() count by (pod)(kube_pod_status_phase{bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}",phase!="Evicted"}))
+/
+${this.createCommonPromqlMethod()}  (kube_node_status_allocatable{${this.createCommonPromqlContent()},container_name!="POD",resource="memory"})`;
       case 'node_memory_usage_ratio': // 节点内存使用率
         return ` (
         1 - (
