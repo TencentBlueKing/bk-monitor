@@ -26,7 +26,6 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getDefaultUserGroupList } from '@/components/user-selector/user-group';
 import Schema, { type ErrorList, type Rules, type ValidateSource } from 'async-validator';
 import CustomTab, { type IPanels } from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import NoticeModeNew, {
@@ -42,6 +41,8 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
+
+import { getDefaultUserGroupList } from '../../../../components/user-selector/user-group';
 // import { getReceiver } from 'monitor-api/modules/notice_group';
 import { getBkchatGroup } from 'monitor-api/modules/user_groups';
 import { deepClone, random } from 'monitor-common/utils/utils';
