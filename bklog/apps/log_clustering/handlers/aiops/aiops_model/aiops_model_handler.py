@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,8 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import base64
-from typing import Dict
 
 import arrow
 from cloudpickle import cloudpickle
@@ -984,7 +983,7 @@ class AiopsModelHandler(BaseAiopsHandler):
         passed_config, *_ = evaluation_status["list"]
         return passed_config
 
-    def pre_commit(self, model_id: str, experiment_id: int, passed_config: Dict):
+    def pre_commit(self, model_id: str, experiment_id: int, passed_config: dict):
         """
         实验提交前查看配置
         @param model_id 模型id
@@ -1138,15 +1137,16 @@ class AiopsModelHandler(BaseAiopsHandler):
         request_dict = self._set_username(aiops_experiment_debug_request)
         return BkDataAIOPSApi.aiops_experiments_debug(request_dict)
 
-    def close_continuous_training(self, model_id: str, experiment_id: int):
-        return BkDataAIOPSApi.put_experiment(
-            self._set_username(
-                {
-                    "model_id": model_id,
-                    "experiment_id": experiment_id,
-                    "protocol_version": "1.2",
-                    "continuous_training": False,
-                    "project_id": self.conf.get("project_id"),
-                }
-            )
-        )
+    # 可以删
+    # def close_continuous_training(self, model_id: str, experiment_id: int):
+    #     return BkDataAIOPSApi.put_experiment(
+    #         self._set_username(
+    #             {
+    #                 "model_id": model_id,
+    #                 "experiment_id": experiment_id,
+    #                 "protocol_version": "1.2",
+    #                 "continuous_training": False,
+    #                 "project_id": self.conf.get("project_id"),
+    #             }
+    #         )
+    #     )

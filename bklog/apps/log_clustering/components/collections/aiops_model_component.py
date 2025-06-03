@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 from django.utils.translation import gettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
@@ -36,8 +35,6 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     SampleSet,
 )
-from apps.log_clustering.tasks.sync_pattern import sync
-from apps.utils.log import logger
 from apps.utils.pipline import BaseService
 
 
@@ -545,24 +542,24 @@ class ReleaseService(BaseService):
             Service.InputItem(name="description", key="description", type="str", required=True),
         ]
 
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        description = data.get_one_of_inputs("description")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
-        experiment_id = experiment_model.experiment_id
-        basic_model_id = experiment_model.basic_model_id
-        AiopsModelHandler().release(
-            model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id, description=description
-        )
-        return True
+    # def _execute(self, data, parent_data):
+    #     model_name = data.get_one_of_inputs("model_name")
+    #     experiment_alias = data.get_one_of_inputs("experiment_alias")
+    #     description = data.get_one_of_inputs("description")
+    #     model_id = AiopsModel.objects.get(model_name=model_name).model_id
+    #     experiment_model = AiopsModelExperiment.get_experiment(experiment_alias=experiment_alias, model_name=model_name)
+    #     experiment_id = experiment_model.experiment_id
+    #     basic_model_id = experiment_model.basic_model_id
+    #     AiopsModelHandler().release(
+    #         model_id=model_id, experiment_id=experiment_id, basic_model_id=basic_model_id, description=description
+    #     )
+    #     return True
 
 
-class ReleaseComponent(Component):
-    name = "Release"
-    code = "release"
-    bound_service = ReleaseService
+# class ReleaseComponent(Component):
+#     name = "Release"
+#     code = "release"
+#     bound_service = ReleaseService
 
 
 # 可以删
@@ -574,25 +571,25 @@ class ReleaseComponent(Component):
 #         self.release.component.inputs.description = Var(type=Var.SPLICE, value="${description}")
 
 
-class SyncPatternService(BaseService):
-    name = _("获取pattern")
+# class SyncPatternService(BaseService):
+#     name = _("获取pattern")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         model_name = data.get_one_of_inputs("model_name")
+#         model_id = AiopsModel.objects.get(model_name=model_name).model_id
+#         sync(model_id=model_id)
+#         return True
 
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-        ]
 
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        sync(model_id=model_id)
-        return True
-
-
-class SyncPatternComponent(Component):
-    name = "SyncPattern"
-    code = "sync_pattern"
-    bound_service = SyncPatternService
+# class SyncPatternComponent(Component):
+#     name = "SyncPattern"
+#     code = "sync_pattern"
+#     bound_service = SyncPatternService
 
 
 # 可以删
@@ -603,48 +600,48 @@ class SyncPatternComponent(Component):
 
 
 # # 可以删 未调用
-class CloseContinuousTrainingService(BaseService):
-    name = _("删除持续训练")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="model name", key="model_name", type="str", required=True),
-            Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        model_name = data.get_one_of_inputs("model_name")
-        experiment_alias = data.get_one_of_inputs("experiment_alias")
-        aiops_model_experiment = AiopsModelExperiment.get_experiment(
-            model_name=model_name, experiment_alias=experiment_alias
-        )
-        if not aiops_model_experiment:
-            logger.error(
-                f"could not find experiment : [model_name]: {model_name} [experiment_alias]: {experiment_alias}"
-            )
-            return True
-        AiopsModelHandler().close_continuous_training(
-            model_id=aiops_model_experiment.model_id, experiment_id=aiops_model_experiment.experiment_id
-        )
-        aiops_model_experiment.delete()
-        aiops_model_experiment.save()
-        return True
+# class CloseContinuousTrainingService(BaseService):
+#     name = _("删除持续训练")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="model name", key="model_name", type="str", required=True),
+#             Service.InputItem(name="experiment alias", key="experiment_alias", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         model_name = data.get_one_of_inputs("model_name")
+#         experiment_alias = data.get_one_of_inputs("experiment_alias")
+#         aiops_model_experiment = AiopsModelExperiment.get_experiment(
+#             model_name=model_name, experiment_alias=experiment_alias
+#         )
+#         if not aiops_model_experiment:
+#             logger.error(
+#                 f"could not find experiment : [model_name]: {model_name} [experiment_alias]: {experiment_alias}"
+#             )
+#             return True
+#         AiopsModelHandler().close_continuous_training(
+#             model_id=aiops_model_experiment.model_id, experiment_id=aiops_model_experiment.experiment_id
+#         )
+#         aiops_model_experiment.delete()
+#         aiops_model_experiment.save()
+#         return True
 
 
 # 可以删 未调用
-class CloseContinuousTrainingComponent(Component):
-    name = "CloseContinuousTraining"
-    code = "close_continuous_training"
-    bound_service = CloseContinuousTrainingService
+# class CloseContinuousTrainingComponent(Component):
+#     name = "CloseContinuousTraining"
+#     code = "close_continuous_training"
+#     bound_service = CloseContinuousTrainingService
 
 
 # 可以删
-class CloseContinuousTraining:
-    def __init__(self, experiment_alias: str):
-        self.close_continuous_training = ServiceActivity(
-            component_code="close_continuous_training", name=f"close_continuous_training:{experiment_alias}"
-        )
-        self.close_continuous_training.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
-        self.close_continuous_training.component.inputs.experiment_alias = Var(
-            type=Var.SPLICE, value="${experiment_alias}"
-        )
+# class CloseContinuousTraining:
+#     def __init__(self, experiment_alias: str):
+#         self.close_continuous_training = ServiceActivity(
+#             component_code="close_continuous_training", name=f"close_continuous_training:{experiment_alias}"
+#         )
+#         self.close_continuous_training.component.inputs.model_name = Var(type=Var.SPLICE, value="${model_name}")
+#         self.close_continuous_training.component.inputs.experiment_alias = Var(
+#             type=Var.SPLICE, value="${experiment_alias}"
+#         )
