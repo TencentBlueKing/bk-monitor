@@ -600,19 +600,15 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      // const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
-      // const url = location.href.replace(
-      //   location.hash,
-      //   `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}&filterMode=queryString`
-      // );
-      // window.open(url, '_blank');
-      const where = JSON.stringify([
-        {
-          key: content.query_key,
-          operator: 'equal',
-          value: safeParseJsonValueForWhere(content.query_value),
-        },
-      ]);
+      const where = encodeURIComponent(
+        JSON.stringify([
+          {
+            key: content.query_key,
+            operator: 'equal',
+            value: safeParseJsonValueForWhere(content.query_value),
+          },
+        ])
+      );
       const url = location.href.replace(
         location.hash,
         `#/trace/home?app_name=${appName.value}&sceneMode=span&where=${where}&filterMode=ui`
@@ -1578,7 +1574,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={fullscreen.value ? '100%' : 1280}
+        width={fullscreen.value ? '100%' : '80%'}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{

@@ -34,6 +34,7 @@ import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from
 import { optimizedDeepEqual } from '../../metric-chart-view/utils';
 import RemoveConfirm from './components/remove-confirm';
 import ViewSave from './components/view-save';
+import ViewManage from './components/view-manage';
 
 import './index.scss';
 
@@ -261,6 +262,17 @@ export default class ViewTab extends tsc<IProps, IEmit> {
             </bk-tab>
           )}
           <div class='extend-action'>
+            {
+              this.viewList.length > 0 && <ViewManage
+                payload={this.graphConfigPayload}
+                sceneId={this.sceneId}
+                viewList={this.viewList}
+                onSuccess={() => {
+                  this.isTabListInit = false;
+                  this.handleViewSaveSuccess();
+                }}
+              />
+            }
             <ViewSave
               payload={this.graphConfigPayload}
               sceneId={this.sceneId}

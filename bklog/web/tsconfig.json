@@ -22,5 +22,9 @@
     "jsx": "preserve",
     "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"],
     "removeComments": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   }
 }

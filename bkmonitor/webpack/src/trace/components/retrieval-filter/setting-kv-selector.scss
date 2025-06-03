@@ -141,6 +141,10 @@
         transition: all 0.3s;
       }
     }
+
+    .vue3_auto-width-input-component {
+      overflow: hidden;
+    }
   }
 
   &.active {

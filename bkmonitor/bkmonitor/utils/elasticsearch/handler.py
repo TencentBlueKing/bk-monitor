@@ -109,11 +109,8 @@ class QueryStringGenerator:
         for v in values:
             c_list = []
             for c in v:
-                # > 和 < 无法转义，直接置空
-                if c in QueryStringCharacters.CAN_NOT_ESCAPE_RESERVED_CHARACTERS:
-                    c_list.append("")
                 # 如果使用通配符，* 和 ? 不转义
-                elif c in QueryStringCharacters.SUPPORTED_WILDCARDS_CHARACTERS and is_wildcard:
+                if c in QueryStringCharacters.SUPPORTED_WILDCARDS_CHARACTERS and is_wildcard:
                     c_list.append(c)
                 elif c in QueryStringCharacters.ES_RESERVED_CHARACTERS:
                     c_list.append(f"\\{c}")
