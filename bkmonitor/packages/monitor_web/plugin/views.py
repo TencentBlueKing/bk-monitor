@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import datetime
+from functools import reduce
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -197,16 +198,30 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 标签过滤
         if labels:
             plugins = plugins.filter(label__in=labels.split(","))
+
         # 关键字搜索
         if search_key:
-            for search_item in ["plugin_id", "create_user", "update_user", "plugin_display_name"]:
-                plugins = plugins.filter(**{f"{search_item}__icontains": search_key})
+            # 先过滤出插件ID、创建人、更新人包含关键字的插件
+            plugins = plugins.filter(
+                reduce(
+                    lambda x, y: x | y,
+                    [
+                        Q(**{f"{search_item}__icontains": search_key})
+                        for search_item in ["plugin_id", "create_user", "update_user"]
+                    ],
+                )
+            )
 
         plugin_dict = {plugin.plugin_id: plugin for plugin in plugins}
 
+        # 插件信息检索条件合并
+        plugin_query = Q(plugin_id__in=list(plugin_dict.keys()))
+        if search_key:
+            plugin_query |= Q(info__plugin_display_name__icontains=search_key)
+
         # 获取全量的插件数据（包含外键数据）
         all_versions = (
-            PluginVersionHistory.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=list(plugin_dict.keys()))
+            PluginVersionHistory.objects.filter(plugin_query, bk_tenant_id=bk_tenant_id)
             .select_related("config", "info")
             .defer("info__metric_json", "info__description_md")
         )
