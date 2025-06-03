@@ -1,9 +1,6 @@
 <script setup>
   import { ref, computed } from 'vue';
   import { bkMessage } from 'bk-magic-vue';
-
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -13,11 +10,24 @@
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from './query-history';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
+  // #else
+  // #code const TimeSetting = () => null;
+  // #code const FieldSetting = () => null;
+  // #code const VersionSwitch = () => null;
+  // #code const ClusterSetting = () => null;
+  // #code const BarGlobalSetting = () => null;
+  // #code const MoreSetting = () => null;
+  // #code const WarningSetting = () => null;
+  // #endif
+
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import * as authorityMap from '@/common/authority-map';
@@ -58,6 +68,9 @@
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
+  /** 是否是监控组件 */
+  const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
+
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
     const indexSetId = route.params?.indexId;
@@ -76,13 +89,18 @@
 
     if (isUnionIndex) {
       router.replace({
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
         params: {
           ...route.params,
           indexId: undefined,
         },
+           // #endif
         query: {
           ...route.query,
           ...queryTab,
+          // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+          indexId: undefined,
+          // #endif
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -94,13 +112,18 @@
     }
 
     router.replace({
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       params: {
         ...route.params,
         indexId: ids[0],
       },
+      // #endif
       query: {
         ...route.query,
         ...queryTab,
+        // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+        indexId: ids[0],
+        // #endif
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -271,7 +294,7 @@
 <template>
   <div class="subbar-container">
     <div
-      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
+      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }" 
       class="box-biz-select"
     >
       <IndexSetChoice
@@ -288,8 +311,11 @@
       ></IndexSetChoice>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
-
-    <div class="box-right-option">
+  
+    <div 
+      v-if="!isMonitorComponent" 
+      class="box-right-option"
+    >
       <TimeSetting class="custom-border-right"></TimeSetting>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
@@ -320,7 +346,7 @@
         <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
       </div>
       <VersionSwitch
-        style="border-left: 1px solid #eaebf0"
+        style="border-left: 1px solid #eaebf0" 
         version="v2"
       />
     </div>
