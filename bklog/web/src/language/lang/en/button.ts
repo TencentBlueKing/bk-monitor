@@ -213,4 +213,5 @@ export default {
   定位到当前行: 'Locate the current row',
   内置: 'built-in',
   添加排序字段: 'Add Sort Field',
+  另存为模板: 'save as template',
 };

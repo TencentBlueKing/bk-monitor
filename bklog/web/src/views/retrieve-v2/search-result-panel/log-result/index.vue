@@ -47,7 +47,7 @@
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label>{{ $t('高亮') }}</label>
+            <label :style="{width:isEnLanguage?'60px':'40px'}">{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
@@ -57,7 +57,7 @@
               :maxWidth="highlightStyle.width"
               :minWidth="highlightStyle.width"
               :value="highlightValue"
-              placeholder="输入后按 Enter..."
+              :placeholder="$t('输入后按 Enter...')"
               template="tag-input"
               @change="handleHighlightEnter"
             >
@@ -215,6 +215,9 @@
           width: `${this.highlightWidth}px`,
         };
       },
+      isEnLanguage() {
+        return  this.$store.getters.isEnLanguage
+      }
     },
     watch: {
       showFieldsConfigPopoverNum() {
@@ -378,7 +381,7 @@
           border-top-left-radius: 2px;
           border-bottom-left-radius: 2px;
           border-right: none;
-          width: 40px;
+          // width: 40px;
           padding: 0px 0px;
           color: #4d4f56;
           text-align: center;

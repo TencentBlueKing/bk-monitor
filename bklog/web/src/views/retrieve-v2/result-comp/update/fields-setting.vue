@@ -129,7 +129,7 @@
           style="font-size: 14px"
           class="bklog-icon bklog-help"
         ></span>
-        当前设置仅对个人生效，可以
+        {{ $t('当前设置仅对个人生效，可以') }}
         <save-as-popover
           :confirm-handler="handleUpdateConfig"
           :display-fields="currentVisibleList"

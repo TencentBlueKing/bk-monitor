@@ -1068,4 +1068,6 @@ export default {
   '组名不规范, 包含了特殊符号.': 'The group name is not standard, and special symbols are included.',
   '注意: 名字冲突': 'Note: name conflict',
   '注意：最大值为30个字符': 'Note: the maximum value is 30 characters',
+  '当前设置仅对个人生效，可以': 'The current setting only takes effect for individuals, and can',
+  '输入后按 Enter...': 'Press Enter after input...',
 };
