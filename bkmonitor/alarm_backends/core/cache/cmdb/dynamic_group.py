@@ -12,7 +12,7 @@ import json
 from typing import Any
 from collections.abc import Sequence
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.storage.redis import Cache
 from constants.common import DEFAULT_TENANT_ID
 
@@ -27,8 +27,8 @@ class DynamicGroupManager:
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
+            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, dynamic_group_ids: Sequence[str]) -> dict[str, dict[str, Any]]:

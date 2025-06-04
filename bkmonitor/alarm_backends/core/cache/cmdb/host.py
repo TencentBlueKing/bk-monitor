@@ -12,7 +12,7 @@ import json
 import logging
 from collections import defaultdict
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Host, TopoTree
 from bkmonitor.utils.local import local
@@ -34,8 +34,8 @@ class HostAgentIDManager:
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
+            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
 
     @classmethod
     def get(cls, *, bk_tenant_id: str | None = None, bk_agent_id: str) -> tuple[str, int]:
@@ -76,7 +76,7 @@ class HostIPManager:
 
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_ip"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_ip"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, ips: list[str]) -> dict[str, list[str]]:
@@ -114,8 +114,8 @@ class HostManager:
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host"
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host"
+            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.host"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host"
 
     @classmethod
     def get_host_key(cls, ip: str, bk_cloud_id: int) -> str:

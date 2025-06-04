@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import TopoNode
 from constants.common import DEFAULT_TENANT_ID
@@ -25,8 +25,8 @@ class TopoManager:
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
+            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, topo_nodes: list[tuple[str, int]]) -> dict[tuple[str, int], TopoNode]:

@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Business
 from constants.common import DEFAULT_TENANT_ID
@@ -20,7 +20,7 @@ class BusinessManager:
     CMDB 业务缓存
     """
 
-    cache_key = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.business"
+    cache_key = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.business"
     cache = Cache("cache-cmdb")
 
     @classmethod

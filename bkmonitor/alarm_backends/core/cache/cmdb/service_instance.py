@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from collections import defaultdict
 import json
 from collections.abc import Sequence
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import ServiceInstance, TopoTree
@@ -26,20 +26,20 @@ class ServiceInstanceManager:
 
     cache = Cache("cache-cmdb")
 
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
+    CACHE_KEY = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
     HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
-        prefix=CMDBCacheManager.CACHE_KEY_PREFIX
+        prefix=CacheManager.CACHE_KEY_PREFIX
     )
 
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
+            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
 
     @classmethod
     def get_host_to_service_instance_id_cache_key(cls, bk_tenant_id: str) -> str:
-        return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
+        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
 
     @classmethod
     def get(cls, *, bk_tenant_id: str, service_instance_id: str | int) -> ServiceInstance | None:
