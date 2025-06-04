@@ -787,10 +787,11 @@ class UnifyQueryHandler:
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [
-                {"method": method, "dimensions": [group_field]},
-                {"method": "date_histogram", "window": interval},
-            ]
+            if group_field:
+                q["function"] = [{"method": method, "dimensions": [group_field]}]
+            else:
+                q["function"] = [{"method": method}]
+            q["function"].append({"method": "date_histogram", "window": interval})
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
@@ -1020,7 +1021,6 @@ class UnifyQueryHandler:
         return user_sort_list
 
     def fields(self, scope="default"):
-        # self = self.unify_query_handler
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
         scenario_id = index_info["origin_scenario_id"]
