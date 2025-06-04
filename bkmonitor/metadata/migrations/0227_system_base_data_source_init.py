@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def create_system_base_metric_data_source():
+def create_system_base_metric_data_source(apps, schema_editor):
     from metadata import models
     from metadata.resources import CreateTimeSeriesGroupResource
 
@@ -46,7 +46,7 @@ def create_system_base_metric_data_source():
         return
 
 
-def create_system_base_event_data_source():
+def create_system_base_event_data_source(apps, schema_editor):
     from metadata import models
     from metadata.resources import CreateEventGroupResource
 
