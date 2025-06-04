@@ -376,16 +376,20 @@ export default defineComponent({
       const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
       const noScrollBar = scrollHeight <= clientHeight + 1;
       const shouldRequest = noScrollBar || isEnd;
+      if (!shouldRequest) return;
       if (
         !(
           tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
           tableLoading[ExploreTableLoadingEnum.SCROLL]
-        ) &&
-        shouldRequest
+        )
       ) {
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
+      target.scrollTo({
+        top: scrollHeight - 100,
+        behavior: 'smooth',
+      });
     }
 
     /**
