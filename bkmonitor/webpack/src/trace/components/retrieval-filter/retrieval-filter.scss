@@ -60,6 +60,7 @@
 
     .filter-content {
       flex: 1;
+      overflow: hidden;
 
       &:hover {
         background: #FAFBFD;

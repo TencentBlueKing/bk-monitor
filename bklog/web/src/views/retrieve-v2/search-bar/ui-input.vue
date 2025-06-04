@@ -65,6 +65,13 @@
     }
     item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
+    if (!item?.showList || item.showList.length !== item.value.length){
+      item.showList = Array.from(
+        { length: item.value.length }, 
+        (_, i) => item.showList?.[i] ?? false
+      );
+
+    }
     return { disabled: false, ...(item ?? {}) };
   };
 
@@ -243,9 +250,7 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
-    if(item.showList){
-      set(item, 'showList', new Array(item.value.length).fill(false))
-    }
+    set(item, 'showList', new Array(item.value.length).fill(item.disabled))
     emitChange(modelValue.value);
   };
 
@@ -390,12 +395,18 @@
       set(item, 'showList', new Array(item.value.length).fill(false))
     }
     set(item.showList, childIndex, show)
+    if (item.showList.every(f => f === false)) {
+      set(item, 'disabled', false);
+    }else if (item.showList.every(f => f === true)) {
+      set(item, 'disabled', true);
+    }
+
     emitChange(cloneDeep(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
   const onlyOptionShow =  (parentIndex,childIndex,item)=>{
-    if(!item.showList){
+    if(!item.showList || item.showList.length !== item.value.length){
       set(item, 'showList', new Array(item.value.length).fill(true))
     }
     item.showList = item.showList.map((_, index) => index !== childIndex);
@@ -422,7 +433,7 @@
     </li>
     <li
       v-for="(item, index) in modelValue"
-      :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
+      :class="['search-item', 'tag-item', {'is-common-fixed': item.isCommonFixed }]"
       :key="`${item.field}-${index}`"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >

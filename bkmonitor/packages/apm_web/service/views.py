@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from apm_web.models import Application
 from apm_web.service.resources import (
     ApplicationListResource,
@@ -19,6 +19,8 @@ from apm_web.service.resources import (
     ServiceInfoResource,
     ServiceUrlListResource,
     UriregularVerifyResource,
+    PipelineOverviewResource,
+    ListPipelineResource,
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -52,6 +54,8 @@ class ServiceViewSet(ResourceViewSet):
         ResourceRoute("POST", AppQueryByIndexSetResource, "app_query_by_index_set"),
         ResourceRoute("POST", UriregularVerifyResource, "uri_regular"),
         ResourceRoute("POST", ServiceUrlListResource, "service_url_list"),
+        ResourceRoute("POST", PipelineOverviewResource, "pipeline_overview"),
+        ResourceRoute("POST", ListPipelineResource, "list_pipeline"),
     ]
 
 

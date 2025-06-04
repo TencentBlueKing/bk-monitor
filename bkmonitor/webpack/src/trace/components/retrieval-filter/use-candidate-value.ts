@@ -99,6 +99,7 @@ export const useCandidateValue = () => {
       const fieldType = fields?.find(item => item?.name === field)?.type || '';
       const isKeyword = fieldType === 'keyword';
       const isBoolean = fieldType === 'boolean';
+      const isNumber = ['integer', 'long'].includes(fieldType);
       const searchValue = String(params.filters?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
@@ -131,9 +132,13 @@ export const useCandidateValue = () => {
       } else {
         axiosController.abort();
         axiosController = new AbortController();
+        const paramsValue = structuredClone(params);
+        if (isNumber && paramsValue?.filters?.length && paramsValue?.filters?.[0]?.operator) {
+          paramsValue.filters[0].operator = 'equal';
+        }
         getFieldsOptionValues(
           {
-            ...params,
+            ...paramsValue,
             isInit__: undefined,
           },
           {

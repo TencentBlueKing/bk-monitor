@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import os
 from enum import Enum
 
@@ -109,6 +109,9 @@ class EtlConfigs(Enum):
     BK_SYSTEM_PROC = "bk_system_proc"
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
+
+    # 多租户基础Agent事件
+    BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
     # 固定指标单表(metric_name)
     BK_EXPORTER = "bk_exporter"
     BK_STANDARD = "bk_standard"
@@ -124,11 +127,24 @@ class EtlConfigs(Enum):
         (BK_STANDARD_V2_TIME_SERIES, "bk_standard_v2_time_series"),
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
+        (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
     )
 
 
 # 数据源 ETL 配置
 SPACE_DATASOURCE_ETL_LIST = [item[0] for item in EtlConfigs._choices_labels.value]
+
+# 现阶段默认使用V4方式申请Dataid的清洗类型
+ENABLE_V4_DATALINK_ETL_CONFIGS = [
+    EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+    EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+]
+
+# 系统内置数据-清洗类型列表
+SYSTEM_BASE_DATA_ETL_CONFIGS = [
+    EtlConfigs.BK_SYSTEM_BASEREPORT.value,
+    EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"
 EXCLUDED_SPACE_TYPE_ID = SpaceTypes.BKCC.value

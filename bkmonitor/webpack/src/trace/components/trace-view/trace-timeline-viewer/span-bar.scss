@@ -44,14 +44,19 @@
 
 .span-bar-rpc {
   position: absolute;
-  top: 35%;
-  bottom: 35%;
+  top: 9px;
+  left: 8px;
   z-index: 1;
+  height: 12px;
 }
 
 .span-bar-label {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  height: 12px;
   padding: 0 4px;
+  overflow: hidden;
   font-size: 12px;
   line-height: 12px;
   color: #979ba5;
