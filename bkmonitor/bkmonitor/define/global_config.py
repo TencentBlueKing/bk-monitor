@@ -367,7 +367,6 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
         ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
-        ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),
@@ -420,7 +419,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
-        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
+        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=True)),
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
@@ -639,8 +638,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
-        # 新版自定义时序灰度业务列表
-        ("ENABLE_CUSTOM_TS_V2_BIZ_LIST", slz.ListField(label=_("新版自定义时序灰度业务列表"), default=[])),
         # 事件中心AIOps功能灰度业务列表
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
     ]

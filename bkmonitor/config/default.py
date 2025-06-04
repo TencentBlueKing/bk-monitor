@@ -14,8 +14,8 @@ import importlib
 import ntpath
 import os
 import sys
-from urllib.parse import urljoin
 import warnings
+from urllib.parse import urljoin
 
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
@@ -447,6 +447,9 @@ SKIP_PLUGIN_DEBUG = False
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
 
+# bk-monitor-worker api 地址
+BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -857,6 +860,8 @@ if not os.path.exists(LOG_PATH):
 LOG_LEVEL_MAP = {
     "iam": "ERROR",
     "bk_dataview": "ERROR",
+    "elasticsearch": "WARNING",
+    "kafka": "WARNING",
 }
 
 warnings.filterwarnings(
@@ -1137,7 +1142,7 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
+BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1184,8 +1189,6 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
 BK_IAM_SYSTEM_NAME = _("监控平台")
-
-BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST") or "http://bkiam.service.consul:5001")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
@@ -1417,9 +1420,6 @@ DOC_LINK_MAPPING = {}
 # 插件授权给 bkci 空间使用
 BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 
-# 禁用告警CMDB缓存刷新
-DISABLE_ALARM_CMDB_CACHE_REFRESH = []
-
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
@@ -1477,7 +1477,7 @@ ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 是否启用新版方式接入计算平台
-ENABLE_V2_ACCESS_BKBASE_METHOD = False
+ENABLE_V2_ACCESS_BKBASE_METHOD = True
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
@@ -1615,11 +1615,13 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
+# IAM多租户配置
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 新版自定义时序灰度业务列表
-ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
-
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
+
+# 用户管理web api地址
+BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"

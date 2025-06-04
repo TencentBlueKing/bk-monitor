@@ -133,7 +133,7 @@
 
   const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single');
+      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
 
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
       store.commit('updateIndexItem', payload);
@@ -149,6 +149,7 @@
       });
 
       store.dispatch('requestIndexSetFieldInfo').then(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         store.dispatch('requestIndexSetQuery');
       });
 

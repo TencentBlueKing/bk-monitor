@@ -748,6 +748,9 @@ importers:
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.15(typescript@5.8.3))
+      vue-tippy:
+        specifier: ^6.7.1
+        version: 6.7.1(vue@3.5.15(typescript@5.8.3))
     devDependencies:
       '@types/d3':
         specifier: ^7.4.3
@@ -8234,6 +8237,11 @@ packages:
 
   vue-template-es2015-compiler@1.9.1:
     resolution: {integrity: sha512-4gDntzrifFnCEvyoO8PqyJDmguXgVPxKiIxrBKjIowvL9l+N66196+72XVYR8BBf1Uv1Fgt3bGevJ+sEmxfZzw==}
+
+  vue-tippy@6.7.1:
+    resolution: {integrity: sha512-gdHbBV5/Vc8gH87hQHLA7TN1K4BlLco3MAPrTb70ZYGXxx+55rAU4a4mt0fIoP+gB3etu1khUZ6c29Br1n0CiA==}
+    peerDependencies:
+      vue: ^3.2.0
 
   vue-tsx-support@3.2.0:
     resolution: {integrity: sha512-Uc3i9deEvZeHKc43Lcsh1ihCWvG1yygFnbY1jMe49K+DWCmGgwYWUkD0mxdgPwAMc6gi23CRVkrJsvamfCvD7A==}
@@ -17241,6 +17249,11 @@ snapshots:
       he: 1.2.0
 
   vue-template-es2015-compiler@1.9.1: {}
+
+  vue-tippy@6.7.1(vue@3.5.15(typescript@5.8.3)):
+    dependencies:
+      tippy.js: 6.3.7
+      vue: 3.5.15(typescript@5.8.3)
 
   vue-tsx-support@3.2.0(typescript@5.8.3)(vue@2.7.16):
     dependencies:

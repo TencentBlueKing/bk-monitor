@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+from collections import defaultdict
 from typing import Any
 
 import arrow
@@ -782,10 +783,14 @@ class UnifyQueryHandler:
     def date_histogram(self):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
+        group_field = self.search_params["group_field"]
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [{"method": method}, {"method": "date_histogram", "window": interval}]
+            q["function"] = [
+                {"method": method, "dimensions": [group_field]},
+                {"method": "date_histogram", "window": interval},
+            ]
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
@@ -795,15 +800,26 @@ class UnifyQueryHandler:
         if not response["series"]:
             return return_data
 
+        time_field_mappings = defaultdict(list)
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
-        values = response["series"][0]["values"]
-        for value in values:
+        for item in response["series"]:
+            group_value = item["group_values"][0]
+            for value in item["values"]:
+                time_field_mappings[value[0]].append({"key": group_value, "doc_count": value[1]})
+
+        for _timestamp, data_list in time_field_mappings.items():
             key_as_string = timestamp_to_timeformat(
-                value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+                _timestamp, time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
             )
-            tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+            doc_count = sum(item["doc_count"] for item in data_list)
+            tmp = {
+                "key_as_string": key_as_string,
+                "key": _timestamp,
+                "doc_count": doc_count,
+                group_field: {"buckets": data_list},
+            }
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
 
@@ -1004,7 +1020,6 @@ class UnifyQueryHandler:
         return user_sort_list
 
     def fields(self, scope="default"):
-        # self = self.unify_query_handler
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
         scenario_id = index_info["origin_scenario_id"]
