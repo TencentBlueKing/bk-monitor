@@ -435,27 +435,8 @@
                     background: #fff;
                     .v3-bklog-content {
                       padding: 0;
-                      .v3-bklog-toolbar {
-                        .subbar-container {
-                          box-shadow: none;
-                          padding: 0;
-                          .box-biz-select {
-                            margin-left: 0 !important;
-                          }
-                        }
-                      }
                       .v3-bklog-container {
                         margin-top: 0;
-                        .search-bar-wrapper {
-                          .search-bar-container {
-                            box-shadow: none;
-                            border: 1px solid #DCDEE5;
-                            border-radius: 2px;
-                            &::before {
-                              background: #fff;
-                            }
-                          }
-                        }
                       }
                     }
                   }

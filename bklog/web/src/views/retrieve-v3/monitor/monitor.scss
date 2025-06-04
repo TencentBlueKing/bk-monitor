@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @import '../index.scss';
 @import '../../retrieve-v2/segment-pop.scss';
 @import '../../../scss/theme/theme-light.scss';
@@ -6,6 +7,35 @@
 
 .v3-bklog-root {
   background: #f5f7fa;
+
+  &.is-trace {
+    .search-bar-container {
+      border: 1px solid #DCDEE5;
+      box-shadow: none;
+      border-radius: 2px;
+
+      &::before {
+        background: #fff;
+      }
+    }
+
+    .subbar-container {
+      padding: 0;
+      box-shadow: none;
+
+      .box-biz-select {
+        margin-left: 0 !important;
+      }
+    }
+
+    .filter-container-wrap {
+      box-shadow: none;
+    }
+
+    .original-log-panel-tools {
+      padding: 0
+    }
+  }
 
   .v3-bklog-content {
   padding: 0 16px;

@@ -149,7 +149,7 @@ export default defineComponent({
         });
         await nextTick();
         app.$mount(mainRef.value);
-        window.traceLogComponent = app;
+        window.mainComponent = app;
       } else {
         empty.value = true;
       }
@@ -209,8 +209,7 @@ export default defineComponent({
     onUnmounted(() => {
       if (!empty.value) {
         logStore.commit('resetState');
-        window.traceLogComponent.$destroy();
-        window.traceLogComponent = null;
+        window.mainComponent.$destroy();
         unPropsWatch?.();
       }
     });
