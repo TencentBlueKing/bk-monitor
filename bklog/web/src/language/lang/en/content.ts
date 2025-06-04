@@ -1070,4 +1070,23 @@ export default {
   '注意：最大值为30个字符': 'Note: the maximum value is 30 characters',
   '当前设置仅对个人生效，可以': 'The current setting only takes effect for individuals, and can',
   '输入后按 Enter...': 'Press Enter after input...',
+  '您可按照以下顺序调整检索方式': 'You can adjust the retrieval method according to the following order',
+  查询范围: 'Query range',
+  使用通配符: 'Use wildcard',
+  精准匹配: 'Precise match',
+  检查是否为分词问题: 'Check if it is a tokenization problem',
+  '当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。':
+    'When your mouse moves to the corresponding log content, the log word will be displayed in blue.',
+  '若目标内容为整段蓝色，或中间存在字符粘连的情况。':
+    'If the target content is blue all over or there is character adhesion in the middle.',
+  可能是因为分词导致的问题:
+    'It may be a problem caused by tokenization.',
+  点击设置自定义分词: 'Click to set custom tokenization',
+  '将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。':
+    'Set the character adhesion character to the custom tokenization, wait for 3-5 minutes, and the new reported logs can take effect.',
+  一键反馈: 'One-click feedback',
+  '若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。':
+    'If you still cannot confirm the cause of the problem, please click the feedback button below to contact us. The platform will respond and handle it in a timely manner.',
+  '检测到「顶部查询条件」，已自动补充 SQL（与已输入SQL 语句叠加生效）：':
+    'Top query conditions detected, automatically supplemented SQL (takes effect叠加 with existing SQL statements):'
 };

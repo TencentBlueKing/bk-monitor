@@ -1,6 +1,6 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span class="history-button" @click="handleClickHistoryButton">
+    <span class="history-button" :style="{width:isEnLanguage?'110px':'88px'}" @click="handleClickHistoryButton">
       <span class="bklog-icon bklog-history-2"></span>
       <span >{{ $t('历史查询') }}</span>
     </span>
@@ -107,6 +107,9 @@
           return item.query_string?.toLowerCase().includes(searchTerm);
         });
       },
+      isEnLanguage() {
+        return  this.$store.getters.isEnLanguage
+      }
     },
     methods: {
       getClass(searchMode) {

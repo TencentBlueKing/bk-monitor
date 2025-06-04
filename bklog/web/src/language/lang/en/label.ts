@@ -792,4 +792,8 @@ export default {
   批量操作: 'Batch operation',
   收藏详情: 'Favorite details',
   表格排序: 'Table sort',
+  仅查看当前索引集: 'View only current index set',
+  我的: 'My',
+  设置筛选: 'Set filter',
+  未编组: 'Unorganized',
 };

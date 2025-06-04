@@ -36,7 +36,7 @@
             :key="type"
             @click="handleClickTableBtn(type)"
           >
-            {{ type === 'table' ? '表格' : '原始' }}
+            {{ type === 'table' ? $t('表格') : $t('原始') }}
           </span>
         </div>
         <ResultStorage></ResultStorage>

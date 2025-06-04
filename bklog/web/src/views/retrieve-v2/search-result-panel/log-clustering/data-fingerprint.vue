@@ -1203,7 +1203,7 @@
       renderAlertPolicyHeader(h, { column }) {
         const directive = {
           name: 'bkTooltips',
-          content: '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+          content: this.$t('勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。'),
           placement: 'top',
         };
         return (

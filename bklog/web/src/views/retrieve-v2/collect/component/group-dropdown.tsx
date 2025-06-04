@@ -546,7 +546,7 @@ export default class CollectGroup extends tsc<IProps> {
                 property='groupEditName'
               >
                 <span style={{ fontSize: '14px' }}>
-                  分组名称 <span style='color:red'>*</span>
+                  {this.$t('分组名称')} <span style='color:red'>*</span>
                 </span>
                 <Input
                   vModel={this.verifyData.groupEditName}
