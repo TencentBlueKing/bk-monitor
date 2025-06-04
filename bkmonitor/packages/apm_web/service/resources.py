@@ -48,6 +48,8 @@ from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
+    PipelineOverviewRequestSerializer,
+    ListPipelineRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkmonitor.commons.tools import batch_request
@@ -55,6 +57,7 @@ from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
+from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
 
 
 class ApplicationListResource(Resource):
@@ -601,3 +604,17 @@ class AppQueryByIndexSetResource(Resource):
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
 
         return res
+
+
+class PipelineOverviewResource(Resource):
+    RequestSerializer = PipelineOverviewRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        return API_PIPELINE_OVERVIEW_RESPONSE
+
+
+class ListPipelineResource(Resource):
+    RequestSerializer = ListPipelineRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        return API_LIST_PIPELINE_RESPONSE
