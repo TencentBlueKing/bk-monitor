@@ -114,6 +114,14 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
       condition.filter(item => item.value?.length)
     );
   }
+  /**
+   * 用于适配初始化 data ready 后 返回初始化值
+   */
+  async handleGetOptionsList() {
+    return {
+      [this.variableName]: structuredClone(this.value),
+    };
+  }
   render() {
     return (
       <div class='where-filters'>
