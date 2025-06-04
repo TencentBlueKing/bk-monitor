@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import functools
 import gzip
@@ -14,7 +15,6 @@ import hashlib
 import itertools
 import json
 import logging
-from typing import Optional, Tuple, Union
 
 from django.http import HttpResponse
 from django.utils import timezone
@@ -178,7 +178,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start: int,
         end: int,
         sample_type: str,
-        converter: Optional[ConverterType] = None,
+        converter: ConverterType | None = None,
     ) -> TreeConverter:
         """
         获取 ebpf profile 数据
@@ -203,18 +203,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         start: int,
         end: int,
         result_table_id: str,
-        extra_params: Optional[dict] = None,
+        extra_params: dict | None = None,
         api_type: APIType = APIType.QUERY_SAMPLE_BY_JSON,
-        profile_id: Optional[str] = None,
-        filter_labels: Optional[dict] = None,
+        profile_id: str | None = None,
+        filter_labels: dict | None = None,
         dimension_fields: str = None,
         data_type: str = None,
         sample_type: str = None,
         order: str = None,
         agg_method: str = None,
         agg_interval: int = 60,
-        converter: Optional[ConverterType] = None,
-    ) -> Union[DorisProfileConverter, TreeConverter, dict]:
+        converter: ConverterType | None = None,
+    ) -> DorisProfileConverter | TreeConverter | dict:
         """
         获取 profile 数据
         """
@@ -622,7 +622,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return tendency_data, compare_tendency_result
 
     @staticmethod
-    def enlarge_duration(start: int, end: int, offset: int, min_range: int = 0) -> Tuple[int, int]:
+    def enlarge_duration(start: int, end: int, offset: int, min_range: int = 0) -> tuple[int, int]:
         """
         params:
             - start, end: unit microseconds
@@ -631,8 +631,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return: unit milliseconds
         """
         # start & end all in microsecond, so we need to convert it to millisecond
-        start = int(start / 1000 + offset * 1000)
-        end = int(end / 1000 + offset * 1000)
+        start = int(int(start) / 1000 + offset * 1000)
+        end = int(int(end) / 1000 + offset * 1000)
 
         min_range_milli_seconds = min_range * 1000
         if min_range_milli_seconds > 0 and end - start < min_range_milli_seconds:
@@ -773,7 +773,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         if not doris_converter:
-            compressed_data = b''
+            compressed_data = b""
         else:
             serialized_data = doris_converter.profile.SerializeToString()
             compressed_data = gzip.compress(serialized_data)

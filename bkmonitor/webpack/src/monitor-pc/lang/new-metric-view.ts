@@ -126,4 +126,5 @@ export default {
   '30天前': '30 days ago',
   Time: 'Time',
   type: 'Type',
+  视图管理: 'View Management',
 };

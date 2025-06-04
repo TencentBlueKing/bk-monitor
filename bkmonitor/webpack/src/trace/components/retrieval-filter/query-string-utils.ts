@@ -149,11 +149,15 @@ export function parseQueryString(query: string): IStrItem[] {
       tokens.push({ value: quoted, type: EQueryStringTokenType.value });
     } else if (word) {
       const match = word.match(/[)\]}]/);
-      if (match) {
+      if (match?.input?.endsWith(match?.[0])) {
         tokens.push({ value: word.slice(0, match.index), type: EQueryStringTokenType.value });
         tokens.push({ value: match[0], type: EQueryStringTokenType.bracket });
       } else {
-        tokens.push({ value: word, type: EQueryStringTokenType.value });
+        if (tokens?.[tokens.length - 1]?.type === EQueryStringTokenType.value) {
+          tokens[tokens.length - 1].value += word;
+        } else {
+          tokens.push({ value: word, type: EQueryStringTokenType.value });
+        }
       }
     }
   }
@@ -461,6 +465,11 @@ export class QueryStringEditor {
     if (event.key === 'Enter') {
       event.stopPropagation();
       event.preventDefault();
+      if (!this.queryString) {
+        // 针对粘贴后300ms内回车的情况
+        const str = this.editorEl.textContent.replace(/^\s+|\s+$/g, '');
+        this.options?.onChange(str);
+      }
       this.options?.onQuery?.();
     }
   }
@@ -584,7 +593,7 @@ export class QueryStringEditor {
         (item, index) =>
           `<span token-type="${item.type}" token-index="${index}" style="color: ${
             queryStringColorMap[item.type]?.color || defaultColor
-          };" class="str-item">${item.value}</span>`
+          };" class="str-item">${item.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
       )
       .join('');
     replaceContent(this.editorEl, content, isLast);

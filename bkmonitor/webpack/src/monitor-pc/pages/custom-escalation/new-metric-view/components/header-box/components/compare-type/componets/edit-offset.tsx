@@ -35,6 +35,7 @@ import './edit-offset.scss';
 
 interface IProps {
   value: string[];
+  offsetSingle: boolean; // 是否单选
 }
 
 interface IEmit {
@@ -44,6 +45,7 @@ interface IEmit {
 @Component
 export default class CompareWay extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
+  @Prop({ type: Boolean, required: true }) readonly offsetSingle: IProps['offsetSingle'];
 
   @Ref('rooRef') rootRef: HTMLElement;
   @Ref('popoverRef') popoverRef: any;
@@ -73,7 +75,8 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   customDate = '';
   tempCustomDate = ''; // 自定义日期编辑状态缓存值
   localValue: string[] = [];
-  tempEditValue: string[] = []; // 偏移日期编辑状态缓存值
+  multTempEditValue: string[] = []; // 多选偏移日期编辑状态缓存值
+  singleTempEditValue = ''; // 单选偏移日期编辑状态缓存值
 
   get timeRangTimestamp() {
     return customEscalationViewStore.timeRangTimestamp;
@@ -101,7 +104,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     if (Dayjs(value).isAfter(Dayjs.unix(endTime))) {
       return true;
     }
-    const tempValueMap = makeMap(this.tempEditValue);
+    const tempValueMap = makeMap(this.multTempEditValue);
     if (tempValueMap['1h'] && Dayjs(value).isSame(Dayjs(), 'day')) {
       return true;
     }
@@ -162,13 +165,23 @@ export default class CompareWay extends tsc<IProps, IEmit> {
 
   handleShowEdit() {
     this.isPopoverShown = true;
-    this.tempEditValue = [...this.localValue];
+    if (this.offsetSingle) {
+      this.singleTempEditValue = this.localValue[0] || '';
+    } else {
+      this.multTempEditValue = [...this.localValue];
+    }
+
     this.tempCustomDate = this.customDate;
   }
 
   handleSubmitEdit() {
     this.isPopoverShown = false;
-    this.localValue = [...this.tempEditValue];
+    if (this.offsetSingle) {
+      this.localValue = this.singleTempEditValue ? [this.singleTempEditValue] : [];
+    } else {
+      this.localValue = [...this.multTempEditValue];
+    }
+
     this.customDate = this.tempCustomDate;
     this.triggerChange();
   }
@@ -192,6 +205,16 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     this.tempCustomDate = day;
   }
 
+  handleSingleTempEditValueChange() {
+    this.isCustom = false;
+    this.tempCustomDate = '';
+  }
+  handleSingleCustomChange(value: boolean) {
+    if (value) {
+      this.singleTempEditValue = '';
+    }
+  }
+
   mounted() {
     if (this.value.length < 1) {
       this.popoverRef.showHandler();
@@ -207,6 +230,84 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   }
 
   render() {
+    const renderOffsetItem = (offsetItem: { id: string; name: string }) => {
+      return (
+        <div
+          class='time-description'
+          v-bk-tooltips={this.calcDateRang(offsetItem.id)}
+        >
+          {offsetItem.name}
+        </div>
+      );
+    };
+    const renderCustomOffset = () => {
+      if (this.isCustom) {
+        return (
+          <bk-date-picker
+            style='width: 126px; margin-left: 12px;'
+            options={{
+              disabledDate: this.disabledDateMethod,
+            }}
+            ext-popover-cls='metric-view-custom-date-picker'
+            transfer={true}
+            value={this.tempCustomDate}
+            onChange={this.handleCustomDateChange}
+          />
+        );
+      }
+      return null;
+    };
+    const renderOffsetList = () => {
+      if (!this.isPopoverShown) {
+        return null;
+      }
+      if (this.offsetSingle) {
+        return (
+          <div>
+            <bk-radio-group
+              v-model={this.singleTempEditValue}
+              onChange={this.handleSingleTempEditValueChange}
+            >
+              {this.offsetList.map(offsetItem => (
+                <div
+                  key={offsetItem.id}
+                  class='time-item'
+                >
+                  <bk-radio value={offsetItem.id}>{renderOffsetItem(offsetItem)}</bk-radio>
+                </div>
+              ))}
+            </bk-radio-group>
+            <div class='time-item'>
+              <bk-radio
+                v-model={this.isCustom}
+                onChange={this.handleSingleCustomChange}
+              >
+                {this.$t('自定义')}
+              </bk-radio>
+              {renderCustomOffset()}
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+          <bk-checkbox-group v-model={this.multTempEditValue}>
+            {this.offsetList.map(offsetItem => (
+              <div
+                key={offsetItem.id}
+                class='time-item'
+              >
+                <bk-checkbox value={offsetItem.id}>{renderOffsetItem(offsetItem)}</bk-checkbox>
+              </div>
+            ))}
+          </bk-checkbox-group>
+          <div class='time-item'>
+            <bk-checkbox v-model={this.isCustom}>{this.$t('自定义')}</bk-checkbox>
+            {renderCustomOffset()}
+          </div>
+        </div>
+      );
+    };
     return (
       <div
         ref='rooRef'
@@ -256,40 +357,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             class='wrapper'
             slot='content'
           >
-            {this.isPopoverShown && (
-              <bk-checkbox-group v-model={this.tempEditValue}>
-                {this.offsetList.map(offsetItem => (
-                  <div
-                    key={offsetItem.id}
-                    class='time-item'
-                  >
-                    <bk-checkbox value={offsetItem.id}>
-                      <div
-                        class='time-description'
-                        v-bk-tooltips={this.calcDateRang(offsetItem.id)}
-                      >
-                        {offsetItem.name}
-                      </div>
-                    </bk-checkbox>
-                  </div>
-                ))}
-              </bk-checkbox-group>
-            )}
-            <div class='time-item'>
-              <bk-checkbox v-model={this.isCustom}>{this.$t('自定义')}</bk-checkbox>
-              {this.isCustom && (
-                <bk-date-picker
-                  style='width: 126px; margin-left: 12px;'
-                  options={{
-                    disabledDate: this.disabledDateMethod,
-                  }}
-                  ext-popover-cls='metric-view-custom-date-picker'
-                  transfer={true}
-                  value={this.tempCustomDate}
-                  onChange={this.handleCustomDateChange}
-                />
-              )}
-            </div>
+            {renderOffsetList()}
           </div>
         </bk-popover>
       </div>

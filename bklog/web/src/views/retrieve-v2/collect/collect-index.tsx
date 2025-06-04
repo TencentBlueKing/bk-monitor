@@ -409,17 +409,29 @@ export default class CollectIndex extends tsc<IProps> {
     }
     const cloneValue = deepClone(value);
     this.activeFavorite = deepClone(value);
+
+    const isUnionIndex = cloneValue.index_set_ids.length > 0;
+    const keyword = cloneValue.params.keyword;
+    const addition = cloneValue.params.addition ?? [];
+    const getSearchMode = () => {
+      if (addition.length > 0 && keyword.length > 0) {
+        return cloneValue.search_mode;
+      }
+      if (addition.length > 0) {
+        return 'ui';
+      }
+
+      return 'sql';
+    };
+    const search_mode = getSearchMode();
+
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
     this.$store.commit('updateIsSetDefaultTableColumn', false);
     this.$store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: value.index_set_type,
-      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(value.search_mode ?? 'ui'),
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode ?? 'ui'),
     });
-
-    const isUnionIndex = cloneValue.index_set_ids.length > 0;
-    const keyword = cloneValue.params.keyword;
-    const addition = cloneValue.params.addition ?? [];
 
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
     if (isUnionIndex) {
@@ -444,7 +456,7 @@ export default class CollectIndex extends tsc<IProps> {
       ids,
       items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
-      search_mode: cloneValue.search_mode,
+      search_mode: search_mode,
     });
 
     this.setRouteParams(value);
@@ -455,7 +467,7 @@ export default class CollectIndex extends tsc<IProps> {
       list: [],
     });
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
-      RetrieveHelper.setFavoriteActive(this.activeFavorite);
+      RetrieveHelper.setFavoriteActive({ ...this.activeFavorite, search_mode });
       this.$store.dispatch('requestIndexSetQuery');
     });
   }
@@ -815,8 +827,8 @@ export default class CollectIndex extends tsc<IProps> {
   handleShowCurrentChange() {
     RetrieveHelper.setViewCurrentIndexn(this.isShowCurrentIndexList);
   }
-  closeShowManageDialog(){
-    this.isShowManageDialog = false
+  closeShowManageDialog() {
+    this.isShowManageDialog = false;
     this.getFavoriteList();
   }
   render() {
@@ -1026,11 +1038,8 @@ export default class CollectIndex extends tsc<IProps> {
         /> */}
         <FavoriteManageDialog
           modelValue={this.isShowManageDialog}
-          onClose={this.closeShowManageDialog }
-
-        >
-
-        </FavoriteManageDialog>
+          onClose={this.closeShowManageDialog}
+        ></FavoriteManageDialog>
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
           activeFavoriteID={this.activeFavoriteID}

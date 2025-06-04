@@ -83,6 +83,8 @@ export default defineComponent({
     const localField = shallowRef('');
     /** 获取字段统计接口次数，用于判断接口取消后的逻辑 */
     const getStatisticsListCount = shallowRef(1);
+    /** 获取字段信息接口次数 */
+    const getStatisticsInfoCount = shallowRef(1);
     const statisticsInfo = shallowRef<IStatisticsInfo>({
       field: '',
       total_count: 0,
@@ -153,6 +155,8 @@ export default defineComponent({
     }
 
     async function getStatisticsGraphData() {
+      getStatisticsInfoCount.value += 1;
+      const count = getStatisticsListCount.value;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
       const info: IStatisticsInfo = await traceFieldStatisticsInfo(
@@ -169,7 +173,8 @@ export default defineComponent({
           cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
         }
       ).catch(() => []);
-
+      /** 如果是取消接口，不进行后续操作 */
+      if (count !== getStatisticsListCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
       if (!info || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
         infoLoading.value = false;
@@ -330,6 +335,7 @@ export default defineComponent({
                   class='icon-monitor icon-a-sousuo'
                   v-bk-tooltips={{
                     content: `${localField.value} = ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('equal', item)}
                 />
@@ -337,6 +343,7 @@ export default defineComponent({
                   class='icon-monitor icon-sousuo-'
                   v-bk-tooltips={{
                     content: `${localField.value} != ${item.value || '""'}`,
+                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
                   }}
                   onClick={() => handleConditionChange('not_equal', item)}
                 />

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { OptionData, PrimaryTableCol } from 'tdesign-vue-next';
+import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-next';
 
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
@@ -36,6 +36,8 @@ export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = Explo
   renderType?: T;
   /** 列描述(popover形式展现) **/
   headerDescription?: string;
+  /** 单元格后置插槽（tag类型列暂未支持） */
+  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
@@ -56,12 +58,13 @@ export interface TableCellRenderValueType {
   [ExploreTableColumnTypeEnum.TIME]: number;
   [ExploreTableColumnTypeEnum.TAGS]: {
     alias: string;
+    value: string;
     tagColor: string;
     tagBgColor: string;
   }[];
   [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
     alias: string;
-    prefixIcon: string;
+    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
   };
   [ExploreTableColumnTypeEnum.LINK]: {
     alias: string;
@@ -97,4 +100,10 @@ export enum ExploreTableLoadingEnum {
   HEADER_SKELETON = 'table_header_skeleton',
   /** 滚动 -- 显示 表格底部 loading */
   SCROLL = 'scrollLoading',
+}
+
+/** 自定义显示列字段缓存配置 */
+export interface CustomDisplayColumnFieldsConfig {
+  displayFields: string[];
+  fieldsWidth: { [colKey: string]: number };
 }

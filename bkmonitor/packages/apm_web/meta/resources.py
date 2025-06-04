@@ -286,7 +286,7 @@ class ListApplicationInfoResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         qs = Application.objects.filter(bk_biz_id=bk_biz_id).filter(Application.q_filter_create_finished())
         apps = self.ApplicationInfoResponseSerializer(instance=qs, many=True).data
-        biz_trpc_apps = settings.APM_TRPC_APPS.get(bk_biz_id) or []
+        biz_trpc_apps = settings.APM_TRPC_APPS.get(str(bk_biz_id)) or []
         for app in apps:
             app_name = app["app_name"]
             app["view_config"] = TRPC_TRACE_VIEW_CONFIG if app_name in biz_trpc_apps else DEFAULT_TRACE_VIEW_CONFIG

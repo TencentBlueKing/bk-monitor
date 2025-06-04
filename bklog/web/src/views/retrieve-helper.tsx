@@ -78,10 +78,12 @@ class RetrieveHelper extends RetrieveBase {
    * 更新索引集id
    * @param id
    */
-  setIndexsetId(idList: string[], type: string) {
+  setIndexsetId(idList: string[], type: string, fireEvent = true) {
     this.indexSetIdList = idList;
     this.indexSetType = type;
-    this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    if (fireEvent) {
+      this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    }
   }
 
   /**

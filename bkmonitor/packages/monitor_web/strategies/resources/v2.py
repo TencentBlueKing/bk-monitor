@@ -57,7 +57,7 @@ from bkmonitor.strategy.new_strategy import (
     parse_metric_id,
 )
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.request import get_request_username, get_source_app
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.aiops import SDKDetectStatus
@@ -384,14 +384,9 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
-                "plugin_id"
-            )
-            # plugin_table_ids = []
-            # for plugin in plugins:
-            #     version = plugin.current_version
-            #     for table in version.info.metric_json:
-            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]
+            ).values("plugin_id")
 
             plugin_strategy_ids = []
             query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
@@ -3552,7 +3547,7 @@ class GetDevopsStrategyListResource(Resource):
             return {"result": False, "status": 1, "data": [], "message": "无法获取当前用户"}
 
         # 检查用户是否有权限访问指定业务
-        p = Permission(username=username)
+        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         # 强制检查权限
         p.skip_check = False
         if not p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_RULE):
