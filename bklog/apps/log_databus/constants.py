@@ -555,6 +555,8 @@ CHECK_AGENT_STEP = {
     "healthz": _("执行healthz自检查查看结果"),
     "socket_queue_status": _("检查socket队列状态"),
     "dataserver_port": _("检查data server端口是否存在"),
+    "logpath_match": _("检查日志采集路径是否存在"),
+    "logpath_held": _("检查日志采集路径是否持有句柄"),
 }
 
 # kafka ssl配置项

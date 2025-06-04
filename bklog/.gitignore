@@ -191,3 +191,4 @@ log_open
 .codecc
 .history
 build.yml
+local.env

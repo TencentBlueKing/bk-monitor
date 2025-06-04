@@ -19,20 +19,28 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import os
+
+from packaging.utils import _
+
 from apps.generic import APIViewSet
+from apps.log_databus.constants import CheckStatusEnum
 from apps.log_databus.handlers.check_collector.base import CheckCollectorRecord
-from apps.log_databus.handlers.check_collector.handler import async_run_check
+from apps.log_databus.handlers.check_collector.checker.path_check import LogPathChecker
+from apps.log_databus.handlers.check_collector.handler import async_run_check, async_atomic_check
 from apps.log_databus.serializers import (
     CheckCollectorSerializer,
-    GetCollectorCheckResultSerializer,
+    GetCollectorCheckResultSerializer, CheckCollectorAtomicResultSerializer,
 )
 from apps.utils.drf import list_route
 from rest_framework import serializers
 from rest_framework.response import Response
+from apps.log_databus.models import CollectorConfig
 
 
 class CheckCollectorViewSet(APIViewSet):
     serializer_class = serializers.Serializer
+    HANDLER_NAME = _("启动入口")
 
     @list_route(methods=["POST"], url_path="get_check_collector_infos")
     def get_check_collector_infos(self, request, *args, **kwargs):
@@ -48,3 +56,40 @@ class CheckCollectorViewSet(APIViewSet):
         CheckCollectorRecord(check_record_id=key).append_init()
         async_run_check.delay(**data)
         return Response({"check_record_id": key})
+
+    """
+        原子日志链路检查接口
+        参数:
+            bk_data_id
+            hosts
+    """
+
+    @list_route(methods=["POST"], url_path="atomic_check_collector")
+    def atomic_check_collector(self, request, *args, **kwargs):
+        data = self.params_valid(CheckCollectorAtomicResultSerializer)
+        bk_data_id = data.get("bk_data_id")
+        assert bk_data_id is not None, "bk_data_id不能为空"
+        collector_config = CollectorConfig.objects.get(bk_data_id=bk_data_id)
+        key = CheckCollectorRecord.generate_check_record_id(
+            collector_config_id=collector_config.collector_config_id,
+            hosts=data.get("hosts")
+        )
+        record = CheckCollectorRecord(check_record_id=key)
+        record.append_init()
+        # 同步执行日志路径检查
+        path_check = LogPathChecker(
+            collector_config_id=collector_config.collector_config_id,
+            check_collector_record=record
+        )
+        path_check.run()
+        # 异步执行AgentChecker或BkunifylogbeatChecker
+        task = async_atomic_check.delay(
+            collector_config_id=collector_config.collector_config_id,
+            hosts=data.get("hosts"),
+            check_record_id=key
+        )
+        result = {"infos": record.get_infos(),
+                  "finished": record.finished,
+                  "msg": "日志路径检测完成，异步检测run_agent_check启动成功，task_id:" + str(task.id)}
+        record.change_status(CheckStatusEnum.STARTED.value)
+        return Response(result)

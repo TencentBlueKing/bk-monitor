@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 
+import glob
 import os
 import subprocess
 import sys
@@ -13,12 +14,17 @@ import json
 
 MODULE_BKUNIFYLOGBEAT = "bkunifylogbeat"
 MODULE_GSEAGENT = "gse_agent"
+MODULE_LOG_PATH = "log_path"
+
+STEP_CHECK_LOG_PATH_LOGPATH_MATCH = "logpath_match"
+STEP_CHECK_LOG_PATH_LOGPATH_HELD = "logpath_held"
 
 STEP_CHECK_BKUNIFYLOGBEAT_BIN_FILE = "bin_file"
 STEP_CHECK_BKUNIFYLOGBEAT_PROCESS = "process"
 STEP_CHECK_BKUNIFYLOGBEAT_MAIN_CONFIG = "main_config"
 STEP_CHECK_BKUNIFYLOGBEAT_CONFIG = "config"
 STEP_CHECK_BKUNIFYLOGBEAT_HOSTED = "hosted"
+STEP_CHECK_BKUNIFYLOGBEAT_PATH_PATTERN = "path_pattern"
 STEP_CHECK_BKUNIFYLOGBEAT_HEALTHZ = "healthz"
 
 STEP_CHECK_GSEAGENT_PROCESS = "process"
@@ -31,6 +37,7 @@ COLLECTOR_MAIN_CONFIG_FILE_NAME = "bkunifylogbeat.conf"
 DATASERVER_PORT = "58625"
 
 subscription_id = 0
+collector_config_id = 0
 socket_between_gse_agent_and_beat = "/var/run/ipc.state.report"
 gse_path = "/usr/local/gse/"
 collector_bin_path = os.path.join(gse_path, "plugins/bin", MODULE_BKUNIFYLOGBEAT)
@@ -73,6 +80,63 @@ class Result(object):
         }
         global check_result
         check_result["data"].append(d)
+
+
+class LogPathChecker(object):
+
+    @staticmethod
+    def check_path_match(log_paths=None):
+        result = Result(MODULE_LOG_PATH, STEP_CHECK_LOG_PATH_LOGPATH_MATCH)
+        paths = []
+        missing_paths = []
+        existing_files = []
+        if log_paths:
+            paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
+        if not paths:
+            result.message = "日志采集路径不存在"
+            result.add_to_result()
+            return
+        for path in paths:
+            # 使用ls命令检查路径是否存在（兼容通配符）
+            cmd = "ls -d -- {}".format(path)
+            ls_output = get_command(cmd)
+            missing_paths.append(path)
+            existing_files.extend(ls_output.splitlines())
+        # 先处理有路径缺失的情况
+        if missing_paths:
+            result.message = "以下路径无匹配文件: {}".format(", ".join(missing_paths))
+            if existing_files:
+                result.message += "\n已存在的文件:\n{}".format("\n".join(existing_files[:10]))
+            result.add_to_result()
+            return
+        # 所有路径都有效的情况
+        result.status = True
+        result.message = "所有路径检查通过" + (
+            "\n匹配到的文件:\n{}".format("\n".join(existing_files[:10]))
+            if existing_files
+            else ""
+        )
+        result.add_to_result()
+
+    @staticmethod
+    def check_file_held(log_paths=None):
+        result = Result(MODULE_LOG_PATH, STEP_CHECK_LOG_PATH_LOGPATH_HELD)
+        # 获取bkunifylogbeat进程打开的文件
+        lsof_output = get_command("lsof -c {}".format(MODULE_BKUNIFYLOGBEAT))
+        held_files = set(line.split()[-1] for line in lsof_output.splitlines() if line.strip())
+        # 从log_paths获取需要检查的路径
+        check_paths = []
+        if log_paths:
+            check_paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
+        # 使用sum合并列表并过滤
+        matched_files = sum((glob.glob(path) for path in check_paths), [])
+        conflict_files = [f for f in matched_files if f in held_files]
+        if conflict_files:
+            result.message = "文件被占用: {}".format(", ".join(conflict_files))
+        else:
+            result.status = True
+            result.message = "无文件占用冲突"
+        result.add_to_result()
 
 
 class BKUnifyLogBeatCheck(object):
@@ -249,6 +313,26 @@ def _get_opt_parser():
         default=socket_between_gse_agent_and_beat,
     )
 
+    opt_parser.add_option(
+        "-c",
+        "--collector_config_id",
+        action="store",
+        type="int",
+        dest="collector_config_id",
+        help="""采集配置ID""",
+        default=0,
+    )
+
+    opt_parser.add_option(
+        "-l",
+        "--log_paths",
+        action="store",
+        type="string",
+        dest="log_paths",
+        help="""采集路径，多个路径用逗号分隔""",
+        default="",
+    )
+
     return opt_parser
 
 
@@ -260,6 +344,8 @@ def arg_parse():
     global collector_etc_main_config_path
     global collector_etc_path
     global procinfo_file_path
+    global log_paths
+    global collector_config_id
 
     parser = _get_opt_parser()
     (options, args) = parser.parse_args(sys.argv)
@@ -274,10 +360,25 @@ def arg_parse():
         subscription_id = options.subscription_id
     if options.ipc_socket_file:
         socket_between_gse_agent_and_beat = options.ipc_socket_file
+    if options.collector_config_id:
+        collector_config_id = options.collector_config_id
+    log_paths = []
+    if options.log_paths and options.log_paths.strip():
+        log_paths = options.log_paths.split(",")
 
 
 def main():
     arg_parse()
+    global log_paths
+    # 新增路径检查
+    # 确保log_paths有默认值
+    if not hasattr(sys, 'log_paths'):
+        log_paths = []
+    if log_paths:
+        logpath_checker = LogPathChecker()
+        logpath_checker.check_path_match(log_paths)
+        logpath_checker.check_file_held(log_paths)
+
     global subscription_id
     if subscription_id:
         bkunifylogbeat_checker = BKUnifyLogBeatCheck()
