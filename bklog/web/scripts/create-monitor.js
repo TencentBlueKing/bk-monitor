@@ -121,12 +121,13 @@ const createMonitorConfig = config => {
           'qs',
           /dayjs\//,
           'dayjs',
+          // /echarts\/*/,
           /lodash/,
           // /vue-json-pretty/,
           ({ request }, cb) => {
-            // if (request === 'echarts') {
-            //   return cb(undefined, request.replace(request, request));
-            // }
+            if (request === 'echarts') {
+              return cb(undefined, request.replace(request, request));
+            }
             if (request === 'resize-detector') {
               return cb(undefined, '@blueking/fork-resize-detector');
             }
