@@ -269,10 +269,21 @@ export function useExploreColumnConfig({
    * @description 服务 或 接口 列点击后回调
    *
    */
-  function handleServiceOrApiColumnClick(row, column, e, linkUrl) {
+  function handleServiceOrApiColumnClick(row, column, e, customMenu) {
     const colKey = column.colKey;
     const cellSource = row[colKey];
-    handleConditionMenuShow(e.target, colKey, cellSource, linkUrl);
+    handleConditionMenuShow(e.target, colKey, cellSource, customMenu);
+  }
+
+  /**
+   * @description 查看详情 回调
+   *
+   */
+  function handleLink(linkUrl) {
+    if (!linkUrl) {
+      return;
+    }
+    window.open(linkUrl, '_blank');
   }
 
   /**
@@ -350,7 +361,16 @@ export function useExploreColumnConfig({
           width: 160,
           clickCallback: (row, column, e) => {
             const item = getJumpToApmLinkItem(row, column);
-            handleServiceOrApiColumnClick(row, column, e, item.url);
+            const customMenu = [
+              {
+                id: 'service-link',
+                name: t('查看服务详情'),
+                icon: 'icon-chakan',
+                onClick: () => handleLink(item.url),
+                suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+              },
+            ];
+            handleServiceOrApiColumnClick(row, column, e, customMenu);
           },
         },
         trace_id: {
@@ -391,7 +411,16 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmApplicationLinkItem(row, column);
-          handleServiceOrApiColumnClick(row, column, e, item.url);
+          const customMenu = [
+            {
+              id: 'api-link',
+              name: t('查看接口详情'),
+              icon: 'icon-chakan',
+              onClick: () => handleLink(item.url),
+              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+            },
+          ];
+          handleServiceOrApiColumnClick(row, column, e, customMenu);
         },
       },
       root_service: {
@@ -402,7 +431,16 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmLinkItem(row, column);
-          handleServiceOrApiColumnClick(row, column, e, item.url);
+          const customMenu = [
+            {
+              id: 'api-link',
+              name: t('查看服务详情'),
+              icon: 'icon-chakan',
+              onClick: () => handleLink(item.url),
+              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+            },
+          ];
+          handleServiceOrApiColumnClick(row, column, e, customMenu);
         },
       },
       root_service_span_name: {
@@ -413,7 +451,16 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmApplicationLinkItem(row, column);
-          handleServiceOrApiColumnClick(row, column, e, item.url);
+          const customMenu = [
+            {
+              id: 'api-link',
+              name: t('查看接口详情'),
+              icon: 'icon-chakan',
+              onClick: () => handleLink(item.url),
+              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+            },
+          ];
+          handleServiceOrApiColumnClick(row, column, e, customMenu);
         },
       },
       root_service_category: {

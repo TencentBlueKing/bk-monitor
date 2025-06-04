@@ -229,7 +229,8 @@ export default defineComponent({
     const activeConditionMenuTarget = reactive({
       conditionKey: '',
       conditionValue: '',
-      linkUrl: '',
+      /** 除公共菜单项外需要自定义菜单项列表 */
+      customMenuList: [],
     });
 
     /** 表格行可用作 唯一主键值 的字段名 */
@@ -465,18 +466,18 @@ export default defineComponent({
      * @description: 修改条件菜单所需数据
      *
      */
-    function setActiveConditionMenu(colKey = '', cellSource = '', linkUrl = '') {
+    function setActiveConditionMenu(colKey = '', cellSource = '', customMenuList = []) {
       activeConditionMenuTarget.conditionKey = colKey;
       activeConditionMenuTarget.conditionValue = cellSource;
-      activeConditionMenuTarget.linkUrl = linkUrl;
+      activeConditionMenuTarget.customMenuList = customMenuList;
     }
 
     /**
      * @description: 显示条件菜单
      *
      */
-    function handleConditionMenuShow(triggerDom, colKey, cellSource, linkUrl) {
-      setActiveConditionMenu(colKey, cellSource, linkUrl);
+    function handleConditionMenuShow(triggerDom, colKey, cellSource, customMenuList) {
+      setActiveConditionMenu(colKey, cellSource, customMenuList);
       const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
       conditionMenuPopoverShow(isEllipsisActive ? triggerDom.parentElement : triggerDom, conditionMenuRef.value.$el);
     }
@@ -743,6 +744,7 @@ export default defineComponent({
             ),
           }}
           columns={[
+            // @ts-ignore
             ...this.tableDisplayColumns,
             {
               width: '32px',
@@ -752,6 +754,7 @@ export default defineComponent({
               resizable: false,
               thClassName: '__table-custom-setting-col__',
               colKey: '__col_setting__',
+              // @ts-ignore
               title: () => {
                 return (
                   <ExploreFieldSetting
@@ -773,6 +776,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={{
             container: SCROLL_ELEMENT_CLASS_NAME,
           }}
+          // @ts-ignore
           lastFullRow={
             this.tableViewData.length
               ? () => (
@@ -831,14 +835,9 @@ export default defineComponent({
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'
-            showMenuIdsSet={
-              this.activeConditionMenuTarget.linkUrl
-                ? new Set(['link', 'copy', 'add', 'delete', 'new-page'])
-                : undefined
-            }
             conditionKey={this.activeConditionMenuTarget.conditionKey}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
-            linkUrl={this.activeConditionMenuTarget.linkUrl}
+            customMenuList={this.activeConditionMenuTarget.customMenuList}
             onConditionChange={this.handleConditionChange}
             onMenuClick={this.handleMenuClick}
           />
