@@ -788,9 +788,12 @@ class UnifyQueryHandler:
         method = "count"
         for q in params["query_list"]:
             q["function"] = [
-                {"method": method, "dimensions": [group_field]},
                 {"method": "date_histogram", "window": interval},
             ]
+            if group_field:
+                q["function"].append({"method": method, "dimensions": [group_field]})
+            else:
+                q["function"].append({"method": method})
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []

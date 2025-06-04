@@ -76,18 +76,18 @@ fi
 
 if [ "$file_path" == "" ];then
     # shellcheck disable=SC2086
-    echo "find $dir_path $maxdepth $mtime -type f | grep -E \"[^/]($file_type)\" >> $BK_LOG_FILE_LIST"
+    echo "find $dir_path $maxdepth $mtime -type f | grep -E \"(^|/)($file_type)\" >> $BK_LOG_FILE_LIST"
     for dir in $dir_path
       do
-        cmd="find $dir $maxdepth $mtime -type f | grep -E \"[^/]($file_type)\" >> $BK_LOG_FILE_LIST"
+        cmd="find $dir $maxdepth $mtime -type f | grep -E \"(^|/)($file_type)\" >> $BK_LOG_FILE_LIST"
         echo $cmd | sh
     done
 else
     # shellcheck disable=SC2086
-    echo "find $dir_path$file_path $maxdepth $mtime -type f | grep -E \"[^/]($file_type)\" >> $BK_LOG_FILE_LIST"
+    echo "find $dir_path$file_path $maxdepth $mtime -type f | grep -E \"(^|/)($file_type)\" >> $BK_LOG_FILE_LIST"
     for file in ${dir_path}${file_path}
       do
-        cmd="find $file $maxdepth $mtime -type f | grep -E \"[^/]($file_type)\" >> $BK_LOG_FILE_LIST"
+        cmd="find $file $maxdepth $mtime -type f | grep -E \"(^|/)($file_type)\" >> $BK_LOG_FILE_LIST"
         echo $cmd | sh
     done
 fi
