@@ -75,6 +75,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
 
         self.item_config = item_config
         self.strategy: Strategy = strategy
+        self.bk_tenant_id: str = self.strategy.bk_tenant_id
 
         for query_config in self.query_configs:
             query_config["target"] = self.target

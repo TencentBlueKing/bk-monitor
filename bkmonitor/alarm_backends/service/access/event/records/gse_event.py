@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 
@@ -27,7 +25,7 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
     TITLE = ""
 
     def __init__(self, raw_data, strategies):
-        super(GSEBaseAlarmEventRecord, self).__init__(raw_data=raw_data, strategies=strategies)
+        super().__init__(raw_data=raw_data, strategies=strategies)
         self.strategies = strategies
 
     @property
@@ -67,7 +65,7 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
             return bk_cloud_id, company_id, ip
 
         # 从缓存中获取agent_id对应的主机信息
-        host = HostManager.get_by_agent_id(agent_id)
+        host = HostManager.get_by_agent_id(bk_tenant_id=self.bk_tenant_id, bk_agent_id=agent_id)
         if host:
             bk_cloud_id = host.bk_cloud_id
             ip = host.bk_host_innerip

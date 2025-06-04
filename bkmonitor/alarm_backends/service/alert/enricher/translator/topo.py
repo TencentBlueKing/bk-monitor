@@ -34,7 +34,7 @@ class TopoNodeTranslator(BaseTranslator):
         if not bk_host_id:
             return data
 
-        host = HostManager.get_by_id(bk_host_id.value)
+        host = HostManager.get_by_id(bk_tenant_id=self.bk_tenant_id, bk_host_id=bk_host_id.value)
         if not host:
             return data
 
@@ -84,9 +84,8 @@ class TopoNodeTranslator(BaseTranslator):
 
         node_infos = TopoManager.mget(bk_tenant_id=self.bk_tenant_id, topo_nodes=keys)
 
-        for index, node in enumerate(nodes):
-            node_info = node_infos[index]
-            bk_obj_id, bk_inst_id = node.split("|")
+        for bk_obj_id, bk_inst_id in keys:
+            node_info = node_infos.get((bk_obj_id, bk_inst_id))
             # 如果在缓存中获取不到节点信息，则直接使用ID
             if not node_info:
                 bk_obj_name = bk_obj_id

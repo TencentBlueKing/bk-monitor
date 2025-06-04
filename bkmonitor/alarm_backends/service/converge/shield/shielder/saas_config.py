@@ -256,8 +256,8 @@ class HostShielder(BaseShielder):
     def _is_matched(self):
         if getattr(self.alert.event, "target_type", None) == "HOST":
             using_api = False
-            ip = self.alert.event.ip
-            bk_cloud_id = self.alert.event.bk_cloud_id
+            ip = str(self.alert.event.ip)
+            bk_cloud_id = str(self.alert.event.bk_cloud_id)
         elif "bcs_cluster_id" in getattr(self.alert.extra_info, "agg_dimensions", []):
             # 容器可补全IP告警
             dimension_dict = {dimension["key"]: dimension["value"] for dimension in self.alert.dimensions}
@@ -273,8 +273,14 @@ class HostShielder(BaseShielder):
         else:
             # 不是host类型告警也不是容器相关的，忽略，不做判断
             return False
-
-        host = HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_mem=True, using_api=using_api)
+        bk_cloud_id = int(bk_cloud_id)
+        host = HostManager.get(
+            bk_tenant_id=str(self.alert.bk_tenant_id),
+            ip=ip,
+            bk_cloud_id=bk_cloud_id,
+            using_mem=True,
+            using_api=using_api,
+        )
 
         if host and any([host.is_shielding, host.ignore_monitoring]):
             # 如果当前主机处于不监控（容器告警机器信息后期补全，所以在这里也进要行配置）或者不告警的状态，都统一屏蔽掉
@@ -285,6 +291,6 @@ class HostShielder(BaseShielder):
                 "[host not shield] alert(%s) strategy(%s) because of host(%s) not found",
                 self.alert.id,
                 self.alert.strategy_id,
-                HostManager.key_to_internal_value(ip, bk_cloud_id),
+                HostManager.get_host_key(ip, bk_cloud_id),
             )
         return False

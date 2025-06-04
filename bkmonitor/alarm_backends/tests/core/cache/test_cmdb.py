@@ -174,14 +174,6 @@ class TestHostManager(TestCMDBBaseTestCase):
             excepted_host_ids.append(str(host.bk_host_id))
         self.assertSetEqual(set(excepted_host_ids), set(host_ids))
 
-    def test_keys(self):
-        HostManager.refresh()
-        host_ids = list(HostManager.keys())
-        excepted_host_ids = [HostManager.key_to_internal_value(host.ip, host.bk_cloud_id) for host in ALL_HOSTS]
-        for host in ALL_HOSTS:
-            excepted_host_ids.append(str(host.bk_host_id))
-        self.assertSetEqual(set(excepted_host_ids), set(host_ids))
-
     def test_get(self):
         HostManager.refresh()
         for host in ALL_HOSTS:

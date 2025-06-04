@@ -113,7 +113,7 @@ class AssignCacheManager(CacheManager):
         dynamic_groups = DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=condition["value"])
         bk_host_ids = set()
         for dynamic_group in dynamic_groups.values():
-            if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+            if dynamic_group.get("bk_obj_id") == "host":
                 bk_host_ids.update(dynamic_group["bk_inst_ids"])
 
         condition["field"] = "bk_host_id"

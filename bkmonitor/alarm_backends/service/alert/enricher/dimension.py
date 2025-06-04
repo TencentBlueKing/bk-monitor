@@ -180,7 +180,7 @@ class StandardTranslateEnricher(BaseAlertEnricher):
 
         if alert.top_event.get("bk_host_id") and "bk_host_id" in dimension_fields:
             bk_host_id = alert.top_event["bk_host_id"]
-            host = HostManager.get_by_id(bk_host_id)
+            host = HostManager.get_by_id(bk_tenant_id=alert.bk_tenant_id, bk_host_id=bk_host_id)
             if host:
                 display_name = _("主机")
                 display_value = host.display_name

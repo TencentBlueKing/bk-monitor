@@ -25,16 +25,16 @@ class BusinessManager:
 
     @classmethod
     def get(cls, bk_biz_id: int) -> Business | None:
-        result = cls.cache.hget(cls.cache_key, str(bk_biz_id))
+        result: str | None = cls.cache.hget(cls.cache_key, str(bk_biz_id))
         if not result:
             return None
-        result: dict = json.loads(result)
 
+        business: dict = json.loads(result, ensure_ascii=False)
         # 兼容旧数据，补充租户ID字段
-        if not result.get("bk_tenant_id"):
-            result["bk_tenant_id"] = DEFAULT_TENANT_ID
+        if not business.get("bk_tenant_id"):
+            business["bk_tenant_id"] = DEFAULT_TENANT_ID
 
-        return Business(**result)
+        return Business(**business)
 
     @classmethod
     def keys(cls) -> list[int]:

@@ -28,11 +28,11 @@ class DisplayManager(BaseShieldDisplayManager):
         dynamic_group_ids = [dynamic_group["dynamic_group_id"] for dynamic_group in dynamic_group_list]
         dynamic_groups = DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids)
         return [
-            dynamic_groups[dynamic_group_id]["name"] if dynamic_groups[dynamic_group_id] else dynamic_group_id
+            dynamic_groups[dynamic_group_id]["name"] if dynamic_groups.get(dynamic_group_id) else dynamic_group_id
             for dynamic_group_id in dynamic_group_ids
         ]
 
-    def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
+    def get_node_path_list(self, bk_biz_id, bk_topo_node_list: list[dict]):
         """
         获取拓扑节点路径列表
         :param bk_biz_id: 业务ID
@@ -45,12 +45,12 @@ class DisplayManager(BaseShieldDisplayManager):
             keys.append((node["bk_obj_id"], int(node["bk_inst_id"])))
         node_infos = TopoManager.mget(bk_tenant_id=bk_tenant_id, topo_nodes=keys)
         result = []
-        for index, node_id_info in enumerate(bk_topo_node_list):
-            node = node_infos[index]
-            if node:
-                result.append([node.bk_obj_name, node.bk_inst_name])
+        for bk_obj_id, bk_inst_id in keys:
+            node_info = node_infos.get((bk_obj_id, bk_inst_id))
+            if node_info:
+                result.append([node_info.bk_obj_name, node_info.bk_inst_name])
             else:
-                result.append([node_id_info["bk_obj_id"], str(node_id_info["bk_inst_id"])])
+                result.append([bk_obj_id, str(bk_inst_id)])
         return result
 
     def get_service_name_list(self, bk_biz_id: int, service_instance_id_list: list[int]) -> list[str]:

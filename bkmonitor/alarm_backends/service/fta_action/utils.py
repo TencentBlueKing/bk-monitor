@@ -631,7 +631,9 @@ class AlertAssignee:
                 # 无监控对象， 不需要获取负责人
                 return group_users
 
-            host = HostManager.get_by_id(self.alert.event.bk_host_id)
+            host = HostManager.get_by_id(
+                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=str(self.alert.event.bk_host_id)
+            )
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
         except AttributeError:
@@ -639,16 +641,14 @@ class AlertAssignee:
         return group_users
 
     @classmethod
-    def get_host_operator(cls, host: Host, operator_attr="operator"):
+    def get_host_operator(cls, host: Host | None, operator_attr="operator"):
         """
         获取主机负责人，如果没有则尝试获取第一个模块负责人
         :param host: 主机
         :return: list
         """
-
         if not host:
             return []
-
         return getattr(host, operator_attr, []) or cls.get_host_module_operator(host)
 
     @classmethod
@@ -662,12 +662,11 @@ class AlertAssignee:
         :return: 人员列表
         """
         bk_biz_id: int = host.bk_biz_id
-        bk_tenant_id: int = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
         modules = ModuleManager.mget(bk_tenant_id=bk_tenant_id, bk_module_ids=host.bk_module_ids)
         for module in modules.values():
-            if module:
-                return getattr(module, operator_attr, [])
+            return getattr(module, operator_attr, [])
         return []
 
 

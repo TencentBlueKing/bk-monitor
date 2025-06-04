@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 from itertools import chain
-from typing import Dict
 
 import arrow
 from django.utils.module_loading import import_string
@@ -28,17 +25,18 @@ from alarm_backends.core.cache import key
 from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 logger = logging.getLogger("core.control")
 
 
-class CheckMixin(object):
+class CheckMixin:
     @property
     def no_data_level(self):
         no_data_config = getattr(self, "no_data_config", {})
         return int(no_data_config.get("level", NO_DATA_LEVEL))
 
-    def _is_host_dimension_in_business(self, dimensions: Dict[str, str]) -> bool:
+    def _is_host_dimension_in_business(self, dimensions: dict[str, str]) -> bool:
         """
         判断主机维度是否在业务中
         """
@@ -49,7 +47,8 @@ class CheckMixin(object):
         bk_cloud_id = dimensions.get("bk_target_cloud_id", "0")
 
         # 通过 CMDB 查询主机是否在业务中
-        host = HostManager.get(ip, bk_cloud_id)
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.strategy.bk_biz_id)
+        host = HostManager.get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=int(bk_cloud_id))
         if not host or host.bk_biz_id != self.strategy.bk_biz_id:
             return False
 
@@ -346,9 +345,9 @@ class CheckMixin(object):
             if redis_pipeline is None:
                 redis_pipeline = check_result.CHECK_RESULT
             if dimensions_md5 not in data_dimensions_md5:
-                name = "{}|{}".format(check_timestamp, ANOMALY_LABEL)
+                name = f"{check_timestamp}|{ANOMALY_LABEL}"
             else:
-                name = "{}|{}".format(check_timestamp, str(NO_DATA_VALUE))
+                name = f"{check_timestamp}|{str(NO_DATA_VALUE)}"
 
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet

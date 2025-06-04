@@ -78,6 +78,10 @@ class Strategy:
 
         return min_interval or CONST_MINUTES
 
+    @cached_property
+    def bk_tenant_id(self) -> str:
+        return bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+
     @property
     def priority(self):
         return self.config.get("priority")

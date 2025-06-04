@@ -82,7 +82,7 @@ class TargetCondition:
                         bk_tenant_id=self.bk_tenant_id, dynamic_group_ids=list(dynamic_group_ids)
                     )
                     for dynamic_group in dynamic_groups.values():
-                        if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                        if dynamic_group.get("bk_obj_id") == "host":
                             target_keys.update([str(bk_inst_id) for bk_inst_id in dynamic_group.get("bk_inst_ids", [])])
                     field = "bk_target_ip"
 

@@ -266,7 +266,7 @@ class StrategyCacheManager(CacheManager):
                     topo_nodes=[(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]],
                 )
                 # 拓扑节点id全部不存在，目标失效
-                if all(not node for node in nodes.values()):
+                if not nodes:
                     invalid_strategy_dict[StrategyModel.InvalidType.INVALID_TARGET].add(strategy["id"])
                     strategy["is_invalid"] = True
 

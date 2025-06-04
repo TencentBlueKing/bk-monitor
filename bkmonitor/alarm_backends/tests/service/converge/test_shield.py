@@ -16,7 +16,6 @@ import pytest
 from django.core.cache import caches
 
 from alarm_backends.core.alert import Alert, Event
-from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.alert.enricher import KubernetesCMDBEnricher
 from alarm_backends.service.converge.shield.shielder.saas_config import HostShielder
@@ -111,12 +110,6 @@ def init_host_cache():
     def _clear():
         caches["locmem"].clear()
         local.host_cache = {}
-        HostManager.clear()
-        HostIPManager.clear()
-
-    def _refresh():
-        HostManager.refresh()
-        HostIPManager.refresh()
 
     _clear()
 
@@ -136,8 +129,6 @@ def init_host_cache():
     get_business.start()
     get_topo_tree.start()
     get_host_by_topo_node.start()
-
-    _refresh()
 
     yield
 

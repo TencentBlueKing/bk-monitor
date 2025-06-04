@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 from datetime import datetime
 
@@ -18,6 +17,7 @@ from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.models import HostInstance
 from bkmonitor.utils.common_utils import safe_int
 from constants.apm import OtlpKey
+from constants.common import DEFAULT_TENANT_ID
 
 logger = logging.getLogger("apm")
 
@@ -90,14 +90,9 @@ class HostDiscover(DiscoverBase):
     def list_bk_cloud_id(self, ips):
         from alarm_backends.core.cache.cmdb.host import HostManager
 
-        # todo: 需要改为使用HostIpManager获取ip信息
+        # TODO: 需要改为使用HostIpManager获取ip信息，下面的代码需要重构
         host_keys = []
         if host_keys is None:
-            return {}
-
-        try:
-            host_keys = json.loads(host_keys) or []
-        except Exception:  # pylint: disable=broad-except
             return {}
 
         ip_to_host_key = {}
@@ -110,10 +105,14 @@ class HostDiscover(DiscoverBase):
                 ip_to_host_key[split_keys[0]] = safe_int(split_keys[1], 0)
 
         ret = {}
+        host_keys = []
         for ip in ips:
-            if ip in ip_to_host_key:
-                bk_cloud_id = ip_to_host_key[ip]
-                host = HostManager.get(ip, bk_cloud_id)
-                ret[ip] = (bk_cloud_id, host.bk_host_id)
+            if ip not in ip_to_host_key:
+                continue
+            host_keys.append(HostManager.get_host_key(ip, ip_to_host_key[ip]))
+
+        hosts = HostManager.mget(bk_tenant_id=DEFAULT_TENANT_ID, host_keys=host_keys)
+        for host in hosts.values():
+            ret[host.ip] = (host.bk_cloud_id, host.bk_host_id)
 
         return ret

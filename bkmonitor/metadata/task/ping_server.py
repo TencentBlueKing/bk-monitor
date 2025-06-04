@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,6 +16,7 @@ from django.conf import settings
 
 from alarm_backends.management.hashring import HashRing
 from bkmonitor.commons.tools import is_ipv6_biz
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata.models.custom_report.subscription_config import get_proxy_host_ids
@@ -71,9 +71,10 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
+    # TODO: 多租户改造，需要分租户进行处理
     # 1. 获取CMDB下的所有主机ip
     try:
-        all_hosts = HostManager.all()
+        all_hosts = HostManager.all(bk_tenant_id=DEFAULT_TENANT_ID)
     except Exception:  # noqa
         logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
         return
@@ -132,10 +133,10 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
                             }
                         )
             except Exception:  # noqa
-                logger.exception("从节点管理获取云区域({})下的ProxyIP列表失败".format(bk_cloud_id))
+                logger.exception(f"从节点管理获取云区域({bk_cloud_id})下的ProxyIP列表失败")
                 continue
         if not proxies:
-            logger.error("云区域({})下无可用proxy节点，相关pingserver服务不可用".format(bk_cloud_id))
+            logger.error(f"云区域({bk_cloud_id})下无可用proxy节点，相关pingserver服务不可用")
             continue
         proxies_host_ids = [p["bk_host_id"] for p in proxies]
 

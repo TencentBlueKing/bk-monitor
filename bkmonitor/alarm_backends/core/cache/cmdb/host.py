@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
 from collections import defaultdict
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
@@ -19,6 +20,8 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 setattr(local, "host_cache", {})
+
+logger = logging.getLogger(__name__)
 
 
 class HostAgentIDManager:
@@ -35,15 +38,13 @@ class HostAgentIDManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str = None, bk_agent_id: str) -> tuple[str, int]:
+    def get(cls, *, bk_tenant_id: str | None = None, bk_agent_id: str) -> tuple[str, int]:
         """
         :rtype: tuple[str, int]
         return (bk_tenant_id, bk_host_id)
         """
-
-        cache_key = cls.get_cache_key(bk_tenant_id)
-
         # 如果传入租户则只查询该租户，否则查询所有租户
+        bk_tenant_ids: list[str]
         if bk_tenant_id:
             bk_tenant_ids = [bk_tenant_id]
         else:
@@ -51,10 +52,11 @@ class HostAgentIDManager:
 
         # 遍历租户缓存
         for bk_tenant_id in bk_tenant_ids:
+            cache_key = cls.get_cache_key(bk_tenant_id)
             result = cls.cache.hget(cache_key, bk_agent_id)
-
             try:
-                result = int(result)
+                if result:
+                    return bk_tenant_id, int(result)
             except (ValueError, TypeError):
                 continue
 
@@ -77,20 +79,17 @@ class HostIPManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_ip"
 
     @classmethod
-    def mget(cls, *, bk_tenant_id: str, ips: list[str], skip_empty: bool = False) -> dict[str, list[str]]:
+    def mget(cls, *, bk_tenant_id: str, ips: list[str]) -> dict[str, list[str]]:
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, ips)
-        return {ip: json.loads(result) if result else [] for ip, result in zip(ips, result) if result or not skip_empty}
+        return {ip: json.loads(result) if result else [] for ip, result in zip(ips, result) if result}
 
     @classmethod
-    def to_kv(cls, host_keys: list[str] | None = None) -> dict[str, list[str]]:
+    def to_kv(cls, host_keys: list[str]) -> dict[str, list[str]]:
         """
         将主机key列表转换为ip到key列表的映射
         """
         host_keys_gby_ip: dict[str, set[str]] = defaultdict(set)
-        if host_keys is None:
-            host_keys = HostManager.keys()
-
         for host_key in host_keys:
             if not host_key:
                 continue
@@ -123,6 +122,11 @@ class HostManager:
         return f"{ip}|{bk_cloud_id}"
 
     @classmethod
+    def all(cls, *, bk_tenant_id: str) -> list[Host]:
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        return [Host(**json.loads(host)) for host in cls.cache.hgetall(cache_key).values()]
+
+    @classmethod
     def _get(cls, *, bk_tenant_id: str, ip: str, bk_cloud_id: int) -> Host | None:
         """
         获取主机信息
@@ -149,31 +153,44 @@ class HostManager:
             return cls._get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id)
 
         host_key = cls.get_host_key(ip, bk_cloud_id)
+        cache_key = f"{bk_tenant_id}.{host_key}"
         if using_mem:
             # 如果使用本地内存，那么在逻辑结束后，需要调用clear_mem_cache函数清理
-            host = local.host_cache.get(host_key, None)
+            host = local.host_cache.get(cache_key, None)
             if host is not None:
                 return host
 
         host = cls._get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id)
         if host is None and using_api:
             # 打印日志以便查看穿透请求情况
-            cls.logger.info("[HostManager] get host(%s) by api start", host_key)
+            logger.info("[HostManager] get host(%s) by api start", host_key)
             try:
                 host_page = api.cmdb.get_host_without_biz_v2(ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1)
                 host = Host(host_page["hosts"][0])
                 cls.fill_attr_to_hosts(host.bk_biz_id, [host])
             except IndexError:
-                cls.logger.info("[HostManager] get host(%s) by api failed: empty data", host_key)
+                logger.info("[HostManager] get host(%s) by api failed: empty data", host_key)
             except Exception as e:  # noqa
-                cls.logger.info("[HostManager] get host(%s) by api failed: err -> %s", host_key, str(e))
+                logger.info("[HostManager] get host(%s) by api failed: err -> %s", host_key, str(e))
 
         if using_mem and host:
-            local.host_cache[host_key] = host
+            local.host_cache[cache_key] = host
         return host
 
     @classmethod
-    def get_by_agent_id(cls, *, bk_tenant_id: str = None, bk_agent_id: str) -> Host | None:
+    def mget(cls, *, bk_tenant_id: str, host_keys: list[str]) -> dict[str, Host]:
+        """
+        批量获取主机信息
+        """
+        if not host_keys:
+            return {}
+
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result: list[str | None] = cls.cache.hmget(cache_key, host_keys)
+        return {host_key: Host(**json.loads(r)) for host_key, r in zip(host_keys, result) if r}
+
+    @classmethod
+    def get_by_agent_id(cls, *, bk_tenant_id: str | None = None, bk_agent_id: str) -> Host | None:
         if not bk_agent_id:
             return None
 
@@ -183,12 +200,12 @@ class HostManager:
             return None
 
         # 根据主机ID获取主机信息
-        host = cls.get_by_id(bk_host_id, bk_tenant_id=bk_tenant_id)
+        host = cls.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=bk_host_id)
         if host and getattr(host, "bk_agent_id", "") == bk_agent_id:
             return host
 
     @classmethod
-    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int, using_mem=False) -> Host | None:
+    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int | str, using_mem=False) -> Host | None:
         """
         :rtype: Host
         """

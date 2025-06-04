@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 import json
+from collections.abc import Sequence
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
 from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.storage.redis import Cache
@@ -41,37 +42,37 @@ class ServiceInstanceManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, service_instance_id: str) -> ServiceInstance | None:
+    def get(cls, *, bk_tenant_id: str, service_instance_id: str | int) -> ServiceInstance | None:
         """
         获取单个服务实例
         :param bk_tenant_id: 租户ID
         :param service_instance_id: 服务实例ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, service_instance_id)
+        result = cls.cache.hget(cache_key, str(service_instance_id))
         if not result:
             return None
         return ServiceInstance(**json.loads(result, ensure_ascii=False))
 
     @classmethod
-    def mget(
-        cls, *, bk_tenant_id: str, service_instance_ids: list[str], skip_empty: bool = False
-    ) -> dict[str, ServiceInstance | None]:
+    def mget(cls, *, bk_tenant_id: str, service_instance_ids: Sequence[int]) -> dict[int, ServiceInstance]:
         """
         批量获取服务实例
         :param bk_tenant_id: 租户ID
         :param service_instance_ids: 服务实例ID列表
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        results = cls.cache.hmget(cache_key, service_instance_ids)
+        results: list[str | None] = cls.cache.hmget(
+            cache_key, [str(service_instance_id) for service_instance_id in service_instance_ids]
+        )
         return {
-            service_instance_id: ServiceInstance(**json.loads(result, ensure_ascii=False)) if result else None
+            service_instance_id: ServiceInstance(**json.loads(result, ensure_ascii=False))
             for service_instance_id, result in zip(service_instance_ids, results)
-            if result or not skip_empty
+            if result
         }
 
     @classmethod
-    def get_service_instance_id_by_host(cls, *, bk_tenant_id: str, bk_host_id: str) -> list[int]:
+    def get_service_instance_id_by_host(cls, *, bk_tenant_id: str, bk_host_id: int) -> list[int]:
         """
         获取主机下的服务实例id列表
         :param bk_tenant_id: 租户ID
@@ -100,18 +101,22 @@ class ServiceInstanceManager:
             instance.topo_link = {key: topo_link_dict.get(key, [])}
 
             # 从缓存中补全主机IP信息
-            host = HostManager.get_by_id(instance.bk_host_id)
+            host = HostManager.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=instance.bk_host_id)
             if host:
                 host_to_service_instance[str(host.bk_host_id)].append(instance.service_instance_id)
-                instance.ip = host.ip
-                instance.bk_cloud_id = host.bk_cloud_id
+                instance.ip = host.ip  # type: ignore
+                instance.bk_cloud_id = host.bk_cloud_id  # type: ignore
 
         # 刷新服务实例缓存
         cache_key = cls.get_cache_key(bk_tenant_id)
         pipeline = cls.cache.pipeline()
         for i in range(0, len(instances), 1000):
             pipeline.hmset(
-                cache_key, {instance.service_instance_id: instance.to_dict() for instance in instances[i : i + 1000]}
+                cache_key,
+                {
+                    str(instance.service_instance_id): json.dumps(instance.to_dict(), ensure_ascii=False)
+                    for instance in instances[i : i + 1000]
+                },
             )
         pipeline.execute()
 

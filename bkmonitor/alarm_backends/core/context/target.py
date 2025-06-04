@@ -57,9 +57,9 @@ class Target(BaseContextObject):
 
         try:
             if event.bk_host_id:
-                result = HostManager.get_by_id(event.bk_host_id)
+                result = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=event.bk_host_id)
             else:
-                result = HostManager.get(ip=event.ip, bk_cloud_id=event.bk_cloud_id)
+                result = HostManager.get(bk_tenant_id=event.bk_tenant_id, ip=event.ip, bk_cloud_id=event.bk_cloud_id)
         except Exception:
             # 不存在就接返回
             return
@@ -86,9 +86,9 @@ class Target(BaseContextObject):
 
             try:
                 if event.bk_host_id:
-                    host = HostManager.get_by_id(event.bk_host_id)
+                    host = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=event.bk_host_id)
                 else:
-                    host = HostManager.get(ip=event.ip, bk_cloud_id=event.bk_cloud_id)
+                    host = HostManager.get(bk_tenant_id=event.bk_tenant_id, ip=event.ip, bk_cloud_id=event.bk_cloud_id)
             except Exception:
                 continue
 
@@ -131,7 +131,7 @@ class Target(BaseContextObject):
                 bk_tenant_id=self.business.bk_tenant_id, service_instance_ids=service_instance_ids
             )
             for service_instance in service_instances.values():
-                if service_instance and service_instance.process_instances:
+                if service_instance.process_instances:
                     processes.extend(service_instance.process_instances)
         return [process["process"] for process in processes]
 
@@ -207,7 +207,7 @@ class Target(BaseContextObject):
         if not self.host:
             return []
         sets = SetManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_set_ids=self.host.bk_set_ids)
-        return [set for set in sets.values() if set]
+        return [set for set in sets.values()]
 
     @cached_property
     def modules(self) -> list[Module]:
@@ -215,4 +215,4 @@ class Target(BaseContextObject):
             return []
 
         modules = ModuleManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_module_ids=self.host.bk_module_ids)
-        return [module for module in modules.values() if module]
+        return [module for module in modules.values()]

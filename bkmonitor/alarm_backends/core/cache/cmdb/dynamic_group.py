@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import Any
+from collections.abc import Sequence
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
 from alarm_backends.core.storage.redis import Cache
@@ -29,7 +31,7 @@ class DynamicGroupManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
 
     @classmethod
-    def mget(cls, *, bk_tenant_id: str, dynamic_group_ids: list[str]) -> dict[str, dict | None]:
+    def mget(cls, *, bk_tenant_id: str, dynamic_group_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
         """
         批量获取动态组
         :param bk_tenant_id: 租户ID
@@ -38,8 +40,9 @@ class DynamicGroupManager:
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [str(dynamic_group_id) for dynamic_group_id in dynamic_group_ids])
         return {
-            dynamic_group_id: json.loads(result, ensure_ascii=False) if result else None
-            for dynamic_group_id, result in zip(dynamic_group_ids, result)
+            dynamic_group_id: json.loads(r, ensure_ascii=False)
+            for dynamic_group_id, r in zip(dynamic_group_ids, result)
+            if r
         }
 
     @classmethod

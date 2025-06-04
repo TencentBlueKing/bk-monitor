@@ -126,13 +126,13 @@ class ShieldObj:
             dynamic_groups = []
             if dynamic_group_ids:
                 bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.config["bk_biz_id"])
-                dynamic_groups = DynamicGroupManager.mget(
-                    bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids
+                dynamic_groups = list(
+                    DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids).values()
                 )
 
             bk_host_ids = set()
-            for dynamic_group in dynamic_groups.values():
-                if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+            for dynamic_group in dynamic_groups:
+                if dynamic_group.get("bk_obj_id") == "host":
                     bk_host_ids.update(dynamic_group["bk_inst_ids"])
             if bk_host_ids:
                 clean_dimension["bk_host_id"] = list(bk_host_ids)

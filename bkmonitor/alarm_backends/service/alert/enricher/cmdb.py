@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
 import logging
+from collections import defaultdict
 from itertools import chain
 
 from alarm_backends.core.alert import Event
@@ -32,7 +32,7 @@ class CMDBEnricher(BaseEventEnricher):
         # 缓存准备，批量查询避免重复请求redis，按租户分组
         tenant_ips: dict[str, set[str]] = {}
         tenant_hosts: dict[str, set[str]] = {}
-        tenant_service_instance_ids: dict[str, set[str]] = {}
+        tenant_service_instance_ids: dict[str, set[int]] = {}
 
         for event in self.events:
             if not event.target:
@@ -43,26 +43,30 @@ class CMDBEnricher(BaseEventEnricher):
                 if not ip_with_cloud_id[0]:
                     continue
                 if len(ip_with_cloud_id) == 1:
+                    # 如果缺少云区域信息，后续会使用IP进行查询
                     tenant_ips[event.bk_tenant_id].add(ip_with_cloud_id[0])
                 else:
                     tenant_hosts[event.bk_tenant_id].add(f"{ip_with_cloud_id[0]}|{ip_with_cloud_id[1]}")
             elif event.target_type == EventTargetType.SERVICE:
-                tenant_service_instance_ids[event.bk_tenant_id].add(event.target)
+                tenant_service_instance_ids[event.bk_tenant_id].add(int(event.target))
 
+        # 根据IP获取IP+云区域ID
         self.ip_cache: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
         for bk_tenant_id, ips in tenant_ips.items():
-            self.ip_cache[bk_tenant_id] = HostIPManager.mget(bk_tenant_id=bk_tenant_id, ips=ips, skip_empty=True)
+            self.ip_cache[bk_tenant_id] = HostIPManager.mget(bk_tenant_id=bk_tenant_id, ips=list(ips))
 
-        self.service_instance_cache: dict[str, dict[str, ServiceInstance]] = defaultdict(lambda: defaultdict(dict))
+        # 根据服务实例ID获取服务实例
+        self.service_instance_cache: dict[str, dict[int, ServiceInstance]] = {}
         for bk_tenant_id, service_instance_ids in tenant_service_instance_ids.items():
             self.service_instance_cache[bk_tenant_id] = ServiceInstanceManager.mget(
-                bk_tenant_id=bk_tenant_id, service_instance_ids=service_instance_ids, skip_empty=True
+                bk_tenant_id=bk_tenant_id, service_instance_ids=list(service_instance_ids)
             )
 
-        self.hosts_cache: dict[str, dict[str, Host]] = defaultdict(lambda: defaultdict(dict))
+        # 根据IP+云区域ID获取主机
+        self.hosts_cache: dict[str, dict[str, Host]] = {}
         for bk_tenant_id, hosts in tenant_hosts.items():
-            hosts = hosts + [host for host in chain(*[ips for ips in self.ip_cache[bk_tenant_id].values() if ips])]
-            self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, hosts=hosts, skip_empty=True)
+            hosts = list(hosts) + [host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))]
+            self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, host_keys=hosts)
 
     def get_host_by_ip(self, bk_tenant_id: str, ip: str):
         keys = self.ip_cache.get(bk_tenant_id, {}).get(ip) or []
@@ -73,11 +77,11 @@ class CMDBEnricher(BaseEventEnricher):
 
     def get_service_instance(self, bk_tenant_id: str, service_instance_id: str):
         try:
-            service_instance_id = int(service_instance_id)
+            _service_instance_id = int(service_instance_id)
         except (ValueError, TypeError):
             return None
 
-        return self.service_instance_cache[bk_tenant_id].get(service_instance_id)
+        return self.service_instance_cache[bk_tenant_id].get(_service_instance_id)
 
     def enrich_event(self, event: Event):
         if event.is_dropped():
@@ -112,7 +116,7 @@ class CMDBEnricher(BaseEventEnricher):
             ip_with_cloud_id = event.target.split("|")
 
         if bk_host_id:
-            host = HostManager.get_by_id(bk_host_id)
+            host = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=bk_host_id)
             if not host:
                 ip = ""
                 bk_cloud_id = 0
@@ -142,7 +146,7 @@ class CMDBEnricher(BaseEventEnricher):
             # 存在IP和云区域
             ip = ip_with_cloud_id[0]
             bk_cloud_id = ip_with_cloud_id[1]
-            host = self.get_host(event.bk_tenant_id, ip, bk_cloud_id)
+            host = self.get_host(bk_tenant_id=event.bk_tenant_id, ip=ip, bk_cloud_id=int(bk_cloud_id))
 
         # 主机信息找不到
         if not host:

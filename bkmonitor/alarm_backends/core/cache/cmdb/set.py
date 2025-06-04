@@ -30,15 +30,15 @@ class SetManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
 
     @classmethod
-    def mget(cls, *, bk_tenant_id: str, bk_set_ids: list[int]) -> dict[int, Set | None]:
+    def mget(cls, *, bk_tenant_id: str, bk_set_ids: list[int]) -> dict[int, Set]:
         """
         批量获取集群
         :param bk_tenant_id: 租户ID
         :param bk_set_ids: 集群ID列表
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, bk_set_ids)
-        return {bk_set_id: Set(**json.loads(r)) if r else None for bk_set_id, r in zip(bk_set_ids, result)}
+        result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_set_id) for bk_set_id in bk_set_ids])
+        return {bk_set_id: Set(**json.loads(r, ensure_ascii=False)) for bk_set_id, r in zip(bk_set_ids, result) if r}
 
     @classmethod
     def get(cls, *, bk_tenant_id: str, bk_set_id: int) -> Set | None:

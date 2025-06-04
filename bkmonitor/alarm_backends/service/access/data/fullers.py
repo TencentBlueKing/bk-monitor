@@ -13,7 +13,6 @@ from itertools import chain
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.service.access.base import Fuller
 from alarm_backends.service.access.data.records import DataRecord
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -39,7 +38,7 @@ class TopoNodeFuller(Fuller):
         1. 如果数据来源"服务"层，则补充"实例"所属的CMDB节点信息，以及主机信息，否则进入下一步
         2. 如果数据来源"主机"层，则补充"主机"所属的CMDB节点信息
         """
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(record._item.strategy.bk_biz_id)
+        bk_tenant_id = record.bk_tenant_id
         dimensions = record.dimensions
 
         for item in record.items:

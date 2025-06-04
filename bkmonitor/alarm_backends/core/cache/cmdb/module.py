@@ -30,17 +30,18 @@ class ModuleManager:
         return f"{bk_tenant_id}.{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.module"
 
     @classmethod
-    def mget(cls, *, bk_tenant_id: str, bk_module_ids: list[int]) -> dict[int, Module | None]:
+    def mget(cls, *, bk_tenant_id: str, bk_module_ids: list[int]) -> dict[int, Module]:
         """
         批量获取模块
         :param bk_tenant_id: 租户ID
         :param bk_module_ids: 模块ID列表
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, bk_module_ids)
+        result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
         return {
-            bk_module_id: Module(**json.loads(r, ensure_ascii=False)) if r else None
+            bk_module_id: Module(**json.loads(r, ensure_ascii=False))
             for bk_module_id, r in zip(bk_module_ids, result)
+            if r
         }
 
     @classmethod
@@ -51,7 +52,7 @@ class ModuleManager:
         :param bk_module_id: 模块ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(bk_module_id))
+        result: str | None = cls.cache.hget(cache_key, str(bk_module_id))
         if not result:
             return None
         return Module(**json.loads(result, ensure_ascii=False))
