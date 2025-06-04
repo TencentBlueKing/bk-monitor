@@ -191,3 +191,5 @@ log_open
 .codecc
 .history
 build.yml
+apps/utils/parser.out
+apps/utils/parsetab.py
