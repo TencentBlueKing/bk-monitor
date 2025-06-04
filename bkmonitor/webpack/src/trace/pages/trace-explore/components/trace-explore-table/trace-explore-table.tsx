@@ -25,7 +25,6 @@
  */
 import {
   defineComponent,
-  ref as deepRef,
   shallowRef,
   computed,
   reactive,
@@ -34,14 +33,11 @@ import {
   watch,
   onBeforeUnmount,
   useTemplateRef,
-  // KeepAlive,
   defineAsyncComponent,
   KeepAlive,
-  type VNode,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
+import { PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
@@ -49,7 +45,6 @@ import ChartFiltering from '../../../../components/chart-filtering/chart-filteri
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import useUserConfig from '../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
@@ -60,36 +55,18 @@ import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
 import {
-  CAN_TABLE_SORT_FIELD_TYPES,
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
   ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME,
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
-  SERVICE_CATEGORY_MAP,
-  SERVICE_STATUS_COLOR_MAP,
-  SPAN_KIND_MAPS,
-  SPAN_STATUS_CODE_MAP,
-  TABLE_DEFAULT_CONFIG,
-  TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from './constants';
+import { useExploreColumnConfig } from './hooks/use-explore-column-config';
 import { useTableCell } from './hooks/use-table-cell';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
-import {
-  type CustomDisplayColumnFieldsConfig,
-  type ExploreTableColumn,
-  ExploreTableColumnTypeEnum,
-  ExploreTableLoadingEnum,
-  type GetTableCellRenderValue,
-} from './typing';
+import { ExploreTableLoadingEnum } from './typing';
 import { getTableList } from './utils/api-utils';
 import { isEllipsisActiveSingleLine } from './utils/dom-helper';
 
-import type {
-  ConditionChangeEvent,
-  ExploreFieldList,
-  ICommonParams,
-  IDimensionField,
-  IDimensionFieldTreeItem,
-} from '../../typing';
+import type { ConditionChangeEvent, ExploreFieldList, ICommonParams, IDimensionFieldTreeItem } from '../../typing';
 
 import './trace-explore-table.scss';
 
@@ -135,14 +112,11 @@ export default defineComponent({
     clearRetrievalFilter: () => true,
   },
   setup(props, { emit }) {
-    const { t } = useI18n();
     const store = useTraceExploreStore();
 
-    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
-    const { tableCellRender } = useTableCell();
+    /** 当前视角是否为 Span 视角 */
+    const isSpanVisual = computed(() => props.mode === 'span');
 
-    /** table 默认配置项 */
-    const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
     /** 表格单页条数 */
     const limit = 30;
     /** 表格logs数据请求中止控制器 */
@@ -168,6 +142,7 @@ export default defineComponent({
         },
       }
     );
+
     /** 表格功能单元格内容溢出弹出 popover 功能 */
     const { initListeners: initHeaderDescritionListeners, handlePopoverHide: descriptionPopoverHide } =
       useTableHeaderDescription(tableRef, {
@@ -176,46 +151,58 @@ export default defineComponent({
         },
       });
 
-    const { initListeners: initConditionMenuListeners, handlePopoverHide: conditionMenuPopoverHide } = useTablePopover(
-      tableRef,
-      {
-        trigger: {
-          selector: `.${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`,
-          eventType: 'click',
-          delay: 0,
-        },
-        getContentOptions: triggerDom => {
-          if (
-            triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
-            triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
-          ) {
-            setActiveConditionMenu();
-            return;
-          }
-          setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
-          const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
-          return {
-            content: conditionMenuRef.value.$el,
-            popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
-          };
-        },
-        onHide: () => {
+    const {
+      initListeners: initConditionMenuListeners,
+      handlePopoverShow: conditionMenuPopoverShow,
+      handlePopoverHide: conditionMenuPopoverHide,
+    } = useTablePopover(tableRef, {
+      trigger: {
+        selector: `.${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`,
+        eventType: 'click',
+        delay: 0,
+      },
+      getContentOptions: triggerDom => {
+        if (
+          triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
+          triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
+        ) {
           setActiveConditionMenu();
-        },
-        popoverOptions: {
-          theme: 'light padding-0',
-          placement: 'bottom',
-        },
-      }
-    );
-
-    /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
-    const customDisplayColumnFieldsConfig = reactive<CustomDisplayColumnFieldsConfig>({
-      /** 展示的列 */
-      displayFields: [],
-      /** 列宽度集合 */
-      fieldsWidth: {},
+          return;
+        }
+        setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+        const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+        return {
+          content: conditionMenuRef.value.$el,
+          popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
+        };
+      },
+      onHide: () => {
+        setActiveConditionMenu();
+      },
+      popoverOptions: {
+        theme: 'light padding-0',
+        placement: 'bottom',
+      },
     });
+
+    const { tableCellRender } = useTableCell();
+    const {
+      tableColumns,
+      displayColumnFields,
+      tableDisplayColumns,
+      sortContainer,
+      getCustomDisplayColumnFields,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
+    } = useExploreColumnConfig({
+      props,
+      isSpanVisual,
+      tableHeaderCellRender,
+      tableCellRender,
+      handleConditionMenuShow,
+      handleSliderShowChange,
+    });
+
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -231,13 +218,7 @@ export default defineComponent({
       /** 表格触底加载更多 loading  */
       [ExploreTableLoadingEnum.SCROLL]: false,
     });
-    /** 表格列排序配置 */
-    const sortContainer = reactive<SortInfo>({
-      /** 排序字段 */
-      sortBy: '',
-      /** 排序顺序 */
-      descending: null,
-    });
+
     /** 统计面板的 抽屉页展示状态 */
     let statisticsSliderShow = false;
     /** 字段分析弹窗 popover 显隐 */
@@ -248,28 +229,12 @@ export default defineComponent({
     const activeConditionMenuTarget = reactive({
       conditionKey: '',
       conditionValue: '',
+      linkUrl: '',
     });
 
-    /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => props.mode === 'span');
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
-    /** table 列配置本地缓存时的 key */
-    const customDisplayColumnFieldsCacheKey = computed(
-      () => `${props.mode}_${props.appName}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
-    );
-    /** table 显示列配置 */
-    const displayColumnFields = computed(() => {
-      // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
-      const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
-      const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
-      // 需要展示的字段列名数组
-      return customDisplayColumnFieldsConfig.displayFields?.length
-        ? customDisplayColumnFieldsConfig.displayFields
-        : applicationColumnConfig?.length
-          ? applicationColumnConfig
-          : ((defaultColumnsConfig?.displayFields || []) as string[]);
-    });
+
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
     /** table 数据（所有请求返回的数据） */
@@ -278,97 +243,6 @@ export default defineComponent({
     const tableViewData = computed(() => (isLocalFilterMode.value ? store.filterTableList : tableData.value));
     /** 判断当前数据是否需要触底加载更多 */
     const tableHasScrollLoading = computed(() => !isLocalFilterMode.value && tableHasMoreData.value);
-    /** 过滤出 can_displayed 为 true 的 fieldList 及 kv 映射集合 */
-    const canDisplayFieldListMap = computed(() => {
-      const getCanDisplayFieldList = (
-        mode: 'span' | 'trace'
-      ): {
-        fieldList: IDimensionField[];
-        fieldMap: Record<string, IDimensionField>;
-      } => {
-        return props.fieldListMap?.[mode].reduce(
-          (prev, curr) => {
-            if (!curr.can_displayed) {
-              return prev;
-            }
-            prev.fieldList.push(curr);
-            prev.fieldMap[curr.name] = curr;
-            return prev;
-          },
-          { fieldList: [], fieldMap: {} }
-        );
-      };
-      return {
-        trace: getCanDisplayFieldList('trace'),
-        span: getCanDisplayFieldList('span'),
-      };
-    });
-    /** table 所有列字段信息(字段设置使用) */
-    const tableColumns = computed(() => {
-      return canDisplayFieldListMap.value[props.mode];
-    });
-    /** table 显示列配置 */
-    const tableDisplayColumns = computed<ExploreTableColumn[]>(() => {
-      const fieldMap = tableColumns.value.fieldMap;
-      const columnMap = getTableColumnMapByVisualMode();
-      return displayColumnFields.value
-        .map(colKey => {
-          const fieldItem = fieldMap[colKey];
-          let column = columnMap[colKey];
-          if (!column && !fieldItem) return null;
-          if (!column) {
-            column = {
-              renderType: ExploreTableColumnTypeEnum.TEXT,
-              colKey: fieldItem?.name,
-              title: fieldItem?.alias,
-              headerDescription: fieldItem?.name,
-              width: 130,
-            };
-          } else {
-            column.title = fieldItem?.alias || column.title;
-          }
-          const tipText = column.headerDescription || column.colKey;
-          column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
-          column.width = customDisplayColumnFieldsConfig.fieldsWidth?.[colKey] || column.width;
-          // 表格列表头渲染方法
-          const tableHeaderTitle = tableDescriptionHeaderRender(column.title, tipText, column);
-          // 表格单元格渲染方法
-          const tableCell = (_, { row }) => tableCellRender(column, row);
-
-          return {
-            ...defaultTableConfig,
-            ...column,
-            title: tableHeaderTitle,
-            cell: tableCell,
-            attrs: column.sorter
-              ? {
-                  // 扩大排序点击热区范围
-                  onClick(e: MouseEvent & { target: Element; currentTarget: Element }) {
-                    if (
-                      column.colKey &&
-                      e.currentTarget.tagName.toLocaleLowerCase() === 'th' &&
-                      !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
-                      e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
-                    ) {
-                      if (sortContainer.sortBy === column.colKey) {
-                        const sortDescValueList = [true, false, null];
-                        const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
-                        sortContainer.descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
-                        if (sortContainer.descending === null) {
-                          sortContainer.sortBy = '';
-                        }
-                        return;
-                      }
-                      sortContainer.sortBy = column.colKey;
-                      sortContainer.descending = true;
-                    }
-                  },
-                }
-              : undefined,
-          };
-        })
-        .filter(Boolean);
-    });
 
     /** 请求参数 */
     const queryParams = computed(() => {
@@ -525,248 +399,6 @@ export default defineComponent({
     }
 
     /**
-     * @description 根据当前激活的视角(trace/span)获取对应的table表格列配置
-     *
-     */
-    function getTableColumnMapByVisualMode(): Record<string, ExploreTableColumn> {
-      if (isSpanVisual.value) {
-        return {
-          span_id: {
-            renderType: ExploreTableColumnTypeEnum.CLICK,
-            colKey: 'span_id',
-            title: t('Span ID'),
-            width: 160,
-            fixed: 'left',
-            suffixSlot: row =>
-              (
-                <i
-                  class='icon-monitor icon-Tracing'
-                  v-bk-tooltips={{ content: t('查看关联 Trace') }}
-                  onClick={() => handleSliderShowChange('trace', row.trace_id)}
-                />
-              ) as unknown as VNode,
-            clickCallback: row => handleSliderShowChange('span', row.span_id),
-          },
-          span_name: {
-            renderType: ExploreTableColumnTypeEnum.TEXT,
-            colKey: 'span_name',
-            title: t('接口名称'),
-            width: 200,
-          },
-          time: {
-            renderType: ExploreTableColumnTypeEnum.TIME,
-            colKey: 'time',
-            title: t('时间'),
-            width: 160,
-          },
-          start_time: {
-            renderType: ExploreTableColumnTypeEnum.TIME,
-            colKey: 'start_time',
-            title: t('开始时间'),
-            width: 180,
-          },
-          end_time: {
-            renderType: ExploreTableColumnTypeEnum.TIME,
-            colKey: 'end_time',
-            title: t('结束时间'),
-            width: 180,
-          },
-          elapsed_time: {
-            renderType: ExploreTableColumnTypeEnum.DURATION,
-            colKey: 'elapsed_time',
-            title: t('耗时'),
-            width: 100,
-          },
-          'status.code': {
-            renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-            colKey: 'status.code',
-            headerDescription: 'status_code',
-            title: t('状态'),
-            width: 100,
-            getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
-          },
-          kind: {
-            renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-            colKey: 'kind',
-            title: t('类型'),
-            width: 100,
-            getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
-          },
-          'resource.service.name': {
-            renderType: ExploreTableColumnTypeEnum.LINK,
-            colKey: 'resource.service.name',
-            title: t('所属服务'),
-            width: 160,
-            getRenderValue: row => getJumpToApmLinkItem(row?.['resource.service.name']),
-          },
-          trace_id: {
-            renderType: ExploreTableColumnTypeEnum.CLICK,
-            colKey: 'trace_id',
-            title: t('所属 Trace'),
-            width: 240,
-            clickCallback: row => handleSliderShowChange('trace', row.trace_id),
-          },
-        };
-      }
-      return {
-        trace_id: {
-          renderType: ExploreTableColumnTypeEnum.CLICK,
-          colKey: 'trace_id',
-          title: 'Trace ID',
-          width: 240,
-          fixed: 'left',
-          clickCallback: row => handleSliderShowChange('trace', row.trace_id),
-        },
-        min_start_time: {
-          renderType: ExploreTableColumnTypeEnum.TIME,
-          colKey: 'min_start_time',
-          title: t('开始时间'),
-          width: 140,
-        },
-        max_end_time: {
-          renderType: ExploreTableColumnTypeEnum.TIME,
-          colKey: 'max_end_time',
-          title: t('结束时间'),
-          width: 140,
-        },
-        root_span_name: {
-          renderType: ExploreTableColumnTypeEnum.LINK,
-          colKey: 'root_span_name',
-          headerDescription: t('整个 Trace 的第一个 Span'),
-          title: t('根 Span'),
-          width: 160,
-          getRenderValue: getJumpToApmApplicationLinkItem,
-        },
-        root_service: {
-          renderType: ExploreTableColumnTypeEnum.LINK,
-          colKey: 'root_service',
-          headerDescription: t('服务端进程的第一个 Service'),
-          title: t('入口服务'),
-          width: 160,
-          getRenderValue: row => getJumpToApmLinkItem(row?.root_service),
-        },
-        root_service_span_name: {
-          renderType: ExploreTableColumnTypeEnum.LINK,
-          colKey: 'root_service_span_name',
-          headerDescription: t('入口服务的第一个接口'),
-          title: t('入口接口'),
-          width: 160,
-          getRenderValue: getJumpToApmApplicationLinkItem,
-        },
-        root_service_category: {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'root_service_category',
-          title: t('调用类型'),
-          width: 120,
-          getRenderValue: (row, column) => SERVICE_CATEGORY_MAP[row?.[column.colKey]],
-        },
-        root_service_status_code: {
-          renderType: ExploreTableColumnTypeEnum.TAGS,
-          colKey: 'root_service_status_code',
-          title: t('状态码'),
-          width: 100,
-          getRenderValue: row => {
-            const value = row?.root_service_status_code as string;
-            if (!value) return [];
-            const type = row?.root_service_status_code === 200 ? 'normal' : 'error';
-            return [
-              {
-                alias: value,
-                value,
-                ...SERVICE_STATUS_COLOR_MAP[type],
-              },
-            ];
-          },
-        },
-        trace_duration: {
-          renderType: ExploreTableColumnTypeEnum.DURATION,
-          colKey: 'trace_duration',
-          title: t('耗时'),
-          width: 100,
-        },
-        hierarchy_count: {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'hierarchy_count',
-          title: t('Span 层数'),
-          width: 110,
-        },
-        service_count: {
-          renderType: ExploreTableColumnTypeEnum.TEXT,
-          colKey: 'service_count',
-          title: t('服务数量'),
-          width: 100,
-        },
-        kind: {
-          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-          colKey: 'kind',
-          title: t('类型'),
-          width: 100,
-          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
-        },
-        root_span_kind: {
-          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-          colKey: 'root_span_kind',
-          title: t('根 Span 类型'),
-          width: 100,
-          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
-        },
-        root_service_kind: {
-          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-          colKey: 'root_service_kind',
-          title: t('入口服务类型'),
-          width: 100,
-          getRenderValue: (row, column) => SPAN_KIND_MAPS[row?.[column.colKey]],
-        },
-        'status.code': {
-          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
-          colKey: 'status.code',
-          headerDescription: 'status_code',
-          title: t('状态'),
-          width: 100,
-          getRenderValue: (row, column) => SPAN_STATUS_CODE_MAP[row?.[column.colKey]],
-        },
-        'collections.kind': {
-          renderType: ExploreTableColumnTypeEnum.TAGS,
-          colKey: 'collections.kind',
-          title: t('状态码'),
-          width: 120,
-          getRenderValue: row => {
-            let value = row?.['collections.kind'];
-            if (!value) return [];
-            if (!Array.isArray(value)) value = [value];
-            return value.map(v => ({
-              alias: SPAN_KIND_MAPS[v]?.alias,
-              value: v,
-              tagColor: '#63656e',
-              tagBgColor: 'rgba(151,155,165,.1)',
-            }));
-          },
-        },
-      };
-    }
-
-    /**
-     * @description: 获取 table 表格列配置
-     *
-     */
-    async function getCustomDisplayColumnFields() {
-      customDisplayColumnFieldsConfig.displayFields = [];
-      customDisplayColumnFieldsConfig.fieldsWidth = {};
-      if (!props.appName || !props.mode) return;
-      const customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
-        displayFields: [],
-        fieldsWidth: {},
-      };
-      // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
-      if (Array.isArray(customCacheConfig)) {
-        customDisplayColumnFieldsConfig.displayFields = customCacheConfig;
-        return;
-      }
-      customDisplayColumnFieldsConfig.displayFields = customCacheConfig.displayFields;
-      customDisplayColumnFieldsConfig.fieldsWidth = customCacheConfig.fieldsWidth;
-    }
-
-    /**
      * @description: 获取 table 表格数据
      *
      */
@@ -826,42 +458,23 @@ export default defineComponent({
     const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
     /**
-     * @description 获取新开页跳转至apm页 概览tab 的 LINK 类型表格列所需数据格式
+     * @description: 修改条件菜单所需数据
      *
      */
-    function getJumpToApmLinkItem(alias): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
-      const hash = `#/apm/service?filter-service_name=${alias}&filter-app_name=${props.appName}`;
-      let url = '';
-      if (alias) {
-        url = location.href.replace(location.hash, hash);
-      }
-      return {
-        alias: alias,
-        url: url,
-      };
+    function setActiveConditionMenu(colKey = '', cellSource = '', linkUrl = '') {
+      activeConditionMenuTarget.conditionKey = colKey;
+      activeConditionMenuTarget.conditionValue = cellSource;
+      activeConditionMenuTarget.linkUrl = linkUrl;
     }
 
     /**
-     * @description 获取新开页跳转至 apm 页 接口tab 的 LINK 类型表格列所需数据格式
+     * @description: 显示条件菜单
      *
      */
-    function getJumpToApmApplicationLinkItem(row, column): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
-      const service = row?.root_service;
-      const alias = row?.[column.colKey];
-      const hash = `#/apm/application?filter-service_name=${service}&filter-app_name=${props.appName}&sceneId=apm_application&sceneType=detail&dashboardId=endpoint&filter-endpoint_name=${alias}`;
-      let url = '';
-      if (alias && service) {
-        url = location.href.replace(location.hash, hash);
-      }
-      return {
-        alias: alias,
-        url: url,
-      };
-    }
-
-    function setActiveConditionMenu(colKey = '', cellSource = '') {
-      activeConditionMenuTarget.conditionKey = colKey;
-      activeConditionMenuTarget.conditionValue = cellSource;
+    function handleConditionMenuShow(triggerDom, colKey, cellSource, linkUrl) {
+      setActiveConditionMenu(colKey, cellSource, linkUrl);
+      const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
+      conditionMenuPopoverShow(isEllipsisActive ? triggerDom.parentElement : triggerDom, conditionMenuRef.value.$el);
     }
 
     /**
@@ -882,22 +495,6 @@ export default defineComponent({
       }
       sortContainer.sortBy = sortBy;
       sortContainer.descending = descending;
-    }
-
-    /**
-     * @description 表格列显示配置项变更回调
-     *
-     */
-    function handleDisplayColumnFieldsChange(displayFields: string[]) {
-      customDisplayColumnFieldsConfig.displayFields = displayFields;
-      // 缓存列配置
-      handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
-    }
-
-    function handleDisplayColumnResize(context: { columnsWidth: { [colKey: string]: number } }) {
-      customDisplayColumnFieldsConfig.fieldsWidth = context?.columnsWidth || {};
-      // 缓存列配置
-      handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
     }
 
     /**
@@ -1060,7 +657,7 @@ export default defineComponent({
      * @param tipText 列描述
      *
      */
-    function tableDescriptionHeaderRender(title, tipText, column) {
+    function tableHeaderCellRender(title, tipText, column) {
       const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
       const fieldType = fieldOptions?.type || '';
       const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
@@ -1230,8 +827,14 @@ export default defineComponent({
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'
+            showMenuIdsSet={
+              this.activeConditionMenuTarget.linkUrl
+                ? new Set(['link', 'copy', 'add', 'delete', 'new-page'])
+                : undefined
+            }
             conditionKey={this.activeConditionMenuTarget.conditionKey}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
+            linkUrl={this.activeConditionMenuTarget.linkUrl}
             onConditionChange={this.handleConditionChange}
             onMenuClick={this.handleMenuClick}
           />
