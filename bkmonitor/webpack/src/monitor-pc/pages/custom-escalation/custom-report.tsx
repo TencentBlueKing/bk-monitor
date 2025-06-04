@@ -676,14 +676,18 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                   ),
                   create: (row: IEventItem) => (
                     <div class='col-change'>
-                      <span class='col-change-author'>{row.create_user}</span>
+                      <span class='col-change-author'>
+                        <bk-user-display-name user-id={row.create_user} />
+                      </span>
                       <span>{row.create_time}</span>
                     </div>
                   ),
                   update: (row: IEventItem) =>
                     row.update_time && row.update_user ? (
                       <div class='col-change'>
-                        <span class='col-change-author'>{row.update_user}</span>
+                        <span class='col-change-author'>
+                          <bk-user-display-name user-id={row.update_user} />
+                        </span>
                         <span>{row.update_time}</span>
                       </div>
                     ) : (
