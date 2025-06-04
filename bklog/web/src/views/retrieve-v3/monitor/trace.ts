@@ -24,8 +24,8 @@
 * IN THE SOFTWARE.
 */
 window.__IS_MONITOR_COMPONENT__ = true;
-window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
-window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
+window.__IS_MONITOR_TRACE__ = true;
+window.__IS_MONITOR_APM__ = false;
 import Vue from 'vue';
 
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
