@@ -44,6 +44,8 @@ export interface IColumnItem {
   fixed?: string;
   minWidth?: number;
   items?: IDataItem[];
+  name?: string;
+  color?: string;
 }
 export interface IDataItem {
   name?: string;
@@ -61,6 +63,8 @@ export interface IDataItem {
   }[];
   dimensions?: IObjItem;
   unit?: string;
+  show?: boolean;
+  target?: string;
 }
 
 export interface IRefreshItem {
@@ -148,4 +152,33 @@ export interface IResultItem {
   show_statistical_value: boolean;
   highlight_peak_value: boolean;
   view_column: number;
+}
+
+export interface ITableColumn {
+  $index: number;
+  // 字段id
+  id: string;
+  // 字段名称
+  name: string;
+  // 是否可以排序
+  sortable?: 'custom' | boolean;
+  // 是否伸缩大小
+  resizable?: boolean;
+  // 是否固定列 left | right
+  fixed?: 'left' | 'right';
+  // 常驻列 不可取消勾选列
+  disabled?: boolean;
+  checked?: boolean;
+  // 其他属性
+  props?: Record<string, any>;
+  // 是否需要溢出提示
+  showOverflowTooltip?: boolean;
+  // 列宽
+  width?: number;
+  // 最小列宽
+  min_width?: number;
+  // 最大列宽 必须配合自定义calcColumnWidth方法使用
+  max_width?: number;
+  // renderHeader
+  renderHeader?: () => any;
 }

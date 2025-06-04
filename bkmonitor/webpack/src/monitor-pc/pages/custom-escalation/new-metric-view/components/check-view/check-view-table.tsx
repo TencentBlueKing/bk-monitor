@@ -34,29 +34,32 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { handleGetMinPrecision, typeEnums } from '../../metric-chart-view/utils';
 
+import type { ITableColumn } from '../../type';
 import type { IColumnItem, IDataItem } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
 import type { ILegendItem } from 'monitor-ui/chart-plugins/typings';
+import type { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
+import type { CreateElement } from 'vue';
 
 import './check-view-table.scss';
 
 @Component
 export default class CheckViewTable extends tsc<object, object> {
-  @Prop({ default: () => ({}) }) data: any;
+  @Prop({ default: () => ({}) }) data: { series: IDataItem[] };
   @Prop({ default: () => [] }) legendData: ILegendItem[];
   @Prop({ default: true }) isShowStatistical: boolean;
   @Prop({ default: true }) loading: boolean;
   @Prop({ default: false }) isHasCompare: boolean;
   @Prop({ default: false }) isHasDimensions: boolean;
   @Prop({ default: '' }) title: string;
-  fluctuationColumn: IColumnItem[] = [{ label: '波动', prop: 'fluctuation' }];
+  fluctuationColumn: IColumnItem[] = [{ label: this.$t('波动'), prop: 'fluctuation' }];
 
   // 统计类型映射
   typeArr = {
-    max: '最大值',
-    min: '最小值',
-    latest: '最新值',
-    avg: '平均值',
-    total: '累计值',
+    max: this.$t('最大值'),
+    min: this.$t('最小值'),
+    latest: this.$t('最新值'),
+    avg: this.$t('平均值'),
+    total: this.$t('累计值'),
   };
 
   keys: string[] = [];
@@ -78,7 +81,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return [];
   }
 
-  classifyData(data: any[]) {
+  classifyData(data: ILegendItem[]) {
     const byDimensions: Record<string, any[]> = {};
     // eslint-disable-next-line @typescript-eslint/prefer-for-of
     for (let i = 0; i < data.length; i++) {
@@ -109,7 +112,11 @@ export default class CheckViewTable extends tsc<object, object> {
     const newData = this.classifyData(this.legendData);
     if (this.isCompareNotDimensions) {
       const data = newData[0] || { items: [] };
-      return data.items.map(ele => ({ ...ele, label: ele.name, prop: ele.timeOffset }));
+      return data.items.map(ele => ({
+        ...ele,
+        label: typeEnums[ele.timeOffset] || timeOffsetDateFormat(ele.timeOffset),
+        prop: ele.timeOffset,
+      }));
     }
     return newData.map(item => {
       const label = this.handleProp(item);
@@ -137,7 +144,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return [];
   }
 
-  transformData(data: any[]) {
+  transformData(data: IDataItem[]) {
     const resultMap = new Map<
       number,
       {
@@ -193,7 +200,7 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   /** prop值处理 */
-  handleProp(item: any): string {
+  handleProp(item: IDataItem): string {
     const dimensions = Object.values(item.dimensions || {});
     return dimensions.length > 0 ? dimensions.join(' | ') : item.target;
   }
@@ -204,54 +211,65 @@ export default class CheckViewTable extends tsc<object, object> {
     this.$emit('headClick', item);
   }
 
+  /** 维度（组合）tips展示 */
+  renderTipsContent(item: ILegendItem, disabled = false) {
+    const tipContent = `<span class='head-tips-view'>
+      <span class='tips-name'>${this.$t('维度（组合）')}</span><br/>
+      ${
+        (item.name || '')
+          .split('|')
+          .map((item: string, ind: number) => {
+            const className = ind % 2 !== 0 ? 'tips-item' : 'tips-item-even';
+            const begin = item.indexOf('-');
+            const index = item.indexOf('=');
+            return `<span class=${className}><label class='item-name'>${xssFilter(
+              item.slice(begin + 1, index)
+            )}</label>：${xssFilter(item.slice(index + 1))}</span><br/>`;
+          })
+          .join('') || ''
+      }
+    </span>`;
+    return {
+      extCls: 'check-view-tooltips',
+      content: tipContent,
+      allowHTML: true,
+      placement: 'bottom-start',
+      disabled,
+    };
+  }
+
+  getIsCheck(key: number) {
+    return this.selectLegendInd >= 1 && this.selectLegendInd !== key ? 'disabled' : '';
+  }
+
   /** 自定义表头渲染，支持颜色和维度提示 */
-  renderHeader(h: any, data: any, item: any) {
+  renderHeader(h: CreateElement, data: ITableColumn, item: IColumnItem) {
     const { $index } = data;
     if ((item.items || []).length > 1) {
       return (
         <span
-          class={`color-head ${this.selectLegendInd >= 1 && this.selectLegendInd !== $index ? 'disabled' : ''}`}
-          v-bk-tooltips={{
-            extCls: 'check-view-tooltips',
-            content: `<span class='head-tips-view'>
-              <span class='tips-name'>${this.$t('维度（组合）')}</span><br/>
-              ${
-                item.items[0].name
-                  .split('|')
-                  .map((item: string, ind: number) => {
-                    const className = ind % 2 !== 0 ? 'tips-item' : 'tips-item-even';
-                    const index = item.indexOf('=');
-                    return `<span class=${className}><label class='item-name'>${xssFilter(
-                      item.slice(0, index)
-                    )}</label>：${xssFilter(item.slice(index + 1))}</span><br/>`;
-                  })
-                  .join('') || ''
-              }
-            </span>`,
-            allowHTML: true,
-            placement: 'bottom',
-          }}
-          // onClick={() => this.handleRowClick(item, $index)}
+          class={'color-head'}
+          v-bk-tooltips={this.renderTipsContent(item.items[0])}
         >
-          <span
-            style={{ backgroundColor: item.color }}
-            class='color-box'
-          />
           <span class='color-label'>{item.label}</span>
           {this.isMergeTable && (
             <span class='head-list'>
-              {(item.items || []).map((ele: any, ind: number) => (
-                <span
-                  key={`${ele.timeOffset}${ind}`}
-                  class='head-list-item'
-                >
+              {(item.items || []).map((ele: ILegendItem, ind: number) => {
+                const key = Number(`${$index}${ind}`);
+                return (
                   <span
-                    style={{ backgroundColor: ele.color }}
-                    class='color-box'
-                  />
-                  {typeEnums[ele.timeOffset] || timeOffsetDateFormat(ele.timeOffset)}
-                </span>
-              ))}
+                    key={`${ele.timeOffset}${ind}`}
+                    class={`head-list-item ${this.getIsCheck(key)}`}
+                    onClick={() => this.handleRowClick(ele, key)}
+                  >
+                    <span
+                      style={{ backgroundColor: ele.color }}
+                      class='color-box'
+                    />
+                    {typeEnums[ele.timeOffset] || timeOffsetDateFormat(ele.timeOffset)}
+                  </span>
+                );
+              })}
               <span class='head-list-item'>{this.$t('波动')}</span>
             </span>
           )}
@@ -259,14 +277,21 @@ export default class CheckViewTable extends tsc<object, object> {
       );
     }
     if (item.prop !== 'time') {
+      const data = item?.items ? item.items[0] : item;
       return (
-        <span class='color-head no-compare'>
-          <span
-            style={{
-              backgroundColor: item?.items ? item.items[0].color : item.color,
-            }}
-            class='color-box'
-          />
+        <span
+          class={`color-head  no-compare ${this.getIsCheck($index)}`}
+          v-bk-tooltips={this.renderTipsContent(data, !this.isHasDimensions)}
+          onClick={() => this.handleRowClick(data, $index)}
+        >
+          {data.color && (
+            <span
+              style={{
+                backgroundColor: data.color,
+              }}
+              class='color-box'
+            />
+          )}
           <span class='color-label not-color'>{item.label || this.title}</span>
         </span>
       );
@@ -319,13 +344,13 @@ export default class CheckViewTable extends tsc<object, object> {
         key={`${item.prop}_${ind}`}
         width={item.width}
         scopedSlots={{
-          default: (data: any) => {
+          default: (data: ITableDataItem) => {
             const { row } = data;
             if (isStatistical) {
               if (item.prop !== 'type') {
                 const data = row[item.prop];
                 const len = (data || []).length;
-                return (data || []).map((item: any, ind: number) => (
+                return (data || []).map((item: IDataItem, ind: number) => (
                   <span
                     key={`${row.key}-${ind}`}
                     style={{ width: len > 1 ? '33.33%' : '100%' }}
@@ -374,10 +399,10 @@ export default class CheckViewTable extends tsc<object, object> {
           },
         }}
         fixed={item.fixed || false}
-        label={this.$t(item.label)}
+        label={item.label}
         min-width={item.minWidth || (this.isMergeTable ? 240 : 120)}
         prop={item.prop}
-        renderHeader={(h: any, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
+        renderHeader={(h: CreateElement, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
         sortable={item.sortable}
         show-overflow-tooltip
       />
@@ -390,7 +415,8 @@ export default class CheckViewTable extends tsc<object, object> {
     this.sortOrder = order as 'ascending' | 'descending' | null;
   }
 
-  getCellName = ({ column }: { column: any }) => {
+  getCellName = ({ column }: { column: ITableColumn }) => {
+    // console.log(column, 'column');
     return '';
   };
 

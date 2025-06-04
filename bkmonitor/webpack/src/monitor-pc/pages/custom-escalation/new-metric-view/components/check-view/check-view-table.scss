@@ -32,6 +32,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      cursor: pointer;
     }
     .not-color {
       margin-top: 10px;
@@ -101,6 +102,12 @@
         width: 33.33%;
         padding-left: 15px;
         margin-top: 4px;
+        &.disabled {
+          color: rgb(204, 204, 204);
+          .color-box {
+            background-color: rgb(204, 204, 204) !important;
+          }
+        }
       }
     }
     .color-label {
@@ -140,6 +147,7 @@
 .check-view-tooltips {
   min-width: 200px;
   padding: 8px 12px;
+  border-radius: 2px;
   .tippy-arrow {
     display: none;
   }

@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 export interface ILegendItem {
-  name: string;
+  name?: string;
   alias?: string;
   min?: number | string;
   max?: number | string;
   avg?: number | string;
   total?: number | string;
-  color: string;
-  show: boolean;
+  color?: string;
+  show?: boolean;
   value?: number | string;
   borderColor?: string;
   hidden?: boolean;
