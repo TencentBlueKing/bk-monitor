@@ -50,12 +50,9 @@
         multiple
         selected-style="checkbox"
         v-model="selectValue"
-        :remote-method="remote"
         :display-tag="true"
         :show-empty="false"
         :auto-height="true"
-        @tab-remove="handleValuesChange"
-        @clear="handleClear"
       >
         <bk-option
           v-for="option in groupList"
@@ -66,8 +63,48 @@
         </bk-option>
       </bk-select>
       <div>
-      <span class='addTagBtn'>添加自定义标签</span>
-      <span>如果CMDB的元数据无法满足您的需求，可以自行定义或通过正则匹配想要的结果</span>
+      <span class='addTagBtn' @click="handleAddExtraLabel">添加自定义标签</span>
+      <span>如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果</span>
+      <template v-if="extraLabelList.length">
+        <div
+          v-for="(item, index) in extraLabelList"
+          class="add-log-label form-div"
+          :key="index"
+        >
+          <div class="keyInputBox">
+            <bk-input
+              v-model.trim="item.key"
+              :class="{ 'extra-error': item.key === '' && isExtraError }"
+              @blur="isExtraError = false;item.duplicateKey=false"
+            ></bk-input>
+            <template v-if="item.duplicateKey">
+              <i
+                style="right: 8px"
+                class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                v-bk-tooltips.top="'自定义标签key与元数据key重复'"
+              ></i>
+            </template>
+          </div>
+          <span>=</span>
+          <bk-input
+            v-model.trim="item.value"
+            :class="{ 'extra-error': item.value === '' && isExtraError }"
+            @blur="isExtraError = false"
+          ></bk-input>
+          <div class="ml9">
+            <i
+              :class="['bk-icon icon-plus-circle-shape icons']"
+              @click="handleAddExtraLabel"
+            ></i>
+            <i
+              :class="[
+                'bk-icon icon-minus-circle-shape icons ml9',
+              ]"
+              @click="handleDeleteExtraLabel(index)"
+            ></i>
+          </div>
+        </div>
+      </template>
       </div>
     </div>
   </div>
@@ -84,6 +121,8 @@
   const switcherValue = ref(false);
   const selectValue = ref([]);
   const groupList = ref([]);
+  const extraLabelList = ref([]);
+  const isExtraError = ref(false);
   const emit = defineEmits(['extra-labels-change']);
   const emitExtraLabels = () => {
     const result = groupList.value.reduce((accumulator, item) => {
@@ -101,23 +140,6 @@
     }
   };
 
-  const remote = keyword => {
-    if (treeRef.value) {
-      treeRef.value.filter(keyword);
-    }
-  };
-
-  const handleValuesChange = options => {
-    if (treeRef.value) {
-      treeRef.value.setChecked(options.id, { emitEvent: true, checked: false });
-    }
-  };
-
-  const handleClear = () => {
-    if (treeRef.value) {
-      treeRef.value.removeChecked({ emitEvent: false });
-    }
-  };
 
   // 获取元数据
   const getDeviceMetaData = async () => {
@@ -139,15 +161,61 @@
       selectValue.value = props.metadata.map(item => {
         if (item.key.startsWith('host.')) {
           return item.key.slice(5);
-        } else {
-          return item.key;
-        }
+        } 
+      });
+      extraLabelList.value = props.metadata.filter(metadataItem => {
+        const isDuplicate = groupList.value.some(
+          groupItem => groupItem.field === metadataItem.key.slice(5)
+        );
+        return !isDuplicate;
+      }).map( item => {
+        return { 
+          key: item.key, 
+          value: item.value,
+          duplicateKey: false,
+        };
       });
     } catch (e) {
       console.warn(e);
     }
   };
 
+  const handleAddExtraLabel = () => {
+    extraLabelList.value.push({ key: '', value: '' });
+  }
+  const handleDeleteExtraLabel = (index) => {
+    extraLabelList.value.splice(index, 1);
+  }
+  const extraLabelsValidate = () => {
+    if (extraLabelList.value.length) {
+      extraLabelList.value.forEach(item => {
+        if (item.key === '' || item.value === '') {
+          isExtraError.value = true;
+        }
+        if (groupList.value.find(group => group.field === item.key)) {
+          item.duplicateKey = true;
+          isExtraError.value = true;
+        }
+      });
+    }
+    if (isExtraError.value) {
+      throw new Error
+    }
+    handleExtraLabelsChange()
+    return true
+  }
+  const handleExtraLabelsChange = () => {
+    if (extraLabelList.value.length) {
+      const result = groupList.value.reduce((accumulator, item) => {
+        if (selectValue.value.includes(item.field)) {
+          accumulator.push({ key: item.field, value: item.key });
+        }
+        return accumulator;
+      }, []);
+      result.push(...extraLabelList.value);
+      emit('extra-labels-change', result);
+    }
+  }
   onMounted(() => {
     getDeviceMetaData();
     if (props.metadata.filter(item => item.key).length) {
@@ -158,10 +226,13 @@
   watch(selectValue, () => {
     emitExtraLabels();
   });
+  defineExpose({
+    extraLabelsValidate,
+  });
 </script>
 <style lang="scss" scoped>
   .filter-table-container {
-    width: 558px;
+    width: 580px;
     margin-top: 10px;
     color: #63656e;
 
@@ -173,6 +244,31 @@
       margin-right: 10px;
       color:#2b7cc7;
       cursor: pointer;
+    }
+
+    .add-log-label {
+      display: flex;
+      align-items: center;
+
+      .keyInputBox{
+        position: relative;
+ 
+      }
+
+      span {
+        margin: 0 7px;
+        color: #ff9c01;
+      }
+
+      .bk-form-control {
+        width: 240px;
+      }
+    }
+
+    .extra-error {
+      .bk-form-input {
+        border-color: #ff5656;
+      }
     }
   }
 </style>
