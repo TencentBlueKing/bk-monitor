@@ -112,8 +112,11 @@
 <script>
   import { mapGetters, mapState } from 'vuex';
   import { debounce } from 'lodash';
-
+  // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
+  // #else
+  // #code const ExportLog = () => null;
+  // #endif
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
   import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
