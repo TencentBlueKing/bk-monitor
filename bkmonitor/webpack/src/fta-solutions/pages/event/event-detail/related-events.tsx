@@ -215,8 +215,11 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             <span>
               {row?.assignee?.length
                 ? row?.assignee.map((v, index, arr) => [
-                    <bk-user-display-name user-id={v} />,
-                    index !== arr.length - 1 ? <span>{','}</span> : null,
+                    <bk-user-display-name
+                      key={`user-display-${v}`}
+                      user-id={v}
+                    />,
+                    index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
                   ])
                 : '--'}
             </span>
@@ -534,8 +537,11 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
             title: this.$t('负责人'),
             content: child?.assignee?.length
               ? child?.assignee.map((v, index, arr) => [
-                  <bk-user-display-name user-id={v} />,
-                  index !== arr.length - 1 ? <span>{','}</span> : null,
+                  <bk-user-display-name
+                    key={`user-display-${v}`}
+                    user-id={v}
+                  />,
+                  index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
                 ])
               : '--',
           },
