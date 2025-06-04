@@ -170,7 +170,12 @@ export default defineComponent({
      * @param {KeyboardEvent} event 键盘事件对象
      */
     function handleKeyDownSlash(event) {
-      if (event.key === '/' && !inputValue.value && !showSelector.value && event.target?.tagName !== 'INPUT') {
+      if (
+        event.key === '/' &&
+        !inputValue.value &&
+        !showSelector.value &&
+        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)
+      ) {
         event.preventDefault();
         handleClickComponent();
         cleanup();
