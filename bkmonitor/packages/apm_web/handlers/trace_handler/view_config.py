@@ -177,6 +177,9 @@ class TraceFieldsHandler:
 
     def get_field_type(self, mode: QueryMode, field_name: str) -> str:
         """获取字段类型"""
+        convert_keyword_fields = ["collections.kind"]
+        if mode == QueryMode.TRACE and field_name in convert_keyword_fields:
+            return EnabledStatisticsDimension.KEYWORD.value
 
         if mode == QueryMode.TRACE:
             fields_info = self.trace_fields_info
