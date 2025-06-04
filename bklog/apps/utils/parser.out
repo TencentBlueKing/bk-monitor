@@ -1,0 +1,268 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> commands
+Rule 1     commands -> command
+Rule 2     commands -> command PIPE commands
+Rule 3     command -> cmd_prefix args_pattern
+Rule 4     cmd_prefix -> <empty>
+Rule 5     cmd_prefix -> COMMAND
+Rule 6     cmd_prefix -> COMMAND args
+Rule 7     cmd_prefix -> args
+Rule 8     args_pattern -> args pattern
+Rule 9     args_pattern -> pattern
+Rule 10    args -> ARG
+Rule 11    args -> ARG args
+Rule 12    pattern -> DOUBLE_QUOTED_STRING
+Rule 13    pattern -> SINGLE_QUOTED_STRING
+Rule 14    pattern -> RAW_PATTERN
+
+Terminals, with rules where they appear
+
+ARG                  : 10 11
+COMMAND              : 5 6
+DOUBLE_QUOTED_STRING : 12
+PIPE                 : 2
+RAW_PATTERN          : 14
+SINGLE_QUOTED_STRING : 13
+error                : 
+
+Nonterminals, with rules where they appear
+
+args                 : 6 7 8 11
+args_pattern         : 3
+cmd_prefix           : 3
+command              : 1 2
+commands             : 2 0
+pattern              : 8 9
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . commands
+    (1) commands -> . command
+    (2) commands -> . command PIPE commands
+    (3) command -> . cmd_prefix args_pattern
+    (4) cmd_prefix -> .
+    (5) cmd_prefix -> . COMMAND
+    (6) cmd_prefix -> . COMMAND args
+    (7) cmd_prefix -> . args
+    (10) args -> . ARG
+    (11) args -> . ARG args
+
+  ! shift/reduce conflict for ARG resolved as shift
+    DOUBLE_QUOTED_STRING reduce using rule 4 (cmd_prefix -> .)
+    SINGLE_QUOTED_STRING reduce using rule 4 (cmd_prefix -> .)
+    RAW_PATTERN     reduce using rule 4 (cmd_prefix -> .)
+    COMMAND         shift and go to state 4
+    ARG             shift and go to state 6
+
+  ! ARG             [ reduce using rule 4 (cmd_prefix -> .) ]
+
+    commands                       shift and go to state 1
+    command                        shift and go to state 2
+    cmd_prefix                     shift and go to state 3
+    args                           shift and go to state 5
+
+state 1
+
+    (0) S' -> commands .
+
+
+
+state 2
+
+    (1) commands -> command .
+    (2) commands -> command . PIPE commands
+
+    $end            reduce using rule 1 (commands -> command .)
+    PIPE            shift and go to state 7
+
+
+state 3
+
+    (3) command -> cmd_prefix . args_pattern
+    (8) args_pattern -> . args pattern
+    (9) args_pattern -> . pattern
+    (10) args -> . ARG
+    (11) args -> . ARG args
+    (12) pattern -> . DOUBLE_QUOTED_STRING
+    (13) pattern -> . SINGLE_QUOTED_STRING
+    (14) pattern -> . RAW_PATTERN
+
+    ARG             shift and go to state 6
+    DOUBLE_QUOTED_STRING shift and go to state 11
+    SINGLE_QUOTED_STRING shift and go to state 12
+    RAW_PATTERN     shift and go to state 13
+
+    args_pattern                   shift and go to state 8
+    args                           shift and go to state 9
+    pattern                        shift and go to state 10
+
+state 4
+
+    (5) cmd_prefix -> COMMAND .
+    (6) cmd_prefix -> COMMAND . args
+    (10) args -> . ARG
+    (11) args -> . ARG args
+
+  ! shift/reduce conflict for ARG resolved as shift
+    DOUBLE_QUOTED_STRING reduce using rule 5 (cmd_prefix -> COMMAND .)
+    SINGLE_QUOTED_STRING reduce using rule 5 (cmd_prefix -> COMMAND .)
+    RAW_PATTERN     reduce using rule 5 (cmd_prefix -> COMMAND .)
+    ARG             shift and go to state 6
+
+  ! ARG             [ reduce using rule 5 (cmd_prefix -> COMMAND .) ]
+
+    args                           shift and go to state 14
+
+state 5
+
+    (7) cmd_prefix -> args .
+
+    ARG             reduce using rule 7 (cmd_prefix -> args .)
+    DOUBLE_QUOTED_STRING reduce using rule 7 (cmd_prefix -> args .)
+    SINGLE_QUOTED_STRING reduce using rule 7 (cmd_prefix -> args .)
+    RAW_PATTERN     reduce using rule 7 (cmd_prefix -> args .)
+
+
+state 6
+
+    (10) args -> ARG .
+    (11) args -> ARG . args
+    (10) args -> . ARG
+    (11) args -> . ARG args
+
+  ! shift/reduce conflict for ARG resolved as shift
+    DOUBLE_QUOTED_STRING reduce using rule 10 (args -> ARG .)
+    SINGLE_QUOTED_STRING reduce using rule 10 (args -> ARG .)
+    RAW_PATTERN     reduce using rule 10 (args -> ARG .)
+    ARG             shift and go to state 6
+
+  ! ARG             [ reduce using rule 10 (args -> ARG .) ]
+
+    args                           shift and go to state 15
+
+state 7
+
+    (2) commands -> command PIPE . commands
+    (1) commands -> . command
+    (2) commands -> . command PIPE commands
+    (3) command -> . cmd_prefix args_pattern
+    (4) cmd_prefix -> .
+    (5) cmd_prefix -> . COMMAND
+    (6) cmd_prefix -> . COMMAND args
+    (7) cmd_prefix -> . args
+    (10) args -> . ARG
+    (11) args -> . ARG args
+
+  ! shift/reduce conflict for ARG resolved as shift
+    DOUBLE_QUOTED_STRING reduce using rule 4 (cmd_prefix -> .)
+    SINGLE_QUOTED_STRING reduce using rule 4 (cmd_prefix -> .)
+    RAW_PATTERN     reduce using rule 4 (cmd_prefix -> .)
+    COMMAND         shift and go to state 4
+    ARG             shift and go to state 6
+
+  ! ARG             [ reduce using rule 4 (cmd_prefix -> .) ]
+
+    command                        shift and go to state 2
+    commands                       shift and go to state 16
+    cmd_prefix                     shift and go to state 3
+    args                           shift and go to state 5
+
+state 8
+
+    (3) command -> cmd_prefix args_pattern .
+
+    PIPE            reduce using rule 3 (command -> cmd_prefix args_pattern .)
+    $end            reduce using rule 3 (command -> cmd_prefix args_pattern .)
+
+
+state 9
+
+    (8) args_pattern -> args . pattern
+    (12) pattern -> . DOUBLE_QUOTED_STRING
+    (13) pattern -> . SINGLE_QUOTED_STRING
+    (14) pattern -> . RAW_PATTERN
+
+    DOUBLE_QUOTED_STRING shift and go to state 11
+    SINGLE_QUOTED_STRING shift and go to state 12
+    RAW_PATTERN     shift and go to state 13
+
+    pattern                        shift and go to state 17
+
+state 10
+
+    (9) args_pattern -> pattern .
+
+    PIPE            reduce using rule 9 (args_pattern -> pattern .)
+    $end            reduce using rule 9 (args_pattern -> pattern .)
+
+
+state 11
+
+    (12) pattern -> DOUBLE_QUOTED_STRING .
+
+    PIPE            reduce using rule 12 (pattern -> DOUBLE_QUOTED_STRING .)
+    $end            reduce using rule 12 (pattern -> DOUBLE_QUOTED_STRING .)
+
+
+state 12
+
+    (13) pattern -> SINGLE_QUOTED_STRING .
+
+    PIPE            reduce using rule 13 (pattern -> SINGLE_QUOTED_STRING .)
+    $end            reduce using rule 13 (pattern -> SINGLE_QUOTED_STRING .)
+
+
+state 13
+
+    (14) pattern -> RAW_PATTERN .
+
+    PIPE            reduce using rule 14 (pattern -> RAW_PATTERN .)
+    $end            reduce using rule 14 (pattern -> RAW_PATTERN .)
+
+
+state 14
+
+    (6) cmd_prefix -> COMMAND args .
+
+    ARG             reduce using rule 6 (cmd_prefix -> COMMAND args .)
+    DOUBLE_QUOTED_STRING reduce using rule 6 (cmd_prefix -> COMMAND args .)
+    SINGLE_QUOTED_STRING reduce using rule 6 (cmd_prefix -> COMMAND args .)
+    RAW_PATTERN     reduce using rule 6 (cmd_prefix -> COMMAND args .)
+
+
+state 15
+
+    (11) args -> ARG args .
+
+    ARG             reduce using rule 11 (args -> ARG args .)
+    DOUBLE_QUOTED_STRING reduce using rule 11 (args -> ARG args .)
+    SINGLE_QUOTED_STRING reduce using rule 11 (args -> ARG args .)
+    RAW_PATTERN     reduce using rule 11 (args -> ARG args .)
+
+
+state 16
+
+    (2) commands -> command PIPE commands .
+
+    $end            reduce using rule 2 (commands -> command PIPE commands .)
+
+
+state 17
+
+    (8) args_pattern -> args pattern .
+
+    PIPE            reduce using rule 8 (args_pattern -> args pattern .)
+    $end            reduce using rule 8 (args_pattern -> args pattern .)
+
+WARNING: 
+WARNING: Conflicts:
+WARNING: 
+WARNING: shift/reduce conflict for ARG in state 0 resolved as shift
+WARNING: shift/reduce conflict for ARG in state 4 resolved as shift
+WARNING: shift/reduce conflict for ARG in state 6 resolved as shift
+WARNING: shift/reduce conflict for ARG in state 7 resolved as shift
