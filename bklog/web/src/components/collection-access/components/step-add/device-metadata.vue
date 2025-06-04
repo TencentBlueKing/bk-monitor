@@ -65,6 +65,10 @@
         >
         </bk-option>
       </bk-select>
+      <div>
+      <span class='addTagBtn'>添加自定义标签</span>
+      <span>如果CMDB的元数据无法满足您的需求，可以自行定义或通过正则匹配想要的结果</span>
+      </div>
     </div>
   </div>
 </template>
@@ -157,7 +161,18 @@
 </script>
 <style lang="scss" scoped>
   .filter-table-container {
+    width: 558px;
     margin-top: 10px;
-    width: 518px;
+    color: #63656e;
+
+    .bk-select{
+      width: 518px;
+    }
+
+    .addTagBtn{
+      margin-right: 10px;
+      color:#2b7cc7;
+      cursor: pointer;
+    }
   }
 </style>
