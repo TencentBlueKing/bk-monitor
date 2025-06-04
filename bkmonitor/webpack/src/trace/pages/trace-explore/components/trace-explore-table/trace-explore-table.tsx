@@ -234,6 +234,7 @@ export default defineComponent({
 
     /** 表格行可用作 唯一主键值 的字段名 */
     const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
+
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
     /** table 数据（所有请求返回的数据） */

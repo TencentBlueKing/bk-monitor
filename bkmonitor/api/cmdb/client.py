@@ -212,9 +212,6 @@ class SearchObjectAttribute(CMDBBaseResource):
 
     cache_type = CacheType.CC_BACKEND
 
-    def use_apigw(self):
-        return False
-
     @property
     def action(self):
         return "/api/v3/find/objectattr" if self.use_apigw() else "/search_object_attribute/"
