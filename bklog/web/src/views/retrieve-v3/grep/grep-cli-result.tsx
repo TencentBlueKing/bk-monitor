@@ -46,11 +46,11 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      RetrieveHelper.setMarkInstance();
+      // RetrieveHelper.setMarkInstance();
     });
 
     onBeforeUnmount(() => {
-      RetrieveHelper.destroyMarkInstance();
+      // RetrieveHelper.destroyMarkInstance();
     });
 
     const handleMenuClick = event => {

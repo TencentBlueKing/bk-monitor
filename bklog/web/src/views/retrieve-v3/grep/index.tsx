@@ -33,7 +33,6 @@ export default defineComponent({
     const grepQuery = ref('');
 
     const store = useStore();
-    const afterMarkComplete = debounce(() => {}, 180);
 
     const requestGrepList = () => {
       if (!hasMoreList.value) {
@@ -82,7 +81,7 @@ export default defineComponent({
                 list.value.push(...data.list);
                 hasMoreList.value = data.list.length > 0;
                 setTimeout(() => {
-                  RetrieveHelper.highLightKeywords([searchValue.value], offset.value === 0, afterMarkComplete);
+                  RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
                 return;
               }
@@ -108,13 +107,13 @@ export default defineComponent({
       searchValue.value = data.searchValue;
       matchMode.value = data.matchMode;
 
-      RetrieveHelper.highLightKeywords([searchValue.value], true, afterMarkComplete);
+      RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
       matchMode.value = mode;
-      RetrieveHelper.highLightKeywords([searchValue.value], true, afterMarkComplete);
+      RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 
     const handleFieldChange = (v: string) => {
@@ -167,17 +166,19 @@ export default defineComponent({
     onMounted(() => {
       offset.value = 0;
       hasMoreList.value = true;
+      RetrieveHelper.setMarkInstance();
     });
 
     onBeforeUnmount(() => {
       offset.value = 0;
       hasMoreList.value = true;
+      RetrieveHelper.destroyMarkInstance();
     });
 
     return () => (
       <div class='grep-view'>
         <GrepCli
-          searchCount={10}
+          search-count={totalMatches.value}
           on-search-change={handleSearchUpdate}
           on-match-mode={handleMatchModeUpdate}
           on-grep-enter={handleGrepEnter}

@@ -101,7 +101,7 @@
   };
 
   const handleActive = panel => {
-    emit('input', panel);
+    emit('input', panel, panel === 'origin');
   };
 
   onMounted(() => {

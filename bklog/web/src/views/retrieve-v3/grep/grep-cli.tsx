@@ -216,7 +216,7 @@ export default defineComponent({
             </div>
           </div>
 
-          <div class='grep-cli-result-section'>
+          {/* <div class='grep-cli-result-section'>
             <span class={['grep-cli-result-text', resultText.value.type]}>{resultText.value.text}</span>
             <div class='grep-cli-navigation'>
               <span
@@ -234,7 +234,7 @@ export default defineComponent({
                 ↓
               </span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     );
