@@ -59,6 +59,7 @@ class Event:
         "ipv6",
         "bk_topo_node",
         "extra_info",
+        "bk_tenant_id",
     )
 
     def __init__(self, data: dict, do_clean=True):
@@ -91,6 +92,7 @@ class Event:
         self.data["time"] = self._clean_time()
         self.data["category"] = self._clean_category()
         self.data["id"] = self._clean_uid()
+        self.data["bk_tenant_id"] = self._clean_bk_tenant_id()
 
     def remove_none_fields(self):
         """
@@ -114,6 +116,9 @@ class Event:
 
     def _clean_bk_biz_id(self):
         return self.data.get("bk_biz_id")
+
+    def _clean_bk_tenant_id(self):
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
 
     def _clean_tags(self):
         tags = self.data.get("tags", [])

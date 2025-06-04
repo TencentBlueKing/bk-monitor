@@ -701,6 +701,7 @@ class Alert:
         """
         create_time = int(time.time())
         data = {
+            "bk_tenant_id": event.bk_tenant_id,
             "dedupe_md5": event.dedupe_md5,
             "create_time": create_time,
             "update_time": create_time,

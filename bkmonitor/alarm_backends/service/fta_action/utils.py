@@ -198,6 +198,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
 
     converge_info = getattr(action_instance, "converge_info", {})
     action_info = dict(
+        bk_tenant_id=bk_biz_id_to_bk_tenant_id(action_instance.bk_biz_id),
         id=f"{create_timestamp}{action_instance.id}",
         raw_id=action_instance.id,
         create_time=create_timestamp,
