@@ -47,7 +47,6 @@ class CheckCollectorViewSet(APIViewSet):
         data = self.params_valid(GetCollectorCheckResultSerializer)
         record = CheckCollectorRecord(**data)
         result = {"infos": record.get_infos(), "finished": record.finished}
-        print(record.get_infos())
         return Response(result)
 
     @list_route(methods=["POST"], url_path="run_check_collector")
@@ -75,7 +74,6 @@ class CheckCollectorViewSet(APIViewSet):
             collector_config_id=collector_config.collector_config_id,
             hosts=data.get("hosts")
         )
-        print(key)
         record = CheckCollectorRecord(check_record_id=key)
         record.append_init()
         # 同步执行日志路径检查
@@ -94,5 +92,4 @@ class CheckCollectorViewSet(APIViewSet):
                   "finished": record.finished,
                   "msg": "日志路径检测完成，异步检测run_agent_check启动成功，task_id:" + str(task.id)}
         record.change_status(CheckStatusEnum.STARTED.value)
-        print(record.get_infos())
         return Response(result)

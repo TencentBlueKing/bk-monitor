@@ -184,7 +184,6 @@ class AgentChecker(Checker):
         try:
             result = JobApi.batch_get_job_instance_ip_log(params=params, request_cookies=False)
             self.ip_logs = result.get("script_task_logs", [])
-            print(self.ip_logs)
         except Exception as e:  # pylint: disable=broad-except
             error_msg = _("[获取作业执行结果] 作业: {job_instance_id}, 报错为: {e}").format(
                 job_instance_id=self.job_instance_id, e=e
