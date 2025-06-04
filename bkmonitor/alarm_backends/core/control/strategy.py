@@ -193,9 +193,7 @@ class Strategy:
         # 再看看日历，是不是处于休息日
         calendar_ids = uptime.get("calendars") or []
         if calendar_ids:
-            calendars = CalendarCacheManager.mget(
-                calendar_ids=calendar_ids, bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
-            )
+            calendars = CalendarCacheManager.mget(calendar_ids=calendar_ids, bk_tenant_id=self.bk_tenant_id)
         else:
             calendars = []
 
