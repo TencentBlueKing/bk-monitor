@@ -86,7 +86,9 @@ export default defineComponent({
     const formatList = computed(() => {
       const filterFn = node => {
         return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
-          key => `${node[key]}`.indexOf(searchText.value) !== -1,
+          key =>
+            `${node[key]}`.indexOf(searchText.value) !== -1 ||
+            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
         );
       };
       // 检查节点是否应该显示
