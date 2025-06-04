@@ -26,6 +26,7 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Tippy } from 'vue-tippy';
 
 import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
@@ -482,8 +483,7 @@ export default defineComponent({
               className='span-view'
             >
               <Ticks numTicks={numTicks} />
-              <Popover
-                key={label}
+              <Tippy
                 v-slots={{
                   content: () => (
                     <div>
@@ -496,21 +496,23 @@ export default defineComponent({
                       <div>{`${this.t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
                   ),
+                  default: () => (
+                    <SpanBar
+                      color={color}
+                      hintSide={hintSide}
+                      longLabel={longLabel}
+                      rpc={rpc}
+                      shortLabel={label}
+                      span={span}
+                      viewEnd={viewEnd}
+                      viewStart={viewStart}
+                    />
+                  ),
                 }}
-                placement='top'
-                popoverDelay={[500, 0]}
-              >
-                <SpanBar
-                  color={color}
-                  hintSide={hintSide}
-                  longLabel={longLabel}
-                  rpc={rpc}
-                  shortLabel={label}
-                  span={span}
-                  viewEnd={viewEnd}
-                  viewStart={viewStart}
-                />
-              </Popover>
+                delay={[500, 0]}
+                followCursor={true}
+                offset={[0, 12]}
+              />
             </TimelineRowCell>
           </>
         )}

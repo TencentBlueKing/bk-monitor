@@ -204,7 +204,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
         });
       }
     }
-    console.log(index);
     this.cursorIndex = index;
   }
 
@@ -392,19 +391,22 @@ export default class UiSelectorOptions extends tsc<IProps> {
   getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
     return new Promise((resolve, _reject) => {
       this.getValueFn({
-        where: [
-          {
-            key: params.field,
-            method: 'include',
-            value: [params.search || ''],
-            condition: ECondition.and,
-            options: {
-              is_wildcard: true,
-            },
-          },
-        ],
+        where: params.search
+          ? [
+              {
+                key: params.field,
+                method: this.checkedItem?.type === EFieldType.integer ? 'eq' : 'include',
+                value: [params.search],
+                condition: ECondition.and,
+                options: {
+                  is_wildcard: true,
+                },
+              },
+            ]
+          : [],
         fields: [params.field],
         limit: params.limit,
+        isInit__: params?.isInit__ || false,
       })
         .then(data => {
           resolve(data);

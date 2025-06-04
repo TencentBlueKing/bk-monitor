@@ -244,26 +244,26 @@ export default class ViewTab extends tsc<IProps, IEmit> {
                   name={item.id}
                 >
                   <template slot='label'>
-                    <div class='drag-flag'>
+                    {/* <div class='drag-flag'>
                       <i class='icon-monitor icon-mc-tuozhuai' />
-                    </div>
+                    </div> */}
                     <span>{item.name}</span>
-                    <RemoveConfirm
+                    {/* <RemoveConfirm
                       data={item}
                       onSubmit={() => this.handleRemoveView(item.id)}
                     >
                       <span class='remove-btn'>
                         <i class='icon-monitor icon-mc-clear' />
                       </span>
-                    </RemoveConfirm>
+                    </RemoveConfirm> */}
                   </template>
                 </bk-tab-panel>
               ))}
             </bk-tab>
           )}
           <div class='extend-action'>
-            {
-              this.viewList.length > 0 && <ViewManage
+            {this.viewList.length > 0 && (
+              <ViewManage
                 payload={this.graphConfigPayload}
                 sceneId={this.sceneId}
                 viewList={this.viewList}
@@ -272,7 +272,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
                   this.handleViewSaveSuccess();
                 }}
               />
-            }
+            )}
             <ViewSave
               payload={this.graphConfigPayload}
               sceneId={this.sceneId}

@@ -41,6 +41,7 @@ from apps.log_search.exceptions import (
     MissAsyncExportException,
     PreCheckAsyncExportException,
 )
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
@@ -56,7 +57,7 @@ from apps.utils.local import (
 )
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
-from apps.log_search.tasks.unify_query_async_export import async_export
+from apps.log_search.tasks.unify_query_async_export import async_export, union_async_export
 
 
 class UnifyQueryAsyncExportHandlers:
@@ -283,3 +284,122 @@ class UnifyQueryAsyncExportHandlers:
                 shipper, *_ = result_table["shipper_list"]
                 result[val["bk_data_id"]] = shipper["storage_config"]["retention"]
         return result
+
+
+class UnifyQueryUnionAsyncExportHandlers:
+    def __init__(
+        self,
+        bk_biz_id=None,
+        search_dict: dict = None,
+        export_fields=None,
+        index_set_ids: list = None,
+        export_file_type: str = "txt",
+    ):
+        self.bk_biz_id = bk_biz_id
+        self.index_set_ids = index_set_ids
+        self.search_dict = search_dict
+        search_dict = copy.deepcopy(self.search_dict)
+        search_dict["index_set_ids"] = index_set_ids
+        search_dict["export_fields"] = export_fields
+        self.unify_query_handler = UnifyQueryHandler(search_dict)
+        self.request_user = get_request_external_username() or get_request_username()
+        self.is_external = bool(get_request_external_username())
+        self.export_file_type = export_file_type
+
+    def async_export(self, is_quick_export: bool = False):
+        sort_fields_flag = []
+        sort_fields_list = []
+        # 计算平台暂不支持快速下载
+        for index_info in self.unify_query_handler.index_info_list:
+            if is_quick_export and index_info["scenario_id"] == Scenario.BKDATA:
+                raise BKBaseExportException()
+            index_set_id = index_info["index_set_id"]
+            search_handler = SearchHandler(
+                index_set_id=index_set_id,
+                search_dict={
+                    "start_time": self.search_dict.get("start_time"),
+                    "end_time": self.search_dict.get("end_time"),
+                },
+            )
+            # 判断fields是否支持
+            fields = self._pre_check_fields(search_handler)
+            # 获取排序字段
+            sorted_list = search_handler._get_user_sorted_list(fields["async_export_fields"])
+            # 整合排序字段
+            for fields_list in sorted_list:
+                field = fields_list[0]
+                if field not in sort_fields_flag:
+                    sort_fields_flag.append(field)
+                    sort_fields_list.append(fields_list)
+        result = self.unify_query_handler.pre_get_result(
+            sorted_fields=sort_fields_list,
+            size=ASYNC_COUNT_SIZE,
+        )
+        # 判断是否进行导出
+        if not result["list"]:
+            logger.error("can not create async_export task, reason: no data")
+            raise PreCheckAsyncExportException()
+
+        async_task = AsyncTask.objects.create(
+            **{
+                "request_param": self.search_dict,
+                "sorted_param": sort_fields_list,
+                "index_set_ids": self.index_set_ids,
+                "index_set_type": IndexSetType.UNION.value,
+                "bk_biz_id": self.bk_biz_id,
+                "start_time": self.search_dict["start_time"],
+                "end_time": self.search_dict["end_time"],
+                "export_type": ExportType.ASYNC,
+                "created_by": self.request_user,
+            }
+        )
+
+        url = self._get_url()
+        search_url = self._get_search_url()
+
+        union_async_export.delay(
+            unify_query_handler=self.unify_query_handler,
+            sorted_fields=sort_fields_list,
+            async_task_id=async_task.id,
+            url_path=url,
+            search_url_path=search_url,
+            language=get_request_language_code(),
+            is_external=self.is_external,
+            is_quick_export=is_quick_export,
+            export_file_type=self.export_file_type,
+            external_user_email=get_request_external_user_email(),
+        )
+        return async_task.id, self.search_dict.get("size", 30)
+
+    @staticmethod
+    def _pre_check_fields(search_handler: SearchHandler):
+        fields = search_handler.fields()
+        for config in fields["config"]:
+            if config["name"] == "async_export":
+                if not config["is_active"]:
+                    raise MissAsyncExportException(config["extra"]["usable_reason"])
+                return {"async_export_fields": config["extra"]["fields"]}
+
+    def _get_url(self):
+        url = reverse("tasks-download-file", request=get_request())
+        return url
+
+    def _get_search_url(self):
+        request = get_request()
+        search_dict = copy.deepcopy(self.search_dict)
+        if "host_scopes" in search_dict:
+            search_dict["host_scopes"] = json.dumps(search_dict["host_scopes"])
+
+        if "addition" in search_dict:
+            search_dict["addition"] = json.dumps(search_dict["addition"])
+
+        if "bk_biz_id" in search_dict:
+            search_dict["bizId"] = search_dict["bk_biz_id"]
+            search_dict["spaceUid"] = bk_biz_id_to_space_uid(search_dict["bk_biz_id"])
+        search_dict["unionList"] = self.index_set_ids
+        if search_dict["keyword"] is None:
+            search_dict.pop("keyword")
+        url_params = urlencode(search_dict)
+        # 这里是为了拼接前端检索请求
+        search_url = f"{request.scheme}://{request.get_host()}{settings.SITE_URL}#/retrieve?{url_params}"
+        return search_url

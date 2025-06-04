@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import datetime
+from functools import reduce
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -197,22 +198,41 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 标签过滤
         if labels:
             plugins = plugins.filter(label__in=labels.split(","))
-        # 关键字搜索
-        if search_key:
-            for search_item in ["plugin_id", "create_user", "update_user", "plugin_display_name"]:
-                plugins = plugins.filter(**{f"{search_item}__icontains": search_key})
 
-        plugin_dict = {plugin.plugin_id: plugin for plugin in plugins}
-
-        # 获取全量的插件数据（包含外键数据）
-        all_versions = (
-            PluginVersionHistory.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=list(plugin_dict.keys()))
-            .select_related("config", "info")
-            .defer("info__metric_json", "info__description_md")
+        # 按插件过滤
+        all_versions = PluginVersionHistory.objects.filter(
+            bk_tenant_id=bk_tenant_id, plugin_id__in=list(plugins.values_list("plugin_id", flat=True))
         )
 
+        # 关键字搜索
+        if search_key:
+            # 先过滤出插件ID、创建人、更新人包含关键字的插件
+            plugins = plugins.filter(
+                reduce(
+                    lambda x, y: x | y,
+                    [
+                        Q(**{f"{search_item}__icontains": search_key})
+                        for search_item in ["plugin_id", "create_user", "update_user"]
+                    ],
+                )
+            )
+            all_versions = all_versions.filter(
+                Q(plugin_id__in=[plugin.plugin_id for plugin in plugins])
+                | Q(info__plugin_display_name__icontains=search_key)
+            )
+
+        # 按插件状态过滤
         if status:
             all_versions = all_versions.filter(stage=status)
+
+        # 获取全量的插件数据（包含外键数据）
+        all_versions = all_versions.select_related("config", "info").defer("info__metric_json", "info__description_md")
+
+        # 根据检索出的version重新获取插件数据
+        plugin_dict = {
+            plugin.plugin_id: plugin
+            for plugin in self.get_queryset().filter(plugin_id__in=[version.plugin_id for version in all_versions])
+        }
 
         # 取出每个plugin的最新版本进行预缓存
         plugin_latest_versions: dict[str, PluginVersionHistory] = {}

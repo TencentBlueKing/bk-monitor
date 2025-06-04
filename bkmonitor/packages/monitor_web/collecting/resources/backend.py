@@ -7,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from copy import copy
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -64,7 +65,7 @@ class CollectConfigListResource(Resource):
     """
 
     def __init__(self):
-        super(CollectConfigListResource, self).__init__()
+        super().__init__()
         self.realtime_data = {}  # 采集配置实时数据结果
         self.service_type_data = {}  # 服务分类数据
         self.plugin_release_version = {}  # 插件最新版本，用于检查采集配置是否需要升级
@@ -254,7 +255,7 @@ class CollectConfigListResource(Resource):
         for plugin in global_plugins:
             data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
             if data_name in data_names:
-                plugin_ids.append(plugin['plugin_id'])
+                plugin_ids.append(plugin["plugin_id"])
 
         return CollectConfigMeta.objects.filter(
             Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id), bk_tenant_id=bk_tenant_id
@@ -312,7 +313,7 @@ class CollectConfigListResource(Resource):
                 for plugin in global_plugins:
                     data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
                     if data_name in data_names:
-                        plugin_ids.append(plugin['plugin_id'])
+                        plugin_ids.append(plugin["plugin_id"])
             else:
                 # 全业务场景 to be legacy
                 user_biz_ids = resource.space.get_bk_biz_ids_by_user(get_request().user)
@@ -329,7 +330,7 @@ class CollectConfigListResource(Resource):
                 for plugin in global_plugins:
                     data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
                     if data_name in data_names:
-                        plugin_ids.append(plugin['plugin_id'])
+                        plugin_ids.append(plugin["plugin_id"])
         except BKAPIError as e:
             logger.error(f"get data source error: {e}")
 
@@ -545,7 +546,7 @@ class RenameCollectConfigResource(Resource):
         id = serializers.IntegerField(label="采集配置ID")
         name = serializers.CharField(label="名称")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         CollectConfigMeta.objects.filter(id=params["id"], bk_biz_id=params["bk_biz_id"]).update(name=params["name"])
         return "success"
 
@@ -560,7 +561,7 @@ class ToggleCollectConfigStatusResource(Resource):
         id = serializers.IntegerField(required=True, label="采集配置ID")
         action = serializers.ChoiceField(required=True, choices=["enable", "disable"], label="启停配置")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         config_id = params["id"]
         action = params["action"]
 
@@ -694,7 +695,7 @@ class RetryTargetNodesResource(Resource):
         id = serializers.IntegerField(required=True, label="采集配置ID")
         instance_id = serializers.CharField(required=True, label="需要重试的实例id")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -719,7 +720,7 @@ class RevokeTargetNodesResource(Resource):
         id = serializers.IntegerField(label="采集配置ID")
         instance_ids = serializers.ListField(label="需要终止的实例ID")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -749,7 +750,7 @@ class RunCollectConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -773,7 +774,7 @@ class BatchRevokeTargetNodesResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -799,7 +800,7 @@ class GetCollectLogDetailResource(Resource):
         instance_id = serializers.CharField(label="主机/实例id")
         task_id = serializers.IntegerField(label="任务id")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -820,7 +821,7 @@ class BatchRetryConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         try:
             config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 id=params["id"], bk_biz_id=params["bk_biz_id"]
@@ -888,7 +889,9 @@ class SaveCollectConfigResource(Resource):
         )
         plugin_id = serializers.CharField(required=True, label="插件ID")
         target_nodes = serializers.ListField(required=True, label="节点列表", allow_empty=True)
-        remote_collecting_host = RemoteCollectingSlz(required=False, allow_null=True, default=None, label="远程采集配置")
+        remote_collecting_host = RemoteCollectingSlz(
+            required=False, allow_null=True, default=None, label="远程采集配置"
+        )
         params = serializers.DictField(required=True, label="采集配置参数")
         label = serializers.CharField(required=True, label="二级标签")
         operation = serializers.ChoiceField(default="EDIT", choices=["EDIT", "ADD_DEL"], label="操作类型")
@@ -959,7 +962,7 @@ class SaveCollectConfigResource(Resource):
                 for rule in rules:
                     rule_name = rule["name"]
                     if rule_name in name_set:
-                        raise CollectConfigParamsError(msg="Duplicate keyword rule name({})".format(rule_name))
+                        raise CollectConfigParamsError(msg=f"Duplicate keyword rule name({rule_name})")
                     name_set.add(rule_name)
 
             # 克隆时 插件 bk-pull 密码不能为bool
@@ -1000,7 +1003,7 @@ class SaveCollectConfigResource(Resource):
                 last_operation=OperationType.CREATE,
                 operation_result=OperationResult.PREPARING,
                 collect_type=data["collect_type"],
-                plugin=collector_plugin,
+                plugin_id=collector_plugin.plugin_id,
                 target_object_type=data["target_object_type"],
                 label=data["label"],
             )
@@ -1096,10 +1099,10 @@ class SaveCollectConfigResource(Resource):
             if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
                 raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
 
-            plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+            plugin_config: dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
             plugin_params = {
                 "plugin_id": plugin_id,
-                "bk_biz_id": data['bk_biz_id'],
+                "bk_biz_id": data["bk_biz_id"],
                 "plugin_type": PluginType.K8S,
                 "label": plugin_config.get("label", "os"),
                 "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),

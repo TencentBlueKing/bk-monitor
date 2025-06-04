@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 import re
-from typing import Dict, List
 
 from django.conf import settings
 from django.db import transaction
@@ -90,7 +88,7 @@ def import_plugin(bk_biz_id, plugin_config):
                 plugin_manager = PluginManagerFactory.get_manager(
                     bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=plugin_type, operator=local.username
                 )
-                version, _ = plugin_manager.create_version(config)
+                version, need_debug = plugin_manager.create_version(config)
             result = resource.plugin.plugin_register(
                 plugin_id=version.plugin.plugin_id,
                 config_version=version.config_version,
@@ -194,7 +192,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
                 last_operation=OperationType.CREATE,
                 operation_result=OperationResult.PREPARING,
                 collect_type=config["collect_type"],
-                plugin=plugin_obj,
+                plugin_id=plugin_obj.plugin_id,
                 target_object_type=config["target_object_type"],
                 label=config["label"],
             )
@@ -451,7 +449,7 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
             view_config.save()
 
 
-def get_strategy_config(bk_biz_id: int, strategy_ids: List[int]) -> List[Dict]:
+def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
     """
     获取策略配置列表（包含用户组详细信息）
     """
@@ -511,7 +509,7 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: List[int]) -> List[Dict]:
     return strategy_configs
 
 
-def get_view_config(bk_biz_id: int, view_ids: List[str]) -> Dict[str, Dict]:
+def get_view_config(bk_biz_id: int, view_ids: list[str]) -> dict[str, dict]:
     """
     获取仪表盘配置:
     """

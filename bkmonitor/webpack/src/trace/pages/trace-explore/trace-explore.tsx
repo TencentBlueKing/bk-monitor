@@ -150,6 +150,7 @@ export default defineComponent({
     const currentFavorite = shallowRef(null);
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
+    let axiosController = new AbortController();
 
     const { getFieldsOptionValuesProxy } = useCandidateValue();
 
@@ -215,6 +216,7 @@ export default defineComponent({
     /** 应用切换 */
     function handleAppNameChange() {
       where.value = [];
+      commonWhere.value = [];
       getViewConfig();
       handleSetUserConfig(JSON.stringify(store.appName));
       handleQuery();
@@ -262,13 +264,39 @@ export default defineComponent({
       handleQueryStringChange(queryString.value ? `${queryString.value} AND ${endStr}` : `${endStr}`);
     }
 
-    const handleQuery = () => {
+    const handleQuery = async () => {
       let query_string = '';
       let filters = mergeWhereList(where.value || [], commonWhere.value || []);
       if (filterMode.value === EMode.ui) {
         // 全文检索补充到query_string里
-        const fullText = filters.find(item => item.key === '*');
-        query_string = fullText?.value[0] ? `"${fullText?.value[0]}"` : '';
+        const fullFilters = filters
+          .filter(item => item.key === '*')
+          .map(item => ({
+            key: item.key,
+            operator: 'equal',
+            value: item.value,
+            options: {},
+          }));
+        if (fullFilters.length) {
+          if (fullFilters.length > 1) {
+            axiosController.abort();
+            axiosController = new AbortController();
+            const str = await traceGenerateQueryString(
+              {
+                filters: fullFilters,
+              },
+              {
+                signal: axiosController.signal,
+                needMessage: false,
+              }
+            ).catch(() => {
+              return '';
+            });
+            query_string = str;
+          } else {
+            query_string = fullFilters[0]?.value?.[0] ? `"${fullFilters[0].value[0]}"` : '';
+          }
+        }
         filters = filters.filter(item => item.key !== '*');
       } else {
         query_string = queryString.value;
@@ -625,6 +653,7 @@ export default defineComponent({
         if (item.key === '*') {
           return {
             ...item,
+            operator: 'equal',
             options: {},
           };
         }
