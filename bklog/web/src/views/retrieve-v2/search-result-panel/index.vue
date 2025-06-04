@@ -6,8 +6,17 @@
 
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
+  // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
+  // #else
+  // #code const SearchResultChart = () => null;
+  // #endif
+
+  // #if MONITOR_APP !== 'trace'
   import FieldFilter from './field-filter';
+  // #else
+  // #code const FieldFilter = () => null;
+  // #endif
 
   // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
   import LogClustering from './log-clustering/index';
@@ -43,7 +52,12 @@
   const heightNum = ref();
 
   const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
-  const isShowFieldStatistics = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show);
+  const isShowFieldStatistics = computed(() => {
+    if(window.__IS_MONITOR_TRACE__) {
+      return false;
+    }
+    return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show
+  });
 
   RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
