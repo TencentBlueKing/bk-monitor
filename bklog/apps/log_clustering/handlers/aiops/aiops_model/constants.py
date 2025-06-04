@@ -18,8 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-# 可以删
-# TRAINING_HOUR = 1
 
 # 可以删
 # class StepName(object):
@@ -344,9 +342,7 @@ the project delivered to anyone in the future.
 #     "add_on_input": [],
 # }
 
-EVALUATE_INPUT_VALUE = {
-    "evaluate_input": [],
-}
+
 # 可以删
 # ALGORITHM_CONFIG_PREDICT_META = {
 #     "input": {

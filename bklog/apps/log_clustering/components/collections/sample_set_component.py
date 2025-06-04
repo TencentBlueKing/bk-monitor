@@ -19,44 +19,30 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.utils.translation import gettext_lazy as _
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
-from apps.log_clustering.handlers.aiops.sample_set.sample_set_handler import (
-    SampleSetHandler,
-)
-from apps.log_clustering.handlers.dataflow.constants import (
-    DEFAULT_CLUSTERING_FIELD,
-    DEFAULT_TIME_FIELD,
-)
-from apps.log_clustering.models import ClusteringConfig, SampleSet
-from apps.utils.pipline import BaseService
-
-
-class CreateSampleSetService(BaseService):
-    name = _("创建样本集")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
-            Service.InputItem(name="description", key="description", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        description = data.get_one_of_inputs("description")
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        sample_set = SampleSetHandler().create(sample_set_name=sample_set_name, description=description)
-        SampleSet.objects.create(**{"sample_set_id": sample_set["id"], "sample_set_name": sample_set_name})
-        ClusteringConfig.objects.filter(index_set_id=index_set_id).update(sample_set_id=sample_set["id"])
-        return True
+# class CreateSampleSetService(BaseService):
+#     name = _("创建样本集")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
+#             Service.InputItem(name="description", key="description", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         sample_set_name = data.get_one_of_inputs("sample_set_name")
+#         description = data.get_one_of_inputs("description")
+#         index_set_id = data.get_one_of_inputs("index_set_id")
+#         sample_set = SampleSetHandler().create(sample_set_name=sample_set_name, description=description)
+#         SampleSet.objects.create(**{"sample_set_id": sample_set["id"], "sample_set_name": sample_set_name})
+#         ClusteringConfig.objects.filter(index_set_id=index_set_id).update(sample_set_id=sample_set["id"])
+#         return True
 
 
-class CreateSampleSetComponent(Component):
-    name = "CreateSampleSet"
-    code = "create_sample_set"
-    bound_service = CreateSampleSetService
+# class CreateSampleSetComponent(Component):
+#     name = "CreateSampleSet"
+#     code = "create_sample_set"
+#     bound_service = CreateSampleSetService
 
 
 # 可以删
@@ -72,33 +58,33 @@ class CreateSampleSetComponent(Component):
 #         )
 #         self.create_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
+# 可以删
+# class AddRtToSampleSetService(BaseService):
+#     name = _("把rt添加到stag表")
+#
+#     def inputs_format(self):
+#         return [
+#             Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
+#             Service.InputItem(name="result table id", key="result_table_id", type="str", required=True),
+#         ]
+#
+#     def _execute(self, data, parent_data):
+#         sample_set_name = data.get_one_of_inputs("sample_set_name")
+#         index_set_id = data.get_one_of_inputs("index_set_id")
+#         sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
+#         # clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+#         SampleSetHandler().add_rt_to_sample_set(
+#             sample_set_id=sample_set_id,
+#             result_table_id=clustering_config.pre_treat_flow["sample_set"]["result_table_id"],
+#             field_filter=[DEFAULT_TIME_FIELD, DEFAULT_CLUSTERING_FIELD],
+#         )
+#         return True
 
-class AddRtToSampleSetService(BaseService):
-    name = _("把rt添加到stag表")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
-            Service.InputItem(name="result table id", key="result_table_id", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        SampleSetHandler().add_rt_to_sample_set(
-            sample_set_id=sample_set_id,
-            result_table_id=clustering_config.pre_treat_flow["sample_set"]["result_table_id"],
-            field_filter=[DEFAULT_TIME_FIELD, DEFAULT_CLUSTERING_FIELD],
-        )
-        return True
-
-
-class AddRtToSampleSetComponent(Component):
-    name = "AddRtToSampleSet"
-    code = "add_rt_to_sample_set"
-    bound_service = AddRtToSampleSetService
+# 可以删
+# class AddRtToSampleSetComponent(Component):
+#     name = "AddRtToSampleSet"
+#     code = "add_rt_to_sample_set"
+#     bound_service = AddRtToSampleSetService
 
 
 # 可以删
@@ -113,24 +99,24 @@ class AddRtToSampleSetComponent(Component):
 #         )
 #         self.add_rt_to_sample_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
+# 可以删
+# class CollectConfigsService(BaseService):
+#     name = _("创建或更新样本采集配置")
+#
+#     def inputs_format(self):
+#         return [Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True)]
+#
+#     def _execute(self, data, parent_data):
+#         sample_set_name = data.get_one_of_inputs("sample_set_name")
+#         sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
+#         SampleSetHandler().collect_configs(sample_set_id=sample_set_id)
+#         return True
 
-class CollectConfigsService(BaseService):
-    name = _("创建或更新样本采集配置")
-
-    def inputs_format(self):
-        return [Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True)]
-
-    def _execute(self, data, parent_data):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        SampleSetHandler().collect_configs(sample_set_id=sample_set_id)
-        return True
-
-
-class CollectConfigsComponent(Component):
-    name = "CollectConfigs"
-    code = "collect_config"
-    bound_service = CollectConfigsService
+# 可以删
+# class CollectConfigsComponent(Component):
+#     name = "CollectConfigs"
+#     code = "collect_config"
+#     bound_service = CollectConfigsService
 
 
 # 可以删
@@ -139,40 +125,40 @@ class CollectConfigsComponent(Component):
 #         self.collect_config = ServiceActivity(component_code="collect_config", name=f"collect_config:{sample_set_name}")
 #         self.collect_config.component.inputs.sample_set_name = Var(type=Var.SPLICE, value="${sample_set_name}")
 
+# 可以删
+# class ApplySampleSetService(BaseService):
+#     # name = _("执行样本集提交")
+#     # __need_schedule__ = True
+#     # TASK_POLLING_INTERVAL = 300
+#     # interval = StaticIntervalGenerator(TASK_POLLING_INTERVAL)
+#     #
+#     # def inputs_format(self):
+#     #     return [
+#     #         Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
+#     #     ]
+#
+#     # def _execute(self, data, parent_data):
+#     #     sample_set_name = data.get_one_of_inputs("sample_set_name")
+#     #     sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
+#     #     SampleSetHandler().apply_sample_set(sample_set_id=sample_set_id)
+#     #     return True
+#
+#     def _schedule(self, data, parent_data, callback_data=None):
+#         sample_set_name = data.get_one_of_inputs("sample_set_name")
+#         sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
+#         submit_status_result = SampleSetHandler().submit_status(sample_set_id=sample_set_id)
+#         if submit_status_result["status"] == "finished":
+#             sample_set_info = SampleSetHandler().sample_set_info(sample_set_id=sample_set_id)
+#             if sample_set_info["sample_size"] > 0:
+#                 # 当样本提交完成，且样本数大于0，说明样本已经生效
+#                 self.finish_schedule()
+#         return True
 
-class ApplySampleSetService(BaseService):
-    name = _("执行样本集提交")
-    __need_schedule__ = True
-    TASK_POLLING_INTERVAL = 300
-    interval = StaticIntervalGenerator(TASK_POLLING_INTERVAL)
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="sample set name", key="sample_set_name", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        SampleSetHandler().apply_sample_set(sample_set_id=sample_set_id)
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        sample_set_name = data.get_one_of_inputs("sample_set_name")
-        sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        submit_status_result = SampleSetHandler().submit_status(sample_set_id=sample_set_id)
-        if submit_status_result["status"] == "finished":
-            sample_set_info = SampleSetHandler().sample_set_info(sample_set_id=sample_set_id)
-            if sample_set_info["sample_size"] > 0:
-                # 当样本提交完成，且样本数大于0，说明样本已经生效
-                self.finish_schedule()
-        return True
-
-
-class ApplySampleSetComponent(Component):
-    name = "ApplySampleSet"
-    code = "apply_sample_set"
-    bound_service = ApplySampleSetService
+# 可以删
+# class ApplySampleSetComponent(Component):
+#     name = "ApplySampleSet"
+#     code = "apply_sample_set"
+#     bound_service = ApplySampleSetService
 
 
 # 可以删

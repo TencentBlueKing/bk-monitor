@@ -68,30 +68,30 @@ from typing import Any
 #     experiment_id: int
 #     protocol_version: str = "1.1"
 
+# 可以删
+# @dataclass
+# class GetExperimentsMetaDataCls:
+#     """
+#     查询metadata实验配置
+#     """
+#
+#     filter_id: int
+#     table_name: str = "model_experiment"
 
-@dataclass
-class GetExperimentsMetaDataCls:
-    """
-    查询metadata实验配置
-    """
+# 可以删
+# @dataclass
+# class PythonBackendCls:
+#     worker_nums: int
+#     memory: int
+#     worker_group: str = "default"
+#     core: int = 2
 
-    filter_id: int
-    table_name: str = "model_experiment"
-
-
-@dataclass
-class PythonBackendCls:
-    worker_nums: int
-    memory: int
-    worker_group: str = "default"
-    core: int = 2
-
-
-@dataclass
-class MemoryStepScalingPolicyCls:
-    max_memory: int
-    step: int = 1024
-    target_worker_type: str = "python_backend"
+# 可以删
+# @dataclass
+# class MemoryStepScalingPolicyCls:
+#     max_memory: int
+#     step: int = 1024
+#     target_worker_type: str = "python_backend"
 
 
 @dataclass
@@ -121,10 +121,11 @@ class ChunkPolicyCls:
     config: PartitionNumberConfigCls = field(default_factory=PartitionNumberConfigCls)
 
 
-@dataclass
-class ChunkedReadSampleSet:
-    window: str
-    chunk_policy: ChunkPolicyCls = field(default_factory=ChunkPolicyCls)
+# 可以删
+# @dataclass
+# class ChunkedReadSampleSet:
+#     window: str
+#     chunk_policy: ChunkPolicyCls = field(default_factory=ChunkPolicyCls)
 
 
 @dataclass
@@ -143,31 +144,32 @@ class SessionWorkspaceCls:
     worker_nums: int = 1
 
 
-@dataclass
-class PipelineResourcesCls:
-    python_backend: PythonBackendCls
-    spark_session: SparkSessionCls = field(default_factory=SparkSessionCls)
-    session_workspace: SessionWorkspaceCls = field(default_factory=SessionWorkspaceCls)
+# 可以删
+# @dataclass
+# class PipelineResourcesCls:
+#     python_backend: PythonBackendCls
+#     spark_session: SparkSessionCls = field(default_factory=SparkSessionCls)
+#     session_workspace: SessionWorkspaceCls = field(default_factory=SessionWorkspaceCls)
 
+# 可以删
+# @dataclass
+# class ExecuteConfigCls:
+#     pipeline_resources: PipelineResourcesCls
+#     chunked_read_sample_set: ChunkedReadSampleSet
+#     pipeline_execute_config: dict
+#     resource_preference: dict
+#     pipeline_mode: str = "chunked_training"
 
-@dataclass
-class ExecuteConfigCls:
-    pipeline_resources: PipelineResourcesCls
-    chunked_read_sample_set: ChunkedReadSampleSet
-    pipeline_execute_config: dict
-    resource_preference: dict
-    pipeline_mode: str = "chunked_training"
-
-
-@dataclass
-class UpdateExecuteConfigCls:
-    """
-    编辑实验metadata配置
-    """
-
-    filter_id: int
-    execute_config: ExecuteConfigCls
-    table_name: str = "model_experiment"
+# 可以删
+# @dataclass
+# class UpdateExecuteConfigCls:
+#     """
+#     编辑实验metadata配置
+#     """
+#
+#     filter_id: int
+#     execute_config: ExecuteConfigCls
+#     table_name: str = "model_experiment"
 
 
 @dataclass
@@ -582,15 +584,15 @@ class ModelTrainNodesContentNodeConfigVisualizationValueCls:
 #     order_type: Any = None
 #     filter_extra: dict = field(default_factory=dict)
 
-
-@dataclass
-class AiopsGetCostumAlgorithm:
-    """
-    获取单个自定义算法
-    """
-
-    algorithm_name: str
-    project_id: int
+# 可以删
+# @dataclass
+# class AiopsGetCostumAlgorithm:
+#     """
+#     获取单个自定义算法
+#     """
+#
+#     algorithm_name: str
+#     project_id: int
 
 
 # 可以删
@@ -816,19 +818,20 @@ class AiopsReleaseModelReleaseIdModelFileCls:
     compat: str = "true"
 
 
-@dataclass
-class AiopsExperimentsDebugInputConfigCls:
-    algorithm_name: str
-    input_data: list
-    feature_columns: list
-    training_args: list
-    result_table_id: str = "test"
-    sql: str = "test"
-    label_columns: list = field(default_factory=list)
-    predict_args: list = field(default_factory=lambda: [{"value": 0, "field_name": "__start_time__"}])
+# 可以删
+# @dataclass
+# class AiopsExperimentsDebugInputConfigCls:
+#     algorithm_name: str
+#     input_data: list
+#     feature_columns: list
+#     training_args: list
+#     result_table_id: str = "test"
+#     sql: str = "test"
+#     label_columns: list = field(default_factory=list)
+#     predict_args: list = field(default_factory=lambda: [{"value": 0, "field_name": "__start_time__"}])
 
-
-@dataclass
-class AiopsExperimentsDebugCls:
-    input_config: AiopsExperimentsDebugInputConfigCls
-    project_id: int
+# 可以删
+# @dataclass
+# class AiopsExperimentsDebugCls:
+#     input_config: AiopsExperimentsDebugInputConfigCls
+#     project_id: int

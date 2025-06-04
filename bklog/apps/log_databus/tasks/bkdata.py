@@ -51,13 +51,11 @@ from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
 
-# 不能删
 @high_priority_task(ignore_result=True)
 def async_create_bkdata_data_id(collector_config_id: int, platform_username: str = None):
     create_bkdata_data_id(CollectorConfig.objects.get(collector_config_id=collector_config_id), platform_username)
 
 
-# 不能删
 def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: str = None, raise_exception=False):
     # 对应开关未开启
     toggle_switch = FeatureToggleObject.switch(name=FEATURE_BKDATA_DATAID)

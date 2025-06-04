@@ -33,88 +33,96 @@ class _BkDataAIOPSApi:
     MODULE = _("数据平台aiops模块")
 
     def __init__(self):
-        self.create_sample_set = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/",
-            module=self.MODULE,
-            description="创建样本集",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.add_rt_to_sample_set = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/result_table/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="RT提交, 把RT添加到 stage表中",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
-        )
-        self.collect_configs = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/collect_configs/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="创建或更新样本采集配置",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.auto_collect = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT
-            + "sample_set/{sample_set_id}/result_table/{result_table_id}/extract/auto_collect/",
-            module=self.MODULE,
-            url_keys=["sample_set_id", "result_table_id"],
-            description="创建或更新自动修改样本集配置",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
-        )
-        self.apply_sample_set = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/submit/apply/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="执行样本集提交",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.submit_status = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/submit/status/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="查询提交后的固化任务执行状态",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.sample_set_info = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="获取样本集详情",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
-        self.delete_sample_set = DataAPI(
-            method="DELETE",
-            url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/",
-            module=self.MODULE,
-            url_keys=["sample_set_id"],
-            description="删除样本集",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.create_sample_set = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/",
+        #     module=self.MODULE,
+        #     description="创建样本集",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.add_rt_to_sample_set = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/result_table/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="RT提交, 把RT添加到 stage表中",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        #     bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
+        # )
+        # # 可以删
+        # self.collect_configs = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/collect_configs/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="创建或更新样本采集配置",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.auto_collect = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT
+        #     + "sample_set/{sample_set_id}/result_table/{result_table_id}/extract/auto_collect/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id", "result_table_id"],
+        #     description="创建或更新自动修改样本集配置",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        #     bk_tenant_id=biz_to_tenant_getter(lambda p: p["result_table_id"].split("_", 1)[0]),
+        # )
+        # 可以删
+        # self.apply_sample_set = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/submit/apply/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="执行样本集提交",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.submit_status = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/submit/status/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="查询提交后的固化任务执行状态",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.sample_set_info = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="获取样本集详情",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
+        # 可以删
+        # self.delete_sample_set = DataAPI(
+        #     method="DELETE",
+        #     url=AIOPS_APIGATEWAY_ROOT + "sample_set/{sample_set_id}/",
+        #     module=self.MODULE,
+        #     url_keys=["sample_set_id"],
+        #     description="删除样本集",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         # 可以删
         # self.create_model = DataAPI(
         #     method="POST",
@@ -158,15 +166,16 @@ class _BkDataAIOPSApi:
         #     after_request=None,
         #     default_timeout=300,
         # )
-        self.retrieve_execute_config = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "meta_data/retrieve_execute_config/",
-            module=self.MODULE,
-            description="获取实验执行配置信息",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.retrieve_execute_config = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "meta_data/retrieve_execute_config/",
+        #     module=self.MODULE,
+        #     description="获取实验执行配置信息",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         self.update_execute_config = DataAPI(
             method="POST",
             url=AIOPS_APIGATEWAY_ROOT + "meta_data/update_execute_config/",
@@ -209,16 +218,17 @@ class _BkDataAIOPSApi:
         #     after_request=None,
         #     default_timeout=300,
         # )
-        self.aiops_get_costum_algorithm = DataAPI(
-            method="GET",
-            url=AIOPS_APIGATEWAY_ROOT + "algorithm/{algorithm_name}/",
-            module=self.MODULE,
-            url_keys=["algorithm_name"],
-            description="获取单个自定义算法(最新版本)",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.aiops_get_costum_algorithm = DataAPI(
+        #     method="GET",
+        #     url=AIOPS_APIGATEWAY_ROOT + "algorithm/{algorithm_name}/",
+        #     module=self.MODULE,
+        #     url_keys=["algorithm_name"],
+        #     description="获取单个自定义算法(最新版本)",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         # 可以删
         # self.basic_models_evaluation_status = DataAPI(
         #     method="POST",
@@ -330,16 +340,16 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-
-        self.aiops_experiments_debug = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "experiments/debug/",
-            module=self.MODULE,
-            description="训练和预测调试",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
+        # 可以删
+        # self.aiops_experiments_debug = DataAPI(
+        #     method="POST",
+        #     url=AIOPS_APIGATEWAY_ROOT + "experiments/debug/",
+        #     module=self.MODULE,
+        #     description="训练和预测调试",
+        #     before_request=add_esb_info_before_request_for_bkdata_user,
+        #     after_request=None,
+        #     default_timeout=300,
+        # )
         self.serving_data_processing_id_config = DataAPI(
             method="GET",
             url=AIOPS_APIGATEWAY_ROOT + "serving/{data_processing_id}/config/",

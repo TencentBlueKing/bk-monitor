@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,13 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext as _
 
 from apps.api import BkDataDataFlowApi
 from apps.log_search.constants import OPERATORS
 from apps.utils import ChoicesEnum
 
-DEFAULT_TIME_FIELD = "timestamp"
 DEFAULT_CLUSTERING_FIELD = "log"
 NOT_CLUSTERING_FILTER_RULE = " where ip is null"
 OPERATOR_AND = "and"
@@ -46,23 +45,24 @@ DEFAULT_FLINK_CPU = 1
 DEFAULT_FLINK_MEMORY = 2048
 DEFAULT_FLINK_WORKER_NUMS = 2
 DEFAULT_FLINK_REPLICAS = 2
-
-STREAM_SOURCE_NODE_TYPE = "stream_source"
-DIVERSION_NODE_NAME = _("回流数据")
+# 可以删
+# STREAM_SOURCE_NODE_TYPE = "stream_source"
+# 可以删
+# DIVERSION_NODE_NAME = _("回流数据")
 TSPIDER_STORAGE_NODE_TYPE = "tspider_storage"
 TSPIDER_STORAGE_INDEX_FIELDS = ["history_time", "event_time"]
 MYSQL_STORAGE_NODE_TYPE = "mysql_storage"
+# 可以删
+# SPLIT_TYPE = "split"
 
-SPLIT_TYPE = "split"
 
-
-class ActionEnum(object):
+class ActionEnum:
     START = "start"
     RESTART = "restart"
     STOP = "stop"
 
 
-class ActionHandler(object):
+class ActionHandler:
     action_handler = {
         ActionEnum.START: BkDataDataFlowApi.start_flow,
         ActionEnum.RESTART: BkDataDataFlowApi.restart_flow,
@@ -98,7 +98,7 @@ class FlowMode(ChoicesEnum):
     )
 
 
-class NodeType(object):
+class NodeType:
     REALTIME = "realtime"
     REDIS_KV_SOURCE = "redis_kv_source"
     ELASTIC_STORAGE = "elastic_storage"
@@ -106,13 +106,13 @@ class NodeType(object):
     STREAM_SOURCE = "stream_source"
 
 
-class RealTimeFlowNode(object):
+class RealTimeFlowNode:
     PRE_TREAT_NOT_CLUSTERING = "pre_treat_not_clustering"
     PRE_TREAT_SAMPLE_SET = "pre_treat_sample_set"
     AFTER_TREAT_CHANGE_FIELD = "after_treat_change_field"
 
 
-class RealTimePredictFlowNode(object):
+class RealTimePredictFlowNode:
     PREDICT_CLUSTERING = "clustering"
     PREDICT_NOT_CLUSTERING = "not_clustering"
     PREDICT_NODE = "clustering_output"
@@ -1107,12 +1107,12 @@ CLUSTERING_DEFAULT_MODEL_OUTPUT_FIELDS = [
 ]
 
 
-class OperatorOnlineTaskEnum(object):
+class OperatorOnlineTaskEnum:
     CREATE = "create"
     UPDATE = "update"
 
 
-class OnlineTaskTrainingArgs(object):
+class OnlineTaskTrainingArgs:
     IS_NEW = 1
     USE_OFFLINE_MODEL = 0
     ST_LIST = "0.875"

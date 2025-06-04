@@ -51,7 +51,7 @@ the project delivered to anyone in the future.
 #         experiment_alias = kwargs.get("experiment_alias")
 #         index_set_id = kwargs.get("index_set_id")
 #         start.extend(
-#             # ChangeDataStream(index_set_id=index_set_id, collector_config_id=collector_config_id).change_data_stream
+#             ChangeDataStream(index_set_id=index_set_id, collector_config_id=collector_config_id).change_data_stream
 #         ).extend(
 #             # CreateBkdataAccess(index_set_id=index_set_id, collector_config_id=collector_config_id).create_bkdata_access
 #         ).extend(
@@ -212,7 +212,7 @@ the project delivered to anyone in the future.
 #         start.extend(
 #             # CloseContinuousTraining(experiment_alias=experiment_alias).close_continuous_training
 #         ).extend(
-#             # CreateExperiment(experiment_alias=experiment_alias).create_experiment
+#             CreateExperiment(experiment_alias=experiment_alias).create_experiment
 #         ).extend(
 #             # UpdateExecuteConfig(experiment_alias=experiment_alias).update_execute_config
 #         ).extend(

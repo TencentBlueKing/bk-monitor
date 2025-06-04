@@ -106,9 +106,9 @@ class ClusteringConfigViewSet(APIViewSet):
         return Response(ClusteringConfigHandler(index_set_id=index_set_id).online_start())
 
     # 可以删除
-    @detail_route(methods=["GET"], url_path="offline_start")
-    def offline_start(self, request, *args, index_set_id=None, **kwargs):
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).start())
+    # @detail_route(methods=["GET"], url_path="offline_start")
+    # def offline_start(self, request, *args, index_set_id=None, **kwargs):
+    #     return Response(ClusteringConfigHandler(index_set_id=index_set_id).start())
 
     @list_route(methods=["GET"], url_path="pipeline/state")
     def get_pipeline_state(self, request, *args, **kwargs):

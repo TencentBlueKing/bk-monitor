@@ -24,57 +24,52 @@ from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import StaticIntervalGenerator
 
-from apps.api import CmsiApi
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import DataFlowResourceUsageType, InnerTag
-from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet
-from apps.utils.function import ignored
-from apps.utils.local import activate_request
 from apps.utils.pipline import BaseService
-from apps.utils.thread import generate_request
 
+# 可以删
+# class CreatePreTreatFlowService(BaseService):
+#     name = _("创建预处理flow")
+#     __need_schedule__ = True
+#     interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
 
-class CreatePreTreatFlowService(BaseService):
-    name = _("创建预处理flow")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+# def _execute(self, data, parent_data):
+#     index_set_id = data.get_one_of_inputs("index_set_id")
+#     flow = DataFlowHandler().create_pre_treat_flow(index_set_id=index_set_id)
+#     is_collect_index_set = bool(data.get_one_of_inputs("collector_config_id"))
+#
+#     if is_collect_index_set:
+#         # 采集项要继续消费，能跟历史数据无缝衔接，避免丢数据
+#         consuming_mode = "continue"
+#     else:
+#         # 计算平台的索引由于是分开两个索引存储，因此无需关心历史数据，直接从最新数据开始消费能够避免追太多历史数据，加速样本构建速度
+#         consuming_mode = "from_tail"
+#     DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode=consuming_mode)
+#
+#     return True
 
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        flow = DataFlowHandler().create_pre_treat_flow(index_set_id=index_set_id)
-        is_collect_index_set = bool(data.get_one_of_inputs("collector_config_id"))
+# def _schedule(self, data, parent_data, callback_data=None):
+#     # index_set_id = data.get_one_of_inputs("index_set_id")
+#     # clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+#     # deploy_data = DataFlowHandler().get_latest_deploy_data(
+#     #     flow_id=clustering_config.pre_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
+#     # )
+#     if deploy_data["status"] == "failure":
+#         return False
+#     if deploy_data["status"] == "success":
+#         self.finish_schedule()
+#     return True
 
-        if is_collect_index_set:
-            # 采集项要继续消费，能跟历史数据无缝衔接，避免丢数据
-            consuming_mode = "continue"
-        else:
-            # 计算平台的索引由于是分开两个索引存储，因此无需关心历史数据，直接从最新数据开始消费能够避免追太多历史数据，加速样本构建速度
-            consuming_mode = "from_tail"
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode=consuming_mode)
-
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(
-            flow_id=clustering_config.pre_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
-        )
-        if deploy_data["status"] == "failure":
-            return False
-        if deploy_data["status"] == "success":
-            self.finish_schedule()
-        return True
-
-
-class CreatePreTreatFlowComponent(Component):
-    name = "CreatePreTreatFlow"
-    code = "create_pre_treat_flow"
-    bound_service = CreatePreTreatFlowService
+# 可以删
+# class CreatePreTreatFlowComponent(Component):
+#     name = "CreatePreTreatFlow"
+#     code = "create_pre_treat_flow"
+#     bound_service = CreatePreTreatFlowService
 
 
 # 可以删
@@ -88,44 +83,44 @@ class CreatePreTreatFlowComponent(Component):
 #         )
 #         self.create_pre_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
+# 可以删
+# class CreateAfterTreatFlowService(BaseService):
+#     name = _("创建After处理flow")
+#     __need_schedule__ = True
+#     interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
+#
+#     # def _execute(self, data, parent_data):
+#     #     # index_set_id = data.get_one_of_inputs("index_set_id")
+#     #     # flow = DataFlowHandler().create_after_treat_flow(index_set_id=index_set_id)
+#     #     DataFlowHandler().operator_flow(flow_id=flow["flow_id"])
+#     #     return True
+#
+#     def _schedule(self, data, parent_data, callback_data=None):
+# index_set_id = data.get_one_of_inputs("index_set_id")
+# clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+# deploy_data = DataFlowHandler().get_latest_deploy_data(
+#     flow_id=clustering_config.after_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
+# )
+# if deploy_data["status"] == "failure":
+#     return False
+# if deploy_data["status"] == "success":
+#     with ignored(Exception):
+#         send_params = {
+#             "receivers": clustering_config.created_by,
+#             "content": _("聚类流程已经完成"),
+#             "title": str(_("【日志平台】")),
+#             "bk_biz_id": clustering_config.bk_biz_id,
+#         }
+#         CmsiApi.send_mail(send_params)
+#         CmsiApi.send_weixin(send_params)
+#     self.finish_schedule()
+# return True
 
-class CreateAfterTreatFlowService(BaseService):
-    name = _("创建After处理flow")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        flow = DataFlowHandler().create_after_treat_flow(index_set_id=index_set_id)
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"])
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(
-            flow_id=clustering_config.after_treat_flow_id, bk_biz_id=clustering_config.bk_biz_id
-        )
-        if deploy_data["status"] == "failure":
-            return False
-        if deploy_data["status"] == "success":
-            with ignored(Exception):
-                send_params = {
-                    "receivers": clustering_config.created_by,
-                    "content": _("聚类流程已经完成"),
-                    "title": str(_("【日志平台】")),
-                    "bk_biz_id": clustering_config.bk_biz_id,
-                }
-                CmsiApi.send_mail(send_params)
-                CmsiApi.send_weixin(send_params)
-            self.finish_schedule()
-        return True
-
-
-class CreateAfterTreatFlowComponent(Component):
-    name = "CreateAfterTreatFlow"
-    code = "create_after_treat_flow"
-    bound_service = CreateAfterTreatFlowService
+# 可以删
+# class CreateAfterTreatFlowComponent(Component):
+#     name = "CreateAfterTreatFlow"
+#     code = "create_after_treat_flow"
+#     bound_service = CreateAfterTreatFlowService
 
 
 # 可以删
@@ -140,49 +135,49 @@ class CreateAfterTreatFlowComponent(Component):
 #         )
 #         self.create_after_treat_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
+# 可以删
+# class CreateNewIndexSetService(BaseService):
+#     name = _("创建新聚类索引集")
+#
+#     def _execute(self, data, parent_data):
+#         index_set_id = data.get_one_of_inputs("index_set_id")
+#         # clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+#         src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
+#         src_index_set_indexes = src_index_set.indexes
+#         new_cls_index_set = IndexSetHandler.create(
+#             index_set_name=f"{src_index_set.index_set_name}_clustering",
+#             space_uid=src_index_set.space_uid,
+#             storage_cluster_id=src_index_set.storage_cluster_id,
+#             scenario_id=src_index_set.scenario_id,
+#             view_roles=None,
+#             indexes=[
+#                 {
+#                     "bk_biz_id": index["bk_biz_id"],
+#                     "result_table_id": clustering_config.after_treat_flow["change_clustering_field"]["result_table_id"],
+#                     "result_table_name": _("合并日志"),
+#                     "time_field": index["time_field"],
+#                 }
+#                 for index in src_index_set_indexes
+#             ],
+#             username=src_index_set.created_by,
+#         )
+#         clustering_config.index_set_id = new_cls_index_set.index_set_id
+#         clustering_config.save()
+#
+#         # 创建新类策略
+#         new_cls_index_set.created_by = src_index_set.created_by
+#         activate_request(generate_request(new_cls_index_set.updated_by))
+#         new_cls_index_set.save()
+#         log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
+#         LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
+#         ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
+#         return True
 
-class CreateNewIndexSetService(BaseService):
-    name = _("创建新聚类索引集")
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
-        src_index_set_indexes = src_index_set.indexes
-        new_cls_index_set = IndexSetHandler.create(
-            index_set_name=f"{src_index_set.index_set_name}_clustering",
-            space_uid=src_index_set.space_uid,
-            storage_cluster_id=src_index_set.storage_cluster_id,
-            scenario_id=src_index_set.scenario_id,
-            view_roles=None,
-            indexes=[
-                {
-                    "bk_biz_id": index["bk_biz_id"],
-                    "result_table_id": clustering_config.after_treat_flow["change_clustering_field"]["result_table_id"],
-                    "result_table_name": _("合并日志"),
-                    "time_field": index["time_field"],
-                }
-                for index in src_index_set_indexes
-            ],
-            username=src_index_set.created_by,
-        )
-        clustering_config.index_set_id = new_cls_index_set.index_set_id
-        clustering_config.save()
-
-        # 创建新类策略
-        new_cls_index_set.created_by = src_index_set.created_by
-        activate_request(generate_request(new_cls_index_set.updated_by))
-        new_cls_index_set.save()
-        log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
-        LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-        ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
-        return True
-
-
-class CreateNewIndexSetComponent(Component):
-    name = "CreateNewIndexSet"
-    code = "create_new_index_set"
-    bound_service = CreateNewIndexSetService
+# 可以删
+# class CreateNewIndexSetComponent(Component):
+#     name = "CreateNewIndexSet"
+#     code = "create_new_index_set"
+#     bound_service = CreateNewIndexSetService
 
 
 # 可以删

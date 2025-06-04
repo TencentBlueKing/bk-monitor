@@ -25,19 +25,7 @@ from cloudpickle import cloudpickle
 
 from apps.api import BkDataAIOPSApi
 from apps.log_clustering.handlers.aiops.aiops_model.data_cls import (
-    AiopsExperimentsDebugCls,
-    AiopsExperimentsDebugInputConfigCls,
-    AiopsGetCostumAlgorithm,
     AiopsReleaseModelReleaseIdModelFileCls,
-    ChunkedReadSampleSet,
-    ExecuteConfigCls,
-    GetExperimentsMetaDataCls,
-    MemoryStepScalingPolicyCls,
-    PipelineResourcesCls,
-    PythonBackendCls,
-    # ReleaseCls,
-    # ReleaseConfigCls,
-    UpdateExecuteConfigCls,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 
@@ -87,59 +75,59 @@ class AiopsModelHandler(BaseAiopsHandler):
     #     )
     #     request_dict = self._set_username(get_experiments_config_request)
     #     return BkDataAIOPSApi.experiments_config(params=request_dict)
-
-    def retrieve_execute_config(self, experiment_id: int):
-        """
-        查询实验meta配置
-        @param experiment_id int 实验id
-        """
-        retrieve_execute_config_request = GetExperimentsMetaDataCls(filter_id=experiment_id)
-        request_dict = self._set_username(retrieve_execute_config_request)
-        return BkDataAIOPSApi.retrieve_execute_config(params=request_dict)
-
-    def update_execute_config(
-        self,
-        experiment_id: int,
-        window: str = "1h",
-        worker_nums: int = 2,
-        memory: int = 4096,
-        time_limit: int = 7200,
-        core: int = 2,
-        max_memory: int = 8192,
-    ):
-        """
-        变更实验meta配置
-        @param experiment_id int 实验id
-        @param window str 窗口时间大小
-        @param worker_nums int 使用worker数
-        @param memory int 使用内存大小
-        @param time_limit 运行时间设置
-        @param core 核数
-        @param max_memory 最大内存大小
-        """
-        update_execute_config_request = UpdateExecuteConfigCls(
-            filter_id=experiment_id,
-            execute_config=ExecuteConfigCls(
-                chunked_read_sample_set=ChunkedReadSampleSet(window=window),
-                pipeline_resources=PipelineResourcesCls(
-                    python_backend=PythonBackendCls(worker_nums=worker_nums, memory=memory, core=core)
-                ),
-                pipeline_execute_config={"time_limit": time_limit},
-                resource_preference={
-                    "scaling_policy": [
-                        {
-                            "policy_name": "memory_step_scaling_policy",
-                            "extra_kwargs": MemoryStepScalingPolicyCls(max_memory=max_memory),
-                        }
-                    ]
-                },
-            ),
-        )
-        update_execute_config_request.execute_config.chunked_read_sample_set.chunk_policy.config.partition_number = (
-            worker_nums
-        )
-        request_dict = self._set_username(update_execute_config_request)
-        return BkDataAIOPSApi.update_execute_config(request_dict)
+    # 可以删
+    # def retrieve_execute_config(self, experiment_id: int):
+    #     """
+    #     查询实验meta配置
+    #     @param experiment_id int 实验id
+    #     """
+    #     retrieve_execute_config_request = GetExperimentsMetaDataCls(filter_id=experiment_id)
+    #     request_dict = self._set_username(retrieve_execute_config_request)
+    #     return BkDataAIOPSApi.retrieve_execute_config(params=request_dict)
+    # 可以删
+    # def update_execute_config(
+    #     self,
+    #     experiment_id: int,
+    #     window: str = "1h",
+    #     worker_nums: int = 2,
+    #     memory: int = 4096,
+    #     time_limit: int = 7200,
+    #     core: int = 2,
+    #     max_memory: int = 8192,
+    # ):
+    #     """
+    #     变更实验meta配置
+    #     @param experiment_id int 实验id
+    #     @param window str 窗口时间大小
+    #     @param worker_nums int 使用worker数
+    #     @param memory int 使用内存大小
+    #     @param time_limit 运行时间设置
+    #     @param core 核数
+    #     @param max_memory 最大内存大小
+    #     """
+    #     update_execute_config_request = UpdateExecuteConfigCls(
+    #         filter_id=experiment_id,
+    #         execute_config=ExecuteConfigCls(
+    #             chunked_read_sample_set=ChunkedReadSampleSet(window=window),
+    #             pipeline_resources=PipelineResourcesCls(
+    #                 python_backend=PythonBackendCls(worker_nums=worker_nums, memory=memory, core=core)
+    #             ),
+    #             pipeline_execute_config={"time_limit": time_limit},
+    #             resource_preference={
+    #                 "scaling_policy": [
+    #                     {
+    #                         "policy_name": "memory_step_scaling_policy",
+    #                         "extra_kwargs": MemoryStepScalingPolicyCls(max_memory=max_memory),
+    #                     }
+    #                 ]
+    #             },
+    #         ),
+    #     )
+    #     update_execute_config_request.execute_config.chunked_read_sample_set.chunk_policy.config.partition_number = (
+    #         worker_nums
+    #     )
+    #     request_dict = self._set_username(update_execute_config_request)
+    #     return BkDataAIOPSApi.update_execute_config(request_dict)
 
     # 可以删除
     # def sample_set_loading(self, sample_set_id: int, model_id: str, experiment_id: int):
@@ -775,17 +763,17 @@ class AiopsModelHandler(BaseAiopsHandler):
     #     )
     #     request_dict = self._set_username(training_status_request)
     #     return BkDataAIOPSApi.basic_models_training_status(request_dict)
-
-    def aiops_get_costum_algorithm(self, algorithm_name: str):
-        """
-        获取算法详情（最新版）
-        @param algorithm_name 算法名
-        """
-        aiops_get_costum_algorithm_request = AiopsGetCostumAlgorithm(
-            algorithm_name=algorithm_name, project_id=self.conf.get("project_id")
-        )
-        request_dict = self._set_username(aiops_get_costum_algorithm_request)
-        return BkDataAIOPSApi.aiops_get_costum_algorithm(request_dict)
+    # 可以删
+    # def aiops_get_costum_algorithm(self, algorithm_name: str):
+    #     """
+    #     获取算法详情（最新版）
+    #     @param algorithm_name 算法名
+    #     """
+    #     aiops_get_costum_algorithm_request = AiopsGetCostumAlgorithm(
+    #         algorithm_name=algorithm_name, project_id=self.conf.get("project_id")
+    #     )
+    #     request_dict = self._set_username(aiops_get_costum_algorithm_request)
+    #     return BkDataAIOPSApi.aiops_get_costum_algorithm(request_dict)
 
     # 可以删
     # def model_evaluation(self, model_id: str, experiment_id: int):
@@ -1062,43 +1050,44 @@ class AiopsModelHandler(BaseAiopsHandler):
         model = cloudpickle.loads(model_original_content)
         return model
 
-    def aiops_experiments_debug(
-        self,
-        input_data: list,
-        clustering_field: str,
-        min_members: int,
-        max_dist_list: str,
-        predefined_varibles: str,
-        delimeter: str,
-        max_log_length: int,
-        is_case_sensitive: int,
-    ):
-        for item in input_data:
-            # 追加内置字段
-            item.update({"__group_id__": "0", "__id__": "0", "__index__": "0"})
-        aiops_experiment_debug_request = AiopsExperimentsDebugCls(
-            project_id=self.conf.get("project_id"),
-            input_config=AiopsExperimentsDebugInputConfigCls(
-                algorithm_name=self.conf.get("debug_algorithm_name"),
-                input_data=input_data,
-                feature_columns=[
-                    {"data_field_name": clustering_field, "field_name": "log"},
-                    {"data_field_name": "__index__", "field_name": "__index__"},
-                    {"data_field_name": "__id__", "field_name": "__id__"},
-                    {"data_field_name": "__group_id__", "field_name": "__group_id__"},
-                ],
-                training_args=[
-                    {"field_name": "min_members", "value": min_members},
-                    {"field_name": "max_dist_list", "value": max_dist_list},
-                    {"field_name": "predefined_varibles", "value": predefined_varibles},
-                    {"field_name": "delimeter", "value": delimeter},
-                    {"field_name": "max_log_length", "value": max_log_length},
-                    {"field_name": "is_case_sensitive", "value": is_case_sensitive},
-                ],
-            ),
-        )
-        request_dict = self._set_username(aiops_experiment_debug_request)
-        return BkDataAIOPSApi.aiops_experiments_debug(request_dict)
+    # 可以删
+    # def aiops_experiments_debug(
+    #     self,
+    #     input_data: list,
+    #     clustering_field: str,
+    #     min_members: int,
+    #     max_dist_list: str,
+    #     predefined_varibles: str,
+    #     delimeter: str,
+    #     max_log_length: int,
+    #     is_case_sensitive: int,
+    # ):
+    #     for item in input_data:
+    #         # 追加内置字段
+    #         item.update({"__group_id__": "0", "__id__": "0", "__index__": "0"})
+    #     aiops_experiment_debug_request = AiopsExperimentsDebugCls(
+    #         project_id=self.conf.get("project_id"),
+    #         input_config=AiopsExperimentsDebugInputConfigCls(
+    #             algorithm_name=self.conf.get("debug_algorithm_name"),
+    #             input_data=input_data,
+    #             feature_columns=[
+    #                 {"data_field_name": clustering_field, "field_name": "log"},
+    #                 {"data_field_name": "__index__", "field_name": "__index__"},
+    #                 {"data_field_name": "__id__", "field_name": "__id__"},
+    #                 {"data_field_name": "__group_id__", "field_name": "__group_id__"},
+    #             ],
+    #             training_args=[
+    #                 {"field_name": "min_members", "value": min_members},
+    #                 {"field_name": "max_dist_list", "value": max_dist_list},
+    #                 {"field_name": "predefined_varibles", "value": predefined_varibles},
+    #                 {"field_name": "delimeter", "value": delimeter},
+    #                 {"field_name": "max_log_length", "value": max_log_length},
+    #                 {"field_name": "is_case_sensitive", "value": is_case_sensitive},
+    #             ],
+    #         ),
+    #     )
+    #     request_dict = self._set_username(aiops_experiment_debug_request)
+    #     return BkDataAIOPSApi.aiops_experiments_debug(request_dict)
 
     # 可以删
     # def close_continuous_training(self, model_id: str, experiment_id: int):
