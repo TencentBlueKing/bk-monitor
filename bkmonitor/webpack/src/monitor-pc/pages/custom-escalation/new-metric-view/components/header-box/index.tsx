@@ -67,6 +67,7 @@ interface IProps {
   isShowExpand?: boolean;
   exclude?: string[];
   splitable?: boolean;
+  offsetSingle?: boolean;
 }
 
 interface IEmit {
@@ -94,6 +95,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
   @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
   @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
+  @Prop({ type: Boolean, default: false }) readonly offsetSingle: IProps['offsetSingle'];
   @Ref('rootRef') rootRef: HTMLElement;
 
   isExpaned = true;
@@ -206,6 +208,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
               )}
               <CompareType
                 exclude={this.exclude}
+                offsetSingle={this.offsetSingle}
                 value={this.params.compare}
                 onChange={this.handleComparTypeChange}
               />

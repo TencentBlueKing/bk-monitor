@@ -276,6 +276,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
             dimenstionParams={this.dimensionParams}
             exclude={['metric']}
             isShowExpand={false}
+            offsetSingle={true}
             splitable={false}
             onChange={this.handleDimensionParamsChange}
           >

@@ -98,7 +98,7 @@ export interface ICommonCondition {
 }
 
 export interface ICompare {
-  type: 'metric' | 'time';
+  type: '' | 'metric' | 'time';
   offset: string[]; // 用于描述对比的时间偏移
 }
 

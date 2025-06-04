@@ -190,16 +190,39 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.loading = loading;
   }
 
+  deepCloneWithTargetProcessing(config: IPanelModel): IPanelModel {
+    const clonedConfig = deepClone(config);
+    clonedConfig.targets = clonedConfig.targets.map(target => {
+      return {
+        ...target,
+        function: {
+          ...target.function,
+          time_compare: (target.function.time_compare || []).slice(0, 1),
+        },
+      };
+    });
+    return clonedConfig;
+  }
+
   /**
    * @description: 查看大图
    * @param {boolean} loading
    */
   handleFullScreen(config: IPanelModel, compareValue?: any) {
     this.showViewDetail = true;
+    const { offset, type } = this.filterOption.compare;
+    const newFilterOption = {
+      ...this.filterOption,
+      compare: {
+        ...this.filterOption.compare,
+        offset: offset.slice(0, 1),
+        type: type === 'metric' ? '' : type,
+      },
+    };
     this.viewQueryConfig = {
-      config: JSON.parse(JSON.stringify(config)),
-      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
-      filterOption: this.filterOption,
+      config: this.deepCloneWithTargetProcessing(config),
+      compareValue: deepClone({ ...this.compareValue, ...compareValue }),
+      filterOption: newFilterOption,
     };
   }
   /**
