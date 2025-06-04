@@ -805,6 +805,16 @@ class UnifyQueryHandler:
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
+        # 无分组处理
+        if not group_field:
+            for value in response["series"][0]["values"]:
+                key_as_string = timestamp_to_timeformat(
+                    value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+                )
+                tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+                return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
+            return return_data
+        # 分组组装
         for item in response["series"]:
             group_value = item["group_values"][0]
             for value in item["values"]:
