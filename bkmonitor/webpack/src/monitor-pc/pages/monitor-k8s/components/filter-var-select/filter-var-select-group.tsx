@@ -36,7 +36,7 @@ import FilterVarSelect, { type CustomParamsType, type FilterDictType } from './f
 
 import type { IConditionItem } from '@/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import type { IVariableModel, IViewOptions, VariableModel } from 'monitor-ui/chart-plugins/typings';
-
+const DIMENSION_LIST_KEY = 'dimension_list';
 import './filter-var-select-group.scss';
 
 export interface IProps {
@@ -142,6 +142,9 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   /** 变量的key数组 */
   get varKeyList() {
     return this.localPanelList.map(item => item.title);
+  }
+  get dimensionsPanel() {
+    return this.localPanelList?.find?.(item => item.type === DIMENSION_LIST_KEY) || null;
   }
 
   mounted() {
@@ -325,11 +328,12 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
    */
   @Emit('addFilter')
   handleAddFilter() {}
+
   @Emit('change')
   handelWhereFiltersChange(conditions: IConditionItem[]) {
     return [
       {
-        custom_metric_filters: conditions,
+        [this.dimensionsPanel.fieldsKey]: conditions,
       },
     ];
   }
@@ -337,11 +341,12 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
     return (
       <span class='filter-var-select-group'>
         <span class='filter-var-select-group-label'>Filters :</span>
-        {this.localPanelList?.some(item => item.type === 'dimension_list') ? (
+        {this.dimensionsPanel ? (
           <div class='where-filters-wrapper'>
             <WhereFilters
-              panel={this.localPanelList.find(item => item.type === 'dimension_list') as VariableModel}
-              variableName='custom_metric_filters'
+              ref={this.dimensionsPanel.fieldsKey}
+              panel={this.dimensionsPanel as VariableModel}
+              variableName={this.dimensionsPanel.fieldsKey}
               onChange={this.handelWhereFiltersChange}
             />
           </div>

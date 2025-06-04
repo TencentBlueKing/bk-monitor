@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { directive } from 'vue-tippy';
+
 import { bkTooltips, clickoutside } from 'bkui-vue';
 
 import authority from './authority';
@@ -39,6 +41,7 @@ const directives: Record<string, any> = {
   clickoutside,
   watermark,
   overflowTips,
+  tippy: directive,
 };
 
 export default {
