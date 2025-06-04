@@ -1,15 +1,20 @@
 <script setup>
   import { ref, computed } from 'vue';
-  import { bkMessage } from 'bk-magic-vue';
+
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { bkMessage } from 'bk-magic-vue';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+  // #if MONITOR_APP !== 'trace'
   import QueryHistory from './query-history';
+  // #else
+  // #code const QueryHistory = () => null;
+  // #endif
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
   import FieldSetting from '@/global/field-setting.vue';
@@ -28,9 +33,10 @@
   // #code const WarningSetting = () => null;
   // #endif
 
-  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
   import * as authorityMap from '@/common/authority-map';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
   const props = defineProps({
     showFavorites: {
@@ -70,6 +76,7 @@
 
   /** 是否是监控组件 */
   const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
+  const isMonitorTraceComponent = window.__IS_MONITOR_TRACE__;
 
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
@@ -94,7 +101,7 @@
           ...route.params,
           indexId: undefined,
         },
-           // #endif
+        // #endif
         query: {
           ...route.query,
           ...queryTab,
@@ -294,26 +301,30 @@
 <template>
   <div class="subbar-container">
     <div
-      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }" 
+      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
       class="box-biz-select"
     >
       <IndexSetChoice
+        width="100%"
+        :active-tab="indexSetTab"
+        :active-type="indexSetType"
         :index-set-list="indexSetList"
         :index-set-value="indexSetValue"
-        :active-type="indexSetType"
-        :active-tab="indexSetTab"
+        :space-uid="spaceUid"
         :text-dir="textDir"
-        :spaceUid="spaceUid"
-        width="100%"
-        @value-change="handleIndexSetValueChange"
-        @type-change="handleActiveTypeChange"
         @auth-request="handleAuthRequest"
+        @type-change="handleActiveTypeChange"
+        @value-change="handleIndexSetValueChange"
       ></IndexSetChoice>
-      <QueryHistory @change="updateSearchParam"></QueryHistory>
+
+      <QueryHistory
+        v-if="!isMonitorTraceComponent"
+        @change="updateSearchParam"
+      ></QueryHistory>
     </div>
-  
-    <div 
-      v-if="!isMonitorComponent" 
+
+    <div
+      v-if="!isMonitorComponent"
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
@@ -346,7 +357,7 @@
         <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
       </div>
       <VersionSwitch
-        style="border-left: 1px solid #eaebf0" 
+        style="border-left: 1px solid #eaebf0"
         version="v2"
       />
     </div>
