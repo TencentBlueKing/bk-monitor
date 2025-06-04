@@ -387,7 +387,7 @@ export default defineComponent({
         getExploreList(ExploreTableLoadingEnum.SCROLL);
       }
       target.scrollTo({
-        top: scrollHeight - 30,
+        top: scrollHeight - 100,
         behavior: 'smooth',
       });
     }
