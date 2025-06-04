@@ -1020,7 +1020,6 @@ class UnifyQueryHandler:
         return user_sort_list
 
     def fields(self, scope="default"):
-        # self = self.unify_query_handler
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
         scenario_id = index_info["origin_scenario_id"]
