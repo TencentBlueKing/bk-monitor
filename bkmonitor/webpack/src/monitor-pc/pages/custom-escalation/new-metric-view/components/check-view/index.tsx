@@ -88,6 +88,8 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   tableData = [];
   legendData: ILegendItem[] = [];
   loading = false;
+  isHasCompare = false;
+  isHasDimensions = false;
   get titleName() {
     return this.panel?.config?.title || '';
   }
@@ -97,8 +99,11 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     this.refreshList = refreshList;
     this.$nextTick(() => {
       /** 初始化数据 */
-      this.panelData = deepClone(this.panel.config);
-      this.dimensionParams = deepClone(this.panel.filterOption);
+      const { config, filterOption } = this.panel;
+      this.panelData = deepClone(config);
+      this.dimensionParams = deepClone(filterOption);
+      this.isHasDimensions = filterOption?.group_by?.length > 0;
+      this.isHasCompare = filterOption?.compare?.offset?.length > 0;
       if (this.viewMainRef) {
         // 初始化 ResizeObserver
         this.resizeObserver = new ResizeObserver(entries => {
@@ -190,6 +195,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
       'group_by',
       group_by.map(item => item.field)
     );
+    this.isHasDimensions = group_by.length > 0;
     this.setPanelConfigAndRefresh('where', where);
     this.setPanelConfigAndRefresh('filter_dict.common_filter', commonConditions);
     this.setPanelConfigAndRefresh('functions', [
@@ -204,6 +210,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
       },
     ]);
     this.panelData.targets[0].function = !compare.type ? {} : { time_compare: compare.offset };
+    this.isHasCompare = compare.offset.length > 0;
     this.dimensionParams = Object.freeze(payload);
     this.loading = true;
   }
@@ -320,9 +327,12 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
               >
                 <CheckViewTable
                   data={this.tableData}
+                  isHasCompare={this.isHasCompare}
+                  isHasDimensions={this.isHasDimensions}
                   isShowStatistical={this.showStatisticalValue}
                   legendData={this.legendData}
                   loading={this.loading}
+                  title={this.panelData.title}
                   onHeadClick={this.handleRowClick}
                 />
               </div>

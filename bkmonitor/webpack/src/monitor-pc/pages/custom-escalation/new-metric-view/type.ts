@@ -43,6 +43,7 @@ export interface IColumnItem {
   renderFn?: (row) => void;
   fixed?: string;
   minWidth?: number;
+  items?: IDataItem[];
 }
 export interface IDataItem {
   name?: string;
