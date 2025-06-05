@@ -695,7 +695,7 @@ class Application(AbstractRecordModel):
         获取过滤应用未开启或未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
         """
         return (
-            Q(is_enabled_trace=True, is_enabled_metric=True)
+            Q(is_enabled_trace=True)
             & Q(
                 trace_result_table_id__isnull=False,
                 metric_result_table_id__isnull=False,
