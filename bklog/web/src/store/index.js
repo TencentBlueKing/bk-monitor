@@ -267,6 +267,18 @@ const store = new Vuex.Store({
           return addition;
         });
 
+      // 格式化 addition value
+      // 如果字段类型为 text & is_case_sensitive = false 则将 value 转换为小写
+      // 操作符为"=~", "&=~", "!=~", "&!=~"  四者之一
+      filterAddition.forEach(item => {
+        if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
+          const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+          if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
+            item.value = item.value.map(v => v?.toLowerCase() ?? '');
+          }
+        }
+      });
+
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
 
@@ -1244,6 +1256,7 @@ const store = new Vuex.Store({
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
         sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
+
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({

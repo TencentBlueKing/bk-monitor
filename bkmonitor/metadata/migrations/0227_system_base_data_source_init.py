@@ -69,7 +69,7 @@ def create_system_base_event_data_source(apps, schema_editor):
             bk_data_id=bk_data_id,
             data_name=data_name,
             etl_config=etl_config,
-            perator=operator,
+            operator=operator,
             source_label=source_label,
             type_label=type_label,
             is_platform_data_id=True,
