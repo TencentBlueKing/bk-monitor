@@ -408,7 +408,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def start(self):
+    def start(self, **kwargs):
         """
         启动采集配置
         :return: task_id
@@ -448,7 +448,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def stop(self):
+    def stop(self, **kwargs):
         """
         停止采集配置
         :return: task_id
@@ -539,9 +539,7 @@ class CollectorHandler:
             TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
             self.data.bk_data_name = bk_data_name
             logger.info(
-                "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                    self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                )
+                f"[modify_data_name] bk_data_id=>{self.data.bk_data_id}, data_name {self.data.bk_data_name}=>{bk_data_name}"
             )
 
         for key, value in collector_config_update.items():
@@ -943,9 +941,7 @@ class CollectorHandler:
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
-                "collector_config->({}) grant creator action failed, reason: {}".format(
-                    collector_config.collector_config_id, e
-                )
+                f"collector_config->({collector_config.collector_config_id}) grant creator action failed, reason: {e}"
             )
 
     def _itsm_start_judge(self):
@@ -1248,11 +1244,7 @@ class CollectorHandler:
         bkdata_biz_id = bkdata_biz_id or bk_biz_id
         # 判断是否已存在同英文名collector
         if self._pre_check_collector_config_en(model_fields=collector_config_params, bk_biz_id=bkdata_biz_id):
-            logger.error(
-                "collector_config_name_en {collector_config_name_en} already exists".format(
-                    collector_config_name_en=collector_config_name_en
-                )
-            )
+            logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
                     collector_config_name_en=collector_config_name_en
