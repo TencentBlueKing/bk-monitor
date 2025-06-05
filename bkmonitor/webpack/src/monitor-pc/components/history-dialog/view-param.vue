@@ -57,7 +57,12 @@
           v-else
           class="value"
         >
-          {{ item.value || '--' }}
+          <template v-if="multiTenantWhitelist.includes(item.label) && item.value">
+            <bk-user-display-name :user-id="item.value" />
+          </template>
+          <template v-else>
+            {{ item.value || '--' }}
+          </template>
         </div>
       </div>
     </div>
@@ -80,6 +85,12 @@ export default {
       type: Array,
       default: () => [],
     },
+  },
+  data() {
+    return {
+      /** 多租户display-name改造 */
+      multiTenantWhitelist: [this.$t('创建人'), this.$t('最近更新人')],
+    };
   },
   methods: {
     valueChange(val) {
