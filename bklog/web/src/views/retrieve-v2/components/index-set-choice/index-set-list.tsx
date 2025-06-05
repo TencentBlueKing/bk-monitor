@@ -84,6 +84,13 @@ export default defineComponent({
     );
 
     const formatList = computed(() => {
+      const filterFn = node => {
+        return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
+          key =>
+            `${node[key]}`.indexOf(searchText.value) !== -1 ||
+            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+        );
+      };
       // 检查节点是否应该显示
       const checkNodeShouldShow = (node: any, defaultIsShown = true) => {
         // 如果当前节点在选中列表中，直接返回 true
@@ -110,7 +117,7 @@ export default defineComponent({
 
         // 继续判定检索匹配是否满足匹配条件
         if (searchText.value.length > 0) {
-          is_shown_node = node.index_set_name.indexOf(searchText.value) !== -1;
+          is_shown_node = filterFn(node);
         }
 
         return is_shown_node;

@@ -26,9 +26,11 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Tippy } from 'vue-tippy';
 
-import { Popover } from 'bkui-vue';
+import { Message, Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
+import { copyText } from 'monitor-common/utils';
 
 import CrossAppTag from '../../../static/img/cross-app-tag.png';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
@@ -169,27 +171,36 @@ export default defineComponent({
       emit('toggleCollapse', groupID, status);
     };
 
+    /** 文本复制 */
+    function handleCopyText(text: string) {
+      let msgStr = t('复制成功');
+      copyText(text, errMsg => {
+        msgStr = errMsg as string;
+      });
+      Message({ theme: 'success', message: msgStr });
+    }
+
     /**
      * @description: span错误icon hover 鼠标移入弹出内容详情 popover
      * @param title popover 标题
      * @param detail 需要展示的kv结构数据
      */
-    const handleErrorPopoverContent = (title: string, detail: Record<string, any>) => {
+    const handleErrorPopoverContent = (title: string, detail: string) => {
       return (
         <div class='span-row-content-popover'>
-          <div class='span-row-content-popover-title'>{title}</div>
-          <div class='span-row-content-popover-main'>
-            {Object.entries(detail).map(([label, value]) => (
-              <div
-                key={label}
-                class='popover-main-item'
-              >
-                <span class='content-item-key'>{label}</span>
-                <span class='content-item-colon'>:</span>
-                <span class='content-item-value'>{value || '--'}</span>
-              </div>
-            ))}
+          <div class='span-row-content-popover-title'>
+            <span class='title-text'>{title}</span>
+            {detail ? (
+              <i
+                class='icon-monitor icon-mc-copy'
+                v-bk-tooltips={{ content: t('复制'), delay: 200, boundary: 'window' }}
+                onClick={() => {
+                  handleCopyText(detail);
+                }}
+              />
+            ) : null}
           </div>
+          <div class='span-row-content-popover-main'>{detail || '--'}</div>
         </div>
       );
     };
@@ -262,24 +273,10 @@ export default defineComponent({
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
-    let errorDetail = {
-      'span.status_message': '',
-      'trpc.status_msg': '',
-    };
+    let errorDescription = '';
     if (showErrorIcon) {
-      errorDetail = attributes?.reduce?.(
-        (prev, curr) => {
-          if (!['span.status_message', 'trpc.status_msg'].includes(curr.key)) {
-            return prev;
-          }
-          prev[curr.key] = curr.value;
-          return prev;
-        },
-        {
-          'span.status_message': '',
-          'trpc.status_msg': '',
-        }
-      );
+      const item = attributes?.find?.(attr => attr.key === 'span.status_message');
+      errorDescription = item?.value || '';
     }
 
     let longLabel: string;
@@ -376,7 +373,7 @@ export default defineComponent({
                       key={label}
                       extCls='span-error-icon'
                       v-slots={{
-                        content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDetail),
+                        content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDescription),
                       }}
                       placement='bottom'
                       popoverDelay={[300, 0]}
@@ -482,8 +479,7 @@ export default defineComponent({
               className='span-view'
             >
               <Ticks numTicks={numTicks} />
-              <Popover
-                key={label}
+              <Tippy
                 v-slots={{
                   content: () => (
                     <div>
@@ -496,21 +492,23 @@ export default defineComponent({
                       <div>{`${this.t('耗时')}: ${formatDuration(realDuration)}`}</div>
                     </div>
                   ),
+                  default: () => (
+                    <SpanBar
+                      color={color}
+                      hintSide={hintSide}
+                      longLabel={longLabel}
+                      rpc={rpc}
+                      shortLabel={label}
+                      span={span}
+                      viewEnd={viewEnd}
+                      viewStart={viewStart}
+                    />
+                  ),
                 }}
-                placement='top'
-                popoverDelay={[500, 0]}
-              >
-                <SpanBar
-                  color={color}
-                  hintSide={hintSide}
-                  longLabel={longLabel}
-                  rpc={rpc}
-                  shortLabel={label}
-                  span={span}
-                  viewEnd={viewEnd}
-                  viewStart={viewStart}
-                />
-              </Popover>
+                delay={[500, 0]}
+                followCursor={true}
+                offset={[0, 12]}
+              />
             </TimelineRowCell>
           </>
         )}

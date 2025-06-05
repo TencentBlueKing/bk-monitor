@@ -139,6 +139,7 @@ export default defineComponent({
         interactive: true,
         onHidden: () => {
           destroyPopoverInstance();
+          cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
         },
       });
       popoverInstance.value?.show();
@@ -242,12 +243,12 @@ export default defineComponent({
       inputValue.value = val.replace(/^\s+|\s+$/g, '');
     }
     function handleKeyDownSlash(event) {
-      if (event.key === '/' && event.target?.tagName !== 'INPUT') {
+      if (event.key === '/' && !localValue.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
         handlePopUp(EQueryStringTokenType.key, '');
         setTimeout(() => {
           queryStringEditor.value.editorEl?.focus?.();
         }, 300);
-        window.removeEventListener('keydown', handleKeyDownSlash);
+        cleanup?.();
       }
     }
     /**

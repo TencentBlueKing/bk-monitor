@@ -839,7 +839,7 @@ class EtlStorage:
                     "label": "label60f0af",
                     "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
                     "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
-                    "default_type": "null",
+                    "default_type": "text",
                     "default_value": "",
                     "next": {
                         "type": "assign",

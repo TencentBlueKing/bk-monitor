@@ -48,9 +48,9 @@ export enum EColumn {
   operate = 'operate',
   shieldContent = 'shieldContent',
   shieldCycle = 'shieldCycle',
-  shieldType = 'shieldType',
+  // shieldType = 'shieldType',
   status = 'status',
-  updateUser = 'update_user',
+  // updateUser = 'update_user',
 }
 
 export interface IColumn {

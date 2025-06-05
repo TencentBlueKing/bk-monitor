@@ -729,7 +729,6 @@ TRPC_TRACE_VIEW_CONFIG = {
         ],
         "display_columns": [
             "span_id",
-            "kind",
             "start_time",
             "elapsed_time",
             "attributes.trpc.caller_service",  # "主调 Service"
@@ -739,6 +738,7 @@ TRPC_TRACE_VIEW_CONFIG = {
             "attributes.trpc.status_code",  # "tRPC 状态码"
             "attributes.trpc.envname",  # "用户环境"
             "status.code",
+            "kind",
             "trace_id",
         ],
     },
@@ -1007,26 +1007,6 @@ DEFAULT_DB_CONFIG = {
 }
 
 METRIC_TUPLE = ("request_count", "avg_duration", "error_request_count", "slow_request_count", "slow_command_rate")
-
-METRIC_PARAM_MAP = {
-    "error_request_count": {"filter": {"bool": {"filter": [{"term": {"status.code": 2}}]}}},
-    "slow_request_count": {"filter": {"bool": {"filter": [{"term": {"attributes.db.is_slow": 1}}]}}},
-}
-
-METRIC_MAP = {
-    "request_count": {"request_count": {"value_count": {"field": ""}}},
-    "avg_duration": {"avg_duration": {"avg": {"field": "elapsed_time"}}},
-    "error_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
-    "slow_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
-    "slow_command_rate": {
-        "slow_command_rate": {
-            "bucket_script": {
-                "buckets_path": {"slowRequestCount": "slow_request_count.count", "requestCount": "request_count"},
-                "script": {"inline": "params.slowRequestCount/params.requestCount"},
-            }
-        }
-    },
-}
 
 METRIC_RELATION_MAP = {"slow_command_rate": {"slow_request_count", "request_count"}}
 
