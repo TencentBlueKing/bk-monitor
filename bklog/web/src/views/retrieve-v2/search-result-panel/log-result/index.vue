@@ -42,7 +42,6 @@
         <ResultStorage></ResultStorage>
       </div>
       <div
-        v-if="!isMonitorTrace"
         class="tools-more"
       >
         <div class="operation-icons">
@@ -66,6 +65,7 @@
           </div>
 
           <export-log
+            v-if="!isMonitorTrace"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
             :index-set-list="indexSetList"

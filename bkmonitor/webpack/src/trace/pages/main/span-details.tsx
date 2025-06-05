@@ -1275,7 +1275,7 @@ export default defineComponent({
                 [
                   <div
                     key='header'
-                    class='header'
+                    class='details-header'
                   >
                     {props.withSideSlider ? (
                       <div class='title'>
@@ -1290,7 +1290,7 @@ export default defineComponent({
                     ) : (
                       titleInfoElem()
                     )}
-                    <div class='others'>
+                    <div class='details-others'>
                       {info.header.others.map((item, index) => (
                         <span
                           key={index}
