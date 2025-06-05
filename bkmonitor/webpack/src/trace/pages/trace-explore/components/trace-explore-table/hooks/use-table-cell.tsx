@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { get, type MaybeRef } from '@vueuse/core';
+
 import { formatDuration, formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import TagsCell from '../components/table-cell/tags-cell';
 import {
@@ -33,9 +35,19 @@ import {
 } from '../constants';
 import { type ExploreTableColumn, ExploreTableColumnTypeEnum, type GetTableCellRenderValue } from '../typing';
 
-export function useTableCell() {
+import type { SlotReturnValue } from 'tdesign-vue-next';
+
+export function useTableCell(rowKeyField: MaybeRef<string>) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
+
+  /**
+   * @description 获取当前行的唯一 rowId
+   * @param row 当前行数据
+   */
+  function getRowId(row: Record<string, any>) {
+    return row?.[get(rowKeyField)] || '';
+  }
 
   /**
    * @description 获取表格单元格渲染值（允许列通过 getRenderValue 自定义获取值逻辑）
@@ -89,7 +101,7 @@ export function useTableCell() {
         </div>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -107,7 +119,6 @@ export function useTableCell() {
       };
       return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
     }
-    const value = row?.[column.colKey];
     return (
       <div class='explore-col explore-prefix-icon-col'>
         {prefixIcon ? (
@@ -120,15 +131,15 @@ export function useTableCell() {
         <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
           >
             {alias}
           </span>
         </div>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -139,21 +150,20 @@ export function useTableCell() {
   function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
     const timestamp = getTableCellRenderValue(row, column);
     const alias = formatTraceTableDate(timestamp);
-    const value = row?.[column.colKey];
     return (
       <div class={'explore-col explore-time-col'}>
         <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
           >
             {alias}
           </span>
         </div>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -164,21 +174,20 @@ export function useTableCell() {
   function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row) {
     const timestamp = getTableCellRenderValue(row, column);
     const alias = formatDuration(+timestamp);
-    const value = row?.[column.colKey];
     return (
       <div class={'explore-col explore-duration-col '}>
         <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={value}
-            data-col-key={column.colKey}
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
           >
             {alias}
           </span>
         </div>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -211,7 +220,7 @@ export function useTableCell() {
         </a>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -230,10 +239,12 @@ export function useTableCell() {
     }
     return (
       <TagsCell
+        colId={column.colKey}
         column={column}
+        rowId={getRowId(row)}
         tags={tags}
       />
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -243,21 +254,20 @@ export function useTableCell() {
    */
   function textColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row) {
     const alias = getTableCellRenderValue(row, column);
-    const value = row?.[column.colKey];
     return (
       <div class={'explore-col explore-text-col '}>
         <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-            data-cell-source={Array.isArray(value) ? JSON.stringify(value || '') : value}
-            data-col-key={column.colKey}
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
           >
             {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
           </span>
         </div>
         {columnCellSuffixRender(column, row)}
       </div>
-    );
+    ) as unknown as SlotReturnValue;
   }
 
   /**
@@ -265,22 +275,22 @@ export function useTableCell() {
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function handleSetFormatter(column, row) {
+  function handleSetFormatter(column: ExploreTableColumn, row: Record<string, any>) {
     switch (column.renderType) {
       case ExploreTableColumnTypeEnum.CLICK:
-        return clickColumnFormatter(column, row);
+        return clickColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row);
       case ExploreTableColumnTypeEnum.PREFIX_ICON:
-        return iconColumnFormatter(column, row);
+        return iconColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>, row);
       case ExploreTableColumnTypeEnum.TIME:
-        return timeColumnFormatter(column, row);
+        return timeColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row);
       case ExploreTableColumnTypeEnum.DURATION:
-        return durationColumnFormatter(column, row);
+        return durationColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row);
       case ExploreTableColumnTypeEnum.LINK:
-        return linkColumnFormatter(column, row);
+        return linkColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>, row);
       case ExploreTableColumnTypeEnum.TAGS:
-        return tagsColumnFormatter(column, row);
+        return tagsColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>, row);
       default:
-        return textColumnFormatter(column, row);
+        return textColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
     }
   }
 

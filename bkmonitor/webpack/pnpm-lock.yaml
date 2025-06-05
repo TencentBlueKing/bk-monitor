@@ -363,8 +363,8 @@ importers:
         specifier: 0.0.1-beta.14
         version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.42
-        version: 0.3.0-beta.42(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
+        specifier: 0.3.0-beta.44
+        version: 0.3.0-beta.44(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -605,8 +605,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.42
-        version: 0.3.0-beta.42(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))
+        specifier: 0.3.0-beta.44
+        version: 0.3.0-beta.44(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -748,6 +748,9 @@ importers:
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.15(typescript@5.8.3))
+      vue-tippy:
+        specifier: ^6.7.1
+        version: 6.7.1(vue@3.5.15(typescript@5.8.3))
     devDependencies:
       '@types/d3':
         specifier: ^7.4.3
@@ -1524,6 +1527,14 @@ packages:
   '@blueking/fork-resize-detector@0.0.2':
     resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
 
+  '@blueking/functional-dependency@0.0.1-beta.12':
+    resolution: {integrity: sha512-nMrPRSe/J53DXeLAALGBQn8PxoRa0QNjsXeypwRJfoDJ175U+RAQvlBtQVNBzbRnQqacXBZbCs1n/lafT3glig==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      bkui-vue: ^1.0.3-beta.38
+      vue: ^3
+
   '@blueking/functional-dependency@0.0.1-beta.14':
     resolution: {integrity: sha512-PTGEzuEKxuSd28u4nuKfmA/jRz2i+DHs+QdNr4bfB7p8K12R3tTMyLYkNgv78nt7+Q6sOnDLAXY2/7UD3P4fvQ==}
     peerDependencies:
@@ -1531,8 +1542,8 @@ packages:
       bkui-vue: ^1.0.3-beta.38
       vue: ^3
 
-  '@blueking/ip-selector@0.3.0-beta.42':
-    resolution: {integrity: sha512-fkCVlUBCRx8QBi8NNVDZlpbemFIIiBEaw4FrnlQxP2B3fd8A+F+X0GmSaFxP3/vk2Fe2gewGamurXyZ5RKI9TA==}
+  '@blueking/ip-selector@0.3.0-beta.44':
+    resolution: {integrity: sha512-CgMPgO9mkuk9wtOijgQFSjbZ/EabeDIZqZtTbLCHiQaSyBY0EsJQZdGjAiujlhHlyp+YD9jyXNBGnqm6/WQ+hA==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
 
   '@blueking/login-modal@1.0.6':
@@ -8247,6 +8258,11 @@ packages:
   vue-template-es2015-compiler@1.9.1:
     resolution: {integrity: sha512-4gDntzrifFnCEvyoO8PqyJDmguXgVPxKiIxrBKjIowvL9l+N66196+72XVYR8BBf1Uv1Fgt3bGevJ+sEmxfZzw==}
 
+  vue-tippy@6.7.1:
+    resolution: {integrity: sha512-gdHbBV5/Vc8gH87hQHLA7TN1K4BlLco3MAPrTb70ZYGXxx+55rAU4a4mt0fIoP+gB3etu1khUZ6c29Br1n0CiA==}
+    peerDependencies:
+      vue: ^3.2.0
+
   vue-tsx-support@3.2.0:
     resolution: {integrity: sha512-Uc3i9deEvZeHKc43Lcsh1ihCWvG1yygFnbY1jMe49K+DWCmGgwYWUkD0mxdgPwAMc6gi23CRVkrJsvamfCvD7A==}
     peerDependencies:
@@ -9729,6 +9745,18 @@ snapshots:
 
   '@blueking/fork-resize-detector@0.0.2': {}
 
+  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      bkui-vue: 2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16)
+      vue: 2.7.16
+
+  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      bkui-vue: 2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3))
+      vue: 3.5.15(typescript@5.8.3)
+
   '@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
@@ -9741,25 +9769,19 @@ snapshots:
       bkui-vue: 2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
 
-  '@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
+  '@blueking/ip-selector@0.3.0-beta.44(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      bkui-vue: 2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3))
-      vue: 3.5.15(typescript@5.8.3)
-
-  '@blueking/ip-selector@0.3.0-beta.42(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
+      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
       vue-i18n: 8.14.1(vue@2.7.16)
     transitivePeerDependencies:
       - bkui-vue
       - vue
 
-  '@blueking/ip-selector@0.3.0-beta.42(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
+  '@blueking/ip-selector@0.3.0-beta.44(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))
+      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.15(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))
       vue-i18n: 8.14.1(vue@3.5.15(typescript@5.8.3))
     transitivePeerDependencies:
       - bkui-vue
@@ -17271,6 +17293,11 @@ snapshots:
       he: 1.2.0
 
   vue-template-es2015-compiler@1.9.1: {}
+
+  vue-tippy@6.7.1(vue@3.5.15(typescript@5.8.3)):
+    dependencies:
+      tippy.js: 6.3.7
+      vue: 3.5.15(typescript@5.8.3)
 
   vue-tsx-support@3.2.0(typescript@5.8.3)(vue@2.7.16):
     dependencies:

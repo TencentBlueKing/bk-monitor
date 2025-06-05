@@ -69,7 +69,9 @@ export default defineComponent({
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        setTimeout(() => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        }, 300);
       }
     };
 

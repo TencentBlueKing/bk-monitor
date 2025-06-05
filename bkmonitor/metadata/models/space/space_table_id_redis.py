@@ -342,7 +342,7 @@ class SpaceTableIDRedis:
         for record in bkbase_rt_records:
             # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
             db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
-            fields = (all_fields.get(record.table_id) or [],)
+            fields = all_fields.get(record.table_id) or []
             data[record.table_id] = json.dumps(
                 {
                     "db": db,
@@ -559,6 +559,51 @@ class SpaceTableIDRedis:
             )
         return _table_id_detail
 
+    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
+        """
+        构建字段别名映射map
+        @param table_id_list: 结果表列表
+        @param bk_tenant_id: 租户ID
+        @return: 字段别名映射map
+        """
+        logger.info(
+            "_get_field_alias_map: try to get field alias map,table_id_list->[%s],bk_tenant_id->[%s]",
+            table_id_list,
+            bk_tenant_id,
+        )
+        if not table_id_list:
+            return {}
+        try:
+            # 获取指定table_id列表的未删除别名记录
+            alias_records = models.ESFieldQueryAliasOption.objects.filter(
+                table_id__in=table_id_list, is_deleted=False, bk_tenant_id=bk_tenant_id
+            ).values("table_id", "query_alias", "field_path")
+
+            # 按table_id分组构建别名映射
+            field_alias_map = {}
+            for record in alias_records:
+                table_id = record["table_id"]
+                query_alias = record["query_alias"]
+                field_path = record["field_path"]
+
+                if table_id not in field_alias_map:
+                    field_alias_map[table_id] = {}
+
+                field_alias_map[table_id][query_alias] = field_path
+
+            logger.info("Field alias map generated: %s", field_alias_map)
+            return field_alias_map
+
+        except Exception as e:
+            logger.error(
+                "_get_field_alias_map:Error getting field alias map for table_ids: %s, error: %s",
+                table_id_list,
+                str(e),
+                exc_info=True,
+            )
+            # 发生错误时返回空字典，确保不影响主流程
+            return {}
+
     def _compose_es_table_id_detail(
         self, table_id_list: list[str] | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
     ):
@@ -576,6 +621,8 @@ class SpaceTableIDRedis:
             data_label_map = models.ResultTable.objects.filter(
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
             ).values("table_id", "data_label")
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
         else:
             table_ids = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id).values(
                 "table_id",
@@ -590,6 +637,8 @@ class SpaceTableIDRedis:
             data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "data_label"
             )
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
 
         # data_label字典 {table_id:data_label}
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
@@ -636,6 +685,7 @@ class SpaceTableIDRedis:
                     "storage_type": models.ESStorage.STORAGE_TYPE,
                     "storage_cluster_records": storage_record,
                     "data_label": data_label_map_dict.get(tid, ""),
+                    "field_alias": field_alias_map.get(tid, {}),  # 字段查询别名
                 }
             )
         return data

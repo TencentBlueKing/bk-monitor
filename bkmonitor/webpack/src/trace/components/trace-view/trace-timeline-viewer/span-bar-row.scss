@@ -407,56 +407,32 @@
 
 .bk-popover.span-error-icon {
   padding: 0;
-  background: #333;
+  background: #000000cc;
 
   .span-row-content-popover {
-    width: 640px;
-    padding: 6px 12px 10px;
+    max-width: 500px;
+    min-width: 102px;
+    padding: 12px;
     font-size: 12px;
 
     &-title {
       margin-bottom: 8px;
       font-weight: 700;
       line-height: 16px;
-      color: #fafbfd;
+      color: #ffffff;
+      .icon-mc-copy {
+        cursor: pointer;
+        color: #699df4;
+        margin-left: 4px;
+      }
     }
 
     &-main {
-      .popover-main-item {
-        display: flex;
-        padding-right: 8px;
-        line-height: 24px;
-
-        &:nth-child(odd) {
-          background: #404040;
-        }
-
-        .content-item-key {
-          display: inline-block;
-          flex-shrink: 0;
-          width: 128px;
-          color: #c4c6cc;
-          text-align: right;
-          word-break: break-all;
-        }
-
-        .content-item-colon {
-          display: inline-flex;
-          flex-shrink: 0;
-          align-items: flex-start;
-          margin-right: 6px;
-          margin-left: 2px;
-          color: #c4c6cc;
-        }
-
-        .content-item-value {
-          display: inline-block;
-          flex: 1;
-          min-width: 0;
-          color: #fafbfd;
-          word-break: break-all;
-        }
-      }
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: normal;
+      color: #f0f1f5;
+      line-height: 20px;
     }
   }
 }
