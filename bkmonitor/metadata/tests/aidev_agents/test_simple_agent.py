@@ -9,7 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import time
 import uuid
+import pytest
 from aidev_agent.packages.langchain.tools.base import Tool, make_structured_tool
 from django.conf import settings
 from aidev_agent.api.bk_aidev import BKAidevApi
@@ -75,52 +77,12 @@ def test_metadata_agent_with_tools():
     tool_code_list = ["bkm-query-meta"]
     tools = [client.construct_tool(tool_code) for tool_code in tool_code_list]
 
-    tool_settings = {
-        "description": "根据DataId查询元数据信息",
-        # 'generate_type': 'user',
-        # 'icon': 'ai',
-        "is_sensitive": True,
-        "method": "get",
-        "property": {
-            "body": [
-                {
-                    "default": "",
-                    "description": "",
-                    "name": "",
-                    "required": False,
-                    "type": "string",
-                    "validate": {"enable": False, "rules": []},
-                }
-            ],
-            "header": [
-                {
-                    "default": "{}",
-                    "description": "",
-                    "name": "",
-                    "required": False,
-                    "type": "string",
-                    "validate": {"enable": False, "rules": []},
-                }
-            ],
-            "query": [
-                {
-                    "default": -1,
-                    "description": "数据源ID",
-                    "name": "bk_data_id",
-                    "required": False,
-                    "type": "integer",
-                    "validate": {"enable": False, "rules": []},
-                }
-            ],
-        },
-        "tool_code": "test",
-        "tool_name": "监控元数据--元数据信息获取",
-    }
+    tool_settings = {}
 
     handmake_tools = [make_structured_tool(Tool.model_validate(tool_settings))]
 
     # 3. 构建简单的对话历史（用户提问）
-    user_question = "请帮我分析123456的链路情况"
+    user_question = "请帮我分析1575025的链路情况"
 
     with open("metadata/agents/prompts/diagnostic.md", encoding="utf-8") as f:
         prompt = f.read()
@@ -139,7 +101,6 @@ def test_metadata_agent_with_tools():
 
 def test_init_agent_with_agent_code():
     client = BKAidevApi.get_client()
-
     agent_code = "aidev-metadata"
     agent = client.construct_agent(agent_code)
     assert agent
@@ -156,7 +117,7 @@ def test_session_management():
 
     # 创建一个会话
     create_session_res = client.api.create_chat_session(
-        json={"session_code": session_code, "session_name": "ct-test-20250603"}
+        json={"session_code": session_code, "session_name": "ctenetliu-test-20250603"}
     )
     assert create_session_res
 
@@ -190,7 +151,93 @@ def test_session_management():
     assert update_session_content_res
 
     # 获取session_contents
-    get_session_contents_res = client.api.get_chat_session_contents(params={"session_code": session_code})
+    get_session_contents_res = client.api.get_chat_session_contents(
+        params={"session_code": session_code}
+    )
     assert get_session_contents_res
 
     # 删除会话内容
+    delete_session_content_res = client.api.destroy_chat_session_content(path_params={"id": session_content_id})
+    assert delete_session_content_res
+
+    result = client.api.get_chat_session_contents(params={"session_code": session_code})
+    assert len(result["data"]) == 0
+
+    # 删除会话
+    delete_session_res = client.api.destroy_chat_session(path_params={"session_code": session_code})
+    assert delete_session_res
+
+    # 预期会404 Error
+    with pytest.raises(Exception):
+        client.api.retrieve_chat_session(path_params={"session_code": session_code})
+
+
+def test_agent_chat_with_session():
+    client = BKAidevApi.get_client()
+
+    session_code = generate_uuid()
+
+    timestamp = int(time.time())
+
+    create_session_res = client.api.create_chat_session(
+        json={"session_code": session_code, "session_name": f"ct-test-{timestamp}"}
+    )
+    assert create_session_res
+
+    model = create_session_res["data"]["model"]
+    llm = ChatModel.get_setup_instance(model=model)
+
+    system_chat_history_list = create_session_res["data"]["role_info"]["content"]
+
+    for system_chat_history in system_chat_history_list:
+        create_session_system_res = client.api.create_chat_session_content(
+            json={
+                "session_code": session_code,
+                "role": "role",
+                "content": system_chat_history["content"],
+                "status": "success",
+            }
+        )
+        assert create_session_system_res
+
+    # 添加session content
+    create_session_user_content_res = client.api.create_chat_session_content(
+        json={
+            "session_code": session_code,
+            "role": "user",
+            "content": "什么是SRE?",
+            "status": "success",
+        }
+    )
+    assert create_session_user_content_res
+
+    # client.api.create_chat_completion(session_code)
+
+    session_context = client.api.get_chat_session_context(path_params={"session_code": session_code})
+    assert session_context
+
+    chat_history = [ChatPrompt.model_validate(each) for each in session_context.get("data", [])]
+
+    # Agent初始化 和 session_code无关
+    agent = ChatCompletionAgent(
+        chat_model=llm,
+        chat_history=chat_history,
+    )
+
+    llm_response_list = []
+    for each in agent.execute(ExecuteKwargs(stream=True, session_code=session_code)):
+        print(each)
+        llm_response_list.append(each)
+
+    session_context = client.api.get_chat_session_context(path_params={"session_code": session_code})
+    assert session_context
+
+    get_session_contents_res = client.api.get_chat_session_contents(
+        params={"session_code": session_code}
+    )
+    assert get_session_contents_res
+
+    # 删除会话
+    delete_session_res = client.api.destroy_chat_session(path_params={"session_code": session_code})
+    assert delete_session_res
+
