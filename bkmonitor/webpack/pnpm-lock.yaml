@@ -15,10 +15,18 @@ overrides:
   vue-property-decorator: ^9.1.2
   vue-tsx-support: ^3.2.0
   vuex-module-decorators: ^1.2.0
+  '@blueking/monitor-trace-log': link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
 
 importers:
 
   .:
+    dependencies:
+      '@blueking/monitor-trace-log':
+        specifier: link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
+        version: link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
+      monitor-trace-log:
+        specifier: link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
+        version: link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
     devDependencies:
       '@biomejs/biome':
         specifier: ^1.9.4
@@ -490,8 +498,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.0.1-beta.1
-        version: 2.0.1-beta.1
+        specifier: 2.0.1-beta.3
+        version: 2.0.1-beta.3
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -611,8 +619,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.0-beta.2
-        version: 2.0.0-beta.2
+        specifier: link:../../../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
+        version: link:../../../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
       '@blueking/tdesign-ui':
         specifier: 0.0.1-beta.29
         version: 0.0.1-beta.29(vue@3.5.15(typescript@5.8.3))
@@ -1538,17 +1546,14 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
-  '@blueking/monitor-apm-log@2.0.1-beta.1':
-    resolution: {integrity: sha512-ispJNG37yoLDn+GIVRSSVLITmP1pfmT/79totjbUmy8uAUJjckIGP9zVlpr/o8m7erjaAj0iiiBrSfpYp2r52Q==}
+  '@blueking/monitor-apm-log@2.0.1-beta.3':
+    resolution: {integrity: sha512-5vlM9fnf9U2spHyDcHoA+wMM8A6y8mPeGiAZMJrgl1VkSe3AMSsV0zW6B1sc+tkh80wOwAcz7BTwEaL5GogK5Q==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
-
-  '@blueking/monitor-trace-log@2.0.0-beta.2':
-    resolution: {integrity: sha512-fxXt0aNrQnHzMpYFn4d/x+VwkWm8NkQ8aFpExsy1wIBuMOfWCMQmsPzTH3iTBoy5pXZQ/Wg8+wqCvtY2irIMng==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -9767,14 +9772,12 @@ snapshots:
 
   '@blueking/login-modal@1.0.6': {}
 
-  '@blueking/monitor-apm-log@2.0.1-beta.1': {}
+  '@blueking/monitor-apm-log@2.0.1-beta.3': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
-
-  '@blueking/monitor-trace-log@2.0.0-beta.2': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:

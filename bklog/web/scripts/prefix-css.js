@@ -37,10 +37,10 @@ postcss([
           if (/^\.(tippy-|bk-tooltip-|bk-option-|bk-select-search-input|bk-select-dropdown-)/.test(selector)) {
             return selector;
           }
-          if (/^\.(bk-form-|bk-input-|bk-select-dropdown-)/.test(selector)) {
-            return `.monitor-trace-log ${selector}, .bklog-v3-content-root ${selector}`;
-          }
-          return `.monitor-trace-log ${selector}`;
+          // if (/^\.(bk-form-|bk-input-|bk-button-|bk-select-dropdown-)/.test(selector)) {
+          //   return `.monitor-trace-log ${selector}, .tippy-content ${selector}`;
+          // }
+          return `.tippy-content ${selector}, .monitor-trace-log ${selector}`;
         });
       });
     };
