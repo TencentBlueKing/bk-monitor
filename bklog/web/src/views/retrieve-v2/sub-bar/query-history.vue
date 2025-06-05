@@ -1,6 +1,6 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span class="history-button" :style="{width:isEnLanguage?'110px':'88px'}" @click="handleClickHistoryButton">
+    <span class="history-button" :class="isEnLanguage" @click="handleClickHistoryButton">
       <span class="bklog-icon bklog-history-2"></span>
       <span >{{ $t('历史查询') }}</span>
     </span>
@@ -108,7 +108,7 @@
         });
       },
       isEnLanguage() {
-        return  this.$store.getters.isEnLanguage
+        return  this.$store.getters.isEnLanguage? 'history-button-en':'history-button-zh'
       }
     },
     methods: {

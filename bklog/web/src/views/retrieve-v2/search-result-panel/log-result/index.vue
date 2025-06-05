@@ -47,7 +47,7 @@
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label :style="{width:isEnLanguage?'60px':'40px'}">{{ $t('高亮') }}</label>
+            <label :class="isEnLanguage">{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
@@ -216,7 +216,7 @@
         };
       },
       isEnLanguage() {
-        return  this.$store.getters.isEnLanguage
+        return  this.$store.getters.isEnLanguage? 'en' : 'zh'
       }
     },
     watch: {
@@ -373,7 +373,12 @@
         background: #ffffff;
         font-size: 12px;
         color: #4d4f56;
-
+        .en{
+          width: 60px;
+        }
+        .zh{
+          width: 40px;
+        }
         label {
           border-left: 1px solid #c4c6cc;
           border-top: 1px solid #c4c6cc;
