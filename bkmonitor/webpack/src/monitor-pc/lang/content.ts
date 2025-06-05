@@ -329,4 +329,5 @@ export default {
   仅个人可见: 'Only visible to me',
   '生成 "{0}" Tag': 'Generate "{0}" Tag',
   取消全屏: 'Cancel full screen',
+  CP95: 'CP95',
 };
