@@ -9,13 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
+import logging
 
 from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
-from gunicorn_config import logger
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.service.space_redis import (
@@ -24,6 +24,8 @@ from metadata.service.space_redis import (
     push_and_publish_es_table_id,
     push_and_publish_doris_table_id_detail,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ParamsSerializer(serializers.Serializer):
