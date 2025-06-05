@@ -280,7 +280,7 @@
     }
   }
 
-  .header {
+  .details-header {
     padding: 12px 16px 0;
   }
 
@@ -304,7 +304,7 @@
     }
   }
 
-  .others {
+  .details-others {
     display: flex;
     column-gap: 24px;
     margin-top: 8px;
@@ -403,7 +403,7 @@
     }
 
     &.is-log-tab {
-      padding: 0 16px 14px 40px;
+      padding: 0 16px;
       overflow: initial;
 
       .flex-dashboard-item {
@@ -419,11 +419,38 @@
       .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
         display: none;
       }
+      .bk-nested-loading {
+        height: 100%;
+        & > div {
+          height: 100%;
+          .dashboard-panel {
+            height: 100%;
+            .flex-dashboard {
+              height: 100%;
+              .flex-dashboard-item {
+                height: 100%;
+                .monitor-trace-log {
+                  padding: 0;
+                  .v3-bklog-root {
+                    background: #fff;
+                    .v3-bklog-content {
+                      padding: 0;
+                      .v3-bklog-container {
+                        margin-top: 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     &.is-host-tab,
     &.is-container-tab {
-      padding: 0 0 0 40px;
+      padding: 0 0 0 16px;
 
       .host-tab-container {
         height: 100%;

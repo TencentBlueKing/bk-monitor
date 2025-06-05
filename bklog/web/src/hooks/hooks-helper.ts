@@ -303,7 +303,7 @@ export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, o
   if (!virtualTarget) {
     virtualTarget = document.createElement('span') as HTMLElement;
     virtualTarget.className = 'bklog-virtual-target';
-    virtualTarget.style.setProperty('position', 'absolute');
+    virtualTarget.style.setProperty('position', 'fixed');
     virtualTarget.style.setProperty('visibility', 'hidden');
     virtualTarget.style.setProperty('z-index', '-1');
     document.body.appendChild(virtualTarget);

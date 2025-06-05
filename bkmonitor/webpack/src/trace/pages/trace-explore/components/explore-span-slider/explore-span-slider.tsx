@@ -61,7 +61,6 @@ export default defineComponent({
     watch(
       () => props.isShow,
       val => {
-        console.info(props, '=========');
         if (val && props.spanId) {
           getSpanDetails();
         }

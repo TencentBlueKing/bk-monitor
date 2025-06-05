@@ -24,5 +24,7 @@
  * IN THE SOFTWARE.
  */
 import i18n from 'monitor-pc/i18n/i18n';
-
+window.$t = function (key, params) {
+  return i18n.tc(key, params);
+};
 export default i18n;

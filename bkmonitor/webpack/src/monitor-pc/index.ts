@@ -120,7 +120,7 @@ if (hasRouteHash) {
           k8sV2EnableList: (!data.K8S_V2_BIZ_LIST?.length ? [] : data.K8S_V2_BIZ_LIST).slice(),
           defaultBizId: window.default_biz_id || '',
         });
-        window.mainComponent = new Vue({
+        new Vue({
           el: '#app',
           router,
           store,
