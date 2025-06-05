@@ -31,7 +31,7 @@ import Vue from 'vue';
 import i18n from '@/language/i18n';
 if (!window.mainComponent?.$t) {
   window.mainComponent = {
-    $t: i18n.t,
+    $t: i18n.t.bind(i18n),
     $i18n: i18n,
   };
 }
