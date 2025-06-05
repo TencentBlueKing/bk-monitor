@@ -571,6 +571,8 @@ class SpaceTableIDRedis:
             table_id_list,
             bk_tenant_id,
         )
+        if not table_id_list:
+            return {}
         try:
             # 获取指定table_id列表的未删除别名记录
             alias_records = models.ESFieldQueryAliasOption.objects.filter(
@@ -594,7 +596,10 @@ class SpaceTableIDRedis:
 
         except Exception as e:
             logger.error(
-                "Error getting field alias map for table_ids: %s, error: %s", table_id_list, str(e), exc_info=True
+                "_get_field_alias_map:Error getting field alias map for table_ids: %s, error: %s",
+                table_id_list,
+                str(e),
+                exc_info=True,
             )
             # 发生错误时返回空字典，确保不影响主流程
             return {}
