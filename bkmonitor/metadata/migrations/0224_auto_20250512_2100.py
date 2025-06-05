@@ -39,7 +39,10 @@ def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
         models["ResultTable"]
         .objects
         # 只过滤出 APM 相关的结果表。
-        .filter(Q(table_id__contains=".trace_bkapp_") | Q(table_id__contains=APM_PRECALCULATE_TABLE_PREFIX))
+        .filter(
+            (Q(table_id__contains="bkapm") & Q(table_id__contains=".trace"))
+            | Q(table_id__contains=APM_PRECALCULATE_TABLE_PREFIX)
+        )
         .values("table_id", "bk_biz_id", "id", "bk_tenant_id")
         .order_by("table_id")
     )
