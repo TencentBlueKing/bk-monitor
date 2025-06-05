@@ -384,14 +384,9 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
-                "plugin_id"
-            )
-            # plugin_table_ids = []
-            # for plugin in plugins:
-            #     version = plugin.current_version
-            #     for table in version.info.metric_json:
-            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]
+            ).values("plugin_id")
 
             plugin_strategy_ids = []
             query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(

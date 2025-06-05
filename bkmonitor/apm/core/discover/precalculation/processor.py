@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import datetime
 import logging
 import operator
@@ -203,6 +203,7 @@ class PrecalculateProcessor:
         error = bool(error_count)
 
         return {
+            PreCalculateSpecificField.BK_TENANT_ID.value: self.bk_biz_id,
             PreCalculateSpecificField.BIZ_ID.value: self.bk_biz_id,
             PreCalculateSpecificField.BIZ_NAME.value: self.bk_biz_name,
             PreCalculateSpecificField.APP_ID.value: self.application.id,

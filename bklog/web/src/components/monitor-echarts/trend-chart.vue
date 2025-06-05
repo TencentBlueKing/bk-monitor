@@ -200,6 +200,11 @@
 
   onBeforeUnmount(() => {
     logChartCancel?.();
+    RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
   });
 </script>
 <script>

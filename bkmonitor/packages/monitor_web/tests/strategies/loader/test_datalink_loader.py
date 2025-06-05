@@ -27,7 +27,9 @@ def setup_and_run_loader():
 
     def _loader_runner(collect_config_id=1, user_id=USER_ID, config_name="default_config"):
         plugin = CollectorPluginMeta(bk_biz_id=BK_BIZ_ID, plugin_type=PluginType.SCRIPT)
-        collect_config = CollectConfigMeta(id=collect_config_id, bk_biz_id=BK_BIZ_ID, name=config_name, plugin=plugin)
+        collect_config = CollectConfigMeta(
+            id=collect_config_id, bk_biz_id=BK_BIZ_ID, name=config_name, plugin_id=plugin.plugin_id
+        )
 
         loader = DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=user_id)
         loader.run()
