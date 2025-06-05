@@ -448,7 +448,7 @@ export default defineComponent({
       tableLoading[loadingType] = false;
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
       updateTableDataFn(res.data);
-      tableHasMoreData.value = res.data?.length === limit;
+      tableHasMoreData.value = res.data?.length >= limit;
       requestAnimationFrame(() => {
         // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
         // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
