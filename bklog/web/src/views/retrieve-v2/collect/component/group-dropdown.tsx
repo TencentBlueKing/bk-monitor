@@ -187,6 +187,7 @@ export default class CollectGroup extends tsc<IProps> {
     this.groupListPopoverInstance?.hide();
 
     // 进行完操作时 清除组或者操作列表实例
+    this.operatePopoverInstance?.hide?.(300);
     this.operatePopoverInstance?.destroy?.();
     this.operatePopoverInstance = null;
     this.groupListPopoverInstance?.destroy?.();
@@ -229,6 +230,8 @@ export default class CollectGroup extends tsc<IProps> {
         onHiddenFn: () => {
           this.operatePopoverInstance?.destroy?.();
           this.operatePopoverInstance = null;
+          this.groupListPopoverInstance?.hide();
+          this.groupListPopoverInstance?.destroy?.();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
           return true;
