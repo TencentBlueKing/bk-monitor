@@ -27,6 +27,8 @@
 import { computed, reactive, type VNode } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { get } from '@vueuse/core';
+
 import useUserConfig from '../../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../../store/modules/explore';
 import {
@@ -43,10 +45,23 @@ import {
   type GetTableCellRenderValue,
   type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
+  type ActiveConditionMenuTarget,
 } from '../typing';
 
 import type { IDimensionField } from '../../../typing';
 import type { SortInfo } from '@blueking/tdesign-ui';
+import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { MaybeRef } from 'vue';
+
+interface UseExploreTableColumnConfig {
+  props: Record<string, any>;
+  isSpanVisual: MaybeRef<boolean>;
+  rowKeyField: MaybeRef<string>;
+  tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
+  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
+  handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
+}
 
 /**
  * @description 检索表格列配置相关逻辑 hook
@@ -55,11 +70,12 @@ import type { SortInfo } from '@blueking/tdesign-ui';
 export function useExploreColumnConfig({
   props,
   isSpanVisual,
+  rowKeyField,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
   handleSliderShowChange,
-}) {
+}: UseExploreTableColumnConfig) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
   const { t } = useI18n();
@@ -120,7 +136,7 @@ export function useExploreColumnConfig({
   /** table 显示列配置 */
   const displayColumnFields = computed(() => {
     // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
-    const defaultColumnsConfig = isSpanVisual.value ? spanConfig : traceConfig;
+    const defaultColumnsConfig = get(isSpanVisual) ? spanConfig : traceConfig;
     const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
     // 需要展示的字段列名数组
     return customDisplayColumnFieldsConfig.displayFields?.length
@@ -154,7 +170,7 @@ export function useExploreColumnConfig({
         column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
         column.width = customDisplayColumnFieldsConfig.fieldsWidth?.[colKey] || column.width;
         // 表格列表头渲染方法
-        const tableHeaderTitle = tableHeaderCellRender(column.title, tipText, column);
+        const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
         const tableCell = (_, { row }) => tableCellRender(column, row);
 
@@ -271,8 +287,12 @@ export function useExploreColumnConfig({
    */
   function handleServiceOrApiColumnClick(row, column, e, customMenu) {
     const colKey = column.colKey;
-    const cellSource = row[colKey];
-    handleConditionMenuShow(e.target, colKey, cellSource, customMenu);
+    handleConditionMenuShow(e.target, {
+      rowId: row?.[get(rowKeyField)] || '',
+      colId: colKey,
+      conditionValue: row[colKey],
+      customMenuList: customMenu,
+    });
   }
 
   /**
@@ -291,7 +311,7 @@ export function useExploreColumnConfig({
    *
    */
   function getTableColumnMapByVisualMode(): Record<string, ExploreTableColumn> {
-    if (isSpanVisual.value) {
+    if (get(isSpanVisual)) {
       return {
         span_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,

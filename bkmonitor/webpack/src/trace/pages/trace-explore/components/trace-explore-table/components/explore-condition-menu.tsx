@@ -27,8 +27,8 @@
 import { defineComponent, type PropType, useTemplateRef, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { Tippy } from 'vue-tippy';
 
-import { Popover } from 'bkui-vue';
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
 
@@ -116,19 +116,17 @@ export default defineComponent({
       const { method, hasClick = true } = config;
       return () =>
         (
-          <Popover
-            arrow={true}
-            boundary={menuRef.value}
+          <Tippy
             content={t('新开标签页')}
-            disabled={!hasClick}
             placement='top'
             theme='dark'
+            onShow={() => (!hasClick ? false : void 0)}
           >
             <i
               class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
               onClick={e => handleNewExplorePage(e, method)}
             />
-          </Popover>
+          </Tippy>
         ) as unknown as SlotReturnValue;
     }
 

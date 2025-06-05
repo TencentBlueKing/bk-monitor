@@ -121,3 +121,11 @@ export interface ExploreConditionMenuItem {
   /** 菜单后缀icon渲染 */
   suffixRender?: () => SlotReturnValue;
 }
+
+/** 激活的条件菜单目标 */
+export interface ActiveConditionMenuTarget {
+  rowId: string;
+  colId: string;
+  conditionValue: string;
+  customMenuList?: ExploreConditionMenuItem[];
+}
