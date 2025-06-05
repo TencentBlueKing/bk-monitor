@@ -325,6 +325,8 @@ export default {
   主机详情: 'Host Details',
   节点详情: 'Node Details',
   查看详情: 'View Details',
+  查看服务详情: 'View Service Details',
+  查看接口详情: 'View Interface Details',
   处理详情: 'Handling Details',
   执行详情: 'Execution Details',
   套餐详情: 'Solution Details',

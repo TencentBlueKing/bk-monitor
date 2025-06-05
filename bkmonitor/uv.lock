@@ -498,7 +498,7 @@ requires-dist = [
     { name = "requests", specifier = "==2.31.0" },
     { name = "requests-toolbelt", specifier = "==1.0.0" },
     { name = "schema", specifier = "==0.7.7" },
-    { name = "selenium", specifier = "==3.141.0" },
+    { name = "selenium", specifier = "<4.2" },
     { name = "six", specifier = "==1.17.0" },
     { name = "sqlparse", specifier = "==0.4.4" },
     { name = "supervisor", specifier = "==4.2.5" },

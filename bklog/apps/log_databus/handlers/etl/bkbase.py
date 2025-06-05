@@ -27,7 +27,7 @@ from django.conf import settings
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
-from apps.log_databus.handlers.collector import build_result_table_id
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -173,7 +173,7 @@ class BKBaseEtlHandler(EtlHandler):
                 table_name = collector_plugin.get_en_name()
             else:
                 table_name = instance.get_en_name()
-            table_id = build_result_table_id(instance.get_bk_biz_id(), table_name)
+            table_id = CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_name)
             storage_params["physical_table_name"] = f"write_{timestamp_format}_{table_id}"
 
         has_storage = BkDataDatabusApi.get_config_db_list(
