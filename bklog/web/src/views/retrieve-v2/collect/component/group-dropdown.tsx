@@ -231,7 +231,6 @@ export default class CollectGroup extends tsc<IProps> {
           this.operatePopoverInstance?.destroy?.();
           this.operatePopoverInstance = null;
           this.groupListPopoverInstance?.hide();
-          this.groupListPopoverInstance?.destroy?.();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
           return true;
