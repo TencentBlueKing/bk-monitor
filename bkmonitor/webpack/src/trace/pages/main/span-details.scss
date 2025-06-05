@@ -280,7 +280,7 @@
     }
   }
 
-  .header {
+  .details-header {
     padding: 12px 16px 0;
   }
 
@@ -304,7 +304,7 @@
     }
   }
 
-  .others {
+  .details-others {
     display: flex;
     column-gap: 24px;
     margin-top: 8px;
@@ -469,7 +469,7 @@
 
     &.is-host-tab,
     &.is-container-tab {
-      padding: 0 0 0 40px;
+      padding: 0 0 0 16px;
 
       .host-tab-container {
         height: 100%;
