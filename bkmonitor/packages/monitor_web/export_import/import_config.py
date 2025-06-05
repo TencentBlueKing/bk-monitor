@@ -314,8 +314,10 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 group_detail.pop("id", None)
                 group_detail["bk_biz_id"] = bk_biz_id
                 user_group = exited_user_groups.get(name)
-                while not is_overwrite_mode and group_detail['name'] in existed_user_group_names:
-                    group_detail['name'] = f"{group_detail['name']}_clone"
+
+                if not is_overwrite_mode:
+                    while group_detail['name'] in existed_user_group_names:
+                        group_detail['name'] = f"{group_detail['name']}_clone"
 
                 if group_detail['name'] in newly_created_user_groups:
                     related_group_ids.append(newly_created_user_groups[group_detail['name']].id)
@@ -338,15 +340,16 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 config.pop("id", None)
                 config["bk_biz_id"] = bk_biz_id
 
-                while not is_overwrite_mode and config['name'] in existed_action_names:
-                    config['name'] = f"{config['name']}_clone"
+                if not is_overwrite_mode:
+                    while config['name'] in existed_action_names:
+                        config['name'] = f"{config['name']}_clone"
 
                 # 避免重复创建处理套餐
                 if config["name"] in newly_created_actions:
                     action["config_id"] = newly_created_actions[config['name']].id
                     continue
 
-                action_config_instance, created = ActionConfig.objects.update_or_create(
+                action_config_instance, _ = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id
