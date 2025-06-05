@@ -15,7 +15,7 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.3.0-beta.42",
     "@blueking/login-modal": "^1.0.6",
-    "@blueking/monitor-trace-log": "2.0.0-beta.5",
+    "@blueking/monitor-trace-log": "2.0.0-beta.6",
     "@blueking/tdesign-ui": "0.0.1-beta.29",
     "@dagrejs/dagre": "^1.1.4",
     "@vue-flow/core": "^1.44.0",

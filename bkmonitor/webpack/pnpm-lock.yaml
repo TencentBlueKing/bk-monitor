@@ -15,7 +15,6 @@ overrides:
   vue-property-decorator: ^9.1.2
   vue-tsx-support: ^3.2.0
   vuex-module-decorators: ^1.2.0
-  '@blueking/monitor-trace-log': link:../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
 
 importers:
 
@@ -619,8 +618,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: link:../../../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
-        version: link:../../../../../../../Library/pnpm/global/5/node_modules/@blueking/monitor-trace-log
+        specifier: 2.0.0-beta.6
+        version: 2.0.0-beta.6
       '@blueking/tdesign-ui':
         specifier: 0.0.1-beta.29
         version: 0.0.1-beta.29(vue@3.5.15(typescript@5.8.3))
@@ -1554,6 +1553,9 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
+
+  '@blueking/monitor-trace-log@2.0.0-beta.6':
+    resolution: {integrity: sha512-KemG9wLOGALxhSlB+sY/DEEmpNIDgRdvcH3bLSxthiXsmr9xPuJFSMSmACHZI1SJBDdjdz0VH7KDuLtW5Ld1Ug==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -9778,6 +9780,8 @@ snapshots:
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
+
+  '@blueking/monitor-trace-log@2.0.0-beta.6': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:
