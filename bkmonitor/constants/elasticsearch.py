@@ -51,6 +51,7 @@ class QueryStringOperators:
     GTE = "gte"
     LTE = "lte"
     BETWEEN = "between"
+    REQ = "req"
 
     # 需要处理通配符转义的操作符
     NEED_WILDCARD_OPERATORS = [INCLUDE, NOT_INCLUDE]
@@ -68,4 +69,5 @@ class QueryStringOperators:
         GTE: "{field}: >={value}",
         LTE: "{field}: <={value}",
         BETWEEN: "{field}: [{start_value} TO {end_value}]",
+        REQ: "{field}: /{value}/",
     }
