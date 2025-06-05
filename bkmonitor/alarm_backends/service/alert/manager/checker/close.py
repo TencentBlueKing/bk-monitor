@@ -318,10 +318,10 @@ class CloseStatusChecker(BaseChecker):
         if alert.top_event["target_type"] == EventTargetType.HOST:
             # CMDBEnricher 的 enrich_host 方法 会对event 设置ip字段，但如果主机缓存缺失，则会导致丢失ip字段
             ip = target_dimensions["ip"] = alert.top_event.get("ip", "")
-            bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event["bk_cloud_id"]
-
-            host = HostManager.get(ip, bk_cloud_id)
-
+            bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event.get("bk_cloud_id", "")
+            host = None
+            if ip and bk_cloud_id != "":
+                host = HostManager.get(ip, bk_cloud_id)
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
                 # 需要考虑一个问题，如何判断缓存未刷新的情况

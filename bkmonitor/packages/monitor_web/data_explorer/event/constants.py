@@ -15,6 +15,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
+from constants.elasticsearch import QueryStringOperators
 
 
 class EventDomain(CachedEnum):
@@ -292,6 +293,16 @@ class Operation:
         "alias": _("不包含"),
         "value": "exclude",
         "options": {"label": _("使用通配符"), "name": "is_wildcard"},
+    }
+    QueryStringOperatorMapping = {
+        EQ["value"]: QueryStringOperators.EQUAL,
+        NE["value"]: QueryStringOperators.NOT_EQUAL,
+        INCLUDE["value"]: QueryStringOperators.INCLUDE,
+        EXCLUDE["value"]: QueryStringOperators.NOT_INCLUDE,
+        GT["value"]: QueryStringOperators.GT,
+        LT["value"]: QueryStringOperators.LT,
+        GTE["value"]: QueryStringOperators.GTE,
+        LTE["value"]: QueryStringOperators.LTE,
     }
 
 

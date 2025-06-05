@@ -211,7 +211,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         }
       });
 
-      options.color = colors.concat(COLOR_LIST);
+      options.color = colors;
     }
 
     // 遍历外层
@@ -257,6 +257,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
 
     updateChart(isInit);
+    console.log('dataset', isInit, options);
     return count;
   };
 
@@ -287,7 +288,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     } else {
       options.series[0].data = data;
     }
-    options.color = COLOR_LIST;
+    options.color = ['#A4B3CD'];
     updateChart(isInit);
     opt_data.clear();
     opt_data = null;
@@ -295,8 +296,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
-    if (fieldName && eggs?.group_by_histogram) {
-      return setGroupData(eggs?.group_by_histogram, fieldName, isInit);
+    if (fieldName) {
+      return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, isInit);
     }
 
     return setDefaultData(eggs, isInit);

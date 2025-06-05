@@ -129,7 +129,6 @@ def q_to_dict(q: tree.Node):
             filter_dict.setdefault(_inner_or, []).append(sub_dict)
 
     cursor = 0
-    k_count_map: dict[str, int] = defaultdict(int)
     while True:
         and_k: str = f"{_inner_and}_{cursor}"
         sub: dict[str, Any] | None = filter_dict.get(and_k)
@@ -139,16 +138,6 @@ def q_to_dict(q: tree.Node):
         if isinstance(sub, dict) and list(sub.keys()) == [_inner_or]:
             # {"and_xx": {or: []}} -> {"or_xx": []}
             filter_dict[f"{_inner_or}_{cursor}"] = filter_dict.pop(and_k)[_inner_or]
-
-        if isinstance(sub, dict):
-            keys: list[str] = list(sub.keys())
-            for k in keys:
-                if k.startswith(_inner_or) or k.startswith(_inner_and):
-                    continue
-                k_count_map[k] += 1
-
-                if k_count_map[k] > 1:
-                    del sub[k]
 
         if not sub:
             filter_dict.pop(and_k, None)
@@ -2015,9 +2004,12 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         for field_cond in self._get_conditions().get("field_list", []):
             # 如果存在 ES 检索的特殊操作符，则不使用 unify-query。
             # 背景：之前用户输入 events.a.b.c 时，SaaS 需要根据 mapping 判断是否为嵌套字段，增加 nested 检索关键字。
-            # TODO(crayon) unify-query 已支持上述逻辑，切换新版 Trace 时，将直接透传 query_string，SaaS 不再进行判断和转换。
             if field_cond.get("op") in ["nested"]:
                 return False
+
+            # 通配符检索，仅 UnifyQuery 支持。
+            if field_cond.get("is_wildcard"):
+                return True
 
             # 嵌套字段直接检索（eg：events.name = xxx）仅 UnifyQuery 支持。
             field_name: str = field_cond.get("field_name", "")

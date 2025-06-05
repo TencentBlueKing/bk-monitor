@@ -39,6 +39,7 @@ interface IProps {
     offset: string[];
   };
   exclude?: Array<'metric' | 'time'>;
+  offsetSingle?: boolean; // 是否单选
 }
 
 interface IEmit {
@@ -49,6 +50,7 @@ interface IEmit {
 export default class CompareType extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: () => ({ type: '', offset: [] }) }) readonly value: IProps['value'];
   @Prop({ type: Array, default: () => [] }) readonly exclude: IProps['exclude'];
+  @Prop({ type: Boolean, default: false }) readonly offsetSingle: IProps['offsetSingle'];
 
   @Ref('popoverRef') popoverRef: any;
   @Ref('offsetRef') offsetRef: any;
@@ -91,9 +93,6 @@ export default class CompareType extends tsc<IProps, IEmit> {
   }
 
   triggerChange() {
-    // if (this.localType === 'time' && this.localOffset.length < 1) {
-    //   return;
-    // }
     const result = {
       type: this.localType,
       offset: this.localOffset,
@@ -160,6 +159,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
         {this.isShowEditOffset && (
           <EditOffset
             ref='offsetRef'
+            offsetSingle={this.offsetSingle}
             value={this.value.offset}
             onChange={this.handleOffsetChange}
           />

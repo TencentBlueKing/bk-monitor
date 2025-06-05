@@ -208,7 +208,6 @@ class _TransferApi:
             module=self.MODULE,
             description=_("创建存储集群"),
             before_request=create_cluster_info_before,
-            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["custom_option"]["bk_biz_id"]),
         )
         self.modify_cluster_info = DataAPI(
             method="POST",
@@ -216,7 +215,6 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改存储集群"),
             before_request=create_cluster_info_before,
-            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["custom_option"]["bk_biz_id"]),
         )
         self.list_result_table = DataAPI(
             method="GET",

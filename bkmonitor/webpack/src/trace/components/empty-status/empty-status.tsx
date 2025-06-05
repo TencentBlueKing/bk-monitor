@@ -56,7 +56,7 @@ export default defineComponent({
     },
     textMap: {
       type: Object as PropType<IEmptyStatusTextMap>,
-      default: {},
+      default: () => ({}),
     },
   },
   emits: ['operation'],
@@ -85,9 +85,9 @@ export default defineComponent({
       if (this.type === 'empty') return undefined;
       if (this.type === 'search-empty') {
         return (
-          <i18n
+          <i18n-t
             class='operation-text'
-            path='可以尝试{0}或{1}'
+            keypath='可以尝试{0}或{1}'
           >
             <span style='margin: 0 3px'>{this.t('调整关键词')}</span>
             <span
@@ -97,7 +97,7 @@ export default defineComponent({
             >
               {this.t('清空筛选条件')}
             </span>
-          </i18n>
+          </i18n-t>
         );
       }
       if (this.type === '500') {

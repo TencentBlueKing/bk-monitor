@@ -63,9 +63,7 @@ class CollectorScenario:
         }
         try:
             collector_scenario = import_string(
-                "apps.log_databus.handlers.collector_scenario.{}.{}".format(
-                    collector_scenario_id, mapping.get(collector_scenario_id)
-                )
+                f"apps.log_databus.handlers.collector_scenario.{collector_scenario_id}.{mapping.get(collector_scenario_id)}"
             )
             return collector_scenario()
         except ImportError as error:

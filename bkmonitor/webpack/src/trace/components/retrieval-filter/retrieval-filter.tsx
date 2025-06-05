@@ -116,6 +116,9 @@ export default defineComponent({
     const isShowQueryStringError = computed(() => {
       return mode.value === EMode.queryString && queryStringError.value.show;
     });
+    const operatorBtnDisabled = computed(() => {
+      return mode.value === EMode.ui ? !uiValue.value.length : !qsValue.value;
+    });
 
     init();
 
@@ -264,6 +267,9 @@ export default defineComponent({
     }
 
     function handleChange() {
+      emit('whereChange', uiValueToWhere());
+    }
+    function uiValueToWhere() {
       const where = [];
       setCacheUIData(uiValue.value);
       for (const item of uiValue.value) {
@@ -286,7 +292,7 @@ export default defineComponent({
           value: item.value,
           options: item?.options || undefined,
         }));
-      emit('whereChange', props.isTraceRetrieval ? traceWhere : where);
+      return props.isTraceRetrieval ? traceWhere : where;
     }
 
     function handleWatchValueFn(where: IWhereItem[]) {
@@ -414,24 +420,8 @@ export default defineComponent({
       }
     }
     function handleCopy(_event: MouseEvent) {
-      let str = '';
-      if (mode.value === EMode.ui && uiValue.value.length) {
-        const where = [];
-        for (const item of uiValue.value) {
-          if (!item?.hide) {
-            where.push({
-              key: item.key.id,
-              value: item.value.map(v => v.id),
-              operator: item.method.id,
-            });
-          }
-        }
-        str = JSON.stringify(where);
-      } else if (mode.value === EMode.queryString && qsValue.value) {
-        str = qsValue.value;
-      }
-      if (str) {
-        copyText(str, msg => {
+      if (mode.value === EMode.queryString && qsValue.value) {
+        copyText(qsValue.value, msg => {
           Message({
             message: msg,
             theme: 'error',
@@ -442,6 +432,8 @@ export default defineComponent({
           message: t('复制成功'),
           theme: 'success',
         });
+      } else if (mode.value === EMode.ui && uiValue.value.length) {
+        emit('copyWhere', uiValueToWhere());
       }
     }
 
@@ -457,6 +449,7 @@ export default defineComponent({
       localFields,
       queryStringError,
       isShowQueryStringError,
+      operatorBtnDisabled,
       handleChangeMode,
       handleShowResidentSetting,
       handleUiValueChange,
@@ -542,7 +535,7 @@ export default defineComponent({
                 <span class='icon-monitor icon-mind-fill' />
               </div>
               <div
-                class={['clear-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
+                class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
                 v-bk-tooltips={{
                   content: this.t('清空'),
                   delay: 300,
@@ -552,7 +545,7 @@ export default defineComponent({
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
               <div
-                class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
+                class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
                 v-bk-tooltips={{
                   content: this.t('复制'),
                   delay: 300,

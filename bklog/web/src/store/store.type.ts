@@ -75,6 +75,11 @@ enum BK_LOG_STORAGE {
    * 当前 bk_biz_id
    */
   BK_BIZ_ID = '_14',
+
+  /**
+   * 最后选择索引ID
+   */
+  LAST_INDEX_SET_ID = '_15',
 }
 
 export { BK_LOG_STORAGE };

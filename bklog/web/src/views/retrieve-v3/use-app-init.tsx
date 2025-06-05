@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
@@ -189,16 +189,21 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取第一个索引集
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const defaultId = resp[1][0]?.index_set_id;
-
-          if (defaultId) {
-            const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
-            store.commit('updateIndexId', strId);
-            router.replace({
-              params: { indexId: strId },
-              query: { ...route.query, unionList: undefined },
-            });
+          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
+          if (lastIndexSetIds?.length) {
+            const validateIndexSetIds = lastIndexSetIds.filter(id =>
+              resp[1].some(item => `${item.index_set_id}` === `${id}`),
+            );
+            if (validateIndexSetIds.length) {
+              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
+              });
+            } else {
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+              });
+            }
           }
         }
 
@@ -236,18 +241,64 @@ export default () => {
           }
         }
 
+        if (!indexSetIdList.value.length) {
+          const defaultId = [resp[1][0]?.index_set_id];
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+          }
+        }
+
+        let indexId =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.state.indexItem.ids[0]
+            : undefined;
+        const unionList =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = route.params.indexId ? 'single' : 'union';
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          if (indexId && type === 'single') {
+            store.commit('updateIndexId', indexId);
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
+          }
 
-          store.dispatch('requestIndexSetFieldInfo').then(() => {
-            store.dispatch('requestIndexSetQuery').then(() => {
-              RetrieveHelper.setSearchingValue(false);
-            });
+          if (type === 'union') {
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [...(unionList ?? [])] });
+          }
+
+          store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
+
+          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
+
+          store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+
+            if (resp?.data?.fields?.length) {
+              store.dispatch('requestIndexSetQuery').then(() => {
+                RetrieveHelper.setSearchingValue(false);
+              });
+            }
+
+            if (!resp?.data?.fields?.length) {
+              store.commit('updateIndexSetQueryResult', { is_error: true, exception_msg: 'index-set-field-not-found' });
+              RetrieveHelper.setSearchingValue(false);
+            }
           });
+        }
+
+        if (!indexSetIdList.value.length) {
+          const defaultId = [resp[1][0]?.index_set_id];
+
+          if (defaultId) {
+            const strId = `${defaultId}`;
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexId', strId);
+          }
         }
 
         const queryTab = RetrieveHelper.routeQueryTabValueFix(
@@ -257,8 +308,8 @@ export default () => {
         );
 
         router.replace({
-          params: { ...route.params },
-          query: { ...route.query, ...queryTab },
+          params: { ...route.params, indexId },
+          query: { ...route.query, ...queryTab, unionList: unionList ? JSON.stringify(unionList) : undefined },
         });
       });
   };
@@ -284,7 +335,13 @@ export default () => {
   beforeMounted();
 
   const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
+    store.commit('resetIndexsetItemParams', {
+      start_time,
+      end_time,
+      timezone,
+      datePickerValue,
+    });
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);

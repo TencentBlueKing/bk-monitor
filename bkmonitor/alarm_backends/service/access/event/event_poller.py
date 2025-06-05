@@ -15,6 +15,7 @@ import signal
 import socket
 import time
 import uuid
+from collections import defaultdict
 
 from django.conf import settings
 import kafka
@@ -52,6 +53,7 @@ class EventPoller:
         self.refresh()
         self.should_exit = False
         self.consumer = None
+        self.polled_info = defaultdict(int)
 
     def get_consumer(self):
         if self.consumer is None:
@@ -75,10 +77,10 @@ class EventPoller:
 
     def poll_once(self):
         consumer = self.get_consumer()
-        logger.info(f"[start event poller] topics: {consumer.subscription()}, pod_id: {self.pod_id}")
+        logger.debug(f"[start event poller] topics: {consumer.subscription()}, pod_id: {self.pod_id}")
         records = consumer.poll(500, max_records=MAX_RETRIEVE_NUMBER)
         messages = list(itertools.chain.from_iterable(records.values()))
-        logger.info(f"[event poller] pulled {len(messages)}, pod_id: {self.pod_id}")
+        logger.debug(f"[event poller] pulled {len(messages)}, pod_id: {self.pod_id}")
         return messages
 
     def close(self):
@@ -117,7 +119,15 @@ class EventPoller:
             # send task
             for data_id in signals:
                 run_access_event_handler_v2.delay(data_id)
+                logger.info(
+                    "[access event poller] data_id(%s) pod_id(%s) push alarm list(%s) to redis %s",
+                    data_id,
+                    self.pod_id,
+                    self.polled_info[data_id],
+                    key.EVENT_LIST_KEY.get_key(data_id=data_id),
+                )
             check_time = time.time()
+            self.polled_info.clear()
 
     def start(self):
         # 添加退出信号处理，支持优雅退出
@@ -161,13 +171,15 @@ class EventPoller:
     def push_to_redis(self, topic, messages):
         if not messages:
             return
+        messages = [m[:-1] if m[-1] == "\x00" or m[-1] == "\n" else m for m in messages]
         data_id = self.topics_map[topic]
         redis_client = key.EVENT_LIST_KEY.client
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=data_id)
         redis_client.lpush(data_channel, *messages)
         redis_client.expire(data_channel, key.EVENT_LIST_KEY.ttl)
         self.send_signal(data_id)
-        logger.info(
+        self.polled_info[data_id] += len(messages)
+        logger.debug(
             "data_id(%s) topic(%s) pod_id(%s) push alarm list(%s) to redis %s",
             data_id,
             topic,

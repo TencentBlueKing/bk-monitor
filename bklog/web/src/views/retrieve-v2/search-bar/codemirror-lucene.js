@@ -78,12 +78,20 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       ]),
       minimalSetup,
       sql(),
-      highlightNotKeywords(), // 添加自定义高亮扩展
+      highlightNotKeywords(),
       EditorView.lineWrapping,
+
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of(debouncedTrack),
+      EditorView.updateListener.of(update => {
+        if (update.selectionSet) {
+          onFocusPosChange?.(update.state);
+        }
+        if (update.docChanged) {
+          debouncedTrack(update);
+        }
+      }),
     ],
   });
 
@@ -99,63 +107,80 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
   };
 
   const setValue = (value, from = 0, to = undefined) => {
-    if (view.state.doc.toString() === value) {
+    const currentValue = view.state.doc.toString();
+    if (currentValue === value) {
       return;
     }
 
+    // 处理替换全部内容的情况
     if (to === Infinity) {
+      const docLength = view.state.doc.length;
       view.dispatch({
-        changes: { from, to: view.state.doc.length, insert: value },
+        changes: { from: 0, to: docLength, insert: value },
+        selection: EditorSelection.cursor(value.length),
       });
-
-      view.dispatch({
-        selection: EditorSelection.cursor(view.state.doc.length),
-      });
-
       return;
     }
 
-    if (!to) {
+    // 处理插入新内容的情况
+    if (to === undefined) {
+      // 确保 from 不超过文档长度
+      const safeFrom = Math.min(from, view.state.doc.length);
       view.dispatch({
-        changes: { from, insert: value },
+        changes: { from: safeFrom, insert: value },
+        selection: EditorSelection.cursor(safeFrom + value.length),
+        userEvent: 'input',
       });
-
-      view.dispatch({
-        selection: EditorSelection.cursor(from + value.length),
-      });
-
       return;
     }
 
+    // 处理替换指定范围内容的情况
     if (typeof to === 'number') {
-      if (to > view.state.doc.length) {
+      // 确保 from 和 to 在有效范围内
+      const docLength = view.state.doc.length;
+      const safeFrom = Math.min(from, docLength);
+      const safeTo = Math.min(to, docLength);
+      
+      // 如果 from 大于等于 to，当作插入处理
+      if (safeFrom >= safeTo) {
         view.dispatch({
-          changes: { from, to: view.state.doc.length, insert: value },
+          changes: { from: safeFrom, insert: value },
+          selection: EditorSelection.cursor(safeFrom + value.length),
+          userEvent: 'input',
         });
-
-        view.dispatch({
-          selection: EditorSelection.cursor(from + value.length),
-        });
-
         return;
       }
 
       view.dispatch({
-        changes: { from, to, insert: value },
-      });
-
-      view.dispatch({
-        selection: EditorSelection.cursor(from + value.length),
+        changes: { from: safeFrom, to: safeTo, insert: value },
+        selection: EditorSelection.cursor(safeFrom + value.length),
+        userEvent: 'input',
       });
     }
   };
 
   const setFocus = () => {
+    if (!view) return;
+    
     view.focus();
+    // 确保光标位置正确
+    const pos = view.state.selection.main.to;
+    view.dispatch({
+      selection: EditorSelection.cursor(pos),
+      userEvent: 'focus',
+    });
   };
 
   const getValue = () => {
     return view.state.doc.toString() ?? '*';
   };
-  return { state, view, appendText, setValue, setFocus, getValue };
+
+  return { 
+    state, 
+    view, 
+    appendText, 
+    setValue, 
+    setFocus, 
+    getValue,
+  };
 };

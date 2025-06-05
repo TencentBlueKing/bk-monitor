@@ -1658,7 +1658,7 @@ export default defineComponent({
           </div>
         </Dialog> */}
         <Sideslider
-          width={this.slideFullScreen ? '100%' : '80%'}
+          width={this.slideFullScreen ? '100%' : '85%'}
           class='trace-info-sideslider'
           v-slots={{
             header: () => (

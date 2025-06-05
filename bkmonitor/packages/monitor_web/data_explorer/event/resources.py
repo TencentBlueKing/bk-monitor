@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy as _
 from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
 
@@ -36,6 +37,7 @@ from .constants import (
     INNER_FIELD_TYPE_MAPPINGS,
     QUERY_MAX_LIMIT,
     TYPE_OPERATION_MAPPINGS,
+    Operation,
     CategoryWeight,
     EventCategory,
     EventDimensionTypeEnum,
@@ -695,3 +697,13 @@ class EventStatisticsInfoResource(Resource):
         根据查询函数适配表达式
         """
         return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")
+
+
+class EventGenerateQueryStringResource(Resource):
+    RequestSerializer = serializers.EventGenerateQueryStringRequestSerializer
+
+    def perform_request(self, data):
+        generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
+        for f in data["where"]:
+            generator.add_filter(f["key"], f["method"], f["value"], f.get("options", {}))
+        return generator.to_query_string()

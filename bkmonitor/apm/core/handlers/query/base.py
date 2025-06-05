@@ -26,12 +26,13 @@ from django.utils.functional import cached_property, classproperty
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
-from apm.constants import AggregatedMethod, OperatorGroupRelation
+from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.apm import OperatorGroupRelation
 
 logger = logging.getLogger("apm")
 

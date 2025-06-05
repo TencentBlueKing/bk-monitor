@@ -1755,5 +1755,11 @@ class DateFormat:
     """
     datetime库和arrow库的日期时间格式
     """
+
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
     ARROW_FORMAT = "YYYY-MM-DD HH:mm:ss.SSSSSS"
+
+
+class HighlightConfig:
+    PRE_TAG = "<mark>"
+    POST_TAG = "</mark>"

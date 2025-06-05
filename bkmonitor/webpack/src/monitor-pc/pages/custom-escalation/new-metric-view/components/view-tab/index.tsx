@@ -34,6 +34,7 @@ import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from
 import { optimizedDeepEqual } from '../../metric-chart-view/utils';
 import RemoveConfirm from './components/remove-confirm';
 import ViewSave from './components/view-save';
+import ViewManage from './components/view-manage';
 
 import './index.scss';
 
@@ -243,24 +244,35 @@ export default class ViewTab extends tsc<IProps, IEmit> {
                   name={item.id}
                 >
                   <template slot='label'>
-                    <div class='drag-flag'>
+                    {/* <div class='drag-flag'>
                       <i class='icon-monitor icon-mc-tuozhuai' />
-                    </div>
+                    </div> */}
                     <span>{item.name}</span>
-                    <RemoveConfirm
+                    {/* <RemoveConfirm
                       data={item}
                       onSubmit={() => this.handleRemoveView(item.id)}
                     >
                       <span class='remove-btn'>
                         <i class='icon-monitor icon-mc-clear' />
                       </span>
-                    </RemoveConfirm>
+                    </RemoveConfirm> */}
                   </template>
                 </bk-tab-panel>
               ))}
             </bk-tab>
           )}
           <div class='extend-action'>
+            {this.viewList.length > 0 && (
+              <ViewManage
+                payload={this.graphConfigPayload}
+                sceneId={this.sceneId}
+                viewList={this.viewList}
+                onSuccess={() => {
+                  this.isTabListInit = false;
+                  this.handleViewSaveSuccess();
+                }}
+              />
+            )}
             <ViewSave
               payload={this.graphConfigPayload}
               sceneId={this.sceneId}

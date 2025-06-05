@@ -1070,6 +1070,10 @@ export default defineComponent({
           return 'index-set-not-found';
         }
 
+        if (/^index-set-field-not-found/.test(exceptionMsg.value)) {
+          return 'index-set-field-not-found';
+        }
+
         return exceptionMsg.value.length ? 'error' : 'empty';
       }
 
