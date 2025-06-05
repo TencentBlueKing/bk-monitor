@@ -56,10 +56,5 @@ const i18n = createI18n({
   },
 });
 window.i18n = i18n.global;
-window.mainComponent = {
-  $t: window.i18n.t,
-};
-window.$t = function (key, params) {
-  return i18n.global.t(key, params);
-};
+window.$t = i18n.global.t;
 export default i18n;

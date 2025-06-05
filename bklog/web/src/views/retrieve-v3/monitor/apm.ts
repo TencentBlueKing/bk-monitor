@@ -28,9 +28,15 @@ window.__IS_MONITOR_TRACE__ = false;
 window.__IS_MONITOR_APM__ = true;
 import Vue from 'vue';
 
+import i18n from '@/language/i18n';
+if (!window.mainComponent?.$t) {
+  window.mainComponent = {
+    $t: i18n.t,
+    $i18n: i18n,
+  };
+}
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
-import i18n from '@/language/i18n';
 
 import MonitorApmLog from './monitor'
 
