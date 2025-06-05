@@ -38,22 +38,6 @@ class ClusteringClosedException(BaseClusteringException):
     MESSAGE = _("聚类未开放")
 
 
-# 可以删
-# class NodeConfigException(BaseClusteringException):
-#     ERROR_CODE = "002"
-#     MESSAGE = _("获取node config异常{steps}")
-
-# 可以删
-# class NotSupportStepNameQueryException(BaseClusteringException):
-#     ERROR_CODE = "003"
-#     MESSAGE = _("不支持的step_name状态获取: {step_name}")
-
-# 可以删
-# class EvaluationStatusResponseException(BaseClusteringException):
-#     ERROR_CODE = "004"
-#     MESSAGE = _("evaluation_status返回异常: {evaluation_status}")
-
-
 class ClusteringConfigNotExistException(BaseClusteringException):
     ERROR_CODE = "005"
     MESSAGE = _("聚类配置不存在")

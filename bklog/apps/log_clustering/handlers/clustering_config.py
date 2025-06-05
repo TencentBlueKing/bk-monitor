@@ -86,15 +86,6 @@ class ClusteringConfigHandler:
     def retrieve(self):
         return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
 
-    # 可以删
-    # def start(self):
-    #     from apps.log_clustering.handlers.pipline_service.aiops_service import (
-    #         operator_aiops_service,
-    #     )
-    #
-    #     pipeline_id = operator_aiops_service(self.index_set_id)
-    #     return pipeline_id
-
     def online_start(self):
         from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
             operator_aiops_service_online,
@@ -448,41 +439,6 @@ class ClusteringConfigHandler:
         # todo need reset collector_config
         # collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
         pass
-
-    # 可以删除
-    # def change_data_stream(self, topic: str, partition: int = 1):
-    #     """
-    #     change_data_stream
-    #     :param topic:
-    #     :param partition:
-    #     :return:
-    #     """
-    #     collector_handler = CollectorHandler(self.data.collector_config_id)
-    #     if not self.data.log_bk_data_id:
-    #         self.data.log_bk_data_id = CollectorScenario.change_data_stream(
-    #             collector_handler.data, mq_topic=topic, mq_partition=partition
-    #         )
-    #         self.data.save()
-    #     设置request线程变量
-    #     activate_request(generate_request())
-    #
-    #     collector_detail = collector_handler.retrieve(use_request=False)
-    #
-    #     need drop built in field
-    #     collector_detail["fields"] = map_if(collector_detail["fields"], if_func=lambda field: not field["is_built_in"])
-    #     from apps.log_databus.handlers.etl import EtlHandler
-    #
-    #     etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-    #     etl_handler.update_or_create(
-    #         collector_detail["etl_config"],
-    #         collector_detail["table_id"],
-    #         collector_detail["storage_cluster_id"],
-    #         collector_detail["retention"],
-    #         collector_detail.get("allocation_min_days", 0),
-    #         collector_detail["storage_replies"],
-    #         etl_params=collector_detail["etl_params"],
-    #         fields=collector_detail["fields"],
-    #     )
 
     @classmethod
     def pre_check_fields(cls, fields, etl_config, clustering_fields):

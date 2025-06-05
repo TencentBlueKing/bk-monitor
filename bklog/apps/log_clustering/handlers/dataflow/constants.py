@@ -45,15 +45,9 @@ DEFAULT_FLINK_CPU = 1
 DEFAULT_FLINK_MEMORY = 2048
 DEFAULT_FLINK_WORKER_NUMS = 2
 DEFAULT_FLINK_REPLICAS = 2
-# 可以删
-# STREAM_SOURCE_NODE_TYPE = "stream_source"
-# 可以删
-# DIVERSION_NODE_NAME = _("回流数据")
 TSPIDER_STORAGE_NODE_TYPE = "tspider_storage"
 TSPIDER_STORAGE_INDEX_FIELDS = ["history_time", "event_time"]
 MYSQL_STORAGE_NODE_TYPE = "mysql_storage"
-# 可以删
-# SPLIT_TYPE = "split"
 
 
 class ActionEnum:

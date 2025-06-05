@@ -59,11 +59,6 @@ class AiopsModelExperiment(SoftDeleteModel):
     status = models.CharField(_("实验状态"), null=True, blank=True, max_length=128)
     basic_model_id = models.CharField(_("最新模型实例id"), null=True, blank=True, max_length=128)
     node_id_list = models.JSONField(_("节点列表"), null=True, blank=True)
-    # 可以删
-    # @classmethod
-    # def get_experiment(cls, model_name: str, experiment_alias: str):
-    #     model_id = AiopsModel.objects.get(model_name=model_name).model_id
-    #     return AiopsModelExperiment.objects.filter(model_id=model_id, experiment_alias=experiment_alias).first()
 
 
 class AiopsSignatureAndPattern(SoftDeleteModel):

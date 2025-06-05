@@ -445,25 +445,6 @@ class AddFlowNodesCls:
     )
 
 
-# 可以删
-# @dataclass
-# class RequireNodeCls(object):
-#     node_id: int
-#     result_table_id: str
-#     id: str
-
-# 可以删
-# @dataclass
-# class ModifyFlowCls(object):
-#     id: str
-#     flow_id: int
-#     node_id: int
-#     bk_biz_id: int
-#     table_name: str
-#     group_by_node: RequireNodeCls
-#     redis_node: RequireNodeCls
-
-
 @dataclass
 class UpdateModelInstanceCls:
     filter_id: str

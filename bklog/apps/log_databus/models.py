@@ -232,10 +232,6 @@ class CollectorConfig(CollectorBase):
         result_table_conf = TransferApi.get_result_table(params={"table_id": self.table_id})
         return result_table_conf.get("field_list", [])
 
-    # 可以删除
-    # def get_result_table_kafka_config(self):
-    #     return TransferApi.get_data_id({"bk_data_id": self.bk_data_id})["mq_config"]
-
     def get_bk_data_by_name(self):
         try:
             bk_data = TransferApi.get_data_id({"data_name": self.bk_data_name})

@@ -22,77 +22,6 @@ the project delivered to anyone in the future.
 from dataclasses import dataclass, field
 from typing import Any
 
-# 可以删
-# @dataclass
-# class CreateModelCls:
-#     """
-#     模型创建
-#     """
-#
-#     project_id: int
-#     model_name: str
-#     description: str
-#     processing_cluster_id: int
-#     storage_cluster_id: int
-#     scene_name: str = "custom"
-#     sensitivity: str = "private"
-#     run_env: str = "python"
-#     sample_type: str = "timeseries"
-#     modeling_type: str = "aiops"
-#     protocol_version: str = "1.2"
-
-# # 可以删
-# @dataclass
-# class CreateExperimentsCls:
-#     """
-#     创建实验
-#     """
-#
-#     project_id: int
-#     template_id: str
-#     experiment_alias: str
-#     model_id: str
-#     experiment_training: bool = True
-#     continuous_training: bool = True
-#     protocol_version: str = "1.2"
-
-# 可以删
-# @dataclass
-# class GetExperimentsConfigCls:
-#     """
-#     查看实验配置
-#     """
-#
-#     project_id: int
-#     model_id: str
-#     experiment_id: int
-#     protocol_version: str = "1.1"
-
-# 可以删
-# @dataclass
-# class GetExperimentsMetaDataCls:
-#     """
-#     查询metadata实验配置
-#     """
-#
-#     filter_id: int
-#     table_name: str = "model_experiment"
-
-# 可以删
-# @dataclass
-# class PythonBackendCls:
-#     worker_nums: int
-#     memory: int
-#     worker_group: str = "default"
-#     core: int = 2
-
-# 可以删
-# @dataclass
-# class MemoryStepScalingPolicyCls:
-#     max_memory: int
-#     step: int = 1024
-#     target_worker_type: str = "python_backend"
-
 
 @dataclass
 class SessionAgentCls:
@@ -121,13 +50,6 @@ class ChunkPolicyCls:
     config: PartitionNumberConfigCls = field(default_factory=PartitionNumberConfigCls)
 
 
-# 可以删
-# @dataclass
-# class ChunkedReadSampleSet:
-#     window: str
-#     chunk_policy: ChunkPolicyCls = field(default_factory=ChunkPolicyCls)
-
-
 @dataclass
 class SparkSessionCls:
     worker_nums: int = 1
@@ -142,34 +64,6 @@ class SessionWorkspaceCls:
     core: int = 2
     memory: int = 1024
     worker_nums: int = 1
-
-
-# 可以删
-# @dataclass
-# class PipelineResourcesCls:
-#     python_backend: PythonBackendCls
-#     spark_session: SparkSessionCls = field(default_factory=SparkSessionCls)
-#     session_workspace: SessionWorkspaceCls = field(default_factory=SessionWorkspaceCls)
-
-# 可以删
-# @dataclass
-# class ExecuteConfigCls:
-#     pipeline_resources: PipelineResourcesCls
-#     chunked_read_sample_set: ChunkedReadSampleSet
-#     pipeline_execute_config: dict
-#     resource_preference: dict
-#     pipeline_mode: str = "chunked_training"
-
-# 可以删
-# @dataclass
-# class UpdateExecuteConfigCls:
-#     """
-#     编辑实验metadata配置
-#     """
-#
-#     filter_id: int
-#     execute_config: ExecuteConfigCls
-#     table_name: str = "model_experiment"
 
 
 @dataclass
@@ -467,57 +361,6 @@ class NodeCls:
     execute_config: dict = field(default_factory=dict)
 
 
-# 可以删
-# @dataclass
-# class SampleLoadingCls:
-#     model_id: str
-#     experiment_id: int
-#     model_experiment_id: int
-#     nodes: list[NodeCls]
-#     pipeline_mode: Any = None
-#     step_name: str = "sample_loading"
-
-# 可以删除
-# @dataclass
-# class SamplePreparationCls:
-#     """
-#     执行样本切分
-#     """
-#
-#     model_id: str
-#     experiment_id: int
-#     model_experiment_id: int
-#     nodes: list[NodeCls]
-#     pipeline_mode: Any = None
-#     step_name: str = "sample_preparation"
-
-# 可以删
-# @dataclass
-# class ExecuteStatusCls:
-#     """
-#     获取切分步骤状态
-#     """
-#
-#     step_name: str
-#     model_id: str
-#     experiment_id: int
-#     node_id_list: list[str]
-
-# 可以删
-# @dataclass
-# class ModelTrainCls:
-#     """
-#     执行实验训练
-#     """
-#
-#     model_id: str
-#     experiment_id: int
-#     model_experiment_id: int
-#     nodes: list[NodeCls]
-#     pipeline_mode: Any = None
-#     step_name: str = "model_train"
-
-
 @dataclass
 class ModelTrainNodesContentNodeConfigTrainingInputValueFeatureColumnCls:
     field_type: str
@@ -568,90 +411,6 @@ class ModelTrainNodesContentNodeConfigVisualizationValueCls:
     target_type: str
     scene_name: str
     components: list[ModelTrainNodesContentNodeConfigVisualizationComponentsCls]
-
-
-# 可以删
-# @dataclass
-# class ModelTrainTrainingStatusCls:
-#     """
-#     备选模型训练状态列表
-#     """
-#
-#     model_id: str
-#     experiment_id: int
-#     project_id: int
-#     order: str = "algorithm_alias"
-#     order_type: Any = None
-#     filter_extra: dict = field(default_factory=dict)
-
-# 可以删
-# @dataclass
-# class AiopsGetCostumAlgorithm:
-#     """
-#     获取单个自定义算法
-#     """
-#
-#     algorithm_name: str
-#     project_id: int
-
-
-# 可以删
-# @dataclass
-# class ModelEvaluationCls:
-#     """
-#     模型评估
-#     """
-#
-#     model_experiment_id: int
-#     model_id: str
-#     experiment_id: int
-#     nodes: list[NodeCls]
-#     pipeline_mode: Any = None
-#     step_name: str = "model_evaluation"
-
-# 可以删
-# @dataclass
-# class EvaluationStatusCls:
-#     """
-#     模型评估状态
-#     """
-#
-#     project_id: int
-#     model_id: str
-#     experiment_id: int
-#     filter_extra: dict
-#     order: str = "algorithm_alias"
-#     order_type: Any = None
-#     experiment_instance_id: Any = None
-
-
-# 可以删
-# @dataclass
-# class EvaluationResultCls(object):
-#     """
-#     模型评估结果
-#     """
-#
-#     project_id: int
-#     model_id: str
-#     experiment_id: int
-#     basic_model_id: str
-#     filter_extra: Dict = field(default_factory=dict)
-#     experiment_instance_id: Any = None
-
-# 可以删
-# @dataclass
-# class PreCommitCls(object):
-#     """
-#     实验提交前查看配置
-#     """
-#
-#     model_id: str
-#     project_id: int
-#     model_experiment_id: int
-#     experiment_id: int
-#     passed_config: Dict
-#     nodes: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -712,23 +471,6 @@ class CommitPassedConfigCls:
     index: int
 
 
-# 可以删
-# @dataclass
-# class CommitCls(object):
-#     """
-#     实验提交
-#     """
-#
-#     project_id: int
-#     model_id: str
-#     model_experiment_id: int
-#     experiment_id: int
-#     serving_config: CommitServingConfigCls
-#     passed_config: CommitPassedConfigCls
-#     experiment_config: Dict = field(default_factory=dict)
-#     nodes: List[str] = field(default_factory=list)
-
-
 @dataclass
 class ReleaseServingConfigAutomlCls:
     param_adjust_type: str
@@ -758,52 +500,6 @@ class ReleaseServingConfigCls:
     optimize_args: list[str] = field(default_factory=list)
 
 
-# 可以删
-# @dataclass
-# class ReleaseConfigCls(object):
-#     """
-#     发布配置
-#     """
-#
-#     project_id: int
-#     model_id: str
-#     experiment_id: int
-#     basic_model_id: str
-
-
-# 可以删
-@dataclass
-# class ReleaseCls(object):
-#     """
-#     模型发布
-#     """
-#
-#     model_id: str
-#     model_experiment_id: int
-#     experiment_id: int
-#     basic_model_id: str
-#     project_id: int
-#     description: str
-#     serving_config: ReleaseServingConfigCls
-#     sample_feedback: bool = False
-
-# 可以删
-# @dataclass
-# class UpdateTrainingScheduleCls:
-#     model_id: str
-#     project_id: int
-#     training_schedule: dict = field(
-#         default_factory=lambda: {
-#             "start_time": 0,
-#             "training_freq": 1,
-#             "success_rate_threshold": 0.8,
-#             "training_freq_unit": "h",
-#             "sample_change_count": 1,
-#         }
-#     )
-#     release_config: dict = field(default_factory=lambda: {"release_mode": "auto"})
-
-
 @dataclass
 class AiopsReleaseCls:
     model_id: str
@@ -816,22 +512,3 @@ class AiopsReleaseModelReleaseIdModelFileCls:
     model_id: str
     model_release_id: str
     compat: str = "true"
-
-
-# 可以删
-# @dataclass
-# class AiopsExperimentsDebugInputConfigCls:
-#     algorithm_name: str
-#     input_data: list
-#     feature_columns: list
-#     training_args: list
-#     result_table_id: str = "test"
-#     sql: str = "test"
-#     label_columns: list = field(default_factory=list)
-#     predict_args: list = field(default_factory=lambda: [{"value": 0, "field_name": "__start_time__"}])
-
-# 可以删
-# @dataclass
-# class AiopsExperimentsDebugCls:
-#     input_config: AiopsExperimentsDebugInputConfigCls
-#     project_id: int
