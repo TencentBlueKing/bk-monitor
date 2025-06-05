@@ -282,7 +282,8 @@ class Operation:
     GTE = {"alias": ">=", "value": "gte"}
     LT = {"alias": "<", "value": "lt"}
     LTE = {"alias": "<=", "value": "lte"}
-    REQ = {"alias": _("正则"), "value": "req"}
+    REG = {"alias": _("正则"), "value": "reg"}
+    NREG = {"alias": _("正则不等于"), "value": "nreg"}
     INCLUDE = {"alias": _("包含"), "value": "include"}
     EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
     EQ_WITH_WILDCARD = {
@@ -304,14 +305,14 @@ class Operation:
         LT["value"]: QueryStringOperators.LT,
         GTE["value"]: QueryStringOperators.GTE,
         LTE["value"]: QueryStringOperators.LTE,
-        REQ["value"]: QueryStringOperators.REQ,
+        REG["value"]: QueryStringOperators.REG,
     }
 
 
 # 类型和操作符映射
 TYPE_OPERATION_MAPPINGS = {
     "date": [Operation.EQ, Operation.NE],
-    "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE, Operation.REQ],
+    "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE, Operation.REG, Operation.NREG],
     "text": [Operation.EQ, Operation.NE, Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
     "integer": [Operation.EQ, Operation.NE, Operation.GT, Operation.GTE, Operation.LT, Operation.LTE],
 }
