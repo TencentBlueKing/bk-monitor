@@ -96,16 +96,7 @@ class _BkDataDataFlowApi:
             after_request=None,
             bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["config"]["bk_biz_id"]),
         )
-        self.put_flow_nodes = DataAPI(
-            method="PUT",
-            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/nodes/{node_id}/",
-            module=self.MODULE,
-            url_keys=["flow_id", "node_id"],
-            description="更新节点",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            bk_tenant_id=biz_to_tenant_getter(key=lambda p: p["modify_flow"]["bk_biz_id"]),
-        )
+
         self.get_latest_deploy_data = DataAPI(
             method="GET",
             url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/latest_deploy_data/",
