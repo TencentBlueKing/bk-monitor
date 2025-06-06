@@ -51,6 +51,18 @@ MAPPING_LIST = [
     {"properties": {"date": {"type": "timestamp"}, "log": {"type": "string"}, "server_id": {"type": "long"}}}
 ]
 
+QUERY_ALIAS_SETTINGS = {
+    "alias_settings": [
+        {
+            "field_name": "a",
+            "query_alias": "a_alias",
+            "path_type": "string",
+        }
+    ]
+}
+
+ALIAS_SETTINGS_RESULT = {"result": True, "data": {"index_set_id": "1"}, "code": 0, "message": ""}
+
 CREATE_SUCCESS = {
     "result": True,
     "data": {
@@ -68,6 +80,7 @@ CREATE_SUCCESS = {
         "category_id": "other_rt",
         "scenario_id": "es",
         "project_id": 0,
+        "query_alias_settings": None,
         "space_uid": "bkcc__2",
         "bkdata_auth_url": "",
         "created_at": "2021-06-26 16:06:18+0800",
@@ -147,6 +160,7 @@ UPDATE_INDEX_SET = {
     "deleted_by": None,
     "index_set_name": "登陆日志",
     "project_id": 0,
+    "query_alias_settings": None,
     "space_uid": "bkcc__2",
     "category_id": "host",
     "collector_config_id": None,
@@ -227,6 +241,7 @@ INDEX_SET_LISTS = {
             "deleted_by": None,
             "index_set_name": "登陆日志",
             "project_id": 0,
+            "query_alias_settings": None,
             "space_uid": "bkcc__2",
             "category_id": "other_rt",
             "collector_config_id": None,
@@ -372,6 +387,7 @@ RETRIEVE_LIST = {
     "deleted_by": None,
     "index_set_name": "登陆日志",
     "project_id": 0,
+    "query_alias_settings": None,
     "space_uid": "bkcc__2",
     "category_id": "other_rt",
     "collector_config_id": None,
@@ -579,6 +595,16 @@ class TestIndexSet(TestCase):
         response = self.client.post(path=path, data=json.dumps(data), content_type="application/json")
         return response
 
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def do_update_alias_settings(self, *args, **kwargs):
+        """
+        更新别名配置
+        """
+        path = f"/api/v1/search/index_set/{kwargs['index_set_id']}/alias_settings/"
+        response = self.client.post(path=path, data=json.dumps(QUERY_ALIAS_SETTINGS), content_type="application/json")
+        return response
+
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_create_index_set(self, *args, **kwargs):
         """
@@ -599,6 +625,15 @@ class TestIndexSet(TestCase):
         self.maxDiff = 100000
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertEqual(content, CREATE_SUCCESS)
+
+        # 验证别名配置
+        response = self.do_update_alias_settings(index_set_id=index_set_id)
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        ALIAS_SETTINGS_RESULT["data"].update({"index_set_id": str(index_set_id)})
+        content = json.loads(response.content)
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        self.assertEqual(index_set.query_alias_settings, QUERY_ALIAS_SETTINGS["alias_settings"])
+        self.assertEqual(content, ALIAS_SETTINGS_RESULT)
 
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
 
 
-class ErrorCode(object):
+class ErrorCode:
     BKLOG_PLAT_CODE = "36"
     BKLOG_WEB_CODE = "00"
     BKLOG_AUTH = "11"
@@ -58,7 +58,7 @@ class BaseException(Exception):
         """
         @param {String} code 自动设置异常状态码
         """
-        super(BaseException, self).__init__(*args)
+        super().__init__(*args)
 
         self.code = f"{ErrorCode.BKLOG_PLAT_CODE}{self.MODULE_CODE}{self.ERROR_CODE}"
         self.errors = kwargs.get("errors")
@@ -74,7 +74,7 @@ class BaseException(Exception):
         self.data = data
 
     def __str__(self):
-        return "[{}] {}".format(self.code, self.message)
+        return f"[{self.code}] {self.message}"
 
 
 class ApiError(BaseException):
@@ -134,3 +134,10 @@ class GrepParseError(BaseException):
 
     ERROR_CODE = "501"
     MESSAGE = _("grep语法解析失败: {reason}")
+
+
+class CreateOrUpdateLogRouterException(BaseException):
+    """创建或更新路由失败"""
+
+    ERROR_CODE = "503"
+    MESSAGE = _("创建或更新路由失败: {reason}")
