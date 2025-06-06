@@ -165,7 +165,12 @@ export default defineComponent({
                             style={{ color: data.color }}
                             class='user-content'
                           >
-                            <span>{data.users.map(u => u.name).join(',')}</span>
+                            <span>
+                              {data.users.map((u, index, arr) => [
+                                <bk-user-display-name user-id={u.name} />,
+                                index !== arr.length - 1 && ',',
+                              ])}
+                            </span>
                           </div>
                         </div>
                       ) : (
