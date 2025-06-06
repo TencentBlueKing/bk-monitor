@@ -64,6 +64,8 @@ export default defineComponent({
             localValue.value = [Number(start), Number(end)];
           }
           stopWatch = true;
+        } else {
+          localValue.value = [0, 0];
         }
       },
       { immediate: true }
