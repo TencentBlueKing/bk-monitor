@@ -14,6 +14,7 @@ from alarm_backends.core.cache.cmdb import (
     TopoManager,
 )
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
+from api.cmdb.define import ServiceInstance
 from bkmonitor.utils.shield import BaseShieldDisplayManager
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
@@ -55,12 +56,14 @@ class DisplayManager(BaseShieldDisplayManager):
 
     def get_service_name_list(self, bk_biz_id: int, service_instance_id_list: list[int]) -> list[str]:
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-        instances = ServiceInstanceManager.mget(
+        instances: dict[int, ServiceInstance] = ServiceInstanceManager.mget(
             bk_tenant_id=bk_tenant_id, service_instance_ids=service_instance_id_list
         )
-
-        result = []
-        for index, instance_id in enumerate(service_instance_id_list):
-            instance = instances[index]
-            result.append(instance.name if instance else str(instance_id))
+        result: list[str] = []
+        for instance_id in service_instance_id_list:
+            instance = instances.get(instance_id)
+            if not instance or instance.name is None:
+                result.append(str(instance_id))
+            else:
+                result.append(instance.name)
         return result

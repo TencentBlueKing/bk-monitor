@@ -690,7 +690,7 @@ class ServiceInstance:
     def __init__(
         self,
         service_instance_id,
-        name=None,
+        name: str | None = None,
         bk_host_id=None,
         bk_module_id=None,
         service_category_id=0,
