@@ -306,6 +306,7 @@ class Operation:
         GTE["value"]: QueryStringOperators.GTE,
         LTE["value"]: QueryStringOperators.LTE,
         REG["value"]: QueryStringOperators.REG,
+        NREG["value"]: QueryStringOperators.NREG,
     }
 
 
