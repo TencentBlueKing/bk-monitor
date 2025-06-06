@@ -545,10 +545,11 @@ class BkunifylogbeatChecker(Checker):
         self._check_file_held(paths)
 
     def get_log_paths(self) -> List[str]:
-        collector_config_id = getattr(self.collector_config, "collector_config_id", None)
-        if not collector_config_id:
+        collector_config_id = self.collector_config.collector_config_id
+        try:
+            params = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id).params or {}
+        except ContainerCollectorConfig.DoesNotExist:
             return []
-        params = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id).params or {}
         paths = params.get("paths", [])
         path_list = paths.split(",") if isinstance(paths, str) else paths
         result = []
