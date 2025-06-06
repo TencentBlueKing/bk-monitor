@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import logging
 import traceback
 from dataclasses import asdict, dataclass
@@ -58,6 +58,7 @@ class ConsulData:
 
     data_id: str
     token: str
+    bk_tenant_id: str
     bk_biz_id: str
     bk_biz_name: str
     app_id: str
@@ -101,6 +102,7 @@ class ConsulHandler:
         return ConsulData(
             data_id=data_id,
             token=application.get_bk_data_token(),
+            bk_tenant_id=application.bk_tenant_id,
             bk_biz_id=application.bk_biz_id,
             bk_biz_name=space_mapping[str(application.bk_biz_id)]["space_name"]
             if str(application.bk_biz_id) in space_mapping
@@ -111,16 +113,16 @@ class ConsulHandler:
                 host=f"{datasource_info['mq_config']['cluster_config']['domain_name']}"
                 f":"
                 f"{datasource_info['mq_config']['cluster_config']['port']}",
-                username=datasource_info['mq_config']['auth_info']['username'],
-                password=datasource_info['mq_config']['auth_info']['password'],
-                topic=datasource_info['mq_config']['storage_config']["topic"],
+                username=datasource_info["mq_config"]["auth_info"]["username"],
+                password=datasource_info["mq_config"]["auth_info"]["password"],
+                topic=datasource_info["mq_config"]["storage_config"]["topic"],
             ),
             trace_es_info=ConsulEsInfo(
                 index_name=trace_datasource.result_table_id.replace(".", "_"),
                 host=urlunparse(
                     (
                         result_table_cluster_config["schema"] if result_table_cluster_config["schema"] else "http",
-                        f"{result_table_cluster_config['domain_name']}" f":" f"{result_table_cluster_config['port']}",
+                        f"{result_table_cluster_config['domain_name']}:{result_table_cluster_config['port']}",
                         "",
                         "",
                         "",

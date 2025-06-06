@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from ..tools.environment import NEW_ENV
@@ -17,7 +17,7 @@ try:
     _module = __import__(f"config.{NEW_ENV}", globals(), locals(), ["*"])
 except ImportError as e:
     logging.exception(e)
-    raise ImportError("Could not import config '{}' (Is it on sys.path?): {}".format(NEW_ENV, e))
+    raise ImportError(f"Could not import config '{NEW_ENV}' (Is it on sys.path?): {e}")
 
 from config.role.web import *  # noqa
 from config.role.worker import *  # noqa
@@ -62,67 +62,40 @@ INSTALLED_APPS += (
 )
 
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
-LOGGER_DEFAULT = {
-    "level": LOGGER_LEVEL,
-    "propagate": False,
-    "handlers": ["file", "console"],
+if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
+    LOGGER_HANDLERS = ["console"]
+else:
+    LOGGER_HANDLERS = ["file", "console"]
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": LOGGER_LEVEL,
+            "formatter": "standard",
+        },
+        "file": {
+            "class": "logging.handlers.WatchedFileHandler",
+            "level": LOGGER_LEVEL,
+            "formatter": "standard",
+            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_api.log"),
+            "encoding": "utf-8",
+        },
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)-8s %(process)-8d %(name)-15s %(filename)20s[%(lineno)03d] %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "loggers": {
+        "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS, "propagate": False} for k, v in LOG_LEVEL_MAP.items()},
+    },
 }
 
-
-def get_logger_config(log_path, logger_level, log_file_prefix):
-    return {
-        "version": 1,
-        "loggers": {
-            "": {"level": "ERROR", "handlers": ["file", "console"]},
-            "django.request": {"handlers": ["file", "console"], "level": "ERROR", "propagate": True},
-            "monitor": LOGGER_DEFAULT,
-            "monitor_api": LOGGER_DEFAULT,
-            "utils": LOGGER_DEFAULT,
-            "drf_non_orm": LOGGER_DEFAULT,
-            "common": LOGGER_DEFAULT,
-            "monitor_adapter": LOGGER_DEFAULT,
-            "kernel_api": LOGGER_DEFAULT,
-            "project": LOGGER_DEFAULT,
-            "bkmonitor": LOGGER_DEFAULT,
-            "kernel": LOGGER_DEFAULT,
-            "metadata": LOGGER_DEFAULT,
-            "kubernetes": LOGGER_DEFAULT,
-            "apm": LOGGER_DEFAULT,
-            "apm_ebpf": LOGGER_DEFAULT,
-            "calendars": LOGGER_DEFAULT,
-            "sql_parse": LOGGER_DEFAULT,
-            "file-only": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["file"]},
-            "console-only": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["console"]},
-        },
-        "handlers": {
-            "console": {"class": "logging.StreamHandler", "level": "DEBUG", "formatter": "standard"},
-            "file": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel_api.log"),
-                "encoding": "utf-8",
-            },
-        },
-        "formatters": {
-            "standard": {
-                "format": (
-                    "%(asctime)s %(levelname)-8s %(process)-8d" "%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"
-                ),
-                "datefmt": "%Y-%m-%d %H:%M:%S",
-            }
-        },
-    }
-
-
-LOGGING = LOGGER_CONF = get_logger_config(LOG_PATH, LOGGER_LEVEL, LOG_FILE_PREFIX)
-
-
-if IS_CONTAINER_MODE:
-    for logger in LOGGING["loggers"]:
-        if "null" not in LOGGING["loggers"][logger]["handlers"]:
-            LOGGING["loggers"][logger]["handlers"] = ["console"]
-            LOGGING["loggers"][logger]["propagate"] = False
 
 #
 # Templates

@@ -132,6 +132,7 @@
             route_id: name,
             nav_id: meta.navId,
             nav_name: '日志聚类',
+            external_menu: this.externalMenu,
           });
           this.isReported = true;
         }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,13 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 from functools import wraps
 
 from celery import shared_task
 from celery.result import AsyncResult
 
+from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.user import set_local_username
 from core.drf_resource.exceptions import CustomException
 
@@ -23,16 +22,18 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, queue="celery_resource")
-def run_perform_request(self, resource_obj, username, request_data):
+def run_perform_request(self, resource_obj, username: str, bk_tenant_id: str, request_data):
     """
     将resource作为异步任务执行
     :param self: 任务对象
     :param resource_obj: Resource实例
-    :param username: 用户
+    :param request: 请求
     :param request_data: 请求数据
     :return: resource处理后的返回数据
     """
     set_local_username(username)
+    set_local_tenant_id(bk_tenant_id)
+
     resource_obj._task_manager = self
     validated_request_data = resource_obj.validate_request_data(request_data)
     response_data = resource_obj.perform_request(validated_request_data)

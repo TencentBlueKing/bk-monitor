@@ -45,14 +45,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import {
-  type IK8SMetricItem,
-  type ICommonParams,
-  K8sNewTabEnum,
-  K8sTableColumnKeysEnum,
-  SceneEnum,
-  EDimensionKey,
-} from './typings/k8s-new';
+import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 
@@ -68,7 +61,7 @@ const networkDefaultHideMetrics = [
 
 const tabList = [
   {
-    label: window.i18n.t('K8S对象列表'),
+    label: window.i18n.t('K8s对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
@@ -78,7 +71,7 @@ const tabList = [
     icon: 'icon-zhibiao',
   },
   {
-    label: window.i18n.t('K8S集群数据详情'),
+    label: window.i18n.t('K8s集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-Component',
   },
@@ -225,7 +218,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   @Watch('groupFilters')
   watchGroupFiltersChange() {
-    this.setRouteParams();
+    this.setRouteParams({
+      tableSort: '',
+      tableOrder: '',
+      tableMethod: '',
+    });
   }
 
   @Watch('filterBy', { deep: true })

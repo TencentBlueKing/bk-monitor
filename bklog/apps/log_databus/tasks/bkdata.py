@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import Any, Dict
+
+from typing import Any
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
@@ -66,7 +66,9 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
         return
 
     try:
-        BkDataAccessApi.get_deploy_summary({"raw_data_id": collector_config.bk_data_id})
+        BkDataAccessApi.get_deploy_summary(
+            {"raw_data_id": collector_config.bk_data_id, "bk_biz_id": collector_config.bk_biz_id}
+        )
         # 如果获取 data_id 没有报错，说明已经在计算平台注册过，直接赋值保存即可
         collector_config.bkdata_data_id = collector_config.bk_data_id
         collector_config.save(update_fields=["bkdata_data_id"])
@@ -218,16 +220,14 @@ def sync_clean(bk_biz_id: int):
                     category_id=collector_config.category_id,
                 )
     except Exception as e:  # pylint: disable=broad-except
-        logger.error(
-            "bk_biz_id: {bk_biz_id} get collector_configs failed: {reason}".format(bk_biz_id=bk_biz_id, reason=e)
-        )
+        logger.error(f"bk_biz_id: {bk_biz_id} get collector_configs failed: {e}")
     finally:
         BKDataCleanUtils.unlock_sync_clean(bk_biz_id=bk_biz_id)
 
 
 def get_collector_maintainers_and_platform_username(
     collector_config: CollectorConfig, bk_biz_id: int, platform_username: str = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     获取当前采集项的维护人(maintainers)
     以及请求bkdata的用户名(platform_username)

@@ -71,7 +71,7 @@ export class ApdexChart extends LineChart {
   ) => void;
 
   contextmenuInfo = {
-    options: [{ id: 'topo', name: window.i18n.tc('查看拓扑') }],
+    options: [{ id: 'topo', name: window.i18n.t('查看拓扑') }],
     sliceStartTime: 0, // 当前切片起始时间
     sliceEndTime: 0,
   };
@@ -96,7 +96,7 @@ export class ApdexChart extends LineChart {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       // const series = apdexData.series || [];
@@ -195,12 +195,12 @@ export class ApdexChart extends LineChart {
           this.hasSetEvent = true;
         }
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];

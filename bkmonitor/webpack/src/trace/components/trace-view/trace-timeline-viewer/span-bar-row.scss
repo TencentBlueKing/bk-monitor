@@ -45,30 +45,30 @@
   background-color: #fff;
 
   &:hover {
-    background-color: #F1F2F5;
+    background-color: #f1f2f5;
   }
 
   &.is-odd-row {
     background-color: #f8f9fc;
 
     &:hover {
-      background-color: #EDEEF3;
+      background-color: #edeef3;
     }
   }
 
   /** 搜索匹配状态 */
   &.is-matching-filter {
-    background-color: #FFF3E1;
+    background-color: #fff3e1;
 
     &:hover {
-      background-color: #F1EBE3;
+      background-color: #f1ebe3;
     }
 
     &.is-odd-row {
-      background-color: #FFEBCC;
+      background-color: #ffebcc;
 
       &:hover {
-        background-color: #F1E6D6;
+        background-color: #f1e6d6;
       }
     }
   }
@@ -90,8 +90,8 @@
       z-index: -1;
       width: 6px;
       height: 28px;
-      content: " ";
-      background-image: linear-gradient(to right, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
+      content: ' ';
+      background-image: linear-gradient(to right, rgba(25, 25, 25, 0.25), rgba(32, 32, 32, 0));
     }
   }
 
@@ -100,7 +100,7 @@
     height: 28px;
     overflow: hidden;
     line-height: 28px;
-    border-right: 1px solid #DCDEE5;
+    border-right: 1px solid #dcdee5;
   }
 
   &.is-expanded {
@@ -131,7 +131,7 @@
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    padding-right: .25em;
+    padding-right: 0.25em;
     padding-left: 9px;
     color: #979ba5;
     cursor: pointer;
@@ -142,7 +142,7 @@
       top: 6px;
       bottom: 6px;
       left: 0;
-      content: " ";
+      content: ' ';
       border-left: 3px solid;
       border-left-color: inherit;
     }
@@ -153,7 +153,8 @@
       bottom: 0;
       left: 0;
       width: 1000px;
-      content: " ";
+      pointer-events: none;
+      content: ' ';
       background: transparent;
     }
 
@@ -187,13 +188,13 @@
     width: 0;
     padding: 0 6px 0 4px;
     overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 14px;
     color: #313238;
     text-align: left;
-    text-overflow: ellipsis;
 
     .read-service {
-      color: #7200FF;
+      color: #7200ff;
       text-decoration: underline;
     }
 
@@ -220,8 +221,8 @@
       right: 0%;
       width: 6px;
       height: 100%;
-      content: " ";
-      background-image: linear-gradient(to left, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
+      content: ' ';
+      background-image: linear-gradient(to left, rgba(25, 25, 25, 0.25), rgba(32, 32, 32, 0));
     }
   }
 
@@ -274,7 +275,7 @@
 
   /** 筛选边框高亮 */
   &.is-focus-matching {
-    @include span-row-border(#FFB848);
+    @include span-row-border(#ffb848);
 
     .cross-app-span::before {
       position: absolute;
@@ -283,13 +284,13 @@
       width: 1px;
       height: 100%;
       content: '';
-      background-color: #FFB848;
+      background-color: #ffb848;
     }
   }
 
   /** 当前选中状态 */
   &.is-active-matching {
-    @include span-row-border(#3A84FF);
+    @include span-row-border(#3a84ff);
 
     .cross-app-span::before {
       position: absolute;
@@ -298,18 +299,18 @@
       width: 1px;
       height: 100%;
       content: '';
-      background-color: #3A84FF;
+      background-color: #3a84ff;
     }
   }
 
-    /** 已读状态 */
+  /** 已读状态 */
   .have-read-mark {
     position: absolute;
     top: 10px;
     left: -10px;
     width: 6px;
     height: 6px;
-    background-color: #699DF4;
+    background-color: #699df4;
     border-radius: 50%;
   }
 
@@ -322,7 +323,7 @@
       width: 100%;
       height: 1px;
       content: '';
-      background-color: #3A84FF;
+      background-color: #3a84ff;
     }
 
     &:before {
@@ -340,7 +341,7 @@
       width: 1px;
       height: 100%;
       content: '';
-      background-color: #3A84FF;
+      background-color: #3a84ff;
     }
 
     .span-view::after {
@@ -351,27 +352,27 @@
       width: 1px;
       height: 100%;
       content: '';
-      background-color: #3A84FF;
+      background-color: #3a84ff;
     }
   }
 
   .cross-app-span {
     .span-name-wrapper {
       font-size: 14px;
-      background-color: #D9E1FC;
+      background-color: #d9e1fc;
 
       &.is-matching-filter {
-        background-color: #FFF3E1;
+        background-color: #fff3e1;
 
         &:hover {
-          background-color: #F1EBE3;
+          background-color: #f1ebe3;
         }
 
         &.is-odd-row {
-          background-color: #FFEBCC;
+          background-color: #ffebcc;
 
           &:hover {
-            background-color: #F1E6D6;
+            background-color: #f1e6d6;
           }
         }
       }
@@ -392,14 +393,46 @@
 
         .cross-span-name {
           margin: 0 4px;
-          color: #4C4E57;
+          color: #4c4e57;
         }
 
         .cross-description {
           font-size: 12px;
-          color: #979BA5;
+          color: #979ba5;
         }
       }
+    }
+  }
+}
+
+.bk-popover.span-error-icon {
+  padding: 0;
+  background: #000000cc;
+
+  .span-row-content-popover {
+    max-width: 500px;
+    min-width: 102px;
+    padding: 12px;
+    font-size: 12px;
+
+    &-title {
+      margin-bottom: 8px;
+      font-weight: 700;
+      line-height: 16px;
+      color: #ffffff;
+      .icon-mc-copy {
+        cursor: pointer;
+        color: #699df4;
+        margin-left: 4px;
+      }
+    }
+
+    &-main {
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: normal;
+      color: #f0f1f5;
+      line-height: 20px;
     }
   }
 }

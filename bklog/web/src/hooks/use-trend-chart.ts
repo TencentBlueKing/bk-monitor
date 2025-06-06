@@ -32,7 +32,7 @@ import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
 
-import chartOption, { getSeriesData } from './trend-chart-options';
+import chartOption, { COLOR_LIST, getSeriesData } from './trend-chart-options';
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
 export type TrandChartOption = {
@@ -51,11 +51,20 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
 
-  // const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const gradeOptionsGroups = computed(() =>
+    (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable),
+  );
+
+  /**
+   * 匹配规则是否为值匹配
+   * 可选值：value、regex
+   */
+  const isGradeMatchValue = computed(() => {
+    return store.state.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
+  });
 
   let runningInterval = '1m';
-  // let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
@@ -138,8 +147,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return { interval: runningInterval };
   };
 
-  const colors = ['#D46D5D', '#F59789', '#F5C78E', '#6FC5BF', '#92D4F1', '#A3B1CC', '#DCDEE5'];
-
   // 时间向下取整
   const getIntegerTime = time => {
     if (runningInterval === '1d') {
@@ -152,7 +159,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return Math.floor(time / intervalTimestamp) * intervalTimestamp;
   };
 
-  const getDefData = () => {
+  const getDefData = (buckets?) => {
+    if (buckets?.length) {
+      return buckets.map(bucket => [bucket.key, 0, bucket.key_as_string]);
+    }
+
     const data = [];
     const { start_time, end_time } = retrieveParams.value;
     const startValue = getIntegerTime(start_time / 1000);
@@ -172,46 +183,81 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return data;
   };
 
-  const setGroupData = (group, isInit?) => {
+  const dataset = new Map<string, any>();
+  let sortKeys = ['level_1', 'level_2', 'level_3', 'level_4', 'level_5', 'level_6', 'others'];
+
+  const isMatchedGroup = (group, fieldValue) => {
+    return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
+  };
+
+  const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
-    const series = [];
+
     let count = 0;
 
-    buckets.forEach((item, index) => {
-      let opt_data = new Map<Number, Number[]>();
+    if (isInit) {
+      dataset.clear();
+      options.series = [];
+      sortKeys = gradeOptionsGroups.value.map(g => g.id);
+      const colors = [];
 
-      if (!isInit) {
-        (options.series[index]?.data ?? []).forEach(item => {
-          opt_data.set(item[0], [item[1], item[2]]);
+      gradeOptionsGroups.value.forEach(group => {
+        if (!dataset.has(group.id)) {
+          const dst = getSeriesData({ name: group.name, data: [], color: group.color });
+          options.series.push(dst);
+          colors.push(group.color);
+          const index = options.series.length - 1;
+          dataset.set(group.id, { group, dst: options.series[index], dataMap: new Map<string, number>() });
+        }
+      });
+
+      options.color = colors;
+    }
+
+    // 遍历外层
+    buckets.forEach(bucket => {
+      const { key, key_as_string, doc_count } = bucket;
+      const groupData = bucket[fieldName]?.buckets ?? [];
+
+      count += doc_count;
+      // 如果返回数据没有符合条件的分组数据
+      // 这里初始化默认数据
+      if (groupData.length === 0) {
+        sortKeys.forEach(dstKey => {
+          const { dataMap } = dataset.get(dstKey);
+          dataMap.set(key, [key, 0, key_as_string]);
         });
       }
 
-      (item.group_by_histogram?.buckets || []).forEach(({ key, doc_count, key_as_string }) => {
-        opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
-        count += doc_count;
+      groupData?.forEach(d => {
+        const fieldValue = d.key;
+        // 用于判定是否已经命中
+        let isMatched = false;
+
+        sortKeys.forEach(dstKey => {
+          const { group, dataMap } = dataset.get(dstKey);
+
+          let count = dataMap.get(key)?.[1] ?? 0;
+
+          if (!isMatched) {
+            if (dstKey === 'others' || isMatchedGroup(group, fieldValue)) {
+              isMatched = true;
+              count += d.doc_count ?? 0;
+            }
+          }
+
+          dataMap.set(key, [key, count, key_as_string]);
+        });
       });
-
-      const keys = [...opt_data.keys()];
-      keys.sort((a, b) => a[0] - b[0]);
-      const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
-      if (isInit) {
-        series.push(getSeriesData({ name: item.key, data, color: colors[index % colors.length] }));
-      } else {
-        options.series[index].data = data;
-      }
-
-      opt_data.clear();
-      opt_data = null;
     });
 
-    if (isInit) {
-      if (!series.length) {
-        series.push(getSeriesData({ name: '', data: getDefData(), color: '#A4B3CD' }));
-      }
-      options.series = series;
-    }
+    sortKeys.forEach(key => {
+      const { dst, dataMap } = dataset.get(key);
+      dst.data = Array.from(dataMap.values());
+    });
 
     updateChart(isInit);
+    console.log('dataset', isInit, options);
     return count;
   };
 
@@ -242,7 +288,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     } else {
       options.series[0].data = data;
     }
-
+    options.color = ['#A4B3CD'];
     updateChart(isInit);
     opt_data.clear();
     opt_data = null;
@@ -250,8 +296,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
-    if (fieldName && eggs?.[fieldName]) {
-      return setGroupData(eggs[fieldName], isInit);
+    if (fieldName) {
+      return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, isInit);
     }
 
     return setDefaultData(eggs, isInit);
@@ -318,7 +364,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
     if (cachedBatch === null && !batch.dblclick) {
-      cachedBatch = batch;
+      const { start_time, end_time } = store.state.indexItem;
+      cachedBatch = { startValue: start_time, endValue: end_time };
     }
 
     if (batch.startValue && batch.endValue) {
@@ -341,27 +388,30 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     chartInstance?.resize();
   });
 
+  const handleDblClick = () => {
+    if (cachedBatch !== null) {
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        dblclick: true,
+        batch: [
+          {
+            startValue: cachedBatch.startValue,
+            endValue: cachedBatch.endValue,
+            start: cachedBatch.startValue,
+            end: cachedBatch.endValue,
+          },
+        ],
+      });
+
+      cachedBatch = null;
+    }
+  };
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
 
       chartInstance.on('dataZoom', handleDataZoom);
-      chartInstance.on('dblclick', () => {
-        chartInstance.dispatchAction({
-          type: 'dataZoom',
-          dblclick: true,
-          batch: [
-            {
-              startValue: cachedBatch.startValue,
-              endValue: cachedBatch.endValue,
-              start: cachedBatch.startValue,
-              end: cachedBatch.endValue,
-            },
-          ],
-        });
-
-        cachedBatch = null;
-      });
+      target.value?.addEventListener('dblclick', handleDblClick);
 
       addListener(target.value, handleCanvasResize);
     }
@@ -370,6 +420,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
+      target.value.removeEventListener('dblclick', handleDblClick);
     }
   });
 

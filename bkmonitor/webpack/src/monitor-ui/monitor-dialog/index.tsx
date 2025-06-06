@@ -231,13 +231,13 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
                 theme='primary'
                 onClick={this.handleClickConfirm}
               >
-                {window.i18n.tc('确定')}
+                {window.i18n.t('确定')}
               </bk-button>,
               <bk-button
                 theme='default'
                 onClick={this.handleClickCancel}
               >
-                {window.i18n.tc('取消')}
+                {window.i18n.t('取消')}
               </bk-button>,
             ]}
           </div>

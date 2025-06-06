@@ -72,7 +72,7 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
   config = [
     {
       key: EParamsMode.contrast,
-      label: window.i18n.tc('对比'),
+      label: window.i18n.t('对比'),
       width: 96,
     },
     {

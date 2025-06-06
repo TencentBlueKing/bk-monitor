@@ -60,7 +60,7 @@ from metadata.models.data_link.utils import (
     get_data_source_related_info,
 )
 from metadata.models.data_source import DataSourceResultTable
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -137,6 +137,55 @@ class CreateDataIDResource(Resource):
         validated_request_data["source_system"] = bk_app_code or default_source_system
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
+
+        return {"bk_data_id": new_data_source.bk_data_id}
+
+
+class GetOrCreateAgentEventDataIdResource(Resource):
+    """
+    获取/创建 Agent事件 数据ID
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+        etl_config = EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to get_or_create agent event data id,bk_biz_id->[%s]", bk_biz_id
+        )
+        try:
+            data_source = models.DataSource.objects.get(space_uid=space_uid, etl_config=etl_config)
+            return {"bk_data_id": data_source.bk_data_id}
+        except models.DataSource.DoesNotExist:  # 若不存在,则进行申请新建
+            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("GetOrCreateAgentEventDataIdResource: unexpected error occurred,bk_biz_id->[%s]", bk_biz_id)
+            raise e  # 非不存在类报错,直接Raise
+
+        logger.info("GetOrCreateAgentEventDataIdResource: try to create agent event data id,bk_biz_id->[%s]", bk_biz_id)
+
+        data_name = f"base_{bk_biz_id}_agent_event"  # UNIQUE KEY
+
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to create agent event data id for bk_biz_id->[%s],"
+            "use data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+
+        # 调用DataSource模型类方法,事务
+        new_data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=etl_config,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+        )
 
         return {"bk_data_id": new_data_source.bk_data_id}
 
@@ -2450,7 +2499,7 @@ class SyncBkBaseRtMetaByBizIdResource(Resource):
     同步单个业务的计算平台RT元信息
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         bk_biz_id = serializers.CharField(label="业务ID")
 
     def perform_request(self, validated_request_data):
@@ -2462,3 +2511,28 @@ class SyncBkBaseRtMetaByBizIdResource(Resource):
         bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=[bk_biz_id], storages=storages)
         sync_bkbase_result_table_meta(round_iter=0, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=[bk_biz_id])
         logger.info("SyncBkBaseRtMetaByBizIdResource: end sync bkbase meta for biz_id->[%s]", bk_biz_id)
+
+
+class ListBkBaseRtInfoByBizIdResource(Resource):
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info("ListBkBaseRtInfoByBizIdResource: start query bkbase rts for biz_id->[%s]", bk_biz_id)
+        bkbase_rts = models.ResultTable.objects.filter(
+            bk_biz_id=bk_biz_id, default_storage=models.ClusterInfo.TYPE_BKDATA
+        )
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = bkbase_rts.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = bkbase_rts[offset : offset + page_size]
+            results = [rt.to_json() for rt in paginated_queryset]
+            return {"count": count, "info": results}
+
+        # 如果不分页，返回所有结果
+        results = [rt.to_json() for rt in bkbase_rts]
+        return results

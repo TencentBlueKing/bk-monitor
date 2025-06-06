@@ -455,7 +455,7 @@ export default {
                 },
                 attrs: {
                   target: '_blank',
-                  href: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
+                  href: `${this.$store.getters.bkNodeManHost}#/plugin-manager/list`,
                 },
                 directives: [
                   {

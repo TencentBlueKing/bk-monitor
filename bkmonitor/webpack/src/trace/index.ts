@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -44,8 +45,11 @@ import store from './store/store';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
-import 'monitor-static/icons/monitor-icons.css';
 import 'monitor-pc/static/css/reset.scss';
+import 'monitor-static/icons/monitor-icons.css';
+import '@blueking/tdesign-ui/vue3/index.css';
+import { asignWindowField } from 'monitor-common/utils/asign-window';
+
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
@@ -70,9 +74,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      Object.keys(data).forEach(key => {
-        window[key.toLocaleLowerCase()] = data[key];
-      });
+      asignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -94,9 +96,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          Object.keys(data).forEach(key => {
-            window[key.toLocaleLowerCase()] = data[key];
-          });
+          asignWindowField(data);
         });
     })
     .catch(e => console.error(e))

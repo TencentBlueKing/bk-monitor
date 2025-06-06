@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import 'vue/dist/vue.d.ts';
+import 'vue/jsx.d.ts';
+
 import type i18n from './i18n/i18n';
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';

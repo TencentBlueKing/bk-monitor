@@ -1,0 +1,19 @@
+.explore-tags-col {
+  --tag-height: 23px;
+  display: flex;
+  column-gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  height: var(--tag-height);
+
+  .tag-item {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: var(--tag-height);
+    padding: 0 8px;
+    color: var(--tag-color);
+    background-color: var(--tag-bg-color);
+    border-radius: 2px;
+  }
+}

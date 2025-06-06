@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 
 import { ConfigProvider, Navigation } from 'bkui-vue';
@@ -70,6 +71,7 @@ export default defineComponent({
           item?.children?.some(child => child.children.some((set: { id: number | string }) => set.id === routeId))
       )?.id;
     });
+    const { t } = useI18n();
     onMounted(() => {
       getDocsLinkMapping();
     });
@@ -89,6 +91,7 @@ export default defineComponent({
       navActive,
       handleHeaderMenuClick,
       locale,
+      t,
     };
   },
   render() {
@@ -111,7 +114,7 @@ export default defineComponent({
                           class={['header-list-item', { 'item-active': id === this.navActive }]}
                           onClick={() => this.handleHeaderMenuClick(id, route)}
                         >
-                          {this.$t(name)}
+                          {this.t(name)}
                         </li>
                       ))}
                     </ul>

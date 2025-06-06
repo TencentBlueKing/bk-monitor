@@ -210,6 +210,9 @@ export default defineComponent({
         dialog-type='operation'
         is-show={isShowResolve.value}
         title={t('标记已解决')}
+        onClosed={() => {
+          isShowResolve.value = false;
+        }}
         onConfirm={() => {
           editIncidentHandle('resolve');
         }}

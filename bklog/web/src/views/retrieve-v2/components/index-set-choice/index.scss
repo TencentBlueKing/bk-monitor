@@ -1,0 +1,86 @@
+.bklog-v3-indexset-container {
+  height: var(--indexset-root-h);
+  width: var(--indexset-root-w);
+  max-width: var(--indexset-root-max-w);
+  min-width: var(--indexset-root-min-w);
+  display: flex;
+  justify-content: space-between;
+  background: #f0f1f5;
+  border: solid 1px #f0f1f5;
+  position: relative;
+  padding: 0 4px 0 8px;
+  cursor: pointer;
+
+  .indexset-value-list {
+    font-size: 14px;
+    color: #313238;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+
+    .index-set-value-item {
+      display: inline-block;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .index-set-lighten-name {
+      margin-left: 8px;
+      font-family: Roboto-Regular;
+      font-weight: 400;
+      font-size: 12px;
+      color: #757880;
+    }
+  }
+
+  &.is-multi {
+    text-overflow: inherit;
+
+    .indexset-value-list {
+      text-overflow: inherit;
+
+      .index-set-value-item {
+        max-width: 200px;
+      }
+    }
+  }
+
+  &.is-opened {
+    border: 1px solid #3a84ff;
+    background: #ffffff;
+
+    .bklog-icon {
+      transform: rotate(180deg);
+    }
+
+    &::after {
+      display: none;
+    }
+  }
+
+  &::after {
+    content: attr(data-shortcut-key);
+    position: absolute;
+    padding: 0 4px;
+    height: 16px;
+    background: #ffffff;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    right: 20px;
+    font-family: roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    color: #a3b1cc;
+    pointer-events: none;
+  }
+
+  &:hover {
+    &::after {
+      display: none;
+    }
+  }
+}

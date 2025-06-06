@@ -23,20 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, nextTick } from 'vue';
+import { computed, defineComponent } from 'vue';
 
-import { isNestedField } from '@/common/util';
-import useLocale from '@/hooks/use-locale';
-import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
-import UseTextSegmentation from '@/hooks/use-text-segmentation';
-import { debounce } from 'lodash';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import TextSegmentation from '../../components/text-segmentation/index';
 
-import { setScrollLoadCell } from '../../../../hooks/hooks-helper';
-import { WordListItem } from '../../../../hooks/use-text-segmentation';
-import RetrieveHelper from '../../../retrieve-helper';
-
-import './text-segmentation.scss';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
@@ -53,216 +45,27 @@ export default defineComponent({
   },
   emits: ['menu-click'],
   setup(props, { emit }) {
-    const refContent: Ref<HTMLDivElement> = ref();
-
     const store = useStore();
-    const { $t } = useLocale();
-
-    const showAll = ref(false);
-
-    const refSegmentContent: Ref<HTMLElement> = ref();
-    const isWrap = computed(() => store.state.storage.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.storage.isLimitExpandView || props.forceAll);
-    const rootStyle = computed(() => {
-      return {
-        maxHeight: `${isLimitExpandView.value || showAll.value ? '50vh' : '68px'}`,
-      };
-    });
-
-    // 是否有纵向滚动条
-    const hasOverflowY = ref(false);
-
-    const btnText = computed(() => {
-      if (showAll.value) {
-        return ` ...${$t('收起')}`;
-      }
-
-      return ` ...${$t('更多')}`;
-    });
+    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const isLimitExpandView = computed(
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
+    );
 
     const handleMenuClick = event => {
       emit('menu-click', event);
     };
 
-    let textSegmentInstance = new UseTextSegmentation({
-      onSegmentClick: handleMenuClick,
-      options: {
-        content: props.content,
-        field: props.field,
-        data: props.data,
-      },
-    });
-
-    let wordList: WordListItem[];
-    let renderMoreItems: (size?, next?) => void = null;
-
-    const getTagName = item => {
-      if (item.isMark) {
-        return 'mark';
-      }
-
-      if (/^(br|\n)$/.test(item.text)) {
-        return 'br';
-      }
-
-      return 'span';
-    };
-
-    const handleClickMore = e => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      showAll.value = !showAll.value;
-
-      renderMoreItems?.();
-    };
-
-    const handleTextSegmentClick = (e: MouseEvent) => {
-      return textSegmentInstance.getTextCellClickHandler(e);
-    };
-
-    let isNestedValue = false; // data-depth
-    const setWordList = () => {
-      const fieldName = props.field.field_name;
-      const fieldKeys = fieldName.split('.');
-      isNestedValue = isNestedField(fieldKeys, props.data);
-      wordList = textSegmentInstance.getChildNodes(isNestedValue);
-    };
-
-    const debounceUpdateWidth = debounce(() => {
-      hasOverflowY.value = false;
-      if (refContent.value) {
-        const { offsetHeight, scrollHeight } = refContent.value;
-        hasOverflowY.value = offsetHeight < scrollHeight;
-      }
-    });
-
-    onBeforeMount(() => {
-      setWordList();
-    });
-
-    let removeScrollEventFn = null;
-    let cellScrollInstance: {
-      setListItem: (size?: number, next?: () => void) => void;
-      removeScrollEvent: () => void;
-      reset: (list: WordListItem[]) => void;
-    };
-
-    const setWordSegmentRender = () => {
-      const { setListItem, removeScrollEvent } = cellScrollInstance;
-      renderMoreItems = setListItem;
-      removeScrollEventFn = removeScrollEvent;
-
-      // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
-      // 这里默认渲染前500跟分词 + 10 - 20行溢出
-      setListItem(isLimitExpandView.value ? 550 : 300);
-      debounceUpdateWidth();
-    };
-
-    onMounted(() => {
-      hasOverflowY.value = false;
-      refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
-      cellScrollInstance = setScrollLoadCell(
-        wordList,
-        refContent.value,
-        refSegmentContent.value,
-        (item: WordListItem) => {
-          const child = document.createElement(getTagName(item));
-          child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
-
-          if (item.isBlobWord) {
-            child.innerHTML = item.text?.length ? item.text : '""';
-            return child;
-          }
-
-          child.textContent = item.text?.length ? item.text : '""';
-          return child;
-        },
-      );
-
-      setWordSegmentRender();
-
-      nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
-    });
-
-    onBeforeUnmount(() => {
-      removeScrollEventFn?.();
-    });
-
-    useResizeObserve(refContent, debounceUpdateWidth);
-
-    const renderSegmentList = () => {
-      return (
-        <div
-          ref={refContent}
-          style={rootStyle.value}
-          class='field-value bklog-word-segment'
-          data-field-name={props.field.field_name}
-          onClick={handleTextSegmentClick}
-        >
-          <span
-            ref={refSegmentContent}
-            class='segment-content'
-          ></span>
-        </div>
-      );
-    };
-
-    watch(
-      () => isLimitExpandView.value,
-      () => {
-        renderMoreItems();
-      },
-    );
-
-    watch(
-      () => props.content,
-      () => {
-        textSegmentInstance = new UseTextSegmentation({
-          onSegmentClick: handleMenuClick,
-          options: {
-            content: props.content,
-            field: props.field,
-            data: props.data,
-          },
-        });
-        setWordList();
-        const { reset } = cellScrollInstance;
-        reset(wordList);
-        setWordSegmentRender();
-      },
-    );
-
-    const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !isLimitExpandView.value));
-    const getMoreAction = () => {
-      if (showMoreAction.value && !isLimitExpandView.value) {
-        return (
-          <span
-            class={['btn-more-action', `word-text`, 'is-show']}
-            onClick={handleClickMore}
-          >
-            {btnText.value}
-          </span>
-        );
-      }
-    };
-
     return () => (
-      <div
-        class={[
-          'bklog-text-segment',
-          'bklog-root-field',
-          {
-            'is-wrap-line': isWrap.value,
-            'is-inline': !isWrap.value,
-            'is-show-long': isLimitExpandView.value,
-            'is-expand-all': showAll.value,
-          },
-        ]}
-      >
-        {renderSegmentList()}
-        {getMoreAction()}
-      </div>
+      <TextSegmentation
+        field={props.field}
+        data={props.data}
+        content={props.content}
+        forceAll={props.forceAll}
+        autoWidth={props.autoWidth}
+        isWrap={isWrap.value}
+        isLimitExpandView={isLimitExpandView.value}
+        on-menu-click={handleMenuClick}
+      />
     );
   },
 });

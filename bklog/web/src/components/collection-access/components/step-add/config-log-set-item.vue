@@ -248,6 +248,7 @@
           required
         >
           <device-metadata
+            ref="deviceMetadataRef"
             :metadata="configData.extra_labels"
             @extra-labels-change="extraLabelsChange"
           >
@@ -727,6 +728,15 @@
       extraLabelsChange(val) {
         this.$set(this.subFormData.params, 'extra_labels', val);
       },
+      // 自定义标签表单验证
+      async extraLabelsValidate() {
+        try {
+          await this.$refs.deviceMetadataRef?.extraLabelsValidate();
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
     },
   };
 </script>

@@ -302,18 +302,19 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
           <div class='search-container'>
             <div class='fl-jcsb'>
               <span class='search-title fl-jcsb'>
+                <span
+                  class='icon-monitor icon-gongneng-shouqi'
+                  v-bk-tooltips={{ content: this.$t('收起收藏夹') }}
+                  onClick={this.handleClose}
+                />
                 {this.$t('收藏夹')}
                 <span class='favorite-number'>{this.allFavoriteNumber}</span>
               </span>
               <div class='tools'>
                 <span
                   class='icon-monitor icon-shezhi1'
+                  v-bk-tooltips={{ content: this.$t('收藏管理') }}
                   onClick={() => (this.isShowManageDialog = true)}
-                />
-                <span
-                  class='icon-monitor icon-gongneng-shouqi'
-                  v-bk-tooltips={{ content: this.$t('收起收藏夹') }}
-                  onClick={this.handleClose}
                 />
               </div>
             </div>

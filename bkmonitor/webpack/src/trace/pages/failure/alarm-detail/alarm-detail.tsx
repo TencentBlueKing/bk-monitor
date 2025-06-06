@@ -31,13 +31,15 @@ import {
   onBeforeMount,
   onMounted,
   reactive,
-  ref,
+  ref as deepRef,
   watch,
   onUnmounted,
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
+import { PrimaryTable } from '@blueking/tdesign-ui';
+import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
@@ -55,9 +57,10 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 
 import type { IFilterSearch, IIncident } from '../types';
-import type { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
 
 import './alarm-detail.scss';
+
+type TableColumn = Record<string, any>;
 
 type PopoverInstance = {
   show: () => void;
@@ -99,14 +102,14 @@ export default defineComponent({
     const bkzIds = inject<Ref<string[]>>('bkzIds');
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
-    const scrollLoading = ref(false);
+    const scrollLoading = deepRef(false);
     const incidentId = useIncidentInject();
-    const tableLoading = ref(false);
-    const tableData = ref([]);
-    const alertData = ref([]);
-    const currentData = ref({});
-    const currentIds = ref([]);
-    const currentBizIds = ref([]);
+    const tableLoading = deepRef(false);
+    const tableData = deepRef([]);
+    const alertData = deepRef([]);
+    const currentData = deepRef({});
+    const currentIds = deepRef([]);
+    const currentBizIds = deepRef([]);
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -162,21 +165,22 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
-    const collapseId = ref('');
-    const moreItems = ref<HTMLDivElement>();
-    const popoperOperateInstance = ref<PopoverInstance>(null);
-    const opetateRow = ref<IOpetateRow>({});
-    const popoperOperateIndex = ref(-1);
-    const hoverRowIndex = ref(999999);
-    const tableToolList = ref([]);
-    const enableCreateChatGroup = ref((window as any).enable_create_chat_group || false);
-    const alertIdsData = ref(props.alertIdsObject);
+    const collapseId = deepRef('');
+    const moreItems = deepRef<HTMLDivElement>();
+    const popoperOperateInstance = deepRef<PopoverInstance>(null);
+    const opetateRow = deepRef<IOpetateRow>({});
+    const popoperOperateIndex = deepRef(-1);
+    const hoverRowIndex = deepRef(999999);
+    const tableToolList = deepRef([]);
+    const enableCreateChatGroup = deepRef((window as any).enable_create_chat_group || false);
+    const alertIdsData = deepRef(props.alertIdsObject);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
         name: t('一键拉群'),
       });
     }
+
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
@@ -299,7 +303,7 @@ export default defineComponent({
       setDialogData(v);
       handleAlarmDispatchShowChange(true);
     };
-    const handleEnter = (e, row, index) => {
+    const handleEnter = ({ index }) => {
       hoverRowIndex.value = index;
     };
     /* 告警确认文案 */
@@ -313,24 +317,36 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
-    const columns = reactive<TableIColumn[]>([
+    const columns = shallowRef<TableColumn[]>([
       {
-        label: '#',
-        type: 'index',
-        prop: 'index',
-        width: 40,
+        title: '#',
+        type: 'seq',
+        colKey: 'serial-number',
         minWidth: 40,
-        render: ({ index }) => {
-          return index + 1;
-        },
+        disabled: true,
+        checked: true,
       },
       {
-        label: t('告警ID'),
-        prop: 'id',
-        width: 'auto',
-        render: ({ data }) => {
+        title: t('告警ID'),
+        colKey: 'id',
+        minWidth: 134,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        disabled: true,
+        cell: (_, { row: data }) => {
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.id,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span
                 class={`event-status status-${data.severity} id-column`}
                 onClick={() => handleShowDetail(data)}
@@ -342,14 +358,27 @@ export default defineComponent({
         },
       },
       {
-        width: 'auto',
-        label: t('告警名称'),
-        prop: 'alert_name',
-        render: ({ data }) => {
+        title: t('告警名称'),
+        colKey: 'alert_name',
+        minWidth: 134,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const { entity } = data;
           const isRoot = entity.is_root || data.is_feedback_root;
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.alert_name,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
               {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
             </div>
@@ -357,26 +386,43 @@ export default defineComponent({
         },
       },
       {
-        width: 'auto',
-        label: t('业务名称'),
-        prop: 'project',
-        render: ({ data }) => {
-          return `[${data.bk_biz_id}] ${data.bk_biz_name || '--'}`;
+        title: t('业务名称'),
+        colKey: 'project',
+        width: 157,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        minWidth: 60,
+        cell: (_, { row: data }) => {
+          return data.bk_biz_name || '--';
         },
       },
       {
-        width: 'auto',
-        label: t('分类'),
-        prop: 'category_display',
-        render: ({ data }) => {
+        title: t('分类'),
+        colKey: 'category_display',
+        width: 134,
+        minWidth: 60,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return data.category_display;
         },
       },
       {
-        label: t('告警指标'),
-        prop: 'index',
-        width: 'auto',
-        render: ({ data }) => {
+        title: t('告警指标'),
+        colKey: 'index',
+        minWidth: 134,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
           const key = random(10);
@@ -414,11 +460,15 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警状态'),
-        prop: 'status',
+        title: t('告警状态'),
+        colKey: 'status',
         minWidth: 134,
-        width: '134',
-        render: ({ data }) => {
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const { status } = data;
           return (
             <div class='status-column'>
@@ -428,19 +478,28 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警阶段'),
-        width: 'auto',
-        prop: 'stage_display',
-        render: ({ data }) => {
+        title: t('告警阶段'),
+        colKey: 'stage_display',
+        minWidth: 80,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return data?.stage_display ?? '--';
         },
       },
       {
-        label: t('告警开始/结束时间'),
-        prop: 'time',
+        title: t('告警开始/结束时间'),
+        colKey: 'time',
         minWidth: 145,
-        width: '145',
-        render: ({ data }) => {
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return (
             <span class='time-column'>
               {formatterTime(data.begin_time)} / <br />
@@ -450,10 +509,16 @@ export default defineComponent({
         },
       },
       {
-        label: t('持续时间'),
-        prop: 'duration',
-        width: 136,
-        render: ({ data, index: $index }) => {
+        title: t('持续时间'),
+        colKey: 'duration',
+        width: 155,
+        minWidth: 155,
+        ellipsis: (_, { row: data }) => {
+          return data.duration;
+        },
+        resizable: false,
+        className: 'duration-class',
+        cell: (_, { row: data, rowIndex: $index }) => {
           return (
             <div class='status-column'>
               <span>{data.duration}</span>
@@ -506,18 +571,6 @@ export default defineComponent({
       },
     ]);
 
-    const settings = ref<TableSettings>({
-      fields: columns.slice(1, columns.length - 1).map(data => {
-        const { label, prop } = data as { label: string; prop: string };
-        return {
-          label,
-          disabled: prop === 'id',
-          field: prop,
-        };
-      }),
-      checked: columns.slice(1, columns.length - 1).map(({ prop }) => prop as string),
-      trigger: 'manual' as const,
-    });
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
       return (
@@ -575,6 +628,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const handleHideMoreOperate = (e?: Event) => {
       if (!popoperOperateInstance.value) {
         return;
@@ -612,7 +666,7 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 0,
+          offset: 10,
           zIndex: 10,
           disableTeleport: false,
           autoPlacement: false,
@@ -661,7 +715,7 @@ export default defineComponent({
      * @param {boolean} v
      * @return {*}
      */
-    const quickShieldSucces = (v: boolean) => {
+    const quickShieldSuccess = (v: boolean) => {
       if (v) {
         // tableData.value.value.forEach(item => {
         //   if (dialog.quickShield.ids.includes(item.id)) {
@@ -715,9 +769,6 @@ export default defineComponent({
       collapseId.value = id;
     };
 
-    const handleSettingChange = ({ checked }) => {
-      console.log(checked, settings.value);
-    };
     const handleFeedbackChange = (val: boolean) => {
       dialog.rootCauseConfirm.show = val;
     };
@@ -749,13 +800,11 @@ export default defineComponent({
       tableData,
       scrollLoading,
       chatGroupDialog,
-      settings,
-      handleSettingChange,
       quickShieldChange,
       getMoreOperate,
       handleChangeCollapse,
       alarmConfirmChange,
-      quickShieldSucces,
+      quickShieldSuccess,
       handleConfirmAfter,
       handleFeedbackChange,
       handleRootCauseConfirm,
@@ -817,7 +866,7 @@ export default defineComponent({
               show={this.dialog.quickShield.show}
               onChange={this.quickShieldChange}
               onRefresh={this.refresh}
-              onSuccess={this.quickShieldSucces}
+              onSuccess={this.quickShieldSuccess}
             />
             <ManualProcess
               alertIds={this.currentIds}
@@ -859,19 +908,21 @@ export default defineComponent({
                   onChangeCollapse={this.handleChangeCollapse}
                 >
                   <div class='alarm-detail-table'>
-                    <Table
+                    <PrimaryTable
+                      key={item.id}
+                      bkUiSettings={{
+                        checked: this.columns.map(item => item.colKey),
+                      }}
+                      // autoResize={true}
+                      // bordered={true}
                       columns={this.columns}
                       data={item.alerts}
                       max-height={616}
-                      scroll-loading={this.scrollLoading}
-                      settings={this.settings}
-                      show-overflow-tooltip={true}
-                      onRowMouseEnter={this.handleEnter}
-                      onRowMouseLeave={() => {
+                      tooltip-config={{ showAll: false }}
+                      onRowMouseenter={this.handleEnter}
+                      onRowMouseleave={() => {
                         this.hoverRowIndex = -1;
                       }}
-                      onSettingChange={this.handleSettingChange}
-                      // onScrollBottom={this.handleLoadData}
                     />
                   </div>
                 </Collapse>

@@ -8,11 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import time
 from django.db import transaction
 from metadata import models
 from metadata.models import ClusterInfo
+from metadata.task.constants import BKBASE_RT_STORAGE_TYPES_OPTION_NAME
 
 logger = logging.getLogger("metadata")
 
@@ -49,6 +51,7 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
         # 存储需要批量创建的 ResultTable 和 ResultTableField
         result_table_to_create = []
         result_table_field_to_create = []
+        result_table_options = []
 
         for data in bkbase_rt_meta_list:
             # 提取result_table_id和bk_biz_id
@@ -75,22 +78,57 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
 
             # 2. 处理 fields 中的字段，提取 is_dimension 为 False 的字段并创建/更新 ResultTableField
             for field in data.get("fields", []):
-                if not field.get("is_dimension", False):
-                    field_name = field.get("field_name")
-                    field_type = field.get("field_type")
+                field_name = field.get("field_name")
+                field_type = field.get("field_type")
+                is_dimension = field.get("is_dimension", False)
 
-                    # 3. 批量处理 ResultTableField
-                    if (bkmonitor_result_table_id, field_name) not in existing_bkbase_rt_fields:
-                        result_table_field_to_create.append(
-                            models.ResultTableField(
-                                table_id=bkmonitor_result_table_id,
-                                field_name=field_name,
-                                field_type=field_type,
-                                creator="system",
-                                is_config_by_user=False,
-                                tag="metric",
-                            )
+                if field_type in ["string", "text"]:
+                    is_dimension = True
+
+                tag = "dimension" if is_dimension else "metric"
+
+                # 3. 批量处理 ResultTableField
+                if (bkmonitor_result_table_id, field_name) not in existing_bkbase_rt_fields:
+                    result_table_field_to_create.append(
+                        models.ResultTableField(
+                            table_id=bkmonitor_result_table_id,
+                            field_name=field_name,
+                            field_type=field_type,
+                            creator="system",
+                            is_config_by_user=False,
+                            tag=tag,
                         )
+                    )
+
+            # 3. 记录结果表的存储类型,记录为列表
+            storage_types = list(data.get("storages", {}).keys())
+            result_table_options.append(
+                {
+                    "table_id": bkmonitor_result_table_id,
+                    "name": BKBASE_RT_STORAGE_TYPES_OPTION_NAME,
+                    "value_type": "list",
+                    "value": json.dumps(storage_types),
+                    "creator": "system",
+                }
+            )
+
+        existing_options = models.ResultTableOption.objects.filter(
+            name=BKBASE_RT_STORAGE_TYPES_OPTION_NAME, table_id__in=[opt["table_id"] for opt in result_table_options]
+        )
+
+        existing_options_dict = {opt.table_id: opt for opt in existing_options}
+
+        options_to_create = []
+        options_to_update = []
+
+        for opt in result_table_options:
+            existing_opt = existing_options_dict.get(opt["table_id"])
+            if existing_opt:
+                if existing_opt.value != opt["value"]:
+                    existing_opt.value = opt["value"]
+                    options_to_update.append(existing_opt)
+            else:
+                options_to_create.append(models.ResultTableOption(**opt))
 
         # 使用事务和批量操作减少DB操作次数
         with transaction.atomic():
@@ -108,6 +146,22 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
                     "_sync_bkbase_result_table_meta: round->[%s],bulk created->[%s] ResultTableField",
                     round_iter,
                     len(result_table_field_to_create),
+                )
+
+            if options_to_create:
+                models.ResultTableOption.objects.bulk_create(options_to_create)
+                logger.info(
+                    "_sync_bkbase_result_table_meta: round -> [%s], bulk created -> [%s] ResultTableOption",
+                    round_iter,
+                    len(options_to_create),
+                )
+
+            if options_to_update:
+                models.ResultTableOption.objects.bulk_update(options_to_update, ["value"], batch_size=100)
+                logger.info(
+                    "_sync_bkbase_result_table_meta: round -> [%s], bulk updated -> [%s] ResultTableOption",
+                    round_iter,
+                    len(options_to_update),
                 )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(

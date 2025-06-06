@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -28,7 +27,9 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
+from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
@@ -44,6 +45,55 @@ TASK_ID = 3
 NEW_TASK_ID = 4
 LAST_TASK_ID = 5
 CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
+CREATE_CONFIG_PARAMS = {
+    "id": 6,
+    "created_at": "2025-05-22 06:09:46.622208",
+    "created_by": "",
+    "updated_at": "2025-05-22 06:09:47.446807",
+    "updated_by": "admin",
+    "is_deleted": "0",
+    "deleted_at": None,
+    "deleted_by": None,
+    "collector_config_id": "1",
+    "namespaces": [],
+    "any_namespace": "1",
+    "data_encoding": "UTF-8",
+    "params": {
+        "paths": ["/var"],
+        "max_bytes": 204800,
+        "conditions": {"type": "none", "separator": None, "match_content": None},
+        "tail_files": "true",
+        "kafka_hosts": [],
+        "redis_hosts": [],
+        "winlog_name": [],
+        "extra_labels": [],
+        "ignore_older": 86400,
+        "kafka_topics": [],
+        "winlog_level": [],
+        "exclude_files": [],
+        "kafka_group_id": "",
+        "winlog_event_id": [],
+        "kafka_ssl_params": {},
+        "syslog_conditions": [],
+        "kafka_initial_offset": "newest",
+    },
+    "workload_type": "",
+    "workload_name": "",
+    "container_name": "",
+    "match_labels": [],
+    "match_expressions": [],
+    "all_container": "1",
+    "status": "PENDING",
+    "collector_type": "container_log_config",
+    "raw_config": None,
+    "parent_container_config_id": "0",
+    "rule_id": "0",
+    "status_detail": "等待配置下发",
+    "container_name_exclude": "",
+    "namespaces_exclude": [],
+    "match_annotations": [],
+}
+
 PARAMS = {
     "bk_biz_id": 706,
     "collector_config_name": "采集项名称",
@@ -904,7 +954,7 @@ CONFIG_DATA = {
 FAILED_SUBSCRIPTION_STATUS = [{"instance_id": "xxx", "status": "FAILED"}]
 
 
-class CCModuleTest(object):
+class CCModuleTest:
     """
     mock CCApi.search_module
     """
@@ -913,7 +963,7 @@ class CCModuleTest(object):
         return []
 
 
-class CCBizHostsTest(object):
+class CCBizHostsTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -922,7 +972,7 @@ class CCBizHostsTest(object):
         return []
 
 
-class CCSetTest(object):
+class CCSetTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -933,7 +983,7 @@ class CCSetTest(object):
 
 BK_BIZ_ID = -200
 SPACE_ID = "1ce0ae294d63478ea46a2a1772acd8a7"
-SPACE_UID = "bcs__{}".format(SPACE_ID)
+SPACE_UID = f"bcs__{SPACE_ID}"
 BCS_CLUSTER_ID = "BCS-K8S-10000"
 PROJECTS = [
     {
@@ -1082,7 +1132,7 @@ class TestCollector(TestCase):
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
 
         params["params"]["conditions"]["type"] = "separator"
-        result = CollectorHandler().update_or_create(params)
+        result = HostCollectorHandler().update_or_create(params)
         self.assertEqual(result["bk_data_id"], BK_DATA_ID)
         self.assertEqual(result["collector_config_name"], params["collector_config_name"])
         self.assertEqual(result["subscription_id"], SUBSCRIPTION_ID)
@@ -1092,7 +1142,6 @@ class TestCollector(TestCase):
         self._test_run_subscription_task(result["collector_config_id"])
         self._test_start(result["collector_config_id"])
         self._test_retry_target_nodes(result["collector_config_id"])
-        self._test_delete_subscription(result["collector_config_id"])
         self._test_get_target_mapping(result["collector_config_id"])
         self._test_get_subscription_status(result["collector_config_id"])
         self._test_get_subscription_task_detail(result["collector_config_id"])
@@ -1123,7 +1172,7 @@ class TestCollector(TestCase):
         with self.assertRaises(CollectorConfigNotExistException):
             CollectorHandler(collector_config_id=9999)
 
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.update_or_create(params)
         self.assertEqual(result["collector_config_name"], new_collector_config_name)
 
@@ -1141,7 +1190,19 @@ class TestCollector(TestCase):
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: [])
     @patch("apps.api.CCApi.search_set", CCSetTest())
     def _test_retrieve(self, collector_config_id, mock_run, mock_append, mock_get_cluster_info):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
+        mock_append.return_value = ""
+        mock_run.return_value = CONFIG_DATA
+        mock_get_cluster_info.return_value = CLUSTER_INFO
+        result = collector.retrieve()
+
+        self.assertEqual(result.get("data_encoding"), "UTF-8")
+        self.assertIsNone(result.get("storage_cluster_id"))
+        self.assertIsNone(result.get("retention"))
+        self.assertEqual(result.get("collector_config_id"), collector_config_id)
+        self.assertEqual(result.get("collector_scenario_id"), "row")
+
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
         mock_append.return_value = ""
         mock_run.return_value = CONFIG_DATA
         mock_get_cluster_info.return_value = CLUSTER_INFO
@@ -1158,55 +1219,57 @@ class TestCollector(TestCase):
         scope = {"nodes": [{"ip": "127.0.0.1", "bk_cloud_id": 0}], "node_type": TargetNodeTypeEnum.INSTANCE.value}
 
         # 指定订阅节点
-        collector1 = CollectorHandler(collector_config_id=collector_config_id)
+        collector1 = HostCollectorHandler(collector_config_id=collector_config_id)
         result1 = collector1._run_subscription_task(scope=scope)
         self.assertEqual(result1, collector1.data.task_id_list)
 
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 6})
     def _test_start(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.start()
         self.assertEqual(result, ["6"])
 
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        result = collector.start()
+        self.assertEqual(result, True)
+
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 7})
     def _test_stop(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.stop()
         self.assertEqual(result, ["7"])
 
+        collector = K8sCollectorHandler(collector_config_id=collector_config_id)
+        result = collector.stop()
+        self.assertEqual(result, True)
+
     @patch("apps.api.NodeApi.retry_subscription", lambda _: {"task_id": 8})
     def _test_retry_target_nodes(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         task_id_list = copy.deepcopy(collector.data.task_id_list)
         task_id_list.append("8")
         params = {"instance_id_list": [{"instance_id": "xxx"}]}
         result = collector.retry_instances(params)
         self.assertEqual(result, task_id_list)
 
-    @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)
-    def _test_delete_subscription(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
-        result = collector._delete_subscription()
-        self.assertTrue(result.get("result"))
-
     @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": 8})
     @patch("apps.api.NodeApi.delete_subscription", lambda _: DELETE_MSG)
     def _test_destroy(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         collector.destroy()
 
         with self.assertRaises(CollectorConfigNotExistException):
             CollectorHandler(collector_config_id=collector_config_id)
 
     def test_format_subscription_instance_status(self, *args, **kwargs):
-        result = CollectorHandler.format_subscription_instance_status(TASK_RESULT_DATA, PLUGIN_RESULT_DATA)
+        result = HostCollectorHandler.format_subscription_instance_status(TASK_RESULT_DATA, PLUGIN_RESULT_DATA)
         self.assertEqual(result, STATUS_DATA_RETURN)
 
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
     @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
     @patch("apps.api.base.DataAPI.batch_request", return_value=PLUGIN_RESULT_DATA)
     def _test_get_subscription_status(self, collector_config_id, mock_bulk_request, mock_batch_request):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-INSTANCE
         collector.data.target_node_type = "INSTANCE"
@@ -1224,11 +1287,11 @@ class TestCollector(TestCase):
         self.assertEqual(result2["contents"][0]["bk_inst_id"], 34)
 
     def test_get_node_mapping(self, *args, **kwargs):
-        result = CollectorHandler().get_node_mapping(TOPO_TREE)
+        result = HostCollectorHandler().get_node_mapping(TOPO_TREE)
         self.assertEqual(result, TOPO_TREE_RETURN)
 
     def _test_get_target_mapping(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         collector.data.target_subscription_diff = [
             {"type": "add", "bk_inst_id": 2, "bk_obj_id": "biz"},
             {"type": "add", "bk_inst_id": 3, "bk_obj_id": "module"},
@@ -1316,7 +1379,7 @@ class TestCollector(TestCase):
 
     @patch("apps.api.NodeApi.get_subscription_task_detail", lambda _: TASK_DETAIL_DATA)
     def _test_get_subscription_task_detail(self, collector_config_id):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
         result = collector.get_subscription_task_detail("host|instance|host|127.0.0.1-0-0", task_id="24626")
         for i in ["unifytlogc", "下发插件配置", "更新插件部署状态", "渲染并下发配置", "重载插件进程"]:
             self.assertIn(i, result["log_detail"])
@@ -1325,8 +1388,8 @@ class TestCollector(TestCase):
         self.assertEqual(result.get("log_result").get("instance_id"), "host|instance|host|127.0.0.1-0-0")
 
     def test_get_instance_log(self, *args, **kwargs):
-        result = CollectorHandler.get_instance_log(TASK_DETAIL_DATA)
-        result2 = CollectorHandler.get_instance_log({"steps": []})
+        result = HostCollectorHandler.get_instance_log(TASK_DETAIL_DATA)
+        result2 = HostCollectorHandler.get_instance_log({"steps": []})
 
         self.assertEqual(result, "[unifytlogc] 下发插件配置-重载插件进程")
         self.assertEqual(result2, "")
@@ -1337,7 +1400,7 @@ class TestCollector(TestCase):
     def test_format_task_instance_status(self, *args, **kwargs):
         _, create_result = TestCollectorHandler.create()
         collector_config_id = create_result["collector_config_id"]
-        result = CollectorHandler(collector_config_id=collector_config_id).format_task_instance_status(
+        result = HostCollectorHandler(collector_config_id=collector_config_id).format_task_instance_status(
             [TASK_DETAIL_DATA]
         )
         self.assertEqual(result[0]["status"], "FAILED")
@@ -1350,10 +1413,10 @@ class TestCollector(TestCase):
     @patch("apps.api.CCApi.search_biz_inst_topo", lambda _: TOPO_TREE)
     @patch("apps.api.base.DataAPI.bulk_request", return_value=TASK_RESULT_DATA)
     def _test_get_subscription_task_status(self, collector_config_id, mock_bulk_request):
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
 
         # 采集目标是HOST-TOPO
-        result = collector.get_subscription_task_status(collector.data.task_id_list)
+        result = collector.get_task_status(collector.data.task_id_list)
         self.assertTrue(result["contents"][0]["is_label"])
         self.assertEqual(result["contents"][0]["label_name"], "add")
         self.assertEqual(result["contents"][0]["bk_obj_id"], "module")
@@ -1361,22 +1424,23 @@ class TestCollector(TestCase):
 
         # 采集目标是HOST-INSTANCE
         collector.data.target_node_type = "INSTANCE"
-        result2 = collector.get_subscription_task_status(collector.data.task_id_list)
+        result2 = collector.get_task_status(collector.data.task_id_list)
         self.assertFalse(result2["contents"][0]["is_label"])
         self.assertEqual(result2["contents"][0]["bk_obj_name"], "主机")
         self.assertEqual(result2["contents"][0]["node_path"], "主机")
         self.assertEqual(result2["contents"][0]["bk_obj_id"], "host")
 
     def test_check_task_ready_exception(self, *args, **kwargs):
-        self.assertEqual(CollectorHandler._check_task_ready_exception(ApiRequestError("test1", 111)), True)
+        self.assertEqual(HostCollectorHandler._check_task_ready_exception(ApiRequestError("test1", 111)), True)
         self.assertEqual(
-            CollectorHandler._check_task_ready_exception(ApiResultError("test2", code=1306201, errors="test2")), True
+            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=1306201, errors="test2")),
+            True,
         )
         with self.assertRaises(BaseException):
-            CollectorHandler._check_task_ready_exception(ApiResultError("test2", code=111, errors="test2"))
+            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=111, errors="test2"))
 
         with self.assertRaises(BaseException):
-            CollectorHandler._check_task_ready_exception(BaseException())
+            HostCollectorHandler._check_task_ready_exception(BaseException())
 
     @patch("apps.api.TransferApi.create_data_id", lambda _: {"bk_data_id": BK_DATA_ID})
     @patch(
@@ -1408,7 +1472,7 @@ class TestCollector(TestCase):
 
         params = custom_params_valid(serializer=CollectorCreateSerializer, params=params)
         params["params"]["conditions"]["type"] = "separator"
-        CollectorHandler().update_or_create(params)
+        HostCollectorHandler().update_or_create(params)
 
         # 测试collector_config_name_en同名
         params = copy.deepcopy(PARAMS)
@@ -1422,9 +1486,9 @@ class TestCollector(TestCase):
         )
         self.assertEqual(result["allowed"], True)
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_validate_container_config_yaml(self, *args, **kwargs):
         yaml_config = """
 ---
@@ -1456,31 +1520,31 @@ namespaceSelector:
   - test-cluster-share-test1
   - test-cluster-share-test2
         """
-        result = CollectorHandler().validate_container_config_yaml(
+        result = K8sCollectorHandler().validate_container_config_yaml(
             bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID, yaml_config=yaml_config
         )
         self.assertTrue(result["parse_status"])
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
     def test_list_bcs_clusters(self, *args, **kwargs):
-        clusters = CollectorHandler().list_bcs_clusters(BK_BIZ_ID)
+        clusters = K8sCollectorHandler().list_bcs_clusters(BK_BIZ_ID)
         self.assertEqual(len(clusters), 1)
         self.assertEqual(BCS_CLUSTER_ID, clusters[0]["id"])
 
     def test_list_workload_type(self, *args, **kwargs):
-        workload_type_list = CollectorHandler().list_workload_type()
+        workload_type_list = K8sCollectorHandler().list_workload_type()
         self.assertEqual(
             workload_type_list,
             [WorkLoadType.DEPLOYMENT, WorkLoadType.JOB, WorkLoadType.DAEMON_SET, WorkLoadType.STATEFUL_SET],
         )
 
-    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _: PROJECT_CLUSTER_LIST)
+    @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)
-    @patch("apps.api.BcsApi.list_namespaces", lambda _: LIST_NAMESPACES)
+    @patch("apps.api.BcsApi.list_namespaces", lambda _, bk_tenant_id: LIST_NAMESPACES)
     def test_list_namespace(self, *args, **kwargs):
         expect_namespace_list = {"test-cluster-share-test1", "test-cluster-share-test2"}
 
-        result = CollectorHandler().list_namespace(bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID)
+        result = K8sCollectorHandler().list_namespace(bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID)
         result_ns = {r["id"] for r in result}
         self.assertSetEqual(expect_namespace_list, result_ns)

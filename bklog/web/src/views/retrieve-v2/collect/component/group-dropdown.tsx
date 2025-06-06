@@ -103,9 +103,9 @@ export default class CollectGroup extends tsc<IProps> {
     // 去掉个人收藏的组列表
     return this.allFavoriteLis.filter(g => g.group_type !== 'private');
   }
-  get allFavoriteLis (){
+  get allFavoriteLis() {
     // 所有收藏
-   return this.$store.state.favoriteList
+    return this.$store.state.favoriteList;
   }
   get userMeta() {
     // 用户信息
@@ -187,9 +187,10 @@ export default class CollectGroup extends tsc<IProps> {
     this.groupListPopoverInstance?.hide();
 
     // 进行完操作时 清除组或者操作列表实例
-    this.operatePopoverInstance?.destroy();
+    this.operatePopoverInstance?.hide?.(300);
+    this.operatePopoverInstance?.destroy?.();
     this.operatePopoverInstance = null;
-    this.groupListPopoverInstance?.destroy();
+    this.groupListPopoverInstance?.destroy?.();
     this.groupListPopoverInstance = null;
     this.clearStatus(); // 清空状态
   }
@@ -229,6 +230,7 @@ export default class CollectGroup extends tsc<IProps> {
         onHiddenFn: () => {
           this.operatePopoverInstance?.destroy?.();
           this.operatePopoverInstance = null;
+          this.groupListPopoverInstance?.hide();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
           return true;

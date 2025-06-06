@@ -293,13 +293,31 @@ const MonitorTraceLog = () =>
   );
 // #endif
 
-const getRoutes = () => {
-  const defRouteName = window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true' ? 'manage' : 'retrieve';
+const getRoutes = (spaceId, bkBizId, externalMenu) => {
+  const getDefRouteName = () => {
+    if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
+      if (externalMenu?.includes('retrieve')) {
+        return 'retrieve';
+      }
+
+      return 'manage';
+    }
+
+    return 'retrieve';
+  };
 
   return [
     {
       path: '',
-      redirect: defRouteName,
+      redirect: () => {
+        return {
+          name: getDefRouteName(),
+          query: {
+            spaceUid: spaceId,
+            bizId: bkBizId,
+          },
+        };
+      },
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -309,6 +327,7 @@ const getRoutes = () => {
       path: '/retrieve/:indexId?',
       name: 'retrieve',
       component: retrieve,
+
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -1104,8 +1123,8 @@ const getRoutes = () => {
  * @param id 路由id
  * @returns 路由配置
  */
-export function getRouteConfigById(id) {
-  const flatConfig = getRoutes().flatMap(config => {
+export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
+  const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
@@ -1120,8 +1139,8 @@ export function getRouteConfigById(id) {
   return flatConfig.find(item => item.meta?.navId === id);
 }
 
-export default () => {
-  const routes = getRoutes();
+export default (spaceId, bkBizId, externalMenu) => {
+  const routes = getRoutes(spaceId, bkBizId, externalMenu);
   const router = new VueRouter({
     routes,
   });
@@ -1165,6 +1184,7 @@ export default () => {
       route_id: to.name,
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
+      external_menu: externalMenu,
     });
   });
 

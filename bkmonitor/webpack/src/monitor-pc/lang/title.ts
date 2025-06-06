@@ -157,7 +157,7 @@ export default {
   例如: 'For example',
   // 调用分析
   维度值分布: 'Dimension value distribution',
-  K8S对象: 'K8S object',
+  K8S对象: 'K8s object',
 
   去重后的字段统计: 'Field statistics after deduplication',
   '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
@@ -183,4 +183,6 @@ export default {
   查看新特性: 'View new features',
   '建议「刷新页面」体验新的特性，「暂不刷新」可能会遇到未知异常，可手动刷新解决。':
     'It is recommended to "refresh the page" to experience the new features. If you choose "Do not refresh", you may encounter unknown exceptions. You can manually refresh to solve the problem.',
+  'Trace 检索': 'Trace Search',
+  'Tracing 检索': 'Tracing Search',
 };

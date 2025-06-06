@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -28,6 +28,11 @@ class SceneViewViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.scene_view.get_scene_view_list, endpoint="get_scene_view_list"),
         ResourceRoute("POST", resource.scene_view.update_scene_view, endpoint="update_scene_view"),
         ResourceRoute("POST", resource.scene_view.delete_scene_view, endpoint="delete_scene_view"),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.bulk_update_scene_view_order_and_name,
+            endpoint="bulk_update_scene_view_order_and_name",
+        ),
         ResourceRoute("GET", resource.scene_view.get_scene_view_dimensions, endpoint="get_scene_view_dimensions"),
         ResourceRoute(
             "POST", resource.scene_view.get_scene_view_dimension_value, endpoint="get_scene_view_dimension_value"

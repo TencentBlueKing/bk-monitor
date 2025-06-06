@@ -83,7 +83,7 @@ export default class ValueOptions extends tsc<IProps> {
   /* 可选项悬停位置 */
   hoverActiveIndex = -1;
   scrollLoading = false;
-  pageSize = 10;
+  pageSize = 200;
   page = 1;
   isEnd = false;
 
@@ -102,7 +102,7 @@ export default class ValueOptions extends tsc<IProps> {
     if (this.isPopover) {
       if (this.show) {
         this.dataInit();
-        const list = await this.getValueData();
+        const list = await this.getValueData(false, true);
         this.localOptions = this.localOptionsFilter(list);
         document.addEventListener('keydown', this.handleKeydownEvent);
       } else {
@@ -125,7 +125,7 @@ export default class ValueOptions extends tsc<IProps> {
   async created() {
     if (!this.isPopover) {
       this.dataInit();
-      const list = await this.getValueData();
+      const list = await this.getValueData(false, true);
       this.localOptions = this.localOptionsFilter(list);
       document.addEventListener('keydown', this.handleKeydownEvent);
     }
@@ -224,7 +224,7 @@ export default class ValueOptions extends tsc<IProps> {
    * @param isScroll
    * @returns
    */
-  async getValueData(isScroll = false) {
+  async getValueData(isScroll = false, isInit = false) {
     let list = [];
     if (isScroll) {
       this.scrollLoading = true;
@@ -237,9 +237,10 @@ export default class ValueOptions extends tsc<IProps> {
         search: this.search,
         limit,
         field: this.fieldInfo.field,
+        isInit__: isInit,
       });
       list = data.list;
-      this.isEnd = limit >= data.count;
+      this.isEnd = limit > data.count;
     }
     this.scrollLoading = false;
     this.loading = false;
@@ -307,7 +308,7 @@ export default class ValueOptions extends tsc<IProps> {
                   this.handleCheck({ id: this.search, name: this.search });
                 }}
               >
-                <i18n path='生成 "{0}" Tag'>
+                <i18n path='直接输入 "{0}"'>
                   <span class='highlight'>{this.search}</span>
                 </i18n>
               </div>

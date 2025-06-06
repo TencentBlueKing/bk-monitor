@@ -10,9 +10,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import importlib
 import ntpath
 import os
 import sys
+import warnings
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -22,15 +24,15 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
+from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
-from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
+    IS_CONTAINER_MODE,  # noqa
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -445,6 +447,9 @@ SKIP_PLUGIN_DEBUG = False
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
 
+# bk-monitor-worker api 地址
+BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -543,6 +548,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+# {2:["app1", "app2"], 3:["app_name"]}
+APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
@@ -571,6 +578,10 @@ APM_PROFILING_AGG_METHOD_MAPPING = {
 # bk.data.token 的salt值
 BK_DATA_TOKEN_SALT = "bk"
 BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
+
+# RUM config
+RUM_ENABLED = False
+RUM_ACCESS_URL = ""
 
 # ==============================================================================
 # elasticsearch for fta
@@ -754,11 +765,12 @@ else:
 ) = get_grafana_mysql_settings()
 
 try:
-    from dj_db_conn_pool.backends import mysql
+    # 判断 dj_db_conn_pool 是否存在
+    importlib.import_module("dj_db_conn_pool")
 
     assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
-except (ImportError, AssertionError):
+except (AssertionError, ModuleNotFoundError):
     default_db_engine = "django.db.backends.mysql"
 
 DATABASES = {
@@ -843,6 +855,18 @@ if not os.path.exists(LOG_PATH):
         os.makedirs(LOG_PATH)
     except Exception:
         pass
+
+# 单独配置部分模块日志级别
+LOG_LEVEL_MAP = {
+    "iam": "ERROR",
+    "bk_dataview": "ERROR",
+    "elasticsearch": "WARNING",
+    "kafka": "WARNING",
+}
+
+warnings.filterwarnings(
+    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 #
 # 数据平台接入配置
@@ -1118,7 +1142,7 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
+BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1165,8 +1189,6 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
 BK_IAM_SYSTEM_NAME = _("监控平台")
-
-BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST") or "http://bkiam.service.consul:5001")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
@@ -1398,9 +1420,6 @@ DOC_LINK_MAPPING = {}
 # 插件授权给 bkci 空间使用
 BKCI_SPACE_ACCESS_PLUGIN_LIST = []
 
-# 禁用告警CMDB缓存刷新
-DISABLE_ALARM_CMDB_CACHE_REFRESH = []
-
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
@@ -1454,8 +1473,11 @@ ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 
+# 特殊的可以不被禁用的BCS集群ID
+ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
+
 # 是否启用新版方式接入计算平台
-ENABLE_V2_ACCESS_BKBASE_METHOD = False
+ENABLE_V2_ACCESS_BKBASE_METHOD = True
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
@@ -1564,9 +1586,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
-# 事件检索新版灰度列表
-EVENT_V2_BIZ_LIST = []
-
 # Trace 检索新版灰度配置
 TRACE_V2_BIZ_LIST = []
 
@@ -1596,11 +1615,13 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
+# IAM多租户配置
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 新版自定义时序灰度业务列表
-ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
-
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
+
+# 用户管理web api地址
+BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"

@@ -12,11 +12,12 @@ import copy
 import logging
 import operator
 from collections import defaultdict
+from typing import Any
 
+from django.db.models import Q
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -217,22 +218,20 @@ class ServiceHandler:
         return filter_params
 
     @classmethod
-    def build_remote_service_es_query_dict(cls, query, service_name, filter_params):
-        filter_params = cls.build_remote_service_filter_params(service_name, filter_params)
-        for f in filter_params:
-            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
-
-        return query
+    def build_remote_service_filter(cls, service_name: str, filter_params: list[dict[str, Any]]) -> Q:
+        """构建远端服务过滤条件"""
+        q: Q = Q()
+        for filter_param in cls.build_remote_service_filter_params(service_name, filter_params):
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
-    def build_service_es_query_dict(cls, query, service_name, filter_params):
-        query = query.query(
-            "bool", filter=[Q("terms", **{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): [service_name]})]
-        )
-        for f in filter_params:
-            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
-
-        return query
+    def build_service_filter(cls, service_name: str, filter_params: list[dict[str, Any]]) -> Q:
+        """构建服务过滤条件"""
+        q: Q = Q(**{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): service_name})
+        for filter_param in filter_params:
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):

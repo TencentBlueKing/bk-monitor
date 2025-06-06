@@ -25,6 +25,8 @@
  */
 
 import { type PropType, defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
@@ -81,6 +83,9 @@ export default defineComponent({
     'immediateRefresh',
   ],
   setup(props, { emit }) {
+    const { t } = useI18n();
+    const router = useRouter();
+    const route = useRoute();
     function handleDeleteCollect(id: number | string) {
       emit('deleteCollect', id);
     }
@@ -92,6 +97,12 @@ export default defineComponent({
     }
     function handleTimezoneChange(timezone: string) {
       emit('timezoneChange', timezone);
+    }
+    function handleGotoOld() {
+      router.push({
+        name: 'home',
+        query: route.query,
+      });
     }
     return () => (
       <div class='inquire-header-wrap'>
@@ -142,6 +153,25 @@ export default defineComponent({
               <i class='icon-monitor icon-mc-more-tool' />
             </SelectMenu>
           </span>
+          <div
+            style='padding-right: 0px'
+            class='goto-old'
+          >
+            <div
+              class='goto-old-wrap'
+              v-bk-tooltips={{
+                content: t('返回新版'),
+                placements: ['bottom-end'],
+                zIndex: 9999,
+              }}
+              onClick={handleGotoOld}
+            >
+              <div class='icon'>
+                <i class='icon-monitor icon-zhuanhuan' />
+              </div>
+              <span>{t('返回新版')}</span>
+            </div>
+          </div>
         </div>
       </div>
     );

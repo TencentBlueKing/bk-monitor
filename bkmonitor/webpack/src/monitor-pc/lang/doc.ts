@@ -253,6 +253,8 @@ export default {
     'business is the ultimate service object, and business can be understood as a site, game, platform service, etc. provided to the outside world. Contains various resources, such as physical hosts, container clusters, service modules, business programs, operational data, and more. Therefore, it also includes different roles and different R&D projects, and all aspects can be observed from the overall perspective of the business. ',
   'prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/':
     'prometheus sdk library: https://prometheus.io/docs/instrumenting/clientlibs/',
+  '如果上报渠道不支持加入自定义 headers, 也可以使用 BasicAuth 进行验证, user: bkmonitor, password: $TOKEN':
+    'If the reporting channel does not support adding custom headers, you can also use BasicAuth to verify, user: bkmonitor, password: $TOKEN',
   '采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。':
     'After the collected log keyword data, you can view the change trend in the view, and you can also configure alarm rules in the rule. ',
   '用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。':

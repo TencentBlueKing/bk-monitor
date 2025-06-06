@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
-from typing import Optional
 
 from celery import shared_task
 from django.conf import settings
@@ -52,7 +51,7 @@ from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.time_tools import get_datetime_range
 from common.log import logger
 from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
@@ -422,13 +421,13 @@ class Application(AbstractRecordModel):
     @classmethod
     def get_application_id_by_app_name(cls, app_name: str):
         request = get_request()
-        biz_id: Optional[int] = request.biz_id
+        biz_id: int | None = request.biz_id
 
         if biz_id is None:
             try:
                 data = json.loads(request.body.decode("utf-8"))
             except (TypeError, json.JSONDecodeError):
-                raise ValueError("application({}) not found".format(app_name))
+                raise ValueError(f"application({app_name}) not found")
 
             # space_uid to biz_id
             if "space_uid" in data:
@@ -437,7 +436,7 @@ class Application(AbstractRecordModel):
         try:
             return cls.objects.filter(bk_biz_id=biz_id, app_name=app_name).values_list("application_id", flat=True)[0]
         except IndexError:
-            raise ValueError("application({}) not found".format(app_name))
+            raise ValueError(f"application({app_name}) not found")
 
     @classmethod
     def get_application_by_app_id(cls, application_id):
@@ -684,7 +683,7 @@ class Application(AbstractRecordModel):
             )
             Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
+            logger.warning(f"application->({self.application_id}) grant creator action failed, reason: {e}")
 
     @property
     def is_create_finished(self):
@@ -693,12 +692,16 @@ class Application(AbstractRecordModel):
     @classmethod
     def q_filter_create_finished(cls):
         """
-        获取过滤应用未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
+        获取过滤应用未开启 Trace 或 未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
         """
-        return Q(
-            trace_result_table_id__isnull=False,
-            metric_result_table_id__isnull=False,
-        ) & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
+        return (
+            Q(is_enabled_trace=True)
+            & Q(
+                trace_result_table_id__isnull=False,
+                metric_result_table_id__isnull=False,
+            )
+            & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
+        )
 
     @staticmethod
     @shared_task()
@@ -712,7 +715,7 @@ class Application(AbstractRecordModel):
         except Exception as e:
             raise ValueError("get maintainers failed with error: %s", e)
 
-        permission = Permission(username=creator)
+        permission = Permission(username=creator, bk_tenant_id=get_request_tenant_id())
         for user in list(maintainers):
             permission.grant_creator_action(
                 ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),
@@ -955,7 +958,7 @@ class ApmMetaConfig(models.Model):
 
     class Meta:
         unique_together = [["config_level", "level_key", "config_key"]]
-        app_label = 'apm_web'
+        app_label = "apm_web"
 
     @classmethod
     def get_all_application_config_value(cls, application_id):

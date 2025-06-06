@@ -43,8 +43,8 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from packages.monitor_web.data_explorer.event.resources import EventTopKResource
-from packages.monitor_web.data_explorer.event.serializers import (
+from monitor_web.data_explorer.event.resources import EventTopKResource
+from monitor_web.data_explorer.event.serializers import (
     EventDownloadTopKRequestSerializer,
 )
 from apm_web.utils import generate_csv_file_download_response
@@ -80,7 +80,7 @@ def order_records_by_type(records: list[dict], order_type: str) -> list[dict]:
             return x["update_time"]
 
     elif order_type in ["asc", "desc"]:
-        reverse = order_type == "desc"
+        reverse = order_type == "asc"
 
         def key_func(x):
             return tuple(lazy_pinyin(x["name"]))
@@ -363,6 +363,10 @@ class FavoriteViewSet(ModelViewSet):
 
 
 class QueryHistoryViewSet(ModelViewSet):
+    """
+    旧版的收藏接口，待废弃（2025-05-20，目前只有 trace 仍然在调用）
+    """
+
     queryset = QueryHistory.objects.all().order_by("-id")
     serializer_class = QueryHistorySerializer
 
@@ -376,6 +380,9 @@ class QueryHistoryViewSet(ModelViewSet):
         bk_biz_id = serializer.validated_data["bk_biz_id"]
         record_type = serializer.validated_data["type"]
         records = self.queryset.filter(bk_biz_id=bk_biz_id, type=record_type)
+        if record_type == "trace":
+            # trace 的旧版收藏不展示有分组的情况，只展示在旧版创建的收藏
+            records = records.filter(group_id=None)
 
         response_serializer = self.get_serializer(records, many=True)
         return Response(response_serializer.data)
@@ -397,6 +404,7 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
         ResourceRoute("POST", event_resources.EventStatisticsInfoResource, endpoint="event/statistics_info"),
         ResourceRoute("POST", event_resources.EventStatisticsGraphResource, endpoint="event/statistics_graph"),
+        ResourceRoute("POST", event_resources.EventGenerateQueryStringResource, endpoint="event/generate_query_string"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="event/download_topk")

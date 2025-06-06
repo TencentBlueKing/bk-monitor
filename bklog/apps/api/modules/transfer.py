@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import base64
 import json
 
@@ -26,7 +26,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 
 
@@ -115,7 +115,7 @@ def modify_result_table_before(params):
     return params
 
 
-class _TransferApi(object):
+class _TransferApi:
     MODULE = _("Metadata元数据")
 
     def __init__(self):
@@ -139,6 +139,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("修改数据源与结果表的关系"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.create_result_table = DataAPI(
             method="POST",
@@ -146,6 +147,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("创建结果表"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.delete_cluster_info = DataAPI(
             method="POST",
@@ -160,6 +162,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("修改结果表"),
             before_request=modify_result_table_before,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.switch_result_table = DataAPI(
             method="POST",
@@ -167,6 +170,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("结果表起停"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_label = DataAPI(
             method="GET",
@@ -225,6 +229,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("查询监控结果表"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.list_transfer_cluster = DataAPI(
             method="GET",
@@ -240,6 +245,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("创建ES快照仓库"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.modify_es_snapshot_repository = DataAPI(
             method="POST",
@@ -282,6 +288,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("创建结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.modify_result_table_snapshot = DataAPI(
             method="POST",
@@ -289,6 +296,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("修改结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.delete_result_table_snapshot = DataAPI(
             method="POST",
@@ -296,6 +304,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("删除结果表快照配置"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.list_result_table_snapshot = DataAPI(
             method="POST",
@@ -324,6 +333,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("快照回溯"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
         )
         self.modify_restore_result_table_snapshot = DataAPI(
             method="POST",
@@ -420,6 +430,7 @@ class _TransferApi(object):
             module=self.MODULE,
             description=_("创建自定义日志组"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.modify_log_group = DataAPI(
             method="POST",
@@ -435,11 +446,11 @@ class _TransferApi(object):
             description=_("获取自定义日志组"),
             before_request=add_esb_info_before_request,
         )
-        self.create_or_update_es_router = DataAPI(
+        self.create_or_update_log_router = DataAPI(
             method="POST",
-            url=self._build_url("create_or_update_es_router/", "metadata_create_or_update_es_router/"),
+            url=self._build_url("create_or_update_log_router/", "metadata_create_or_update_log_router/"),
             module=self.MODULE,
-            description=_("创建或更新es路由"),
+            description=_("创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
         )
         self.list_kafka_tail = DataAPI(
