@@ -35,7 +35,7 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
   // 注册Intersection监听
   function registerObserver(...params: any) {
     if (intersectionObserver) {
-      unregisterOberver();
+      unregisterObserver();
     }
     intersectionObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
@@ -47,7 +47,7 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
     intersectionObserver.observe(el.value);
   }
   // 取消Intersection监听
-  function unregisterOberver() {
+  function unregisterObserver() {
     if (intersectionObserver) {
       intersectionObserver.unobserve(el.value);
       intersectionObserver.disconnect();
@@ -58,12 +58,12 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
   onMounted(() => {
     setTimeout(registerObserver, 20);
   });
-  onBeforeUnmount(unregisterOberver);
+  onBeforeUnmount(unregisterObserver);
 
   return {
     isInViewPort,
     registerObserver,
-    unregisterOberver,
+    unregisterObserver,
     intersectionObserver,
   };
 }

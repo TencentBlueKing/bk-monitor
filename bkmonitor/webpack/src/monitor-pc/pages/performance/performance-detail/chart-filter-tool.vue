@@ -30,7 +30,7 @@
       @chart-change="handleChartChange"
       @add-timerange-option="handleAddTimeRangeOption"
       @add-timeshift-option="handleAddTimeshifOption"
-      @on-immediate-reflesh="handleImmediateReflesh"
+      @on-immediate-refresh="handleImmediateRefresh"
       :value="value"
       :chart-type="chartType"
       :compare-list="compareList"
@@ -87,7 +87,7 @@
             :placeholder="$t('搜索')"
             v-model="search.value"
             @input="searchFn"
-          >
+          />
         </div>
       </template>
       <template #append>
@@ -286,7 +286,7 @@ export default class ChartFilterTool extends Vue {
   }
   // 刷新数据
   @Emit('immediate-reflesh')
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     return this.viewType;
   }
   @Emit('search-change')

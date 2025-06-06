@@ -39,11 +39,11 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
         left: 0,
         top: 0,
       };
-      const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-      if (canSetBootom > 0) {
-        position.top = +pos[1] - Math.min(0, canSetBootom);
+      const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+      if (canSetBottom > 0) {
+        position.top = +pos[1] - Math.min(0, canSetBottom);
       } else {
-        position.top = +pos[1] + canSetBootom;
+        position.top = +pos[1] + canSetBottom;
       }
       const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
       if (canSetLeft > 0) {
@@ -55,19 +55,20 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
     },
     enterable: true, // 可以让鼠标进入tooltip
     formatter: (params: any) => {
-      let liHtmls = [];
+      let liHtmlList = [];
       const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
       const traceData = params[0].data?.traceData ?? [];
 
-      liHtmls = traceData.map(item => {
-        const hash = `#/trace/home?app_name=${appName}&search_type=accurate&search_id=spanID&trace_id=${item.span_id}`;
+      liHtmlList = traceData.map(item => {
+        const where = [{ key: 'span_id', operator: 'equal', value: [item.span_id] }];
+        const hash = `#/trace/home?app_name=${appName}&where=${encodeURIComponent(JSON.stringify(where))}&filterMode=ui&sceneMode=span`;
         const href = location.href.replace(location.href, hash);
         return `<tr>
           <td>${item.time}</td>
           <td><a target="_blank" href="${href}">${item.span_id}</a></td>
         </tr>`;
       });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmlList?.length < 1) return '';
 
       return `<div class="monitor-chart-tooltips">
           <p class="tooltips-header">${pointTime}</p>
@@ -77,7 +78,7 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
               <th>Span ID</th>
             </thead>
             <tbody>
-              ${liHtmls?.join('')}
+              ${liHtmlList?.join('')}
             </tbody>
           </table>
         </div>`;

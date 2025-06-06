@@ -82,7 +82,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
@@ -151,7 +151,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
       },
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
         searchValue: [],
       },
     };

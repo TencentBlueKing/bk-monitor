@@ -9,11 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import datetime
 import logging
 import time
 from collections import Counter, defaultdict
 from typing import Dict
 
+import pytz
 from django.conf import settings
 
 from bkmonitor.dataflow.constant import CheckErrorType
@@ -25,6 +27,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
 from bkmonitor.models import AlgorithmModel, QueryConfigModel, StrategyModel
 from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
+from constants.aiops import SDKDetectStatus
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -120,9 +123,9 @@ class AIOpsStrategyMaintainer:
                 "base_labels": self.generate_strategy_base_labels(
                     strategy, query_configs[strategy_id], algorithms[strategy_id]
                 ),
+                "use_sdk": getattr(query_configs[strategy_id], "intelligent_detect", {}).get("use_sdk", False),
             }
             for strategy_id, strategy in strategies.items()
-            if not getattr(query_configs[strategy_id], "intelligent_detect", {}).get("use_sdk", False)
         }
 
     def generate_strategy_base_labels(
@@ -158,11 +161,14 @@ class AIOpsStrategyMaintainer:
             retries = 3
             while retries > 0:
                 try:
-                    self.check_strategy_flow_status(strategy_info)
+                    if strategy_info["use_sdk"]:
+                        self.check_strategy_prepare(strategy_info)
+                    else:
+                        self.check_strategy_flow_status(strategy_info)
 
-                    self.check_strategy_data_monitor_metrics(strategy_info)
+                        self.check_strategy_data_monitor_metrics(strategy_info)
 
-                    self.check_strategy_output(strategy_info)
+                        self.check_strategy_output(strategy_info)
 
                     if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
                         report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
@@ -198,6 +204,10 @@ class AIOpsStrategyMaintainer:
         interval = 0
 
         for strategy_id, strategy_info in self.monitor_strategies.items():
+            # 使用SDK的策略不存在接入失败的问题
+            if strategy_info["use_sdk"]:
+                continue
+
             error_type = CheckErrorType.ACCESS_ERROR
 
             try:
@@ -246,6 +256,35 @@ class AIOpsStrategyMaintainer:
                     f"check strategy({strategy_id}: {strategy_info['strategy'].bk_biz_id})"
                     f"dataflow status error({str(e)})"
                 )
+
+    def check_strategy_prepare(self, strategy_info: Dict):
+        """检测SDK策略的准备情况
+
+        :param strategy_info: 策略信息
+        """
+        if strategy_info["strategy"].id in self.checked_abnormal_strategies:
+            return
+
+        intelligent_detect = getattr(strategy_info["query_config"], "intelligent_detect", {})
+        if intelligent_detect.get("status") == SDKDetectStatus.READY:
+            return
+
+        # 超过半个小时还在准备的策略需要关注
+        now_time = datetime.datetime.now(tz=pytz.UTC)
+        if now_time - strategy_info["strategy"].update_time > datetime.timedelta(minutes=30):
+            error_msg = (
+                f"Strategy({strategy_info['strategy'].id}:"
+                f"{strategy_info['strategy'].bk_biz_id}) had prepared failure"
+            )
+            logger.error(error_msg)
+            report_aiops_check_metrics(
+                strategy_info["base_labels"],
+                DataFlow.Status.Failure,
+                error_msg,
+                CheckErrorType.NOT_READY,
+            )
+            self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
+            self.error_counter[CheckErrorType.NOT_READY] += 1
 
     def check_strategy_flow_status(self, strategy_info: Dict):
         """检测任务运行是否有异常.

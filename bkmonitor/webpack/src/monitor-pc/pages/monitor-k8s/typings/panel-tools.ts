@@ -183,7 +183,7 @@ export const METHOD_LIST: IOption[] = [
     name: 'MAX',
   },
 ];
-export const REFLESH_DEFAULT_LIST = [
+export const REFRESH_DEFAULT_LIST = [
   {
     name: 'off',
     id: -1,
@@ -222,10 +222,10 @@ export declare namespace PanelHeaderType {
   type TimeRangeValue = number | string[];
   interface IProps {
     timeRange: TimeRangeValue;
-    refleshInterval: number;
+    refreshInterval: number;
     timezone: string;
     timeRangeList?: OptionsItem[];
-    refleshList?: OptionsItem[];
+    refreshList?: OptionsItem[];
     favoritesList?: IFavList.favList[];
     favCheckedValue?: IFavList.favList;
     downSampleRange?: string;
@@ -233,8 +233,8 @@ export declare namespace PanelHeaderType {
     eventSelectTimeRange?: TimeRangeValue;
   }
   interface IEvents {
-    onImmediateReflesh: void;
-    onRefleshIntervalChange: number;
+    onImmediateRefresh: void;
+    onRefreshIntervalChange: number;
     onTimeRangeChange: TimeRangeValue;
     onSelectFav: any;
     onDeleteFav: number;

@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import * as monaco from 'monaco-editor';
-import { Range } from 'monaco-editor';
 
 import builtinFunctions from './builtinFunctions.json';
 import builtinVariables from './builtinVariables.json';
@@ -164,16 +163,35 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
 
 let fetchDorisFieldsFn: () => DorisField[] | undefined = undefined;
 
-const fetchDorisFieldsPromise = position => {
-  return (fetchDorisFieldsFn?.() ?? []).map((field, index) => ({
-    label: field.name,
-    kind: monaco.languages.CompletionItemKind.Field,
-    insertText: field.name,
-    detail: field.type, // 显示字段类型
-    documentation: field.description, // 显示字段描述
-    range: new Range(position.lineNumber, position.column, position.lineNumber, position.column),
-    sortText: `1_${index}_${field.name}`,
-  }));
+const castFieldMapFn = (item, index) => {
+  if (index === 0) {
+    return item;
+  }
+
+  return `['${item}']`;
+};
+
+const fetchDorisFieldsPromise = range => {
+  return (fetchDorisFieldsFn?.() ?? []).map((field, index) => {
+    let insertText = field.name;
+    if (field.name.indexOf('.') > 0) {
+      const splitList = field.name.split('.');
+      if (splitList.length > 1) {
+        insertText = `CAST(${splitList.map(castFieldMapFn).join('')} AS TEXT)`;
+      }
+    }
+
+    return {
+      label: field.name,
+      kind: monaco.languages.CompletionItemKind.Field,
+      insertText,
+      filterText: field.name,
+      detail: field.type, // 显示字段类型
+      documentation: field.description, // 显示字段描述
+      range,
+      sortText: `a`,
+    };
+  });
 };
 
 // 注册自动补全提供者
@@ -187,29 +205,33 @@ monaco.languages.registerCompletionItemProvider('dorisSQL', {
       endColumn: word.endColumn,
     };
 
-    const fieldSuggestions = fetchDorisFieldsPromise(position);
+    const fieldSuggestions = fetchDorisFieldsPromise(range);
     const keywordAndFunctionSuggestions = [
       ...keywords.map((keyword, index) => ({
         label: keyword,
         kind: monaco.languages.CompletionItemKind.Keyword,
         insertText: keyword + ' ',
-        range: range,
-        sortText: `2_${index}_${keyword}`,
+        filterText: keyword,
+        range,
+        sortText: `b`,
       })),
       ...builtinFunctions.map((func, index) => ({
         label: func,
+        filterText: func,
         kind: monaco.languages.CompletionItemKind.Function,
         insertText: `${func}($0)`,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        range: range,
-        sortText: `3_${index}_${func}`,
+        range,
+        sortText: `c`,
         command: {
           id: 'editor.action.triggerParameterHints',
           title: 'Trigger Parameter Hints',
         },
       })),
     ];
-    return { suggestions: [...fieldSuggestions, ...keywordAndFunctionSuggestions] };
+
+    const suggestions = [...fieldSuggestions, ...keywordAndFunctionSuggestions];
+    return { suggestions };
   },
 });
 

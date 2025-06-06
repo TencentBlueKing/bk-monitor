@@ -1,5 +1,6 @@
 .aiops-metrics-view {
   width: 100%;
+  height: 100%;
 
   @keyframes select {
     0% {
@@ -21,32 +22,33 @@
       background: white;
       border-color: #dcdee5;
     }
-    
   }
 
   .correlation-metric-nav-wrap-bg {
     position: absolute;
+    top: 8px;
+    right: 1px;
     z-index: 1;
-    width: 259px;
-    height: calc(100% - 28px);
-    margin-right: 16px;
-    background: #fafbfd;
-    border-right: 1px solid #eaebf0;
+    width: 144px;
+    background: #f0f3fa;
+    border-left: 1px solid #d1d9e8;
     border-radius: 2px 2px 0 0;
   }
 
   .correlation-metric-nav-wrap {
+    position: sticky;
+    top: 8px;
     z-index: 9;
     height: 100%;
-    margin-right: 16px;
+    padding-bottom: 40px;
     overflow-y: auto;
-    border-radius: 2px 2px 0 0;
+    border-left: 1px solid #d1d9e8;
     transform: translateZ(0);
   }
 
   .correlation-nav {
     max-height: 100%;
-    padding-bottom: 30px;
+    margin-top: -4px;
     overflow-y: auto;
   }
 
@@ -54,16 +56,23 @@
     position: relative;
     display: flex;
     flex-direction: row;
-    min-height: 260px;
-    padding-top: 22px;
-  
+    height: 100%;
+    // min-height: 260px;
+    padding-top: 8px;
+
+    .bk-table-empty-block {
+      align-items: flex-start;
+      background: none;
+    }
+
     .correlation-metric-fixed {
       position: fixed;
+      right: 0;
       z-index: 999;
     }
 
     .correlation-metric-fixed-padding {
-      padding-left: 275px;
+      padding-right: 275px;
     }
 
     .scroll-ing {
@@ -71,19 +80,22 @@
     }
 
     .correlation-metrics-collapse-content {
-      margin-top: 12px;
+      margin-top: 8px;
     }
 
     .correlation-metric-panels {
       flex: 1;
       width: calc(100% - 275px);
+      max-height: calc(100% - 52px);
+      padding-right: 8px;
+      overflow-y: auto;
     }
 
     .add-more {
       display: inline-block;
       width: 100%;
       margin-top: 2px;
-      font-size: 14px;
+      font-size: 12px;
       line-height: 24px;
       color: #3a84ff;
       text-align: center;
@@ -114,7 +126,7 @@
   }
 
   .dashboard-panel {
-    width: calc(100% + 16px);
+    width: 100%;
   }
 
   .aiops-dimension-panels {
@@ -122,11 +134,10 @@
     margin-top: -40px;
   }
 
-
   .select {
     animation: select 1s;
-    animation-delay: .5s;
-      
+    animation-delay: 0.5s;
+
     .chart-wrapper,
     .aiops-dimension-lint {
       background: inherit;
@@ -138,7 +149,7 @@
 
     .flex-dashboard-item {
       border: 1px solid #dcdee5;
-      border-radius: 2px; 
+      border-radius: 2px;
     }
-  }  
+  }
 }

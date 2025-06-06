@@ -30,7 +30,8 @@ $remindAlarmColor: #ffd000;
 
 $whiteColor: #fff;
 
-$icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-right back-up check check-circle cluster custom database hint http inform inform-circle linux message-queue default performance remind setting warning windows;
+$icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-right back-up check check-circle cluster
+  custom database hint http inform inform-circle linux message-queue default performance remind setting warning windows;
 
 @mixin border-1px($color: $defaultBorderColor) {
   border: 1px solid $color;
@@ -61,12 +62,12 @@ $icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-
 }
 
 @mixin box-ellipsis {
-  display: box;
+  // display: box;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-line-clamp: 1;
   word-break: break-all;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
 }
 
 @mixin content-center {

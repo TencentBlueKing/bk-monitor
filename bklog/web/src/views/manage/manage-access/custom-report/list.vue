@@ -406,7 +406,6 @@
       collectList:{
         handler(val) {
           if (val) {
-            this.isTableLoading = true;
             const callbackFn = (item, key, value) => {
                 this.$set(item, key, value[key]);
             };

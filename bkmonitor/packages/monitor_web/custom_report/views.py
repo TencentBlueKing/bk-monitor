@@ -78,12 +78,21 @@ class CustomMetricReportViewSet(ResourceViewSet):
         # 指标字段 API
         ResourceRoute("GET", resource.custom_report.get_custom_ts_fields, endpoint="get_custom_ts_fields"),
         ResourceRoute("POST", resource.custom_report.modify_custom_ts_fields, endpoint="modify_custom_ts_fields"),
+        ResourceRoute(
+            "POST",
+            resource.custom_report.import_custom_time_series_fields,
+            endpoint="import_custom_time_series_fields",
+        ),
+        ResourceRoute(
+            "GET",
+            resource.custom_report.export_custom_time_series_fields,
+            endpoint="export_custom_time_series_fields",
+        ),
         # 分组规则 API
         # 创建或更新分组规则
         ResourceRoute(
             "POST", resource.custom_report.create_or_update_grouping_rule, endpoint="create_or_update_grouping_rule"
         ),
-        # 全量更新分组规则
         # 自定义指标分组规则列表
         ResourceRoute(
             "GET", resource.custom_report.custom_ts_grouping_rule_list, endpoint="custom_ts_grouping_rule_list"

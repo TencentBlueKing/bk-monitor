@@ -101,7 +101,7 @@ class DataRetrieval extends VuexModule {
     targetType: 'INSTANCE',
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1,
+      refreshInterval: -1,
     },
     startTime: 0,
     endTime: 0,
@@ -145,8 +145,8 @@ class DataRetrieval extends VuexModule {
     return this.queryTime;
   }
 
-  public get refleshInterval() {
-    return this.queryData.tools.refleshInterval;
+  public get refreshInterval() {
+    return this.queryData.tools.refreshInterval;
   }
 
   public get timeSeriesMetric() {
@@ -360,7 +360,7 @@ class DataRetrieval extends VuexModule {
       targetType: 'INSTANCE',
       tools: {
         timeRange: 1 * 60 * 60 * 1000,
-        refleshInterval: -1,
+        refreshInterval: -1,
       },
       startTime: 0,
       endTime: 0,

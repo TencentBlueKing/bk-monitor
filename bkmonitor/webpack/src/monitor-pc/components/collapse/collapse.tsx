@@ -183,7 +183,6 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
 
   @Debounce(300)
   handleResize() {
-    console.log(this.height);
     this.$nextTick(() => this.updateHeight(this.expand));
     this.checkOverflow();
   }

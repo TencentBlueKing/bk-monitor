@@ -1,15 +1,43 @@
 .handler-list {
-  width: 44%;
+  width: 33%;
   height: 100%;
   border-right: 1px solid #eaebf0;
 
   .handler-list-head {
     display: flex;
     width: 100%;
-    padding: 16px 12px 10px;
-
+    padding: 16px 12px 8px;
+    
     .head-input {
-      width: calc(100% - 40px);
+      // width: calc(100% - 40px);
+      border: 0;
+      background: #f0f1f5;
+      .bk-input--text {
+        background: #f0f1f5;
+        color: #313238;
+        &::placeholder {
+          color: #979ba5;
+        }
+      }
+
+      .bk-input--clear-icon {
+        font-size: 14px !important;
+      }
+
+      .bk-input--suffix-icon {
+        background: inherit;
+        color: #979ba5;
+        font-size: 16px;
+      }
+    }
+
+    .is-focused {
+      border: 1px solid #3a84ff;
+      box-shadow: none !important;
+      background: #fff;
+      .bk-input--text {
+        background: #fff;
+      }
     }
 
     .head-btn {
@@ -49,11 +77,10 @@
 
       &.active {
         color: #3a84ff;
-        background: #e1ecff;
+        background: #f0f5ff;
 
         .item-total {
-          color: #fff;
-          background: #a3c5fd;
+          color: #3a84ff;
         }
       }
 
@@ -67,7 +94,7 @@
       width: calc(100% - 24px);
       height: 1px;
       margin: 8px 0 8px 12px;
-      background: #eaebf0;  
+      background: #f0f1f5;
     }
 
     .item-head {
@@ -95,19 +122,18 @@
       right: 12px;
       display: inline-block;
       height: 16px;
-      padding: 0 5px;
       font-size: 12px;
       line-height: 16px;
-      color: #979ba5;
-      background: #f0f1f5;
+      color: #a3b1cc;
       border-radius: 8px;
+      font-family: 'Menlo,Monaco,Consolas,Courier,monospac';
+      font-weight: 700;
     }
 
     .item-icon {
       position: absolute;
-      right: 12px;
+      right: 6px;
       font-size: 26px;
-      font-weight: 600;
       color: #1cab88;
     }
   }

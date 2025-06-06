@@ -52,7 +52,7 @@ interface IMonitorEchartsProps {
   // 是使用组件内的无数据设置
   setNoData: boolean;
   // 图表刷新间隔
-  refleshInterval: number;
+  refreshInterval: number;
   // 图表类型
   chartType: ChartType;
   // 图表title

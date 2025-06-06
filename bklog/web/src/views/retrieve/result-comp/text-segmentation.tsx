@@ -38,7 +38,7 @@ interface IProps {
 @Component
 export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) field: any;
-  @Prop({ type: [String, Number], required: true }) content: number | string;
+  @Prop({ type: [String, Number, Boolean], required: true }) content: boolean | number | string;
   @Prop({ type: Function, required: true }) menuClick: any;
 
   /** 当前选中分词 */

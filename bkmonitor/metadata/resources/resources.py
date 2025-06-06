@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -16,7 +15,6 @@ import tempfile
 import time
 import uuid
 from itertools import chain
-from typing import Dict, List
 
 import yaml
 from confluent_kafka import Consumer as ConfluentConsumer
@@ -62,7 +60,7 @@ from metadata.models.data_link.utils import (
     get_data_source_related_info,
 )
 from metadata.models.data_source import DataSourceResultTable
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -70,6 +68,7 @@ from metadata.service.data_source import (
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.bkbase import sync_bkbase_result_table_meta
 from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
 
@@ -142,6 +141,55 @@ class CreateDataIDResource(Resource):
         return {"bk_data_id": new_data_source.bk_data_id}
 
 
+class GetOrCreateAgentEventDataIdResource(Resource):
+    """
+    获取/创建 Agent事件 数据ID
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+        etl_config = EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to get_or_create agent event data id,bk_biz_id->[%s]", bk_biz_id
+        )
+        try:
+            data_source = models.DataSource.objects.get(space_uid=space_uid, etl_config=etl_config)
+            return {"bk_data_id": data_source.bk_data_id}
+        except models.DataSource.DoesNotExist:  # 若不存在,则进行申请新建
+            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("GetOrCreateAgentEventDataIdResource: unexpected error occurred,bk_biz_id->[%s]", bk_biz_id)
+            raise e  # 非不存在类报错,直接Raise
+
+        logger.info("GetOrCreateAgentEventDataIdResource: try to create agent event data id,bk_biz_id->[%s]", bk_biz_id)
+
+        data_name = f"base_{bk_biz_id}_agent_event"  # UNIQUE KEY
+
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to create agent event data id for bk_biz_id->[%s],"
+            "use data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+
+        # 调用DataSource模型类方法,事务
+        new_data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=etl_config,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+        )
+
+        return {"bk_data_id": new_data_source.bk_data_id}
+
+
 class ModifyDatasourceResultTable(Resource):
     """切换结果表与数据源的关联关系"""
 
@@ -161,6 +209,7 @@ class CreateResultTableResource(Resource):
         bk_data_id = serializers.IntegerField(required=True, label="数据源ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         table_name_zh = serializers.CharField(required=True, label="结果表中文名")
+        bk_biz_id_alias = serializers.CharField(required=False, label="过滤条件业务ID别名")
         is_custom_table = serializers.BooleanField(required=True, label="是否用户自定义结果表")
         schema_type = serializers.CharField(required=True, label="结果表字段配置方案")
         operator = serializers.CharField(required=True, label="操作者")
@@ -188,8 +237,7 @@ class CreateResultTableResource(Resource):
         if query_alias_settings:
             try:
                 logger.info(
-                    "CreateResultTableResource: try to manage alias_settings,table_id->[%s],"
-                    "query_alias_settings->[%s]",
+                    "CreateResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
                     table_id,
                     query_alias_settings,
                 )
@@ -232,7 +280,9 @@ class ListResultTableResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, label="获取指定业务下的结果表信息", default=None)
         with_option = serializers.BooleanField(required=False, label="是否包含option字段信息", default=True)
         is_public_include = serializers.IntegerField(required=False, label="是否包含全业务结果表", default=None)
-        is_config_by_user = serializers.BooleanField(required=False, label="是否需要包含非用户定义的结果表", default=True)
+        is_config_by_user = serializers.BooleanField(
+            required=False, label="是否需要包含非用户定义的结果表", default=True
+        )
 
     def perform_request(self, request_data):
         # 获取bcs相关的dataid
@@ -312,6 +362,7 @@ class ModifyResultTableResource(Resource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         operator = serializers.CharField(required=True, label="操作者")
+        bk_biz_id_alias = serializers.CharField(required=False, label="过滤条件业务ID别名")
         field_list = FieldSerializer(many=True, required=False, label="字段列表", default=None)
         query_alias_settings = QueryAliasSettingSerializer(
             many=True, required=False, label="查询别名设置", help_text="字段查询别名的配置"
@@ -326,17 +377,17 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
     def perform_request(self, request_data):
         table_id = request_data.pop("table_id")
-        query_alias_settings = request_data.pop("query_alias_settings", [])
+        query_alias_settings = request_data.pop("query_alias_settings", None)
         operator = request_data.get("operator", None)
 
-        if query_alias_settings:
+        if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
             try:
                 logger.info(
-                    "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],"
-                    "query_alias_settings->[%s]",
+                    "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
                     table_id,
                     query_alias_settings,
                 )
@@ -890,6 +941,9 @@ class QueryEventGroupResource(Resource):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
+        bk_data_ids = serializers.ListField(
+            required=False, label="数据源ID列表", default=[], child=serializers.IntegerField(label="数据源ID")
+        )
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -898,6 +952,7 @@ class QueryEventGroupResource(Resource):
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         event_group_name = validated_request_data["event_group_name"]
+        bk_data_ids = validated_request_data.get("bk_data_ids")
 
         if label is not None:
             query_set = query_set.filter(label=label)
@@ -907,6 +962,9 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        if bk_data_ids:
+            query_set = query_set.filter(bk_data_id__in=bk_data_ids)
 
         # 分页返回
         page_size = validated_request_data["page_size"]
@@ -920,7 +978,7 @@ class QueryEventGroupResource(Resource):
         # 组装数据
         return self._compose_in_event(query_set)
 
-    def _compose_in_event(self, event_query_set: QuerySet) -> List:
+    def _compose_in_event(self, event_query_set: QuerySet) -> list:
         """组装数据, 添加内置事件"""
         built_events = get_built_in_k8s_events()
         built_event_map = {event["event_name"]: event for event in built_events}
@@ -1303,7 +1361,9 @@ class QueryBCSMetricsResource(Resource):
     """查询bcs相关指标"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_ids = serializers.ListField(required=False, label="业务ID", default=None, child=serializers.IntegerField())
+        bk_biz_ids = serializers.ListField(
+            required=False, label="业务ID", default=None, child=serializers.IntegerField()
+        )
         cluster_ids = serializers.ListField(required=False, label="BCS集群ID", default=None)
         dimension_name = serializers.CharField(required=False, label="指标名称", default="")
         dimension_value = serializers.CharField(required=False, label="指标取值", default="")
@@ -1339,7 +1399,7 @@ class QueryBCSMetricsResource(Resource):
 
         return results
 
-    def _refine_built_in_metric_dimensions(self, metric_datas: Dict, k8s_metrics: List):
+    def _refine_built_in_metric_dimensions(self, metric_datas: dict, k8s_metrics: list):
         """获取 k8s 内置指标和维度"""
         for metric in k8s_metrics:
             field_name = metric["field_name"]
@@ -1358,12 +1418,12 @@ class QueryBCSMetricsResource(Resource):
 
     def _refine_metric_dimensions_from_redis(
         self,
-        bk_biz_ids: List,
-        cluster_ids: List,
+        bk_biz_ids: list,
+        cluster_ids: list,
         dimension_name: str,
         dimension_value: str,
-        metric_datas: Dict,
-        built_in_metric_field_list: List,
+        metric_datas: dict,
+        built_in_metric_field_list: list,
     ):
         """通过 redis 中获取指标和维度"""
         # 当参数 指标名称和指标值 的内容全部存在时，查询内置和自定义指标
@@ -1518,7 +1578,7 @@ class ModifyBCSResourceInfoResource(Resource):
         }
         resource_cls = type_to_class.get(resource_type)
         if resource_cls is None:
-            raise ValueError("unknown resource type:{}".format(resource_type))
+            raise ValueError(f"unknown resource type:{resource_type}")
 
         target_resource = resource_cls.objects.get(
             cluster_id=validated_request_data["cluster_id"], name=validated_request_data["resource_name"]
@@ -1556,7 +1616,7 @@ class ListBCSResourceInfoResource(Resource):
 
             resource_cls = type_to_class.get(resource_type)
             if resource_cls is None:
-                raise ValueError("unknown resource type:{}".format(resource_type))
+                raise ValueError(f"unknown resource type:{resource_type}")
 
             if len(cluster_list) != 0:
                 resources += list(resource_cls.objects.filter(cluster_id__in=cluster_list))
@@ -1576,7 +1636,7 @@ class ListBCSClusterInfoResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        cluster_ids = serializers.ListField(label="集群ID", child=serializers.IntegerField(), required=False)
+        cluster_ids = serializers.ListField(label="集群ID", child=serializers.CharField(), required=False)
 
     def perform_request(self, validated_request_data):
         clusters = BCSClusterInfo.objects.all()
@@ -1953,7 +2013,7 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != 'bk_flat_batch':
+            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
@@ -1982,14 +2042,14 @@ class KafkaTailResource(Resource):
         使用confluent_kafka库消费kafka数据，针对2.4+鉴权认证的集群，如SCRAM-SHA-512
         """
         consumer_config = {
-            'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-            'group.id': f'bkmonitor-{uuid.uuid4()}',
-            'session.timeout.ms': 6000,
-            'auto.offset.reset': 'latest',
-            'security.protocol': mq_ins.security_protocol,
-            'sasl.mechanisms': mq_ins.sasl_mechanisms,
-            'sasl.username': datasource.mq_cluster.username,
-            'sasl.password': datasource.mq_cluster.password,
+            "bootstrap.servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
+            "group.id": f"bkmonitor-{uuid.uuid4()}",
+            "session.timeout.ms": 6000,
+            "auto.offset.reset": "latest",
+            "security.protocol": mq_ins.security_protocol,
+            "sasl.mechanisms": mq_ins.sasl_mechanisms,
+            "sasl.username": datasource.mq_cluster.username,
+            "sasl.password": datasource.mq_cluster.password,
         }
 
         consumer = ConfluentConsumer(consumer_config)
@@ -2204,7 +2264,7 @@ class KafkaTailResource(Resource):
             return []
 
         consumer_config = {
-            'bootstrap_servers': f"{kafka_addr['ip']}:{kafka_addr['port']}",
+            "bootstrap_servers": f"{kafka_addr['ip']}:{kafka_addr['port']}",
             "request_timeout_ms": 1000,
             "consumer_timeout_ms": 1000,
         }
@@ -2259,8 +2319,7 @@ class GetBCSClusterRelatedDataLinkResource(Resource):
             raise ValidationError(_("集群ID不能为空"))
 
         logger.info(
-            "GetBCSClusterRelatedDataLinkResource: try to get cluster related data_link infos "
-            "for bcs_cluster_id->[%s]",
+            "GetBCSClusterRelatedDataLinkResource: try to get cluster related data_link infos for bcs_cluster_id->[%s]",
             bcs_cluster_id,
         )
         cluster_ins = BCSClusterInfo.objects.get(cluster_id=bcs_cluster_id)
@@ -2330,38 +2389,60 @@ class NotifyEsDataLinkAdaptNano(Resource):
                 models.ResultTableField.objects.create(
                     table_id=table_id,
                     field_name=DT_TIME_STAMP_NANO,
-                    field_type='timestamp',
-                    description='数据时间',
-                    tag='dimension',
+                    field_type="timestamp",
+                    description="数据时间",
+                    tag="dimension",
                     is_config_by_user=True,
                 )
 
-                # 为dtEventTimestampNanos配置对应的Option
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_type',
-                    value=NANO_FORMAT,
-                    value_type='string',
+                # 通过复制的方式,生成dtEventTimestampNanos的option
+                original_objects = models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name="dtEventTimeStamp"
                 )
 
-                models.ResultTableFieldOption.objects.create(
-                    table_id=table_id,
-                    field_name=DT_TIME_STAMP_NANO,
-                    name='es_format',
-                    value=NON_STRICT_NANO_ES_FORMAT,
-                    value_type='string',
-                )
+                # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
+                for obj in original_objects:
+                    # 使用 get_or_create 以确保不会重复创建相同的记录
+                    new_obj, created = models.ResultTableFieldOption.objects.update_or_create(
+                        table_id=obj.table_id,
+                        field_name="dtEventTimeStampNanos",  # 更新 field_name
+                        name=obj.name,
+                        defaults={  # 如果记录不存在，才会使用 defaults 来创建新的记录
+                            "value_type": obj.value_type,
+                            "value": obj.value,
+                            "creator": obj.creator,
+                        },
+                    )
+                    logger.info(
+                        "NotifyEsDataLinkAdaptNano: create_field->[%s] for table_id->[%s] created->[%s]",
+                        new_obj.field_name,
+                        new_obj.table_id,
+                        created,
+                    )
+
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name='time', name='es_format'
+                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_type"
+                ).update(value=NANO_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_format"
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name='dtEventTimeStamp', name='es_format'
+                    table_id=table_id, field_name="time", name="es_format"
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name="dtEventTimeStamp", name="es_format"
+                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, field_name="dtEventTimeStamp", name="es_type"
+                ).update(value="date")
+
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
-                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,' 'error->[%s]',
+                "NotifyEsDataLinkAdaptNano: table_id->[%s] failed to adapt metadata for date_nano,error->[%s]",
                 table_id,
                 e,
             )
@@ -2380,8 +2461,78 @@ class NotifyEsDataLinkAdaptNano(Resource):
             es_storage.create_or_update_aliases(force_rotate=force_rotate)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
-                'NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]', table_id, e
+                "NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]", table_id, e
             )
             raise e
 
-        return result_table.to_json().get('field_list')
+        return result_table.to_json().get("field_list")
+
+
+class GetDataLabelsMapResource(Resource):
+    """
+    获取结果表 ID 与其 DataLabel 的映射关系
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+        table_or_labels = serializers.ListField(
+            child=serializers.CharField(), label="结果表ID列表", default=[], min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        data_labels_map = {}
+        table_or_labels: list[str] = validated_request_data["table_or_labels"]
+        data_labels_queryset = models.ResultTable.objects.filter(
+            Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]], data_label__in=table_or_labels)
+            | Q(table_id__in=table_or_labels)
+        ).values("table_id", "data_label")
+        for item in data_labels_queryset:
+            data_labels_map[item["table_id"]] = item["data_label"]
+            if item["data_label"]:
+                # 不为空才建立映射关系，避免写入 empty=empty，
+                data_labels_map[item["data_label"]] = item["data_label"]
+        return data_labels_map
+
+
+class SyncBkBaseRtMetaByBizIdResource(Resource):
+    """
+    同步单个业务的计算平台RT元信息
+    """
+
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        # 同步BKDATA元信息,单业务实时触发同步
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        # 同步指定存储类型的数据
+        storages = settings.SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES
+        logger.info("SyncBkBaseRtMetaByBizIdResource: start sync bkbase meta for biz_id->[%s]", bk_biz_id)
+        bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=[bk_biz_id], storages=storages)
+        sync_bkbase_result_table_meta(round_iter=0, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=[bk_biz_id])
+        logger.info("SyncBkBaseRtMetaByBizIdResource: end sync bkbase meta for biz_id->[%s]", bk_biz_id)
+
+
+class ListBkBaseRtInfoByBizIdResource(Resource):
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info("ListBkBaseRtInfoByBizIdResource: start query bkbase rts for biz_id->[%s]", bk_biz_id)
+        bkbase_rts = models.ResultTable.objects.filter(
+            bk_biz_id=bk_biz_id, default_storage=models.ClusterInfo.TYPE_BKDATA
+        )
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = bkbase_rts.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = bkbase_rts[offset : offset + page_size]
+            results = [rt.to_json() for rt in paginated_queryset]
+            return {"count": count, "info": results}
+
+        # 如果不分页，返回所有结果
+        results = [rt.to_json() for rt in bkbase_rts]
+        return results

@@ -320,6 +320,7 @@
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);
@@ -396,7 +397,7 @@
         sortList: [], // 排序字段
         notTextTypeFields: [], // 字段类型不为 text 的字段
         fieldAliasMap: {},
-        showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+        showFieldAlias: this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         tookTime: 0, // 耗时
         tableData: {}, // 表格结果
         bkmonitorUrl: false, // 监控主机详情地址
@@ -602,13 +603,19 @@
     },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
-    },
-    // beforeUnmount() {
-    //   updateTimezone();
-    //   this.$store.commit('updateUnionIndexList', []);
-    //   window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
 
-    // },
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
+        query: {
+          bizId: bkBizId,
+          spaceUid: spaceUid,
+          ...this.$route.query,
+        },
+      });
+    },
+
     beforeDestroy() {
       this.isInDestroy = true;
       updateTimezone();
@@ -1024,7 +1031,7 @@
         return target ? target.field_type : '';
       },
       // 添加过滤条件
-      addFilterCondition(field, operator, value, isLink = false) {
+      async addFilterCondition(field, operator, value, isLink = false) {
         const isExist = this.additionIsExist({ field, operator, value });
         // 已存在相同条件
         if (isExist) {
@@ -1037,7 +1044,7 @@
         if (!isLink) {
           this.retrieveParams.addition.splice(startIndex, 0, newAddition);
           this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
-          this.$refs.searchCompRef.setRouteParams();
+          await this.$refs.searchCompRef.setRouteParams({}, false, null, true);
           this.retrieveLog();
         } else {
           this.additionLinkOpen([newAddition]);
@@ -1689,8 +1696,9 @@
        */
       async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
         if (showFieldAlias !== undefined) {
-          this.showFieldAlias = showFieldAlias;
-          window.localStorage.setItem('showFieldAlias', showFieldAlias);
+          // bklog\web\src\views\retrieve\result-comp\fields-setting.vue 中修改别名配置
+          this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] = showFieldAlias;
+          this.$store.commit('updateStorage', { showFieldAlias });
         }
         await this.$nextTick();
         if (!isRequestFields) {

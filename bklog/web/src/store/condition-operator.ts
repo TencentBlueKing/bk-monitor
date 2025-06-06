@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,14 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-type ConsitionItem = {
-  field: string;
-  operator: string;
-  value: string[];
-  relation?: 'AND' | 'OR';
-  isInclude?: boolean;
-  field_type?: string;
-};
+
+import { ConsitionItem } from './store.type';
 
 class ConditionOperator {
   item: ConsitionItem;

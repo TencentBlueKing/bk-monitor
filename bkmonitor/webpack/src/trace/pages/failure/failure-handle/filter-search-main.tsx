@@ -86,6 +86,7 @@ export default defineComponent({
     const inputStatus = ref<string>('success');
     const isErr = ref(false);
     const selectRef = ref();
+    const showPopover = ref(false);
     const trigger = ref('default');
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
@@ -191,6 +192,7 @@ export default defineComponent({
       isErr,
       selectRef,
       trigger,
+      showPopover,
     };
   },
   render() {
@@ -205,12 +207,26 @@ export default defineComponent({
             v-model={this.spaceFilter}
             clearable={false}
             inputSearch={false}
-            prefix={this.t('空间筛选')}
             filterable
             multiple
             onChange={this.changeSpace}
             onBlur={() => {
               this.isErr && this.selectRef.showPopover();
+            }}
+            onToggle={() => {
+              this.showPopover = !this.showPopover;
+            }}
+            v-slots={{
+              prefix: () => {
+                return (
+                  <>
+                    <span class='main-select-prefix'>{this.t('业务筛选:')}</span>
+                    <span class='main-select-suffix'>
+                      <i class={['icon-monitor icon-mc-arrow-down', this.showPopover ? 'rotate-icon' : '']} />
+                    </span>
+                  </>
+                );
+              },
             }}
           >
             {this.spaceDataList.map(item => (

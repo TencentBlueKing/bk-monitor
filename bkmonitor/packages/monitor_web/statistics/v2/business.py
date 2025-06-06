@@ -208,7 +208,7 @@ class BusinessCollector(BaseCollector):
 
             metric.labels(time_range=le_en).set(len(active_business_list))
 
-    @register(labelnames=("function",))
+    @register(labelnames=("function",), run_every=60 * 60)
     def biz_usage_count(self, metric: Metric):
         """功能使用的业务数"""
 

@@ -30,6 +30,7 @@ from apps.generic import APIViewSet
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringDebugSerializer,
@@ -43,6 +44,15 @@ class ClusteringConfigViewSet(APIViewSet):
 
     def get_permissions(self):
         return []
+
+    @list_route(methods=["GET"], url_path="list_configs")
+    def list_configs(self, request, *args, **kwargs):
+        """
+        获取聚类配置列表
+        """
+        if not request.user.is_superuser:
+            return Response([])
+        return Response(ClusteringConfigHandler.list_all_configs())
 
     @detail_route(methods=["GET"], url_path="config")
     def get_config(self, request, *args, index_set_id=None, **kwargs):

@@ -362,6 +362,76 @@
     }
   }
 
+  .event-link {
+    padding-left: 44px;
+
+    .event-link-item {
+      .title {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #313238;
+      }
+
+      .desc {
+        margin: 4px 0 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #979ba5;
+      }
+
+      .tips {
+        height: 32px;
+        padding: 0 10px;
+        margin-left: 94px;
+        font-size: 12px;
+        line-height: 32px;
+        background: #f0f1f5;
+        border-radius: 2px;
+
+        .icon-tishi {
+          margin-right: 5px;
+          font-size: 14px;
+          color: #4d4f56;
+          vertical-align: middle;
+        }
+
+        .text {
+          vertical-align: middle;
+        }
+
+        .link {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .manual-relation {
+        display: flex;
+
+        .label {
+          margin-right: 8px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #4d4f56;
+        }
+
+        .content {
+          .auto-relation-btn {
+            margin-bottom: 8px;
+            color: #3a84ff;
+            cursor: pointer;
+
+            .icon-a-3yuan-bohui {
+              margin-right: 5px;
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+
   .form-content {
     padding-bottom: 24px !important;
   }
@@ -484,6 +554,32 @@
 
     button {
       width: 88px;
+    }
+  }
+
+  .event-detail-title {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    margin-bottom: 6px;
+    color: #4d4f56;
+  }
+
+  .event-detail-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    color: #4d4f56;
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 0 8px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

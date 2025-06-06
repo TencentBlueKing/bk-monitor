@@ -13,7 +13,7 @@
     display: flex;
     align-items: center;
     width: 320px;
-    padding-left: 24px;
+    padding-left: 16px;
 
     .title {
       font-size: 16px;
@@ -84,30 +84,6 @@
       .dashboard-tools-interval {
         &::after {
           display: none;
-        }
-      }
-    }
-
-    .goto-old {
-      display: flex;
-      align-items: center;
-      min-width: 81px;
-      padding: 0 12px 0 13px;
-      color: #3a84ff;
-      border-left: 1px solid #eaebf0;
-
-      .goto-old-wrap {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-      }
-
-      .icon {
-        margin-right: 5px;
-        transform: rotateY(180deg);
-
-        .icon-zhuanhuan {
-          font-size: 14px;
         }
       }
     }

@@ -40,7 +40,10 @@ interface IProps {
   needLayout?: boolean;
   showCollapse?: boolean;
   title: string;
+  headerTips: string;
   info: IInfo;
+  valueCount?: number;
+  valueTotal?: number;
 }
 
 @Component({
@@ -51,6 +54,7 @@ interface IProps {
 export default class AiopsMetricsCollapse extends tsc<IProps> {
   @Prop({ type: Object, default: () => {} }) info: IInfo;
   @Prop({ type: String, default: '' }) title: string;
+  @Prop({ type: String, default: '' }) headerTips: string;
   /** 图表布局方式 0: 一栏 1: 二栏 2: 三栏 */
   @Prop({ default: 0, type: Number }) layoutActive: number;
   /** 是否需要图表分栏布局按钮 */
@@ -58,6 +62,8 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
 
   /** 是否展示头部展开收起 */
   @Prop({ default: true, type: Boolean }) showCollapse: boolean;
+  @Prop({ type: Number }) valueCount: number;
+  @Prop({ type: Number }) valueTotal: number;
 
   /** 展开收起 */
   isCollapse = false;
@@ -119,6 +125,9 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
   render() {
     return (
       <div
+        style={{
+          marginBottom: this.showCollapse ? '8px' : '0',
+        }}
         class='aiops-correlation-metrics'
         v-resize={this.handleResize}
       >
@@ -128,69 +137,32 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
               'correlation-metrics-collapse-head',
               `correlation-metrics-collapse-head-${!this.showCollapse ? 'hide' : 'show'}`,
             ]}
+            v-bk-tooltips={{
+              disabled: !this.headerTips,
+              placement: 'left',
+              content: this.headerTips,
+            }}
+            onClick={() => this.handleToggleCollapse(false)}
           >
             <i
               class={[
                 'bk-icon bk-card-head-icon collapse-icon',
                 this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
               ]}
-              onClick={this.handleToggleCollapse.bind(this, false)}
             />
-            <span
-              class='correlation-metrics-title'
-              onClick={this.handleToggleCollapse.bind(this, false)}
+            <div
+              class='metric-title'
+              v-bk-overflow-tips
             >
               {this.title}
-            </span>
-            <div class={['correlation-metrics-right', this.showLayoutPopover && 'correlation-metrics-right-show']}>
-              {this.needLayout && (
-                <bk-popover
-                  ref='popover'
-                  placement='bottom'
-                  {...{
-                    props: {
-                      extCls: 'correlation-metrics-layout-popover',
-                      arrow: false,
-                      delay: 0,
-                      theme: 'light',
-                      onShow: () => (this.showLayoutPopover = true),
-                      onHide: () => (this.showLayoutPopover = false),
-                    },
-                  }}
-                >
-                  <span
-                    class='panels-tools-layout right-item'
-                    onClick={this.handleStop}
-                  >
-                    <i
-                      class='icon-monitor icon-mc-two-column'
-                      v-bk-tooltips={{
-                        content: this.currentLayout.name,
-                        delay: 200,
-                        disabled: !!this.showLayoutName,
-                        appendTo: 'parent',
-                        allowHTML: false,
-                      }}
-                    />
-                    {this.showLayoutName ? <span class='layout-name'>{this.currentLayout.name}</span> : undefined}
-                  </span>
-                  <ul
-                    class='layout-list'
-                    slot='content'
-                  >
-                    {this.panelLayoutList.map(item => (
-                      <li
-                        key={item.id}
-                        class={`layout-list-item ${item.id === this.layoutActive + 1 ? 'item-active' : ''}`}
-                        onClick={() => this.handleChangeLayout(item.id)}
-                      >
-                        {item.name}
-                      </li>
-                    ))}
-                  </ul>
-                </bk-popover>
-              )}
             </div>
+            {this.valueCount && (
+              <span class='title-num'>
+                <strong>{this.valueCount}</strong>
+                {this.valueTotal ? '/' : ''}
+                {this.valueTotal || ''}
+              </span>
+            )}
           </div>
           <bk-transition name='collapse'>
             <div

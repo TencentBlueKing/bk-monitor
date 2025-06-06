@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,14 +12,18 @@ import copy
 import logging
 import re
 
+from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from api.grafana.exporter import DashboardExporter
 from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from constants.data_source import DataSourceLabel
 from core.drf_resource import api, resource
 from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
@@ -32,6 +35,7 @@ from monitor_web.models import (
     DeploymentConfigVersion,
     ImportDetail,
     ImportParse,
+    TargetObjectType,
 )
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.resources import CreatePluginResource
@@ -46,7 +50,8 @@ def import_plugin(bk_biz_id, plugin_config):
     plugin_id = config["plugin_id"]
     plugin_type = config["plugin_type"]
     config["bk_biz_id"] = bk_biz_id
-    exist_plugin = CollectorPluginMeta.objects.filter(plugin_id=plugin_id).first()
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    exist_plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).first()
     if exist_plugin:
         # 避免导入包和原插件内容一致，文件名不同
         def handle_collector_json(config_value):
@@ -81,9 +86,9 @@ def import_plugin(bk_biz_id, plugin_config):
             with transaction.atomic():
                 serializers_obj.save()
                 plugin_manager = PluginManagerFactory.get_manager(
-                    plugin=plugin_id, plugin_type=plugin_type, operator=local.username
+                    bk_tenant_id=bk_tenant_id, plugin=plugin_id, plugin_type=plugin_type, operator=local.username
                 )
-                version, no_use = plugin_manager.create_version(config)
+                version, need_debug = plugin_manager.create_version(config)
             result = resource.plugin.plugin_register(
                 plugin_id=version.plugin.plugin_id,
                 config_version=version.config_version,
@@ -145,6 +150,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             import_collect_obj.error_msg = ""
             import_collect_obj.save()
 
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     for import_collect_config in collect_config_list:
         parse_instance = ImportParse.objects.get(id=import_collect_config.parse_id)
         config = parse_instance.config
@@ -171,7 +177,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             import_collect_config.save()
             continue
 
-        plugin_obj = CollectorPluginMeta.objects.get(plugin_id=plugin_instance.config_id)
+        plugin_obj = CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin_instance.config_id)
         deployment_config_params = {
             "plugin_version": plugin_obj.packaged_release_version,
             "target_node_type": config["target_node_type"],
@@ -186,7 +192,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
                 last_operation=OperationType.CREATE,
                 operation_result=OperationResult.PREPARING,
                 collect_type=config["collect_type"],
-                plugin=plugin_obj,
+                plugin_id=plugin_obj.plugin_id,
                 target_object_type=config["target_object_type"],
                 label=config["label"],
             )
@@ -227,6 +233,9 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
     }
 
+    # 新创建的轮值规则，旧hash与到新hash的映射
+    old_hash_to_new_hash = {}
+
     for strategy_config in strategy_config_list:
         try:
             parse_instance = ImportParse.objects.get(id=strategy_config.parse_id)
@@ -258,11 +267,19 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 for rule_info in group_detail.get("duty_rules_info") or []:
                     # 优先沿用 hash 相同的旧 duty_rule 记录
                     rule = existed_hash_to_rule.get(rule_info["hash"])
+                    if rule_info["hash"] in old_hash_to_new_hash:
+                        rule_info["hash"] = old_hash_to_new_hash[rule_info["hash"]]
+
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
                     new_rule = rule_serializer.save()
+
+                    # 记录新创建的轮值规则与旧hash的映射
+                    existed_hash_to_rule[rule_info["hash"]] = new_rule
+                    old_hash_to_new_hash[rule_info["hash"]] = new_rule.hash
                     # 记录新旧 id 对应关系
                     rule_id_mapping[rule_info["id"]] = new_rule.id
+
                 # 更新用户组与规则的关联
                 group_detail["duty_rules"] = (
                     [rule_id_mapping.get(old_id, old_id) for old_id in group_detail["duty_rules"]]
@@ -377,6 +394,7 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
             # 导入仪表盘，清理配置id
             create_config.pop("id", None)
             uid = create_config.pop("uid", "")
+            folder_id = create_config.pop("folderId", None)
             logger.info(str(create_config))
             # 非覆盖模式，视图重名增加后缀
             if not is_overwrite_mode:
@@ -403,7 +421,16 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
 
                 inputs.append({"name": input_field["name"], **data_sources[input_field["pluginId"]]})
 
-            result = api.grafana.import_dashboard(dashboard=create_config, org_id=org_id, inputs=inputs, overwrite=True)
+            params = {
+                "dashboard": create_config,
+                "org_id": org_id,
+                "inputs": inputs,
+                "overwrite": True,
+            }
+            if folder_id is not None:
+                params["folderId"] = folder_id
+
+            result = api.grafana.import_dashboard(**params)
             if result["result"]:
                 view_config.config_id = uid
                 view_config.import_status = ImportDetailStatus.SUCCESS
@@ -420,3 +447,87 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
             view_config.import_status = ImportDetailStatus.FAILED
             view_config.error_msg = str(e)
             view_config.save()
+
+
+def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
+    """
+    获取策略配置列表（包含用户组详细信息）
+    """
+    strategy_configs = resource.strategies.get_strategy_list_v2(
+        bk_biz_id=bk_biz_id,
+        conditions=[{"key": "id", "value": strategy_ids}],
+        page=0,
+        page_size=0,
+        with_user_group=True,
+        with_user_group_detail=True,
+        # 导出时保留原始配置不转换grafana相关配置
+        convert_dashboard=False,
+    )["strategy_config_list"]
+
+    # 目标类型与维度映射关系（用于指标拆分策略处理）
+    target_type_to_dimensions = {
+        TargetObjectType.HOST: ["bk_target_ip", "bk_target_cloud_id"],
+        TargetObjectType.SERVICE: ["bk_target_service_instance_id"],
+    }
+
+    # 遍历处理每个策略配置
+    for result_data in strategy_configs:
+        strategy_id = result_data.get("id")
+
+        # 处理指标拆分策略配置
+        for item_msg in result_data["items"]:
+            item_msg["target"] = [[]]  # 重置目标配置
+            for query_config in item_msg["query_configs"]:
+                # 处理CMDB层级指标的特殊配置
+                if query_config.get("result_table_id", "").endswith("_cmdb_level"):
+                    # 还原原始配置并扩展维度信息
+                    extend_msg = query_config["origin_config"]
+                    strategy_instance = StrategyModel.objects.get(id=strategy_id)
+                    target_type = strategy_instance.target_type
+                    query_config["result_table_id"] = extend_msg["result_table_id"]
+                    query_config["agg_dimension"] = extend_msg["agg_dimension"]
+                    query_config["extend_fields"] = {}
+                    # 添加目标类型对应的默认维度
+                    query_config["agg_dimension"].extend(target_type_to_dimensions[target_type])
+
+                # 处理数据标签导出配置（自定义上报和插件采集类型）
+                data_label = query_config.get("data_label", None)
+                if (
+                    settings.ENABLE_DATA_LABEL_EXPORT
+                    and data_label
+                    and (
+                        query_config.get("data_source_label", None)
+                        in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
+                    )
+                ):
+                    # 替换结果表ID为数据标签
+                    query_config["metric_id"] = re.sub(
+                        rf"\b{query_config['result_table_id']}\b", data_label, query_config["metric_id"]
+                    )
+                    query_config["result_table_id"] = data_label
+
+    return strategy_configs
+
+
+def get_view_config(bk_biz_id: int, view_ids: list[str]) -> dict[str, dict]:
+    """
+    获取仪表盘配置:
+    """
+    uid_config_mapping = {}
+
+    org_id = get_or_create_org(bk_biz_id)["id"]
+    data_sources = api.grafana.get_all_data_source(org_id=org_id)["data"]
+
+    # 仪表盘数据导出处理流程
+    for view_config_id in view_ids:
+        # 通过Grafana API获取仪表盘配置
+        result = api.grafana.get_dashboard_by_uid(uid=view_config_id, org_id=org_id)
+
+        # 校验API响应数据结构有效性
+        if result["result"] and result["data"].get("dashboard"):
+            dashboard = result["data"]["dashboard"]
+            # 数据格式转换处理
+            DashboardExporter(data_sources).make_exportable(dashboard)
+            uid_config_mapping[view_config_id] = result["data"]
+
+    return uid_config_mapping

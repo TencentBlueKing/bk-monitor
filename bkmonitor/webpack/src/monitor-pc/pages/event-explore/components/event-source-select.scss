@@ -1,0 +1,55 @@
+.event-source-select-list-xxxxxxx {
+  padding: 4px 0;
+
+  .event-source-select-item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #4D4F56;
+    cursor: pointer;
+
+    .bk-form-checkbox .bk-checkbox-text{
+      font-size: 12px;
+
+      .icon-monitor {
+        font-size: 14px;
+      }
+    }
+
+    .icon-all {
+      color: #2F567D;
+      vertical-align: middle;
+    }
+
+    .source-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+
+      &.icon-host {
+        background-image: url('../../../../monitor-common/svg/svg/host.svg');
+      }
+
+      &.icon-bcs {
+        background-image: url('../../../../monitor-common/svg/svg/bcs.svg');
+      }
+
+      &.icon-landun {
+        background-image: url('../../../../monitor-common/svg/svg/landun.svg');
+      }
+
+      &.icon-default {
+        background-image: url('../../../../monitor-common/svg/svg/default.svg');
+      }
+    
+    }
+
+    .name {
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  }
+}

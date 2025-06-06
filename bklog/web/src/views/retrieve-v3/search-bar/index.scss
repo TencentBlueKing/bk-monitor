@@ -1,0 +1,9 @@
+.v3-search-bar-root {
+  width: 100%;
+  padding: 0 8px;
+
+  &.is-sticky-top {
+    padding: 0;
+    transition: all 0.3s ease;
+  }
+}

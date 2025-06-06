@@ -1,0 +1,163 @@
+.explore-kv-list {
+  .kv-list-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 22px;
+    line-height: 14px;
+
+    %kv-row-hover {
+      &:not(.disable-click) {
+        text-decoration: underline;
+        cursor: pointer;
+      }
+    }
+
+    %kv-text-hover {
+      &:not(.disable-click):hover {
+        color: #3a84ff;
+      }
+    }
+
+    &:nth-child(odd) {
+      background-color: #fff;
+    }
+
+    &.active-row {
+      background-color: #f0f1f5;
+
+      .item-label .label-text {
+        @extend %kv-row-hover;
+
+        &.active-column {
+          color: #3a84ff;
+        }
+      }
+
+      .item-value {
+        .value-text,
+        .value-word {
+          @extend %kv-row-hover;
+
+          &.active-column {
+            color: #3a84ff;
+          }
+        }
+
+        .value-segments {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    &:hover {
+      background-color: #f0f1f5;
+
+      .item-label .label-text {
+        @extend %kv-row-hover;
+      }
+
+      .item-value {
+        .value-text,
+        .value-word {
+          @extend %kv-row-hover;
+        }
+      }
+
+      .value-segments {
+        text-decoration: underline;
+      }
+    }
+
+    .item-label {
+      display: flex;
+      flex-shrink: 0;
+      column-gap: 4px;
+      width: 210px;
+      color: #4d4f56;
+
+      .kv-label-icon {
+        flex-shrink: 0;
+        line-height: normal;
+      }
+
+      .label-text {
+        display: inline-block;
+        flex-basis: auto;
+        min-width: 0;
+        padding-right: 6px;
+        word-break: break-all;
+        @extend %kv-text-hover;
+      }
+    }
+
+    .item-value {
+      display: flex;
+      flex-wrap: wrap;
+      min-width: 0;
+      color: #313238;
+      white-space: pre-wrap;
+
+      .value-jump-link {
+        display: inline;
+        flex-shrink: 0;
+        margin-right: 10px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .icon-mc-goto {
+          margin-left: 2px;
+          font-size: 14px;
+        }
+      }
+
+      .value-text {
+        flex: 1;
+        min-width: 0;
+        word-break: break-all;
+        @extend %kv-text-hover;
+      }
+
+      .value-word {
+        @extend %kv-text-hover;
+      }
+    }
+  }
+}
+
+.explore-kv-list-menu {
+  width: 178px;
+  padding: 4px 0;
+
+  .menu-item {
+    display: flex;
+    column-gap: 4px;
+    align-items: center;
+    height: 32px;
+    padding-right: 10px;
+    padding-left: 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+
+    .icon-monitor,
+    .item-suffix {
+      flex-shrink: 0;
+    }
+
+    .hover-blue {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    span {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+}

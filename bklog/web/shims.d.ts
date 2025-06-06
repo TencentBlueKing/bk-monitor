@@ -34,11 +34,17 @@ declare module '*.svg';
 declare module 'screenfull';
 declare module 'sql-formatter';
 
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/api/*';
-declare module '@/api';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
-declare module '@/store/*';
+// declare module '@/hooks/use-store';
+// declare module '@/hooks/use-locale';
+// declare module '@/api/*';
+// declare module '@/api';
+// declare module '@/hooks/*';
+// declare module '@/common/*';
+// declare module '@/skeleton/*';
+// declare module '@/store/*';
+// declare module '@/global/*';
+
+declare module '*.module.scss' {
+  const classes: { [key: string]: string };
+  export default classes;
+}

@@ -33,8 +33,8 @@
       <div class="item-container">
         <bk-select
           v-model="biz.value"
-          readonly
           :clearable="false"
+          readonly
         >
           <bk-option
             v-for="(item, index) in biz.list"
@@ -62,9 +62,9 @@
         >
           <bk-button
             v-for="(item, index) in bkGroup.list"
-            :key="index"
             class="scope-item"
             :class="{ 'is-selected': bkGroup.value === item.id }"
+            :key="index"
             @click.stop="handleScopeChange(item.id)"
           >
             {{ item.name }}
@@ -100,20 +100,20 @@
     <!-- 提示信息end -->
 
     <div
-      v-show="bkGroup.value !== 'biz' && !isEdit"
       class="set-shield-config-item topo-selector"
+      v-show="bkGroup.value !== 'biz' && !isEdit"
     >
       <div class="item-label" />
       <div
-        class="item-container"
         style="width: 80%"
+        class="item-container"
       >
         <alarm-shield-ipv6
-          v-if="inited"
-          :show-dialog="showIpv6Dialog"
-          :shield-dimension="bkGroup.value"
+          v-if="initialized"
           :checked-value="ipv6Value"
           :origin-checked-value="originIpv6Value"
+          :shield-dimension="bkGroup.value"
+          :show-dialog="showIpv6Dialog"
           :show-view-diff="isClone"
           @change="handleValueChange"
           @closeDialog="handleIpv6DialogChange"
@@ -140,9 +140,9 @@
       <div class="item-container shield-cause">
         <bk-input
           v-model="shieldDesc"
-          type="textarea"
-          :row="3"
           :maxlength="100"
+          :row="3"
+          type="textarea"
         />
       </div>
     </div>
@@ -232,9 +232,9 @@ export default {
             this.handleSetEditOrCloneData(newVal);
             break;
           case 'alarm-shield-clone':
-            this.inited = false;
+            this.initialized = false;
             this.handleSetEditOrCloneData(newVal);
-            this.$nextTick(() => (this.inited = true));
+            this.$nextTick(() => (this.initialized = true));
             break;
           default:
             break;
@@ -294,7 +294,7 @@ export default {
         showIpv6Dialog: false,
         ipv6Value: {},
         originIpv6Value: {},
-        inited: true,
+        initialized: true,
       };
     },
     handleScopeChange(v) {

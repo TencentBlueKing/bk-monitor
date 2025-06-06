@@ -50,12 +50,12 @@
               :compare-list="compareList"
               :compare-hide="compareList.length < 2"
               :value="compareValue"
-              :reflesh-list="refleshList"
+              :refresh-list="refreshList"
               :timeshift-list="timeshiftList"
               :timerange-list="timerangeList"
               @change="handleComparePanelChange"
               @add-timeshift-option="handleAddTimeshifOption"
-              @on-immediate-reflesh="handleImmediateReflesh"
+              @on-immediate-refresh="handleImmediateRefresh"
             />
           </div>
           <div
@@ -88,7 +88,7 @@
                 :key="renderKey + '_' + queryConfigKey"
                 :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :height="drag.height - 20"
-                :reflesh-interval="compareValue.tools.refleshInterval"
+                :refresh-interval="compareValue.tools.refreshInterval"
                 :title="title"
                 :subtitle="subtitle"
                 :options="chartOptions"
@@ -263,7 +263,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     tool: { list: ['screenshot', 'set', 'strategy', 'area'] },
     annotation: { show: true },
   }; //  图表类型
-  refleshKey = 'refleshKey'; // 图表刷新控制
+  refreshKey = 'refreshKey'; // 图表刷新控制
   isRightBoxShow = true; // 是否收起右侧指标栏
   rightData = []; // 右侧指标数据
   queryconfig: any = []; // 图表查询参数
@@ -279,7 +279,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       value: '', // 对应对比类型的值
     },
     tools: {
-      refleshInterval: -1, // 刷新间隔 -1是不刷新
+      refreshInterval: -1, // 刷新间隔 -1是不刷新
       timeRange: ['now-1m', 'now'], // 图表横轴时间范围
     },
   };
@@ -298,7 +298,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       name: window.i18n.t('指标对比'),
     },
   ];
-  refleshList: { name: any; id: number }[] = DEFAULT_REFLESH_LIST;
+  refreshList: { name: any; id: number }[] = DEFAULT_REFLESH_LIST;
 
   tableTdMaxMinMap = [];
   queryConfigKey = random(10);
@@ -316,7 +316,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       // JSON.stringify(this.queryconfig)
       JSON.stringify(this.compareValue.tools.timeRange) +
       JSON.stringify(this.compareValue.compare.value) +
-      this.refleshKey
+      this.refreshKey
     );
   }
 
@@ -424,7 +424,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     //   }
     // }
     this.compareValue.tools.timeRange = tools.timeRange;
-    this.compareValue.tools.refleshInterval = tools.refleshInterval;
+    this.compareValue.tools.refreshInterval = tools.refreshInterval;
   }
 
   //  获取图表时间范围
@@ -691,8 +691,8 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
     return this.tableTdMaxMinMap[index].min === item;
   }
 
-  handleImmediateReflesh() {
-    this.refleshKey = String(+new Date());
+  handleImmediateRefresh() {
+    this.refreshKey = String(+new Date());
   }
   /**
    * 导出csv文件

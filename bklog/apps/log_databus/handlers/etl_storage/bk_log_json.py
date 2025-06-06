@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 
 from apps.log_databus.constants import EtlConfig
@@ -74,6 +74,15 @@ class BkLogJsonEtlStorage(EtlStorage):
             "time_option": result_table_fields["time_field"]["option"],
         }
 
+    def _to_bkdata_assign_json(self, field):
+        alias_name = field.get("alias_name")
+        field_name = field.get("field_name")
+        return {
+            "key": field_name,
+            "assign_to": alias_name if alias_name else field_name,
+            "type": self.get_es_field_type(field),
+        }
+
     def get_bkdata_fields_configs(self, bkdata_fields):
         fields_type_object = [field for field in bkdata_fields if field["field_type"] == "object"]
         fields_no_type_object = [field for field in bkdata_fields if field["field_type"] != "object"]
@@ -84,7 +93,7 @@ class BkLogJsonEtlStorage(EtlStorage):
                     "next": None,
                     "subtype": "assign_obj",
                     "label": "labela2dfe3",
-                    "assign": [self._to_bkdata_assign(field) for field in fields_no_type_object],
+                    "assign": [self._to_bkdata_assign_json(field) for field in fields_no_type_object],
                     "type": "assign",
                 }
             )
@@ -96,8 +105,8 @@ class BkLogJsonEtlStorage(EtlStorage):
                         "subtype": "access_obj",
                         "label": "label2c773e" + str(count),
                         "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                        "result": f'{field.get("alias_name") if field.get("alias_name") else field.get("field_name")}_json',
-                        "default_type": "null",
+                        "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
+                        "default_type": "text",
                         "default_value": "",
                         "next": {
                             "type": "assign",

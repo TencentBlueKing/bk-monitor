@@ -29,9 +29,15 @@
         &-list {
           margin-left: 16px;
         }
+
+        & + .data-type {
+          margin-left: 24px;
+        }
       }
 
       .link-tips {
+        margin-left: auto;
+
         .icon-monitor {
           margin-right: 4px;
           font-size: 14px;

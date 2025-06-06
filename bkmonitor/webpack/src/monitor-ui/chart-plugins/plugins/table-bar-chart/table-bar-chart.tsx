@@ -33,7 +33,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
+import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMixin } from '../../mixins';
 import { createImg, setStyle } from '../../utils';
 import BaseEchart from '../monitor-base-echart';
 
@@ -72,8 +72,8 @@ interface INumberChartProps {
 }
 @Component
 class TableBarChart extends Mixins<
-  ChartLoadingMixin & IntersectionMixin & ChartLoadingMixin & LegendMixin & ToolsMxin & ResizeMixin
->(IntersectionMixin, ChartLoadingMixin, ChartLoadingMixin, LegendMixin, ToolsMxin, ResizeMixin) {
+  ChartLoadingMixin & IntersectionMixin & ChartLoadingMixin & LegendMixin & ToolsMixin & ResizeMixin
+>(IntersectionMixin, ChartLoadingMixin, ChartLoadingMixin, LegendMixin, ToolsMixin, ResizeMixin) {
   @Prop({ required: true }) panel: PanelModel;
   @Ref() scrollRef: HTMLElement;
   @Ref() baseChartRef: InstanceType<typeof BaseEchart>;
@@ -102,7 +102,7 @@ class TableBarChart extends Mixins<
    * @description: 获取图表数据
    */
   async getPanelData() {
-    this.unregisterOberver();
+    this.unregisterObserver();
     this.handleLoadingChange(true);
     const data = await this.mockData().finally(() => this.handleLoadingChange(false));
     data && this.updateChartData(data);

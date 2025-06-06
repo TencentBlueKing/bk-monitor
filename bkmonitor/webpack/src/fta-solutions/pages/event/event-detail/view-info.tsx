@@ -35,7 +35,7 @@ import { transformDataKey, typeTools } from 'monitor-common/utils/utils';
 import { type IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import MonitorEchart from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
+import AiopsChartEvent, { createAutoTimeRange } from './aiops-chart';
 import IntelligenceScene from './intelligence-scene';
 import LoadingBox from './loading-box';
 import OutlierDetectionChart from './outlier-detection-chart';
@@ -442,7 +442,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       }));
       if (this.hasTraceSeries) {
         const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-        const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
+        const { startTime, endTime } = createAutoTimeRange(this.detail.begin_time, this.detail.end_time, interval);
         this.traceInfoTimeRange = {
           start_time: dayjs.tz(startTime).unix(),
           end_time: dayjs.tz(endTime).unix(),

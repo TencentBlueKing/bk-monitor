@@ -55,3 +55,6 @@ LOG_DESENSITIZE = "log_desensitize"
 
 # AI 助手
 AI_ASSISTANT = 'ai_assistant'
+
+# unify_query_search查询的开关
+UNIFY_QUERY_SEARCH = "unify_query_search"

@@ -126,7 +126,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     scenario_config: {
       index_set_id: 0,
       // 需要从 slider 上进行转换
-      pattern_level: '09',
+      pattern_level: '05',
       log_display_count: 30,
       year_on_year_hour: 1,
       generate_attachment: true,
@@ -386,9 +386,9 @@ class QuickCreateSubscription extends tsc<IProps> {
     };
   }
 
-  handleSliderChange() {
-    this.formData.scenario_config.pattern_level = PatternLevelEnum[this.pattenLevelSlider] || '01';
-  }
+  // handleSliderChange() {
+  //   this.formData.scenario_config.pattern_level = PatternLevelEnum[this.pattenLevelSlider] || '01';
+  // }
 
   handleDataRangeExchange() {
     this.formData.frequency.data_range = this.getTimeRangeObj(this.dataRange);
@@ -585,8 +585,8 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.formData.name = `${targetTitle}-${this.$store.state.userMeta?.username || ''}`;
 
     const clusterRouteParams = JSON.parse(this.$route.query.clusterRouteParams || '{}');
-    this.pattenLevelSlider = PatternLevelEnum[clusterRouteParams?.requestData?.pattern_level || '09'];
-    this.handleSliderChange();
+    // this.pattenLevelSlider = PatternLevelEnum[clusterRouteParams?.requestData?.pattern_level || '09'];
+    // this.handleSliderChange();
     if (clusterRouteParams?.requestData?.year_on_year_hour) {
       this.formData.scenario_config.year_on_year_hour = clusterRouteParams?.requestData?.year_on_year_hour;
     } else {
@@ -600,7 +600,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.$http
       .request('retrieve/getIndexSetList', {
         query: {
-          space_uid: this.$route.query.spaceUid,
+          space_uid: this.$store.state.space.space_uid,
         },
       })
       .then(response => {
@@ -777,7 +777,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   </div>
                 )}
 
-                <bk-form-item
+                {/* <bk-form-item
                   style='margin-top: 20px;'
                   label='Pattern'
                   property='scenario_config.pattern_level'
@@ -795,12 +795,13 @@ class QuickCreateSubscription extends tsc<IProps> {
                     ></bk-slider>
                     <span class='text-content'>{this.$t('多')}</span>
                   </div>
-                </bk-form-item>
+                </bk-form-item> */}
 
                 <bk-form-item
                   error-display-type='normal'
                   label={this.$t('最大展示数量')}
                   property='scenario_config__log_display_count'
+                  style='margin-top: 20px;'
                   required
                 >
                   <bk-input

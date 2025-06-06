@@ -121,15 +121,15 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     service_name: '',
     endpoint_name: '',
   };
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
 
   get tabs() {
     if (this.curType === 'endpoint') {
-      return [{ id: 'service', name: window.i18n.tc('服务') }];
+      return [{ id: 'service', name: window.i18n.t('服务') }];
     }
     return [
-      { id: 'service', name: window.i18n.tc('服务') },
-      { id: 'log', name: window.i18n.tc('日志') },
+      { id: 'service', name: window.i18n.t('服务') },
+      { id: 'log', name: window.i18n.t('日志') },
     ];
   }
 
@@ -163,9 +163,9 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.moreLink = '';
     }
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v && this.serviceName && this.appName) this.initPanel();
   }
 

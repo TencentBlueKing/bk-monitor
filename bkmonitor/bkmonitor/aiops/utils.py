@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Dict, Optional
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.models.aiops import AIFeatureSettings
@@ -24,6 +25,7 @@ from constants.aiops import (
     METRIC_RECOMMEND,
     MULTIVARIATE_ANOMALY_DETECTION,
 )
+from constants.data_source import DATA_TYPE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("bkmonitor.aiops")
 
@@ -99,6 +101,8 @@ class MultivariateAnomalyDetection:
 class DimensionDrill(BaseAnomalyConfig):
     # 维度下钻
     is_enabled: bool = field(default=False)
+    is_supported: bool = field(default=True)
+    error_msg: str = field(default="")
 
 
 @dataclass
@@ -106,6 +110,8 @@ class MetricRecommend(BaseAnomalyConfig):
     # 指标推荐
     is_enabled: bool = field(default=False)
     result_table_id: str = field(default="")
+    is_supported: bool = field(default=True)
+    error_msg: str = field(default="")
 
 
 class ReadOnlyAiSetting:
@@ -114,14 +120,22 @@ class ReadOnlyAiSetting:
         config = config or self.default_config
 
         kpi_anomaly_detection = KpiAnomalyConfig().from_dict(config[KPI_ANOMALY_DETECTION])
-        kpi_anomaly_detection.is_sdk_enabled = True if kpi_anomaly_detection.is_sdk_enabled is None else None
+        kpi_anomaly_detection.is_sdk_enabled = (
+            True if kpi_anomaly_detection.is_sdk_enabled is None else kpi_anomaly_detection.is_sdk_enabled
+        )
         multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(config[MULTIVARIATE_ANOMALY_DETECTION])
         if DIMENSION_DRILL in config:
             dimension_drill = DimensionDrill.from_dict(config[DIMENSION_DRILL])
+            dimension_drill.is_supported = (
+                True if dimension_drill.is_supported is None else dimension_drill.is_supported
+            )
         else:
             dimension_drill = DimensionDrill()
         if METRIC_RECOMMEND in config:
             metric_recommend = MetricRecommend.from_dict(config[METRIC_RECOMMEND])
+            metric_recommend.is_supported = (
+                True if metric_recommend.is_supported is None else metric_recommend.is_supported
+            )
         else:
             metric_recommend = MetricRecommend()
 
@@ -130,13 +144,44 @@ class ReadOnlyAiSetting:
         self.dimension_drill = dimension_drill
         self.metric_recommend = metric_recommend
 
-    def to_dict(self):
-        return {
+    def to_dict(self, query_configs=None):
+        query_configs = query_configs or []
+
+        results = {
             KPI_ANOMALY_DETECTION: self.kpi_anomaly_detection.to_dict(),
             MULTIVARIATE_ANOMALY_DETECTION: self.multivariate_anomaly_detection.to_dict(),
             DIMENSION_DRILL: self.dimension_drill.to_dict(),
             METRIC_RECOMMEND: self.metric_recommend.to_dict(),
         }
+
+        # 多指标不支持
+        not_supported_msg = ""
+        if len(query_configs) > 1:
+            results[DIMENSION_DRILL]["is_supported"] = False
+            results[METRIC_RECOMMEND]["is_supported"] = False
+            not_supported_msg = _("多指标计算")
+        elif len(query_configs) == 1:
+            if query_configs[0]["data_type_label"] != DataTypeLabel.TIME_SERIES:
+                results[DIMENSION_DRILL]["is_supported"] = False
+                results[METRIC_RECOMMEND]["is_supported"] = False
+                not_supported_msg = DATA_TYPE_LABEL_ALIAS[query_configs[0]["data_type_label"]]
+            elif query_configs[0]["data_source_label"] not in (
+                DataSourceLabel.BK_MONITOR_COLLECTOR,
+                DataSourceLabel.BK_DATA,
+                DataSourceLabel.CUSTOM,
+            ):
+                results[DIMENSION_DRILL]["is_supported"] = False
+                results[METRIC_RECOMMEND]["is_supported"] = False
+
+                if query_configs[0]["data_source_label"] == DataSourceLabel.PROMETHEUS:
+                    not_supported_msg = _("PromSQL查询的指标")
+                elif query_configs[0]["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
+                    not_supported_msg = _("日志平台指标")
+
+        results[DIMENSION_DRILL]["error_msg"] = not_supported_msg
+        results[METRIC_RECOMMEND]["error_msg"] = not_supported_msg
+
+        return results
 
     def scene_is_access_aiops(self, scene):
         scene_config = getattr(self, scene)

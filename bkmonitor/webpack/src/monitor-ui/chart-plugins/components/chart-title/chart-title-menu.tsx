@@ -61,32 +61,32 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   created() {
     this.menuList = [
       {
-        name: window.i18n.tc('保存到仪表盘'),
+        name: window.i18n.t('保存到仪表盘'),
         checked: false,
         id: 'save',
         icon: 'mc-mark',
       },
       {
-        name: window.i18n.tc('截图到本地'),
+        name: window.i18n.t('截图到本地'),
         checked: false,
         id: 'screenshot',
         icon: 'mc-camera',
       },
       {
-        name: window.i18n.tc('查看大图'),
+        name: window.i18n.t('查看大图'),
         checked: false,
         id: 'fullscreen',
         icon: 'fullscreen',
       },
       {
-        name: window.i18n.tc('检索'),
+        name: window.i18n.t('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
         hasLink: true,
       },
       {
-        name: window.i18n.tc('下钻'),
+        name: window.i18n.t('下钻'),
         checked: false,
         id: 'drill-down',
         icon: 'xiazuan',
@@ -95,29 +95,29 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         children: [],
       },
       {
-        name: window.i18n.tc('相关告警'),
+        name: window.i18n.t('相关告警'),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
         hasLink: true,
       },
       {
-        name: window.i18n.tc('添加策略'),
+        name: window.i18n.t('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
         hasLink: true,
       },
       {
-        name: window.i18n.tc('Y轴固定最小值为0'),
+        name: window.i18n.t('Y轴固定最小值为0'),
         checked: false,
         id: 'set',
-        nextName: window.i18n.tc('Y轴自适应'),
+        nextName: window.i18n.t('Y轴自适应'),
         icon: 'mc-yaxis',
         nextIcon: 'mc-yaxis-scale',
       },
       {
-        name: window.i18n.tc('更多'),
+        name: window.i18n.t('更多'),
         checked: false,
         id: 'more',
         icon: 'gengduo',
@@ -126,21 +126,21 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         children: [
           {
             id: 'screenshot',
-            name: window.i18n.tc('截图到本地'),
+            name: window.i18n.t('截图到本地'),
             icon: 'mc-camera',
           },
           {
             id: 'export-csv',
-            name: window.i18n.tc('导出CSV'),
+            name: window.i18n.t('导出CSV'),
             icon: 'xiazai1',
           },
         ],
       },
       // {
-      //   name: window.i18n.tc('面积图'),
+      //   name: window.i18n.t('面积图'),
       //   checked: false,
       //   id: 'area',
-      //   nextName: window.i18n.tc('线性图'),
+      //   nextName: window.i18n.t('线性图'),
       //   icon: 'mc-area',
       //   nextIcon: 'mc-line'
       // }
@@ -349,7 +349,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
                 onClick={() => this.handleMetricSelect(item)}
               >
-                <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
+                <i class='icon-monitor icon-icon-mc-add-strategy strategy-icon' />
                 <span
                   class='field-name'
                   v-bk-overflow-tips

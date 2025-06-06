@@ -14,7 +14,7 @@ import json
 from django.db.models import Q
 
 from bkmonitor.models import ApiAuthToken, MetricListCache
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from core.errors.share import (
     InvalidParamsError,
     ParamsPermissionDeniedError,
@@ -40,11 +40,12 @@ class BaseApiAuthChecker:
     target_eq_map = {}
     target_cont_map = {}
 
-    def __init__(self, token):
+    def __init__(self, token: ApiAuthToken):
         self.request = get_request(peaceful=True)
         # api权限令牌
-        self.token: ApiAuthToken = token
+        self.token = token
         self.bk_biz_id: int = int(token.namespaces[0][4:])
+        self.bk_tenant_id: str = token.bk_tenant_id
         # 时间校验参数
         self.time_params: dict = self.get_time_params()
         # 过滤校验参数、场景校验参数、额外校验参数
@@ -240,7 +241,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
     def query_configs_check(self, query_configs):
         if self.scene_params["scene_id"].startswith("collect_"):
             bk_collect_config_id = int(self.scene_params["scene_id"].lstrip("collect_"))
-            plugin = CollectConfigMeta.objects.get(id=bk_collect_config_id).plugin
+            plugin = CollectConfigMeta.objects.get(bk_tenant_id=self.bk_tenant_id, id=bk_collect_config_id).plugin
             # targets校验
             filter_dict = query_configs[0]["filter_dict"]
             if self.filter_params and filter_dict.get("targets", []):
@@ -250,7 +251,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
             self.params_check(filter_dict)
         else:
             plugin_id = self.scene_params["scene_id"].lstrip("scene_plugin_")
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+            plugin = CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=plugin_id)
 
         # 结果表范围校验，暂不校验内部
         plugin_type = plugin.plugin_type.lower()
@@ -271,7 +272,11 @@ class CustomMetricApiAuthChecker(BaseApiAuthChecker):
 
     def query_configs_check(self, query_configs):
         custom_metric_id = int(self.scene_params["scene_id"].split("_")[-1])
-        config = CustomTSTable.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_metric_id)
+        config = CustomTSTable.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True),
+            pk=custom_metric_id,
+            bk_tenant_id=get_request_tenant_id(),
+        )
         table = query_configs[0].get("table", "")
         if table and not table.startswith(config.table_id):
             raise ParamsPermissionDeniedError(
@@ -286,7 +291,9 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
 
     def query_configs_check(self, query_configs):
         custom_event_id = int(self.scene_params["scene_id"].lstrip("custom_event_"))
-        config = CustomEventGroup.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_event_id)
+        config = CustomEventGroup.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), bk_tenant_id=self.bk_tenant_id, pk=custom_event_id
+        )
         table = query_configs[0].get("table", "")
         if table and not table.startswith(config.table_id):
             raise ParamsPermissionDeniedError(
@@ -296,7 +303,9 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
 
     def log_query_check(self, request_data):
         custom_event_id = int(self.scene_params["scene_id"].lstrip("custom_event_"))
-        config = CustomEventGroup.objects.get(Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), pk=custom_event_id)
+        config = CustomEventGroup.objects.get(
+            Q(bk_biz_id=self.bk_biz_id) | Q(is_platform=True), bk_tenant_id=self.bk_tenant_id, pk=custom_event_id
+        )
         table = request_data.get("result_table_id", "")
         if table != config.table_id:
             raise ParamsPermissionDeniedError(

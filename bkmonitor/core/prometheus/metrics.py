@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -38,7 +37,7 @@ DEPLOYMENT = DeploymentNotSet
 
 def refresh_deployment():
     try:
-        with open('/etc/hostname', 'r') as f:
+        with open("/etc/hostname") as f:
             hostname = f.read().strip()
         if hostname.count("-") < 2:
             return ""
@@ -327,19 +326,25 @@ DETECT_PROCESS_LATENCY = Histogram(
 AIOPS_DETECT_ERROR_COUNT = Gauge(
     name="bkmonitor_aiops_detect_error_count",
     documentation="AIOPS SDK检测异常类型统计",
-    labelnames=("strategy_id", "strategy_name", "error_code"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id", "error_code"),
 )
 
 AIOPS_DETECT_DIMENSION_COUNT = Gauge(
     name="bkmonitor_aiops_detect_dimension_count",
     documentation="AIOPS SDK策略覆盖维度数量",
-    labelnames=("strategy_id", "strategy_name"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
+)
+
+AIOPS_DETECT_INVALID_DIMENSION_RATE = Gauge(
+    name="bkmonitor_aiops_detect_invalid_dimension_rate",
+    documentation="AIOPS SDK策略无效维度比例",
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
 AIOPS_PRE_DETECT_LATENCY = Gauge(
     name="bkmonitor_aiops_pre_detect_latency",
     documentation="AIOPS SDK策略预检测耗时",
-    labelnames=("strategy_id", "strategy_name"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
 TRIGGER_PROCESS_LATENCY = Histogram(
@@ -1188,7 +1193,7 @@ METADATA_CRON_TASK_STATUS_TOTAL = Counter(
 METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
-    labelnames=("version", "biz_id", 'strategy', 'status'),
+    labelnames=("version", "biz_id", "strategy", "status"),
 )
 
 API_REQUESTS_TOTAL = Counter(
@@ -1197,5 +1202,16 @@ API_REQUESTS_TOTAL = Counter(
     labelnames=("action", "module", "code", "role"),
 )
 
+LOG_INDEX_ROTATE_TOTAL = Counter(
+    name="bkmonitor_log_index_rotate_total",
+    documentation="日志索引轮转状态",
+    labelnames=("table_id", "storage_cluster_id", "status"),
+)
+
+LOG_INDEX_ROTATE_REASON_TOTAL = Counter(
+    name="bkmonitor_log_index_rotate_reason_total",
+    documentation="日志索引轮转原因",
+    labelnames=("table_id", "storage_cluster_id", "reason"),
+)
 
 TOTAL_TAG = "__total__"

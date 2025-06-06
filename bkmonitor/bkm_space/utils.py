@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from bkm_space import api
 from bkm_space.define import SpaceTypeEnum
 
 
-def space_uid_to_bk_biz_id(space_uid: str, id: int = None) -> int:
+def space_uid_to_bk_biz_id(space_uid: str, id: Optional[int] = None) -> int:
     """
     空间唯一标识 转换为 业务ID
     规则：空间类型为业务的，直接返回业务ID；空间类型为其他，则返回空间自增ID的相反数

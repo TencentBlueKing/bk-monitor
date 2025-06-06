@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import abc
-from typing import List, Union
+from typing import List, Optional, Union
 
 from django.conf import settings
 from django.utils.module_loading import import_string
@@ -24,7 +24,7 @@ class AbstractSpaceApi(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @classmethod
-    def list_spaces(cls, refresh=False) -> List[Space]:
+    def list_spaces(cls, refresh=False, bk_tenant_id: Optional[str] = None) -> List[Space]:
         """
         查询空间列表
         """

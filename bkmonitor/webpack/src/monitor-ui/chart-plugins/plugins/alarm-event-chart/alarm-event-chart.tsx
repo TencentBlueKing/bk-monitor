@@ -33,7 +33,7 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../../mixins';
+import { ChartLoadingMixin, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMixin } from '../../mixins';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import BaseEchart from '../monitor-base-echart';
 
@@ -54,11 +54,11 @@ interface ILineEchartProps {
 }
 @Component
 class AlarmEventChart
-  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMxin & LegendMixin & ChartLoadingMixin>(
+  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMixin & LegendMixin & ChartLoadingMixin>(
     ResizeMixin,
     IntersectionMixin,
     LegendMixin,
-    ToolsMxin,
+    ToolsMixin,
     ChartLoadingMixin
   )
   implements ICommonCharts
@@ -146,7 +146,7 @@ class AlarmEventChart
    * @description: 获取图表数据
    */
   async getPanelData() {
-    this.unregisterOberver();
+    this.unregisterObserver();
     this.handleLoadingChange(true);
     const data = await this.mockData().finally(() => this.handleLoadingChange(false));
     data && this.updateChartData(data);

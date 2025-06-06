@@ -1,17 +1,22 @@
 <script setup>
-  import { defineEmits, defineProps, computed, watch, ref } from 'vue';
+  import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
-  const { $t } = useLocale();
-  const store = useStore();
+  import { useRoute } from 'vue-router/composables';
+  import $http from '@/api';
+
   const props = defineProps({
     value: {
       type: String,
       required: true,
     },
   });
+
+  const { $t } = useLocale();
+  const store = useStore();
+  const route = useRoute();
+
   const emit = defineEmits(['input']);
-  const isUserAction = ref(false);
 
   const indexSetId = computed(() => store.state.indexId);
 
@@ -19,7 +24,7 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
-  const chartParams = computed(() => store.state.indexItem.chart_params);
+  const retrieveParams = computed(() => store.getters.retrieveParams);
 
   const isAiopsToggle = computed(() => {
     return (
@@ -30,66 +35,18 @@
 
   const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
 
+  const isExternal = computed(() => window.IS_EXTERNAL === true);
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+      { name: 'grep', label: $t('Grep模式'), disabled: false },
     ];
   });
 
   const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
-
-  watch(
-    () => indexSetId,
-    () => {
-      isUserAction.value = false;
-    },
-  );
-
-  watch(
-    () => isAiopsToggle.value,
-    () => {
-      if (!isAiopsToggle.value && props.value === 'clustering') {
-        emit('input', 'origin');
-      }
-    },
-    { immediate: true },
-  );
-
-  watch(
-    () => isChartEnable.value,
-    () => {
-      if (!isChartEnable.value && props.value === 'graphAnalysis') {
-        emit('input', 'origin');
-      }
-    },
-    {
-      immediate: true,
-    },
-  );
-
-  watch(
-    () => chartParams.value,
-    () => {
-      if (chartParams.value.fromCollectionActiveTab === 'unused') {
-        isUserAction.value = false;
-        store.commit('updateChartParams', { fromCollectionActiveTab: 'used' });
-      }
-
-      if (
-        // isUserAction 判定用于避免图表分析页面延迟更新 chartParams 导致触发这里的Tab切换
-        !isUserAction.value &&
-        isChartEnable.value &&
-        props.value !== 'graphAnalysis' &&
-        chartParams.value.sql?.length > 0
-      ) {
-        emit('input', 'graphAnalysis');
-      }
-    },
-    { deep: true, immediate: true },
-  );
 
   const tabClassList = computed(() => {
     return renderPanelList.value.map((item, index) => {
@@ -104,13 +61,58 @@
     });
   });
 
-  const handleActive = panel => {
-    isUserAction.value = true;
-    emit('input', panel);
+  const handleAddAlertPolicy = async () => {
+    const params = {
+      bizId: store.state.bkBizId,
+      indexSetId: indexSetId.value,
+      scenarioId: '',
+      indexStatement: retrieveParams.value.keyword, // 查询语句
+      dimension: [], // 监控维度
+      condition: [], // 监控条件
+    };
+    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+    if (indexSet) {
+      params.scenarioId = indexSet.category_id;
+    }
+
+    if (retrieveParams.value.addition.length) {
+      const resp = await $http.request('retrieve/generateQueryString', {
+        data: {
+          addition: retrieveParams.value.addition,
+        },
+      });
+
+      if (resp.result) {
+        params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
+          .filter(item => item.length > 0 && item !== '*')
+          .join(' AND ');
+      }
+    }
+
+    const urlArr = [];
+    for (const key in params) {
+      if (key === 'dimension' || key === 'condition') {
+        urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
+      } else {
+        urlArr.push(`${key}=${params[key]}`);
+      }
+    }
+    window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
   };
+
+  const handleActive = panel => {
+    emit('input', panel, panel === 'origin');
+  };
+
+  onMounted(() => {
+    const tabName = route.query.tab ?? 'origin';
+    if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
+      handleActive(panelList.value[0].name);
+    }
+  });
 </script>
 <template>
-  <div class="retrieve-tab">
+  <div class="retrieve2-tab">
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"
@@ -118,6 +120,17 @@
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
+    <div
+      class="btn-alert-policy"
+      @click="handleAddAlertPolicy"
+      v-if="!isExternal"
+    >
+      <span
+        class="bklog-icon bklog--celve"
+        style="font-size: 16px"
+      ></span>
+      <span>{{ $t('添加告警策略') }}</span>
+    </div>
   </div>
 </template>
 <style lang="scss">

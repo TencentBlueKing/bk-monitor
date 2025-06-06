@@ -427,6 +427,9 @@ class ViewSetActionEnum(ChoicesEnum):
     FIELD_VIEWSET_TOPK = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_topk_list"
     )
+    FIELD_VIEWSET_VALUE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_value_list"
+    )
     # ======================================= 日志聚类-FieldViewSet =======================================
     CLUSTERING_CONFIG_VIEWSET_STATUS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
@@ -445,6 +448,21 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
+    )
+    PATTERN_VIEWSET_SET_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="set_remark"
+    )
+    PATTERN_VIEWSET_UPDATE_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="update_remark"
+    )
+    PATTERN_VIEWSET_DELETE_REMARK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="delete_remark"
+    )
+    PATTERN_VIEWSET_SET_OWNER = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="set_owner"
+    )
+    PATTERN_VIEWSET_GET_OWNERS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="get_owners"
     )
     # ======================================= 索引-IndexSetViewSet =======================================
     INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
@@ -584,11 +602,18 @@ class ViewSetActionEnum(ChoicesEnum):
         FIELD_VIEWSET_TOTAL,
         FIELD_VIEWSET_GRAPH,
         FIELD_VIEWSET_TOPK,
+        FIELD_VIEWSET_VALUE,
         # ======================================= 字段分析-FieldViewSet =======================================
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
         CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY,
+        # ======================================= 日志聚类-PatternViewSet =====================================
         PATTERN_VIEWSET_SEARCH,
+        PATTERN_VIEWSET_SET_REMARK,
+        PATTERN_VIEWSET_UPDATE_REMARK,
+        PATTERN_VIEWSET_DELETE_REMARK,
+        PATTERN_VIEWSET_SET_OWNER,
+        PATTERN_VIEWSET_GET_OWNERS,
         # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,

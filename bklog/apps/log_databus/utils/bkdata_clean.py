@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from blueapps.utils.unique import uniqid
 from django.core.cache import cache
 
@@ -45,8 +45,10 @@ class BKDataCleanUtils:
     def __init__(self, raw_data_id):
         self.raw_data_id = raw_data_id
 
-    def get_bkdata_clean(self):
-        config_db_list = BkDataDatabusApi.get_config_db_list(params={"raw_data_id": self.raw_data_id})
+    def get_bkdata_clean(self, bk_biz_id):
+        config_db_list = BkDataDatabusApi.get_config_db_list(
+            params={"raw_data_id": self.raw_data_id, "bk_biz_id": bk_biz_id}
+        )
         cleans = [config_db for config_db in config_db_list if config_db["storage_type"].lower() == "es"]
         # bkbase 将接口字段改了， status_en -> status, status -> status_display，这里做个兼容转换
         for clean in cleans:
@@ -97,13 +99,13 @@ class BKDataCleanUtils:
                 for insert_obj in insert_objs
             ]
         )
-        logger.info("insert BKDataClean collector_config_id {}".format(insert_objs))
+        logger.info(f"insert BKDataClean collector_config_id {insert_objs}")
 
     @classmethod
     def delete_objs(cls, delete_objs):
         del_ids = [delete_obj.id for delete_obj in delete_objs]
         BKDataClean.objects.filter(id__in=del_ids).delete()
-        logger.info("delete BKDataClean {}".format(del_ids))
+        logger.info(f"delete BKDataClean {del_ids}")
 
     @classmethod
     def create_index_set(cls, insert_objs, bk_biz_id: int, category_id=DEFAULT_CATEGORY_ID):
@@ -142,10 +144,10 @@ class BKDataCleanUtils:
     def delete_index_set(cls, delete_objs):
         for delete_obj in delete_objs:
             IndexSetHandler(index_set_id=delete_obj.log_index_set_id).delete()
-            logger.info("delete index_set {}".format(delete_obj.log_index_set_id))
+            logger.info(f"delete index_set {delete_obj.log_index_set_id}")
 
     def update_or_create_clean(self, collector_config_id: int, bk_biz_id: int, category_id: str):
-        cleans = self.get_bkdata_clean()
+        cleans = self.get_bkdata_clean(bk_biz_id)
         db_cleans = BKDataClean.objects.filter(raw_data_id=self.raw_data_id)
         cleans_dict, db_cleans_dict = self.get_dict(cleans=cleans, db_cleans=db_cleans)
         insert_objs, delete_objs = self.get_update_model(clean_dict=cleans_dict, db_clean_dict=db_cleans_dict)
@@ -177,4 +179,4 @@ class BKDataCleanUtils:
 
     @staticmethod
     def _generate_sync_key(bk_biz_id: int):
-        return "sync_clean_{bk_biz_id}".format(bk_biz_id=bk_biz_id)
+        return f"sync_clean_{bk_biz_id}"

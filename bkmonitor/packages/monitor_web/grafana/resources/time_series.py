@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from functools import partial
-from typing import Any, Dict, List
+from typing import Any
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
@@ -178,7 +177,7 @@ class TimeSeriesMetric(Resource):
         ]
 
     @staticmethod
-    def filter_conditions(metrics: QuerySet, conditions: Dict):
+    def filter_conditions(metrics: QuerySet, conditions: dict):
         """
         查询过滤
         """
@@ -245,7 +244,7 @@ class TimeSeriesMetric(Resource):
 
         custom_event_data_ids = set()
         data_source_dict = {}
-        metric_configs: List[Dict] = []
+        metric_configs: list[dict] = []
 
         for metric in metrics:
             if (metric.data_source_label, metric.data_type_label) not in self.DisplayDataSource:
@@ -379,35 +378,35 @@ class TimeSeriesMetricLevel(TimeSeriesMetric):
             labels = resource.commons.get_label()
             for first_label in labels:
                 for second_label in first_label["children"]:
-                    label_mapping[
-                        second_label["id"]
-                    ] = f'{second_label["name"]}({label_counts.get(second_label["id"], 0)})'
+                    label_mapping[second_label["id"]] = (
+                        f"{second_label['name']}({label_counts.get(second_label['id'], 0)})"
+                    )
         if params["level"] == "data_source":
             source_counts = {}
             for source in metrics.values("data_source_label", "data_type_label").annotate(
                 source_count=Count("data_source_label"), type_count=Count("data_type_label")
             ):
-                source_counts[f'{source["data_source_label"]}.{source["data_type_label"]}'] = source["source_count"]
+                source_counts[f"{source['data_source_label']}.{source['data_type_label']}"] = source["source_count"]
             for category in DATA_CATEGORY:
                 if (category["data_source_label"], category["data_type_label"]) not in self.DisplayDataSource:
                     continue
-                source_key = f'{category["data_source_label"]}.{category["data_type_label"]}'
-                label_mapping[source_key] = f'{category["name"]}({source_counts.get(source_key, 0)})'
+                source_key = f"{category['data_source_label']}.{category['data_type_label']}"
+                label_mapping[source_key] = f"{category['name']}({source_counts.get(source_key, 0)})"
         elif params["level"] == "related_id":
             for metric in metrics.values("related_id", "related_name").annotate(
                 id_count=Count("related_id"), name_count=Count("related_name")
             ):
-                label_mapping[metric["related_id"]] = f'{metric["related_name"]}({metric["id_count"]})'
+                label_mapping[metric["related_id"]] = f"{metric['related_name']}({metric['id_count']})"
         elif params["level"] == "result_table_id":
             for metric in metrics.values("result_table_id", "result_table_name").annotate(
                 id_count=Count("result_table_id"), name_count=Count("result_table_name")
             ):
                 if metric["result_table_id"]:
-                    label_mapping[metric["result_table_id"]] = f'{metric["result_table_name"]}({metric["id_count"]})'
+                    label_mapping[metric["result_table_id"]] = f"{metric['result_table_name']}({metric['id_count']})"
                 else:
-                    label_mapping[
-                        metric["result_table_name"]
-                    ] = f'{metric["result_table_name"]}({metric["name_count"]})'
+                    label_mapping[metric["result_table_name"]] = (
+                        f"{metric['result_table_name']}({metric['name_count']})"
+                    )
                     params["level"] = "result_table_name"
 
         result = [{"id": key, params["level"]: key, "name": name or _("默认")} for key, name in label_mapping.items()]
@@ -426,12 +425,18 @@ class GetVariableField(Resource):
             {"bk_property_id": "bk_set_ids", "bk_property_name": _("集群ID")},
             {"bk_property_id": "bk_module_ids", "bk_property_name": _("模块ID")},
             {"bk_property_id": "display_name", "bk_property_name": _("展示名")},
+            {"bk_property_id": "bk_host_name", "bk_property_name": _("主机名")},
+            {"bk_property_id": "bk_host_innerip", "bk_property_name": _("内网IP")},
         ],
         "module": [
             {"bk_property_id": "bk_module_id", "bk_property_name": _("模块ID")},
+            {"bk_property_id": "bk_module_name", "bk_property_name": _("模块名")},
             {"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")},
         ],
-        "set": [{"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")}],
+        "set": [
+            {"bk_property_id": "bk_set_id", "bk_property_name": _("集群ID")},
+            {"bk_property_id": "bk_set_name", "bk_property_name": _("集群名")},
+        ],
         "service_instance": [
             {"bk_property_id": "service_instance_id", "bk_property_name": _("服务实例ID")},
             {"bk_property_id": "name", "bk_property_name": _("服务实例名")},
@@ -452,12 +457,16 @@ class GetVariableField(Resource):
             properties = []
             if scope_type != "service_instance":
                 try:
-                    properties = api.cmdb.get_object_attribute(bk_obj_id=scope_type)
+                    properties: list[dict] = api.cmdb.get_object_attribute(bk_obj_id=scope_type)
                 except BKAPIError:
                     pass
 
+            # 字段去重
+            exists_fields = {p["bk_property_id"] for p in self.extend_fields.get(scope_type, [])}
             data = [
-                {"bk_property_id": p["bk_property_id"], "bk_property_name": p["bk_property_name"]} for p in properties
+                {"bk_property_id": p["bk_property_id"], "bk_property_name": p["bk_property_name"]}
+                for p in properties
+                if p["bk_property_id"] not in exists_fields
             ]
 
             data.extend(self.extend_fields.get(scope_type, []))
@@ -512,13 +521,13 @@ class GetVariableValue(Resource):
         return new_labels, new_values
 
     @staticmethod
-    def get_host_count(bk_biz_id: int, target_type: str) -> Dict[int, int]:
+    def get_host_count(bk_biz_id: int, target_type: str) -> dict[int, int]:
         """
         获取主机数量，比如集群或者模块的主机数量
         """
         host_count = {}
 
-        def collect(trees: List[Dict[str, Any]]):
+        def collect(trees: list[dict[str, Any]]):
             for node in trees:
                 if node["object_id"] == target_type:
                     host_count[node["instance_id"]] = node["count"]
@@ -549,7 +558,7 @@ class GetVariableValue(Resource):
         elif type == "service_instance":
             instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
         else:
-            raise ValidationError("type({}) not exists".format(type))
+            raise ValidationError(f"type({type}) not exists")
 
         value_dict = {}
 
@@ -854,7 +863,7 @@ class GetVariableValue(Resource):
         return query_params
 
     @staticmethod
-    def dimension_translate(bk_biz_id: int, params: dict, dimensions: List):
+    def dimension_translate(bk_biz_id: int, params: dict, dimensions: list):
         """
         维度翻译
         """
@@ -916,7 +925,9 @@ class GetVariableValue(Resource):
             if dimension_field == "task_id":
                 uptime_check_tasks = UptimeCheckTask.objects.filter(id__in=dimensions).values("id", "name")
                 task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}
-                result = [{"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions]
+                result = [
+                    {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
+                ]
             elif dimension_field == "node_id":
                 nodes = []
                 for dimension in dimensions:
@@ -938,6 +949,10 @@ class GetVariableValue(Resource):
     def perform_request(self, params):
         scenario = params["scenario"]
         scope_type = params["type"]
+        # 不支持promql的datasource,所以当"data_source_label": "prometheus" 直接返回空
+        if scope_type == "dimension" and params["params"].get("data_source_label") == "prometheus":
+            return []
+
         query_processor = {}
         if scenario == "os":
             query_cmdb = partial(self.query_cmdb, type=scope_type)
@@ -962,7 +977,7 @@ class GetVariableValue(Resource):
             }
 
         if scope_type not in query_processor:
-            raise ValidationError("type({}) not exists".format(scope_type))
+            raise ValidationError(f"type({scope_type}) not exists")
 
         result = query_processor[scope_type](bk_biz_id=params["bk_biz_id"], params=params["params"])
         return result

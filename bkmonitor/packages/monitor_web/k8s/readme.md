@@ -119,6 +119,107 @@ rest/v2/k8s/resources/workload_overview/
 }
 ```
 
+## NamespaceWorkloadOverview
+
+获取负载列表的视图预览，展示不同 namespace、类型的统计数量。
+按照 `["Deployments","StatefulSets","DaemonSets","Jobs","CronJobs"]` 的顺序返回
+
+### 请求方法
+
+POST
+
+### 请求 url
+
+rest/v2/k8s/resources/namespace_workload_overview/
+
+### 请求参数
+
+| 字段             | 类型  | 必选 | 描述                         |
+|----------------|-----|----|----------------------------|
+| bk_biz_id      | int | 是  | 业务 ID                      |
+| bcs_cluster_id | str | 是  | 集群 ID                      |
+| query_string   | str | 否  | workload_name、namespace 过滤 |
+| page_size      | int | 否  | 分页数量, 默认为 5                |
+| page           | int | 否  | 页数，默认为 1                   |
+
+
+### 示例
+
+#### 1. 查询集群下所有的 workload
+
+当 `query_string` 不传时，返回该业务 - 集群下，按 namespace 划分的所有的 workload 的类型以及对应的数量。
+
+##### 请求示例
+
+```json
+{
+  "bk_biz_id": 2,
+  "bcs_cluster_id": "BCS-K8S-00000"
+}
+```
+
+##### 响应示例
+
+```json
+{
+    "result": true,
+    "code": 200,
+    "message": "OK",
+    "data": {
+        "count": 73,
+        "items": [
+            {
+                "bk_biz_id": 2,
+                "bcs_cluster_id": "BCS-K8S-00000",
+                "namespace": "aiops-default",
+                "query_from": "namespace",
+                "workload_overview": [
+                    ["Deployment",  46],
+                    ["StatefulSet", 0],
+                    ["DaemonSet", 0],
+                    ["Job", 0],
+                    ["CronJob", 0]
+                ],
+                "workload_count": 46
+            }
+        ],
+        "workload_count": 1332
+    }
+}
+```
+
+* query_from：当值为 `namespace` 时，表示检索仅命中到 `namespace` 层，此时虽然 workload 有统计数量，但下拉 `Deployment` 等类型时是没有数据的。
+
+#### 2. 查询不到数据
+
+当查询不到数据时，返回空列表
+
+##### 请求示例
+
+```json
+{
+  "bk_biz_id": 2,
+  "bcs_cluster_id": "BCS-K8S-00000",
+  "query_string": "other"
+}
+```
+
+##### 响应示例
+
+```json
+{
+    "result": true,
+    "code": 200,
+    "message": "OK",
+    "data": {
+        "count": 0,
+        "items": [],
+        "workload_count": 0
+    }
+}
+```
+
+
 ## ScenarioMetricList
 
 获取指定场景的指标列表

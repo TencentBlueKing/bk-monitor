@@ -1,0 +1,46 @@
+.retrieval__value-tag-selector-component {
+  position: relative;
+  width: 311px;
+
+  .mb-4 {
+    margin-bottom: 4px;
+  }
+
+  .mr-4 {
+    margin-right: 4px;
+  }
+
+  .h-16 {
+    height: 16px;
+  }
+
+  .value-tag-selector-component-wrap {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    min-height: 32px;
+    max-height: 200px;
+    padding: 4px 0 0 4px;
+    overflow: auto;
+    cursor: text;
+    background: #ffffff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    &.active {
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+    }
+
+    .placeholder-span {
+      position: absolute;
+      top: 0;
+      left: 6px;
+      font-size: 12px;
+      line-height: 30px;
+      color: #c4c6cc;
+    }
+  }
+}

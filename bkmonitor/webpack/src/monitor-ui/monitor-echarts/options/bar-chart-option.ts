@@ -151,7 +151,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           color: this.colors,
           yAxis: {
             axisLabel: {
-              formatter: this.handleYxisLabelFormatter,
+              formatter: this.handleYAxisLabelFormatter,
             },
           },
         },

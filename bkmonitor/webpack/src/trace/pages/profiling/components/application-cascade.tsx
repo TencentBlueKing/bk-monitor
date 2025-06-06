@@ -260,7 +260,7 @@ export default defineComponent({
                                   <i class='icon-monitor icon-mc-menu-apm' />
                                   <span
                                     class='name'
-                                    v-overflowText={{
+                                    v-overflow-tips={{
                                       text: `${item.app_name} (${item.app_alias})`,
                                       placement: 'right',
                                     }}
@@ -284,7 +284,7 @@ export default defineComponent({
                                 <span class='menu-apm-point' />
                                 <span
                                   class='name'
-                                  v-overflowText={{
+                                  v-overflow-tips={{
                                     text: `${item.app_name} (${item.app_alias})`,
                                     placement: 'right',
                                   }}
@@ -374,7 +374,7 @@ export default defineComponent({
                     >
                       <div class='loading-spin' />
                     </Loading>
-                    <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
+                    <div class='loading-text'>{this.t('应用加载中，请耐心等候…')}</div>
                   </div>
                 )}
                 <div class='footer-wrap'>

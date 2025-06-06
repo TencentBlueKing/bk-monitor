@@ -291,7 +291,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 更新图表和表格的数据
    */
   async updateViewData() {
-    await this.backTopRef.handleBackTop();
+    await this.backTopRef?.handleBackTop();
     // this.handleGetTableData()
     this.chartKey = random(8);
     this.noData = false;
@@ -566,7 +566,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                     chart-type='bar'
                     get-series-data={this.getSeriesData}
                     hasResize={true}
-                    reflesh-interval={this.compareValue.tools.refleshInterval}
+                    refresh-interval={this.compareValue.tools.refreshInterval}
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
                     on-no-data-change={this.handleNoData}

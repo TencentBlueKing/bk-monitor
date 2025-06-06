@@ -30,7 +30,7 @@ import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 
 import type { IDetail } from './type';
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
@@ -48,11 +48,11 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
 
   @ProvideReactive('timeRange') timeRange: any = 1 * 60 * 60 * 1000;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -74,7 +74,7 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
   async initPanel() {
     const thresholdOptions = await handleThreshold(this.detectionConfig);
 
-    const { startTime, endTime } = createAutoTimerange(
+    const { startTime, endTime } = createAutoTimeRange(
       this.detail.begin_time,
       this.detail.end_time,
       this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval

@@ -112,7 +112,8 @@ class GetDirectoryTree(Resource):
         )
 
         # 是否过滤无权限的仪表盘
-        filter_no_permission = params.get("filter_no_permission", False) or getattr(request, "external_user", False)
+        is_external_user = getattr(request, "external_user", False)
+        filter_no_permission = params.get("filter_no_permission", False) or is_external_user
 
         for record in result["data"]:
             _type = record.pop("type", "")
@@ -120,7 +121,11 @@ class GetDirectoryTree(Resource):
                 folders[record["id"]].update(record)
             elif _type == "dash-db":
                 # 过滤无权限的仪表盘
-                if filter_no_permission and record["uid"] not in dashboard_permissions and role < GrafanaRole.Viewer:
+                if (
+                    filter_no_permission
+                    and record["uid"] not in dashboard_permissions
+                    and (role < GrafanaRole.Viewer or is_external_user)
+                ):
                     continue
                 # 仪表盘是否可编辑
                 record["editable"] = (

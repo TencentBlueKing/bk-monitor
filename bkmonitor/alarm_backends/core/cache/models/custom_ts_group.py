@@ -41,9 +41,17 @@ class CustomTSGroupCacheManager(CacheManager):
                 return None
             try:
                 ts_info = api.metadata.custom_time_series_detail(
-                    time_series_group_id=ts_group.time_series_group_id, bk_biz_id=ts_group.bk_biz_id, model_only=True
+                    time_series_group_id=ts_group.time_series_group_id,
+                    bk_biz_id=ts_group.bk_biz_id,
+                    model_only=True,
+                    empty_if_not_found=True,
                 )
-                protocol = ts_info["protocol"]
+
+                # 如果自定义时序表不存在，则返回json
+                if not ts_info:
+                    protocol = "json"
+                else:
+                    protocol = ts_info["protocol"]
                 cls.set(bk_data_id, protocol)
             except BKAPIError:
                 protocol = "json"

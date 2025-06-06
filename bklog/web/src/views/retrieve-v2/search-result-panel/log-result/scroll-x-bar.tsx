@@ -25,8 +25,6 @@
  */
 import { computed, defineComponent, onMounted, onBeforeUnmount, Ref, ref } from 'vue';
 
-import { throttle } from 'lodash';
-
 export default defineComponent({
   props: {
     outerWidth: {
@@ -48,7 +46,7 @@ export default defineComponent({
 
     const scrollXInnerElementStyle = computed(() => {
       return {
-        width: `${props.innerWidth}px`,
+        width: `${props.innerWidth - 1}px`,
       };
     });
     const refSrollRoot: Ref<HTMLElement> = ref();
@@ -65,13 +63,19 @@ export default defineComponent({
       );
     };
 
+    let isAnimating = false;
     const handleScrollEvent = (event: MouseEvent) => {
       event.stopPropagation();
       event.preventDefault();
       event.stopImmediatePropagation();
-      requestAnimationFrame(() => {
-        emit('scroll-change', event);
-      });
+
+      if (!isAnimating) {
+        isAnimating = true;
+        requestAnimationFrame(() => {
+          emit('scroll-change', event);
+          isAnimating = false;
+        });
+      }
     };
 
     onMounted(() => {

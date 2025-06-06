@@ -98,6 +98,15 @@
             </template>
           </bk-tab>
         </div>
+        <bk-input
+          ref="menuSearchInput"
+          class="menu-select-search"
+          :clearable="false"
+          :placeholder="$t('搜索')"
+          :value="keyword"
+          @change="searchChange"
+        >
+        </bk-input>
         <div class="fields-list-container">
           <div class="total-fields-list">
             <div class="title">
@@ -111,7 +120,7 @@
             </div>
             <ul class="select-list">
               <li
-                v-for="item in shadowTotal"
+                v-for="item in filterShadowTotal"
                 style="cursor: pointer"
                 class="select-item"
                 v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
@@ -244,24 +253,17 @@
         {{ $t('取消') }}
       </bk-button>
     </div>
-    <!-- <div class="field-alias-setting">
-      <span style="margin-right: 4px">{{ $t('表头显示别名') }}</span>
-      <bk-switcher
-        v-model="showFieldAlias"
-        size="small"
-        theme="primary"
-      ></bk-switcher>
-    </div> -->
   </div>
 </template>
 
 <script>
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
+
   // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
-
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   export default {
     components: {
       VueDraggable,
@@ -296,6 +298,7 @@
           'ghost-class': 'sortable-ghost-class',
         },
         isSortFieldChanged: false,
+        keyword: '',
       };
     },
     computed: {
@@ -305,8 +308,16 @@
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
       },
+      filterShadowTotal() {
+        const fields = this.$store.state.indexFieldInfo.fields;
+        return fields.filter(item => {
+          const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
+          const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
+          return matchesKeyword && !isInShadowVisible;
+        });
+      },
       showFieldAlias() {
-        return this.$store.state.showFieldAlias;
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -316,6 +327,9 @@
         return fieldAliasMap;
       },
       toSelectLength() {
+        if (this.keyword) {
+          return this.filterShadowTotal.length;
+        }
         if (this.activeFieldTab === 'visible') {
           return this.shadowTotal.length - this.shadowVisible.length;
         }
@@ -359,7 +373,7 @@
         return this.getFiledDisplay(field);
       },
       getFiledDisplay(field) {
-        if (this.showFieldAlias) {
+        if (this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
           return getFieldNameByField(field, this.$store);
         }
         const alias = this.fieldAliasMap[field.field_name];
@@ -393,7 +407,6 @@
             await this.submitFieldsSet(this.currentClickConfigData.id);
           }
           this.cancelModifyFields();
-          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -635,7 +648,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
             this.$store.dispatch('requestIndexSetQuery');
@@ -695,6 +707,9 @@
       },
       setPopperInstance(status) {
         this.$emit('set-popper-instance', status);
+      },
+      searchChange(v) {
+        this.keyword = v;
       },
     },
   };
@@ -827,11 +842,17 @@
       padding: 0px 10px 0 10px;
     }
 
+    .menu-select-search {
+      width: 340px;
+      padding-left: 10px;
+      margin-top: -30px;
+    }
+
     .fields-list-container {
       display: flex;
       width: 723px;
       padding: 0 10px 14px 10px;
-      margin-top: -30px;
+      margin-top: 10px;
 
       .total-fields-list,
       .visible-fields-list,

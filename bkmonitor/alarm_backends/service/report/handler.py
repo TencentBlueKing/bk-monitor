@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import datetime
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -36,7 +35,7 @@ from core.drf_resource.exceptions import CustomException
 logger = logging.getLogger("bkmonitor.cron_report")
 
 
-def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
+def split_graph_id(graph_id: str) -> tuple[str, str, str]:
     """
     分割图表ID
     分为三段，由减号分隔
@@ -54,7 +53,7 @@ def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
     return result.group(1, 4, 5)
 
 
-def chunk_list(items: List, chunk_size: int):
+def chunk_list(items: list, chunk_size: int):
     """
     对数组进行指定长度的分页
     :param items: 带分页数组
@@ -184,21 +183,22 @@ class ReportHandler:
     报表处理器
     """
 
-    def __init__(self, item_id=None):
+    def __init__(self, bk_tenant_id: str, item_id=None):
         self.image_size_mapper = {
             1: {"width": 800, "height": 270, "deviceScaleFactor": 2},
             2: {"width": 620, "height": 300, "deviceScaleFactor": 2},
         }
         self.item_id = item_id
+        self.bk_tenant_id = bk_tenant_id
 
-    def fetch_receivers(self, item_receivers: Optional[List[Dict]] = None) -> List[str]:
+    def fetch_receivers(self, item_receivers: list[dict] | None = None) -> list[str]:
         """
         获取所有需要接收邮件的人
         :return: 接收邮件的名单
         """
         receivers = []
         if not item_receivers:
-            item_receivers = ReportItems.objects.get(pk=self.item_id).receivers
+            item_receivers = ReportItems.objects.get(pk=self.item_id, bk_tenant_id=self.bk_tenant_id).receivers
         groups_data = api.monitor.group_list()
         # 先解析组，再解析人，去掉is_enabled=False的人员
         # 只有开启了订阅的人才需要接收邮件
@@ -356,13 +356,17 @@ class ReportHandler:
                 graph_info = split_graph_id(graph)
                 bk_biz_id, var_bk_biz_ids = self.parse_graph_info(graph_info, is_superuser, user_bizs, receivers)
 
+                variables = {}
+                if graph_info[2] != "*":
+                    variables = {"bk_biz_id": var_bk_biz_ids}
+
                 total_graphs.append(
                     {
                         "bk_biz_id": bk_biz_id,
                         "uid": graph_info[1],
                         "panel_id": graph_info[2],
                         "image_size": self.image_size_mapper.get(content["row_pictures_num"]),
-                        "variables": {"bk_biz_id": var_bk_biz_ids},
+                        "variables": variables,
                         "tag": graph,
                         "from_time": from_time_stamp,
                         "to_time": to_time_stamp,
@@ -389,8 +393,8 @@ class ReportHandler:
         render_args["to_time"] = to_time.strftime("%Y-%m-%d %H:%M:%S")
 
         # 邮件标题后补
-        render_args["mail_title_time"] = f'({from_time.strftime("%Y-%m-%d")} ~ {to_time.strftime("%Y-%m-%d")})'
-        render_args["time_range"] = f'({render_args["from_time"]} ~ {render_args["to_time"]})'
+        render_args["mail_title_time"] = f"({from_time.strftime('%Y-%m-%d')} ~ {to_time.strftime('%Y-%m-%d')})"
+        render_args["time_range"] = f"({render_args['from_time']} ~ {render_args['to_time']})"
 
         render_args["contents"] = []
         render_args["attachments"] = [
@@ -404,7 +408,7 @@ class ReportHandler:
         ]
 
         # 记录图表标题的中间变量
-        panel_names: Dict[Tuple[int, str], Dict[str, str]] = {}
+        panel_names: dict[tuple[int, str], dict[str, str]] = {}
 
         for content in contents:
             graphs = []
@@ -535,13 +539,13 @@ class ReportHandler:
                         "**图片列表: **\n>{graph_names}\n"
                     )
                     graph_names = [
-                        f"[{graph['title']}]({graph['url']})" if is_link_enabled else graph['title']
+                        f"[{graph['title']}]({graph['url']})" if is_link_enabled else graph["title"]
                         for graph in content["origin_graphs"]
                     ]
                     send_content = content_template.format(
                         title=render_args["mail_title"],
                         time_range=render_args["time_range"],
-                        sub_title=f'[{content["title"]}]({render_args["redirect_url"]})'
+                        sub_title=f"[{content['title']}]({render_args['redirect_url']})"
                         if is_link_enabled
                         else content["title"],
                         content=content["content"],
@@ -552,7 +556,7 @@ class ReportHandler:
                         logger.error("[mail_report] send.wxwork_group content failed, {}".format(response["errmsg"]))
                         failed.append(response["errmsg"])
                 except Exception as error:
-                    logger.error("[mail_report] send.wxwork_group content failed, {}".format(error))
+                    logger.error(f"[mail_report] send.wxwork_group content failed, {error}")
 
                 for graph in content["origin_graphs"]:
                     try:
@@ -563,7 +567,7 @@ class ReportHandler:
                         else:
                             success_count += 1
                     except Exception as error:
-                        logger.error("[mail_report] send.wxwork_group image failed, {}".format(error))
+                        logger.error(f"[mail_report] send.wxwork_group image failed, {error}")
 
             logger.info(
                 f"[mail_report] send_wxbot finished: {render_args['mail_title']},"
@@ -573,7 +577,7 @@ class ReportHandler:
         except Exception as e:
             raise CustomException(f"[mail_report] send_wxbot failed: {e}")
 
-    def parse_users_group(self, all_user_different_graph, receivers, superusers):
+    def parse_users_group(self, bk_tenant_id: str, all_user_different_graph, receivers, superusers):
         """
         发送分组逻辑
         :param all_user_different_graph: 内置图表类型
@@ -590,7 +594,7 @@ class ReportHandler:
                 continue
             user_is_superuser = receiver in superusers
             if all_user_different_graph[BuildInBizType.ALL]:
-                perm_client = Permission(receiver)
+                perm_client = Permission(username=receiver, bk_tenant_id=bk_tenant_id)
                 perm_client.skip_check = False
                 business_list = [
                     biz["bk_biz_id"] for biz in perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
@@ -623,8 +627,10 @@ class ReportHandler:
         """
         渲染HTML并发送邮件入库
         """
-        report_item = ReportItems.objects.get(pk=self.item_id)
-        report_item_contents = list(ReportContents.objects.filter(report_item=self.item_id).values())
+        report_item = ReportItems.objects.get(bk_tenant_id=self.bk_tenant_id, pk=self.item_id)
+        report_item_contents = list(
+            ReportContents.objects.filter(bk_tenant_id=self.bk_tenant_id, report_item=self.item_id).values()
+        )
 
         # 如果选择图表时选了'有权限的业务'
         all_user_different_graph = {
@@ -655,7 +661,12 @@ class ReportHandler:
             if any(all_user_different_graph.values()):
                 # 如果每个用户的图表都不一样
                 # 获取用户的业务列表并分组渲染发送
-                send_groups = self.parse_users_group(all_user_different_graph, receivers, superusers)
+                send_groups = self.parse_users_group(
+                    bk_tenant_id=report_item.bk_tenant_id,
+                    all_user_different_graph=all_user_different_graph,
+                    receivers=receivers,
+                    superusers=superusers,
+                )
                 logger.info(f"[mail_report] groups count: {len(send_groups)}")
                 # 分组渲染发送
                 for biz in send_groups:

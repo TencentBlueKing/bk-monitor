@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -85,6 +85,12 @@ DEFAULT_AGG_METHOD = "SUM"
 ITEM_NAME_CLUSTERING = "SUM(log_count)"
 DEFAULT_METRIC_CLUSTERING = "log_count"
 ALARM_INTERVAL_CLUSTERING = 7200
+# 数量突增告警
+AGG_DIMENSION_NORMAL = ["__dist_05"]
+AGG_CONDITION_NORMAL = [
+    {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "neq", "condition": "and"}
+]
+# 新类告警
 AGG_DIMENSION = ["sensitivity", "signature"]
 AGG_CONDITION = [
     {"key": "sensitivity", "dimension_name": "sensitivity", "value": ["__dist_05"], "method": "eq", "condition": "and"}
@@ -95,6 +101,39 @@ TRIGGER_CONFIG = {
     "uptime": {"calendars": [], "time_ranges": [{"start": "00:00", "end": "23:59"}]},
 }
 
+DETECTS = [
+    {
+        "level": 2,
+        "expression": "",
+        "trigger_config": TRIGGER_CONFIG,
+        "recovery_config": {"check_window": 5},
+        "connector": "and",
+    }
+]
+
+DEFAULT_ALERT_NOTICE = [
+    {
+        "time_range": "00:00:00--23:59:00",
+        "notify_config": [
+            {"notice_ways": [{"name": "rtx"}], "level": 3},
+            {"notice_ways": [{"name": "rtx"}], "level": 2},
+            {"notice_ways": [{"name": "rtx"}], "level": 1},
+        ],
+    }
+]
+
+DEFAULT_ACTION_NOTICE = [
+    {
+        "time_range": "00:00:00--23:59:00",
+        "notify_config": [
+            {"notice_ways": [{"name": "rtx"}], "phase": 3},
+            {"notice_ways": [{"name": "rtx"}], "phase": 2},
+            {"notice_ways": [{"name": "rtx"}], "phase": 1},
+        ],
+    }
+]
+
+DEFAULT_MENTION_LIST = [{"id": "all", "display_name": "all", "type": "group"}]
 
 DEFAULT_DETECTS = [
     {
@@ -137,8 +176,25 @@ DEFAULT_PATTERN_MONITOR_MSG = """
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
 
+PATTERN_MONITOR_MSG_BY_SWITCH = """
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}
+"""
 
-class StrategiesType(object):
+
+class StrategiesType:
     NEW_CLS_strategy = "new_cls_strategy"
     NORMAL_STRATEGY = "normal_strategy"
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,25 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+
+from typing import Any
 
 from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import gettext as _
+from pypinyin import lazy_pinyin
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.request import get_request
+from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.data_explorer.event import resources as event_resources
 from monitor_web.data_explorer.serializers import (
     BulkDeleteFavoriteSerializer,
     BulkUpdateFavoriteSerializer,
@@ -30,21 +43,14 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from pypinyin import lazy_pinyin
-from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
-
-from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.utils.request import get_request
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.data_explorer.event.resources import EventTopKResource
+from monitor_web.data_explorer.event.serializers import (
+    EventDownloadTopKRequestSerializer,
+)
+from apm_web.utils import generate_csv_file_download_response
 
 
-def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
+def order_records_by_config(records: list[dict], order: list) -> list[dict]:
     """
     按排序配置对数据进行排序
     """
@@ -60,7 +66,7 @@ def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
     )
 
 
-def order_records_by_type(records: List[Dict], order_type: str) -> List[Dict]:
+def order_records_by_type(records: list[dict], order_type: str) -> list[dict]:
     """
     根据排序类型进行排序
     """
@@ -74,7 +80,7 @@ def order_records_by_type(records: List[Dict], order_type: str) -> List[Dict]:
             return x["update_time"]
 
     elif order_type in ["asc", "desc"]:
-        reverse = order_type == "desc"
+        reverse = order_type == "asc"
 
         def key_func(x):
             return tuple(lazy_pinyin(x["name"]))
@@ -357,6 +363,9 @@ class FavoriteViewSet(ModelViewSet):
 
 
 class QueryHistoryViewSet(ModelViewSet):
+    """
+    旧版的收藏接口，待废弃（2025-05-20，目前只有 trace 仍然在调用）
+    """
 
     queryset = QueryHistory.objects.all().order_by("-id")
     serializer_class = QueryHistorySerializer
@@ -371,6 +380,9 @@ class QueryHistoryViewSet(ModelViewSet):
         bk_biz_id = serializer.validated_data["bk_biz_id"]
         record_type = serializer.validated_data["type"]
         records = self.queryset.filter(bk_biz_id=bk_biz_id, type=record_type)
+        if record_type == "trace":
+            # trace 的旧版收藏不展示有分组的情况，只展示在旧版创建的收藏
+            records = records.filter(group_id=None)
 
         response_serializer = self.get_serializer(records, many=True)
         return Response(response_serializer.data)
@@ -385,4 +397,23 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.data_explorer.get_promql_query_config, endpoint="get_promql_query_config"),
         ResourceRoute("POST", resource.data_explorer.get_event_view_config, endpoint="get_event_view_config"),
         ResourceRoute("POST", resource.data_explorer.get_group_by_count, endpoint="get_group_by_count"),
+        ResourceRoute("POST", event_resources.EventLogsResource, endpoint="event/logs"),
+        ResourceRoute("POST", event_resources.EventTopKResource, endpoint="event/topk"),
+        ResourceRoute("POST", event_resources.EventTotalResource, endpoint="event/total"),
+        ResourceRoute("POST", event_resources.EventViewConfigResource, endpoint="event/view_config"),
+        ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
+        ResourceRoute("POST", event_resources.EventStatisticsInfoResource, endpoint="event/statistics_info"),
+        ResourceRoute("POST", event_resources.EventStatisticsGraphResource, endpoint="event/statistics_graph"),
+        ResourceRoute("POST", event_resources.EventGenerateQueryStringResource, endpoint="event/generate_query_string"),
     ]
+
+    @action(methods=["POST"], detail=False, url_path="event/download_topk")
+    def download_topk(self, request, *args, **kwargs):
+        serializer = EventDownloadTopKRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data: dict[str, Any] = serializer.validated_data
+        api_topk_response = EventTopKResource().perform_request(validated_data)
+        return generate_csv_file_download_response(
+            f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.csv",
+            ([item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_response[0]["list"]),
+        )

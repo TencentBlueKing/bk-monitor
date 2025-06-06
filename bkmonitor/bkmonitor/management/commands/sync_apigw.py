@@ -42,12 +42,6 @@ class Command(BaseCommand):
         definition_path = f"{settings.BASE_DIR}/support-files/apigw/definition.yaml"
         resources_path = f"{settings.BASE_DIR}/support-files/apigw/resources.yaml"
 
-        # 根据环境变量，确定同步的stage
-        if settings.ENVIRONMENT == "production":
-            stage = "prod"
-        else:
-            stage = "stage"
-
         call_command("sync_apigw_config", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("sync_apigw_stage", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("sync_apigw_resources", f"--gateway-name={gateway_name}", "--delete", f"--file={resources_path}")
@@ -61,7 +55,7 @@ class Command(BaseCommand):
             "create_version_and_release_apigw",
             f"--gateway-name={gateway_name}",
             f"--file={definition_path}",
-            f"--stage={stage}",
+            f"--stage={settings.APIGW_STAGE}",
         )
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")

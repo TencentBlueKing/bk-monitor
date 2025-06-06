@@ -28,7 +28,7 @@ import { LANGUAGE_COOKIE_KEY, docCookies, xssFilter } from 'monitor-common/utils
 import type { ICommonChartTips, IExtendMetricData } from '../typings';
 
 export const createTooltip = (tipsData: ICommonChartTips) => {
-  const liHtmls =
+  const liHtmlList =
     tipsData?.list?.map(item => {
       if (item.value === null) return '';
       const markStyle = item.isCurrent ? "color: '#ffffff';font-weight: bold;" : "color: '#fafbfd';";
@@ -41,13 +41,13 @@ export const createTooltip = (tipsData: ICommonChartTips) => {
     ${item.value} ${item.unit || ''}</span>
     </li>`;
     }) || [];
-  if (!liHtmls.length) return '';
+  if (!liHtmlList.length) return '';
   return `<div style="z-index:12; border-radius: 6px">
   <p style="text-align:center;margin: 0 0 5px 0;font-weight: bold;">
       ${tipsData.title}
   </p>
   <ul style="padding: 0;margin: 0; ${tipsData.style || ''}">
-      ${liHtmls?.join('')}
+      ${liHtmlList?.join('')}
   </ul>
   </div>`;
 };
@@ -59,37 +59,37 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const enName = !data.metric_field_name || data.metric_field_name === data.metric_field ? '' : data.metric_field_name;
   const options = [
     // 公共展示项
-    { val: isEn ? enName || data.metric_field : data.metric_field, label: window.i18n.tc('指标名') },
-    { val: data.metric_field_name, label: window.i18n.tc('指标别名') },
+    { val: isEn ? enName || data.metric_field : data.metric_field, label: window.i18n.t('指标名') },
+    { val: data.metric_field_name, label: window.i18n.t('指标别名') },
   ];
   const elList = {
     bk_monitor_time_series: [
       // 监控采集
       ...options,
-      { val: data.related_id, label: window.i18n.tc('插件ID') },
-      { val: data.related_name, label: window.i18n.tc('插件名') },
-      { val: data.result_table_id, label: window.i18n.tc('分类ID') },
-      { val: data.result_table_name, label: window.i18n.tc('分类名') },
-      { val: data.description, label: window.i18n.tc('含义') },
+      { val: data.related_id, label: window.i18n.t('插件ID') },
+      { val: data.related_name, label: window.i18n.t('插件名') },
+      { val: data.result_table_id, label: window.i18n.t('分类ID') },
+      { val: data.result_table_name, label: window.i18n.t('分类名') },
+      { val: data.description, label: window.i18n.t('含义') },
     ],
     bk_log_search_time_series: [
       // 日志采集
       ...options,
-      { val: data.related_name, label: window.i18n.tc('索引集') },
-      { val: data.result_table_id, label: window.i18n.tc('索引') },
-      { val: data.extend_fields.scenario_name, label: window.i18n.tc('数据源类别') },
-      { val: data.extend_fields.storage_cluster_name, label: window.i18n.tc('数据源名') },
+      { val: data.related_name, label: window.i18n.t('索引集') },
+      { val: data.result_table_id, label: window.i18n.t('索引') },
+      { val: data.extend_fields.scenario_name, label: window.i18n.t('数据源类别') },
+      { val: data.extend_fields.storage_cluster_name, label: window.i18n.t('数据源名') },
     ],
     bk_data_time_series: [
       // 数据平台
       ...options,
-      { val: data.result_table_id, label: window.i18n.tc('表名') },
+      { val: data.result_table_id, label: window.i18n.t('表名') },
     ],
     custom_time_series: [
       // 自定义指标
       ...options,
-      { val: data.extend_fields.bk_data_id, label: window.i18n.tc('数据ID') },
-      { val: data.result_table_name, label: window.i18n.tc('数据名') },
+      { val: data.extend_fields.bk_data_id, label: window.i18n.t('数据ID') },
+      { val: data.result_table_name, label: window.i18n.t('数据名') },
     ],
     bk_monitor_log: [...options],
   };
@@ -99,7 +99,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   if (resultTableLabel === 'uptimecheck' && !relatedId) {
     const list = elList.bk_monitor_time_series;
     elList.bk_monitor_time_series = list.filter(
-      item => item.label !== window.i18n.tc('插件ID') && item.label !== window.i18n.tc('插件名')
+      item => item.label !== window.i18n.t('插件ID') && item.label !== window.i18n.t('插件名')
     );
   }
   const curElList = elList[curActive] || [...options];
@@ -112,16 +112,16 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       .split(';')
       .map(item => `<div>${xssFilter(item)}</div>`)
       .join('');
-    curElList.splice(0, 0, { label: window.i18n.tc('采集配置'), val: collectorConfig });
+    curElList.splice(0, 0, { label: window.i18n.t('采集配置'), val: collectorConfig });
   }
 
   if (data.metric_field === data.metric_field_name) {
-    const index = curElList.indexOf(item => item.label === window.i18n.tc('指标别名'));
+    const index = curElList.indexOf(item => item.label === window.i18n.t('指标别名'));
     curElList.splice(index, 1);
   }
   curElList.forEach(item => {
     content += `<div class="item"><div>${item.label}：${
-      item.label === window.i18n.tc('采集配置') ? item.val : xssFilter(item.val) || '--'
+      item.label === window.i18n.t('采集配置') ? item.val : xssFilter(item.val) || '--'
     }</div></div>\n`;
   });
   return content;

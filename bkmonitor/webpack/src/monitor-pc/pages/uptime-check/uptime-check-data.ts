@@ -208,6 +208,18 @@ export const taskStatusMap = {
   stoping: window.i18n.tc('停止中'),
   new_draft: window.i18n.tc('未保存'),
 };
+// 格式化任务状态过滤列表
+export const formatTaskStatusMapFilter = () => {
+  const filter = [];
+  Object.keys(taskStatusMap).map(key =>
+    filter.push({
+      text: taskStatusMap[key],
+      value: key,
+    })
+  );
+  return filter;
+};
+
 export const taskStatusTextColor = (taskStatus: string) => {
   if (taskStatus === 'stoped') {
     return '#c7c7c7';
@@ -253,7 +265,13 @@ export const taskCommonTableProps: ICommonTableProps = {
     { id: 'available_progress', name: window.i18n.tc('可用率'), type: 'scoped_slots', header_pre_icon: 'icon-avg' },
     { id: 'groups_str', name: window.i18n.tc('所属分组'), type: 'string' },
     { id: 'create_user', name: window.i18n.tc('创建人'), type: 'string' },
-    { id: 'status_text', name: window.i18n.tc('状态'), type: 'scoped_slots' },
+    {
+      id: 'status_text',
+      name: window.i18n.tc('状态'),
+      type: 'scoped_slots',
+      filterable: true,
+      filter_list: formatTaskStatusMapFilter(),
+    },
     { id: 'enable', name: window.i18n.tc('启/停'), type: 'scoped_slots' },
     { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots', props: { maxWidth: 80 } },
   ],

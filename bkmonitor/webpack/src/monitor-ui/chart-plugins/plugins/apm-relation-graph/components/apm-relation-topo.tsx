@@ -279,9 +279,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('data')
   handleDataChange() {
-    this.toolsPopoverInstance?.hide?.();
-    this.toolsPopoverInstance?.destroy?.();
-    this.toolsPopoverInstance = null;
+    // this.toolsPopoverInstance?.hide?.();
+    // this.toolsPopoverInstance?.destroy?.();
+    // this.toolsPopoverInstance = null;
     this.hideMenu();
     this.initGraph();
   }

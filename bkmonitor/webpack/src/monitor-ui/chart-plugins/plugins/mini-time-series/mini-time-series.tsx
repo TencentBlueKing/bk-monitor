@@ -80,7 +80,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
   @Prop({ type: String, default: '' }) unit: string;
   @Prop({ type: Number, default: 2 }) unitDecimal: number;
   /* tips显示值标题 */
-  @Prop({ type: String, default: window.i18n.tc('数量') }) valueTitle: string;
+  @Prop({ type: String, default: window.i18n.t('数量') }) valueTitle: string;
   /* 是否标记最后一个点并且右侧显示其值 */
   @Prop({ type: Boolean, default: true }) showLastMarkPoint: boolean;
   /* 固定右侧值的显示宽度 */
@@ -153,13 +153,13 @@ export default class MiniTimeSeries extends tsc<IProps> {
     (this as any).instance = null;
     this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
 
   // 注册Intersection监听
   registerObserver() {
     if (this.intersectionObserver) {
-      this.unregisterOberver();
+      this.unregisterObserver();
     }
     this.intersectionObserver = new IntersectionObserver(entries => {
       for (const entry of entries) {
@@ -170,7 +170,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
     });
     this.intersectionObserver.observe(this.$el);
   }
-  unregisterOberver() {
+  unregisterObserver() {
     if (this.intersectionObserver) {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();

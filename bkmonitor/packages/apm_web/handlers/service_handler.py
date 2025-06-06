@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,15 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import logging
 import operator
 from collections import defaultdict
+from typing import Any
 
+from django.db.models import Q
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -217,22 +218,20 @@ class ServiceHandler:
         return filter_params
 
     @classmethod
-    def build_remote_service_es_query_dict(cls, query, service_name, filter_params):
-        filter_params = cls.build_remote_service_filter_params(service_name, filter_params)
-        for f in filter_params:
-            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
-
-        return query
+    def build_remote_service_filter(cls, service_name: str, filter_params: list[dict[str, Any]]) -> Q:
+        """构建远端服务过滤条件"""
+        q: Q = Q()
+        for filter_param in cls.build_remote_service_filter_params(service_name, filter_params):
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
-    def build_service_es_query_dict(cls, query, service_name, filter_params):
-        query = query.query(
-            "bool", filter=[Q("terms", **{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): [service_name]})]
-        )
-        for f in filter_params:
-            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
-
-        return query
+    def build_service_filter(cls, service_name: str, filter_params: list[dict[str, Any]]) -> Q:
+        """构建服务过滤条件"""
+        q: Q = Q(**{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): service_name})
+        for filter_param in filter_params:
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):
@@ -416,6 +415,7 @@ class ServiceHandler:
         start_time,
         end_time,
         service_name,
+        where=None,
         bk_instance_id=None,
         raise_exception=True,
     ):
@@ -423,6 +423,7 @@ class ServiceHandler:
         # 根据 service 的类型使用不同的逻辑
         from apm_web.handlers.component_handler import ComponentHandler
 
+        where = where or []
         endpoint_metrics_param = {
             "application": application,
             "start_time": start_time,
@@ -432,7 +433,8 @@ class ServiceHandler:
         if ComponentHandler.is_component_by_node(node):
             return metric(
                 **endpoint_metrics_param,
-                where=ComponentHandler.get_component_metric_filter_params(
+                where=where
+                + ComponentHandler.get_component_metric_filter_params(
                     application.bk_biz_id,
                     application.app_name,
                     service_name,
@@ -450,7 +452,8 @@ class ServiceHandler:
         elif ServiceHandler.is_remote_service_by_node(node):
             return metric(
                 **endpoint_metrics_param,
-                where=[
+                where=where
+                + [
                     {
                         "key": "peer_service",
                         "method": "eq",
@@ -462,7 +465,7 @@ class ServiceHandler:
         else:
             return metric(
                 **endpoint_metrics_param,
-                where=[{"key": "service_name", "method": "eq", "value": [service_name]}],
+                where=where + [{"key": "service_name", "method": "eq", "value": [service_name]}],
             )
 
     @classmethod
@@ -648,7 +651,8 @@ class ServiceHandler:
             services = api.apm_api.query_profile_services_detail(
                 bk_biz_id=app.bk_biz_id,
                 app_name=app.app_name,
-                last_check_time__gt=start_time,
+                # profiling 数据状态依赖周期任务，这里在无数据周期的基础上，再往前探查10分钟数据
+                last_check_time__gt=start_time - 10 * 60,
             )
             for i in services:
                 res[i["name"]].update({TelemetryDataType.PROFILING.value: DataStatus.NORMAL})

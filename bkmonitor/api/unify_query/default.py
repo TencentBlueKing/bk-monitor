@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -138,6 +138,54 @@ class QueryDataResource(UnifyQueryAPIResource):
         instant = serializers.BooleanField(required=False)
 
 
+class QueryRawResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/raw"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        limit = serializers.IntegerField(required=False, default=1)
+        # from 是 Python 关键字，此处加下划线，真正请求时转回 _from
+        _from = serializers.IntegerField(required=False, default=0)
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+
+    def perform_request(self, params):
+        params["from"] = params.pop("_from", 0)
+        return super().perform_request(params)
+
+
+class QueryReferenceResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/reference"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+        look_back_delta = serializers.CharField(required=False, default="1m")
+
+
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
     """
     查询数据
@@ -244,8 +292,8 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
         match = serializers.ListField(child=serializers.CharField())
         label = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
-        start_time = serializers.CharField(required=False)
-        end_time = serializers.CharField(required=False)
+        start = serializers.CharField(required=False)
+        end = serializers.CharField(required=False)
 
         def validate(self, attrs):
             attrs["match[]"] = attrs.pop("match")
@@ -318,7 +366,7 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
         source_info_list = serializers.ListField(child=serializers.DictField(), required=True)
 
     def validate_request_data(self, request_data):
-        request_data = super(GetKubernetesRelationResource, self).validate_request_data(request_data)
+        request_data = super().validate_request_data(request_data)
         query_list = []
         for source_info in request_data.pop("source_info_list", []):
             data_timestamp = source_info.pop("data_timestamp", int(time.time()))

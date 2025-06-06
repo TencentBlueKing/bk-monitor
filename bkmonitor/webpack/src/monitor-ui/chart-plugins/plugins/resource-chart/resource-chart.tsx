@@ -59,7 +59,7 @@ interface IResourceChartEvent {
 @Component
 class ResourceChart extends CommonSimpleChart {
   data: IResourceData[][] = [];
-  emptyText = window.i18n.tc('加载中...');
+  emptyText = window.i18n.t('加载中...');
   empty = true;
   metrics: IExtendMetricData[] = [];
 
@@ -75,9 +75,9 @@ class ResourceChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.handleLoadingChange(true);
     this.empty = true;
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -108,16 +108,16 @@ class ResourceChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item?.length)) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.data = res;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);
@@ -288,7 +288,7 @@ class ResourceChart extends CommonSimpleChart {
       <div class='resource-chart'>
         <ChartHeader
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
           menuList={this.menuList}
           metrics={this.metrics}

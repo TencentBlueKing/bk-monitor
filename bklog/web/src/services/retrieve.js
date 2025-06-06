@@ -80,6 +80,10 @@ const exportAsync = {
   url: '/search/index_set/:index_set_id/async_export/',
   method: 'post',
 };
+const unionExportAsync = {
+  url: '/search/index_set/union_async_export/',
+  method: 'post',
+};
 const getRealTimeLog = {
   url: '/search/index_set/:index_set_id/tail_f/',
   method: 'post',
@@ -221,6 +225,24 @@ const generateQueryString = {
   method: 'post',
 };
 
+const setIndexSetCustomConfig = {
+  url: '/search/index_set/custom_config/',
+  method: 'post',
+};
+/** 自定义上报地址改成动态展示*/
+const getProxyHost = {
+  url: '/databus/collectors/proxy_host_info/',
+  method: 'get',
+};
+
+/**
+ * 请求grep结果
+ */
+const requestGrepResult = {
+  url: '/search/index_set/$index_set_id/grep_query/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -266,4 +288,8 @@ export {
   getClusteringConfigStatus,
   updateUserFiledTableConfig,
   generateQueryString,
+  setIndexSetCustomConfig,
+  getProxyHost,
+  requestGrepResult,
+  unionExportAsync,
 };

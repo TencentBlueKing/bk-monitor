@@ -789,7 +789,7 @@ export default {
         show: false,
         ready: false,
         left: 0,
-        draging: false,
+        dragging: false,
         minWidth: 400,
         maxWidth: 800,
       },

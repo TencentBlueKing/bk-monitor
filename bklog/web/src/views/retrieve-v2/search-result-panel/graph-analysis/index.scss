@@ -86,7 +86,7 @@
   .graph-analysis-body {
     display: flex;
     width: 100%;
-    height: calc(100vh - 150px - var(--offset-search-bar));
+    height: calc(100vh - 150px - var(--top-searchbar-height));
 
     .body-left {
       position: relative;

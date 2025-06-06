@@ -6,6 +6,7 @@ export const listK8sResources = request('POST', 'rest/v2/k8s/resources/list_reso
 export const getResourceDetail = request('GET', 'rest/v2/k8s/resources/get_resource_detail/');
 export const workloadOverview = request('GET', 'rest/v2/k8s/resources/workload_overview/');
 export const resourceTrend = request('POST', 'rest/v2/k8s/resources/resource_trend/');
+export const namespaceWorkloadOverview = request('POST', 'rest/v2/k8s/resources/namespace_workload_overview/');
 
 export default {
   listBcsCluster,
@@ -14,4 +15,5 @@ export default {
   getResourceDetail,
   workloadOverview,
   resourceTrend,
+  namespaceWorkloadOverview,
 };

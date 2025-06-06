@@ -26,7 +26,8 @@
 import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Button, Popover, Radio, Table } from 'bkui-vue';
+import { PrimaryTable } from '@blueking/tdesign-ui';
+import { Button, Popover, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 
 import CommonTip from '../../components/common-tip/common-tip';
@@ -66,7 +67,7 @@ export const scopeData = () => {
     showIpv6Dialog: false,
     ipv6Value: {},
     originIpv6Value: {},
-    inited: true,
+    initialized: true,
   };
 };
 
@@ -408,7 +409,7 @@ export default defineComponent({
                 content={this.tipsMap[this.scopeState.bkGroup.value] || ''}
               />
             )}
-            {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.inited && (
+            {this.scopeState.bkGroup.value !== 'biz' && !this.isEdit && !!this.scopeState.initialized && (
               <AlarmShieldIpv6
                 checkedValue={this.scopeState.ipv6Value}
                 originCheckedValue={this.scopeState.originIpv6Value}
@@ -421,18 +422,24 @@ export default defineComponent({
             )}
             {!!this.isEdit &&
               (this.scopeState.bkGroup.value !== 'biz' ? (
-                <div class='max-w836'>
-                  <Table
+                <div class='w-836'>
+                  <PrimaryTable
                     columns={[
                       {
-                        id: 'name',
-                        label: () => this.scopeState.labelMap[this.scopeState.bkGroup.value],
-                        render: ({ row }) => row.name,
+                        colKey: 'name',
+                        title: this.scopeState?.labelMap?.[this.scopeState?.bkGroup?.value] || '',
+                        ellipsis: {
+                          popperOptions: {
+                            strategy: 'fixed',
+                          },
+                        },
                       },
                     ]}
-                    border={['outer']}
+                    bordered={true}
                     data={this.scopeState.tableData}
                     maxHeight={450}
+                    resizable={true}
+                    rowKey='name'
                   />
                 </div>
               ) : (

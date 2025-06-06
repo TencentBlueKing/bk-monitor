@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import functools
 import itertools
@@ -15,6 +15,7 @@ import json
 import operator
 import re
 from multiprocessing.pool import ApplyResult
+from typing import Any
 
 import arrow
 from django.utils.translation import gettext as _
@@ -37,6 +38,7 @@ from apm_web.models import (
     Application,
     AppServiceRelation,
     CMDBServiceRelation,
+    EventServiceRelation,
     LogServiceRelation,
     UriServiceRelation,
 )
@@ -46,6 +48,8 @@ from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
+    PipelineOverviewRequestSerializer,
+    ListPipelineRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkmonitor.commons.tools import batch_request
@@ -53,6 +57,7 @@ from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
+from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
 
 
 class ApplicationListResource(Resource):
@@ -74,9 +79,7 @@ class ServiceInfoResource(Resource):
         end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
 
     @classmethod
-    def fill_operate_record(
-        cls, service_info, app_relation_info, log_relation_info, cmdb_relation_info, uri_relation_list, apdex_info
-    ):
+    def fill_operate_record(cls, service_info: dict[str, Any], relation_infos: list[dict[str, Any]]):
         """获取操作记录"""
         default_username = "system"
 
@@ -87,12 +90,8 @@ class ServiceInfoResource(Resource):
                 rgt_info["updated_at"] = lft_info.get("updated_at")
                 rgt_info["updated_by"] = lft_info.get("updated_by") or default_username
 
-        bigger_than_update(app_relation_info, service_info)
-        bigger_than_update(log_relation_info, service_info)
-        bigger_than_update(cmdb_relation_info, service_info)
-        for uri_relation_info in uri_relation_list:
-            bigger_than_update(uri_relation_info, service_info)
-        bigger_than_update(apdex_info, service_info)
+        for relation_info in relation_infos:
+            bigger_than_update(relation_info, service_info)
 
         # 如果没有，则设置默认值
         service_info["created_at"] = service_info.get("created_at")
@@ -149,6 +148,14 @@ class ServiceInfoResource(Resource):
             return []
 
         return list(query.order_by("rank").values("id", "uri", "rank", "updated_at", "updated_by"))
+
+    @classmethod
+    def get_event_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
+        return list(
+            EventServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            ).values("id", "table", "relations", "options", "updated_at", "updated_by")
+        )
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, topo_node):
@@ -208,6 +215,7 @@ class ServiceInfoResource(Resource):
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
         log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
+        event_relation = pool.apply_async(self.get_event_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
         labels = pool.apply_async(self.get_labels, args=(bk_biz_id, app_name, service_name))
 
@@ -230,10 +238,19 @@ class ServiceInfoResource(Resource):
         app_relation_info = app_relation.get()
         log_relation_info = log_relation.get()
         cmdb_relation_info = cmdb_relation.get()
+        event_relation_info = event_relation.get()
         uri_relation_info = uri_relation.get()
         apdex_info = self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp)
         self.fill_operate_record(
-            service_info, app_relation_info, log_relation_info, cmdb_relation_info, uri_relation_info, apdex_info
+            service_info,
+            [
+                apdex_info,
+                app_relation_info,
+                log_relation_info,
+                cmdb_relation_info,
+                *event_relation_info,
+                *uri_relation_info,
+            ],
         )
         if isinstance(profiling_info, ApplyResult):
             execute_res = profiling_info.get()
@@ -244,6 +261,7 @@ class ServiceInfoResource(Resource):
             "app_relation": app_relation_info,
             "log_relation": log_relation_info,
             "cmdb_relation": cmdb_relation_info,
+            "event_relation": event_relation_info,
             "uri_relation": uri_relation_info,
             "apdex_relation": apdex_info,
         }
@@ -421,6 +439,7 @@ class ServiceConfigResource(Resource):
             validated_request_data["apdex_relation"]["apdex_key"] = apdex_key
         update_relation(validated_request_data.get("apdex_relation"), ApdexServiceRelation)
 
+        self.update_event_relations(bk_biz_id, app_name, service_name, validated_request_data["event_relation"])
         self.update_uri(bk_biz_id, app_name, service_name, validated_request_data["uri_relation"])
         if validated_request_data.get("labels"):
             self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
@@ -453,6 +472,48 @@ class ServiceConfigResource(Resource):
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
 
         UriServiceRelation.objects.filter(id__in=itertools.chain(*[ids for _, ids in delete_uris.items()])).delete()
+
+    @classmethod
+    def update_event_relations(
+        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: list[dict[str, Any]]
+    ):
+        if not event_relations:
+            return
+
+        table_relation_map: dict[str, dict[str, Any]] = {
+            relation["table"]: relation
+            for relation in ServiceInfoResource.get_event_relation_info(bk_biz_id, app_name, service_name)
+        }
+
+        username: str = get_request_username()
+        to_be_created_relations: list[EventServiceRelation] = []
+        to_be_updated_relations: list[EventServiceRelation] = []
+        for relation in event_relations:
+            exists_relation: dict[str, Any] | None = table_relation_map.get(relation["table"])
+            if exists_relation:
+                to_be_updated_relations.append(
+                    EventServiceRelation(
+                        id=exists_relation["id"], updated_by=username, updated_at=arrow.now().datetime, **relation
+                    )
+                )
+            else:
+                to_be_created_relations.append(
+                    EventServiceRelation(
+                        bk_biz_id=bk_biz_id,
+                        app_name=app_name,
+                        service_name=service_name,
+                        updated_by=username,
+                        created_by=username,
+                        **relation,
+                    )
+                )
+
+        if to_be_created_relations:
+            EventServiceRelation.objects.bulk_create(to_be_created_relations, batch_size=100)
+        if to_be_updated_relations:
+            EventServiceRelation.objects.bulk_update(
+                to_be_updated_relations, batch_size=100, fields=["updated_at", "updated_by", "relations", "options"]
+            )
 
     def update(self, bk_biz_id, app_name, service_name, relation, model):
         if not relation:
@@ -513,8 +574,6 @@ class UriregularVerifyResource(Resource):
 
 
 class ServiceUrlListResource(Resource):
-    TIME_DELTA = 1
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
@@ -526,7 +585,8 @@ class ServiceUrlListResource(Resource):
             raise ValueError(_("应用不存在"))
 
         end_time = datetime.datetime.now()
-        start_time = end_time - datetime.timedelta(days=self.TIME_DELTA)
+        # 页面有刷新按钮，这里限制一个比较可控的时间范围，避免查询超时。
+        start_time = end_time - datetime.timedelta(hours=2)
 
         return SpanHandler.get_span_uris(app, start_time, end_time, service_name=data["service_name"])
 
@@ -544,3 +604,17 @@ class AppQueryByIndexSetResource(Resource):
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
 
         return res
+
+
+class PipelineOverviewResource(Resource):
+    RequestSerializer = PipelineOverviewRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        return API_PIPELINE_OVERVIEW_RESPONSE
+
+
+class ListPipelineResource(Resource):
+    RequestSerializer = ListPipelineRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        return API_LIST_PIPELINE_RESPONSE

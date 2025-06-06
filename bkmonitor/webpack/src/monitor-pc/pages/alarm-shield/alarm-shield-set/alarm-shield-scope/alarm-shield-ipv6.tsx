@@ -62,18 +62,18 @@ export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
   @Prop({ default: () => ({}), type: Object }) originCheckedValue: IIpV6Value;
   panelList: string[] = [];
   ipCheckValue: IIpV6Value = {};
-  inited = false;
+  initialized = false;
   @Watch('shieldDimension', { immediate: true })
   async handleShieldDimensionChange(v: string) {
     this.panelList = [];
-    this.inited = false;
+    this.initialized = false;
     await this.$nextTick();
 
     this.ipCheckValue = {
       [Ipv6FieldMap[this.shieldDimension]]: this.checkedValue?.[Ipv6FieldMap[this.shieldDimension]],
     };
     this.panelList = this.getPanelListByDimension(v);
-    setTimeout(() => (this.inited = true), 100);
+    setTimeout(() => (this.initialized = true), 100);
   }
   async handleIpChange(v: IIpV6Value) {
     this.$emit('change', { value: v });
@@ -96,7 +96,7 @@ export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
             mode={'dialog'}
             originalValue={this.originCheckedValue}
             panelList={this.panelList}
-            showDialog={this.inited && this.showDialog}
+            showDialog={this.initialized && this.showDialog}
             showView={true}
             showViewDiff={this.showViewDiff}
             value={this.ipCheckValue}

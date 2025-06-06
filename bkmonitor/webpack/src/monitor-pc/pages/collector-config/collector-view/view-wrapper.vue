@@ -46,7 +46,7 @@
       :need-split="false"
       :search-select-list="searchSelectList"
       :value="compareValue"
-      :reflesh-list="refleshList"
+      :refresh-list="refreshList"
       :timerange-list="timerangeList"
       :chart-type="chartType"
       :target-list="targetList"
@@ -59,7 +59,7 @@
       @add-timeshift-option="addTimeshiftOption"
       @change="handleChangeCompare"
       @chart-change="handleChartChange"
-      @on-immediate-reflesh="handleImmediateReflesh"
+      @on-immediate-refresh="handleImmediateRefresh"
     >
       <template #append>
         <span
@@ -116,7 +116,8 @@
           :true-value="true"
           :false-value="false"
           v-model="isPrecisionFilter"
-        >{{ $t('精准过滤') }}</bk-checkbox>
+          >{{ $t('精准过滤') }}</bk-checkbox
+        >
       </div>
       <!-- 图表组件 -->
       <dashboard-panels
@@ -140,7 +141,7 @@
         :screenshot="['screenshot']"
         :more-checked="['explore', 'strategy']"
         need-tools
-        @intervalChange="(interval) => chartInterval = interval"
+        @intervalChange="interval => (chartInterval = interval)"
         @addStrategy="handleAddStrategyOfEvent"
         @exportDataRetrieval="handleExportToRetrievalOfEvent"
       >
@@ -284,7 +285,7 @@ export default class ViewWrapper extends Vue {
     compare: { type: 'none', value: '' },
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1,
+      refreshInterval: -1,
       searchValue: [],
     },
   };
@@ -297,10 +298,10 @@ export default class ViewWrapper extends Vue {
     },
   };
 
-  private showChartSort: boolean = false;
+  private showChartSort = false;
 
   private timerangeList: IOption[] = [];
-  private refleshList: IOption[] = [
+  private refreshList: IOption[] = [
     {
       name: window.i18n.t('刷新'),
       id: -1,
@@ -399,7 +400,7 @@ export default class ViewWrapper extends Vue {
         compare: { type: 'none', value: '' },
         tools: {
           timeRange: 1 * 60 * 60 * 1000,
-          refleshInterval: -1,
+          refreshInterval: -1,
           searchValue: [],
         },
       };
@@ -672,7 +673,7 @@ export default class ViewWrapper extends Vue {
   handleVariableResult(val: { key: string; value: string[]; groupId: string; name: string }[]) {
     if (JSON.stringify(val) === JSON.stringify(this.variableResult)) return;
     this.variableResult = JSON.parse(JSON.stringify(val));
-    this.handleImmediateReflesh();
+    this.handleImmediateRefresh();
   }
   /**
    * @description: 是否显示侧栏
@@ -683,8 +684,8 @@ export default class ViewWrapper extends Vue {
     this.showChartSort = val;
   }
 
-  @Emit('on-immediate-reflesh')
-  handleImmediateReflesh() {}
+  @Emit('on-immediate-refresh')
+  handleImmediateRefresh() {}
   @Emit('method-change')
   handleAggMethodChange(method) {
     return method;

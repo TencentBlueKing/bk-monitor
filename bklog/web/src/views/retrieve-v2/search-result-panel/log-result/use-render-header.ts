@@ -25,28 +25,29 @@
  */
 import { h, computed } from 'vue';
 
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import useFieldNameHook from '@/hooks/use-field-name';
-import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
+
+import TimeFormatterSwitcher from '../../components/result-cell-element/time-formatter-switcher';
 
 export default () => {
   const store = useStore();
   const { $t } = useLocale();
   const { getFieldNameByField } = useFieldNameHook({ store });
 
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.state.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
-  const sortList = computed(() => indexFieldInfo.value.sort_list);
+  const activeSortField = computed(() => store.state.indexItem.sort_list);
 
   const renderHead = (field, onClickFn) => {
-    const currentSort = sortList.value.find(s => s[0] === field.field_name)?.[1];
-    const isDesc = currentSort === 'desc';
-    const isAsc = currentSort === 'asc';
+    const currentSort = activeSortField.value?.[0] || null;
+    const currentSortField = currentSort ? currentSort[0] : null;
+    const isDesc = currentSort ? currentSort[1] === 'desc' : false;
+    const isAsc = currentSort ? currentSort[1] === 'asc' : false;
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
       const fieldName = getFieldNameByField(field);
@@ -54,6 +55,7 @@ export default () => {
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
       const fieldIconColor = fieldTypeMap.value?.[fieldType]?.color ?? '#EAEBF0';
+      const fieldIconTextColor = fieldTypeMap.value?.[fieldType]?.textColor;
       const content = fieldTypeMap.value[fieldType]?.name;
       let unionContent = '';
       // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
@@ -91,14 +93,6 @@ export default () => {
                 }
               });
 
-              if (nextOrder !== null) {
-                targets.forEach(el => {
-                  if (el.classList.contains(nextOrder)) {
-                    el.classList.add('active');
-                  }
-                });
-              }
-
               const sortMap = {
                 ascending: 'asc',
                 descending: 'desc',
@@ -115,6 +109,7 @@ export default () => {
                 marginRight: '4px',
               },
               backgroundColor: fieldIconColor,
+              color: fieldIconTextColor,
             },
 
             directives: [
@@ -145,8 +140,12 @@ export default () => {
           }),
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
-                h('i', { class: `bk-table-sort-caret ascending ${isAsc ? 'active' : ''}` }),
-                h('i', { class: `bk-table-sort-caret descending ${isDesc ? 'active' : ''}` }),
+                h('i', {
+                  class: `bk-table-sort-caret ascending ${currentSortField === field.field_name && isAsc ? 'active' : ''}`,
+                }),
+                h('i', {
+                  class: `bk-table-sort-caret descending ${currentSortField === field.field_name && isDesc ? 'active' : ''}`,
+                }),
               ])
             : '',
           h('i', {

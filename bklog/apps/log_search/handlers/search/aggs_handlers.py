@@ -215,6 +215,14 @@ class AggsHandlers(AggsBase):
             )
 
         aggs = s.aggs.bucket("group_by_histogram", date_histogram)
+
+        group_field = query_data.get("group_field")
+        if group_field:
+            # 在时间桶的基础上进行分组字段的聚合
+            aggs = aggs.bucket(
+                group_field, A("terms", field=group_field, size=cls.AGGS_BUCKET_SIZE, missing="__miss__")
+            )
+
         cls._build_date_histogram_aggs(aggs, query_data["fields"], query_data.get("size", cls.AGGS_BUCKET_SIZE))
         s = s.extra(size=0)
         query_data.update(s.to_dict())

@@ -40,7 +40,7 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
-interface IDashbordPanelProps {
+interface IDashboardPanelProps {
   // 视图集合
   panels: IPanelModel[];
   // dashboard id
@@ -58,13 +58,13 @@ interface IDashbordPanelProps {
   singleChartNoPadding?: boolean;
   layoutMargin?: [number, number];
 }
-interface IDashbordPanelEvents {
+interface IDashboardPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
   onZrClick: (e: ZrClickEvent) => void;
 }
 @Component
-export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
+export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
   // 视图集合
   @Prop({ required: true, type: Array }) panels: IPanelModel[];
   // 视图间距
@@ -114,7 +114,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   handlePanelsChange() {
     if (this.panels?.length < 1) return;
     if (this.column !== 'custom') {
-      this.handleInitPanelsGridpos(this.panels);
+      this.handleInitPanelsGridPosition(this.panels);
     }
     const panels = this.panels.slice().sort((a, b) => a.gridPos.y - b.gridPos.y || a.gridPos.x - b.gridPos.x);
     this.localPanels = this.handleInitLocalPanels(panels);
@@ -123,13 +123,13 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Watch('column')
   handleColumnChange() {
     disconnect(this.id.toString());
-    this.handleInitPanelsGridpos(this.localPanels);
+    this.handleInitPanelsGridPosition(this.localPanels);
     this.handleUpdateLayout();
-    this.handleConentEcharts();
+    this.handleConnectEcharts();
   }
   mounted() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
-    this.handleConentEcharts();
+    this.handleConnectEcharts();
     bus.$on(UPDATE_SCENES_TAB_DATA, this.handleLinkTo);
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
@@ -140,7 +140,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
     bus.$off(UPDATE_SCENES_TAB_DATA);
     bus.$off('switch_to_overview');
   }
-  handleConentEcharts() {
+  handleConnectEcharts() {
     setTimeout(() => {
       if (this.layout?.length < 300) {
         connect(this.id.toString());
@@ -158,7 +158,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
 
   /** 处理跳转视图详情 */
   @Emit('lintToDetail')
-  handleToSceneDetil(data: ITableItem<'link'>) {
+  handleToSceneDetail(data: ITableItem<'link'>) {
     return data;
   }
   /**
@@ -166,11 +166,11 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
    * @param {*}
    * @return {*}
    */
-  handleInitPanelsGridpos(panels: IPanelModel[]) {
+  handleInitPanelsGridPosition(panels: IPanelModel[]) {
     let prePanel: IPanelModel = null;
     let index = 0;
     const w = 24 / +this.column;
-    const updatePanelsGridpos = (list: IPanelModel[]) => {
+    const updatePanelsGridPosition = (list: IPanelModel[]) => {
       list.forEach(item => {
         if (item.type === 'row') {
           index = 0;
@@ -183,7 +183,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           };
           prePanel = item;
           if (item.panels?.length) {
-            updatePanelsGridpos(item.panels);
+            updatePanelsGridPosition(item.panels);
           }
         } else {
           const panelIndex = index % +this.column;
@@ -211,7 +211,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         }
       });
     };
-    updatePanelsGridpos(panels);
+    updatePanelsGridPosition(panels);
   }
   getUnGroupPanel(y: number): IPanelModel {
     return {
@@ -517,7 +517,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
    * @return {*}
    */
   handleItemMoving(panel: PanelModel) {
-    panel.updateDraging(true);
+    panel.updateDragging(true);
   }
 
   /**
@@ -545,15 +545,15 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
 
   /* 根据内容高度计算panelLayout的h属性， 表格切换每页条数时会用到 */
   handleChangeLayoutItemH(height: number, index: number) {
-    const maxIndexs = [];
+    const maxIndexes = [];
     const yArray = this.layout.map(item => Number(item.y || 0));
     const maxY = Math.max(...yArray);
     this.layout.forEach((item, index) => {
       if (item.y === maxY) {
-        maxIndexs.push(index);
+        maxIndexes.push(index);
       }
     });
-    if (maxIndexs.includes(index)) {
+    if (maxIndexes.includes(index)) {
       // Math.round(rowHeight * h + Math.max(0, h - 1) * margin[1]) = height 实际高度计算方式
       const h = Math.round((height + 8) / 38);
       this.layout[index].h = h;

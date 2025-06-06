@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from io import StringIO
-from urllib import parse
+
+import csv
 
 from django.conf import settings
-from django.http import HttpResponse
 from rest_framework import serializers
 from rest_framework.response import Response
+from io import BytesIO, TextIOWrapper
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
@@ -29,8 +28,9 @@ from apps.log_search.serializers import (
     FetchValueListSerializer,
     QueryFieldBaseSerializer,
 )
+from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
-from apps.log_unifyquery.handler import UnifyQueryHandler
+from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.utils.drf import list_route
 from apps.utils.thread import MultiExecuteFunc
 
@@ -70,7 +70,7 @@ class FieldViewSet(APIViewSet):
         multi_execute_func = MultiExecuteFunc()
 
         for field in fields_list:
-            query_handler = UnifyQueryHandler({"agg_field": field["field_name"], **params})
+            query_handler = UnifyQueryFieldHandler({"agg_field": field["field_name"], **params})
             multi_execute_func.append(f"distinct_count_{field['field_name']}", query_handler.get_distinct_count)
 
         multi_result = multi_execute_func.run(return_exception=True)
@@ -93,7 +93,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_topk_list
         """
         params = self.params_valid(FetchTopkListSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
         distinct_count = query_handler.get_distinct_count()
@@ -119,21 +119,22 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(FetchValueListSerializer)
         index = "_".join(params["result_table_ids"]).replace(".", "_")
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         value_list = query_handler.get_value_list(params["limit"])
 
-        output = StringIO()
+        output = BytesIO()
+        # 使用 TextIOWrapper 包装 BytesIO 对象以支持文本写入
+        text_wrapper = TextIOWrapper(output, encoding="utf-8", newline="")
+        # 使用 csv.writer 写入数据到包装的 BytesIO 对象
+        csv_writer = csv.writer(text_wrapper)
+        csv_writer.writerow(["value", "count", "percent"])
         for item in value_list:
-            output.write(f"{item[0]},{item[1]},{item[2]*100:.2f}%\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
+            csv_writer.writerow([item[0], item[1], f"{item[2] * 100:.2f}%"])
+        text_wrapper.flush()
+        text_wrapper.detach()
         field_name = params["agg_field"]
-        file_name = f"bk_log_search_{index}_{field_name}.txt"
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
-
-        return response
+        file_name = f"bk_log_search_{index}_{field_name}.csv"
+        return create_download_response(output, file_name, "text/csv")
 
     @list_route(methods=["POST"], url_path="statistics/info")
     def fetch_statistics_info(self, request, *args, **kwargs):
@@ -142,7 +143,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_info
         """
         params = self.params_valid(FetchStatisticsInfoSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
 
         total_count = query_handler.get_total_count()
         field_count = query_handler.get_field_count()
@@ -175,7 +176,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_total_count
         """
         params = self.params_valid(QueryFieldBaseSerializer)
-        total_count = UnifyQueryHandler(params).get_total_count()
+        total_count = UnifyQueryFieldHandler(params).get_total_count()
         return Response({"total_count": total_count})
 
     @list_route(methods=["POST"], url_path="statistics/graph")
@@ -185,7 +186,7 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_statistics_graph
         """
         params = self.params_valid(FetchStatisticsGraphSerializer)
-        query_handler = UnifyQueryHandler(params)
+        query_handler = UnifyQueryFieldHandler(params)
         if FIELD_TYPE_MAP.get(params["field_type"], "") == FieldDataTypeEnum.INT.value:
             if params["distinct_count"] < params["threshold"]:
                 return Response(query_handler.get_topk_list(params["threshold"]))

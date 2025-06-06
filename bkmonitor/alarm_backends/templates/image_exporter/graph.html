@@ -1,208 +1,208 @@
 <!DOCTYPE html>
 <html>
-<head lang="en">
-    <meta charset="UTF-8">
+  <head lang="en">
+    <meta charset="UTF-8" />
     <title></title>
     <style>
-        @font-face {
-            font-family: SourceHanSerifSC-Regular;
-            src: url('./static/fonts/SourceHanSerifSC-Regular.otf') format("opentype");
-        }
+      @font-face {
+        font-family: SourceHanSerifSC-Regular;
+        src: url('./static/fonts/SourceHanSerifSC-Regular.otf') format('opentype');
+      }
 
-        body {
-            width: 450px;
-            height: 300px;
-            background-color: #ffffff;
-            font-family: SourceHanSerifSC-Regular !important;
-        }
+      body {
+        width: 450px;
+        height: 300px;
+        background-color: #ffffff;
+        font-family: SourceHanSerifSC-Regular !important;
+      }
 
-        .chart-title {
-            border: 1px solid #e9e9e9;
-            background-color: #f3f3f3;
-            padding: 7px 7px 7px 10px;
-            transition: opacity .2s ease-out;
-            box-sizing: border-box;
-            font-size: 15px;
-            font-weight: normal;
-            line-height: 1.2;
-            color: #646464;
-        }
+      .chart-title {
+        border: 1px solid #e9e9e9;
+        background-color: #f3f3f3;
+        padding: 7px 7px 7px 10px;
+        transition: opacity 0.2s ease-out;
+        box-sizing: border-box;
+        font-size: 15px;
+        font-weight: normal;
+        line-height: 1.2;
+        color: #646464;
+      }
 
-        .chart-contain {
-            width: 1520px;
-        }
+      .chart-contain {
+        width: 1520px;
+      }
 
-        .chart-panel {
-            border: 1px solid #e9e9e9;
-            border-top: none;
-            height: 600px;
-        }
+      .chart-panel {
+        border: 1px solid #e9e9e9;
+        border-top: none;
+        height: 600px;
+      }
 
-        .sub-title {
-            color: rgb(51, 51, 255);
-            font-size: 12px;
-            opacity: 1;
-        }
+      .sub-title {
+        color: rgb(51, 51, 255);
+        font-size: 12px;
+        opacity: 1;
+      }
     </style>
-</head>
-<body>
-<div class="chart-contain">
-
-    <div class="chart-title">
+  </head>
+  <body>
+    <div class="chart-contain">
+      <div class="chart-title">
         <span class="monitor-title">Loading</span>
         <span class="sub-title mr30">...</span>
+      </div>
+
+      <div
+        class="chart-panel"
+        data-highcharts-chart="6"
+      ></div>
     </div>
 
-    <div class="chart-panel" data-highcharts-chart="6">
+    <script src="./static/js/jquery-1.10.2.min.js"></script>
+    <script src="./static/js/highcharts.js"></script>
+    <script src="./static/js/highcharts-more.js"></script>
+    <script src="./static/js/graph-highcharts.js"></script>
 
-    </div>
-</div>
+    <script>
+      function context_to_chart_data (context) {
+      	context["timezone"] = context["timezone"] || "Asia/Shanghai";
+      	context["locale"] = context["locale"] || "zh-cn";
+      	var series_name_list = [];
+      	var z_index = context["series"].length;
+      	var point_start = context["pointStart"];
+      	var point_end = 0;
+      	var max_y = 0;
+      	var min_y = null;
 
-<script src="./static/js/jquery-1.10.2.min.js"></script>
-<script src="./static/js/highcharts.js"></script>
-<script src="./static/js/highcharts-more.js"></script>
-<script src="./static/js/graph-highcharts.js"></script>
+      	var series = context["series"];
+      	for (var i in series) {
+      		var s = series[i];
+      		series_name_list.push(s["name"]);
+      		s["zIndex"] = z_index;
+      		z_index -= 1;
 
-<script>
-function context_to_chart_data (context) {
-	context["timezone"] = context["timezone"] || "Asia/Shanghai";
-	context["locale"] = context["locale"] || "zh-cn";
-	var series_name_list = [];
-	var z_index = context["series"].length;
-	var point_start = context["pointStart"];
-	var point_end = 0;
-	var max_y = 0;
-	var min_y = null;
+      		var series_max_y = 0;
+      		var series_count = [];
+      		var x_axis_list = [];
+      		var s_data = s["data"];
+      		for (var ii in s_data) {
+      			var d = s_data[ii];
+      			var x = d[0];
+      			var y = d[1];
+      			series_count.push(y) // y
+      			if (point_start == undefined || x < point_start) {
+      				point_start = x;
+      			}
+      			if (point_end < x) {
+      				point_end = x;
+      			}
+      			if (series_max_y < y) {
+      				series_max_y = y;
+      			}
+      			if(min_y === null && y !== null) {
+      				min_y = y
+      			}
+      			if (min_y > y && y !== null) {
+      				min_y = +y;
+      			}
+      			var time = new Date(x).toLocaleString(context["locale"], {
+      				timeZone: context["timezone"],
+      				hour12: false,
+      				year: "numeric",
+      				month: "2-digit",
+      				day: "2-digit",
+      				hour: "2-digit",
+      				minute: "2-digit",
+      				second: "2-digit",
+      			});
+      			x_axis_list.push(time);
+      		}
+      		s["count"] = series_count;
+      		s["x_axis_list"] = x_axis_list;
+      		s["type"] = context["chart_type"];
+      		s["max_y"] = series_max_y;
+      		if (max_y < series_max_y) {
+      			max_y = series_max_y;
+      		}
+      	}
 
-	var series = context["series"];
-	for (var i in series) {
-		var s = series[i];
-		series_name_list.push(s["name"]);
-		s["zIndex"] = z_index;
-		z_index -= 1;
+      	context["max_y"] = max_y;
+      	context["show_percent"] = false;
+      	context["pointInterval"] = context["pointInterval"] || 300000;
+      	context["series_name_list"] = series_name_list;
+      	context["yaxis_range"] = Math.floor(min_y) + ':' + Math.ceil(max_y);
+      	context["pointStart"] = point_start;
 
-		var series_max_y = 0;
-		var series_count = [];
-		var x_axis_list = [];
-		var s_data = s["data"];
-		for (var ii in s_data) {
-			var d = s_data[ii];
-			var x = d[0];
-			var y = d[1];
-			series_count.push(y) // y
-			if (point_start == undefined || x < point_start) {
-				point_start = x;
-			}
-			if (point_end < x) {
-				point_end = x;
-			}
-			if (series_max_y < y) {
-				series_max_y = y;
-			}
-			if(min_y === null && y !== null) {
-				min_y = y
-			}
-			if (min_y > y && y !== null) {
-				min_y = +y;
-			}
-			var time = new Date(x).toLocaleString(context["locale"], {
-				timeZone: context["timezone"],
-				hour12: false,
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-				hour: "2-digit",
-				minute: "2-digit",
-				second: "2-digit",
-			});
-			x_axis_list.push(time);
-		}
-		s["count"] = series_count;
-		s["x_axis_list"] = x_axis_list;
-		s["type"] = context["chart_type"];
-		s["max_y"] = series_max_y;
-		if (max_y < series_max_y) {
-			max_y = series_max_y;
-		}
-	}
+      	if (context["source_timestamp"] == 0) {
+      		context["source_timestamp"] = point_end;
+      	}
 
-	context["max_y"] = max_y;
-	context["show_percent"] = false;
-	context["pointInterval"] = context["pointInterval"] || 300000;
-	context["series_name_list"] = series_name_list;
-	context["yaxis_range"] = Math.floor(min_y) + ':' + Math.ceil(max_y);
-	context["pointStart"] = point_start;
+      	context["color_list"] = context["color_list"] || "";
+      	context["event_color"] = context["event_color"] || "#ff7b00";
+      	context["x_axis"] = context["x_axis"] || {
+      		"minRange": 3600000,
+      		"type": "datetime"
+      	};
+      	return {
+      		"graph_data": context,
+      		"timezone": context["timezone"],
+          "timezoneOffset": context["timezoneOffset"],
+      		"locale": context["locale"],
+      		"title": context["title"] || "",
+      		"subtitle": context["subtitle"] || "",
+      		"signature": context["signature"] || "",
+      		"width": context["width"] || null,
+      		"height": context["height"] || null,
+      	};
+      }
 
-	if (context["source_timestamp"] == 0) {
-		context["source_timestamp"] = point_end;
-	}
+      var renderContext = function (context) {
+      	context = context_to_chart_data(context);
+      	Highcharts.setOptions({
+      		global: {
+      		    timezoneOffset: context["timezoneOffset"]
+      		},
+              chart: {
+      			style: {
+      				fontFamily: "SourceHanSerifSC-Regular"
+      			},
+      			spacingLeft: 10
+              }
+      	});
 
-	context["color_list"] = context["color_list"] || "";
-	context["event_color"] = context["event_color"] || "#ff7b00";
-	context["x_axis"] = context["x_axis"] || {
-		"minRange": 3600000,
-		"type": "datetime"
-	};
-	return {
-		"graph_data": context,
-		"timezone": context["timezone"],
-    "timezoneOffset": context["timezoneOffset"],
-		"locale": context["locale"],
-		"title": context["title"] || "",
-		"subtitle": context["subtitle"] || "",
-		"signature": context["signature"] || "",
-		"width": context["width"] || null,
-		"height": context["height"] || null,
-	};
-}
+      	if (context.width) {
+      		$(".chart-contain").css("width", context.width);
+      	}
+      	if (context.height) {
+      		$(".chart-contain").css("height", context.height);
+      	}
 
-var renderContext = function (context) {
-	context = context_to_chart_data(context);
-	Highcharts.setOptions({
-		global: {
-		    timezoneOffset: context["timezoneOffset"]
-		},
-        chart: {
-			style: {
-				fontFamily: "SourceHanSerifSC-Regular"
-			},
-			spacingLeft: 10
-        }
-	});
+      	Highcharts.setOptions(Highcharts.theme_default);
+      	// 所有的图片导出页面都应该提供此方法，来重绘图片
+      	$(".monitor-title").text(context.title);
+      	$(".sub-title").text(context.subtitle);
+      	Hchart.make_graph(context.graph_data, $(".chart-panel"));
+      	var chart_obj = $(".chart-panel").highcharts();
 
-	if (context.width) {
-		$(".chart-contain").css("width", context.width);
-	}
-	if (context.height) {
-		$(".chart-contain").css("height", context.height);
-	}
+      	// if (context.graph_data.source_timestamp) {
+      	// 	add_alert_line(chart_obj, context.graph_data.source_timestamp, context.graph_data.event_color);
+      	// }
 
-	Highcharts.setOptions(Highcharts.theme_default);
-	// 所有的图片导出页面都应该提供此方法，来重绘图片
-	$(".monitor-title").text(context.title);
-	$(".sub-title").text(context.subtitle);
-	Hchart.make_graph(context.graph_data, $(".chart-panel"));
-	var chart_obj = $(".chart-panel").highcharts();
+      	if (context.signature) {
+      		$(".chart-contain").css("background", "url(" + context.signature + ") repeat");
+      	}
+      };
 
-	if (context.graph_data.source_timestamp) {
-		add_alert_line(chart_obj, context.graph_data.source_timestamp, context.graph_data.event_color);
-	}
-
-	if (context.signature) {
-		$(".chart-contain").css("background", "url(" + context.signature + ") repeat");
-	}
-};
-
-function add_alert_line (chart_obj, timepoint, color) {
-	chart_obj.xAxis[0].addPlotLine({
-		value: timepoint,
-		width: 2,
-		color: color,
-		dashStyle: "ShortDot",
-	});
-};
-var context = {{ context | safe }};
-renderContext(context);
-</script>
-</body>
+      function add_alert_line (chart_obj, timepoint, color) {
+      	chart_obj.xAxis[0].addPlotLine({
+      		value: timepoint,
+      		width: 2,
+      		color: color,
+      		dashStyle: "ShortDot",
+      	});
+      };
+      var context = {{ context | safe }};
+      renderContext(context);
+    </script>
+  </body>
 </html>

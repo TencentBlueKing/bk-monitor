@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-trace-log",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.12",
   "description": "",
   "main": "main.js",
   "scripts": {

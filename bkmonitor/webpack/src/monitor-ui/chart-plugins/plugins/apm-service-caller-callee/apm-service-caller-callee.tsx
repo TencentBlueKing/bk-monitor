@@ -68,8 +68,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   @InjectReactive('viewOptions') viewOptions;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
 
   panelsData = [];
   tabList = CALLER_CALLEE_TYPE;
@@ -106,7 +106,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   timeStrShow = {};
   // 自动刷新定时任务
   refreshIntervalInstance = null;
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
     if (this.refreshIntervalInstance) {
@@ -115,9 +115,9 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     if (v <= 0) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSetTimeStrShow();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   handleRefleshImmediate() {
     this.handleSetTimeStrShow();
   }

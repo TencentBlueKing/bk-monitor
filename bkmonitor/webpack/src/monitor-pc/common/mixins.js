@@ -463,7 +463,7 @@ const resizeMixin = {
         show: false,
         ready: false,
         left: 0,
-        draging: false,
+        dragging: false,
       },
     };
   },

@@ -158,8 +158,17 @@ export const downCsvFile = (csvStr: string, name = 'csv-file.csv') => {
   const href = window.URL.createObjectURL(blob);
   downFile(href, name);
 };
+/**
+ * 根据json字符串下载json文件
+ * @param jsonStr json字符串
+ */
+export const downJsonFile = (jsonStr: string, name = 'json-file.json') => {
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const href = window.URL.createObjectURL(blob);
+  downFile(href, name);
+};
 
-export const refleshList = [
+export const refreshList = [
   // 刷新间隔列表
   {
     name: 'off',

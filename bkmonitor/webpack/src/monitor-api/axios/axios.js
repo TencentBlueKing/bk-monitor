@@ -80,7 +80,7 @@ const errorHandle = (response, config) => {
               } else {
                 handleLoginExpire();
               }
-            } catch (_) {
+            } catch {
               handleLoginExpire();
             }
           } else {
@@ -143,10 +143,17 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   // 请求成功
   res => {
-    if (!res.data.result) {
-      return Promise.reject(res.data);
-    }
     if (res.status === 200) {
+      if (res.headers['content-disposition'] && res.config.method?.toLowerCase() === 'post') {
+        const filename = res.headers['content-disposition'].split('filename=')[1]?.split(';')[0]?.replace(/"/g, '');
+        return Promise.resolve({
+          data: {
+            filename,
+            isfile: true,
+            data: res.data,
+          },
+        });
+      }
       if (!res.data.result) {
         return Promise.reject(res.data);
       }

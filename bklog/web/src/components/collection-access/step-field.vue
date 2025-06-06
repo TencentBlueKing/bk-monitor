@@ -188,7 +188,7 @@
                   data-test-id="fieldExtractionBox_span_applyTemp"
                   @click="openTemplateDialog(false)"
                 >
-                  <i  
+                  <i
                     class="bk-icon bklog-icon bklog-app-store"
                     v-bk-tooltips.top="$t('隐藏')"
                   ></i>
@@ -199,7 +199,7 @@
                   class="template-text documentation button-text"
                   @click="handleGotoLink('logExtract')"
                 >
-                  <i  
+                  <i
                     class="bk-icon bklog-icon bklog-help"
                     v-bk-tooltips.top="$t('隐藏')"
                   ></i>
@@ -352,7 +352,7 @@
                 :is-temp-field="isTempField"
                 :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
-                :built-field-show = "builtFieldShow"
+                :built-field-show="builtFieldShow"
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
                 @delete-field="deleteField"
@@ -418,6 +418,7 @@
                   :popover-min-width="160"
                   clearable
                   searchable
+                  @change="changeFieldName"
                 >
                   <bk-option
                     v-for="option in renderFieldNameList"
@@ -474,7 +475,7 @@
                   searchable
                 >
                   <bk-option
-                    v-for="item in globalsData.time_zone"
+                    v-for="item in timeZone"
                     :id="item.id"
                     :key="item.id"
                     :name="item.name"
@@ -529,7 +530,11 @@
               <div class="switcher-tips">
                 <i class="bk-icon icon-info-circle" />
                 <span>
-                  {{ this.$t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据') }}
+                  {{
+                    this.$t(
+                      '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据',
+                    )
+                  }}
                 </span>
               </div>
             </div>
@@ -919,7 +924,6 @@
   import AuthContainerPage from '@/components/common/auth-container-page';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
-
   import * as authorityMap from '../../common/authority-map';
   import { deepClone, deepEqual } from '../../common/util';
   import fieldTable from './field-table';
@@ -1054,7 +1058,7 @@
           is_delete: false,
           is_dimension: false,
           is_time: false,
-          query_alias:'',
+          query_alias: '',
           value: '',
           option: {
             time_format: '',
@@ -1114,7 +1118,7 @@
           field_name: '',
           field_type: '',
           description: '',
-          query_alias:'',
+          query_alias: '',
           is_case_sensitive: false,
           is_analyzed: false,
           is_built_in: false,
@@ -1143,9 +1147,9 @@
         timeCheckContent: '',
         metaDataList: [],
         isDebugLoading: false,
-        builtFieldShow:false,
+        builtFieldShow: false,
         fieldsObjectData: [],
-        alias_settings:[]
+        alias_settings: [],
       };
     },
     computed: {
@@ -1161,6 +1165,9 @@
       }),
       authorityMap() {
         return authorityMap;
+      },
+      timeZone() {
+        return (this.globalsData?.time_zone ?? []).toReversed();
       },
       isJsonOrOperator() {
         return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
@@ -1228,9 +1235,8 @@
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
       },
       renderFieldNameList() {
-        return this.fieldNameList.filter((item,index) => {
-          item.field_index = index
-          return item.field_name && !item.is_built_in
+        return this.fieldNameList.filter(item => {
+          return item.field_name && !item.is_built_in;
         });
       },
     },
@@ -1336,7 +1342,6 @@
       }
       await this.getCleanStash(collectorID);
       this.getDataLog('init');
-      
     },
     methods: {
       handlerSearchTemplate() {
@@ -1351,17 +1356,17 @@
         this.fieldNameList = data;
       },
       // 切换显示内置字段
-      handleBuiltField(value){
-        this.builtFieldShow = value
-        if(value){
+      handleBuiltField(value) {
+        this.builtFieldShow = value;
+        if (value) {
           const allFields = this.$refs.fieldTable.getData();
-          this.formData.fields = [...allFields, ...this.copyBuiltField]
+          this.formData.fields = [...allFields, ...this.copyBuiltField];
           this.savaFormData();
-        }else{
+        } else {
           const allFields = this.$refs.fieldTable.getData();
-          const builtFields = allFields.filter( item => item.is_built_in)
-          this.formData.fields = allFields.filter( item => !item.is_built_in)
-          if(builtFields.length){
+          const builtFields = allFields.filter(item => item.is_built_in);
+          this.formData.fields = allFields.filter(item => !item.is_built_in && !item.is_objectKey);
+          if (builtFields.length) {
             this.copyBuiltField = builtFields;
           }
         }
@@ -1566,29 +1571,31 @@
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
           // 添加内置字段
-          if(!this.builtFieldShow){                                
-            const copyBuiltField = deepClone(this.copyBuiltField);                  
+          if (!this.builtFieldShow) {
+            const copyBuiltField = deepClone(this.copyBuiltField);
             copyBuiltField.forEach(field => {
               if (field.hasOwnProperty('expand')) {
                 if (field.expand === false) {
-                  copyBuiltField.push(...field.children)
-                } 
+                  copyBuiltField.push(...field.children);
+                }
               }
-            })
-            data.etl_fields.push(...copyBuiltField)
-          }else{
+            });
+            data.etl_fields.push(...copyBuiltField);
+          } else {
             delete data.etl_params['separator_regexp'];
             delete data.etl_params['separator'];
           }
         }
-        data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
-          return {
-            field_name: item.alias_name || item.field_name,
-            query_alias: item.query_alias,
-            path_type: item.field_type
-          }
-        })
-        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+        data.alias_settings = fieldTableData
+          .filter(item => item.query_alias)
+          .map(item => {
+            return {
+              field_name: item.alias_name || item.field_name,
+              query_alias: item.query_alias,
+              path_type: item.field_type,
+            };
+          });
+        data.etl_fields = data.etl_fields.filter(item => !item.is_built_in && !item.is_objectKey);
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1674,7 +1681,7 @@
       /** 入库请求 */
       async fieldCollectionRequest(atLastFormData, callback) {
         const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
-        // 检索设置 直接入库 
+        // 检索设置 直接入库
         const {
           table_id,
           storage_cluster_id,
@@ -1843,7 +1850,7 @@
       },
       // 字段表格校验
       checkFieldsTable() {
-        return this.$refs.fieldTable.validateFieldTable() 
+        return this.$refs.fieldTable.validateFieldTable();
         // return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
       },
       handleCancel() {
@@ -1915,12 +1922,12 @@
           etl_params: etlParams,
           fields,
           index_set_id,
-          alias_settings
+          alias_settings,
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-        this.alias_settings = this.changeAliasSettings(alias_settings)
-        this.concatenationQueryAlias(copyFields)
+        this.alias_settings = this.changeAliasSettings(alias_settings);
+        this.concatenationQueryAlias(copyFields);
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
@@ -1970,13 +1977,14 @@
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
+
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
         }
-        this.requestFields(index_set_id)
+        this.requestFields(index_set_id);
       },
       clickFile() {
         this.defaultSettings.isShow = true;
@@ -2097,6 +2105,7 @@
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
+
                     list.forEach((item, itemIndex) => {
                       item.field_index = itemIndex;
                     });
@@ -2105,42 +2114,41 @@
 
                   if (etl_config === 'bk_log_delimiter') {
                     // 分隔符逻辑较特殊，需要单独拎出来
-                    let index;
+                    let index = [];
                     newFields.forEach((item, idx) => {
                       // 找到最后一个field_name不为空的下标
                       if (item.field_name && !item.is_delete) {
-                        index = idx + 1;
+                        index.push(item);
                       }
                     });
+
                     const list = [];
+                    // 将标记为删除的字段过滤出来，并添加到 list 中
                     const deletedFileds = newFields.filter(item => item.is_delete);
                     list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
-                    if (index) {
-                      newFields.forEach((item, idx) => {
-                        // 找到最后一个field_name不为空的下标
-                        const child = dataFields.find(data => data.field_index === item.field_index);
-                        item.value = child ? child.value : ''; // 修改value值(预览值)
-                        if (index > idx && !item.is_delete) {
-                          // 将未删除的存进数组
-                          list.push(item);
-                        }
+                    // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
+                    if (index.length) {
+                      index.forEach((item, idx) => {
+                        const child = dataFields[idx];
+                        item.value = child ? child.value : '';
+                        list.push(item);
                       });
-                      dataFields.forEach(item => {
-                        // 新增的字段需要存进数组
-                        const child = list.find(field => field.field_index === item.field_index);
-                        if (!child) {
-                          list.push(Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item));
-                        }
-                      });
+                      // 处理 dataFields 中超出 index 范围的部分
+                      if (dataFields.length > index.length) {
+                        dataFields.slice(index.length).forEach(item => {
+                          const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                          list.push(newItem);
+                        });
+                      }
                     } else {
                       dataFields.reduce((arr, item) => {
+                        item.field_index = arr.length;
                         const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
                         arr.push(field);
                         return arr;
                       }, list);
                     }
-                    list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
-
+                    // list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
                     this.formData.fields.splice(0, fields.length, ...list);
                   }
                 }
@@ -2320,7 +2328,7 @@
           .then(res => {
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
-              this.concatenationQueryAlias(etlFields)
+              this.concatenationQueryAlias(etlFields);
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
@@ -2344,7 +2352,7 @@
                 separator: etlParams.separator || '',
               });
               this.fieldType = clean_type;
-              this.enableMetaData = etlParams.path_regexp ? true : false;
+              this.enableMetaData = !!etlParams.path_regexp;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2390,8 +2398,8 @@
           })
           .then(async res => {
             if (res.data) {
-              this.alias_settings = this.changeAliasSettings(res.data.alias_settings)
-              this.concatenationQueryAlias(res.data.fields)
+              this.alias_settings = this.changeAliasSettings(res.data.alias_settings);
+              this.concatenationQueryAlias(res.data.fields);
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);
@@ -2406,11 +2414,11 @@
       concatenationQueryAlias(fields) {
         fields.forEach(item => {
           this.alias_settings.forEach(item2 => {
-            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
-              item.query_alias = item2.query_alias
+            if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+              item.query_alias = item2.query_alias;
             }
-          })
-        })
+          });
+        });
       },
       // 新增、编辑清洗选择采集项
       async handleCollectorChange(id) {
@@ -2436,7 +2444,7 @@
         });
         if (curCollect.create_clean_able || this.isEditCleanItem) {
           this.setAdvanceCleanTab(false);
-          
+
           // 获取采集项详情
           await this.setDetail(id);
         } else {
@@ -2472,8 +2480,8 @@
       },
       /** 切换匹配模式 */
       handleSelectConfig(id) {
-        if(this.params.etl_config === id){
-          return
+        if (this.params.etl_config === id) {
+          return;
         }
         if (!this.isFinishCatchFrom) {
           this.catchFields = this.$refs.fieldTable.getData();
@@ -2485,7 +2493,7 @@
           this.isFinishCatchFrom = false;
           return;
         }
-        this.handleBuiltField(false)
+        this.handleBuiltField(false);
         this.formData.fields = []; // 切换匹配模式时需要清空字段
       },
       /** json格式新增字段 */
@@ -2606,55 +2614,68 @@
           }, {}),
         );
       },
-       /** 获取fields */
+      /** 获取fields */
       async requestFields(indexSetId) {
-        if(!indexSetId){
-          return
+        if (!indexSetId) {
+          return;
         }
-        const typeConversion= {
+        const typeConversion = {
           keyword: 'string',
-          long: 'string'
-        }
+          long: 'string',
+        };
         try {
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: indexSetId
+              index_set_id: indexSetId,
             },
           });
-          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
+          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
           this.fieldsObjectData.forEach(item => {
-            let name = item.field_name.split('.')[0]
-            item.field_type = typeConversion[item.field_type]
-            item.is_objectKey = true
-            item.is_delete = false
-            this.copyBuiltField.forEach( builtField => {
-              if(builtField.field_type === "object" && name.includes(builtField.field_name)){
-                if (!Array.isArray(builtField.children)) {
-                  builtField.children = [];
-                  this.$set(builtField, 'expand', false);
-                }
-                builtField.children.push(item);
-              }
-            } )
-          })
-          
+            let name = item.field_name.split('.')[0];
+            item.field_type = typeConversion[item.field_type];
+            item.is_objectKey = true;
+            item.is_delete = false;
+
+            this.addChildrenToBuiltField(this.copyBuiltField, item, name);
+            this.addChildrenToBuiltField(this.formData.fields, item, name);
+          });
         } catch (err) {
           console.warn(err);
         }
       },
       deleteField(field) {
-        this.formData.fields =  this.formData.fields.filter(item => item.field_index !== field.field_index)
+        this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
       },
       // 转换alias_settings格式
-      changeAliasSettings(alias_settings){
+      changeAliasSettings(alias_settings) {
         const keys = Object.keys(alias_settings || {});
-        return keys.map( key => {
+        return keys.map(key => {
           return {
-            query_alias : key,
-            field_name : alias_settings[key].path
-          } 
-        })
-      }
+            query_alias: key,
+            field_name: alias_settings[key].path,
+          };
+        });
+      },
+      addChildrenToBuiltField(builtFieldList, item, name) {
+        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
+        builtFieldList.forEach(builtField => {
+          if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
+            if (!Array.isArray(builtField.children)) {
+              builtField.children = [];
+              this.$set(builtField, 'expand', false);
+            }
+            builtField.children.push(item);
+          }
+        });
+      },
+      // 切换后time_unix字段后，取消上次time_unix标识
+      changeFieldName(val, oldVal) {
+        this.fieldNameList.forEach(item => {
+          if (item.field_name === oldVal) {
+            item.is_time = false;
+          }
+        });
+      },
     },
   };
 </script>
@@ -2761,11 +2782,11 @@
       border-bottom: 1px solid #dcdee5;
     }
 
-    .switcher-tips{
-      color: #979BA5;
-      font-size: 12px;
+    .switcher-tips {
       position: absolute;
       top: 20px;
+      font-size: 12px;
+      color: #979ba5;
     }
 
     .text-nav {
@@ -2922,12 +2943,13 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
-        .bklog-button{
+
+        .bklog-button {
           font-size: 12px;
         }
       }
 
-      .bklog-icon{
+      .bklog-icon {
         font-size: 16px;
       }
 

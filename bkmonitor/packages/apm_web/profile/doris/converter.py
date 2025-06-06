@@ -55,31 +55,34 @@ class DorisProfileConverter(ProfileConverter):
         return self.profile
 
     def stacktrace_to_location(self, stacktrace: dict) -> Location:
+        mapping_id = 0
         mapping_info = stacktrace["mapping"]
+        if mapping_info is not None:
+            mapping = self._mapping_mapping.get(mapping_info["fileName"])
+            if mapping is None:
+                mapping = Mapping(
+                    id=len(self.profile.mapping) + 1,
+                    memory_start=mapping_info["memoryStart"],
+                    memory_limit=mapping_info["memoryLimit"],
+                    file_offset=mapping_info["fileOffset"],
+                    filename=self.add_string(mapping_info["fileName"]),
+                    build_id=self.add_string(mapping_info["buildId"]),
+                    has_functions=mapping_info["hasFunctions"],
+                    has_filenames=mapping_info["hasFilenames"],
+                    has_line_numbers=mapping_info["hasLineNumbers"],
+                    has_inline_frames=mapping_info["hasInlineFrames"],
+                )
+                self._mapping_mapping[mapping_info["fileName"]] = mapping
+                self._mapping_id_mapping[mapping.id] = mapping
+                self.profile.mapping.append(mapping)
 
-        mapping = self._mapping_mapping.get(mapping_info["fileName"])
-        if mapping is None:
-            mapping = Mapping(
-                id=len(self.profile.mapping) + 1,
-                memory_start=mapping_info["memoryStart"],
-                memory_limit=mapping_info["memoryLimit"],
-                file_offset=mapping_info["fileOffset"],
-                filename=self.add_string(mapping_info["fileName"]),
-                build_id=self.add_string(mapping_info["buildId"]),
-                has_functions=mapping_info["hasFunctions"],
-                has_filenames=mapping_info["hasFilenames"],
-                has_line_numbers=mapping_info["hasLineNumbers"],
-                has_inline_frames=mapping_info["hasInlineFrames"],
-            )
-            self._mapping_mapping[mapping_info["fileName"]] = mapping
-            self._mapping_id_mapping[mapping.id] = mapping
-            self.profile.mapping.append(mapping)
+            mapping_id = mapping.id
 
         location = self._location_mapping.get(stacktrace["address"])
         if location is None:
             location = Location(
                 id=len(self.profile.location) + 1,
-                mapping_id=mapping.id,
+                mapping_id=mapping_id,
                 address=stacktrace["address"],
                 is_folded=stacktrace["isFolded"],
             )

@@ -1,0 +1,29 @@
+.favorite-box-group-manage-favorite-detail {
+  padding: 14px 16px;
+  .header {
+    color: #313238;
+    font-size: 16px;
+    line-height: 24px;
+    margin-bottom: 12px;
+  }
+  .form-item {
+    display: flex;
+    overflow: hidden;
+    margin: 6px 0;
+  }
+  .form-item-label {
+    color: #4d4f56;
+    line-height: 24px;
+    text-align: right;
+    width: 60px;
+    padding-right: 4px;
+    overflow: hidden;
+  }
+  .form-item-content {
+    align-items: center;
+    display: flex;
+    line-height: 20px;
+    overflow: hidden;
+    flex: 1;
+  }
+}

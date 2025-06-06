@@ -24,11 +24,31 @@
  * IN THE SOFTWARE.
  */
 import { sql } from '@codemirror/lang-sql';
-import { EditorState } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
-import { EditorView, minimalSetup } from 'codemirror';
+import { EditorState, EditorSelection } from '@codemirror/state';
+import { keymap, EditorView, Decoration } from '@codemirror/view';
+import { minimalSetup } from 'codemirror';
+import { debounce } from 'lodash';
 
-export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+const notKeywordDecorator = Decoration.mark({
+  class: 'cm-not-keyword', // 这将添加一个cm-not-keyword类名
+});
+
+function highlightNotKeywords() {
+  return EditorView.decorations.of(view => {
+    const decorations = [];
+    const text = view.state.doc.toString();
+    const regex = /\bNOT\b/g;
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      decorations.push(notKeywordDecorator.range(match.index, match.index + match[0].length));
+    }
+
+    return Decoration.set(decorations);
+  });
+}
+
+export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
@@ -37,12 +57,19 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
       return stopDefaultKeyboard?.() ?? false;
     },
   }));
+
+  const debouncedTrack = debounce(update => {
+    onChange?.(update.state.doc);
+    onFocusPosChange?.(update.state);
+  });
+
   const state = EditorState.create({
     doc: value,
     extensions: [
       keymap.of([
         {
-          key: 'Enter',
+          key: 'Ctrl-Enter',
+          mac: 'Cmd-Enter',
           run: view => {
             return onKeyEnter?.(view) ?? false;
           },
@@ -51,13 +78,18 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
       ]),
       minimalSetup,
       sql(),
+      highlightNotKeywords(),
       EditorView.lineWrapping,
-      EditorView.focusChangeEffect.of((_, focusing) => {
-        onFocusChange?.(focusing);
+
+      EditorView.focusChangeEffect.of((state, focusing) => {
+        onFocusChange?.(state, focusing);
       }),
       EditorView.updateListener.of(update => {
+        if (update.selectionSet) {
+          onFocusPosChange?.(update.state);
+        }
         if (update.docChanged) {
-          onChange?.(update.state.doc);
+          debouncedTrack(update);
         }
       }),
     ],
@@ -74,24 +106,81 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaul
     });
   };
 
-  const setValue = value => {
-    if (view.state.doc.toString() === value) {
+  const setValue = (value, from = 0, to = undefined) => {
+    const currentValue = view.state.doc.toString();
+    if (currentValue === value) {
       return;
     }
 
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value },
-    });
-
-    setTimeout(() => {
+    // 处理替换全部内容的情况
+    if (to === Infinity) {
+      const docLength = view.state.doc.length;
       view.dispatch({
-        selection: {
-          anchor: view.state.doc.length,
-          head: view.state.doc.length,
-        },
+        changes: { from: 0, to: docLength, insert: value },
+        selection: EditorSelection.cursor(value.length),
       });
+      return;
+    }
+
+    // 处理插入新内容的情况
+    if (to === undefined) {
+      // 确保 from 不超过文档长度
+      const safeFrom = Math.min(from, view.state.doc.length);
+      view.dispatch({
+        changes: { from: safeFrom, insert: value },
+        selection: EditorSelection.cursor(safeFrom + value.length),
+        userEvent: 'input',
+      });
+      return;
+    }
+
+    // 处理替换指定范围内容的情况
+    if (typeof to === 'number') {
+      // 确保 from 和 to 在有效范围内
+      const docLength = view.state.doc.length;
+      const safeFrom = Math.min(from, docLength);
+      const safeTo = Math.min(to, docLength);
+      
+      // 如果 from 大于等于 to，当作插入处理
+      if (safeFrom >= safeTo) {
+        view.dispatch({
+          changes: { from: safeFrom, insert: value },
+          selection: EditorSelection.cursor(safeFrom + value.length),
+          userEvent: 'input',
+        });
+        return;
+      }
+
+      view.dispatch({
+        changes: { from: safeFrom, to: safeTo, insert: value },
+        selection: EditorSelection.cursor(safeFrom + value.length),
+        userEvent: 'input',
+      });
+    }
+  };
+
+  const setFocus = () => {
+    if (!view) return;
+    
+    view.focus();
+    // 确保光标位置正确
+    const pos = view.state.selection.main.to;
+    view.dispatch({
+      selection: EditorSelection.cursor(pos),
+      userEvent: 'focus',
     });
   };
 
-  return { state, view, appendText, setValue };
+  const getValue = () => {
+    return view.state.doc.toString() ?? '*';
+  };
+
+  return { 
+    state, 
+    view, 
+    appendText, 
+    setValue, 
+    setFocus, 
+    getValue,
+  };
 };

@@ -271,6 +271,7 @@ export default defineComponent({
               size='small'
               onChange={handlePageChange}
               onLimit-change={handlePageLimitChange}
+              small={true}
             ></bk-pagination>
           </div>,
           <bk-table data={formatTableData.value}>

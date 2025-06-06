@@ -38,4 +38,6 @@ class ExportImportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.export_import.import_config, endpoint="import_config"),
         # 添加统一监控目标
         ResourceRoute("POST", resource.export_import.add_monitor_target, endpoint="add_monitor_target"),
+        # 导出配置到指定业务
+        ResourceRoute("POST", resource.export_import.export_config_to_business, endpoint="export_config_to_business"),
     ]

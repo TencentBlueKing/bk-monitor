@@ -32,4 +32,5 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.grafana.log_query, endpoint="log/query"),
         ResourceRoute("GET", resource.grafana.get_directory_tree, endpoint="get_directory_tree"),
         ResourceRoute("GET", resource.grafana.get_dashboard_detail, endpoint="get_dashboard_detail"),
+        ResourceRoute("GET", resource.grafana.get_data_source_config, endpoint="get_data_source_config"),
     ]

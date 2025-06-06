@@ -41,8 +41,8 @@ export interface IEditParams {
   name: string;
   scenario: string;
   is_enable: boolean;
-  data_label: string;
-  is_platform: boolean;
+  data_label?: string;
+  is_platform?: boolean;
 }
 
 export interface IDetailData {
@@ -63,6 +63,7 @@ export interface IDetailData {
   protocol?: string;
   desc?: string;
   bk_biz_id?: string;
+  auto_discover?: boolean;
 }
 
 export interface IShortcuts {

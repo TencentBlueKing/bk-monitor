@@ -24,7 +24,10 @@
  * IN THE SOFTWARE.
  */
 import type { TranslateResult } from 'vue-i18n';
-
+export enum RelationEventType {
+  K8s = 'k8s_event',
+  System = 'system_event',
+}
 export interface IBaseParams {
   bk_biz_id: number;
   app_name: string;
@@ -141,6 +144,18 @@ export interface IServiceRelation {
   app_relation?: IAppRelation;
   apdex_relation?: IApdexRelation;
   uri_relation?: IUriRelation[];
+  event_relation?: {
+    table: RelationEventType;
+    relations: {
+      bcs_cluster_id?: string;
+      namespace?: string;
+      kind?: string;
+      name?: string;
+    }[];
+    options: {
+      is_auto: boolean;
+    };
+  }[];
 }
 
 export interface IServiceInfo {

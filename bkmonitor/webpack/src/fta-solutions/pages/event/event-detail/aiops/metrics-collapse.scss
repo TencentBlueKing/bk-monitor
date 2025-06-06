@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .aiops-correlation-metrics {
   width: 100%;
 
@@ -7,9 +8,9 @@
     justify-content: center;
     width: $size;
     height: $size;
-    font-size: $fontSize;
     overflow: hidden;
-      
+    font-size: $fontSize;
+
     &::before {
       width: $fontSize;
       height: $fontSize;
@@ -20,29 +21,48 @@
     width: 100%;
 
     .correlation-metrics-collapse-head {
-      height: 40px;
-      background: #f0f1f5;
+      display: flex;
       align-items: center;
-      padding: 0px 10px;
+      width: 100%;
+      height: 24px;
+      padding: 0px 4px;
+      cursor: pointer;
+      background-color: #fff;
+      border-radius: 2px;
 
       .collapse-icon {
-        font-size: 14px;
-        cursor: pointer;
+        flex: 0 0 12px;
+        width: 12px;
+        height: 12px;
+        margin-right: 4px;
+        font-size: 12px;
+        color: #4d4f56;
       }
 
-      .correlation-metrics-title {
-        color: #313238;
-        font-size: 14px;
-        line-height: 22px;
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        flex: 1;
+      .metric-title {
+        max-width: 100%;
+        overflow: hidden;
+        color: #4d4f56;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
-        .num {
-          color: rgba(151, 155, 165, 1);
-          font-size: 12px;
-        }
+      .title-num {
+        display: inline-flex;
+        width: fit-content;
+        height: 14px;
+        padding: 0 2px;
+        margin-left: 4px;
+        line-height: 14px;
+        color: #fff;
+        white-space: nowrap;
+        background: #a3b1cc;
+        border-radius: 2px;
+      }
+
+      .num {
+        font-size: 12px;
+        color: rgba(151, 155, 165, 1);
       }
 
       .correlation-metrics-right {
@@ -70,6 +90,18 @@
       display: flex;
     }
 
+    .correlation-metrics-collapse-content {
+      .flex-dashboard-item,
+      .chart-wrapper {
+        border: none !important;
+      }
+
+      .flex-dashboard-item {
+        max-width: 100% !important;
+        margin-right: 0;
+      }
+    }
+
     .correlation-metrics-right {
       display: flex;
       align-items: center;
@@ -82,29 +114,29 @@
 
           &::after {
             position: absolute;
-            content: '';
             top: 50%;
-            transform: translate(0, -50%);
             right: -17px;
             height: 14px;
+            content: '';
             border-right: 1px solid #dcdee5;
+            transform: translate(0, -50%);
           }
         }
       }
     }
 
     .panels-tools-layout {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-shrink: 0;
       align-items: center;
-      color: #63656e;
       justify-content: center;
-      border-radius: 2px;
       // width: 78px;
       height: 28px;
-      z-index: 1;
-      position: relative;
+      color: #63656e;
       background: #fff;
+      border-radius: 2px;
 
       &:hover {
         cursor: pointer;
@@ -119,7 +151,6 @@
         }
       }
     }
-
   }
 
   .metrics-collapse-show {
@@ -139,20 +170,20 @@
   .layout-list {
     display: flex;
     flex-direction: column;
-    margin: 0 -5px;
     width: 60px;
-  
+    margin: 0 -5px;
+
     &-item {
       display: flex;
       align-items: center;
-      padding-left: 12px;
-      height: 32px;
       width: 100%;
-  
+      height: 32px;
+      padding-left: 12px;
+
       &:hover,
       &.item-active {
-        cursor: pointer;
         color: #3a84ff;
+        cursor: pointer;
         background-color: #e1ecff;
       }
     }

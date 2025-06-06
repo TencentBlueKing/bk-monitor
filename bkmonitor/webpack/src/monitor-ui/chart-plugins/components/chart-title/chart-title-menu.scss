@@ -20,6 +20,7 @@
     padding-left: 12px;
     font-weight: normal;
     color: #63656e;
+    cursor: pointer;
 
     .field-name {
       width: 100%;
@@ -129,8 +130,8 @@
           border-radius: 2px;
 
           &:hover {
-            color: #4D4F56;
-            background: #EAEBF0;
+            color: #4d4f56;
+            background: #eaebf0;
           }
 
           &.menu-item-show {

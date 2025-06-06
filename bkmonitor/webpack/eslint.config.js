@@ -384,6 +384,50 @@ module.exports = [
       'vue/attributes-order': OFF,
     },
   },
+  {
+    files: ['./*.js', 'public/**/*.js', 'webpack/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': OFF,
+      'codecc/license': OFF,
+    },
+  },
   // ...tailwind.configs['flat/recommended'],
   eslintConfigPrettier,
+  {
+    files: ['src/trace/**/*.tsx', 'src/trace/**/*.ts'],
+    plugins: {
+      'monitor-vue3': {
+        rules: {
+          'no-ref': {
+            meta: {
+              type: 'suggestion',
+              fixable: null,
+              messages: {
+                // vueuse 推荐
+                'no-ref': `建议使用 shallowRef 替代 ref 或者
+1、使用 import { ref as deepRef } from 'vue'; deepRef 来替换 ref 的名称;
+2、使用 import { createRef } from '@vueuse/core'; createRef(initialData, true); 来替换 ref 的名称;`,
+              },
+              hasSuggestions: true,
+            },
+            create(context) {
+              return {
+                CallExpression(node) {
+                  if (node.callee.type === 'Identifier' && node.callee.name === 'ref') {
+                    context.report({
+                      node,
+                      messageId: 'no-ref',
+                    });
+                  }
+                },
+              };
+            },
+          },
+        },
+      },
+    },
+    rules: {
+      'monitor-vue3/no-ref': WARNING,
+    },
+  },
 ];

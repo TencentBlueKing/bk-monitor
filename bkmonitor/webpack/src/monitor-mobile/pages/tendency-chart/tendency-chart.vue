@@ -105,19 +105,20 @@
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 
 import dayjs from 'dayjs';
 import { Popup } from 'vant';
 
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
-import DatetimePicker, { ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
+import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
 import ScreenOrientation, { Screen } from '../../components/screen-orientation/screen-orientation.vue';
 import SelectButton from '../../components/select-button/select-button.vue';
 import HideChartTooltipMixin from '../../mixins/hideChartTooltipMixin';
 import EventModule from '../../store/modules/event-detail';
-import { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
 import DataCompare from './data-compare.vue';
+
+import type { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
+import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteLeave']);
 

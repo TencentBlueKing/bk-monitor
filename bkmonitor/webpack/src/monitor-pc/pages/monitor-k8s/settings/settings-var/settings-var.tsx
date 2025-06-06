@@ -34,7 +34,7 @@ import MonitorDraggable, { type IOnDrop } from 'monitor-ui/monitor-draggable/mon
 import ConditionInput, {
   type IVarOption,
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
-import { SETTINGS_POP_ZINDEX, handleCheckVarWhere, handleReplaceWhereVar } from '../../utils';
+import { SETTINGS_POP_Z_INDEX, handleCheckVarWhere, handleReplaceWhereVar } from '../../utils';
 
 import type { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
 
@@ -288,7 +288,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
    */
   handleDeleteVar(index: number) {
     this.$bkInfo({
-      zIndex: SETTINGS_POP_ZINDEX,
+      zIndex: SETTINGS_POP_Z_INDEX,
       title: this.$t('确认删除变量吗？'),
       confirmFn: () => {
         this.localVarList.splice(index, 1);
@@ -387,7 +387,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
     if (this.localVarListIsDiff) {
       const res = await new Promise((resolve, reject) => {
         this.$bkInfo({
-          zIndex: SETTINGS_POP_ZINDEX,
+          zIndex: SETTINGS_POP_Z_INDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
           cancelFn: () => reject(false),

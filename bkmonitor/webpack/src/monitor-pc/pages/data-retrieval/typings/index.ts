@@ -63,6 +63,8 @@ export declare namespace IFavList {
     name: string;
     update_time: string;
     update_user: string;
+    disabled?: boolean;
+    groupName?: string;
   }
   interface groupList {
     group_name: string;
@@ -75,6 +77,12 @@ export declare namespace IFavList {
   interface IEvent {
     deleteFav?: number;
     selectFav?: any;
+  }
+
+  interface favTableList extends favList {
+    editName?: boolean;
+    editGroup?: boolean;
+    groupName?: string;
   }
 }
 
@@ -186,7 +194,7 @@ export declare namespace IDataRetrievalView {
     value?: boolean | string | string[];
   }
   interface ITools {
-    refleshInterval: number;
+    refreshInterval: number;
     timeRange: TimeRangeType;
     timezone: string;
   }
@@ -318,7 +326,7 @@ export class DataRetrievalPromqlItem {
     if (!data) return;
     this.key = data.key || random(8);
     this.code = data.code || '';
-    this.enable = data.enable || true;
+    this.enable = data.enable ?? true;
     this.alias = data.alias || 'a';
     this.step = (data.step as any) || 'auto';
     this.filter_dict = data?.filter_dict;
@@ -554,10 +562,11 @@ export declare namespace HandleBtnType {
 export declare namespace FavoriteIndexType {
   interface IProps {
     favoriteSearchType: string;
-    favoritesList: IFavList.favList[];
+    favoritesList: IFavList.favGroupList[];
     favoriteLoading: boolean;
     isShowFavorite: boolean;
     favCheckedValue: IFavList.favList;
+    dataId?: string;
   }
   interface IEvent {
     onOperateChange: {
@@ -565,6 +574,7 @@ export declare namespace FavoriteIndexType {
       value: any;
     };
     onGetFavoritesList();
+    onClose(): void;
   }
   interface IContainerProps {
     dataList?: IFavList.favGroupList[];

@@ -52,6 +52,7 @@ export const signalNames = {
   recovered: window.i18n.tc('告警恢复时'),
   closed: window.i18n.tc('告警关闭时'),
   no_data: window.i18n.tc('无数据时'),
+  incident: window.i18n.tc('故障生成时'),
 };
 
 const signalOptions: { id: string; name: string }[] = [
@@ -59,6 +60,7 @@ const signalOptions: { id: string; name: string }[] = [
   { id: 'recovered', name: signalNames.recovered },
   { id: 'closed', name: signalNames.closed },
   { id: 'no_data', name: signalNames.no_data },
+  { id: 'incident', name: signalNames.incident },
 ];
 
 @Component
@@ -202,7 +204,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
               >
                 <span class='signal-select-wrap'>
                   {item.signal?.length ? (
-                    <span class='signal-name'>{item.signal.map(key => signalNames[key]).join(',')}</span>
+                    <span class='signal-name'>{item.signal.map(key => signalNames[key] || key).join(',')}</span>
                   ) : (
                     <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>
                   )}

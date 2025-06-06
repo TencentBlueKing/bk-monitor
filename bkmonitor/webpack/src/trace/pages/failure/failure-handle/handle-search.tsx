@@ -307,7 +307,7 @@ export default defineComponent({
           label='name'
           nodeKey={'id'}
           prefix-icon={getPrefixIcon}
-          level-line
+          level-line='solid 1px #DCDEE5'
           virtual-render
           onNodeClick={nodeClick}
           onNodeCollapse={nodeCollapse}
@@ -388,7 +388,7 @@ export default defineComponent({
               onCancel={this.cancelFilter}
               onConfirm={this.handleFilter}
             >
-              <i class='icon-monitor icon-menu-setting search-head-icon' />
+              <i class='icon-monitor icon-shezhi1 search-head-icon' />
             </PopConfirm>
           </div>
           <Loading

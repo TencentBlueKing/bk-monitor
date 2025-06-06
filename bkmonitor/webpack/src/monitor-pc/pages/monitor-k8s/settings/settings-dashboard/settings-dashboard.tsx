@@ -34,7 +34,7 @@ import GroupSelectMultiple from '../../../custom-escalation/group-select-multipl
 import { csvToArr } from '../../../custom-escalation/utils';
 import SortPanel from '../../../performance/performance-detail/sort-panel.vue';
 import { downCsvFile } from '../../../view-detail/utils';
-import { SETTINGS_POP_ZINDEX, matchRuleFn } from '../../utils';
+import { SETTINGS_POP_Z_INDEX, matchRuleFn } from '../../utils';
 
 import type { IBookMark, SettingsDashboardType } from '../../typings';
 
@@ -172,7 +172,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
   async handleBeforeToggle(tab) {
     if (this.localDashBoardIsDiff) {
       this.$bkInfo({
-        zIndex: SETTINGS_POP_ZINDEX,
+        zIndex: SETTINGS_POP_Z_INDEX,
         title: this.$t('是否放弃本次操作？'),
         confirmFn: () => {
           this.handleTabChange(tab);
@@ -220,7 +220,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
    */
   handleRestore() {
     this.$bkInfo({
-      zIndex: SETTINGS_POP_ZINDEX,
+      zIndex: SETTINGS_POP_Z_INDEX,
       title: this.$t('是否还原默认配置？'),
       extCls: 'reset-default',
       confirmFn: () => {

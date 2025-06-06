@@ -1,9 +1,11 @@
 <script setup>
   import { ref, computed, set } from 'vue';
 
-  import { getOperatorKey, formatDateTimeField } from '@/common/util';
+  import { getOperatorKey, formatDateTimeField, getOsCommandLabel } from '@/common/util';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -15,8 +17,6 @@
   import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import useFieldNameHook from '@/hooks/use-field-name';
-  import { cloneDeep } from 'lodash';
   const props = defineProps({
     value: {
       type: Array,
@@ -25,9 +25,33 @@
     },
   });
 
-  const emit = defineEmits(['input', 'change', 'height-change']);
+  const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
+  const popoverRefs = ref(new Map())
+  const morePopoverRefs = ref([]);
+  const setPopoverRef = (el, parentIndex, childIndex) => {
+    const key = `${parentIndex}-${childIndex}`
+    if (el) {
+      popoverRefs.value.set(key, el)
+    } else {
+      popoverRefs.value.delete(key)
+    }
+  }
+  const setMorePopoverRef = (el, index) => {
+    if (el) {
+      morePopoverRefs.value[index] = el;
+    }
+  }
+  const inputValueLength = ref(0);
+  // 动态设置placeHolder
+  const inputPlaceholder = computed(() => {
+    if (inputValueLength.value === 0) {
+      return `${$t('快捷键')} /，${$t('请输入')}...`;
+    }
+
+    return '';
+  });
 
   const bkBizId = computed(() => store.state.bkBizId);
 
@@ -39,8 +63,14 @@
     if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
-
+    item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
+    if (item?.showList?.length && item?.showList?.length !== item.value?.length) {
+      item.showList = Array.from(
+        { length: item.value.length },
+        (_, i) => (i < (item.showList?.length || 0) ? item.showList[i] : false)
+      );
+    }
     return { disabled: false, ...(item ?? {}) };
   };
 
@@ -69,7 +99,12 @@
 
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     if (translateKeys.includes(operatorMapping[item.operator])) {
-      return $t(operatorMapping[item.operator] ?? item.operator);
+      const operator = operatorMapping[item.operator] ?? item.operator;
+      if (/[\u4e00-\u9fff]/.test(operator)) {
+        return $t(operator);
+      }
+
+      return operator;
     }
 
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
@@ -78,20 +113,19 @@
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const refSearchInput = ref(null);
+  const refHiddenFocus = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
-  const isInputFocus = ref(false);
+
   const showIpSelector = ref(false);
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
   };
 
-  let inputValueLength = 0;
-
   const setSearchInputValue = val => {
     refSearchInput.value.value = val ?? '';
-    inputValueLength = refSearchInput.value?.value?.length ?? 0;
+    inputValueLength.value = refSearchInput.value?.value?.length ?? 0;
   };
 
   const handleWrapperClickCapture = (e, { getTippyInstance }) => {
@@ -119,39 +153,34 @@
   const { getFieldName } = useFieldNameHook({ store });
   const {
     modelValue,
-    isDocumentMousedown,
+    isInputTextFocus,
+    setIsInputTextFocus,
     setIsDocumentMousedown,
-    getTippyInstance,
-    handleInputBlur,
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
+    hideTippyInstance,
   } = useFocusInput(props, {
+    refContent: refPopInstance,
+    refTarget: refHiddenFocus,
+    refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    refContent: refPopInstance,
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
+      emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
-      if (isDocumentMousedown.value) {
-        setIsDocumentMousedown(false);
-        return false;
-      }
-
+      emit('popup-change', { isShow: false });
       refPopInstance.value?.afterHideFn?.();
-      if (refSearchInput.value) {
-        isAutoFocus.value = true;
-        refSearchInput.value?.focus();
-        setTimeout(() => {
-          isAutoFocus.value = false;
-        });
-      }
-
       return true;
     },
     handleWrapperClick: handleWrapperClickCapture,
+    onInputFocus: () => {
+      queryItem.value = '';
+      activeIndex.value = null;
+    },
   });
 
   const debounceShowInstance = () => {
@@ -163,7 +192,7 @@
 
   const closeTippyInstance = () => {
     setIsDocumentMousedown(false);
-    getTippyInstance()?.hide();
+    hideTippyInstance();
   };
 
   /**
@@ -192,7 +221,7 @@
   };
 
   const handleAddItem = e => {
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
     const target = e.target.closest('.search-item');
     queryItem.value = '';
     activeIndex.value = null;
@@ -208,17 +237,19 @@
     const itemCopy = cloneDeep(item);
     itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
+
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
     if (!item.relation) item.relation = 'OR';
     Object.assign(queryItem.value, itemCopy);
     const target = e.target.closest('.search-item');
-    activeIndex.value = isInputFocus.value ? null : index;
+    activeIndex.value = index;
     showTagListItems(target);
   };
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
+    set(item, 'showList', new Array(item.value.length).fill(item.disabled))
     emitChange(modelValue.value);
   };
 
@@ -238,39 +269,45 @@
         modelValue.value.push({ ...copyValue, disabled: false });
       }
 
-      closeTippyInstance();
+      repositionTippyInstance();
       setTimeout(() => {
         showIpSelector.value = true;
       }, 100);
+
+      refSearchInput.value?.focus();
       return;
     }
 
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
+    const isFulltextEnterVlaue = isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
 
     const inputVal = getSearchInputValue();
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
     if (isFulltextEnterVlaue && !inputVal.length) {
+      refSearchInput.value?.focus();
       return;
     }
 
     let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
 
-    if (isInputFocus.value) {
+    if (isInputTextFocus.value) {
       setSearchInputValue('');
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
       emitChange(modelValue.value);
-      closeTippyInstance();
+      hideTippyInstance();
+      activeIndex.value = null;
+
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
-    closeTippyInstance();
+    repositionTippyInstance();
+    refSearchInput.value?.focus();
   };
 
   // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
@@ -278,33 +315,30 @@
   const handleGlobalSaveQueryClick = payload => {
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
+    refSearchInput.value.style.setProperty('width', '12px');
   };
 
   /**
    * input key enter
    * @param e
    */
-  const handleInputValueEnter = () => {
+  const handleInputValueEnter = e => {
     if (!isGlobalKeyEnter.value) {
-      if (!(getTippyInstance().state.isShown ?? false)) {
-        handleSaveQueryClick(undefined);
-      }
+      handleSaveQueryClick(undefined);
+      repositionTippyInstance();
+      e.target.style.setProperty('width', '12px');
     }
 
     isGlobalKeyEnter.value = false;
   };
 
   const handleCancelClick = () => {
-    closeTippyInstance();
     setSearchInputValue('');
+    closeTippyInstance();
   };
 
-  const handleFocusInput = () => {
-    isInputFocus.value = true;
-    activeIndex.value = null;
-    queryItem.value = '';
-
-    if (isAutoFocus.value) {
+  const handleInputTextClick = () => {
+    if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
       return;
     }
 
@@ -312,16 +346,16 @@
   };
 
   const handleFullTextInputBlur = e => {
-    if (!isInstanceShown()) {
-      handleInputBlur(e);
-      inputValueLength = 0;
-      queryItem.value = '';
-    }
+    setIsInputTextFocus(false);
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
+    queryItem.value = '';
   };
 
   const handleInputValueChange = e => {
-    if (inputValueLength === 0 && e.target.value.length > 0) {
-      inputValueLength = e.target.value.length;
+    if (inputValueLength.value === 0 && e.target.value.length > 0) {
+      inputValueLength.value = e.target.value.length;
       debounceShowInstance();
     }
 
@@ -340,7 +374,7 @@
         if (modelValue.value.length >= 1) {
           modelValue.value.splice(-1, 1);
           emitChange(modelValue.value);
-          closeTippyInstance();
+          repositionTippyInstance();
         }
       }
 
@@ -351,66 +385,190 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
+  const handlePopoverShow = (parentIndex, childIndex)=>{
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.showHandler()
+  }
+  const changeOptionShow = (parentIndex,childIndex,item,show)=>{
+    if(!item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(false))
+    }
+    set(item.showList, childIndex, show)
+    if (item.showList.every(f => f === false)) {
+      set(item, 'disabled', false);
+    }else if (item.showList.every(f => f === true)) {
+      set(item, 'disabled', true);
+    }
 
-  // const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
-  // const additionList = computed(() => {
-  //   if (!isFilterSecFocused.value) {
-  //     const addition = store.state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
-  //     return [...modelValue.value, ...(addition.map(item => ({ ...item, isCommonFixed: true })))]
-  //   }
-
-  //   return modelValue.value;
-  // })
-
-
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const onlyOptionShow =  (parentIndex,childIndex,item)=>{
+    if(!item.showList || item.showList.length !== item.value.length){
+      set(item, 'showList', new Array(item.value.length).fill(true))
+    }
+    item.showList = item.showList.map((_, index) => index !== childIndex);
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const moreOption = (index) => {
+    morePopoverRefs.value[index].showHandler()
+  }
 </script>
 
 <template>
-  <ul ref="refUlRoot" class="search-items">
-    <li class="search-item btn-add" @click.stop="handleAddItem">
+  <ul
+    ref="refUlRoot"
+    class="search-items"
+  >
+    <li
+      class="search-item btn-add"
+      @click.stop="handleAddItem"
+    >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
-    <li v-for="(item, index) in modelValue"
-      :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
-      :key="`${item.field}-${index}`" @click.stop="e => handleTagItemClick(e, item, index)">
+    <li
+      v-for="(item, index) in modelValue"
+      :class="['search-item', 'tag-item', {'is-common-fixed': item.isCommonFixed }]"
+      :key="`${item.field}-${index}`"
+      @click.stop="e => handleTagItemClick(e, item, index)"
+    >
       <div class="tag-row match-name">
-        {{ getMatchName(item.field) }}
-        <span class="symbol" :data-operator="item.operator">{{ getOperatorLabel(item) }}</span>
+        <span class="match-name-label">{{ getMatchName(item.field) }}</span>
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+          >{{ getOperatorLabel(item) }}</span
+        >
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
-          <span class="match-value-text">
-            <IPSelector v-model="item.value[0]" :bk-biz-id="bkBizId" :is-show.sync="showIpSelector"
-              @change="handleIPChange"></IPSelector>
+          <span :class="['match-value-text', { 'is-show-tooltip': item.value.length > 20 }]">
+            <IPSelector
+              v-model="item.value[0]"
+              :bk-biz-id="bkBizId"
+              :is-show.sync="showIpSelector"
+              @change="handleIPChange"
+            ></IPSelector>
           </span>
         </template>
         <template v-else-if="Array.isArray(item.value)">
-          <span v-for="(child, childInex) in item.value" :key="childInex">
-            <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
-            <span v-if="childInex < item.value.length - 1" class="match-value-relation">{{ item.relation }}</span>
+          <span
+            v-for="(child, childIndex) in item.value"
+            :key="childIndex"
+          >
+            <template v-if="item.showAll ? true : childIndex < 3">
+              <bk-popover 
+                :ref="(el) => setPopoverRef(el, index, childIndex)"
+                placement="bottom" 
+                theme="light" 
+                trigger="click"
+              >
+                <span
+                  v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line':item.showList?.[childIndex]}]"
+                  @click.stop="() => handlePopoverShow(index,childIndex)"
+                >
+                  {{ formatDateTimeField(child, item.field_type) }}
+                </span>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex]" @click="changeOptionShow(index,childIndex,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
+              <span
+                v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
+                class="match-value-relation"
+              >
+                {{ item.relation }}
+              </span>
+            </template>
           </span>
+          <bk-popover 
+            :ref="(el) => setMorePopoverRef(el, index)"
+            placement="bottom" 
+            theme="light" 
+            trigger="click"
+          >
+            <span
+              v-if="item.value.length > 3 && !item.showAll"
+              style="color: #f59500"
+              @click.stop="moreOption(index)"
+              class="match-value-more"
+            >
+              +{{ item.value.length - 3 }}
+            </span>
+            <div slot="content">
+              <div class="match-value-content">
+              <bk-popover 
+                v-for="(child, childIndex) in item.value.slice(3)"
+                :ref="(el) => setPopoverRef(el, index, childIndex+3)"
+                :key="childIndex"
+                placement="right" 
+                theme="light" 
+                trigger="click"
+                extCls="match-value-popover"
+              >
+                <div class="match-value-child"  :class="[{'delete-line':item.showList?.[childIndex+3]}]">{{ child }}</div>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex+3]" @click="changeOptionShow(index,childIndex+3,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex+3,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex+3,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
+            </div>
+            </div>
+          </bk-popover>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
         </template>
       </div>
       <div class="tag-options">
-        <span :class="[
-          'bklog-icon',
-          { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
-        ]" @click.stop="e => handleDisabledTagItem(item, e)"></span>
-        <span class="bk-icon icon-close" @click.stop="() => handleDeleteTagItem(index, item)"></span>
+        <span
+          :class="[
+            'bklog-icon',
+            { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
+          ]"
+          @click.stop="handleDisabledTagItem(item)"
+        />
+        <span
+          class="bklog-icon bklog-shanchu tag-options-close"
+          @click.stop="handleDeleteTagItem(index, item)"
+        />
       </div>
     </li>
-    <li class="search-item is-focus-input">
-      <input ref="refSearchInput" class="tag-option-focus-input" type="text" @blur="handleFullTextInputBlur"
-        @focus.stop="handleFocusInput" @input="handleInputValueChange" @keyup.delete="handleDeleteItem"
-        @keyup.enter="handleInputValueEnter" />
+    <li
+      ref="refHiddenFocus"
+      class="search-item-focus hidden-pointer"
+    ></li>
+    <li
+      class="search-item is-focus-input"
+      :data-attr-txt="inputPlaceholder"
+    >
+      <input
+        ref="refSearchInput"
+        class="tag-option-focus-input"
+        type="text"
+        @blur.stop="handleFullTextInputBlur"
+        @click.stop="handleInputTextClick"
+        @input="handleInputValueChange"
+        @keyup.delete="handleDeleteItem"
+        @keyup.enter.stop="handleInputValueEnter"
+      />
     </li>
     <div style="display: none">
-      <UiInputOptions ref="refPopInstance" :is-input-focus="isInputFocus" :value="queryItem" @cancel="handleCancelClick"
-        @save="handleGlobalSaveQueryClick"></UiInputOptions>
+      <UiInputOptions
+        ref="refPopInstance"
+        :is-input-focus="isInputTextFocus"
+        :value="queryItem"
+        @cancel="handleCancelClick"
+        @save="handleGlobalSaveQueryClick"
+      ></UiInputOptions>
     </div>
   </ul>
 </template>
@@ -421,9 +579,11 @@
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
-      color: #63656e;
-      background-color: #fff;
-      box-shadow: 0 2px 6px 0 #0000001a;
+      color: #4d4f56;
+      background-color: #ffffff;
+      border-radius: 2px;
+      box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.16);
+      transform: translateY(-2px);
 
       .tippy-content {
         padding: 0;
@@ -436,7 +596,75 @@
           background-color: #fff;
           box-shadow: 0 2px 6px 0 #0000001a;
         }
+
+        &::before {
+          top: -9px;
+        }
+      }
+
+      .ui-query-options {
+        border-radius: 2px;
+
+        .ui-query-option-footer {
+          border-radius: 0 0 2px 2px;
+        }
       }
     }
+
+    &[data-theme='log-dark'] {
+      color: #fff;
+      background-color: #4d4f56;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px 0 #fff;
+      transform: translateY(-2px);
+
+      .tippy-content {
+        padding: 4px 8px;
+      }
+
+      .tippy-arrow {
+        color: #4d4f56;
+
+        &::after {
+          background-color: #4d4f56;
+          box-shadow: 0 2px 6px 0 #fff;
+        }
+
+        &::before {
+          top: -9px;
+        }
+      }
+    }
+  }
+
+  .bk-tooltip-content{
+    .match-value-select{
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 32px;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .delete-line{
+      color: #979ba5;
+      text-decoration: line-through;
+    }
+  }
+  .match-value-content{
+    display: flex;
+    flex-direction: column;
+    .bk-tooltip-ref{
+      width: 100%;
+      cursor: pointer;
+    }
+    .match-value-child{
+      font-size: 12px;
+      line-height: 32px;
+    }
+  }
+  .match-value-popover{
+    left: 15px !important;
   }
 </style>

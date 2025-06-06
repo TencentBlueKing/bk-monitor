@@ -31,7 +31,7 @@ import { random } from 'monitor-common/utils';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 
 import type { IDetail } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -97,7 +97,7 @@ export default class LogInfo extends tsc<IProps> {
       }
     });
     const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.detail.begin_time, this.detail.end_time, interval);
     this.timeRange = [startTime, endTime];
     this.viewOptions = Object.assign(this.viewOptions, {
       method: 'AVG',

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Module
@@ -21,7 +19,7 @@ class ModuleManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "module"
-    CACHE_KEY = "{prefix}.cmdb.module".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.module"
     ObjectClass = Module
 
     @classmethod
@@ -41,7 +39,7 @@ class ModuleManager(RefreshByBizMixin, CMDBCacheManager):
         :param bk_module_id: 模块ID
         :rtype: Module
         """
-        return super(ModuleManager, cls).get(bk_module_id)
+        return super().get(bk_module_id)
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
@@ -50,9 +48,3 @@ class ModuleManager(RefreshByBizMixin, CMDBCacheManager):
         """
         modules = api.cmdb.get_module(bk_biz_id=bk_biz_id)  # type: list[Module]
         return {cls.key_to_internal_value(module.bk_module_id): module for module in modules}
-
-
-def main():
-    if "module" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    ModuleManager.refresh()

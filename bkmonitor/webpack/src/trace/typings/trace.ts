@@ -352,6 +352,7 @@ export interface IQueryParams {
   start: number;
   end: number;
   data_type?: string;
+  agg_method?: string;
   global_query: boolean;
   profile_id?: string;
   diff_profile_id?: string;

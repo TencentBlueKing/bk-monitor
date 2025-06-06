@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
 from api.cmdb.define import Business
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 
@@ -21,7 +20,7 @@ class BusinessManager(CMDBCacheManager):
     """
 
     type = "biz"
-    CACHE_KEY = "{prefix}.cmdb.business".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.business"
     ObjectClass = Business
 
     @classmethod
@@ -41,7 +40,17 @@ class BusinessManager(CMDBCacheManager):
         :param bk_biz_id: 获取业务ID
         :rtype: Business
         """
-        return super(BusinessManager, cls).get(bk_biz_id)
+        return super().get(bk_biz_id)
+
+    @classmethod
+    def get_tenant_id(cls, bk_biz_id):
+        """
+        获取业务租户ID
+        """
+        business = cls.get(bk_biz_id)
+        if not business:
+            raise ValueError(f"get_tenant_id failed, business not found, bk_biz_id: {bk_biz_id}")
+        return getattr(business, "bk_tenant_id", DEFAULT_TENANT_ID)
 
     @classmethod
     def refresh(cls):
@@ -73,9 +82,3 @@ class BusinessManager(CMDBCacheManager):
                 len(new_keys), len(deleted_keys)
             )
         )
-
-
-def main():
-    if "business" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    BusinessManager.refresh()

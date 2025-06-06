@@ -210,6 +210,9 @@ export default defineComponent({
         dialog-type='operation'
         is-show={isShowResolve.value}
         title={t('标记已解决')}
+        onClosed={() => {
+          isShowResolve.value = false;
+        }}
         onConfirm={() => {
           editIncidentHandle('resolve');
         }}
@@ -401,7 +404,7 @@ export default defineComponent({
               {this.t('标记已解决')}
             </div>
             <div
-              class='header-btn'
+              class='header-btn header-group-btn'
               onClick={() => this.handleChatGroup()}
             >
               <i class='icon-monitor icon-qiye-weixin btn-icon' />

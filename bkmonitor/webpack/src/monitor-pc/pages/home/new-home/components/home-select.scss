@@ -1,8 +1,10 @@
+/* stylelint-disable declaration-no-important */
 .new-home-select {
   position: absolute;
+  z-index: 10;
   width: 100%;
   min-height: 52px;
-  z-index: 10;
+
   .loading-view {
     width: 170px;
     height: 24px;
@@ -26,12 +28,12 @@
     width: 100%;
     min-height: 52px;
     padding: 0 14px 0 58px;
+    margin: 0 auto;
     background-image: linear-gradient(to right, #2b3547, #2b3547), linear-gradient(90deg, #57a8fa, #58c2be);
     background-clip: padding-box, border-box;
     background-origin: padding-box, border-box;
     border: 2px solid transparent;
     border-radius: 4px;
-    margin: 0 auto;
 
     .clear-btn {
       position: absolute;
@@ -59,12 +61,14 @@
   .ip-sub {
     color: #979ba5;
   }
+
   .host-compare {
-    color: #4d4f56;
     font-size: 14px;
+    color: #4d4f56;
+
     .host-compare-num {
-      color: #f59500;
       margin-right: 8px;
+      color: #f59500;
     }
   }
 
@@ -97,8 +101,8 @@
     position: absolute;
     top: 8px;
     left: 15px;
-    color: #dcdee5;
     font-size: 28px;
+    color: #dcdee5;
   }
 
   .home-select-input {
@@ -112,6 +116,7 @@
     resize: none;
     background: transparent;
     border: none;
+
     &.is-hidden {
       overflow: hidden;
     }
@@ -127,7 +132,6 @@
     }
 
     .bk-textarea-wrapper {
-      /* stylelint-disable-next-line declaration-no-important */
       background-color: transparent !important;
     }
   }
@@ -138,15 +142,15 @@
     right: 14px;
     min-width: 56px;
     height: 24px;
-    margin-top: -12px;
+    padding: 0 6px;
+    margin-top: -11px;
     line-height: 24px;
     color: #c4c6cc;
     text-align: center;
     cursor: default;
     background: #53617a66;
-    border: 1px solid #495A7A;
+    border: 1px solid #495a7a;
     border-radius: 2px;
-    
   }
 }
 
@@ -190,8 +194,8 @@
 
 .new-home-select-popover-content {
   width: 100%;
-  max-height: 405px;
   min-height: 252px;
+  max-height: 405px;
   padding-bottom: 12px;
   overflow: auto;
   font-size: 12px;
@@ -203,21 +207,26 @@
     min-height: 100px;
     padding-top: 12px;
   }
+
   .skeleton-loading {
     padding: 5px 12px 0;
+
     .skeleton-element {
-      margin-bottom: 13px;
       height: 24px;
-      border-radius: 3px;
+      margin-bottom: 13px;
       background: linear-gradient(to right, #f5f7fa, #eaebf0);
+      border-radius: 3px;
+
       &:nth-child(3n + 1) {
         width: 65%;
       }
+
       &:nth-child(3n) {
         width: 80%;
       }
     }
   }
+
   .is-history {
     padding-top: 0;
   }
@@ -231,13 +240,13 @@
     .item-list-clear {
       position: absolute;
       right: 14px;
-      cursor: pointer;
       color: #4d4f56;
+      cursor: pointer;
     }
 
     .history-clear-icon {
-      font-size: 13px;
       margin-right: 3px;
+      font-size: 13px;
     }
   }
 
@@ -253,22 +262,23 @@
   }
 
   .new-home-select-router-list {
-    margin-top: 5px;
     padding: 0 24px;
+    margin-top: 5px;
 
     .new-home-select-router-item {
       display: inline-block;
       width: 140px;
+      padding: 4px 0;
       margin-right: 16px;
       color: #4d4f56;
       background: #ebeef5;
       border-radius: 2px;
-      padding: 4px 0;
 
       &:hover {
+        color: #3a84ff;
         cursor: pointer;
         background: #e1ecff;
-        color: #3a84ff;
+
         .router-item-icon {
           color: #3a84ff;
         }
@@ -276,33 +286,33 @@
 
       .router-item-icon {
         display: inline-block;
-        margin: 0 4px;
         width: 24px;
         height: 24px;
+        margin: 0 4px;
+        font-size: 14px;
         line-height: 24px;
+        color: #a3b1cc;
         text-align: center;
+        vertical-align: inherit;
         background: #ffffff;
         border-radius: 1px;
-        font-size: 14px;
-        color: #a3b1cc;
-        vertical-align: inherit;
       }
 
       .item-txt {
         display: inline-block;
-        font-size: 12px;
         margin-left: 3px;
+        font-size: 12px;
       }
     }
   }
 
   .item-icon {
-    font-size: 13px;
     margin-right: 5px;
+    font-size: 13px;
     color: #a3b1cc;
   }
 
-  .icon-delete-wrap {    
+  .icon-delete-wrap {
     display: none;
     font-size: 13px;
     color: #4d4f56;
@@ -339,7 +349,8 @@
 
     .history-item-name {
       display: inline-block;
-      width: 96%;
+      // width: 96%;
+      width: calc(100% - 34px);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -348,7 +359,7 @@
     }
   }
 
-  .new-home-select-history-item:hover .icon-delete-wrap{
+  .new-home-select-history-item:hover .icon-delete-wrap {
     display: inline-block;
   }
 
@@ -381,23 +392,25 @@
 
     .item-business {
       width: 130px;
+      overflow: hidden;
       color: #a3b1cc;
       text-align: right;
-      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
     .list-item-tag {
       display: inline-block;
-      font-size: 12px;
       height: 22px;
       padding: 0 8px;
-      line-height: 22px;
-      border-radius: 2px;
       margin-left: 8px;
-      background: #f0f1f5;
+      font-size: 12px;
+      line-height: 22px;
       color: #979ba5;
+      background: #f0f1f5;
+      border-radius: 2px;
     }
+
     .item-operator {
       margin-right: 20px;
       color: #3a84ff;
@@ -413,50 +426,62 @@
     }
   }
 }
+
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
-  top: 10px;
-  right: 262px;
+  top: calc(10px + var(--notice-alert-height));
+  // right: 262px;
+  right: 235px;
+  z-index: 100; // 数据探索→指标检索容器.data-retrieval-main: z-index: 9; tracing探索.inquire-right-header: z-index: 99;
   width: 720px !important;
   min-height: 32px;
+
   .icon-search {
-    font-size: 14px;
     position: absolute;
-    right: 10px;
-    top: 9px;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
     color: #979ba5;
   }
+
   .new-home-select-input {
+    min-height: 32px;
+    padding: 0;
     background: #252f43;
     border: 1px solid #394561 !important;
-    min-height: 32px;
     border-radius: 2px;
-    padding: 0;
+
     .clear-btn {
       top: 8px;
-      font-size: 14px;
       right: 30px;
+      font-size: 14px;
     }
   }
+
   .home-select-input {
-    margin: 3px 0 1px;
-    padding-left: 16px;
-    font-size: 12px;
     width: 93%;
+    padding: 5px 0 0 16px;
+    // margin: 3px 0 1px;
+    margin: 0;
+    font-size: 12px;
     line-height: 22px;
+
     &::placeholder {
       font-size: 12px;
       line-height: 23px;
       color: #7a8199;
     }
   }
+
   .new-home-select-popover {
     margin-top: 6px;
     border-radius: 2px;
+
     .new-home-select-popover-content {
       border-radius: 2px;
     }
   }
+
   .select-empty {
     border-radius: 2px;
   }

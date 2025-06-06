@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
 from collections import defaultdict
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Pattern, Set, Tuple
+from typing import Any
+from collections.abc import Callable
+from re import Pattern
 
 import arrow
 from django.conf import settings
@@ -35,7 +37,7 @@ from bkmonitor.data_source import (
     load_data_source,
 )
 from bkmonitor.data_source.unify_query.query import UnifyQuery
-from bkmonitor.models import MetricListCache
+from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -211,6 +213,14 @@ class AddNullDataProcessor:
         start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
         end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
 
+        # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
+        time_alignment: bool = params.get("time_alignment", True)
+        if not time_alignment:
+            if start_time > params["start_time"] * 1000:
+                start_time -= interval
+            if end_time < params["end_time"] * 1000:
+                end_time += interval
+
         for row in data:
             time_to_value = defaultdict(lambda: None)
             for point in row["datapoints"]:
@@ -220,6 +230,12 @@ class AddNullDataProcessor:
             last_datapoint_timestamp = None
             for timestamp in range(start_time, end_time, interval):
                 if time_to_value[timestamp] is None:
+                    if not time_alignment:
+                        # 补 0 代替补 Null
+                        row["datapoints"].append([0, timestamp])
+                        last_datapoint_timestamp = timestamp
+                        continue
+
                     # 如果当前点没有值且和开始时间相同，则补充空点
                     if timestamp == start_time:
                         row["datapoints"].append([None, timestamp])
@@ -242,7 +258,7 @@ class RankProcessor:
     """
 
     @classmethod
-    def process_params(cls, params: Dict) -> Dict:
+    def process_params(cls, params: dict) -> dict:
         for query_config in params["query_configs"]:
             if not query_config["functions"]:
                 continue
@@ -285,7 +301,7 @@ class RankProcessor:
 
             metric_field = data_source.metrics[0].get("alias") or data_source.metrics[0]["field"]
             # 按维度将值合并后进行排序
-            dimension_values = defaultdict(lambda: 0)
+            dimension_values = defaultdict(int)
             for point in points:
                 dimensions = tuple(
                     (key, value) for key, value in point.items() if key not in ["_time_", "_result_", metric_field]
@@ -296,9 +312,15 @@ class RankProcessor:
             dimension_value_list.sort(key=lambda x: x[1], reverse=function["id"] == "top")
 
             # 取前n个维度进行过滤
-            rank_filter = [
-                {key: value for key, value in dimension_value[0]} for dimension_value in dimension_value_list[:n]
-            ]
+            rank_filter = []
+            for dimension_value in dimension_value_list:
+                # 存在维度值为空的情况，跳过
+                if not dimension_value[0]:
+                    continue
+                rank_filter.append({key: value for key, value in dimension_value[0]})
+                if len(rank_filter) >= n:
+                    break
+
             if rank_filter:
                 query_config["filter_dict"]["rank"] = rank_filter
 
@@ -338,7 +360,7 @@ class RankProcessor:
 
 class HeatMapProcessor:
     @staticmethod
-    def get_dimension_tuple(dimensions: Dict):
+    def get_dimension_tuple(dimensions: dict):
         """
         维度元组化
         """
@@ -423,7 +445,7 @@ class HeatMapProcessor:
 
 class QueryTypeProcessor:
     @classmethod
-    def process_params(cls, params: Dict) -> Dict:
+    def process_params(cls, params: dict) -> dict:
         """
         调整查询周期及时间范围模拟instant query
         """
@@ -527,7 +549,9 @@ class UnifyQueryRawResource(ApiAuthResource):
         stack = serializers.CharField(label="堆叠标识", required=False, allow_blank=True)
         function = serializers.DictField(label="功能函数", default={})
         # 表达式计算函数
-        functions = serializers.ListField(label="计算函数", default=[], child=QueryConfigSerializer.FunctionSerializer())
+        functions = serializers.ListField(
+            label="计算函数", default=[], child=QueryConfigSerializer.FunctionSerializer()
+        )
 
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
@@ -537,6 +561,9 @@ class UnifyQueryRawResource(ApiAuthResource):
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
+        time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
+        query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
+        unit = serializers.CharField(label="单位", default="", allow_blank=True)
 
         @classmethod
         def to_str(cls, value):
@@ -564,7 +591,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 query_config["filter_dict"] = self.process_filter_dict(attrs["bk_biz_id"], query_config["filter_dict"])
             return attrs
 
-        def validate_target(self, target: List):
+        def validate_target(self, target: list):
             """
             监控目标兼容两种目标格式
             """
@@ -597,7 +624,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             return value
 
     @classmethod
-    def get_metric_info(cls, params: Dict) -> List:
+    def get_metric_info(cls, params: dict) -> list:
         metric_queries = []
         for query_config in params["query_configs"]:
             metric_fields = [metric["field"] for metric in query_config["metrics"]]
@@ -643,7 +670,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         return metric_infos
 
     @staticmethod
-    def handle_special_uptime_check_metric(query_configs: List[Dict]):
+    def handle_special_uptime_check_metric(query_configs: list[dict]):
         """
         处理拨测响应内容及响应码查询配置
         """
@@ -734,9 +761,9 @@ class UnifyQueryRawResource(ApiAuthResource):
         data_source.functions = [f for f in data_source.functions if f["id"] != "topk"]
 
         # 提取topk维度组合
-        dimension_tuples_set: Set[Tuple[Tuple]] = set()
+        dimension_tuples_set: set[tuple[tuple]] = set()
         for point in points:
-            dimension_tuples: List[Tuple] = []
+            dimension_tuples: list[tuple] = []
             for key in data_source.group_by:
                 if key in point:
                     dimension_tuples.append((key, point[key]))
@@ -799,8 +826,11 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 数据查询
         data_sources = []
+        time_alignment: bool = params.get("time_alignment", True)
         for query_config_index, query_config in enumerate(params["query_configs"]):
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
+            if not time_alignment:
+                query_config["time_alignment"] = time_alignment
             data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
             if hasattr(data_source, "group_by"):
                 query_config["group_by"] = data_source.group_by
@@ -831,12 +861,19 @@ class UnifyQueryRawResource(ApiAuthResource):
         )
         safe_push_to_gateway(registry=OPERATION_REGISTRY)
 
-        points = query.query_data(
+        query_method_map: dict[str, Callable[[Any], list[dict]]] = {
+            "query_data": query.query_data,
+            "query_reference": query.query_reference,
+        }
+        query_method: Callable[[Any], list[dict]] = query_method_map.get(params.get("query_method"), query.query_data)
+
+        points = query_method(
             start_time=params["start_time"] * 1000,
             end_time=params["end_time"] * 1000,
             limit=params["limit"],
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
+            time_alignment=time_alignment,
         )
 
         # 如果存在数据后过滤条件，则进行过滤
@@ -857,10 +894,14 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     统一查询接口 (适配图表展示)
     """
 
-    def get_unit(self, metrics: List[Dict], params: Dict) -> str:
+    def get_unit(self, metrics: list[dict], params: dict) -> str:
         """
         获取单位信息
         """
+        # 如果查询配置中指定了单位，则直接返回
+        if params.get("unit"):
+            return params["unit"]
+
         # 多指标无单位
         if len(params["query_configs"]) > 1 or not metrics:
             return ""
@@ -899,13 +940,14 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             data_source_label = query_config.get("data_source_label")
             for metric in query_config["metrics"]:
                 if metric.get("alias"):
-                    expression = expression.replace(metric["alias"], f'{metric["method"]}({metric["field"]})')
+                    expression = expression.replace(metric["alias"], f"{metric['method']}({metric['field']})")
                 is_bar = (query_config.get("data_source_label"), query_config.get("data_type_label")) in (
                     (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),
                     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
                     (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+                    (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
                     (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
                     (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
                 )
@@ -956,7 +998,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         # 构造图表数据结构
         result = []
         for dimensions, metric_to_data_point in formatted_data.items():
-            dimension_string = ", ".join("{}={}".format(dimension[0], dimension[1]) for dimension in dimensions)
+            dimension_string = ", ".join(f"{dimension[0]}={dimension[1]}" for dimension in dimensions)
             for metric_tuple, value in metric_to_data_point.items():
                 target = metric_tuple[1]
                 if dimension_string:
@@ -978,7 +1020,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
 
         return result
 
-    def translate_dimensions(self, params: Dict, data: List):
+    def translate_dimensions(self, params: dict, data: list):
         """
         维度翻译
         """
@@ -996,13 +1038,15 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             hosts = []
         host_id_to_name = {str(host.bk_host_id): host.display_name for host in hosts}
 
-        # 服务实例
-        service_instance_id_list = set()
+        service_instance_id_list = set()  # 服务实例
+        bcs_cluster_id_list = set()  # BCS集群
         for row in data:
             if row["dimensions"].get("bk_service_instance_id"):
                 service_instance_id_list.add(row["dimensions"]["bk_service_instance_id"])
             if row["dimensions"].get("bk_target_service_instance_id"):
                 service_instance_id_list.add(row["dimensions"]["bk_target_service_instance_id"])
+            if row["dimensions"].get("bcs_cluster_id"):
+                bcs_cluster_id_list.add(row["dimensions"]["bcs_cluster_id"])
         if service_instance_id_list:
             try:
                 service_instances = api.cmdb.get_service_instance_by_id(
@@ -1034,6 +1078,15 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     bk_obj_id_to_name[bk_obj_id] = node.bk_obj_name
                     bk_inst_id_to_name[bk_inst_id] = node.bk_inst_name
 
+        # BCS集群
+        if bcs_cluster_id_list:
+            bcs_clusters = BCSCluster.objects.filter(
+                bk_biz_id=params["bk_biz_id"], bcs_cluster_id__in=bcs_cluster_id_list
+            ).only("bcs_cluster_id", "name")
+            bcs_cluster_to_name = {cluster.bcs_cluster_id: cluster.name for cluster in bcs_clusters}
+        else:
+            bcs_cluster_to_name = {}
+
         # 字段映射
         field_mapper = {
             "bk_host_id": host_id_to_name,
@@ -1041,6 +1094,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             "bk_target_service_instance_id": service_instance_id_to_name,
             "bk_obj_id": bk_obj_id_to_name,
             "bk_inst_id": bk_inst_id_to_name,
+            "bcs_cluster_id": bcs_cluster_to_name,
         }
         for row in data:
             dimensions_translation = {}
@@ -1051,7 +1105,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         return data
 
     def perform_request(self, params):
-        raw_query_result = super(GraphUnifyQueryResource, self).perform_request(params)
+        raw_query_result = super().perform_request(params)
         points = raw_query_result["series"]
         if not points:
             return raw_query_result
@@ -1144,7 +1198,7 @@ class GraphTraceQueryResource(ApiAuthResource):
         return (query_config["data_source_label"], query_config["data_type_label"]) in UnifyQueryDataSources
 
     def validate_request_data(self, request_data):
-        validated_request_data = super(GraphTraceQueryResource, self).validate_request_data(request_data)
+        validated_request_data = super().validate_request_data(request_data)
         query_configs = validated_request_data.pop("query_configs", [])
         if not (query_configs and self.is_valid_data_source(query_configs[0])):
             raise ValidationError("not supported data source")
@@ -1264,7 +1318,7 @@ class DimensionPromqlQueryResource(Resource):
         end_time = serializers.CharField(required=False)
 
     @classmethod
-    def get_query_result(cls, bk_biz_id: int, promql: str) -> List[str]:
+    def get_query_result(cls, bk_biz_id: int, promql: str) -> list[str]:
         """
         查询query_result函数
         """
@@ -1290,7 +1344,7 @@ class DimensionPromqlQueryResource(Resource):
         return result
 
     @classmethod
-    def get_label_values(cls, bk_biz_id: int, promql: str, start_time: str, end_time: str) -> List[str]:
+    def get_label_values(cls, bk_biz_id: int, promql: str, start_time: str, end_time: str) -> list[str]:
         """
         查询label_values函数
         """
@@ -1311,8 +1365,8 @@ class DimensionPromqlQueryResource(Resource):
             }
 
             if start_time and end_time:
-                params["start_time"] = start_time
-                params["end_time"] = end_time
+                params["start"] = start_time
+                params["end"] = end_time
 
             result = api.unify_query.get_promql_label_values(params)
             return result["values"].get(label, [])
@@ -1321,7 +1375,7 @@ class DimensionPromqlQueryResource(Resource):
         return []
 
     @classmethod
-    def get_label_names(cls, bk_biz_id: int, promql: str) -> List[str]:
+    def get_label_names(cls, bk_biz_id: int, promql: str) -> list[str]:
         """
         查询label_names函数
         """
@@ -1391,7 +1445,7 @@ class DimensionUnifyQuery(Resource):
             query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
             index_set_id = serializers.IntegerField(required=False, label="索引集ID")
 
-            def validate(self, attrs: Dict) -> Dict:
+            def validate(self, attrs: dict) -> dict:
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
                 return attrs
@@ -1413,7 +1467,7 @@ class DimensionUnifyQuery(Resource):
         slimit = serializers.IntegerField(label="限制维度数量", default=GRAPH_MAX_SLIMIT)
 
     @classmethod
-    def query_dimensions(cls, params) -> List:
+    def query_dimensions(cls, params) -> list:
         # 1、支持多维度字段值的查询
         # 与GetVariableValue.query_dimension接口一样
         fields = params["dimension_field"].split("|")
@@ -1578,7 +1632,7 @@ class ConvertGrafanaPromqlDashboardResource(Resource):
         metric_mapping = serializers.DictField(default={})
 
     @classmethod
-    def convert_metric_id(cls, promql: str, metric_mapping: List[Tuple[Pattern, str]]) -> str:
+    def convert_metric_id(cls, promql: str, metric_mapping: list[tuple[Pattern, str]]) -> str:
         """
         指标转换
         """
@@ -1613,7 +1667,7 @@ class ConvertGrafanaPromqlDashboardResource(Resource):
 
         # 指标映射配置
         metric_mapping = [
-            (re.compile(fr"(?<![a-zA-Z0-9_:]){old}(?![a-zA-Z0-9_:])"), new)
+            (re.compile(rf"(?<![a-zA-Z0-9_:]){old}(?![a-zA-Z0-9_:])"), new)
             for old, new in params["metric_mapping"].items()
         ]
 

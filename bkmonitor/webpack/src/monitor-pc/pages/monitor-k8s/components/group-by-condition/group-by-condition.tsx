@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { getStrLengOfPx } from '../../../../utils';
+import { SceneEnum } from '../../typings/k8s-new';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
@@ -39,6 +40,7 @@ export interface GroupByConditionProps {
   title: string;
   groupInstance: K8sGroupDimension;
   dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
+  scene?: SceneEnum;
 }
 
 export interface GroupByConditionEvents {
@@ -52,6 +54,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
   /** 外部传入选项options数组 */
   @Prop({ type: Object }) dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
+  @Prop({ type: String, default: '' }) scene: SceneEnum;
 
   @Ref() customSelectRef: any;
 
@@ -105,10 +108,10 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
       return (
         <div
           key={id}
-          class={['group-by-item', !this.groupInstance.isDefaultGroupFilter(id) ? 'can-delete' : '']}
+          class={['group-by-item', !this.groupInstance.isFixedGroupFilter(id) ? 'can-delete' : '']}
         >
           <span>{id || '--'}</span>
-          {!this.groupInstance.isDefaultGroupFilter(id) ? (
+          {!this.groupInstance.isFixedGroupFilter(id) ? (
             <i
               class='icon-monitor icon-mc-close'
               onClick={() => this.handleDeleteItem(id)}
@@ -140,7 +143,9 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
             <div slot='target'>
               {this.options.length ? (
                 <span class='group-by-add'>
-                  <i class='icon-monitor icon-plus-line' />{' '}
+                  <i
+                    class={`icon-monitor ${this.scene === SceneEnum.Network && this.groupInstance.groupFilters.length > 1 ? 'icon-bianji' : 'icon-plus-line'}`}
+                  />
                 </span>
               ) : null}
             </div>

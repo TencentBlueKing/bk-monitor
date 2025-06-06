@@ -50,7 +50,11 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
-        base_labels = {"strategy_id": item.strategy.id, "strategy_name": item.strategy.name}
+        base_labels = {
+            "strategy_id": item.strategy.id,
+            "strategy_name": item.strategy.name,
+            "bk_biz_id": item.strategy.bk_biz_id,
+        }
         if not item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             return
 

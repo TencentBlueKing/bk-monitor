@@ -23,18 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-
-import PopInstanceUtil from './pop-instance-util';
+import { debounce, isElement } from 'lodash';
+import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
   props,
   {
     formatModelValueItem,
     refContent,
+    refTarget,
+    refWrapper,
     onShowFn,
     onHiddenFn,
     arrow = true,
@@ -43,13 +45,20 @@ export default (
     onHeightChange,
     addInputListener = true,
     handleWrapperClick = undefined,
+    onInputFocus = undefined,
   },
 ) => {
   const modelValue = ref([]);
   const sectionHeight = ref(0);
+
+  // 是否为父级容器元素点击操作
+  // 避免容器元素点击时触发 hideOnclick多次渲染
   const isDocumentMousedown = ref(false);
 
-  let resizeObserver = null;
+  // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
+  let isInputTextFocus = ref(false);
+
+  let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
   const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
 
@@ -59,7 +68,14 @@ export default (
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = target => popInstanceUtil.show(target);
+  const delayShowInstance = target => {
+    popInstanceUtil?.cancelHide();
+    popInstanceUtil?.show(target);
+  };
+
+  const setIsInputTextFocus = (val: boolean) => {
+    isInputTextFocus.value = val;
+  };
 
   const setModelValue = val => {
     if (Array.isArray(val)) {
@@ -71,16 +87,16 @@ export default (
   };
 
   let instance = undefined;
-
+  const getRoot = () => {
+    return instance?.proxy?.$el;
+  };
   const getTargetInput = () => {
-    const target = instance?.proxy?.$el;
+    const target = refWrapper?.value ?? getRoot();
     const input = target?.querySelector('.tag-option-focus-input');
     return input as HTMLInputElement;
   };
 
-  const getRoot = () => {
-    return instance?.proxy?.$el;
-  };
+  const isInstanceShown = () => popInstanceUtil.isShown();
 
   const handleContainerClick = (e?) => {
     const root = getRoot();
@@ -89,19 +105,31 @@ export default (
 
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+
+      if (!isInstanceShown()) {
+        setIsInputTextFocus(true);
+        onInputFocus?.();
+        delayShowInstance(getPopTarget());
+      }
       return input;
     }
   };
 
-  const repositionTippyInstance = () => popInstanceUtil.repositionTippyInstance();
-  const isInstanceShown = () => popInstanceUtil.isShown();
+  const repositionTippyInstance = () => {
+    if (isInstanceShown()) {
+      popInstanceUtil.repositionTippyInstance();
+    }
+  };
 
   const handleFulltextInput = e => {
     const input = getTargetInput();
     if (input !== undefined && e.target === input) {
       const value = input.value;
       const charLen = getCharLength(value);
-      input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+      const maxWidth = 500;
+      const width = (charLen || 1) * INPUT_MIN_WIDTH;
+
+      input.style.setProperty('width', `${width > maxWidth ? maxWidth : width}px`);
     }
   };
 
@@ -113,7 +141,14 @@ export default (
     }
   };
 
-  const hideTippyInstance = () => popInstanceUtil.hide();
+  const setDefaultInputWidth = () => {
+    const input = getTargetInput();
+    input?.style?.setProperty?.('width', `${1 * INPUT_MIN_WIDTH}px`);
+  };
+
+  const hideTippyInstance = () => {
+    popInstanceUtil?.hide(180);
+  };
 
   const resizeHeightObserver = target => {
     if (!target) {
@@ -139,7 +174,7 @@ export default (
   };
 
   watch(
-    props,
+    () => [props.value],
     () => {
       setModelValue(props.value);
     },
@@ -154,17 +189,60 @@ export default (
     isDocumentMousedown.value = val;
   };
 
+  const getPopTarget = () => {
+    if (refTarget?.value && isElement(refTarget.value)) {
+      return refTarget.value;
+    }
+
+    return getRoot();
+  };
+
+  const handleKeydown = event => {
+    const isModifierPressed = true;
+
+    // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
+    const isSlashKey = event.key === '/' || event.keyCode === 191;
+    const isEscKey = event.key === 'Escape' || event.keyCode === 27;
+
+    if (isModifierPressed && isSlashKey && !popInstanceUtil.isShown()) {
+      // 阻止浏览器默认行为（如打开浏览器搜索栏）
+      event.preventDefault();
+      const targetElement = getPopTarget();
+
+      if (refTarget?.value && isElement(refTarget.value)) {
+        delayShowInstance(targetElement);
+        return;
+      }
+
+      targetElement?.click?.();
+      return;
+    }
+
+    if (!isInputTextFocus.value) {
+      return;
+    }
+
+    if (isEscKey && popInstanceUtil.isShown()) {
+      setIsInputTextFocus(false);
+      popInstanceUtil.hide(100);
+    }
+  };
+
   onMounted(() => {
     instance = getCurrentInstance();
     document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
+    document?.addEventListener('keydown', handleKeydown);
     document?.addEventListener('click', handleContainerClick);
+
+    setDefaultInputWidth();
+
     if (addInputListener) {
       document?.addEventListener('input', handleFulltextInput);
     }
     resizeHeightObserver(instance?.proxy?.$el);
   });
 
-  onBeforeUnmount(() => {
+  onUnmounted(() => {
     uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
     if (addInputListener) {
@@ -172,12 +250,16 @@ export default (
     }
 
     document.removeEventListener('mousedown', handleWrapperClickCapture);
+    document?.removeEventListener('keydown', handleKeydown);
     resizeObserver?.disconnect();
+    resizeObserver = null;
   });
 
   return {
     modelValue,
     isDocumentMousedown,
+    isInputTextFocus,
+    setIsInputTextFocus,
     setIsDocumentMousedown,
     repositionTippyInstance,
     hideTippyInstance,

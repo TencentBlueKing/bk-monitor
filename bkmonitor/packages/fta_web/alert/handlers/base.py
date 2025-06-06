@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
 from abc import ABC
-from typing import Callable, Dict, Iterable, List, Optional
+from collections.abc import Callable, Iterable
 
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
@@ -29,7 +29,8 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_metric_string, process_stage_string
+from fta_web.alert.utils import process_metric_string, process_stage_string, is_include_promql, strip_outer_quotes
+import re
 
 
 class QueryField:
@@ -41,7 +42,7 @@ class QueryField:
         agg_field: str = None,
         searchable: bool = True,
         is_char: bool = False,
-        alias_func: Optional[Callable[[SearchField], None]] = None,
+        alias_func: Callable[[SearchField], None] | None = None,
     ):
         """
         :param field: 展示的字段英文名
@@ -77,16 +78,13 @@ class QueryField:
         return value
 
 
-query_cache = {}
-
-
 class BaseQueryTransformer(BaseTreeTransformer):
     """
     Elasticsearch 自定义 query_string 到 标准化 query_string 转换器
     """
 
     # 可供查询的ES字段配置
-    query_fields: List[QueryField] = []
+    query_fields: list[QueryField] = []
 
     # 需要转换的嵌套KV字段，key 为匹配前缀，value 为搜索字段
     # 例如 "tags.": "event.tags"
@@ -127,7 +125,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
             if node.name == "event.ipv6":
                 ipv6 = exploded_ip(node.expr.value.strip('"'))
-                node.expr.value = f"\"{ipv6}\""
+                node.expr.value = f'"{ipv6}"'
 
             yield from self.generic_visit(
                 node, {"search_field_name": node.name, "search_field_origin_name": origin_node_name}
@@ -142,14 +140,16 @@ class BaseQueryTransformer(BaseTreeTransformer):
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})
 
-        global query_cache
         if not query_string:
             return ""
         transform_obj = cls()
-        if query_string not in query_cache:
-            query_cache[query_string] = parse_query_string_node(transform_obj, query_string)
 
-        query_tree = query_cache[query_string]
+        try:
+            query_tree = parse_query_string_node(transform_obj, query_string)
+        except QueryStringParseError:
+            # 包含promql语句，可能会报语法错误，需要尝试转换
+            query_string = cls.convert_metric_id(query_string)
+            query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -164,7 +164,72 @@ class BaseQueryTransformer(BaseTreeTransformer):
         return str(query_tree)
 
     @classmethod
-    def get_field_info(cls, field: str) -> Optional[QueryField]:
+    def convert_metric_id(cls, query_string: str) -> str:
+        """
+        当指定了指标ID时，且指标ID值是一个promql，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
+        此时需要对指标ID进行转义，并在前后加上“*”，用于支持模糊查询
+
+        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
+        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
+        """
+
+        def convert_metric(match):
+            value = match.group(0)
+            value = strip_outer_quotes(value.split(":", 1)[1])
+
+            # 如果是promql，需要进行转义
+            if is_include_promql(value):
+                value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
+
+            # 给value前后加上“*”，用于支持模糊匹配
+            if not value.startswith("*"):
+                value = "*" + value
+            if not value.endswith("*"):
+                value = value + "*"
+            return f"{target_type} : {value}"
+
+        def add_quote(match):
+            value = match.group("value")
+            value = f'"{value}"' if value else value
+            return f"{target_type} : {value}"
+
+        target_type = "指标ID"
+
+        # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
+        # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
+        #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
+        #  - 如果指标格式为`指标ID:{promql}`，也会匹配失败，需要转变为`指标ID:"{promql}"`
+        query_string = cls.process_label_filter(query_string)
+        query_string = re.sub(
+            r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
+        )
+        query_string = re.sub(
+            r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert_metric, query_string, re.IGNORECASE
+        )
+
+        # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("##", r"\=\"")
+        query_string = query_string.replace("#", r"\"")
+
+        return query_string
+
+    @classmethod
+    def process_label_filter(cls, query_string: str) -> str:
+        """处理promql语句中的过滤条件，对双引号进行提前处理，否则会导致转义失败"""
+
+        def replace(match):
+            value = match.group(0)
+            # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
+            value = value.replace('="', "##").replace('"', "#")
+            return value
+
+        # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
+        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        query_string = re.sub(pattern, replace, query_string)
+        return query_string
+
+    @classmethod
+    def get_field_info(cls, field: str) -> QueryField | None:
         """查询 QueryField"""
         for field_info in cls.query_fields:
             if field_info.searchable and field in [field_info.field, str(field_info.display), _(field_info.display)]:
@@ -213,9 +278,9 @@ class BaseQueryHandler:
         self,
         start_time: int = None,
         end_time: int = None,
-        ordering: List[str] = None,
+        ordering: list[str] = None,
         query_string: str = "",
-        conditions: List = None,
+        conditions: list = None,
         page: int = 1,
         page_size: int = 10,
         **kwargs,
@@ -246,7 +311,7 @@ class BaseQueryHandler:
 
         yield from search_object.params(preserve_order=True).scan()
 
-    def export(self) -> List[dict]:
+    def export(self) -> list[dict]:
         """
         将数据导出，用于生成 csv 文件
         :return:
@@ -312,7 +377,7 @@ class BaseQueryHandler:
                 search_object = search_object.query(query_dsl)
         return search_object
 
-    def add_conditions(self, search_object: Search, conditions: List = None):
+    def add_conditions(self, search_object: Search, conditions: list = None):
         """
         处理 filter 条件
         """
@@ -463,7 +528,7 @@ class BaseQueryHandler:
 
         return new_search_object
 
-    def top_n(self, fields: List, size=10, translators: Dict[str, AbstractTranslator] = None, char_add_quotes=True):
+    def top_n(self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True):
         """
         字段值 TOP N 统计
         :param fields: 需要统计的字段，"+abc" 为升序排列，"-abc" 为降序排列，默认降序排列
@@ -589,7 +654,7 @@ class BaseQueryHandler:
 class BaseBizQueryHandler(BaseQueryHandler, ABC):
     def __init__(
         self,
-        bk_biz_ids: List[int] = None,
+        bk_biz_ids: list[int] = None,
         username: str = "",
         **kwargs,
     ):

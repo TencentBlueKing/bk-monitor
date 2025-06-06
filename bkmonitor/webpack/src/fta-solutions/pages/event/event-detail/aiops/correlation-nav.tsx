@@ -26,7 +26,12 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionTypes, EventReportType } from './types';
+import {
+  createAnomalyDimensionTips,
+  createGroupAnomalyDimensionTips,
+} from 'monitor-common/tips/anomaly-dimension-tips';
+
+import { EventReportType } from './types';
 
 import './correlation-nav.scss';
 
@@ -36,19 +41,24 @@ interface IEvent {
 
 interface IProps {
   list?: any[];
+  isCorrelationMetrics?: boolean;
 }
 
 @Component({})
 export default class CorrelationNav extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) list: any[];
+  @Prop({ type: Boolean, default: false }) isCorrelationMetrics: boolean;
   @Inject('reportEventLog') reportEventLog: (eventType: string) => void;
 
   /** 当前选中指标 */
   active: null | string = null;
 
+  /** 展开收起 */
+  isCollapse = false;
+
   @Watch('list', { immediate: true })
   handleChange(val) {
-    if (!this.active && val.length > 0 && val[0].metrics.length > 0) {
+    if (!this.active && val.length > 0 && val[0].metrics?.length > 0) {
       this.active = val[0].metrics[0].metric_name;
     }
   }
@@ -61,44 +71,64 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
     this.setActive(item.metric_name);
     return item;
   }
+  /** 切换展开收起 */
+  handleToggleCollapse(activeAuto = false) {
+    if (activeAuto && !this.isCollapse) {
+      return;
+    }
+    this.isCollapse = !this.isCollapse;
+  }
   renderClassification(item) {
     return (
       <div class='correlation-nav-classification'>
-        <p class='classification-title'>
-          <i class={`icon-monitor ${DimensionTypes[item.result_table_label]}`} />
+        <p
+          class='classification-title'
+          v-bk-tooltips={{
+            placement: 'left',
+            content: createGroupAnomalyDimensionTips(item, this.isCorrelationMetrics),
+          }}
+        >
+          <i
+            class={[
+              'bk-icon bk-card-head-icon collapse-icon',
+              this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
+            ]}
+            onClick={this.handleToggleCollapse.bind(this, false)}
+          />
           <span class='classification-text'>{item.result_table_label_name}</span>
           <span class='classification-num'>
-            {/* <i class='icon-monitor icon-mc-correlation-metrics'></i> */}
-            {this.$t('{slot0} 个指标', {
-              slot0: item.metrics.length,
-            })}
+            {item?.dimension_anomaly_value_count
+              ? [<strong key={'1'}>{item.dimension_anomaly_value_count}</strong>, '/', item.dimension_value_total_count]
+              : item.metrics?.length}
           </span>
         </p>
-        <ul class='classification-list'>
-          {item.metrics.map(metric => (
-            <li
-              key={metric.metric_name}
-              class={['classification-list-item', { active: this.active === metric.metric_name }]}
-              onClick={this.handleActive.bind(this, metric)}
-            >
-              <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
-              <span
-                class='classification-list-item-num'
+        <bk-transition name='collapse'>
+          <ul
+            class='classification-list'
+            v-show={!this.isCollapse}
+          >
+            {(item.metrics || []).map(metric => (
+              <li
+                key={metric.metric_name}
+                class={['classification-list-item', { active: this.active === metric.metric_name }]}
                 v-bk-tooltips={{
-                  content: this.$t('共 {slot0} 个维度', {
-                    slot0: metric.totalPanels.length,
-                  }),
+                  content: createAnomalyDimensionTips(metric, this.isCorrelationMetrics),
+                  placement: 'left',
                   onShown: () => {
                     this.reportEventLog?.(EventReportType.Tips);
                   },
                 }}
+                onClick={() => this.handleActive(metric)}
               >
-                <i class='icon-monitor icon-mc-dimension' />
-                {metric.totalPanels.length}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span class={{ 'level-icon': !!metric.anomaly_level, [`level-${metric.anomaly_level}`]: true }} />
+                <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
+                {(metric.totalPanels || []).length > 0 && (
+                  <span class='classification-list-item-num'>{metric.totalPanels.length}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </bk-transition>
       </div>
     );
   }

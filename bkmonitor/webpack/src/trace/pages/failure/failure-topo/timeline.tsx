@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { DatePicker, Dropdown, Slider } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -33,7 +34,7 @@ import type { IncidentDetailData, TopoRawData } from './types';
 import './timeline.scss';
 import 'bkui-vue/lib/time-picker/time-picker.css';
 
-const refleshList = [
+const refreshList = [
   // 刷新间隔列表
   {
     name: 'off',
@@ -83,6 +84,7 @@ export default defineComponent({
   },
   emits: ['changeRefleshTime', 'play', 'update:modelValue', 'timelineChange'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     /** 时间切片数据 */
     const timeList = computed(() => {
@@ -190,6 +192,7 @@ export default defineComponent({
       handleDisabledDate,
       handleTimelineChange,
       handlePickSuccess,
+      t,
     };
   },
   render() {
@@ -197,7 +200,7 @@ export default defineComponent({
     const max = len > -1 ? len - 1 : 1;
     return (
       <div class='failure-topo-timeline'>
-        <span class='label'>{this.$t('时间轴')}</span>
+        <span class='label'>{this.t('时间轴')}</span>
         <span
           class={['icon-monitor', this.isPlay ? 'icon-weibiaoti519' : 'icon-mc-arrow-right']}
           onClick={this.handlePlay}
@@ -223,6 +226,7 @@ export default defineComponent({
         <DatePicker
           class='date-picker'
           v-model={this.time}
+          appendToBody={true}
           clearable={false}
           disabled={this.isPlay}
           disabledDate={this.handleDisabledDate}
@@ -237,7 +241,7 @@ export default defineComponent({
                 class={['trigger-name refresh-name', this.isPlay && 'disabled-refresh']}
                 v-bk-tooltips={{
                   placement: 'bottom',
-                  content: this.$t('自动刷新设置'),
+                  content: this.t('自动刷新设置'),
                 }}
                 onClick={() => (this.isShow = !this.isShow && !this.isPlay)}
               >
@@ -248,7 +252,7 @@ export default defineComponent({
             content: () => {
               return (
                 <Dropdown.DropdownMenu>
-                  {refleshList.map(item => (
+                  {refreshList.map(item => (
                     <Dropdown.DropdownItem
                       key={item.name}
                       extCls={item.name === this.refleshTime ? 'text-active' : ''}

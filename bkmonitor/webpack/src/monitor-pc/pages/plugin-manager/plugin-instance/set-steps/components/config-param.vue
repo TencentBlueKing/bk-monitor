@@ -95,11 +95,7 @@
         <i
           class="bk-icon icon-info"
           v-bk-tooltips="{
-            content: $t(
-              config.default.type === 'service'
-                ? '维度名:实例标签名，如cluster_name:cluster_name'
-                : '维度名:主机字段名，如host_ip:bk_host_innerip'
-            ),
+            content: defaultTipContentByDefaultType(config.default.type),
           }"
           v-show="config.types.type === 'dms_insert'"
         />
@@ -158,7 +154,7 @@
                 </div>
               </div>
               <bk-tag-input
-                v-else-if="['service', 'host'].includes(config.default.type)"
+                v-else-if="['host', 'service', 'custom'].includes(config.default.type)"
                 v-model="config.default.value"
                 allow-create
                 has-delete-icon
@@ -204,6 +200,7 @@
 import VerifyInput from '../../../../../components/verify-input/verify-input';
 import importFile from './import-file';
 
+const CONFIG_DEFAULT_DYNAMIC_ID_LIST = ['host', 'service', 'custom'];
 export default {
   name: 'ConfigParam',
   components: {
@@ -241,6 +238,7 @@ export default {
         switch: this.$t('开关'),
         service: this.$t('服务实例标签'),
         host: this.$t('主机字段'),
+        custom: this.$t('自定义'),
       },
       typeDes: {
         opt_cmd: this.$t('最常用的参数使用方式。如 --port 3306'),
@@ -304,6 +302,10 @@ export default {
               name: this.$t('主机字段'),
               id: 'host',
             },
+            {
+              name: this.$t('自定义'),
+              id: 'custom',
+            },
           ],
           type: 'text',
           value: '',
@@ -357,10 +359,10 @@ export default {
       let defaultList = [];
       let configDefaultList = this.config.default.list;
       if (this.config.types.type === 'dms_insert') {
-        return configDefaultList.filter(item => item.id === 'service' || item.id === 'host');
+        return configDefaultList.filter(item => CONFIG_DEFAULT_DYNAMIC_ID_LIST.includes(item.id));
       }
 
-      configDefaultList = configDefaultList.filter(item => item.id !== 'service' && item.id !== 'host');
+      configDefaultList = configDefaultList.filter(item => !CONFIG_DEFAULT_DYNAMIC_ID_LIST.includes(item.id));
       if (this.pluginType !== 'Exporter') {
         defaultList = configDefaultList.filter(item => item.id !== 'encrypt');
       } else {
@@ -477,6 +479,12 @@ export default {
           this.config.paramName = this.$t('主机维度注入');
           this.validInsertType();
         },
+        custom: () => {
+          this.config.default.value = [];
+          this.config.description = this.$t('指定需要注入维度的值');
+          this.config.paramName = this.$t('自定义维度注入');
+          this.validInsertType();
+        },
       };
       this.fileErrorMsg = '';
       typeMap[type]?.();
@@ -560,6 +568,16 @@ export default {
     },
     handleImportError(msg) {
       this.fileErrorMsg = msg;
+    },
+    defaultTipContentByDefaultType(type) {
+      switch (type) {
+        case 'service':
+          return this.$t('维度名:实例标签名，如cluster_name:cluster_name');
+        case 'custom':
+          return this.$t('维度名:维度值，如tag: host');
+        default:
+          return this.$t('维度名:主机字段名，如host_ip:bk_host_innerip');
+      }
     },
   },
 };

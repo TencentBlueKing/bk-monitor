@@ -35,10 +35,12 @@ export interface IEntity {
   aggregated_entites: IEntity[];
   anomaly_score: number;
   anomaly_type: string;
+  rank_name?: string;
   alert_all_recorved: boolean;
   entity_id: string;
   entity_name: string;
   entity_type: string;
+  properties?: Record<string, any>;
   is_anomaly: boolean;
   is_feedback_root: boolean;
   is_root: boolean;

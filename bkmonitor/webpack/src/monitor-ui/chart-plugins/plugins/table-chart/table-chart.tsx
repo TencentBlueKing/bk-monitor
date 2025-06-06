@@ -154,7 +154,7 @@ export class TableChart extends CommonSimpleChart {
   }
   /** json格式数据为空时提示内容 */
   get jsonViewerDataEmptyText() {
-    return this.panel.options?.table_chart?.json_viewer_data_empty_text ?? window.i18n.tc('数据为空');
+    return this.panel.options?.table_chart?.json_viewer_data_empty_text ?? window.i18n.t('数据为空');
   }
 
   get description() {
@@ -195,9 +195,9 @@ export class TableChart extends CommonSimpleChart {
     if (this.needQueryUpdateUrl) {
       this.handleUpdateQueryDataProxy();
     }
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -276,16 +276,16 @@ export class TableChart extends CommonSimpleChart {
         );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);
@@ -479,8 +479,8 @@ export class TableChart extends CommonSimpleChart {
         {this.hasTitle ? (
           <ChartHeader
             class='draggable-handle'
-            descrition={this.description}
-            draging={this.panel.draging}
+            description={this.description}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             showMore={false}
             subtitle={this.panel.subTitle}

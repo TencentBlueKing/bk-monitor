@@ -107,7 +107,7 @@ class MetricUtils(object):
         es_socket_ping(host=domain_name, port=port)
 
         es_client = get_es_client(
-            version="",
+            version=cluster_config.get("version", ""),
             hosts=[domain_name],
             username=username,
             password=password,

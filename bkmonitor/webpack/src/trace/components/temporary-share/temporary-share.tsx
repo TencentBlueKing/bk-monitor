@@ -46,7 +46,7 @@ export default defineComponent({
   props: {
     onlyCopy: Boolean,
   },
-  setup(props) {
+  setup(props, { emit }) {
     const route = useRoute();
     const show = ref(false);
     const token = ref('');
@@ -245,11 +245,12 @@ export default defineComponent({
       lockTimeRange,
       handleDeleteAuth,
       shareDeadline,
+      t,
     };
   },
   render() {
     const tipsOpts = {
-      content: !this.onlyCopy ? this.$t('临时分享') : this.$t('复制链接'),
+      content: !this.onlyCopy ? this.t('临时分享') : this.t('复制链接'),
       delay: 200,
       placement: 'right',
     };
@@ -265,23 +266,23 @@ export default defineComponent({
           <Dialog
             width={700}
             class='temporary-share'
-            appendToBody={true}
             dialogType='show'
             isShow={this.show}
-            title={this.$t('临时分享').toString()}
+            title={this.t('临时分享').toString()}
+            transfer={true}
             onClosed={this.handleHideDialog}
           >
             <div
               style='margin-top: 18px'
               class='share-wrap'
             >
-              {this.commonItem(this.$t('分享链接'), this.shareLink())}
+              {this.commonItem(this.t('分享链接'), this.shareLink())}
             </div>
             <div class='share-wrap'>
-              {this.commonItem(this.$t('查询时间段'), this.shareTimeRange(), { flex: 1.5, marginRight: '16px' })}
-              {this.commonItem(this.$t('锁定查询时间'), this.lockTimeRange())}
+              {this.commonItem(this.t('查询时间段'), this.shareTimeRange(), { flex: 1.5, marginRight: '16px' })}
+              {this.commonItem(this.t('锁定查询时间'), this.lockTimeRange())}
             </div>
-            <div class='share-wrap'>{this.commonItem(this.$t('链接有效期'), this.shareDeadline())}</div>
+            <div class='share-wrap'>{this.commonItem(this.t('链接有效期'), this.shareDeadline())}</div>
           </Dialog>
         )}
       </div>

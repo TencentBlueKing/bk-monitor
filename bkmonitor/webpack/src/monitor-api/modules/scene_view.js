@@ -5,6 +5,7 @@ export const getSceneView = request('GET', 'rest/v2/scene_view/get_scene_view/')
 export const getSceneViewList = request('GET', 'rest/v2/scene_view/get_scene_view_list/');
 export const updateSceneView = request('POST', 'rest/v2/scene_view/update_scene_view/');
 export const deleteSceneView = request('POST', 'rest/v2/scene_view/delete_scene_view/');
+export const bulkUpdateSceneViewOrderAndName = request('POST', 'rest/v2/scene_view/bulk_update_scene_view_order_and_name/');
 export const getSceneViewDimensions = request('GET', 'rest/v2/scene_view/get_scene_view_dimensions/');
 export const getSceneViewDimensionValue = request('POST', 'rest/v2/scene_view/get_scene_view_dimension_value/');
 export const getStrategyAndEventCount = request('POST', 'rest/v2/scene_view/get_strategy_and_event_count/');
@@ -74,6 +75,7 @@ export const listIndexSetLog = request('POST', 'rest/v2/scene_view/list_index_se
 export const getCustomTsMetricGroups = request('GET', 'rest/v2/scene_view/get_custom_ts_metric_groups/');
 export const getCustomTsDimensionValues = request('POST', 'rest/v2/scene_view/get_custom_ts_dimension_values/');
 export const getCustomTsGraphConfig = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
+export const graphDrillDown = request('POST', 'rest/v2/scene_view/graph_drill_down/');
 export const getCustomMetricTargetList = request('POST', 'rest/v2/scene_view/get_custom_metric_target_list/');
 
 export default {
@@ -82,6 +84,7 @@ export default {
   getSceneViewList,
   updateSceneView,
   deleteSceneView,
+  bulkUpdateSceneViewOrderAndName,
   getSceneViewDimensions,
   getSceneViewDimensionValue,
   getStrategyAndEventCount,
@@ -151,5 +154,6 @@ export default {
   getCustomTsMetricGroups,
   getCustomTsDimensionValues,
   getCustomTsGraphConfig,
+  graphDrillDown,
   getCustomMetricTargetList,
 };

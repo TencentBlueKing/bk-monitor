@@ -62,11 +62,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         align-items: center;
         height: 20px;
         overflow: hidden;
+        text-overflow: ellipsis;
         font-size: 12px;
-        font-weight: 400;
+        font-weight: 600;
         line-height: 20px;
         color: #313238;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
 
@@ -145,11 +145,12 @@ $alarmColor: #dcdee5 #63656e #ea3636;
     .sub-title {
       height: 18px;
       overflow: hidden;
+      text-overflow: ellipsis;
       line-height: 18px;
       color: #979ba5;
-      text-overflow: ellipsis;
       white-space: nowrap;
     }
+
     .tag-title {
       width: 100%;
     }
