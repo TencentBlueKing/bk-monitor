@@ -194,9 +194,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
         # 如果匹配上，则指标ID是被截过的
         if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
             query_string = re.sub(
-                r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
-            )
-            query_string = re.sub(
                 r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
             )
             return query_string
