@@ -152,25 +152,29 @@
         return;
       }
 
-      // 标记为选择填充状态
-      startSelecting();
-
       const range = getSelectionRange(editorFocusPosition.value, replace);
       const { from, to, insertSpace } = range;
 
       // 如果需要插入空格，在值后面添加空格
       const finalValue = insertSpace ? `${value} ` : value;
       setEditorContext(finalValue, from, to);
+      const resolvedValue = editorInstance.getValue();
+
+      inputState.value = {
+        focusPos: resolvedValue.length,
+        newContent: '',
+        hasNewInput: false,
+        hasSpace: false,
+        lastSpacePos: null,
+        isSelecting: false,
+      };
 
       // 更新光标位置
       nextTick(() => {
         if (editorInstance) {
           if (retrieve) {
-            const resolvedValue = editorInstance.getValue();
             closeAndRetrieve(resolvedValue);
           }
-          // 重置选择状态
-          endSelecting();
         }
       });
     }
@@ -229,13 +233,23 @@
           if (!(getTippyInstance()?.state?.isShown ?? false)) {
             delayShowInstance(refEditorParent.value);
           }
-          // 重置选择状态
-          endSelecting();
+
+          // 标记为选择填充状态
+          startSelecting();
+
+          inputState.value.focusPos = state.selection.main.to;
         }
       },
       onFocusPosChange: state => {
         editorFocusPosition.value = state.selection.main.to;
         isSelectedText = state.selection.main.to > state.selection.main.from;
+        const currentValue = state.doc.toString();
+
+        if (currentValue !== inputState.value.currentValue) {
+          // 重置选择状态
+          endSelecting();
+        }
+
         updateInputState(state);
       },
     });
