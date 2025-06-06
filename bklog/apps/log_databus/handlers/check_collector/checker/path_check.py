@@ -28,39 +28,41 @@ class LogPathChecker(Checker):
             self.params = collector_config.params
             self.paths = self.params.get("paths", [])
             self.exclude_files = self.params.get("exclude_files", [])
-            self.record.append_normal_info(_("初始化检查成功"), self.HANDLER_NAME)
 
             if not self.paths:
                 self.append_error_info(_("[采集配置中缺少paths参数]"))
                 return False
 
-        except CollectorConfig.DoesNotExist as e:
+            return True
+
+        except CollectorConfig.DoesNotExist:
             self.append_error_info(_("[采集配置不存在]: {id}").format(id=self.collector_config_id))
-            raise
+            return False
 
     def _run(self):
-        self.pre_run()
         # 执行所有检查项
         if not self.pre_run():
-            self.check_excludes()
+            self.append_error_info(_("[预检查失败，跳过后续LogPathChecker检查]"))
             return
+        self.record.append_normal_info(_("初始化检查成功"), self.HANDLER_NAME)
         self.check_wildcard_paths()
+        self.check_excludes()
 
     def check_wildcard_paths(self):
         """
             检查路径数组中的通配符语法是否合法（非目录深度达文件）
         """
         wildcard_pattern = re.compile(r'''
-            ^
-            (?: 
-                [^\*\?$$$$/]+      # 普通字符（排除特殊字符）
-                | \*{1,2}          # * 或 **（保留**以备未来扩展）
-                | \?               # ?
-                | $$ [^$$]* \]     # 字符组
-                | /                # 路径分隔符（但不应出现在非目录深度匹配中）
-            )*
-            $
-        ''', re.VERBOSE)
+                ^
+                (?: 
+                    [^\*\?$$$$/]+      # 普通字符（排除特殊字符）
+                    | \*{1,2}          # * 或 **（保留**以备未来扩展）
+                    | \?               # ?
+                    | $$ [^$$]* \]     # 字符组
+                    | /                # 路径分隔符（但不应出现在非目录深度匹配中）
+                )*
+                $
+            ''', re.VERBOSE)
         error_messages = []
         all_valid = True
         for path in self.paths:

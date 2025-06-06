@@ -43,7 +43,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.bcs import Bcs
 
 
@@ -99,11 +99,11 @@ class BkunifylogbeatChecker(Checker):
         self.check_task_status()
         self.check_crd()
         self.check_cr()
+        self.check_log_paths()
         self.check_config_map()
         self.check_daemonset()
         self.get_match_pod()
         self.check_pod()
-        self.check_log_paths()
         self.filter_target_server()
 
     def check_task_status(self):
@@ -181,7 +181,7 @@ class BkunifylogbeatChecker(Checker):
             )
             return
         self.append_normal_info(
-            _("获取(bk_data_id[{bk_data_id}])的CR成功, 匹配到{cr_cnt}个").format(
+            _("获取(bk_data_id[{bk_data_id}])k,./的CR成功, 匹配到{cr_cnt}个").format(
                 bk_data_id=self.collector_config.bk_data_id, cr_cnt=len(match_items)
             )
         )
@@ -545,12 +545,16 @@ class BkunifylogbeatChecker(Checker):
         self._check_file_held(paths)
 
     def get_log_paths(self) -> List[str]:
-        params = getattr(self.collector_config, "params", {}) or {}
-        log_paths = params.get("paths", [])
-        paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
-        # 处理路径格式，确保返回的是列表
-        if isinstance(paths, str):
-            return [path.strip() for path in paths.split(",") if path.strip()]
-        elif isinstance(paths, list):
-            return paths
-        return []
+        collector_config_id = self.collector_config.collector_config_id
+        try:
+            params = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id).params or {}
+        except ContainerCollectorConfig.DoesNotExist:
+            return []
+        paths = params.get("paths", [])
+        path_list = paths.split(",") if isinstance(paths, str) else paths
+        result = []
+        for path in path_list:
+            path = path.strip()
+            if path:
+                result.append(path)
+        return result
