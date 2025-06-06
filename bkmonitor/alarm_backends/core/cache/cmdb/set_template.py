@@ -35,6 +35,9 @@ class SetTemplateManager:
         :param bk_tenant_id: 租户ID
         :param ids: 集群模板ID列表
         """
+        if not ids:
+            return {id: [] for id in ids}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [str(id) for id in ids])
         return {id: json.loads(r) if r else [] for id, r in zip(ids, result)}

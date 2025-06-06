@@ -59,6 +59,9 @@ class ServiceInstanceManager:
         :param bk_tenant_id: 租户ID
         :param service_instance_ids: 服务实例ID列表
         """
+        if not service_instance_ids:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         results: list[str | None] = cls.cache.hmget(
             cache_key, [str(service_instance_id) for service_instance_id in service_instance_ids]

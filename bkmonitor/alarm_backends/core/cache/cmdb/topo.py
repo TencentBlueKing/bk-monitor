@@ -35,6 +35,9 @@ class TopoManager:
         :param bk_tenant_id: 租户ID
         :param topo_nodes: 拓扑节点列表
         """
+        if not topo_nodes:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [f"{bk_obj_id}|{bk_inst_id}" for bk_obj_id, bk_inst_id in topo_nodes])
         return {

@@ -36,6 +36,9 @@ class SetManager:
         :param bk_tenant_id: 租户ID
         :param bk_set_ids: 集群ID列表
         """
+        if not bk_set_ids:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_set_id) for bk_set_id in bk_set_ids])
         return {bk_set_id: Set(**json.loads(r)) for bk_set_id, r in zip(bk_set_ids, result) if r}

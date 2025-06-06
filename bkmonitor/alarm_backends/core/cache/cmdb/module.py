@@ -36,6 +36,9 @@ class ModuleManager:
         :param bk_tenant_id: 租户ID
         :param bk_module_ids: 模块ID列表
         """
+        if not bk_module_ids:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
         return {bk_module_id: Module(**json.loads(r)) for bk_module_id, r in zip(bk_module_ids, result) if r}
