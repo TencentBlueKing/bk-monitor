@@ -67,6 +67,8 @@ from .utils import (
     get_field_alias,
     get_q_from_query_config,
     get_qs_from_req_data,
+    is_dimensions,
+    format_field,
 )
 
 logger = logging.getLogger(__name__)
@@ -185,7 +187,6 @@ class EventViewConfigResource(Resource):
                 # 内置字段，没有 data_labels，这里直接传 common
                 alias, field_category, index = get_field_alias(name, EventCategory.COMMON.value)
             is_option_enabled = cls.is_option_enabled(field_type)
-            is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
             fields.append(
                 {
@@ -193,7 +194,7 @@ class EventViewConfigResource(Resource):
                     "alias": alias,
                     "type": field_type,
                     "is_option_enabled": is_option_enabled,
-                    "is_dimensions": is_dimensions,
+                    "is_dimensions": is_dimensions(name),
                     "supported_operations": supported_operations,
                     "index": index,
                     "category": field_category,
@@ -706,6 +707,9 @@ class EventGenerateQueryStringResource(Resource):
         generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
         for f in data["where"]:
             generator.add_filter(
-                f["key"], f["method"], f["value"], is_wildcard=f.get("options", {}).get("is_wildcard", False)
+                format_field(f["key"]),
+                f["method"],
+                f["value"],
+                is_wildcard=f.get("options", {}).get("is_wildcard", False),
             )
         return generator.to_query_string()
