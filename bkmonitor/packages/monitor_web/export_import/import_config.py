@@ -213,6 +213,12 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
 
 
 def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is_overwrite_mode=False):
+    """
+    :param is_overwrite_mode:  是否覆盖，默认为False。
+        - 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
+        - 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
+    :return:
+    """
     # 已导入的采集配置，原有ID与创建ID映射，用于更改策略配置的监控条件中关联采集配置
     import_collect_configs = ImportDetail.objects.filter(
         type=ConfigType.COLLECT, history_id=import_history_instance.id, import_status=ImportDetailStatus.SUCCESS
@@ -228,20 +234,29 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         for strategy_dict in list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values("name", "id"))
     }
 
+    # 已存在的用户组
+    existed_user_group_names = set(UserGroup.objects.filter(bk_biz_id=bk_biz_id).values_list('name', flat=True))
+    # 新创建的用户组
+    newly_created_user_groups = {}  # {user_group.name: user_group}
+
+    # 已存在的处理套餐
+    existed_action_names = set(ActionConfig.objects.filter(bk_biz_id=bk_biz_id).values_list('name', flat=True))
+    # 新创建的处理套餐
+    newly_created_actions = {}  # {action.name: action}
+
     # 已存在的轮值规则
     existed_hash_to_rule = {
         duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
     }
 
-    # 新创建的轮值规则，旧hash与到新hash的映射
-    old_hash_to_new_hash = {}
+    # 已经创建了轮值规则的hash
+    created_hash_of_rule = set()
 
     for strategy_config in strategy_config_list:
         try:
             parse_instance = ImportParse.objects.get(id=strategy_config.parse_id)
             create_config = copy.deepcopy(parse_instance.config)
 
-            # 覆盖模式使用原配置策略id
             if is_overwrite_mode and create_config["name"] in existed_name_to_id:
                 create_config["id"] = existed_name_to_id[create_config["name"]]
             else:
@@ -252,23 +267,23 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             create_config = Strategy.convert_v1_to_v2(create_config)
             create_config["bk_biz_id"] = bk_biz_id
 
-            # 创建新通知组或覆盖已有通知组
-            user_groups_mapping = {}
             action_list = create_config["actions"] + [create_config["notice"]]
-            user_groups_dict = {}
-            user_groups_new = []
+            imported_user_groups_dict = {}  # 新导入的告警组信息 {group.name:group}
+
             for action_detail in action_list:
                 for group_detail in action_detail.get("user_group_list", []):
-                    user_groups_dict[group_detail["name"]] = group_detail
+                    imported_user_groups_dict[group_detail["name"]] = group_detail
 
             # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
-            for name, group_detail in user_groups_dict.items():
+            for name, group_detail in imported_user_groups_dict.items():
                 rule_id_mapping = {}
                 for rule_info in group_detail.get("duty_rules_info") or []:
                     # 优先沿用 hash 相同的旧 duty_rule 记录
                     rule = existed_hash_to_rule.get(rule_info["hash"])
-                    if rule_info["hash"] in old_hash_to_new_hash:
-                        rule_info["hash"] = old_hash_to_new_hash[rule_info["hash"]]
+                    # 避免重复创建轮值规则
+                    if rule_info["hash"] in created_hash_of_rule:
+                        rule_id_mapping[rule_info["id"]] = rule.id
+                        continue
 
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
@@ -276,7 +291,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
 
                     # 记录新创建的轮值规则与旧hash的映射
                     existed_hash_to_rule[rule_info["hash"]] = new_rule
-                    old_hash_to_new_hash[rule_info["hash"]] = new_rule.hash
+                    created_hash_of_rule.add(rule_info["hash"])
                     # 记录新旧 id 对应关系
                     rule_id_mapping[rule_info["id"]] = new_rule.id
 
@@ -287,47 +302,59 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     else []
                 )
 
-            qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
-            for user_group in qs:
-                group_detail = user_groups_dict[user_group.name]
-                origin_id = group_detail.pop("id", None)
+            if is_overwrite_mode:
+                # 覆盖模式下，如果告警组名称已经存在当前业务下，则进行覆盖
+                qs = UserGroup.objects.filter(name__in=list(imported_user_groups_dict.keys()), bk_biz_id=bk_biz_id)
+                exited_user_groups = {user_group.name: user_group for user_group in qs}
+            else:
+                exited_user_groups = {}
+            # 关联的告警组ID
+            related_group_ids = []
+
+            for name, group_detail in imported_user_groups_dict.items():
+                group_detail.pop("id", None)
                 group_detail["bk_biz_id"] = bk_biz_id
+                user_group = exited_user_groups.get(name)
+
+                if not is_overwrite_mode:
+                    while group_detail['name'] in existed_user_group_names:
+                        group_detail['name'] = f"{group_detail['name']}_clone"
+
+                if group_detail['name'] in newly_created_user_groups:
+                    related_group_ids.append(newly_created_user_groups[group_detail['name']].id)
+                    continue
+
                 user_group_serializer = UserGroupDetailSlz(user_group, data=group_detail)
                 user_group_serializer.is_valid(raise_exception=True)
                 instance = user_group_serializer.save()
-                if origin_id:
-                    user_groups_mapping[origin_id] = instance.id
-                else:
-                    user_groups_new.append(instance.id)
-                user_groups_dict.pop(user_group.name, None)
+                related_group_ids.append(instance.id)
+                newly_created_user_groups[group_detail['name']] = instance
 
-            for name, group_detail in user_groups_dict.items():
-                origin_id = group_detail.pop("id", None)
-                group_detail["bk_biz_id"] = bk_biz_id
-                user_group_serializer = UserGroupDetailSlz(data=group_detail)
-                user_group_serializer.is_valid(raise_exception=True)
-                instance = user_group_serializer.save()
-                if origin_id:
-                    user_groups_mapping[origin_id] = instance.id
-                else:
-                    user_groups_new.append(instance.id)
-
+            # 更新处理套餐关联的告警组ID
             for action in action_list:
                 if action.get("user_groups", []):
-                    action["user_groups"] = [user_groups_mapping[group_id] for group_id in action["user_groups"]]
-                if user_groups_new:
-                    action["user_groups"].extend(user_groups_new)
+                    action["user_groups"] = related_group_ids
 
-            # 创建新处理套餐或覆盖已有处理套餐
             for action in create_config["actions"]:
                 config = action["config"]
                 action.pop("id", None)
                 config.pop("id", None)
                 config["bk_biz_id"] = bk_biz_id
-                action_config_instance, created = ActionConfig.objects.update_or_create(
+
+                if not is_overwrite_mode:
+                    while config['name'] in existed_action_names:
+                        config['name'] = f"{config['name']}_clone"
+
+                # 避免重复创建处理套餐
+                if config["name"] in newly_created_actions:
+                    action["config_id"] = newly_created_actions[config['name']].id
+                    continue
+
+                action_config_instance, _ = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id
+                newly_created_actions[config['name']] = action_config_instance
 
             # 替换agg_condition中关联采集配置相关信息
             for query_config in create_config["items"][0]["query_configs"]:
