@@ -25,14 +25,14 @@
  */
 
 import { type MaybeRef, onBeforeUnmount } from 'vue';
+import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import { get } from '@vueuse/core';
-import { $bkPopover } from 'bkui-vue';
 
+import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
 import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
-import type { $Popover } from 'bkui-vue/lib/popover/plugin-popover';
 
 type ICSSSelector = string;
 type PopoverContent = HTMLElement | JSX.Element | number | string;
@@ -56,7 +56,7 @@ export interface UseTablePopoverOptions {
   }; // 自定义内容获取
   // popover 隐藏回调
   onHide?: () => void;
-  popoverOptions?: Partial<$Popover>;
+  popoverOptions?: Partial<TippyOptions>;
 }
 
 export const useTablePopover = (
@@ -119,8 +119,10 @@ export const useTablePopover = (
    *
    */
   const handleEventTrigger = (e: MouseEvent) => {
-    handlePopoverHide();
-
+    if (mouseenterDebouncedTimer) {
+      clearTimeout(mouseenterDebouncedTimer);
+      mouseenterDebouncedTimer = null;
+    }
     // 兼容微前端环境下，e.target 在异步任务中会被置空的场景
     const _target = e.target as HTMLElement;
     const handleFn = () => {
@@ -150,59 +152,38 @@ export const useTablePopover = (
   const handleMouseleave = (e: MouseEvent) => {
     const targetDom = e.target as HTMLElement;
     if (!targetDom.matches(options.trigger.selector)) return;
-    handlePopoverHide();
+    clearTimer();
   };
 
   /**
    * @description 打开 popover 气泡弹窗
    *
    */
-  const handlePopoverShow = (target: HTMLElement, content: PopoverContent) => {
-    handlePopoverHide();
-    popoverInstance = $bkPopover({
-      target: target,
-      content: content,
-      trigger: 'click',
+  const handlePopoverShow = (target: HTMLElement, content: TippyContent) => {
+    if (popoverInstance || popoverDelayTimer) {
+      handlePopoverHide();
+    }
+    popoverInstance = useTippy(target, {
+      content: () => content,
+      appendTo: () => document.body,
+      trigger: options?.trigger?.eventType,
       placement: 'top',
       theme: 'dark max-width-50vw text-wrap',
       arrow: true,
-      boundary: 'viewport',
-      popoverDelay: 0,
-      isShow: false,
-      always: false,
-      disabled: false,
-      clickContentAutoHide: false,
-      height: '',
-      maxWidth: '',
-      maxHeight: '',
-      renderDirective: 'if',
-      allowHtml: false,
-      renderType: 'auto',
-      padding: 0,
-      zIndex: 0,
-      disableTeleport: false,
-      autoPlacement: false,
-      autoVisibility: false,
-      disableOutsideClick: false,
-      disableTransform: false,
-      modifiers: [],
-      extCls: '',
-      referenceCls: '',
-      hideIgnoreReference: true,
-      componentEventDelay: 0,
-      forceClickoutside: false,
-      immediate: false,
-      // @ts-ignore
-      onHide: () => {
+      onHidden: () => {
         options?.onHide?.();
         handlePopoverHide();
       },
       ...options.popoverOptions,
     });
-
-    popoverInstance.install();
+    const popoverCache = popoverInstance;
     popoverDelayTimer = setTimeout(() => {
-      popoverInstance?.vm?.show?.();
+      if (popoverCache === popoverInstance) {
+        popoverInstance?.show?.(0);
+      } else {
+        popoverCache?.hide?.(0);
+        popoverCache?.destroy?.();
+      }
     }, 100);
   };
 
@@ -212,8 +193,8 @@ export const useTablePopover = (
    */
   const handlePopoverHide = () => {
     clearTimer();
-    popoverInstance?.hide?.();
-    popoverInstance?.close?.();
+    popoverInstance?.hide?.(0);
+    popoverInstance?.destroy?.();
     popoverInstance = null;
   };
 
@@ -229,6 +210,7 @@ export const useTablePopover = (
   };
 
   return {
+    handlePopoverShow,
     handlePopoverHide,
     initListeners,
   };
@@ -243,7 +225,7 @@ export const useTableEllipsis = (
   options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
-    trigger: { selector: options?.trigger?.selector || '.explore-text-ellipsis' },
+    trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}` },
     getContentOptions: triggerDom => {
       const { isEllipsisActive, content } = isEllipsisActiveSingleLine(triggerDom);
       if (!isEllipsisActive) return;
@@ -263,7 +245,7 @@ export const useTableHeaderDescription = (
   options: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
-    trigger: { selector: options?.trigger?.selector || '.explore-table-header-description' },
+    trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}` },
     getContentOptions: triggerDom => {
       const content = triggerDom.dataset.colDescription;
       if (!content) return;

@@ -118,15 +118,6 @@ DEFAULT_CRONTAB = [
     # Notice Notice Notice:
     # Use UTC's time zone to set your crontab instead of the local time zone
     # run_type: global/cluster
-    # cmdb cache
-    ("alarm_backends.core.cache.cmdb.host", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.module", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.set", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.business", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.service_instance", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.topo", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.service_template", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.set_template", "*/10 * * * *", "global"),
     # model cache
     # 策略全量更新频率降低
     ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),

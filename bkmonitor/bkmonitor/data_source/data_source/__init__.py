@@ -129,7 +129,6 @@ def q_to_dict(q: tree.Node):
             filter_dict.setdefault(_inner_or, []).append(sub_dict)
 
     cursor = 0
-    k_count_map: dict[str, int] = defaultdict(int)
     while True:
         and_k: str = f"{_inner_and}_{cursor}"
         sub: dict[str, Any] | None = filter_dict.get(and_k)
@@ -139,16 +138,6 @@ def q_to_dict(q: tree.Node):
         if isinstance(sub, dict) and list(sub.keys()) == [_inner_or]:
             # {"and_xx": {or: []}} -> {"or_xx": []}
             filter_dict[f"{_inner_or}_{cursor}"] = filter_dict.pop(and_k)[_inner_or]
-
-        if isinstance(sub, dict):
-            keys: list[str] = list(sub.keys())
-            for k in keys:
-                if k.startswith(_inner_or) or k.startswith(_inner_and):
-                    continue
-                k_count_map[k] += 1
-
-                if k_count_map[k] > 1:
-                    del sub[k]
 
         if not sub:
             filter_dict.pop(and_k, None)
@@ -215,7 +204,7 @@ def conditions_to_q(conditions):
         field_lookup = "{}__{}".format(cond["key"], cond["method"])
         value = cond["value"]
 
-        if not isinstance(value, (list, tuple)):
+        if not isinstance(value, list | tuple):
             value = [value]
 
         condition = cond.get("condition") or "and"
@@ -227,7 +216,7 @@ def conditions_to_q(conditions):
                 ret = (ret | q) if ret else q
             where_cond = [Q(**{field_lookup: value})]
         else:
-            raise Exception("Unsupported connector(%s)" % condition)
+            raise Exception(f"Unsupported connector({condition})")
 
     if where_cond:
         q = Q(reduce(lambda x, y: x & y, where_cond))
@@ -1700,7 +1689,7 @@ class BkMonitorLogDataSource(DataSource):
 
         for key, value in filter_dict.items():
             # 如果value是数组类型且其中为字典，则需要遍历每一个子value
-            if isinstance(value, (list, tuple)) and value and isinstance(value[0], dict):
+            if isinstance(value, list | tuple) and value and isinstance(value[0], dict):
                 new_filter_dict[key] = [self._add_dimension_prefix(v) for v in value]
                 continue
 
@@ -2015,9 +2004,12 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         for field_cond in self._get_conditions().get("field_list", []):
             # 如果存在 ES 检索的特殊操作符，则不使用 unify-query。
             # 背景：之前用户输入 events.a.b.c 时，SaaS 需要根据 mapping 判断是否为嵌套字段，增加 nested 检索关键字。
-            # TODO(crayon) unify-query 已支持上述逻辑，切换新版 Trace 时，将直接透传 query_string，SaaS 不再进行判断和转换。
             if field_cond.get("op") in ["nested"]:
                 return False
+
+            # 通配符检索，仅 UnifyQuery 支持。
+            if field_cond.get("is_wildcard"):
+                return True
 
             # 嵌套字段直接检索（eg：events.name = xxx）仅 UnifyQuery 支持。
             field_name: str = field_cond.get("field_name", "")
@@ -2345,6 +2337,8 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
     INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
 
     OPERATOR_MAPPING: dict[str, str] = {
+        "reg": "req",
+        "nreg": "nreq",
         "neq": "ne",
         "exists": "exists",
         "nexists": "nexists",
@@ -2358,7 +2352,9 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
         CpAggMethods["cp95"].vargs_list[0]: "95.0",
         CpAggMethods["cp99"].vargs_list[0]: "99.0",
     }
-    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
+
+    # UnifyQuery 检索已支持正则，无需后置过滤。
+    ADVANCE_CONDITION_METHOD = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2463,8 +2459,6 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
 class NewCustomEventDataSource(NewBkMonitorLogDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
-
-    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

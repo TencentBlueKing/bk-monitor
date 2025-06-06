@@ -189,7 +189,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
                 '"data_label":"bkbase_rt_meta_metric",'
-                '"fields":[["metric_a","metric_b"]]}'
+                '"fields":["metric_a","metric_b"]}'
             }
 
             mock_hmset_to_redis.assert_has_calls(

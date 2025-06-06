@@ -235,3 +235,6 @@ ai_agent
 
 # ruff
 .ruff_cache/
+
+# Add .tico directory to ignore list
+.tico/

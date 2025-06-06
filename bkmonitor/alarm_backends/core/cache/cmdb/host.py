@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,9 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 from collections import defaultdict
-from typing import Dict, List, Optional, Set
 
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Host, TopoTree
@@ -29,18 +26,18 @@ class HostAgentIDManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "agent_id"
-    CACHE_KEY = "{prefix}.cmdb.agent_id".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
 
     @classmethod
     def key_to_internal_value(cls, bk_host_id):
-        return "{}".format(bk_host_id)
+        return f"{bk_host_id}"
 
     @classmethod
     def get(cls, bk_agent_id):
         """
         :rtype: str
         """
-        return super(HostAgentIDManager, cls).get(bk_agent_id)
+        return super().get(bk_agent_id)
 
     @classmethod
     def deserialize(cls, string):
@@ -51,7 +48,7 @@ class HostAgentIDManager(RefreshByBizMixin, CMDBCacheManager):
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         return {cls.key_to_internal_value(host.bk_agent_id): host.bk_host_id for host in hosts if host.bk_agent_id}
 
 
@@ -61,7 +58,7 @@ class HostIPManager(CMDBCacheManager):
     """
 
     type = "host_ip"
-    CACHE_KEY = "{prefix}.cmdb.host_ip".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host_ip"
 
     @classmethod
     def serialize(cls, obj):
@@ -75,15 +72,15 @@ class HostIPManager(CMDBCacheManager):
 
     @classmethod
     def key_to_internal_value(cls, ip):
-        return "{}".format(ip)
+        return f"{ip}"
 
     @classmethod
     def get(cls, ip):
-        return super(HostIPManager, cls).get(ip)
+        return super().get(ip)
 
     @classmethod
-    def to_kv(cls, host_keys: Optional[List[str]] = None) -> Dict[str, List[str]]:
-        host_keys_gby_ip: Dict[str, Set[str]] = defaultdict(set)
+    def to_kv(cls, host_keys: list[str] | None = None) -> dict[str, list[str]]:
+        host_keys_gby_ip: dict[str, set[str]] = defaultdict(set)
         if host_keys is None:
             host_keys = HostManager.keys()
 
@@ -101,7 +98,7 @@ class HostIPManager(CMDBCacheManager):
         return {ip: list(partial_host_keys) for ip, partial_host_keys in host_keys_gby_ip.items()}
 
     @classmethod
-    def refresh(cls, host_keys: List[str] = None):
+    def refresh(cls, host_keys: list[str] = None):
         """
         刷新缓存
         """
@@ -146,12 +143,12 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "host"
-    CACHE_KEY = "{prefix}.cmdb.host".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.host"
     ObjectClass = Host
 
     @classmethod
     def key_to_internal_value(cls, ip, bk_cloud_id=0):
-        return "{}|{}".format(ip, bk_cloud_id)
+        return f"{ip}|{bk_cloud_id}"
 
     @classmethod
     def get(cls, ip, bk_cloud_id=0, using_mem=False, using_api=False):
@@ -159,7 +156,7 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
         :rtype: Host
         """
         if not (using_mem or using_api):
-            return super(HostManager, cls).get(ip, bk_cloud_id)
+            return super().get(ip, bk_cloud_id)
 
         host_key = cls.key_to_internal_value(ip, bk_cloud_id)
 
@@ -224,17 +221,17 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
         return host
 
     @classmethod
-    def fill_attr_to_hosts(cls, bk_biz_id: int, hosts: List[Host], with_world_ids: bool = False):
+    def fill_attr_to_hosts(cls, bk_biz_id: int, hosts: list[Host], with_world_ids: bool = False):
         topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
-        topo_link_dict: Dict[str, List] = topo_tree.convert_to_topo_link()
-        biz_sets: List = []
+        topo_link_dict: dict[str, list] = topo_tree.convert_to_topo_link()
+        biz_sets: list = []
         if with_world_ids:
-            biz_sets: List = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+            biz_sets: list = api.cmdb.get_set(bk_biz_id=bk_biz_id)
 
         for host in hosts:
             host.topo_link = {}
             for module_id in host.bk_module_ids:
-                key = "module|{}".format(module_id)
+                key = f"module|{module_id}"
                 host.topo_link[key] = topo_link_dict.get(key, [])
             host.bk_world_ids = []
 
@@ -244,8 +241,8 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
             host.bk_world_id = host.bk_world_ids[0] if host.bk_world_ids else ""
 
     @classmethod
-    def to_kv(cls, hosts: List[Host], contains_host_id_key: bool = False) -> Dict[str, Host]:
-        host_key__obj_map: Dict[str, Host] = {}
+    def to_kv(cls, hosts: list[Host], contains_host_id_key: bool = False) -> dict[str, Host]:
+        host_key__obj_map: dict[str, Host] = {}
         for host in hosts:
             host_key__obj_map[cls.key_to_internal_value(host.bk_host_innerip, host.bk_cloud_id)] = host
             if contains_host_id_key:
@@ -254,16 +251,8 @@ class HostManager(RefreshByBizMixin, CMDBCacheManager):
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
 
         cls.fill_attr_to_hosts(bk_biz_id, hosts, with_world_ids=True)
 
         return cls.to_kv(hosts, contains_host_id_key=True)
-
-
-def main():
-    if "host" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    HostManager.refresh()
-    HostIPManager.refresh()
-    HostAgentIDManager.refresh()

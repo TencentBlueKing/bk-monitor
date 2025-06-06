@@ -1,0 +1,88 @@
+.bklog-v3-wrapper {
+  &.bklog-text-segment {
+    position: relative;
+    width: 100%;
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+    line-height: 22px;
+
+    .bklog-word-segment {
+      will-change: transform;
+      transform: translateZ(0); /* 强制开启GPU加速 */
+      text-align: left;
+      word-break: break-all;
+      white-space: pre-line;
+      overflow: hidden;
+      width: 100%;
+
+      mark {
+        background-color: #faeeb1;
+      }
+    }
+
+    &.is-wheeling {
+      .canvas-konva-front {
+        pointer-events: all;
+      }
+    }
+
+    &.is-expand-all {
+      .bklog-word-segment {
+        overflow-y: auto;
+      }
+    }
+
+    &.is-show-long {
+      .bklog-word-segment {
+        overflow-y: auto;
+      }
+      .btn-more-action {
+        display: none;
+      }
+    }
+
+    span {
+      &.segment-content {
+        span {
+          content-visibility: auto;
+          white-space: pre-wrap;
+        }
+
+        .last-placeholder {
+          &:last-child {
+            display: inline-flex;
+            min-width: 80px;
+            min-height: 1px;
+          }
+        }
+      }
+    }
+
+    .btn-more-action {
+      position: absolute;
+      right: 0;
+      bottom: 0px;
+      display: none;
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: #fff;
+
+      &.is-show {
+        display: block;
+      }
+
+      &.word-canvas {
+        bottom: 0;
+      }
+    }
+
+    &.is-inline {
+      display: flex;
+    }
+  }
+  &.bklog-root-field {
+    mark {
+      background-color: #faeeb1;
+    }
+  }
+}

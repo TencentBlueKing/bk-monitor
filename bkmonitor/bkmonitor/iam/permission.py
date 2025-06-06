@@ -106,7 +106,7 @@ class Permission:
                     raise ValueError("must provide `username` or `request` param to init")
                 self.bk_tenant_id = DEFAULT_TENANT_ID
 
-        self.iam_client = self.get_iam_client(bk_tenant_id)
+        self.iam_client = self.get_iam_client(self.bk_tenant_id)
         self.request = request
 
         # 是否跳过权限中心校验

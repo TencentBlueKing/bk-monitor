@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -138,7 +137,6 @@ def datasource_discover_cron():
         app_id = valid_application_mapping[k]["id"]
         try:
             with service_lock(key.APM_DATASOURCE_DISCOVER_LOCK, app_id=app_id):
-
                 if app_id % interval == slug:
                     logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
                     datasource_discover_handler.delay(v, interval, current_timestamp)
@@ -267,8 +265,13 @@ def k8s_bk_collector_discover_cron():
 def create_application_async(application_id, storage_config, options):
     """后台创建应用"""
 
-    application = ApmApplication.objects.get(id=application_id)
-    application.apply_datasource(storage_config, storage_config, options)
+    try:
+        application = ApmApplication.objects.get(id=application_id)
+        application.apply_datasource(storage_config, storage_config, options)
+        EventReportHelper.report(f"[异步创建任务] 业务：{application.bk_biz_id}，应用{application.app_name}，创建成功")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
+        EventReportHelper.report(f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，错误详情：{e}")
 
     # 异步分派预计算任务
     bmw_task_cron.delay(countdown=60)
@@ -284,7 +287,9 @@ def bmw_task_cron():
     PreCalculateCheck.distribute(distribution)
     if len(removed_tasks) > 5:
         # 删除大量任务时 进行告警&人工处理
-        EventReportHelper.report(f"[预计算定时任务] 出现 {len(removed_tasks)} 个删除任务，请检查数据是否正确。{removed_tasks}")
+        EventReportHelper.report(
+            f"[预计算定时任务] 出现 {len(removed_tasks)} 个删除任务，请检查数据是否正确。{removed_tasks}"
+        )
     else:
         PreCalculateCheck.batch_remove(removed_tasks)
 

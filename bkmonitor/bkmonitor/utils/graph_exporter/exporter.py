@@ -1,4 +1,3 @@
-# encoding=utf-8
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -45,7 +44,7 @@ class Singleton(type):
     @synchronized(lock)
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
@@ -69,7 +68,7 @@ class GraphExporter:
             fd, path = tempfile.mkstemp(suffix=".html", dir=base_dir, text=True)
         else:
             fd, path = tempfile.mkstemp(suffix=".html", text=True)
-        os.write(fd, html_string.encode('utf-8'))
+        os.write(fd, html_string.encode("utf-8"))
         os.close(fd)
         return path
 
@@ -90,7 +89,7 @@ class GraphExporter:
         :param path: 需要被转换的文件路径
         :return: 转换后的 url
         """
-        url = u"file:///%s" % path.replace("\\", "/")
+        url = "file:///{}".format(path.replace("\\", "/"))
         return url
 
     @property
@@ -106,7 +105,7 @@ class GraphExporter:
         """
         获取浏览器控制台日志
         """
-        return self.browser.get_log('browser')
+        return self.browser.get_log("browser")
 
     def open_url(self, url, options=None):
         """

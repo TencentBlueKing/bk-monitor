@@ -96,7 +96,9 @@ class LogPluginManager(BuiltInPluginManager):
 
     def _create_version(self, data, event_list):
         version, need_debug = super(LogPluginManager, self).create_version(data)
-        plugin = CollectorPluginMeta.objects.get(plugin_id=version.plugin.plugin_id)
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=version.plugin.bk_tenant_id, plugin_id=version.plugin.plugin_id
+        )
         plugin_manager = self.__class__(plugin, self.operator)
         plugin_manager.release_collector_plugin(version)
         plugin_manager.create_result_table(
@@ -182,13 +184,15 @@ class LogPluginManager(BuiltInPluginManager):
         )
         return group_info
 
-    def delete_result_table(self, current_version):
+    def delete_result_table(self, current_version: PluginVersionHistory):
         with transaction.atomic():
             access = EventDataAccessor(current_version, self.operator)
             event_group_id = access.delete_result_table()
             CustomEventGroup.objects.filter(bk_event_group_id=event_group_id).delete()
             CustomEventItem.objects.filter(bk_event_group_id=event_group_id).delete()
-            PluginVersionHistory.origin_objects.filter(plugin=current_version.plugin).delete()
+            PluginVersionHistory.origin_objects.filter(
+                bk_tenant_id=current_version.bk_tenant_id, plugin_id=current_version.plugin_id
+            ).delete()
             current_version.plugin.delete()
 
     def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
