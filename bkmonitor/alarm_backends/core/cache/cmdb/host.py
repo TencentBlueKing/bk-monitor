@@ -118,7 +118,7 @@ class HostManager:
         return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host"
 
     @classmethod
-    def get_host_key(cls, ip: str, bk_cloud_id: int) -> str:
+    def get_host_key(cls, ip: str, bk_cloud_id: int | str) -> str:
         return f"{ip}|{bk_cloud_id}"
 
     @classmethod
@@ -261,3 +261,10 @@ class HostManager:
             if contains_host_id_key:
                 host_key__obj_map[str(host.bk_host_id)] = host
         return host_key__obj_map
+
+    @classmethod
+    def refresh_by_biz(cls, bk_tenant_id: str, bk_biz_id: int) -> dict[str, Host]:
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        cls.fill_attr_to_hosts(bk_biz_id, hosts, with_world_ids=True)
+        # 返回主机key到主机对象的映射
+        return {HostManager.get_host_key(host.bk_host_innerip, host.bk_cloud_id): host for host in hosts}

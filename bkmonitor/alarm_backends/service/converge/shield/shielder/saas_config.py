@@ -96,7 +96,7 @@ class AlertShieldConfigShielder(BaseShielder):
 
         if not self.shield_objs:
             # 记录未匹配屏蔽的告警信息
-            detail = "%s 条屏蔽配置全部未匹配" % len(self.configs)
+            detail = f"{len(self.configs)} 条屏蔽配置全部未匹配"
             if len(self.configs) == 0:
                 detail = "无生效屏蔽配置"
             if not from_cache:

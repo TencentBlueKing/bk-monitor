@@ -39,11 +39,7 @@ class DynamicGroupManager:
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [str(dynamic_group_id) for dynamic_group_id in dynamic_group_ids])
-        return {
-            dynamic_group_id: json.loads(r, ensure_ascii=False)
-            for dynamic_group_id, r in zip(dynamic_group_ids, result)
-            if r
-        }
+        return {dynamic_group_id: json.loads(r) for dynamic_group_id, r in zip(dynamic_group_ids, result) if r}
 
     @classmethod
     def get(cls, *, bk_tenant_id: str, dynamic_group_id: str) -> dict | None:
@@ -54,4 +50,4 @@ class DynamicGroupManager:
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hget(cache_key, str(dynamic_group_id))
-        return json.loads(result, ensure_ascii=False) if result else None
+        return json.loads(result) if result else None

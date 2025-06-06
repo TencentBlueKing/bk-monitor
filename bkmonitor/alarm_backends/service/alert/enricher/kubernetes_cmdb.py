@@ -120,19 +120,20 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 )
                 continue
 
-            partial_host_key__obj_map: dict[str, Host] = HostManager.to_kv(partial_hosts)
-
             # 补充到主机缓存
-            self.hosts_cache[bk_tenant_id].update(partial_host_key__obj_map)
+            partial_host_map: dict[str, Host] = {
+                HostManager.get_host_key(host.bk_host_innerip, host.bk_cloud_id): host for host in partial_hosts
+            }
+            self.hosts_cache[bk_tenant_id].update(partial_host_map)
             # 补充 IP - IP Keys 缓存
-            partial_host_keys_gby_ip: dict[str, list[str]] = HostIPManager.to_kv(list(partial_host_key__obj_map.keys()))
+            partial_host_keys_gby_ip: dict[str, list[str]] = HostIPManager.to_kv(list(partial_host_map.keys()))
             # 不同业务可能存在同 IP 不同管控区域主机的场景
             # 采取在原有基础上合并列表更新的方式，避免上述场景下导致同 IP 的 Host Keys 相互覆盖
             for ip, host_keys in partial_host_keys_gby_ip.items():
                 self.tenant_ip_cache[bk_tenant_id][ip] = list(
                     set(self.tenant_ip_cache[bk_tenant_id].get(ip) or [] + host_keys)
                 )
-            self.tenant_ip_cache[bk_tenant_id].update(HostIPManager.to_kv(list(partial_host_key__obj_map.keys())))
+            self.tenant_ip_cache[bk_tenant_id].update(HostIPManager.to_kv(list(partial_host_map.keys())))
 
         logger.info(
             "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) end.",

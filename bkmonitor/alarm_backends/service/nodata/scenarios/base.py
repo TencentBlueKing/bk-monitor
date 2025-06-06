@@ -171,7 +171,11 @@ class HostScenario(BaseScenario):
             return None
 
         if target_data["field"] == "bk_target_ip":
-            hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
+            hosts = set(
+                HostManager.refresh_by_biz(
+                    bk_tenant_id=self.strategy.bk_tenant_id, bk_biz_id=self.strategy.bk_biz_id
+                ).keys()
+            )
             target_instances = [
                 inst
                 for inst in target_data["value"]
@@ -181,7 +185,9 @@ class HostScenario(BaseScenario):
         elif target_data["field"] == "host_topo_node":
             target_instances = []
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
-            hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
+            hosts = HostManager.refresh_by_biz(
+                bk_tenant_id=self.strategy.bk_tenant_id, bk_biz_id=self.strategy.bk_biz_id
+            )
             for host_info in hosts.values():
                 host_topo = {node.id for node in chain(*list(host_info.topo_link.values()))}
                 if host_topo & target_topo:
@@ -195,8 +201,12 @@ class HostScenario(BaseScenario):
             condition["value"] = []
             for group in target_data["value"]:
                 condition["value"] += list(group.values())
-            bk_host_ids = AssignCacheManager.parse_dynamic_group(condition)["value"]
-            hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
+            bk_host_ids = AssignCacheManager.parse_dynamic_group(
+                bk_tenant_id=self.strategy.bk_tenant_id, condition=condition
+            )["value"]
+            hosts = HostManager.refresh_by_biz(
+                bk_tenant_id=self.strategy.bk_tenant_id, bk_biz_id=self.strategy.bk_biz_id
+            )
             target_instances = [
                 {"bk_target_ip": host.bk_host_innerip, "bk_target_cloud_id": host.bk_cloud_id}
                 for host in hosts.values()

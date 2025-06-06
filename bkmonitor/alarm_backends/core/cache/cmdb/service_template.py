@@ -37,7 +37,7 @@ class ServiceTemplateManager:
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [str(id) for id in ids])
-        return {id: json.loads(r, ensure_ascii=False) if r else [] for id, r in zip(ids, result)}
+        return {id: json.loads(r) if r else [] for id, r in zip(ids, result)}
 
     @classmethod
     def get(cls, *, bk_tenant_id: str, id: int) -> list[int]:
@@ -48,4 +48,4 @@ class ServiceTemplateManager:
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hget(cache_key, str(id))
-        return json.loads(result, ensure_ascii=False) if result else []
+        return json.loads(result) if result else []

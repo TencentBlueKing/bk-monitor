@@ -38,13 +38,13 @@ class TopoManager:
         cache_key = cls.get_cache_key(bk_tenant_id)
         result = cls.cache.hmget(cache_key, [f"{bk_obj_id}|{bk_inst_id}" for bk_obj_id, bk_inst_id in topo_nodes])
         return {
-            (bk_obj_id, bk_inst_id): TopoNode(**json.loads(r, ensure_ascii=False))
+            (bk_obj_id, bk_inst_id): TopoNode(**json.loads(r))
             for (bk_obj_id, bk_inst_id), r in zip(topo_nodes, result)
             if r
         }
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, bk_obj_id: int, bk_inst_id: int) -> TopoNode | None:
+    def get(cls, *, bk_tenant_id: str, bk_obj_id: str, bk_inst_id: int) -> TopoNode | None:
         """
         获取单个拓扑节点
         :param bk_tenant_id: 租户ID

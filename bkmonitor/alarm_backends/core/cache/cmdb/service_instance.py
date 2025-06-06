@@ -27,9 +27,7 @@ class ServiceInstanceManager:
     cache = Cache("cache-cmdb")
 
     CACHE_KEY = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
-    HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
-        prefix=CacheManager.CACHE_KEY_PREFIX
-    )
+    HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
 
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
@@ -52,7 +50,7 @@ class ServiceInstanceManager:
         result = cls.cache.hget(cache_key, str(service_instance_id))
         if not result:
             return None
-        return ServiceInstance(**json.loads(result, ensure_ascii=False))
+        return ServiceInstance(**json.loads(result))
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, service_instance_ids: Sequence[int]) -> dict[int, ServiceInstance]:
@@ -66,7 +64,7 @@ class ServiceInstanceManager:
             cache_key, [str(service_instance_id) for service_instance_id in service_instance_ids]
         )
         return {
-            service_instance_id: ServiceInstance(**json.loads(result, ensure_ascii=False))
+            service_instance_id: ServiceInstance(**json.loads(result))
             for service_instance_id, result in zip(service_instance_ids, results)
             if result
         }
@@ -82,10 +80,10 @@ class ServiceInstanceManager:
         result = cls.cache.hget(cache_key, str(bk_host_id))
         if not result:
             return []
-        return [service_instance_id for service_instance_id in json.loads(result, ensure_ascii=False)]
+        return [service_instance_id for service_instance_id in json.loads(result)]
 
     @classmethod
-    def refresh_by_biz(cls, *, bk_tenant_id: str, bk_biz_id: int):
+    def refresh_by_biz(cls, *, bk_tenant_id: str, bk_biz_id: int) -> list[ServiceInstance]:
         """
         按业务ID刷新缓存
         """

@@ -29,7 +29,7 @@ class BusinessManager:
         if not result:
             return None
 
-        business: dict = json.loads(result, ensure_ascii=False)
+        business: dict = json.loads(result)
         # 兼容旧数据，补充租户ID字段
         if not business.get("bk_tenant_id"):
             business["bk_tenant_id"] = DEFAULT_TENANT_ID

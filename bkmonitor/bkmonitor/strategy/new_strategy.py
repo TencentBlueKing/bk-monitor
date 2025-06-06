@@ -14,7 +14,7 @@ import json
 import logging
 import traceback
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial, reduce
 from itertools import chain, permutations
 from typing import Any
@@ -45,10 +45,10 @@ from bkmonitor.data_source.unify_query.functions import add_expression_functions
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.models import Action as ActionModel
-from bkmonitor.models import ActionConfig, ActionNoticeMapping, NoticeTemplate
+from bkmonitor.models import ActionConfig, ActionNoticeMapping, NoticeTemplate, UserGroup
 from bkmonitor.models import StrategyActionConfigRelation as RelationModel
-from bkmonitor.models import UserGroup
 from bkmonitor.models.strategy import (
+    AlgorithmChoiceConfig,
     AlgorithmModel,
     DetectModel,
     ItemModel,
@@ -56,7 +56,6 @@ from bkmonitor.models.strategy import (
     StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
-    AlgorithmChoiceConfig,
 )
 from bkmonitor.strategy.expression import parse_expression
 from bkmonitor.strategy.serializers import (
@@ -94,7 +93,7 @@ from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, strftime
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.aiops import SDKDetectStatus
-from constants.data_source import DataSourceLabel, DataTypeLabel, DATA_SOURCE_LABEL_ALIAS
+from constants.data_source import DATA_SOURCE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
     DATALINK_SOURCE,
     HOST_SCENARIO,
@@ -130,9 +129,7 @@ def get_metric_id(
             DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
             DataTypeLabel.EVENT: f"{data_source_label}.{metric_field}",
             DataTypeLabel.LOG: f"{data_source_label}.{data_type_label}.{result_table_id}",
-            DataTypeLabel.ALERT: "{}.{}.{}".format(
-                data_source_label, data_type_label, bkmonitor_strategy_id or metric_field
-            ),
+            DataTypeLabel.ALERT: f"{data_source_label}.{data_type_label}.{bkmonitor_strategy_id or metric_field}",
         },
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
@@ -1750,10 +1747,10 @@ class Strategy(AbstractConfig):
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
 
-        if isinstance(self.update_time, (int, str)):
+        if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
 
-        if isinstance(self.create_time, (int, str)):
+        if isinstance(self.create_time, int | str):
             self.create_time = arrow.get(create_time).datetime
 
         for item in self.items:
@@ -2096,9 +2093,9 @@ class Strategy(AbstractConfig):
         update_time = config.get("update_time")
         create_time = config.get("create_time")
         if isinstance(update_time, int):
-            config["update_time"] = datetime.utcfromtimestamp(update_time)
+            config["update_time"] = datetime.fromtimestamp(update_time, UTC)
         if isinstance(create_time, int):
-            config["create_time"] = datetime.utcfromtimestamp(create_time)
+            config["create_time"] = datetime.fromtimestamp(create_time, UTC)
 
         # 适配extend_fields为字符串的情况
         if isinstance(item.get("extend_fields"), str):

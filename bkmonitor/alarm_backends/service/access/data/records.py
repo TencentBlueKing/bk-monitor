@@ -59,7 +59,7 @@ class DataRecord(base.BaseRecord):
     items: list["Item"]
     _item: "Item"
 
-    def __init__(self, item_or_items: Item | list[Item], raw_data: dict):
+    def __init__(self, item_or_items: "Item | list[Item]", raw_data: dict):
         """
         :param item_or_items: 具有相同查询条件的item集合
         :param raw_data: 原始数据记录
@@ -67,7 +67,7 @@ class DataRecord(base.BaseRecord):
         super().__init__(raw_data)
 
         # 一个Record可以属于多个items，后续不能再使用record身上的item，需要使用items
-        if not isinstance(item_or_items, (list, tuple)):
+        if not isinstance(item_or_items, list | tuple):
             self.items = [item_or_items]
             self._item = item_or_items
         else:
@@ -160,7 +160,7 @@ class DataRecord(base.BaseRecord):
 
         standard_prop = {}
         for prop in constants.StandardDataFields:
-            clean_method_name = "clean_%s" % prop
+            clean_method_name = f"clean_{prop}"
             clean_value = getattr(self, clean_method_name, clean_default_method)()
             standard_prop[prop] = clean_value
         self.data.update(standard_prop)

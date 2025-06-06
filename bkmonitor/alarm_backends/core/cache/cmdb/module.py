@@ -38,11 +38,7 @@ class ModuleManager:
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
         result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
-        return {
-            bk_module_id: Module(**json.loads(r, ensure_ascii=False))
-            for bk_module_id, r in zip(bk_module_ids, result)
-            if r
-        }
+        return {bk_module_id: Module(**json.loads(r)) for bk_module_id, r in zip(bk_module_ids, result) if r}
 
     @classmethod
     def get(cls, *, bk_tenant_id: str, bk_module_id: int) -> Module | None:
@@ -55,4 +51,4 @@ class ModuleManager:
         result: str | None = cls.cache.hget(cache_key, str(bk_module_id))
         if not result:
             return None
-        return Module(**json.loads(result, ensure_ascii=False))
+        return Module(**json.loads(result))
