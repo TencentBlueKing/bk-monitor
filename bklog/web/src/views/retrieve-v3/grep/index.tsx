@@ -126,7 +126,7 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
               if (result) {
-                grepRequestResult.value.has_more = data.list.length > 0;
+                grepRequestResult.value.has_more = data.list.length === 100;
                 grepRequestResult.value.list.push(...data.list);
                 setTimeout(() => {
                   RetrieveHelper.highLightKeywords([searchValue.value], true);
