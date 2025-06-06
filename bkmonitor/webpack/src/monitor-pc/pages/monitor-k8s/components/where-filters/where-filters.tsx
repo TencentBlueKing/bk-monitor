@@ -129,6 +129,7 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
           conditionList={structuredClone(this.value)}
           dimensionsList={this.dimensionList}
           getDataApi={this.getDimensionValue}
+          isNeedShowAddBtn={true}
           title=''
           onChange={this.handleConditionChange}
         />
