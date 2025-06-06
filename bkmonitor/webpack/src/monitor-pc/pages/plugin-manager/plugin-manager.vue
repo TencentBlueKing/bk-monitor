@@ -238,7 +238,7 @@
               <template slot-scope="scope">
                 <div class="user-time">
                   <div class="col-create">
-                    {{ scope.row.create_user }}
+                    <bk-user-display-name :user-id="scope.row.create_user" />
                   </div>
                   <div class="col-create">
                     {{ scope.row.create_time }}
@@ -255,7 +255,7 @@
               <template slot-scope="scope">
                 <div class="user-time">
                   <div class="col-create">
-                    {{ scope.row.update_user }}
+                    <bk-user-display-name :user-id="scope.row.update_user" />
                   </div>
                   <div class="col-create">
                     {{ scope.row.update_time }}

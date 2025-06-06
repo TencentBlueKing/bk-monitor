@@ -65,6 +65,7 @@ export interface IData {
   bk_biz_id?: number;
   groups?: { id: number; name: string }[];
   nodes?: { name?: string }[];
+  create_user?: string;
 }
 @Component({
   name: 'TaskCard',

@@ -463,7 +463,10 @@ class NavTools extends DocumentLinkMixin {
             placement='bottom'
             theme='light common-monitor'
           >
-            <span class='header-user-text'>{window.user_name || window.username}</span>
+            <bk-user-display-name
+              class='header-user-text'
+              user-id={window.user_name || window.username}
+            />
             <i class='bk-icon icon-down-shape' />
             <div slot='content'>
               {process.env.APP !== 'external' && (

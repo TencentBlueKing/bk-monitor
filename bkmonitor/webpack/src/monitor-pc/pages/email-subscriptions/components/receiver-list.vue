@@ -96,6 +96,11 @@ export default class ReceiverList extends Vue {
     {
       label: i18n.t('订阅人'),
       key: 'name',
+      formatter: row => row.name ? this.$createElement('bk-user-display-name', {
+        attrs: {
+          'user-id': row.name,
+        },
+      }) : '--',
     },
     {
       label: i18n.t('订阅时间'),

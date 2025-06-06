@@ -707,6 +707,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                   onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
                 />
               ),
+              create_user: (row: ItaskItem) => <bk-user-display-name user-id={row?.create_user || '--'} />,
               name: (row: ItaskItem) => (
                 <span
                   class='task-name'
