@@ -545,7 +545,7 @@ export default defineComponent({
           return <span class={statusMap[row.status].className}>{statusMap[row.status].des}</span>;
         }
         case EColumn.updateUser: {
-          return <span>{row.update_user || '--'}</span>;
+          return <span>{row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--'}</span>;
         }
         case EColumn.operate: {
           return (

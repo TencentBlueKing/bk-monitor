@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Dialog, Tag } from 'bkui-vue';
 
@@ -46,15 +47,19 @@ export default defineComponent({
     },
     onChange: {
       type: Function,
-      default: _v => {},
+      default: _v => { },
     },
   },
   setup(props) {
+    const { t } = useI18n();
+    /** 多租户人名改造 */
+    const multiTenantWhitelist = [t('创建人'), t('最近更新人')];
     function valueChange(v) {
       props.onChange(v);
     }
     return {
       valueChange,
+      multiTenantWhitelist,
     };
   },
   render() {
@@ -81,6 +86,10 @@ export default defineComponent({
                     {item.value.map(tag => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
+                  </div>
+                ) : this.multiTenantWhitelist.includes(item.label) && item.value ? (
+                  <div class='value'>
+                    <bk-user-display-name user-id={item.value} />
                   </div>
                 ) : (
                   <div class='value'>{item.value || '--'}</div>
