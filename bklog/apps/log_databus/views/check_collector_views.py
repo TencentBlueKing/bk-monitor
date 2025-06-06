@@ -90,6 +90,6 @@ class CheckCollectorViewSet(APIViewSet):
         )
         result = {"infos": record.get_infos(),
                   "finished": record.finished,
-                  "msg": "日志路径检测完成，异步检测run_agent_check启动成功，task_id:" + str(task.id)}
+                  "msg": "日志路径检测完成，开始异步检测async_atomic_check，task_id:" + str(task.id)}
         record.change_status(CheckStatusEnum.STARTED.value)
         return Response(result)

@@ -43,7 +43,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.bcs import Bcs
 
 
@@ -99,11 +99,11 @@ class BkunifylogbeatChecker(Checker):
         self.check_task_status()
         self.check_crd()
         self.check_cr()
+        self.check_log_paths()
         self.check_config_map()
         self.check_daemonset()
         self.get_match_pod()
         self.check_pod()
-        self.check_log_paths()
         self.filter_target_server()
 
     def check_task_status(self):
@@ -181,7 +181,7 @@ class BkunifylogbeatChecker(Checker):
             )
             return
         self.append_normal_info(
-            _("获取(bk_data_id[{bk_data_id}])的CR成功, 匹配到{cr_cnt}个").format(
+            _("获取(bk_data_id[{bk_data_id}])k,./的CR成功, 匹配到{cr_cnt}个").format(
                 bk_data_id=self.collector_config.bk_data_id, cr_cnt=len(match_items)
             )
         )
@@ -545,7 +545,14 @@ class BkunifylogbeatChecker(Checker):
         self._check_file_held(paths)
 
     def get_log_paths(self) -> List[str]:
-        params = getattr(self.collector_config, "params", {}) or {}
+        collector_config_id = getattr(self.collector_config, "collector_config_id", None)
+        params = {}
+        if collector_config_id:
+            try:
+                container_config = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id)
+                params = getattr(container_config, "params", {}) or {}
+            except ContainerCollectorConfig.DoesNotExist:
+                params = {}
         log_paths = params.get("paths", [])
         paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
         # 处理路径格式，确保返回的是列表

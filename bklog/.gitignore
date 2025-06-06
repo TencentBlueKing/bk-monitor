@@ -192,3 +192,6 @@ log_open
 .history
 build.yml
 local.env
+apps/utils/parser.out
+apps/utils/parsetab.py
+apps/log_extract/migrations
