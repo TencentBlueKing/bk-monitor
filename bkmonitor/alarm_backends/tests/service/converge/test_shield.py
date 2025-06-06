@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import json
 import time
 
 from unittest import mock
@@ -16,6 +17,7 @@ import pytest
 from django.core.cache import caches
 
 from alarm_backends.core.alert import Alert, Event
+from alarm_backends.core.cache.cmdb.host import HostIPManager, HostManager
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.alert.enricher import KubernetesCMDBEnricher
 from alarm_backends.service.converge.shield.shielder.saas_config import HostShielder
@@ -23,6 +25,7 @@ from alarm_backends.tests.utils.cmdb_data import ALL_HOSTS, TOPO_TREE
 from api.cmdb.define import Business, Host
 from bkmonitor.models import CacheNode
 from bkmonitor.utils.local import local
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import KubernetesResultTableLabel
 
 pytestmark = pytest.mark.django_db
@@ -110,17 +113,46 @@ def init_host_cache():
     def _clear():
         caches["locmem"].clear()
         local.host_cache = {}
+        HostManager.cache.delete(HostManager.get_cache_key(DEFAULT_TENANT_ID))
+        HostIPManager.cache.delete(HostIPManager.get_cache_key(DEFAULT_TENANT_ID))
 
     _clear()
+
+    def _refresh():
+        hosts = copy.deepcopy(ALL_HOSTS)
+        HostManager.fill_attr_to_hosts(bk_biz_id=BK_BIZ_ID, hosts=hosts, with_world_ids=True)
+        for host in hosts:
+            host_dict = host.get_attrs()
+            host_dict["topo_link"] = {
+                key: [
+                    {
+                        "bk_obj_id": node.bk_obj_id,
+                        "bk_obj_name": node.bk_obj_name,
+                        "bk_inst_id": node.bk_inst_id,
+                        "bk_inst_name": node.bk_inst_name,
+                    }
+                    for node in nodes
+                ]
+                for key, nodes in TOPO_TREE.convert_to_topo_link().items()
+            }
+            HostManager.cache.hset(
+                HostManager.get_cache_key(DEFAULT_TENANT_ID),
+                HostManager.get_host_key(host.bk_host_innerip, host.bk_cloud_id),
+                json.dumps(host_dict),
+            )
+        HostIPManager.cache.hmset(
+            HostIPManager.get_cache_key(DEFAULT_TENANT_ID),
+            {
+                host.bk_host_innerip: json.dumps([HostManager.get_host_key(host.bk_host_innerip, host.bk_cloud_id)])
+                for host in hosts
+            },
+        )
 
     get_business = mock.patch(
         "alarm_backends.service.alert.enricher.kubernetes_cmdb.api.cmdb.get_business",
         return_value=[Business(bk_biz_id=i) for i in [2, 3, 4, 5, 6, 10, 20, 21]],
     )
-    get_host_by_topo_node = mock.patch(
-        "alarm_backends.core.cache.cmdb.host.api.cmdb.get_host_by_topo_node",
-        side_effect=lambda bk_biz_id, **kwargs: [host for host in ALL_HOSTS if host.bk_biz_id == bk_biz_id],
-    )
+
     get_topo_tree = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_topo_tree", return_value=TOPO_TREE)
 
     get_set = mock.patch("alarm_backends.core.cache.cmdb.host.api.cmdb.get_set", return_value=[])
@@ -128,14 +160,13 @@ def init_host_cache():
     get_set.start()
     get_business.start()
     get_topo_tree.start()
-    get_host_by_topo_node.start()
+    _refresh()
 
     yield
 
     get_set.stop()
     get_business.stop()
     get_topo_tree.stop()
-    get_host_by_topo_node.stop()
 
     _clear()
 
