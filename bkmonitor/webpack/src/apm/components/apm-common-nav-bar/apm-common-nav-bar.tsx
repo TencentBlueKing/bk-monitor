@@ -113,8 +113,8 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
       name: item.id,
       query: {
         ...item.query,
-        start_time: item.id === 'home' ? this.$route.query.from : undefined,
-        end_time: item.id === 'home' ? this.$route.query.to : undefined,
+        from: this.$route.query?.from || undefined,
+        to: this.$route.query?.to || undefined,
         dashboardId: this.$route.query.dashboardId,
       },
     });
@@ -124,8 +124,8 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
         name: item.id,
         query: {
           ...item.query,
-          start_time: item.id === 'home' ? this.$route.query.from : undefined,
-          end_time: item.id === 'home' ? this.$route.query.to : undefined,
+          from: this.$route.query?.from || undefined,
+          to: this.$route.query?.to || undefined,
           dashboardId: this.$route.query.dashboardId,
         },
       });
