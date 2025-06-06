@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import socket
-from typing import Self
 import uuid
+from typing import Self
 
 import kafka
 import kafka.errors
@@ -195,7 +195,7 @@ class KafkaQueue:
             offset = self.get_offset_manager().get_offset()
             tail = self.get_offset_manager().get_tail() - 5
             new_offset = max(offset, tail)
-        self.get_offset_manager().set_offset(new_offset, True)
+        self.get_offset_manager().set_offset(new_offset)
 
     def take_raw(self, count: int = 1, timeout: float = 5.0):
         """
@@ -216,13 +216,13 @@ class KafkaQueue:
             consumer.seek_to_end()
             records = consumer.poll(timeout_ms=timeout_ms, max_records=count)
             messages = []
-            for topic_partition, msgs in records.items():
+            for _, msgs in records.items():
                 messages.extend(msgs)
         except kafka.errors.KafkaError:
             # retry
             records = consumer.poll(timeout_ms=timeout_ms, max_records=count)
             messages = []
-            for topic_partition, msgs in records.items():
+            for _, msgs in records.items():
                 messages.extend(msgs)
         finally:
             if settings.KAFKA_AUTO_COMMIT and messages:
@@ -231,7 +231,7 @@ class KafkaQueue:
                 except Exception:
                     logger.warning("Kafka commit failure")
         if self.redis_offset:
-            self.get_offset_manager().update_consumer_offset(count, messages)
+            self.get_offset_manager().update_consumer_offset(messages)
         return messages
 
     def take(self, count=1, timeout=0.1):
@@ -247,7 +247,6 @@ class KafkaOffsetManager:
         self.consumer = consumer
         self.cache = Cache("service")
         self.instance_offset = self.get_offset()
-        self.reset_offset = 0  # 当前的重置点
 
     @property
     def key(self):
@@ -257,26 +256,13 @@ class KafkaOffsetManager:
         topic = topics[0] if topics else "unknown"
         return "_".join(map(str, [self.KEY_PREFIX, group_id, topic]))
 
-    @property
-    def reset_key(self):
-        return "RESET_%s" % self.key
-
-    def _get_offset(self) -> str | None:
-        return self.cache.get(self.key)
-
     def get_offset(self) -> int:
         """
         获取 offset
         """
-        return int(self._get_offset() or 0)
+        return int(self.cache.get(self.key) or 0)
 
-    def get_reset_offset(self):
-        """
-        获取重置 offset
-        """
-        return int(self.cache.get(self.reset_key) or 0)
-
-    def set_offset(self, offset: int, force: bool = False) -> int:
+    def set_offset(self, offset: int) -> int:
         """
         设置消费者的 offset。
 
@@ -288,14 +274,10 @@ class KafkaOffsetManager:
             int: 实际设置后的 offset 值
 
         Note:
-            如果 force 为 False 且检测到 offset 重置，则不会执行设置操作，
-            直接返回当前的 offset 值。设置成功后会在缓存中存储新的 offset 值。
+            设置成功后会在缓存中存储新的 offset 值。
         """
-        if not force and self.get_reset_offset() != self.reset_offset:
-            logger.info("Kafka_offset pass set")
-            return self.get_offset()
         logger.debug("Kafka_offset local %s: %s", self.key, offset)
-        self.cache.set(self.key, offset, self.TIMEOUT)
+        self.cache.set(self.key, str(offset), self.TIMEOUT)
         return self.get_offset()
 
     def set_seek(self, *args, **kwargs):
@@ -320,14 +302,6 @@ class KafkaOffsetManager:
         self.cache.set(self.key, remote_offset, self.TIMEOUT)
         return self.get_offset()
 
-    def set_reset_offset(self, offset):
-        """
-        设置重置 offset
-        """
-        logger.debug("Kafka_offset set_reset %s: %s", self.key, offset)
-        self.cache.set(self.reset_key, offset, self.TIMEOUT)
-        return self.set_offset(offset, force=True)
-
     def _set_consumer_offset(self, new_remote_offset):
         """
         设置所有分区的 offset 到 new_remote_offset。
@@ -346,22 +320,18 @@ class KafkaOffsetManager:
             except Exception as e:
                 logger.warning("Failed to set consumer offset for %s: %s", tp, e)
 
-    def reset_consumer_offset(self, count=1):
+    def reset_consumer_offset(self, count: int = 1) -> None:
         """
         优先从缓存读取 offset，若有则 seek 到该 offset，否则 seek 到最新 offset 前 3 条。
-        支持预推进 offset（提前 count 条，防止重复）。
         支持多分区。
         """
-        reset_offset = self.get_reset_offset()
-        # 优先用 reset_offset
-        if reset_offset and reset_offset != self.reset_offset:
-            self.instance_offset = self.reset_offset = reset_offset
-        # 若无 offset，seek 到最新 offset 前 3 条
-        if not self.instance_offset:
-            self.instance_offset = max(self.get_tail() - 3, 0)
-        # 预推进 offset，防止重复
-        pre_advance_offset = self.instance_offset + count
-        self._set_consumer_offset(pre_advance_offset)
+        if self.instance_offset is None:
+            cached_offset = self.get_offset()
+            if cached_offset is not None:
+                self.instance_offset = cached_offset
+            else:
+                self.instance_offset = max(self.get_tail() - 3, 0)
+        self._set_consumer_offset(self.instance_offset)
 
     def get_tail(self) -> int:
         """
@@ -378,7 +348,7 @@ class KafkaOffsetManager:
                 return 0
         return max_offset
 
-    def update_consumer_offset(self, count, messages):
+    def update_consumer_offset(self, messages: list):
         if not messages:
             return
         # 更新到最后一条消息的offset + 1
