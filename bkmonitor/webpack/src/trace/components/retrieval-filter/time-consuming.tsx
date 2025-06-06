@@ -65,7 +65,9 @@ export default defineComponent({
           }
           stopWatch = true;
         } else {
-          localValue.value = [0, 0];
+          if (!val?.value?.length) {
+            localValue.value = [0, 0];
+          }
         }
       },
       { immediate: true }
