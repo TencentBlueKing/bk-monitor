@@ -1697,7 +1697,7 @@ class GetKubernetesClusterChoices(KubernetesResource):
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             cluster_id_list = []
-            clusters = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid}).keys()
+            clusters = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
             for cluster_id in clusters:
                 if clusters[cluster_id].get("namespace_list"):
                     # 共享集群暂时排除，后续针对共享集群进行二次处理
@@ -3916,11 +3916,11 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 graph_data = [
                     {
                         "name": _("内存 request 量"),
-                        "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
+                        "value": "{} {}".format(*load_unit("bytes").auto_convert(requests_memory, decimal=2)),
                     },
                     {
                         "name": _("内存 limit 量"),
-                        "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
+                        "value": "{} {}".format(*load_unit("bytes").auto_convert(limits_memory, decimal=2)),
                     },
                 ]
                 return graph_data
@@ -3928,15 +3928,15 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("内存总量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(allocatable_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(allocatable_memory, decimal=2)),
             },
             {
                 "name": _("内存 request 量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(requests_memory, decimal=2)),
             },
             {
                 "name": _("内存 limit 量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(limits_memory, decimal=2)),
             },
             {
                 "name": _("内存预分配率"),
@@ -4079,11 +4079,11 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("磁盘总量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_total, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(system_disk_total, decimal=2)),
             },
             {
                 "name": _("磁盘已使用量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_used, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(system_disk_used, decimal=2)),
             },
             {
                 "name": _("磁盘使用率"),
