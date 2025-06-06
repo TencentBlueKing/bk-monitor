@@ -79,13 +79,13 @@
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px">添加排序字段</span></span
+      ><span style="margin-left: 4px; font-size: 12px">{{ $t('添加排序字段') }}</span></span
     >
   </div>
 </template>
 <script setup lang="ts">
   import { computed, ref, defineExpose, watch } from 'vue';
-
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
 
@@ -101,6 +101,7 @@
       default: false,
     },
   });
+  const { $t } = useLocale();
   const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
@@ -110,8 +111,8 @@
     'ghost-class': 'sortable-ghost-class',
   };
   const orderList = [
-    { id: 'desc', name: '降序' },
-    { id: 'asc', name: '升序' },
+    { id: 'desc', name: $t('降序') },
+    { id: 'asc', name: $t('升序') },
   ];
   const store = useStore();
 

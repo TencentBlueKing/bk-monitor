@@ -36,7 +36,7 @@
             :key="type"
             @click="handleClickTableBtn(type)"
           >
-            {{ type === 'table' ? '表格' : '原始' }}
+            {{ type === 'table' ? $t('表格') : $t('原始') }}
           </span>
         </div>
         <ResultStorage></ResultStorage>
@@ -47,7 +47,7 @@
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label>高亮</label>
+            <label :class="isEnLanguage">{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
@@ -57,7 +57,7 @@
               :maxWidth="highlightStyle.width"
               :minWidth="highlightStyle.width"
               :value="highlightValue"
-              placeholder="输入后按 Enter..."
+              :placeholder="$t('输入后按 Enter...')"
               template="tag-input"
               @change="handleHighlightEnter"
             >
@@ -215,6 +215,9 @@
           width: `${this.highlightWidth}px`,
         };
       },
+      isEnLanguage() {
+        return  this.$store.getters.isEnLanguage? 'en' : 'zh'
+      }
     },
     watch: {
       showFieldsConfigPopoverNum() {
@@ -370,7 +373,12 @@
         background: #ffffff;
         font-size: 12px;
         color: #4d4f56;
-
+        .en{
+          width: 60px;
+        }
+        .zh{
+          width: 40px;
+        }
         label {
           border-left: 1px solid #c4c6cc;
           border-top: 1px solid #c4c6cc;
@@ -378,7 +386,7 @@
           border-top-left-radius: 2px;
           border-bottom-left-radius: 2px;
           border-right: none;
-          width: 40px;
+          // width: 40px;
           padding: 0px 0px;
           color: #4d4f56;
           text-align: center;

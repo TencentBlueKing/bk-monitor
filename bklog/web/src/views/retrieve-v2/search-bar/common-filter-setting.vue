@@ -12,7 +12,7 @@
     <slot name="trigger">
       <div class="operation-icon">
         <span :class="['bklog-icon bklog-shezhi setting-icon']"></span>
-        设置筛选
+        {{ $t('设置筛选') }}
       </div>
     </slot>
     <template #content>

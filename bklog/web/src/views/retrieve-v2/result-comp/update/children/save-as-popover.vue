@@ -11,7 +11,7 @@
         style="font-size: 14px"
         class="bklog-icon bklog-save"
       ></span>
-      另存为模板
+      {{ $t('另存为模板') }}
     </span>
     <template #content>
       <bk-form

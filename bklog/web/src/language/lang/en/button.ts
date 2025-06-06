@@ -203,7 +203,7 @@ export default {
   模板: 'Template',
   补齐: 'Make up for',
   新建模板: 'Create template',
-  索引集配置: 'Index set configuration',
+  索引集配置: 'Index Configuration',
   中止: 'Abort',
   同步查询条件到SQL: 'Sync Query Condition To SQL',
   格式化: 'Format',
@@ -212,4 +212,6 @@ export default {
   展示别名: 'Show Alias Name',
   定位到当前行: 'Locate the current row',
   内置: 'built-in',
+  添加排序字段: 'Add Sort Field',
+  另存为模板: 'save as template',
 };

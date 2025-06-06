@@ -33,7 +33,7 @@
                 class="selector-owner"
                 v-if="active === 'mission'"
               >
-                我的
+                {{ $t('我的')}}
                 <bk-switcher
                   class="selector-owner-switch"
                   size="small"
