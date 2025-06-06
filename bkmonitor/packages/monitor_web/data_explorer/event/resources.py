@@ -705,5 +705,7 @@ class EventGenerateQueryStringResource(Resource):
     def perform_request(self, data):
         generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
         for f in data["where"]:
-            generator.add_filter(f["key"], f["method"], f["value"], f.get("options", {}))
+            generator.add_filter(
+                f["key"], f["method"], f["value"], is_wildcard=f.get("options", {}).get("is_wildcard", False)
+            )
         return generator.to_query_string()
