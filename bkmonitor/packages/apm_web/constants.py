@@ -732,13 +732,13 @@ TRPC_TRACE_VIEW_CONFIG = {
             "start_time",
             "elapsed_time",
             "attributes.trpc.caller_service",  # "主调 Service"
-            "attributes.trpc.caller_method",  # "主调接口"
             "attributes.trpc.callee_service",  # "被调 Service"
             "attributes.trpc.callee_method",  # "被调接口"
             "attributes.trpc.status_code",  # "tRPC 状态码"
             "attributes.trpc.envname",  # "用户环境"
             "status.code",
             "kind",
+            "resource.service.name",
             "trace_id",
         ],
     },

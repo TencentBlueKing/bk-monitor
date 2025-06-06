@@ -331,30 +331,29 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         type: TIME,
         width: 150,
       },
-      {
-        id: 'source',
-        name: this.$t('事件来源'),
-        type: PREFIX_ICON,
-        width: 150,
-        customHeaderCls: 'explore-table-source-header-cell',
-        renderHeader:
-          this.source === APIType.APM
-            ? (column: EventExploreTableColumn) => (
-                <div
-                  class='event-source-header'
-                  onClick={this.handleShowEventSourcePopover}
-                >
-                  <span class='header-title'>{column.name}</span>
-                  <i
-                    class={[
-                      'icon-monitor icon-filter-fill filters',
-                      { active: !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL) },
-                    ]}
-                  />
-                </div>
-              )
-            : undefined,
-      },
+      this.source === APIType.APM
+        ? {
+            id: 'source',
+            name: this.$t('事件来源'),
+            type: PREFIX_ICON,
+            width: 150,
+            customHeaderCls: 'explore-table-source-header-cell',
+            renderHeader: (column: EventExploreTableColumn) => (
+              <div
+                class='event-source-header'
+                onClick={this.handleShowEventSourcePopover}
+              >
+                <span class='header-title'>{column.name}</span>
+                <i
+                  class={[
+                    'icon-monitor icon-filter-fill filters',
+                    { active: !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL) },
+                  ]}
+                />
+              </div>
+            ),
+          }
+        : undefined,
       {
         id: 'event_name',
         name: this.$t('事件名'),
@@ -377,7 +376,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         width: 190,
         fixed: 'right',
       },
-    ];
+    ].filter(Boolean);
   }
 
   /**

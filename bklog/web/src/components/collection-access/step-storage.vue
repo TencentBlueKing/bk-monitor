@@ -899,6 +899,15 @@
           }
           data.etl_params = payload;
         }
+        data.alias_settings = data.fields
+          .filter(item => item.query_alias)
+          .map(item => {
+            return {
+              field_name: item.alias_name || item.field_name,
+              query_alias: item.query_alias,
+              path_type: item.field_type,
+            };
+          });
         return data;
       },
       checkStorageReplies() {

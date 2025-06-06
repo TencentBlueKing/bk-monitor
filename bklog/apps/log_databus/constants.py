@@ -718,7 +718,7 @@ class OTLPProxyHostConfig:
     GRPC = "grpc"
     GRPC_TRACE_PATH = ":4317"
     HTTP = "http"
-    HTTP_TRACE_PATH = ":4318/v1/traces"
+    HTTP_TRACE_PATH = ":4318/v1/logs"
     HTTP_SCHEME = "http://"
 
 
