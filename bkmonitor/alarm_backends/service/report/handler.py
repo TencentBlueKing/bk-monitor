@@ -23,6 +23,7 @@ from alarm_backends.service.report.render.dashboard import (
     render_dashboard_panel,
 )
 from alarm_backends.service.report.tasks import render_mails
+from bk_dataview.util import get_dashboard_data_view_size
 from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
@@ -105,9 +106,15 @@ async def start_tasks(elements):
             end_time=element["end_time"] // 1000,
         )
         try:
+            # 判断是否为单图实际尺寸渲染， 调整大小
+            if element.with_actual_size:
+                actual_size = get_dashboard_data_view_size(config.dashboard_uid, config.panel_id)
+                config.width = actual_size["w"]
+                config.height = actual_size["h"]
             img = await render_dashboard_panel(config)
         except Exception as e:
             err_msg = {"tag": element["tag"], "exception_msg": str(e)}
+            logger.error(f"fetch_images_by_puppeteer: render img failed, {err_msg}")
             continue
 
         element["base64"] = base64.b64encode(img).decode("utf-8")
@@ -134,7 +141,8 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
         "var_bk_biz_ids": ["2", "3", "4"],
         "from_time": 1612766359450,
         "to_time": 1612766359450,
-        "is_superuser": False
+        "is_superuser": False，
+        “with_actual_size”: False
     }]
     :return: {bk_biz_id-uid-panel_id: {base64: base64, url: url}}
     """
@@ -153,6 +161,7 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
             "height": graph["image_size"]["height"],
             "scale": graph.get("image_size", {}).get("deviceScaleFactor", 2),
             "tag": graph["tag"],
+            "with_actual_size": graph.get("with_actual_size", False),
         }
         elements.append(element)
 
@@ -340,12 +349,14 @@ class ReportHandler:
         is_superuser=False,
         is_link_enabled=True,
         channel_name=ReportItems.Channel.USER,
+        with_actual_size=False,
     ):
         """
         将图像渲染到HTML中
         :param mail_title: 邮件标题
         :param contents: 发送内容
         :param frequency: 发送频率
+        :param with_actual_size: 是否使用实际大小渲染仪表盘图表
         :return: True/False
         """
         total_graphs = []
@@ -359,7 +370,6 @@ class ReportHandler:
                 variables = {}
                 if graph_info[2] != "*":
                     variables = {"bk_biz_id": var_bk_biz_ids}
-
                 total_graphs.append(
                     {
                         "bk_biz_id": bk_biz_id,
@@ -370,6 +380,7 @@ class ReportHandler:
                         "tag": graph,
                         "from_time": from_time_stamp,
                         "to_time": to_time_stamp,
+                        "with_actual_size": with_actual_size,
                     }
                 )
 
