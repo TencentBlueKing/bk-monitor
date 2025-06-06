@@ -76,12 +76,9 @@ class FilterSerializer(serializers.Serializer):
             label="分组关系", choices=OperatorGroupRelation.choices(), default=OperatorGroupRelation.OR
         )
 
-        def get_default_values(self) -> dict:
-            return {field.field_name: field.default for field in self.fields.values() if hasattr(field, "default")}
-
     key = serializers.CharField(label="查询键")
     operator = serializers.CharField(label="操作符")
-    options = OptionsSerializer(label="操作符选项", default=OptionsSerializer().get_default_values())
+    options = OptionsSerializer(label="操作符选项", default={})
     value = serializers.ListSerializer(label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True)
 
 
