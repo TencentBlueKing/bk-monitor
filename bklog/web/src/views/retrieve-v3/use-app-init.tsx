@@ -278,16 +278,25 @@ export default () => {
           store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
-            if (resp?.data?.fields?.length) {
-              store.dispatch('requestIndexSetQuery').then(() => {
+            if (route.query.tab === 'origin') {
+              if (resp?.data?.fields?.length) {
+                store.dispatch('requestIndexSetQuery').then(() => {
+                  RetrieveHelper.setSearchingValue(false);
+                });
+              }
+
+              if (!resp?.data?.fields?.length) {
+                store.commit('updateIndexSetQueryResult', {
+                  is_error: true,
+                  exception_msg: 'index-set-field-not-found',
+                });
                 RetrieveHelper.setSearchingValue(false);
-              });
+              }
+
+              return;
             }
 
-            if (!resp?.data?.fields?.length) {
-              store.commit('updateIndexSetQueryResult', { is_error: true, exception_msg: 'index-set-field-not-found' });
-              RetrieveHelper.setSearchingValue(false);
-            }
+            RetrieveHelper.setSearchingValue(false);
           });
         }
 
