@@ -80,6 +80,10 @@ const exportAsync = {
   url: '/search/index_set/:index_set_id/async_export/',
   method: 'post',
 };
+const unionExportAsync = {
+  url: '/search/index_set/union_async_export/',
+  method: 'post',
+};
 const getRealTimeLog = {
   url: '/search/index_set/:index_set_id/tail_f/',
   method: 'post',
@@ -286,5 +290,6 @@ export {
   generateQueryString,
   setIndexSetCustomConfig,
   getProxyHost,
-  requestGrepResult
+  requestGrepResult,
+  unionExportAsync,
 };

@@ -7,7 +7,9 @@ import { bkMessage } from 'bk-magic-vue';
 export default defineComponent({
   props: {
     type: {
-      type: String as PropType<'search-empty' | 'empty' | 'error' | 'index-set-not-found' | 'loading' | 'hidden'>,
+      type: String as PropType<
+        'search-empty' | 'empty' | 'error' | 'index-set-not-found' | 'index-set-field-not-found' | 'loading' | 'hidden'
+      >,
       default: 'hidden',
     },
     message: {
@@ -134,6 +136,29 @@ export default defineComponent({
                   <br />
                   参考格式： https://domain.com/#/retrieve/<mark>82600?</mark>
                 </div>
+              </div>
+            </div>
+          </bk-exception>
+        );
+      }
+
+      if (props.type === 'index-set-field-not-found') {
+        return (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='500'
+          >
+            <div style='text-align: left; color: #313238;'>
+              <div style='font-size: 14px; padding: 8px 0;'>
+                {`索引集字段列表查询失败，刷新页面尝试重新查询 `}
+                <span
+                  style={{ cursor: 'pointer', color: '#3a84ff' }}
+                  onClick={() => window.location.reload()}
+                >
+                  刷新
+                </span>
               </div>
             </div>
           </bk-exception>

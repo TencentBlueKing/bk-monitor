@@ -47,6 +47,12 @@ export default defineComponent({
     tags: {
       type: Object as PropType<TableCellRenderValueType[ExploreTableColumnTypeEnum.TAGS]>,
     },
+    colId: {
+      type: String,
+    },
+    rowId: {
+      type: String,
+    },
   },
   setup(props) {
     const tagContainerRef = useTemplateRef<HTMLElement>('tagContainerRef');
@@ -107,8 +113,9 @@ export default defineComponent({
           >
             <span
               class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-              data-cell-source={tag.value}
-              data-col-key={this.column.colKey}
+              data-col-id={this.colId}
+              data-index={index}
+              data-row-id={this.rowId}
             >
               {tag.alias}
             </span>

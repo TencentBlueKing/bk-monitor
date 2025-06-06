@@ -202,7 +202,6 @@
     finishPolling.value = true;
     runningTimer && clearTimeout(runningTimer);
     logChartCancel?.();
-
     RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
     RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
     RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);

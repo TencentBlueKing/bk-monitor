@@ -275,7 +275,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         bk_tenant_id = options["bk_tenant_id"]
         spaces = Space.objects.filter(bk_tenant_id=bk_tenant_id)
         bk_biz_ids = {
-            str(-space.id) if space.space_type_id == SpaceTypeEnum.BKCC.value else space.space_id for space in spaces
+            str(-space.id) if space.space_type_id != SpaceTypeEnum.BKCC.value else space.space_id for space in spaces
         }
         org_ids = {org.id for org in Org.objects.all() if org.name in bk_biz_ids}
         return [d for d in dashboards if d.org_id in org_ids]

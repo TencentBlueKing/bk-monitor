@@ -275,11 +275,19 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch('requestIndexSetFieldInfo').then(() => {
+          store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-            store.dispatch('requestIndexSetQuery').then(() => {
+
+            if (resp?.data?.fields?.length) {
+              store.dispatch('requestIndexSetQuery').then(() => {
+                RetrieveHelper.setSearchingValue(false);
+              });
+            }
+
+            if (!resp?.data?.fields?.length) {
+              store.commit('updateIndexSetQueryResult', { is_error: true, exception_msg: 'index-set-field-not-found' });
               RetrieveHelper.setSearchingValue(false);
-            });
+            }
           });
         }
 
@@ -327,7 +335,13 @@ export default () => {
   beforeMounted();
 
   const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
+    store.commit('resetIndexsetItemParams', {
+      start_time,
+      end_time,
+      timezone,
+      datePickerValue,
+    });
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
