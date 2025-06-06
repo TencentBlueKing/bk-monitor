@@ -546,18 +546,14 @@ class BkunifylogbeatChecker(Checker):
 
     def get_log_paths(self) -> List[str]:
         collector_config_id = getattr(self.collector_config, "collector_config_id", None)
-        params = {}
-        if collector_config_id:
-            try:
-                container_config = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id)
-                params = getattr(container_config, "params", {}) or {}
-            except ContainerCollectorConfig.DoesNotExist:
-                params = {}
-        log_paths = params.get("paths", [])
-        paths = log_paths.split(",") if isinstance(log_paths, str) else log_paths
-        # 处理路径格式，确保返回的是列表
-        if isinstance(paths, str):
-            return [path.strip() for path in paths.split(",") if path.strip()]
-        elif isinstance(paths, list):
-            return paths
-        return []
+        if not collector_config_id:
+            return []
+        params = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id).params or {}
+        paths = params.get("paths", [])
+        path_list = paths.split(",") if isinstance(paths, str) else paths
+        result = []
+        for path in path_list:
+            path = path.strip()
+            if path:
+                result.append(path)
+        return result
