@@ -105,10 +105,6 @@ def create_event_info(origin_data, fields: list[str], data_label: str):
     return event_detail
 
 
-def get_dimension(origin_data: dict[str, Any], field: str):
-    return origin_data.get(f"{DIMENSION_PREFIX}{field}", "")
-
-
 def get_field_alias(field, label) -> tuple[str, str, int]:
     """
     获取字段别名
