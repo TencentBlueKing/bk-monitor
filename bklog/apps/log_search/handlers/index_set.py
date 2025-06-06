@@ -1614,7 +1614,7 @@ class BaseIndexSetHandler:
         if self.sort_fields_raw is not None:
             self.index_set_obj.sort_fields = self.sort_fields_raw
 
-        self.index_set_obj.alias_settings = self.alias_settings
+        self.index_set_obj.query_alias_settings = self.alias_settings
 
         self.index_set_obj.save()
 
