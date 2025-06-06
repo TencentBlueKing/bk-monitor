@@ -46,7 +46,7 @@ class TestProcessor(TestCase):
         )
 
         self.host_mock = mock.patch(
-            "alarm_backends.core.cache.cmdb.host.HostManager.multi_get_with_dict",
+            "alarm_backends.core.cache.cmdb.host.HostManager.mget",
             return_value={
                 "127.0.0.1|0": Host(
                     attrs={
