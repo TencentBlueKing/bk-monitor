@@ -33,6 +33,7 @@ from django.utils.translation import gettext as _
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
@@ -1387,6 +1388,37 @@ class IndexSetHandler(APIModel):
             "collector_config_id": collector_config.collector_config_id,
             "collector_config_name": collector_config.collector_config_name,
         }
+
+    @transaction.atomic()
+    def update_alias_settings(self, query_alias_settings):
+        self.data.query_alias_settings = query_alias_settings
+        self.data.save()
+        multi_execute_func = MultiExecuteFunc()
+        try:
+            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            for obj in objs:
+                multi_execute_func.append(
+                    result_key=obj.result_table_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params={
+                        "table_id": BaseIndexSetHandler.get_rt_id(
+                            self.index_set_id, obj.result_table_id.replace(".", "_")
+                        ),
+                        "query_alias_settings": query_alias_settings,
+                        "space_type": self.data.space_uid.split("__")[0],
+                        "space_id": self.data.space_uid.split("__")[-1],
+                        "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
+                    },
+                )
+            multi_execute_func.run()
+        except Exception as e:
+            logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
+            raise CreateOrUpdateLogRouterException(
+                CreateOrUpdateLogRouterException.MESSAGE.format(
+                    reason=f"create or update index set({self.index_set_id}) es router failed：{e}"
+                )
+            )
+        return {"index_set_id": self.index_set_id}
 
 
 class BaseIndexSetHandler:
