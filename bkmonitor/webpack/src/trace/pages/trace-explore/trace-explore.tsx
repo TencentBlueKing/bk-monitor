@@ -252,14 +252,21 @@ export default defineComponent({
 
     function handleConditionChange(item: ConditionChangeEvent) {
       const { key, method: operator, value } = item;
+      const isDuration = ['trace_duration', 'elapsed_time'].includes(key);
       if (filterMode.value === EMode.ui) {
-        const newWhere = mergeWhereList(where.value, [{ key, operator, value: safeParseJsonValueForWhere(value) }]);
+        const newWhere = mergeWhereList(where.value, [
+          { key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) },
+        ]);
         handleWhereChange(newWhere);
         return;
       }
       let endStr = `NOT ${key} : "${value || ''}"`;
       if (operator === EMethod.eq) {
         endStr = `${key} : "${value || ''}"`;
+      }
+      if (isDuration) {
+        const [start, end] = value.split('-');
+        endStr = `${key} : [${start} TO ${end}]`;
       }
       handleQueryStringChange(queryString.value ? `${queryString.value} AND ${endStr}` : `${endStr}`);
     }
