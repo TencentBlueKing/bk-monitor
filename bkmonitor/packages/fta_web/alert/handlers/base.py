@@ -182,7 +182,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
                 value = "*" + value
             if not value.endswith("*"):
                 value = value + "*"
-            return f'{target_type} : "{value}"'
+            return f"{target_type} : {value}"
 
         def add_quote(match):
             value = match.group("value")
@@ -661,7 +661,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         username: str = "",
         **kwargs,
     ):
-        super(BaseBizQueryHandler, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.bk_biz_ids = bk_biz_ids
         self.authorized_bizs = self.bk_biz_ids
         self.unauthorized_bizs = []
@@ -693,9 +693,7 @@ class QueryBuilder(ElasticsearchQueryBuilder):
     """
 
     def _yield_nested_children(self, parent, children):
-        for child in children:
-            # 同级语句同时出现 AND 与 OR 时，忽略默认的报错
-            yield child
+        yield from children
 
 
 class AlertDimensionFormatter:
