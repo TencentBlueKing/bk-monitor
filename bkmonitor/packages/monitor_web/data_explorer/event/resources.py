@@ -213,11 +213,6 @@ class EventViewConfigResource(Resource):
         return fields
 
     @classmethod
-    def is_dimensions(cls, name) -> bool:
-        # 如果是内置字段，不需要补充 dimensions.
-        return name not in INNER_FIELD_TYPE_MAPPINGS
-
-    @classmethod
     def get_field_type(cls, field) -> str:
         """ "
         获取字段类型
