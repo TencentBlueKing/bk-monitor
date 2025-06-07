@@ -144,12 +144,10 @@ class BaseQueryTransformer(BaseTreeTransformer):
             return ""
         transform_obj = cls()
 
-        try:
-            query_tree = parse_query_string_node(transform_obj, query_string)
-        except QueryStringParseError:
+        if is_include_promql(query_string):
             # 包含promql语句，可能会报语法错误，需要尝试转换
             query_string = cls.convert_metric_id(query_string)
-            query_tree = parse_query_string_node(transform_obj, query_string)
+        query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -177,16 +175,14 @@ class BaseQueryTransformer(BaseTreeTransformer):
             value = match.group(0)
             value = strip_outer_quotes(value.split(":", 1)[1])
 
-            # 如果是promql，需要进行转义
-            if is_include_promql(value):
-                value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
+            value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
 
             # 给value前后加上“*”，用于支持模糊匹配
             if not value.startswith("*"):
                 value = "*" + value
             if not value.endswith("*"):
                 value = value + "*"
-            return f"{target_type} : {value}"
+            return f'{target_type} : "{value}"'
 
         def add_quote(match):
             value = match.group("value")
@@ -194,6 +190,16 @@ class BaseQueryTransformer(BaseTreeTransformer):
             return f"{target_type} : {value}"
 
         target_type = "指标ID"
+
+        # 如果匹配上，则指标ID是被截过的
+        if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
+            query_string = re.sub(
+                r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
+            )
+            query_string = re.sub(
+                r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
+            )
+            return query_string
 
         # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
         # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配

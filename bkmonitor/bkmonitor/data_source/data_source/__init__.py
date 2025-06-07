@@ -204,7 +204,7 @@ def conditions_to_q(conditions):
         field_lookup = "{}__{}".format(cond["key"], cond["method"])
         value = cond["value"]
 
-        if not isinstance(value, (list, tuple)):
+        if not isinstance(value, list | tuple):
             value = [value]
 
         condition = cond.get("condition") or "and"
@@ -216,7 +216,7 @@ def conditions_to_q(conditions):
                 ret = (ret | q) if ret else q
             where_cond = [Q(**{field_lookup: value})]
         else:
-            raise Exception("Unsupported connector(%s)" % condition)
+            raise Exception(f"Unsupported connector({condition})")
 
     if where_cond:
         q = Q(reduce(lambda x, y: x & y, where_cond))
@@ -1689,7 +1689,7 @@ class BkMonitorLogDataSource(DataSource):
 
         for key, value in filter_dict.items():
             # 如果value是数组类型且其中为字典，则需要遍历每一个子value
-            if isinstance(value, (list, tuple)) and value and isinstance(value[0], dict):
+            if isinstance(value, list | tuple) and value and isinstance(value[0], dict):
                 new_filter_dict[key] = [self._add_dimension_prefix(v) for v in value]
                 continue
 
@@ -2337,6 +2337,8 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
     INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
 
     OPERATOR_MAPPING: dict[str, str] = {
+        "reg": "req",
+        "nreg": "nreq",
         "neq": "ne",
         "exists": "exists",
         "nexists": "nexists",
@@ -2350,7 +2352,9 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
         CpAggMethods["cp95"].vargs_list[0]: "95.0",
         CpAggMethods["cp99"].vargs_list[0]: "99.0",
     }
-    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
+
+    # UnifyQuery 检索已支持正则，无需后置过滤。
+    ADVANCE_CONDITION_METHOD = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2455,8 +2459,6 @@ class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
 class NewCustomEventDataSource(NewBkMonitorLogDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
-
-    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

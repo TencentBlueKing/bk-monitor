@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { formatDuration } from './duration-input-utils';
 import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
 
 import type { ShallowRef } from 'vue';
@@ -249,7 +250,7 @@ export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
 }
 
 export function getDurationDisplay(value: Array<number | string>) {
-  const str = value.map(v => (v ? `${Number(v) / 1000}ms` : '0ms')).join('~');
+  const str = value.map(v => (v ? `${formatDuration(Number(v))}` : '0ms')).join('~');
   return str;
 }
 export function getTopDocument(node = document) {
