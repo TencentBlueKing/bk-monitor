@@ -136,6 +136,11 @@ module.exports = async (baseConfig, { production, app }) => {
         ...vueAlias,
       },
     },
+    externals: production
+      ? {
+          'aegis-web-sdk': 'Aegis',
+        }
+      : {},
     devtool: 'source-map',
     cache: production ? false : config.cache,
   };
