@@ -211,6 +211,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         )
 
         # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("###", r"\~\"")
         query_string = query_string.replace("##", r"\=\"")
         query_string = query_string.replace("#", r"\"")
 
@@ -223,11 +224,11 @@ class BaseQueryTransformer(BaseTreeTransformer):
         def replace(match):
             value = match.group(0)
             # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
-            value = value.replace('="', "##").replace('"', "#")
+            value = value.replace('~"', "###").replace('="', "##").replace('"', "#")
             return value
 
         # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        pattern = r'\{.*(=|~).*\}'
         query_string = re.sub(pattern, replace, query_string)
         return query_string
 
