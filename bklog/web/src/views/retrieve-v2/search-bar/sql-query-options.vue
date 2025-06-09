@@ -79,7 +79,7 @@
   const originFieldList = () => totalFieldsNameList.value;
 
   const activeType: Ref<string[]> = ref([]);
-  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+  // const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
   const fieldList: Ref<string[]> = ref([]);
   const valueList: Ref<string[]> = ref([]);
 
@@ -197,6 +197,14 @@
     return props.value;
   };
 
+  const getFocusRightValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(props.focusPosition);
+    }
+
+    return '';
+  };
+
   const emitValueChange = (appendValue: string, retrieve = false, replace = false, type = undefined) => {
     emits('change', appendValue, retrieve, replace, type);
   };
@@ -240,10 +248,11 @@
       return;
     }
 
+    const lastFragments = value.split(/\s+(AND\s+NOT|OR|AND)\s+/i);
+    const lastFragment = lastFragments?.[lastFragments.length - 1] ?? '';
+
     // 如果是以 : 结尾，说明需要显示字段值列表
     if (regExpFieldValue.test(value)) {
-      const lastFragments = value.split(separator);
-      const lastFragment = lastFragments[lastFragments.length - 1];
       const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
 
       if (confirmField) {
@@ -262,8 +271,20 @@
       return;
     }
 
-    const lastFragments = value.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValue = lastValues?.[3] ?? lastValues?.[2];
+    const matchValueWithQuotes = lastValues?.[2];
+
+    if (matchValueWithQuotes && lastFragment.length >= matchValue.length) {
+      const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
+
+      if (confirmField) {
+        showWhichDropdown(OptionItemType.Value);
+        setValueList(confirmField, matchValue);
+        return;
+      }
+    }
 
     if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
       showColonOperator(lastFragment);
@@ -320,8 +341,17 @@
    * @param {string} value
    */
   const handleClickValue = (value: string) => {
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
+
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValueWithQuotes = lastValues?.[2];
+    const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
+    const result = `${matchLeft}"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}"${rightValue}`.replace(/""$/, '"');
+
     // 当前输入值可能的情况 【name:"a】【age:】
-    emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
+    emitValueChange(result, false, true, 'value');
     nextTick(() => {
       activeIndex.value = 0;
       setOptionActive();
