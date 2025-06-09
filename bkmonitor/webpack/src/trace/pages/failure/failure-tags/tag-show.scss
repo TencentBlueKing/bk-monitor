@@ -5,10 +5,12 @@
   height: 100%;
 
   .item-tags {
-    display: inline-block;
-    margin-right: 5px;
+    display: inline-flex;
+    // margin-right: 5px;
     overflow: hidden;
     overflow: hidden;
+    row-gap: 4px;
+    flex-wrap: wrap;
   }
 
   .top-bar-tag {
