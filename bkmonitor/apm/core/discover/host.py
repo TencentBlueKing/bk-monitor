@@ -98,5 +98,7 @@ class HostDiscover(DiscoverBase):
         # 获取host_key对应的host信息
         hosts = HostManager.mget(bk_tenant_id=self.bk_tenant_id, host_keys=list(chain(*host_keys.values())))
 
-        # 返回ip对应的host信息
-        return {host.ip: (host.bk_cloud_id, host.bk_host_id) for host in hosts.values()}
+        # 返回ip对应的host信息，并且过滤掉非当前业务下的host
+        return {
+            host.ip: (host.bk_cloud_id, host.bk_host_id) for host in hosts.values() if host.bk_biz_id == self.bk_biz_id
+        }
