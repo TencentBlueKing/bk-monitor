@@ -28,8 +28,6 @@ export default function useInputState() {
     const currentPos = state.selection.main.to;
     const currentValue = state.doc.toString();
 
-    console.log('updateInputState', currentPos, currentValue, inputState.value);
-
     // 如果是新的focus，记录位置
     if (inputState.value.focusPos === null) {
       inputState.value.focusPos = currentPos;
