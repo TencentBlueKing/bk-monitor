@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from aidev_agent.api import BKAidevApi
-from ai_agents.models import *
+from ai_agents.models import AgentConfigManager
 
 pytestmark = pytest.mark.django_db
 
@@ -20,10 +20,10 @@ def test_retrieve_agent_config():
 
     res = client.api.retrieve_agent_config(path_params={"agent_code": "aidev-metadata"})["data"]
 
-    assert res
+    assert res["agent_code"] == "aidev-metadata"
 
-    AgentConfig.sync_config_by_agent_code(agent_code="aidev-metadata")
 
-    agent = AgentConfig.objects.get(agent_code="aidev-metadata")
-    assert agent.agent_code == "aidev-metadata"
-    assert agent.agent_name == "metadata-agent"
+def test_agent_config_manager():
+    config = AgentConfigManager.get_config("aidev-metadata")
+    assert config.agent_code == "aidev-metadata"
+    assert config.agent_name == "metadata-agent"
