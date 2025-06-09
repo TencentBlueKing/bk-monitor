@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import os
+
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
@@ -611,7 +613,7 @@ CHECK_COLLECTOR_SCRIPT_TIMEOUT = 7200
 # 一键检测工具容器采集项常量
 CRD_NAME = "bklogconfigs.bk.tencent.com"
 CONFIGMAP_NAME = "bk-log-bkunifylogbeat"
-DAEMONSET_NAME: str = "bk-log-collector"
+DAEMONSET_NAME: str = os.getenv("BK_LOG_COLLECTOR_DAEMONSET_NAME", "bk-log-collector")
 DAEMONSET_POD_LABELS: str = "name=bkunifylogbeat-bklog"
 BK_LOG_COLLECTOR_CONTAINER_NAME = "bkunifylogbeat-bklog"
 # 采集器主配置文件
