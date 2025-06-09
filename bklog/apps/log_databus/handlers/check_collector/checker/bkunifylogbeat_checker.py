@@ -77,7 +77,7 @@ class BkunifylogbeatChecker(Checker):
         self.namespace: str = settings.BK_LOG_COLLECTOR_NAMESPACE
         self.crd_name: str = CRD_NAME
         self.configmap_name: str = CONFIGMAP_NAME
-        self.daemonset_name: str = settings.DAEMONSET_NAME
+        self.daemonset_name: str = DAEMONSET_NAME
         self.daemonset_pod_labels: str = DAEMONSET_POD_LABELS
         self.container_name: str = BK_LOG_COLLECTOR_CONTAINER_NAME
         # 主配置路径, 文件路径, 可直接使用

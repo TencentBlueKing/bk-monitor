@@ -34,7 +34,6 @@ IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
 
 # 动态获取命名空间
 BK_LOG_COLLECTOR_NAMESPACE = os.getenv("BK_LOG_COLLECTOR_NAMESPACE", "kube-system")
-DAEMONSET_NAME: str = os.getenv("BK_LOG_COLLECTOR_DAEMONSET_NAME", "bk-log-collector")
 
 # 这里是默认的 INSTALLED_APPS，大部分情况下，不需要改动
 # 如果你已经了解每个默认 APP 的作用，确实需要去掉某些 APP，请去掉下面的注释，然后修改
