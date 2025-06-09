@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -67,10 +67,28 @@ class PatternSearchSerlaizer(serializers.Serializer):
         return attrs
 
 
+class FlexibleValueField(serializers.Field):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            return [data]
+
+        if isinstance(data, list):
+            if not data:
+                raise serializers.ValidationError("The list cannot be empty.")
+            if not all(isinstance(item, str) for item in data):
+                raise serializers.ValidationError("All items in the list must be strings.")
+            return data
+
+        raise serializers.ValidationError("Invalid data type. Must be a string or a list of strings.")
+
+    def to_representation(self, value):
+        return value[0] if isinstance(value, list) and len(value) == 1 else value
+
+
 class FilerRuleSerializer(serializers.Serializer):
     fields_name = serializers.CharField(required=False)
     op = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+    value = FlexibleValueField(required=False)
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 

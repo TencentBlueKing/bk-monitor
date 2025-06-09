@@ -151,6 +151,7 @@ class ClusteringConfigHandler:
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
+        print("----6", params.get("filter_rules", default_conf.get("filter_rules", [])))
         clustering_config, created = ClusteringConfig.objects.update_or_create(
             index_set_id=index_set_id,
             defaults=dict(
