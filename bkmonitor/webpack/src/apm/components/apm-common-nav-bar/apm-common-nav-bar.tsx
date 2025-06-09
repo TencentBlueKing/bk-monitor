@@ -113,6 +113,8 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
       name: item.id,
       query: {
         ...item.query,
+        from: this.$route.query?.from || undefined,
+        to: this.$route.query?.to || undefined,
         dashboardId: this.$route.query.dashboardId,
       },
     });
@@ -122,6 +124,8 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
         name: item.id,
         query: {
           ...item.query,
+          from: this.$route.query?.from || undefined,
+          to: this.$route.query?.to || undefined,
           dashboardId: this.$route.query.dashboardId,
         },
       });

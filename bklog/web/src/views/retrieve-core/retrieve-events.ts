@@ -44,7 +44,7 @@ enum RetrieveEvent {
    */
   FAVORITE_VIEW_CURRENT_CHANGE = 'favorite-view-current-change',
 
-/**
+  /**
    * 左侧字段信息初始化
    */
   LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',

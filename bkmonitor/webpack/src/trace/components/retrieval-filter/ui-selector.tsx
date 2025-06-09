@@ -170,7 +170,12 @@ export default defineComponent({
      * @param {KeyboardEvent} event 键盘事件对象
      */
     function handleKeyDownSlash(event) {
-      if (event.key === '/' && !inputValue.value && !showSelector.value) {
+      if (
+        event.key === '/' &&
+        !inputValue.value &&
+        !showSelector.value &&
+        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)
+      ) {
         event.preventDefault();
         handleClickComponent();
         cleanup();
@@ -197,9 +202,9 @@ export default defineComponent({
         target: el,
       };
       handleShowSelect(customEvent);
-      setTimeout(() => {
-        inputFocus.value = true;
-      }, 300);
+      // setTimeout(() => {
+      //   inputFocus.value = true;
+      // }, 300);
     }
 
     function handleCancel() {

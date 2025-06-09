@@ -103,19 +103,19 @@ export default defineComponent({
         disabled: true,
         sortable: true,
       },
-      {
-        id: EColumn.shieldType,
-        name: t('分类'),
-        width: 150,
-        disabled: true,
-        filterMultiple: true,
-        filter: [
-          { label: t('告警事件屏蔽'), value: 'alert' },
-          { label: t('范围屏蔽'), value: 'scope' },
-          { label: t('策略屏蔽'), value: 'strategy' },
-          { label: t('维度屏蔽'), value: 'dimension' },
-        ],
-      },
+      // {
+      //   id: EColumn.shieldType,
+      //   name: t('分类'),
+      //   width: 150,
+      //   disabled: true,
+      //   filterMultiple: true,
+      //   filter: [
+      //     { label: t('告警事件屏蔽'), value: 'alert' },
+      //     { label: t('范围屏蔽'), value: 'scope' },
+      //     { label: t('策略屏蔽'), value: 'strategy' },
+      //     { label: t('维度屏蔽'), value: 'dimension' },
+      //   ],
+      // },
       {
         id: EColumn.shieldContent,
         name: t('屏蔽内容'),
@@ -125,21 +125,39 @@ export default defineComponent({
       {
         id: EColumn.beginTime,
         name: t('开始时间'),
-        width: 150,
+        width: 200,
         disabled: false,
         sortable: true,
       },
+      // {
+      //   id: EColumn.failureTime,
+      //   name: t('失效时间'),
+      //   width: 150,
+      //   disabled: false,
+      //   sortable: true,
+      // },
+      // {
+      //   id: EColumn.cycleDuration,
+      //   name: t('持续周期及时长'),
+      //   width: 150,
+      //   disabled: false,
+      // },
       {
-        id: EColumn.failureTime,
-        name: t('失效时间'),
-        width: 150,
+        id: EColumn.endTime,
+        name: t('结束时间'),
+        width: 200,
         disabled: false,
-        sortable: true,
       },
       {
-        id: EColumn.cycleDuration,
-        name: t('持续周期及时长'),
-        width: 150,
+        id: EColumn.shieldCycle,
+        name: t('屏蔽周期'),
+        width: 300,
+        disabled: false,
+      },
+      {
+        id: EColumn.currentCycleRamainingTime,
+        name: t('当前周期剩余时长'),
+        width: 200,
         disabled: false,
       },
       {
@@ -154,12 +172,12 @@ export default defineComponent({
         width: 150,
         disabled: false,
       },
-      {
-        id: EColumn.updateUser,
-        name: t('更新人'),
-        width: 150,
-        disabled: false,
-      },
+      // {
+      //   id: EColumn.updateUser,
+      //   name: t('更新人'),
+      //   width: 150,
+      //   disabled: false,
+      // },
       {
         id: EColumn.operate,
         name: t('操作'),
@@ -293,10 +311,11 @@ export default defineComponent({
       tableLoading.value = true;
       // tableData.data = [];
 
-      let categories = filterValue.value[EColumn.shieldType];
-      if (!categories?.length) {
-        categories = columns.value.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
-      }
+      // let categories = filterValue.value[EColumn.shieldType];
+      // if (!categories?.length) {
+      //   categories = columns.value.find(item => item.id === EColumn.shieldType).filter.map(item => item.value);
+      // }
+      const categories = ['alert', 'scope', 'strategy', 'dimension'];
 
       const params = {
         page: pagination.current,
@@ -307,7 +326,7 @@ export default defineComponent({
           }
           return undefined;
         })(),
-        categories,
+        categories, // 2025-06-03更新：取消分类列的展示，该入参维持原状
         search: '',
         order: (() => {
           if (sort.value.sortBy) {
@@ -523,20 +542,34 @@ export default defineComponent({
             >{`#${row.id}`}</Button>
           );
         }
-        case EColumn.shieldType: {
-          return <span>{row.category_name}</span>;
-        }
+        // case EColumn.shieldType: {
+        //   return <span>{row.category_name}</span>;
+        // }
         case EColumn.shieldContent: {
           return <span>{row.content}</span>;
         }
         case EColumn.beginTime: {
           return <span>{row.begin_time}</span>;
         }
-        case EColumn.failureTime: {
-          return <span>{row.failure_time}</span>;
+        // case EColumn.failureTime: {
+        //   return <span>{row.failure_time}</span>;
+        // }
+        // case EColumn.cycleDuration: {
+        //   return <span>{row.cycle_duration}</span>;
+        // }
+        case EColumn.endTime: {
+          return <span>{row.end_time}</span>;
         }
-        case EColumn.cycleDuration: {
-          return <span>{row.cycle_duration}</span>;
+        case EColumn.shieldCycle: {
+          return <span>{row.shield_cycle}</span>;
+        }
+        case EColumn.currentCycleRamainingTime: {
+          // 后端null：不在屏蔽周期内
+          return (
+            <span class={!row.current_cycle_ramaining_time ? 'overdue' : ''}>
+              {row.current_cycle_ramaining_time || t('不在屏蔽周期内')}
+            </span>
+          );
         }
         case EColumn.description: {
           return <span>{row.description || '--'}</span>;
@@ -544,9 +577,9 @@ export default defineComponent({
         case EColumn.status: {
           return <span class={statusMap[row.status].className}>{statusMap[row.status].des}</span>;
         }
-        case EColumn.updateUser: {
-          return <span>{row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--'}</span>;
-        }
+        // case EColumn.updateUser: {
+        //   return <span>{row.update_user || '--'}</span>;
+        // }
         case EColumn.operate: {
           return (
             <div>

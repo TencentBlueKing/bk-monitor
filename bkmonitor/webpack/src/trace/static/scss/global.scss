@@ -274,13 +274,31 @@ body {
   }
 }
 
+.tippy-box[data-theme~='text-wrap'] {
+  .tippy-content {
+    word-break: break-all;
+    word-wrap: break-word;
+    white-space: normal;
+  }
+}
+
+.tippy-box[data-theme~='max-width-50vw'] {
+  .tippy-content {
+    max-width: 50vw;
+  }
+}
+
 .tippy-box[data-theme~='light'] {
   color: #26323d;
   background-color: #fff;
   box-shadow:
     0 0 20px 4px rgba(154, 161, 177, 0.15),
-    0 4px 80px -8px rgba(36, 40, 47, 0.25),
+    0 4px 80px -8px rgba(178, 182, 187, 0.25),
     0 4px 4px -2px rgba(91, 94, 105, 0.15);
+
+  .tippy-arrow {
+    color: #fff;
+  }
 }
 
 .tippy-box[data-theme~='light'][data-placement^='bottom'] > .tippy-arrow:before {

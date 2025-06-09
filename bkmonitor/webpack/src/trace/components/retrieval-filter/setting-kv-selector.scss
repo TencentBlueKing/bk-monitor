@@ -31,6 +31,7 @@
       max-width: 120px;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-weight: 600;
       line-height: 30px;
       white-space: nowrap;
     }
@@ -140,6 +141,10 @@
         transform: rotate(180deg);
         transition: all 0.3s;
       }
+    }
+
+    .vue3_auto-width-input-component {
+      overflow: hidden;
     }
   }
 

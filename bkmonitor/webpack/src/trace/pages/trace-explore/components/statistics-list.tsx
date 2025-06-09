@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef, watch, computed } from 'vue';
+import { defineComponent, reactive, shallowRef, watch, computed, useTemplateRef, type PropType, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
@@ -37,7 +37,9 @@ import {
 } from 'monitor-api/modules/apm_trace';
 import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { storeToRefs } from 'pinia';
 
+import ChartFiltering, { type DurationRangeItem } from '../../../components/chart-filtering/chart-filtering';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
@@ -47,7 +49,6 @@ import DimensionEcharts from './dimension-echarts';
 import { transformFieldName } from './trace-explore-table/constants';
 
 import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../typing';
-import type { PropType } from 'vue';
 
 import './statistics-list.scss';
 
@@ -75,6 +76,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
+    const { tableList, filterTableList, tableLoading } = storeToRefs(store);
+
+    const chartFilteringRef = useTemplateRef<InstanceType<typeof ChartFiltering>>('chartFiltering');
     /** 注意这里的timeRange只做展示用途，实际接口请求需要拿实时的timeRange */
     const timeRangeText = shallowRef([]);
     const infoLoading = shallowRef(false);
@@ -83,6 +87,8 @@ export default defineComponent({
     const localField = shallowRef('');
     /** 获取字段统计接口次数，用于判断接口取消后的逻辑 */
     const getStatisticsListCount = shallowRef(1);
+    /** 获取字段信息接口次数 */
+    const getStatisticsInfoCount = shallowRef(1);
     const statisticsInfo = shallowRef<IStatisticsInfo>({
       field: '',
       total_count: 0,
@@ -104,13 +110,23 @@ export default defineComponent({
     /** 数值类型 */
     const isInteger = computed(() => ['double', 'long', 'integer'].includes(props.fieldType));
 
+    /** 耗时维度 */
+    const isDuration = computed(() => ['trace_duration', 'elapsed_time'].includes(localField.value));
+    const durationRangeList = shallowRef<DurationRangeItem[]>([]);
+
     watch(
       () => props.isShow,
       val => {
         if (val) {
           localField.value = props.selectField;
           timeRangeText.value = handleTransformTime(store.timeRange);
-          getStatisticsList();
+          if (!isDuration.value) {
+            getStatisticsList();
+          } else {
+            nextTick(() => {
+              getDurationRangeList();
+            });
+          }
         } else {
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
@@ -120,6 +136,24 @@ export default defineComponent({
         }
       }
     );
+
+    watch(
+      () => tableList.value,
+      () => {
+        if (isDuration.value && props.isShow) {
+          getDurationRangeList();
+        }
+      }
+    );
+
+    function getDurationRangeList() {
+      const list = chartFilteringRef.value?.getDurationList();
+      const sortList = list.filter(item => item.count).sort((a, b) => b.count - a.count);
+      durationRangeList.value = sortList;
+      statisticsList.distinct_count = durationRangeList.value.length;
+      statisticsList.field = localField.value;
+      statisticsList.list = sortList.length > 5 ? sortList.slice(0, 5) : sortList;
+    }
 
     async function getStatisticsList() {
       infoLoading.value = true;
@@ -153,6 +187,8 @@ export default defineComponent({
     }
 
     async function getStatisticsGraphData() {
+      getStatisticsInfoCount.value += 1;
+      const count = getStatisticsListCount.value;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
       const info: IStatisticsInfo = await traceFieldStatisticsInfo(
@@ -169,7 +205,8 @@ export default defineComponent({
           cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
         }
       ).catch(() => []);
-
+      /** 如果是取消接口，不进行后续操作 */
+      if (count !== getStatisticsListCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
       if (!info || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
         infoLoading.value = false;
@@ -237,7 +274,13 @@ export default defineComponent({
       sliderLoading.value = true;
       sliderShowChange();
       emit('showMore');
-      await loadMore();
+      if (!isDuration.value) {
+        await loadMore();
+      } else {
+        sliderDimensionList.distinct_count = durationRangeList.value.length;
+        sliderDimensionList.field = localField.value;
+        sliderDimensionList.list = durationRangeList.value;
+      }
       sliderLoading.value = false;
     }
 
@@ -331,17 +374,20 @@ export default defineComponent({
                   v-bk-tooltips={{
                     content: `${localField.value} = ${item.value || '""'}`,
                     extCls: 'statistics-top-k-item-tooltips-wrap-popover',
+                    disabled: isDuration.value,
                   }}
                   onClick={() => handleConditionChange('equal', item)}
                 />
-                <i
-                  class='icon-monitor icon-sousuo-'
-                  v-bk-tooltips={{
-                    content: `${localField.value} != ${item.value || '""'}`,
-                    extCls: 'statistics-top-k-item-tooltips-wrap-popover',
-                  }}
-                  onClick={() => handleConditionChange('not_equal', item)}
-                />
+                {!isDuration.value && (
+                  <i
+                    class='icon-monitor icon-sousuo-'
+                    v-bk-tooltips={{
+                      content: `${localField.value} != ${item.value || '""'}`,
+                      extCls: 'statistics-top-k-item-tooltips-wrap-popover',
+                    }}
+                    onClick={() => handleConditionChange('not_equal', item)}
+                  />
+                )}
               </div>
               <div class='progress-content'>
                 <div class='info-text'>
@@ -351,7 +397,7 @@ export default defineComponent({
                     onMouseleave={hiddenSliderPopover}
                   >
                     <span>{item.alias || item.value || NULL_VALUE_NAME}</span>
-                    {item.alias && <span class='sub-name'>（{item.value}）</span>}
+                    {item.alias && !isDuration.value && <span class='sub-name'>（{item.value}）</span>}
                   </span>
 
                   <span class='counts'>
@@ -375,7 +421,7 @@ export default defineComponent({
     function handleConditionChange(type: 'equal' | 'not_equal', item: ITopKField['list'][0]) {
       emit('conditionChange', {
         key: localField.value,
-        method: type,
+        method: isDuration.value ? 'between' : type,
         value: item.value,
       });
     }
@@ -407,11 +453,15 @@ export default defineComponent({
       statisticsInfo,
       statisticsList,
       chartData,
+      tableList,
+      filterTableList,
+      tableLoading,
       downloadLoading,
       sliderShow,
       sliderLoading,
       sliderLoadMoreLoading,
       sliderDimensionList,
+      isDuration,
       renderTopKField,
       sliderShowChange,
       showMore,
@@ -433,7 +483,16 @@ export default defineComponent({
         >
           {this.isShow && (
             <div class='trace-explore-dimension-statistics-popover-content'>
-              {this.infoLoading ? (
+              {this.isDuration ? (
+                <ChartFiltering
+                  ref='chartFiltering'
+                  filterList={this.filterTableList}
+                  isShowSlider={false}
+                  list={this.tableList}
+                  listType={this.commonParams.mode}
+                  loading={this.tableLoading}
+                />
+              ) : this.infoLoading ? (
                 <div class='info-skeleton'>
                   <div class='total-skeleton'>
                     <div class='skeleton-element' />
@@ -497,14 +556,12 @@ export default defineComponent({
                       </span>
                     )}
                   </div>
-
                   <DimensionEcharts
                     data={this.chartData}
                     seriesType={this.isInteger ? 'histogram' : 'line'}
                   />
                 </div>
               )}
-
               <div class='top-k-list-header'>
                 <div class='dimension-top-k-title'>
                   <span
@@ -525,22 +582,24 @@ export default defineComponent({
                     src={loadingIcon}
                   />
                 ) : (
-                  <div
-                    class='download-tool'
-                    v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
-                    onClick={this.handleDownload}
-                  >
-                    <i class='icon-monitor icon-xiazai2' />
-                  </div>
+                  !this.isDuration && (
+                    <div
+                      class='download-tool'
+                      v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
+                      onClick={this.handleDownload}
+                    >
+                      <i class='icon-monitor icon-xiazai2' />
+                    </div>
+                  )
                 )}
               </div>
-              {this.popoverLoading
+              {this.popoverLoading || this.tableLoading
                 ? this.renderSkeleton()
                 : [
                     this.renderTopKField(this.statisticsList?.list, 'popover'),
                     this.statisticsList?.distinct_count > 5 && (
                       <div
-                        class='load-more'
+                        class={['load-more', { 'is-duration': this.isDuration }]}
                         onClick={this.showMore}
                       >
                         {this.t('更多')}
@@ -582,13 +641,15 @@ export default defineComponent({
                     src={loadingIcon}
                   />
                 ) : (
-                  <div
-                    class='download-tool'
-                    onClick={this.handleDownload}
-                  >
-                    <i class='icon-monitor icon-xiazai2' />
-                    <span class='text'>{this.t('下载')}</span>
-                  </div>
+                  !this.isDuration && (
+                    <div
+                      class='download-tool'
+                      onClick={this.handleDownload}
+                    >
+                      <i class='icon-monitor icon-xiazai2' />
+                      <span class='text'>{this.t('下载')}</span>
+                    </div>
+                  )
                 )}
               </div>
             ),

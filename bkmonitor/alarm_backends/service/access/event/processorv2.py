@@ -103,7 +103,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                     # 3. 缓存数据（维度缓存）  事件数据不设置维度缓存, 没有意义
                     # check_result.update_key_to_dimension(event_record.raw_data["dimensions"])
                 except Exception as e:
-                    logger.exception("set check result cache error: %s" % e)
+                    logger.exception(f"set check result cache error: {e}")
 
         if redis_pipeline:
             # 不设置维度缓存，也没必要再设置过期
@@ -116,7 +116,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                 md5_dimension, strategy_id, item_id, level = md5_dimension_last_point_key
                 CheckResult.update_last_checkpoint_by_d_md5(strategy_id, item_id, md5_dimension, point_timestamp, level)
             except Exception as e:
-                msg = "set check result cache last_check_point error:%s" % e
+                msg = f"set check result cache last_check_point error:{e}"
                 logger.exception(msg)
             CheckResult.expire_last_checkpoint_cache(strategy_id=strategy_id, item_id=item_id)
 
@@ -277,17 +277,37 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             elif alarm_type == self.TYPE_GSE_PROCESS_EVENT:
                 return GseProcessEventRecord(raw_data, self.strategies)
 
-    def _pull_from_redis(self):
+    def _pull_from_redis(self, max_records=MAX_RETRIEVE_NUMBER):
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
-        offset = min([total_events, MAX_RETRIEVE_NUMBER])
+        # 如果队列中事件数量超过1亿条，则记录日志，并进行清理
+        # 有损，但需要保证整体服务依赖redis稳定
+        if total_events > 10**7:
+            logger.warning(
+                f"[access event] data_id({self.data_id}) has {total_events} events, cleaning up! drop all events."
+            )
+            client.delete(data_channel)
+            return []
+
+        offset = min([total_events, max_records])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
             return []
 
-        records = client.lrange(data_channel, -offset, -1)
+        try:
+            records = client.lrange(data_channel, -offset, -1)
+        except UnicodeDecodeError as e:
+            logger.error(
+                "drop events: data_id(%s) topic(%s) poll alarm list(%s) from redis failed: %s",
+                self.data_id,
+                self.topic,
+                offset,
+                e,
+            )
+            client.ltrim(data_channel, 0, -offset - 1)
+            return self._pull_from_redis(max_records=max_records)
 
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
         if records:
@@ -318,7 +338,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         record_list = []
 
         if not self.topic:
-            logger.warning("[access] dataid:(%s) no topic" % self.data_id)
+            logger.warning(f"[access] dataid:({self.data_id}) no topic")
             return
 
         with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-[redis]"):
