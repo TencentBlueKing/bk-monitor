@@ -182,7 +182,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
                 value = "*" + value
             if not value.endswith("*"):
                 value = value + "*"
-            return f'{target_type} : "{value}"'
+            return f"{target_type} : {value}"
 
         def add_quote(match):
             value = match.group("value")
@@ -191,11 +191,8 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
         target_type = "指标ID"
 
-        # 如果匹配上，则指标ID是被截过的
+        # 如果匹配上，则指标ID是被截断过的
         if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
-            query_string = re.sub(
-                r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
-            )
             query_string = re.sub(
                 r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
             )
@@ -214,6 +211,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         )
 
         # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("###", r"\~\"")
         query_string = query_string.replace("##", r"\=\"")
         query_string = query_string.replace("#", r"\"")
 
@@ -226,11 +224,11 @@ class BaseQueryTransformer(BaseTreeTransformer):
         def replace(match):
             value = match.group(0)
             # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
-            value = value.replace('="', "##").replace('"', "#")
+            value = value.replace('~"', "###").replace('="', "##").replace('"', "#")
             return value
 
         # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        pattern = r'\{.*(=|~).*\}'
         query_string = re.sub(pattern, replace, query_string)
         return query_string
 
@@ -664,7 +662,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         username: str = "",
         **kwargs,
     ):
-        super(BaseBizQueryHandler, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.bk_biz_ids = bk_biz_ids
         self.authorized_bizs = self.bk_biz_ids
         self.unauthorized_bizs = []
@@ -696,9 +694,7 @@ class QueryBuilder(ElasticsearchQueryBuilder):
     """
 
     def _yield_nested_children(self, parent, children):
-        for child in children:
-            # 同级语句同时出现 AND 与 OR 时，忽略默认的报错
-            yield child
+        yield from children
 
 
 class AlertDimensionFormatter:
