@@ -201,8 +201,8 @@ export default defineComponent({
         const isCheck = localList.value.some(item => item.name === localValue.value || item.id === localValue.value);
         const lowerSearch = localValue.value.toLocaleLowerCase();
         return localList.value.filter(item => {
-          const idLower = item.id.toLocaleLowerCase();
-          const nameLower = item.name.toLocaleLowerCase();
+          const idLower = `${item.id}`.toLocaleLowerCase();
+          const nameLower = `${item.name}`.toLocaleLowerCase();
           if (isCheck) {
             return true;
           }
