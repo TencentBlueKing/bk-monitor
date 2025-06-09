@@ -373,9 +373,9 @@
 
     const rightFirstValue = rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '';
 
-    const formatRightValue = `"${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`.replace(/""$/, '"');
-    const appendSpace = formatRightValue === '' ? ' ' : formatRightValue;
-    const result = `${matchLeft}"${targetValue}${formatRightValue}${appendSpace}`;
+    const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
+    const appendSpace = formatRightValue === '' ? ' ' : '';
+    const result = `${matchLeft}"${targetValue}"${formatRightValue}${appendSpace}`;
     const focusPosition = matchLeft.length + targetValue.length + 3;
 
     // 当前输入值可能的情况 【name:"a】【age:】

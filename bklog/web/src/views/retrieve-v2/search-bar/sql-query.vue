@@ -160,7 +160,6 @@
 
     if (focusPosition) {
       setTimeout(() => {
-        console.log('focusPosition', focusPosition);
         editorFocusPosition.value = focusPosition;
         editorInstance?.setFocus?.(focusPosition);
       });
