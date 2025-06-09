@@ -609,7 +609,6 @@ class ArchiveExpireTime(object):
 CHECK_COLLECTOR_SCRIPT_TIMEOUT = 7200
 
 # 一键检测工具容器采集项常量
-BK_LOG_COLLECTOR_NAMESPACE = "kube-system"
 CRD_NAME = "bklogconfigs.bk.tencent.com"
 CONFIGMAP_NAME = "bk-log-bkunifylogbeat"
 DAEMONSET_NAME: str = "bk-log-collector"
