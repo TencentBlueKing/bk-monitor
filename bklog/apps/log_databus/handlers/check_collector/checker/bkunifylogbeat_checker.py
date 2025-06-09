@@ -33,7 +33,6 @@ from apps.log_commons.adapt_ipv6 import get_ip_field
 from apps.log_databus.constants import (
     BK_LOG_COLLECTOR_CONTAINER_NAME,
     BK_LOG_COLLECTOR_MAIN_CONFIG_NAME,
-    BK_LOG_COLLECTOR_NAMESPACE,
     BK_LOG_COLLECTOR_SUB_CONFIG_PATH,
     CONFIGMAP_NAME,
     CRD_NAME,
@@ -75,7 +74,7 @@ class BkunifylogbeatChecker(Checker):
         self.target_server: Dict[str, Any] = {}
         # 初始化bcs_client
         self.k8s_client: Bcs = Bcs(cluster_id=collector_config.bcs_cluster_id)
-        self.namespace: str = BK_LOG_COLLECTOR_NAMESPACE
+        self.namespace: str = settings.BK_LOG_COLLECTOR_NAMESPACE
         self.crd_name: str = CRD_NAME
         self.configmap_name: str = CONFIGMAP_NAME
         self.daemonset_name: str = DAEMONSET_NAME

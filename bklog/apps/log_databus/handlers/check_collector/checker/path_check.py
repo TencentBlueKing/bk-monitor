@@ -7,7 +7,7 @@ import subprocess
 from packaging.utils import _
 from apps.log_databus.handlers.check_collector.base import CheckCollectorRecord
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 
 
 class LogPathChecker(Checker):
@@ -25,16 +25,22 @@ class LogPathChecker(Checker):
     def pre_run(self):
         try:
             collector_config = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
-            self.params = collector_config.params
+            if collector_config.is_container_environment:
+                try:
+                    self.params = ContainerCollectorConfig.objects.get(
+                        collector_config_id=self.collector_config_id
+                    ).params or {}
+                except ContainerCollectorConfig.DoesNotExist:
+                    self.append_error_info(_("[容器采集配置不存在]: {id}").format(id=self.collector_config_id))
+                    return False
+            else:
+                self.params = collector_config.params or {}
             self.paths = self.params.get("paths", [])
             self.exclude_files = self.params.get("exclude_files", [])
-
             if not self.paths:
                 self.append_error_info(_("[采集配置中缺少paths参数]"))
                 return False
-
             return True
-
         except CollectorConfig.DoesNotExist:
             self.append_error_info(_("[采集配置不存在]: {id}").format(id=self.collector_config_id))
             return False
