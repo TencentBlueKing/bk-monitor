@@ -11,6 +11,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 88px;
     height: 32px;
     font-size: 12px;
     color: #313238;
@@ -25,12 +26,6 @@
     .bklog-icon {
       margin-right: 4px;
       font-size: 14px;
-    }
-    &-en{
-      width: 110px;
-    }
-    &-zh{
-      width: 88px;
     }
   }
   .search-type-switch {

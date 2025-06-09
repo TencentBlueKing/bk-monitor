@@ -2,7 +2,6 @@
   <div @click="hideSingleConfigInput">
     <div
       class="bklog-v3 field-setting-wrap"
-      :class="isEnLanguage"
       @click="handleOpenSidebar"
     >
       <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
@@ -406,7 +405,6 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
-  const isEnLanguage = computed(() => store.getters.isEnLanguage ? 'field-setting-wrap-en' : 'field-setting-wrap-zh')
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(indexfieldTable.value.getData());
@@ -673,18 +671,13 @@
       justify-content: center;
       height: 52px;
       font-size: 12px;
+      width: 90px;
       cursor: pointer;
 
       span {
         margin: 0px 6px 0 0;
         font-size: 16px;
         // line-height: 20px;
-      }
-      &-en{
-        width: 155px;
-      }
-      &-zh{
-        width: 112px;
       }
     }
   }

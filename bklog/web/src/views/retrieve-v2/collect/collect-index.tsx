@@ -878,7 +878,7 @@ export default class CollectIndex extends tsc<IProps> {
                       style={{ marginRight: '4px' }}
                       class={`bklog-icon ${type === 'origin' ? 'bklog-table-2' : 'bklog-chart-2'}`}
                     ></span>
-                    <span style={{ marginRight: '4px' }}>{type === 'origin' ? this.$t('原始日志') : this.$t('图表分析') }</span>
+                    <span class='search-category-text' style={{ marginRight: '4px' }}>{type === 'origin' ? this.$t('原始日志') : this.$t('图表分析') }</span>
                     <span class='search-category-num'>
                       {type === 'origin' ? this.originFavoriteCount : this.chartFavoriteCount}
                     </span>

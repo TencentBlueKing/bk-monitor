@@ -54,8 +54,9 @@
             </div>
           </bk-select>
           <bk-select
-            style="width: 75px"
+            style="width: 77px"
             v-model="sorts[1]"
+            :placeholder="$t('请选择')"
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
