@@ -41,8 +41,6 @@ import { PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
-import ChartFiltering from '../../../../components/chart-filtering/chart-filtering';
-import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
@@ -130,7 +128,6 @@ export default defineComponent({
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
-    const durationPopover = useTemplateRef<HTMLDivElement>('durationPopoverRef');
 
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
@@ -446,9 +443,11 @@ export default defineComponent({
         offset: tableData.value?.length || 0,
       };
       abortController = new AbortController();
+      store.updateTableLoading(true);
       const res = await getTableList(requestParam, isSpanVisual.value, {
         signal: abortController.signal,
       });
+      store.updateTableLoading(false);
       if (res?.isAborted) {
         tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
@@ -571,19 +570,16 @@ export default defineComponent({
       e.stopPropagation();
       handleStatisticsPopoverHide();
       activeStatisticsField.value = item.name;
-      const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
       if (!item.is_dimensions) return;
       statisticsPopoverInstance = $bkPopover({
         target: e.currentTarget as HTMLDivElement,
-        content: isDuration
-          ? durationPopover.value
-          : (statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement),
+        content: statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement,
         trigger: 'click',
         placement: 'right',
         theme: 'light',
         arrow: true,
         boundary: 'viewport',
-        extCls: isDuration ? 'duration-popover-cls' : 'statistics-dimension-popover-cls',
+        extCls: 'statistics-dimension-popover-cls',
         width: 405,
         // @ts-ignore
         distance: -5,
@@ -595,9 +591,7 @@ export default defineComponent({
         },
       });
       setTimeout(() => {
-        if (!isDuration) {
-          showStatisticsPopover.value = true;
-        }
+        showStatisticsPopover.value = true;
         statisticsPopoverInstance.show();
       }, 100);
     }
@@ -628,14 +622,6 @@ export default defineComponent({
     }
 
     /**
-     * @description 耗时分析统计弹窗中 筛选时间范围列表数据 回调
-     *
-     */
-    function handleFilterListChange(list) {
-      store.updateFilterTableList(list);
-    }
-
-    /**
      * @description 字段分析组件渲染方法
      *
      */
@@ -653,27 +639,6 @@ export default defineComponent({
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}
         />,
-        <div
-          key='chartFiltering'
-          style='display: none;'
-        >
-          <div
-            ref='durationPopoverRef'
-            class='duration-popover'
-          >
-            {tableData.value.length ? (
-              <ChartFiltering
-                filterList={store.filterTableList}
-                isShowSlider={false}
-                list={tableData.value}
-                listType={props.commonParams.mode}
-                onFilterListChange={handleFilterListChange}
-              />
-            ) : (
-              <EmptyStatus type='empty' />
-            )}
-          </div>
-        </div>,
       ];
     }
 

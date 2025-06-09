@@ -140,8 +140,8 @@ export default class ApmServiceList extends tsc<
       filters: JSON.stringify(this.filterCondition),
       service_keyword: this.searchKeyWord,
       app_name: this.appName,
-      start_time: this.timeRange[0],
-      end_time: this.timeRange[1],
+      from: this.timeRange[0],
+      to: this.timeRange[1],
     };
   }
   handleGotoAppOverview() {

@@ -244,7 +244,7 @@ class AIOPSManager(abc.ABC):
                     where = []
                     agg_dimension = []
                     metrics = []
-                    filter_dict = dimensions
+                    filter_dict = { key: value for key, value in dimensions.items() if key not in ["__NO_DATA_DIMENSION__"]}
                 else:
                     where = cls.create_where_with_dimensions(
                         query_config["agg_condition"],

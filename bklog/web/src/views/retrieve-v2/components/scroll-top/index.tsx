@@ -29,6 +29,7 @@ import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import './index.scss';
 
 export default defineComponent({
   emits: ['scroll-top'],
@@ -51,7 +52,7 @@ export default defineComponent({
 
     const renderBody = () => (
       <span
-        class={['btn-scroll-top', { 'show-box': showBox.value }]}
+        class={['bklog-v3-btn-scroll-top', { 'show-box': showBox.value }]}
         v-bk-tooltips={$t('返回顶部')}
         onClick={() => scrollTop()}
       >

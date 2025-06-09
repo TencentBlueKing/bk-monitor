@@ -286,7 +286,7 @@ def is_include_promql(query_string: str) -> bool:
     time_window_pattern = r"\[\d+[smhdw]\s*:\s*?(\d[smhdw])?\]"
 
     # 匹配promql的过滤条件
-    filter_condition_pattern = r"\{.*=.*\}"
+    filter_condition_pattern = r"\{.*(=|~).*\}"
 
     if (
         re.search(function_pattern, query_string)
