@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, reactive, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Input, Loading, OverflowTitle, Popover, Radio, bkTooltips } from 'bkui-vue';
@@ -104,12 +104,12 @@ export default defineComponent({
       default: (_item, _meta, _strategy) => {},
     },
   },
-  setup(props, { emit }) {
-    const popoverRef = ref(null);
-    const strategySearchRef = ref(null);
+  setup(props) {
+    const popoverRef = shallowRef(null);
+    const strategySearchRef = shallowRef(null);
     const { t } = useI18n();
-    const localValue = ref('');
-    const localList = ref([]);
+    const localValue = shallowRef('');
+    const localList = shallowRef([]);
 
     /* 维度选择框面板数据 */
     const selectData = reactive({
@@ -131,7 +131,7 @@ export default defineComponent({
       rightLoading: false,
       leftLoading: false,
     });
-    const curMetricMeta = ref(null);
+    const curMetricMeta = shallowRef(null);
 
     const debounceHandleChange = debounce(handleChange, 300, false);
     const debounceHandleStrategySearch = debounce(handleStrategySearch, 300, false);
@@ -199,7 +199,21 @@ export default defineComponent({
     const searchList = computed(() => {
       if (localValue.value) {
         const isCheck = localList.value.some(item => item.name === localValue.value || item.id === localValue.value);
-        return localList.value.filter(item => item.name.indexOf(localValue.value) >= 0 || isCheck);
+        const lowerSearch = localValue.value.toLocaleLowerCase();
+        return localList.value.filter(item => {
+          const idLower = item.id.toLocaleLowerCase();
+          const nameLower = item.name.toLocaleLowerCase();
+          if (isCheck) {
+            return true;
+          }
+          if (idLower.includes(lowerSearch)) {
+            return true;
+          }
+          if (nameLower.includes(lowerSearch)) {
+            return true;
+          }
+          return false;
+        });
       }
       return localList.value;
     });
@@ -481,6 +495,7 @@ export default defineComponent({
                 <Input
                   v-model={this.localValue}
                   placeholder={this.t('请选择维度')}
+                  // onInput={this.handleInput}
                   onChange={this.handleInput}
                 />
               ),
@@ -588,7 +603,7 @@ export default defineComponent({
                             <div class='no-data'>
                               <EmptyStatus
                                 scene='part'
-                                type={!!this.selectData.optionsSearch ? 'search-empty' : 'empty'}
+                                type={this.selectData.optionsSearch ? 'search-empty' : 'empty'}
                                 onOperation={this.handleNoDataOperation}
                               />
                             </div>
