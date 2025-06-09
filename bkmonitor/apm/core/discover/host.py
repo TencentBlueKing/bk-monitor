@@ -14,7 +14,6 @@ from datetime import datetime
 
 from opentelemetry.semconv.trace import SpanAttributes
 
-from alarm_backends.core.cache.cmdb.host import HostIPManager
 from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.models import HostInstance
 from constants.apm import OtlpKey
@@ -88,7 +87,7 @@ class HostDiscover(DiscoverBase):
         self.clear_expired()
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
-        from alarm_backends.core.cache.cmdb.host import HostManager
+        from alarm_backends.core.cache.cmdb.host import HostManager, HostIPManager
 
         # 获取ip对应的host_key
         host_keys = HostIPManager.mget(bk_tenant_id=self.bk_tenant_id, ips=ips)
