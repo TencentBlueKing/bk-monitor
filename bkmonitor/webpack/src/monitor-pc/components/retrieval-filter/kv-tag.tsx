@@ -55,7 +55,7 @@ export default class KvTag extends tsc<IProps> {
   }
 
   get tipContent() {
-    return `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' AND ')}<div>`;
+    return `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' OR ')}<div>`;
   }
 
   @Watch('value', { immediate: true })
