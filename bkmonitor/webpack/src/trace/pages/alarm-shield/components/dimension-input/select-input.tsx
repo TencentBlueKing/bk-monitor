@@ -37,6 +37,7 @@ import type { IDimensionItem } from '../../typing';
 import './select-input.scss';
 
 export const ALL = 'ALL';
+const changeDebounceTime = 300;
 
 interface IListItem {
   id: string;
@@ -132,8 +133,9 @@ export default defineComponent({
       leftLoading: false,
     });
     const curMetricMeta = shallowRef(null);
+    const notChange = shallowRef(false);
 
-    const debounceHandleChange = debounce(handleChange, 300, false);
+    const debounceHandleChange = debounce(handleChange, changeDebounceTime, false);
     const debounceHandleStrategySearch = debounce(handleStrategySearch, 300, false);
     const debounceHandleOptionSearch = debounce(handleOptionSearch, 300, false);
 
@@ -154,7 +156,9 @@ export default defineComponent({
     watch(
       () => props.value,
       v => {
-        localValue.value = v;
+        if (v !== localValue.value) {
+          localValue.value = v;
+        }
       },
       {
         immediate: true,
@@ -239,13 +243,11 @@ export default defineComponent({
      * @param v
      */
     function handleChange(v: string) {
-      props.onChange(v);
+      if (!notChange.value) {
+        props.onChange(v);
+      }
     }
-    /**
-     * @description 输入时
-     * @param v
-     */
-    function handleInput(v) {
+    function handleInputChange(v) {
       debounceHandleChange(v);
     }
     /**
@@ -395,7 +397,11 @@ export default defineComponent({
      * @param item
      */
     function handleSelectDimension(item: IDimensionItem) {
+      notChange.value = true;
       localValue.value = item.name;
+      setTimeout(() => {
+        notChange.value = false;
+      }, changeDebounceTime + 50);
       popoverRef.value?.hide();
       props.onSelectDimension(item, curMetricMeta.value, selectData.strategy);
     }
@@ -456,7 +462,7 @@ export default defineComponent({
       strategySearchRef,
       optionsFilter,
       t,
-      handleInput,
+      handleInputChange,
       handleSelect,
       handleDelete,
       handleShowStrategySearch,
@@ -495,8 +501,7 @@ export default defineComponent({
                 <Input
                   v-model={this.localValue}
                   placeholder={this.t('请选择维度')}
-                  // onInput={this.handleInput}
-                  onChange={this.handleInput}
+                  onChange={this.handleInputChange}
                 />
               ),
               content: () =>
