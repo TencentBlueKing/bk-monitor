@@ -577,7 +577,7 @@ class ReportHandler:
         except Exception as e:
             raise CustomException(f"[mail_report] send_wxbot failed: {e}")
 
-    def parse_users_group(self, all_user_different_graph, receivers, superusers):
+    def parse_users_group(self, bk_tenant_id: str, all_user_different_graph, receivers, superusers):
         """
         发送分组逻辑
         :param all_user_different_graph: 内置图表类型
@@ -594,7 +594,7 @@ class ReportHandler:
                 continue
             user_is_superuser = receiver in superusers
             if all_user_different_graph[BuildInBizType.ALL]:
-                perm_client = Permission(receiver)
+                perm_client = Permission(username=receiver, bk_tenant_id=bk_tenant_id)
                 perm_client.skip_check = False
                 business_list = [
                     biz["bk_biz_id"] for biz in perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
@@ -661,7 +661,12 @@ class ReportHandler:
             if any(all_user_different_graph.values()):
                 # 如果每个用户的图表都不一样
                 # 获取用户的业务列表并分组渲染发送
-                send_groups = self.parse_users_group(all_user_different_graph, receivers, superusers)
+                send_groups = self.parse_users_group(
+                    bk_tenant_id=report_item.bk_tenant_id,
+                    all_user_different_graph=all_user_different_graph,
+                    receivers=receivers,
+                    superusers=superusers,
+                )
                 logger.info(f"[mail_report] groups count: {len(send_groups)}")
                 # 分组渲染发送
                 for biz in send_groups:

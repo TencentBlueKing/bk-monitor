@@ -286,6 +286,10 @@ class ModifyDatasourceResultTable(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDatasourceResultTable)]
 
 
+class GetOrCreateAgentEventDataId(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetOrCreateAgentEventDataIdResource)]
+
+
 class EsRouteViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.EsRouteResource)]
 

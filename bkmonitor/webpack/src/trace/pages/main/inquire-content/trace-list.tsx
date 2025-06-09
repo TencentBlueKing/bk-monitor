@@ -828,7 +828,7 @@ export default defineComponent({
         })
         .catch(() => null);
     };
-    const handleColseDetail = () => {
+    const handleCloseDetail = () => {
       if (!isFullscreen.value) return;
       handleDialogClose();
     };
@@ -1002,7 +1002,7 @@ export default defineComponent({
     );
 
     const handleListPageKeydown = (evt: KeyboardEvent) => {
-      if (evt.code === 'Escape') handleColseDetail();
+      if (evt.code === 'Escape') handleCloseDetail();
     };
 
     onMounted(() => {
@@ -1377,7 +1377,7 @@ export default defineComponent({
       handleSpanFilter,
       handleCollapse,
       handleStatusChange,
-      handleColseDetail,
+      handleCloseDetail,
       handleScrollBottom,
       handleSourceData,
       chartList,
@@ -1414,7 +1414,6 @@ export default defineComponent({
   },
 
   render() {
-    const { appName } = this.$props;
     const tableEmptyContent = () => (
       <EmptyStatus type='search-empty'>
         <div class='search-empty-content'>
@@ -1653,18 +1652,18 @@ export default defineComponent({
                 appName={appName}
                 traceID={this.curTraceId}
                 isInTable
-                onClose={this.handleColseDetail}
+                onClose={this.handleCloseDetail}
               />
             </div>
           </div>
         </Dialog> */}
         <Sideslider
-          width={this.slideFullScreen ? '100%' : '80%'}
+          width={this.slideFullScreen ? '100%' : '85%'}
           class='trace-info-sideslider'
           v-slots={{
             header: () => (
               <TraceDetailHeader
-                appName={appName}
+                appName={this.appName}
                 fullscreen={this.slideFullScreen}
                 traceId={this.curTraceId}
                 isInTable
@@ -1689,10 +1688,10 @@ export default defineComponent({
           <div class='detail-box'>
             <TraceDetail
               ref='traceDetailElem'
-              appName={appName}
+              appName={this.appName}
               traceID={this.curTraceId}
               isInTable
-              onClose={this.handleColseDetail}
+              onClose={this.handleCloseDetail}
             />
           </div>
         </Sideslider>

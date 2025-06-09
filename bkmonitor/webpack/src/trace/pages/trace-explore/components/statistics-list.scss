@@ -142,6 +142,10 @@
     line-height: 20px;
     color: #3a84ff;
     cursor: pointer;
+
+      &.is-duration {
+        margin-left: 20px;
+      }
   }
 
   .empty-text {
@@ -266,7 +270,7 @@
 
     .filter-tools {
       position: relative;
-      margin-top: 2px;
+      margin: 2px 6px 0 0;
       color: #3a84ff;
 
       .icon-monitor {
@@ -274,7 +278,7 @@
       }
 
       .icon-sousuo- {
-        margin: 0 6px 0 8px;
+        margin-left: 8px;
       }
     }
 
@@ -316,6 +320,14 @@
   }
 }
 
-.slide-dimension-filter-overflow-tips-theme {
+.slide-dimension-filter-overflow-tips {
   font-size: 12px;
+}
+
+.slide-dimension-filter-overflow-tips,
+.statistics-top-k-item-tooltips-wrap-popover {
+  max-width: 400px; 
+  word-break: break-word; 
+  overflow-wrap: break-word;
+  white-space: normal;
 }

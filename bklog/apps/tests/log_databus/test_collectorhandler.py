@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 from unittest.mock import patch
 
@@ -26,7 +26,7 @@ from django.test import TestCase
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
 
 BK_DATA_ID = 1
 BK_DATA_NAME = "2_log_test_collector"
@@ -164,7 +164,7 @@ CONFIG_DATA = {
 }
 
 
-class CCModuleTest(object):
+class CCModuleTest:
     """
     mock CCApi.search_module
     """
@@ -173,7 +173,7 @@ class CCModuleTest(object):
         return []
 
 
-class CCBizHostsTest(object):
+class CCBizHostsTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -182,7 +182,7 @@ class CCBizHostsTest(object):
         return []
 
 
-class CCSetTest(object):
+class CCSetTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -191,7 +191,7 @@ class CCSetTest(object):
         return []
 
 
-class CCBizHostsFilterTest(object):
+class CCBizHostsFilterTest:
     """
     mock CCApi.list_biz_hosts
     """
@@ -255,11 +255,11 @@ class TestCollectorHandler(TestCase):
         """
 
         if params:
-            result = CollectorHandler().update_or_create(params=params)
+            result = HostCollectorHandler().update_or_create(params=params)
         else:
             params = copy.deepcopy(PARAMS)
             params["params"]["conditions"]["type"] = "separator"
-            result = CollectorHandler().update_or_create(params=params)
+            result = HostCollectorHandler().update_or_create(params=params)
         return params, result
 
     @patch("apps.api.NodeApi.switch_subscription", lambda _: {})
@@ -296,7 +296,7 @@ class TestCollectorHandler(TestCase):
         mock_get_cluster_info.return_value = CLUSTER_INFO
 
         collector_config_id = result["collector_config_id"]
-        collector = CollectorHandler(collector_config_id=collector_config_id)
+        collector = HostCollectorHandler(collector_config_id=collector_config_id)
 
         res = collector.retrieve()
 
@@ -309,7 +309,7 @@ class TestCollectorHandler(TestCase):
     @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsFilterTest())
     def test_filter_illegal_ips(self, *args, **kwargs):
         self.assertEqual(
-            CollectorHandler._filter_illegal_ip_and_host_id(
+            HostCollectorHandler._filter_illegal_ip_and_host_id(
                 bk_biz_id=FILTER_ILLEGAL_IPS_BIZ_ID, ips=FILTER_ILLEGAL_IPS_IP_LIST
             )[0],
             ["127.0.0.1"],

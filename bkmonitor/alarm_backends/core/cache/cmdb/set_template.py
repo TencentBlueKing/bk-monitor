@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from collections import defaultdict
 
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from core.drf_resource import api
@@ -23,8 +22,8 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "set_template"
-    CACHE_KEY = "{prefix}.cmdb.set_template".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
-    SET_TEMPLATE_TO_SETS = "{prefix}.cmdb.set_template_to_sets".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set_template"
+    SET_TEMPLATE_TO_SETS = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set_template_to_sets"
 
     @classmethod
     def key_to_internal_value(cls, set_template_id):
@@ -43,7 +42,7 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
         """
         :param set_template_id: 集群模板ID
         """
-        return super(SetTemplateManager, cls).get(set_template_id)
+        return super().get(set_template_id)
 
     @classmethod
     def deserialize(cls, string):
@@ -64,9 +63,3 @@ class SetTemplateManager(RefreshByBizMixin, CMDBCacheManager):
             set_template_to_set[str(_set.set_template_id)].append(_set.bk_set_id)
 
         return set_template_to_set
-
-
-def main():
-    if "set_template" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    SetTemplateManager.refresh()

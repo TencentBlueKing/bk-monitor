@@ -17,6 +17,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm_web.trace.constants import OperatorEnum
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -39,15 +40,18 @@ from apm_web.trace.serializers import (
     TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
+    TraceGenerateQueryStringRequestSerializer,
 )
 from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
     OtlpKey,
     PreCalculateSpecificField,
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
+    OperatorGroupRelation,
 )
 from core.drf_resource import Resource, api
 from core.drf_resource.exceptions import CustomException
@@ -1370,3 +1374,19 @@ class ListFlattenTraceResource(Resource):
             data_list.append(flatten_es_dict_data(trace_data_dict))
         response["data"] = data_list
         return response
+
+
+class TraceGenerateQueryStringResource(Resource):
+    RequestSerializer = TraceGenerateQueryStringRequestSerializer
+
+    def perform_request(self, data):
+        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+        for f in data["filters"]:
+            generator.add_filter(
+                f["key"],
+                f["operator"],
+                f["value"],
+                f.get("options", {}).get("is_wildcard", False),
+                f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
+            )
+        return generator.to_query_string()

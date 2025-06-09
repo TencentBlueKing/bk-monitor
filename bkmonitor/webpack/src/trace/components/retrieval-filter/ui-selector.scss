@@ -33,9 +33,11 @@
   .kv-placeholder {
     position: relative;
     display: flex;
+    flex: 1;
     align-items: center;
     height: 40px;
     margin: 0 4px 4px 4px;
+    overflow: hidden;
     white-space: nowrap;
 
     .placeholder-text {

@@ -42,6 +42,7 @@ import {
   formatDate,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { builtInInitHiddenList } from '@/const/index.js';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -66,7 +67,6 @@ import retrieve from './retrieve';
 import { BK_LOG_STORAGE } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
-import { builtInInitHiddenList } from '@/const/index.js';
 Vue.use(Vuex);
 const stateTpl = {
   userMeta: {}, // /meta/mine
@@ -266,6 +266,18 @@ const store = new Vuex.Store({
 
           return addition;
         });
+
+      // 格式化 addition value
+      // 如果字段类型为 text & is_case_sensitive = false 则将 value 转换为小写
+      // 操作符为"=~", "&=~", "!=~", "&!=~"  四者之一
+      filterAddition.forEach(item => {
+        if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
+          const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+          if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
+            item.value = item.value.map(v => v?.toLowerCase() ?? '');
+          }
+        }
+      });
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -549,18 +561,10 @@ const store = new Vuex.Store({
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;
       const list = Array.isArray(unionIndexList) ? unionIndexList : unionIndexList.list;
 
-      state.unionIndexList.splice(
-        0,
-        state.unionIndexList.length,
-        ...list.filter(v => v !== null && v !== undefined),
-      );
+      state.unionIndexList.splice(0, state.unionIndexList.length, ...list.filter(v => v !== null && v !== undefined));
 
       if (updateIndexItem) {
-        state.indexItem.ids.splice(
-          0,
-          state.indexItem.ids.length,
-          ...list.filter(v => v !== null && v !== undefined),
-        );
+        state.indexItem.ids.splice(0, state.indexItem.ids.length, ...list.filter(v => v !== null && v !== undefined));
       }
 
       const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
@@ -659,7 +663,7 @@ const store = new Vuex.Store({
 
     updateIndexFieldInfo(state, payload) {
       const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
-      const processedData = payload ? { ...payload } : {}; 
+      const processedData = payload ? { ...payload } : {};
       if (Array.isArray(processedData.fields)) {
         processedData.fields = [...processedData.fields].sort((a, b) => {
           // dtEventTimeStamp默认在第一个
@@ -671,10 +675,17 @@ const store = new Vuex.Store({
           }
           const aWeight = HIDDEN_FIELDS.has(a.field_name) ? 1 : 0;
           const bWeight = HIDDEN_FIELDS.has(b.field_name) ? 1 : 0;
-          return aWeight - bWeight; 
+          if (aWeight !== bWeight) return aWeight - bWeight;
+          if (a.is_built_in !== b.is_built_in) {
+            return a.is_built_in ? 1 : -1;
+          }
+          return 0;
         });
       }
-      Object.assign(state.indexFieldInfo, processedData);
+      // Object.assign(state.indexFieldInfo, processedData);
+      Object.keys(processedData ?? {}).forEach(key => {
+        set(state.indexFieldInfo, key, processedData[key]);
+      });
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;
@@ -1245,6 +1256,7 @@ const store = new Vuex.Store({
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
         sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
+
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({

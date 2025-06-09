@@ -81,7 +81,7 @@
     "watch": ["local.settings.js", "webpack.config.js", "pnpm-lock.yaml"]
   },
   "engines": {
-    "node": ">= 18.16"
+    "node": ">= 20.17.0"
   },
   "pnpm": {
     "overrides": {

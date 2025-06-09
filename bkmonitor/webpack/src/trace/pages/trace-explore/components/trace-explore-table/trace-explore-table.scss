@@ -52,7 +52,10 @@
 
   .explore-col {
     width: 100%;
+    height: 23px;
     font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
+    display: flex;
+    align-items: center;
 
     &.explore-click-col {
       color: #3a84ff;
@@ -63,8 +66,6 @@
     }
 
     &.explore-link-col {
-      display: flex;
-      align-items: center;
       color: #3a84ff;
 
       & > a {
@@ -93,25 +94,10 @@
       }
     }
 
-    &.explore-tags-col {
-      display: flex;
-      column-gap: 4px;
-      align-items: center;
-
-      .tag-item {
-        display: flex;
-        align-items: center;
-        height: 18px;
-        padding: 0 10px;
-        color: var(--tag-color);
-        background-color: var(--tag-bg-color);
-        border-radius: 2px;
-      }
-    }
-
     &.explore-prefix-icon-col {
-      display: flex;
-      align-items: center;
+      .prefix-icon {
+        flex-shrink: 0;
+      }
 
       .status-code-icon {
         &-normal {
@@ -188,6 +174,12 @@
             border-radius: 50%;
           }
         }
+      }
+
+      .span-kind-icon {
+        width: 22px;
+        flex-shrink: 0;
+        margin-right: 4px;
       }
     }
   }
@@ -325,6 +317,24 @@
                 }
               }
             }
+          }
+        }
+        .icon-Tracing {
+          width: 24px;
+          height: 24px;
+          background: #fafbfd;
+          box-shadow: 0 1px 3px 1px #00000014;
+          border-radius: 2px;
+          margin-left: 8px;
+          cursor: pointer;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        &:hover {
+          .icon-Tracing {
+            display: inline-flex;
           }
         }
       }

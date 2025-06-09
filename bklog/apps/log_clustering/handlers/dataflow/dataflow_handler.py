@@ -1012,7 +1012,7 @@ class DataFlowHandler(BaseAiopsHandler):
         )
 
         flow_id = clustering_config.predict_flow_id
-        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=ClusteringConfig.bk_biz_id)
+        flow_graph = self.get_flow_graph(flow_id=flow_id, bk_biz_id=clustering_config.bk_biz_id)
 
         nodes = flow_graph["nodes"]
         target_nodes = self.get_predict_flow_node_config(nodes=nodes)
@@ -1021,7 +1021,7 @@ class DataFlowHandler(BaseAiopsHandler):
             filter_rule=filter_rule,
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
-            bk_biz_id=ClusteringConfig.bk_biz_id,
+            bk_biz_id=clustering_config.bk_biz_id,
         )
 
     def update_online_task(self, index_set_id: int):
