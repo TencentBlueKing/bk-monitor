@@ -25,7 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, type ComputedRef, defineComponent, inject, onMounted, ref, watch, watchEffect } from 'vue';
+import { computed, defineComponent, inject, onMounted, watch, watchEffect } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -36,7 +36,7 @@ import {
   type PrimaryTableCol,
   type FilterValue,
 } from '@blueking/tdesign-ui';
-import { Loading, Message, Popover, Table } from 'bkui-vue';
+import { Loading, Message, Popover } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
 import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
@@ -1307,13 +1307,16 @@ export default defineComponent({
           value: row?.kind?.value,
         });
       }
-      let queryString = '';
-      query.forEach((item, index) => {
-        queryString += `${item.key}: "${item.value}"`;
-        if (index < query.length - 1) queryString += ' AND ';
-      });
       const where = [{ key: 'trace_id', operator: 'equal', value: [props.traceId] }];
-      const hash = `#/trace/home?app_name=${props.appName}&sceneMode=span&where=${encodeURIComponent(JSON.stringify(where))}&query=${queryString}&filterMode=ui`;
+
+      query.forEach(item => {
+        where.push({
+          key: item.key,
+          operator: 'equal',
+          value: [item.value],
+        });
+      });
+      const hash = `#/trace/home?app_name=${props.appName}&sceneMode=span&where=${encodeURIComponent(JSON.stringify(where))}&filterMode=ui`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }

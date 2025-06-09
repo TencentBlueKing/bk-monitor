@@ -144,12 +144,10 @@ class BaseQueryTransformer(BaseTreeTransformer):
             return ""
         transform_obj = cls()
 
-        try:
-            query_tree = parse_query_string_node(transform_obj, query_string)
-        except QueryStringParseError:
+        if is_include_promql(query_string):
             # 包含promql语句，可能会报语法错误，需要尝试转换
             query_string = cls.convert_metric_id(query_string)
-            query_tree = parse_query_string_node(transform_obj, query_string)
+        query_tree = parse_query_string_node(transform_obj, query_string)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -177,9 +175,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
             value = match.group(0)
             value = strip_outer_quotes(value.split(":", 1)[1])
 
-            # 如果是promql，需要进行转义
-            if is_include_promql(value):
-                value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
+            value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
 
             # 给value前后加上“*”，用于支持模糊匹配
             if not value.startswith("*"):
@@ -195,6 +191,13 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
         target_type = "指标ID"
 
+        # 如果匹配上，则指标ID是被截断过的
+        if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
+            query_string = re.sub(
+                r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
+            )
+            return query_string
+
         # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
         # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
         #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
@@ -208,6 +211,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         )
 
         # 还原process_label_filter函数中处理的双引号，并做转义
+        query_string = query_string.replace("###", r"\~\"")
         query_string = query_string.replace("##", r"\=\"")
         query_string = query_string.replace("#", r"\"")
 
@@ -220,11 +224,11 @@ class BaseQueryTransformer(BaseTreeTransformer):
         def replace(match):
             value = match.group(0)
             # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
-            value = value.replace('="', "##").replace('"', "#")
+            value = value.replace('~"', "###").replace('="', "##").replace('"', "#")
             return value
 
         # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r'\{[^{}]*?=\s*(["\'])(.*?)\1[^{}]*?\}'
+        pattern = r'\{.*(=|~).*\}'
         query_string = re.sub(pattern, replace, query_string)
         return query_string
 
@@ -658,7 +662,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         username: str = "",
         **kwargs,
     ):
-        super(BaseBizQueryHandler, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.bk_biz_ids = bk_biz_ids
         self.authorized_bizs = self.bk_biz_ids
         self.unauthorized_bizs = []
@@ -690,9 +694,7 @@ class QueryBuilder(ElasticsearchQueryBuilder):
     """
 
     def _yield_nested_children(self, parent, children):
-        for child in children:
-            # 同级语句同时出现 AND 与 OR 时，忽略默认的报错
-            yield child
+        yield from children
 
 
 class AlertDimensionFormatter:

@@ -224,7 +224,6 @@
       },
       onFocusPosChange: state => {
         editorFocusPosition.value = state.selection.main.to;
-        console.log('state.selection.main.to', state.selection.main.to);
         isSelectedText = state.selection.main.to > state.selection.main.from;
       },
     });

@@ -36,11 +36,11 @@ def get_request_tenant_id(peaceful=False) -> str | None:
             logger.warning("get_request_tenant_id: cannot get request for bk_tenant_id from local.")
         return DEFAULT_TENANT_ID
 
-    if not request or not hasattr(request, "user") or not getattr(request.user, "tenant_id", None):
-        if peaceful:
-            return None
-        else:
-            raise Exception("get_request_tenant_id: cannot get bk_tenant_id from request.")
+    # 从request获取
+    if request and getattr(request, "user", None) and getattr(request.user, "tenant_id", None):
+        return getattr(request.user, "tenant_id")
+
+    logger.warning("get_request_tenant_id: cannot get bk_tenant_id from request.")
 
     # 从local获取
     tenant_id = get_local_tenant_id()
