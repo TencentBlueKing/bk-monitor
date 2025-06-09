@@ -34,6 +34,7 @@ IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
 
 # 动态获取命名空间
 BK_LOG_COLLECTOR_NAMESPACE = os.getenv("BK_LOG_COLLECTOR_NAMESPACE", "kube-system")
+DAEMONSET_NAME: str = os.getenv("BK_LOG_COLLECTOR_DAEMONSET_NAME", "bk-log-collector")
 
 # 这里是默认的 INSTALLED_APPS，大部分情况下，不需要改动
 # 如果你已经了解每个默认 APP 的作用，确实需要去掉某些 APP，请去掉下面的注释，然后修改
@@ -640,7 +641,8 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
+                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on",
+                     "icon": "log-plus-circle-shape"},
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -748,7 +750,8 @@ MENUS = [
                 "children": [
                     {"id": "manage_log_extract", "name": _("日志提取配置"), "feature": "on", "icon": "cc-log"},
                     {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "audit-fill"},
-                    {"id": "extract_link_manage", "name": _("提取链路管理"), "feature": "on", "icon": "assembly-line-fill"},
+                    {"id": "extract_link_manage", "name": _("提取链路管理"), "feature": "on",
+                     "icon": "assembly-line-fill"},
                 ],
             },
             {
@@ -795,7 +798,8 @@ MENUS = [
                 "feature": "on",
                 "icon": "",
                 "keyword": _("集群"),
-                "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
+                "children": [
+                    {"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
             },
             {
                 "id": "report",
@@ -935,30 +939,30 @@ ES_QUERY_TIMEOUT = int(os.environ.get("BKAPP_ES_QUERY_TIMEOUT", 55))
 ESQUERY_EXTRA_WHITE_LIST = [app for app in os.getenv("BKAPP_ESQUERY_WHITE_LIST", "").split(",") if app]
 
 ESQUERY_WHITE_LIST = [
-    "bk_log_search",
-    "hippogriff-4",
-    "bk_bklog",
-    "bk_monitor",
-    "bk_bkmonitor",
-    "bk_monitorv3",
-    "bk_bkmonitorv3",
-    "log-trace",
-    "log-search-4",
-    "bkmonitorv3",
-    "bk-log-search",
-    "gem3",
-    "data",
-    "dataweb",
-    "bk_bcs",
-    "bk_bcs_app",
-    "bk-dbm",
-    "bk_dbm",
-    "bk-audit",
-    "klc_saas",
-    "paasv3cli",
-    "bk_paas3",
-    "kingeye-web_saas",
-] + ESQUERY_EXTRA_WHITE_LIST
+                         "bk_log_search",
+                         "hippogriff-4",
+                         "bk_bklog",
+                         "bk_monitor",
+                         "bk_bkmonitor",
+                         "bk_monitorv3",
+                         "bk_bkmonitorv3",
+                         "log-trace",
+                         "log-search-4",
+                         "bkmonitorv3",
+                         "bk-log-search",
+                         "gem3",
+                         "data",
+                         "dataweb",
+                         "bk_bcs",
+                         "bk_bcs_app",
+                         "bk-dbm",
+                         "bk_dbm",
+                         "bk-audit",
+                         "klc_saas",
+                         "paasv3cli",
+                         "bk_paas3",
+                         "kingeye-web_saas",
+                     ] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
@@ -1270,12 +1274,12 @@ if IS_USE_CELERY:
 
     from celery.signals import setup_logging
 
+
     @setup_logging.connect
     def config_loggers(*args, **kwags):
         from logging.config import dictConfig
 
         dictConfig(LOGGING)
-
 
 # remove disabled apps
 if locals().get("DISABLED_APPS"):
@@ -1302,7 +1306,6 @@ if locals().get("DISABLED_APPS"):
             continue
         locals()[_key] = tuple([_item for _item in locals()[_key] if not _item.startswith(_app + ".")])
 
-
 import pymysql
 from django.db.backends.mysql.features import DatabaseFeatures
 from django.utils.functional import cached_property
@@ -1321,7 +1324,6 @@ class PatchFeatures:
 
 
 DatabaseFeatures.minimum_database_version = PatchFeatures.minimum_database_version  # noqa
-
 
 # 让 Django 使用 pymysql 作为 MySQLdb 的替代品
 pymysql.install_as_MySQLdb()

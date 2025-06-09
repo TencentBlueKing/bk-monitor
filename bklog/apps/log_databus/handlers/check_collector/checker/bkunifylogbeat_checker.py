@@ -77,7 +77,7 @@ class BkunifylogbeatChecker(Checker):
         self.namespace: str = settings.BK_LOG_COLLECTOR_NAMESPACE
         self.crd_name: str = CRD_NAME
         self.configmap_name: str = CONFIGMAP_NAME
-        self.daemonset_name: str = DAEMONSET_NAME
+        self.daemonset_name: str = settings.DAEMONSET_NAME
         self.daemonset_pod_labels: str = DAEMONSET_POD_LABELS
         self.container_name: str = BK_LOG_COLLECTOR_CONTAINER_NAME
         # 主配置路径, 文件路径, 可直接使用
@@ -245,16 +245,27 @@ class BkunifylogbeatChecker(Checker):
             self.append_error_info(_("获取采集器Pod列表为空"))
             return
         for pod in pod_list.items:
-            # 先检查pod状态, 如果失败不进入 _check_pod_status
-            if not pod.status.container_statuses:
-                for condition in pod.status.conditions:
-                    if condition.status == "False":
-                        self.append_error_info(
-                            _("Pod[{pod_name}]状态异常, 原因: {reason}").format(
-                                pod_name=pod.metadata.name, reason=condition.message
-                            )
-                        )
-                continue
+            try:
+                pod_name = pod.metadata.name if pod.metadata else 'unknown'
+                status = pod.status
+                if status is None:
+                    self.append_error_info(
+                        _("Pod[{}]状态异常，原因: {}").format(pod_name, _("状态信息缺失"))
+                    )
+                    continue
+                container_statuses = status.container_statuses if status.container_statuses else 'unknown'
+                if not container_statuses:
+                    self.append_error_info(
+                        _("Pod[{}]状态异常，原因: {}").format(pod_name, _("容器状态信息缺失"))
+                    )
+                    continue
+            except Exception as e:
+                self.append_error_info(
+                    _("检查Pod[{}]时发生错误: {}").format(
+                        pod.metadata.name if pod.metadata else 'unknown',
+                        str(e)
+                    )
+                )
             self._check_pod_status(pod=pod)
             pod_name = pod.metadata.name
             sub_config_list = self._match_sub_config(pod_name=pod_name)
