@@ -13,9 +13,9 @@ import logging
 import re
 import time
 from collections import defaultdict
+from collections.abc import Generator
 from datetime import datetime
 from functools import reduce
-from collections.abc import Generator
 
 import requests
 from django.conf import settings
@@ -41,7 +41,6 @@ from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
 from constants.apm import ApmMetrics
-from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -100,6 +99,8 @@ class DefaultDimensions:
 
 
 class UptimeCheckMetricFuller:
+    dimensions: list[dict[str, str]]
+
     def full_dimension(self, protocol):
         if protocol == "HTTP":
             self.dimensions.append({"id": "url", "name": _lazy("目标")})
@@ -197,7 +198,7 @@ class BaseMetricCacheManager:
 
     data_sources = (("", ""),)
 
-    def __init__(self, bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def __init__(self, bk_tenant_id: str, bk_biz_id: int | None = None):
         self.bk_biz_id = bk_biz_id
         self.bk_tenant_id = bk_tenant_id
         self.new_metric_ids = []
@@ -225,7 +226,8 @@ class BaseMetricCacheManager:
                     Q(data_source_label=data_source[0], data_type_label=data_source[1])
                     for data_source in self.data_sources
                 ),
-            )
+            ),
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def refresh_metric_use_frequency(self):
@@ -264,7 +266,7 @@ class BaseMetricCacheManager:
         for m in list(metric_pool_values):
             metric_id = f"{m.bk_biz_id}.{m.result_table_id}.{m.metric_field}.{m.related_id}"
             if metric_id in metric_hash_dict:
-                to_be_delete.append(m.id)
+                to_be_delete.append(m.pk)
             else:
                 metric_hash_dict[metric_id] = m
 
@@ -302,7 +304,7 @@ class BaseMetricCacheManager:
                 )
                 metric_instance = metric_hash_dict.pop(metric_id, None)
                 if metric_instance is None:
-                    _metric = MetricListCache(**metric)
+                    _metric = MetricListCache(bk_tenant_id=self.bk_tenant_id, **metric)
                     metric["readable_name"] = _metric.get_human_readable_name()
                     _metric.readable_name = metric["readable_name"]
                     _metric.metric_md5 = count_md5(metric)
@@ -430,15 +432,13 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),)
 
-    def __init__(self, bk_biz_id=None):
-        super().__init__(bk_biz_id)
-
     def get_metric_pool(self):
         # 自定义指标，补上进程采集相关(映射到了，bkmonitor + timeseries[业务id为0])
         # 这里不filter 业务id 是因为基类 _run 方法已有兜底过滤
         queryset = super().get_metric_pool()
         return queryset | MetricListCache.objects.filter(
-            Q(result_table_id__in=BuildInProcessMetric.result_table_list())
+            result_table_id__in=BuildInProcessMetric.result_table_list(),
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def get_tables(self):
@@ -636,9 +636,6 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
     # 需要补充单位的指标
     unit_metric_mapping = {"bk_apm_avg_duration": "ns", "bk_apm_max_duration": "ns", "bk_apm_sum_duration": "ns"}
 
-    def __init__(self, bk_biz_id):
-        super().__init__(bk_biz_id)
-
     def get_tables(self):
         if str(self.bk_biz_id) == str(settings.BK_DATA_BK_BIZ_ID):
             return
@@ -723,8 +720,8 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
     )
 
-    def __init__(self, bk_biz_id):
-        super().__init__(bk_biz_id)
+    def __init__(self, bk_tenant_id: str, bk_biz_id: int | None = None):
+        super().__init__(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
         self.cluster_id_to_name = {
             cluster["cluster_config"]["cluster_id"]: cluster["cluster_config"]["cluster_name"]
@@ -954,6 +951,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             result_table_label="kubernetes",
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.EVENT,
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def get_tables(self):
@@ -976,7 +974,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         try:
             bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
         except (requests.exceptions.ConnectionError, BKAPIError) as err:
-            logger.exception("[CustomEventCacheManager] fetch bcs_clusters error: %s" % err)
+            logger.exception(f"[CustomEventCacheManager] fetch bcs_clusters error: {err}")
             # bcs 未就绪，不影响自定义事件
             bcs_clusters = []
 
@@ -1258,8 +1256,9 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),)
 
-    def __init__(self, bk_biz_id=None):
-        super().__init__(bk_biz_id=bk_biz_id)
+    def __init__(self, bk_tenant_id: str, bk_biz_id: int | None = None):
+        super().__init__(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+
         # 添加默认维度映射
         default_dimension_list = (
             SnapshotHostIndex.objects.exclude(dimension_field="")
@@ -1274,14 +1273,11 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        return (
-            MetricListCache.objects.filter(
-                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                data_type_label=DataTypeLabel.TIME_SERIES,
-            )
-            .filter(~Q(result_table_id__in=BuildInProcessMetric.result_table_list()))
-            .exclude(result_table_id="")
-        )
+        return MetricListCache.objects.filter(
+            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+            data_type_label=DataTypeLabel.TIME_SERIES,
+            bk_tenant_id=self.bk_tenant_id,
+        ).exclude(result_table_id="", result_table_id__in=BuildInProcessMetric.result_table_list())
 
     def get_tables(self):
         if self.bk_biz_id is None:
@@ -1614,6 +1610,7 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
     def get_metric_pool(self):
         # 指标池限定为table_id为空的k8s指标
         return MetricListCache.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.TIME_SERIES,
             result_table_id="",
@@ -2009,7 +2006,7 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
 
 
 # 当前支持的数据来源（监控、计算平台、系统事件）
-SOURCE_TYPE = {
+SOURCE_TYPE: dict[str, type[BaseMetricCacheManager]] = {
     # 按业务，并补0业务
     "BKMONITOR": BkmonitorMetricCacheManager,
     "BKMONITORK8S": BkmonitorK8sMetricCacheManager,
