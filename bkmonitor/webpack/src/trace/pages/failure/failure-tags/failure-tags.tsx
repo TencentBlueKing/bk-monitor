@@ -26,9 +26,10 @@
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Tag, Select } from 'bkui-vue';
+import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
 
+import TagShow from './tag-show';
 import { useTagsOverflow } from './tags-utils';
 
 import type { ICurrentISnapshot, IIncident } from '../types';
@@ -197,14 +198,13 @@ export default defineComponent({
           return list.length === 0 ? (
             <span class='empty-text'>--</span>
           ) : (
-            <Select
+            <TagShow
               class='principal-tag'
-              clearable={false}
-              collapseTags={selectCollapseTagsStatus.value}
-              modelValue={list}
-              multipleMode='tag'
-              disabled
-            />
+              data={list}
+              enableEllipsis={selectCollapseTagsStatus.value}
+            >
+              {{ tagDefault: v => <bk-user-display-name user-id={v} /> }}
+            </TagShow>
           );
         },
       },
@@ -224,9 +224,9 @@ export default defineComponent({
       }
     };
     const expandCollapseHandleDebounced = debounce(expandCollapseHandle, 300);
-    const expandIsHoverHandle = () => {
+    const expandIsHoverHandle = (v: boolean) => {
       if (isShow.value) return;
-      isHover.value = !isHover.value;
+      isHover.value = v;
     };
 
     // 由于使用了组件库中的下拉框，在进行动画效果无法使用css处理保证同步，
@@ -285,8 +285,8 @@ export default defineComponent({
         <div class='failure-tags-container'>
           <div
             class='failure-tags-main'
-            onMouseenter={this.expandIsHoverHandle}
-            onMouseleave={this.expandIsHoverHandle}
+            onMouseenter={() => this.expandIsHoverHandle(true)}
+            onMouseleave={() => this.expandIsHoverHandle(false)}
           >
             {this.playLoading && <div class='failure-tags-loading' />}
             {this.renderList.map((item, index) => (

@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, ref as deepRef, shallowRef, watch } from 'vue';
 
+import { useDebounceFn } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
 
 import './tag-show.scss';
@@ -44,11 +45,29 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    enableEllipsis: {
+      type: Boolean,
+      default: true,
+    },
   },
-  setup() {
-    const sectionRef = ref(null);
-    const calculateTagCount = computed({
-      get: () => {
+  setup(props) {
+    let resizeObserver = null;
+    let lastTagContainerWidth = 0;
+
+    const tagContainerRef = deepRef(null);
+    const sectionRef = deepRef(null);
+    const calculateTagCount = shallowRef(props?.data?.length || 0);
+
+    /**
+     * @description 核心计算逻辑（带防抖）
+     *
+     **/
+    const calculateOverflow = useDebounceFn(() => {
+      calculateTagCount.value = props?.data?.length || 0;
+      if (!props.enableEllipsis) {
+        return;
+      }
+      requestAnimationFrame(() => {
         const domList = sectionRef.value?.children || [];
         const maxWidth = sectionRef.value?.parentNode?.clientWidth;
         let num = 0;
@@ -61,11 +80,62 @@ export default defineComponent({
             break;
           }
         }
-        return count;
-      },
-      set: () => {},
+        calculateTagCount.value = count;
+      });
+    }, 200);
+
+    /**
+     * @description 设置观察器(目前场景只需要监听水平方向)
+     *
+     **/
+    function setupObserver() {
+      if (!resizeObserver) {
+        resizeObserver = new ResizeObserver(entries => {
+          for (const entry of entries) {
+            const currentWidth = entry.contentRect.width;
+            if (currentWidth === lastTagContainerWidth) {
+              return;
+            }
+            lastTagContainerWidth = currentWidth;
+            calculateOverflow();
+          }
+        });
+        if (tagContainerRef?.value) resizeObserver.observe(tagContainerRef?.value);
+      }
+    }
+
+    /**
+     * @description 清理观察器
+     *
+     */
+    function cleanupObserver() {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+    }
+
+    watch([() => props.data, () => props.enableEllipsis], () => {
+      calculateOverflow();
     });
-    return { calculateTagCount, sectionRef };
+
+    watch(
+      () => tagContainerRef.value,
+      nVal => {
+        if (!nVal) {
+          return;
+        }
+        cleanupObserver();
+        nextTick(setupObserver);
+      },
+      { immediate: true, deep: true }
+    );
+
+    onBeforeUnmount(() => {
+      cleanupObserver();
+    });
+
+    return { calculateTagCount, tagContainerRef, sectionRef };
   },
   render() {
     const dataLen = (this.$props.data || []).length;
@@ -76,18 +146,21 @@ export default defineComponent({
     const status = dataLen > countIndex;
     const list = (this.$props.data || []).slice(0, this.calculateTagCount);
     return (
-      <span class='bk-common-tag-show'>
+      <span
+        ref='tagContainerRef'
+        class='bk-common-tag-show'
+      >
         <span
           ref='sectionRef'
           class='item-tags'
         >
           {list.map((tag: any) => (
-            <Tag ext-cls={this.$props.styleName}>{tag}</Tag>
+            <Tag ext-cls={this.$props.styleName}>{{ default: () => this.$slots?.tagDefault?.(tag) || tag }}</Tag>
           ))}
         </span>
         {status && <span class='top-bar-tag'>+{dataLen - countIndex}</span>}
-        {/* 
-        <span 
+        {/*
+        <span
             v-bk-tooltips={{ content: props.data.slice(calculateTagCount).join(','), width: 250 }}>
         </span>} */}
       </span>
