@@ -126,14 +126,17 @@ class BaseServiceRequestSerializer(serializers.Serializer):
     app_name = serializers.CharField(label="服务名")
 
 
-class PipelineOverviewRequestSerializer(BaseServiceRequestSerializer):
+class BasePipelineRequestSerializer(serializers.Serializer):
     keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
+    page = serializers.IntegerField(label="页码", required=False, default=1)
+    page_size = serializers.IntegerField(label="每页条数", required=False, default=5)
+    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
+
+
+class PipelineOverviewRequestSerializer(BaseServiceRequestSerializer, BasePipelineRequestSerializer):
     domain = serializers.CharField(label="事件领域", required=False, default=EventDomain.CICD.value)
     source = serializers.CharField(label="事件来源", required=False, default=EventSource.BKCI.value)
 
 
-class ListPipelineRequestSerializer(BaseServiceRequestSerializer):
+class ListPipelineRequestSerializer(BaseServiceRequestSerializer, BasePipelineRequestSerializer):
     project_id = serializers.CharField(label="项目ID")
-    keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
-    page = serializers.IntegerField(label="页码", required=False, default=1)
-    page_size = serializers.IntegerField(label="每页条数", required=False, default=5)

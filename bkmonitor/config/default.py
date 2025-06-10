@@ -948,7 +948,6 @@ BK_DATA_AIOPS_INCIDENT_BROKER_URL = os.getenv(
 )
 BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE = os.getenv("BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE", "aiops_incident")
 
-
 # 表后缀(字母或数字([A-Za-z0-9]), 不能有下划线"_", 且最好不超过10个字符)
 BK_DATA_RAW_TABLE_SUFFIX = "raw"  # 数据接入
 BK_DATA_CMDB_FULL_TABLE_SUFFIX = "full"  # 补充cmdb节点信息后的表后缀
@@ -1179,6 +1178,8 @@ BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
+BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
+BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
 EVENT_CENTER_URL = urljoin(
@@ -1274,7 +1275,6 @@ SHOW_REALTIME_STRATEGY = False
 
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
-
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
