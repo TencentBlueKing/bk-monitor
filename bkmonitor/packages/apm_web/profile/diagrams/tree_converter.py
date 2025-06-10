@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -39,7 +39,7 @@ class TreeConverter:
     def _align_agg_interval(cls, t, interval):
         return int(t / interval) * interval
 
-    def convert(self, raw: Any, agg_method: str = None, agg_interval: int = 60) -> FunctionTree:
+    def convert(self, raw: Any, agg_method: str | None = None, agg_interval: int = 60) -> FunctionTree:
         samples_info = raw["list"]
         if not samples_info:
             return self.tree

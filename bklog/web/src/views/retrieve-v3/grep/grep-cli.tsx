@@ -1,6 +1,8 @@
 import { defineComponent, ref, computed } from 'vue';
 import GrepCliEditor from './grep-cli-editor';
 import useStore from '../../../hooks/use-store';
+import { useRoute } from 'vue-router/composables';
+
 import './grep-cli.scss';
 
 export default defineComponent({
@@ -13,12 +15,20 @@ export default defineComponent({
       type: Number,
       default: null,
     },
+    searchValue: {
+      type: String,
+      default: '',
+    },
+    fieldValue: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   setup(props, { emit }) {
-    const field = ref();
-    const grepValue = ref('');
-    const searchValue = ref('');
+    const route = useRoute();
+    const grepValue = ref((route.query.grep_query as string) ?? '');
+
     const isCaseSensitive = ref(false);
     const isRegexMode = ref(false);
     const isWordMatch = ref(false);
@@ -34,7 +44,7 @@ export default defineComponent({
 
     // 计算结果显示文本
     const resultText = computed(() => {
-      if (!props.searchCount || !searchValue.value) {
+      if (!props.searchCount || !props.searchValue) {
         return { text: '无结果', type: 'placeholder' };
       }
 
@@ -50,7 +60,6 @@ export default defineComponent({
 
     // 选择字段
     const handleFieldChange = (id: string) => {
-      field.value = id;
       emit('field-change', id);
     };
 
@@ -61,10 +70,9 @@ export default defineComponent({
 
     // 搜索输入
     const handleSearchInput = (value: string) => {
-      searchValue.value = value;
       emit('search-change', {
         content: value,
-        searchValue: searchValue.value,
+        searchValue: value,
         matchMode: {
           caseSensitive: isCaseSensitive.value,
           regexMode: isRegexMode.value,
@@ -109,7 +117,7 @@ export default defineComponent({
         currentMatchIndex.value = currentMatchIndex.value > 1 ? currentMatchIndex.value - 1 : props.searchCount;
         emit('search-change', {
           content: grepValue.value,
-          searchValue: searchValue.value,
+          searchValue: props.searchValue,
           matchMode: {
             caseSensitive: isCaseSensitive.value,
             regexMode: isRegexMode.value,
@@ -126,7 +134,7 @@ export default defineComponent({
         currentMatchIndex.value = currentMatchIndex.value < props.searchCount ? currentMatchIndex.value + 1 : 1;
         emit('search-change', {
           content: grepValue.value,
-          searchValue: searchValue.value,
+          searchValue: props.searchValue,
           matchMode: {
             caseSensitive: isCaseSensitive.value,
             regexMode: isRegexMode.value,
@@ -160,7 +168,7 @@ export default defineComponent({
           <span class='grep-cli-label'>字段：</span>
           <bk-select
             class='grep-cli-select'
-            value={field.value}
+            value={props.fieldValue}
             on-change={handleFieldChange}
             popover-min-width={200}
             size='small'
@@ -177,7 +185,7 @@ export default defineComponent({
           <div class='grep-cli-editor'>
             <GrepCliEditor
               value={grepValue.value}
-              placeholder='-- INSERT, Ctrl +Enter提交查询 --'
+              placeholder='-- INSERT, Ctrl + Enter提交查询 --'
               autoHeight={true}
               minHeight='34px'
               maxHeight='160px'
@@ -193,7 +201,7 @@ export default defineComponent({
             <bk-input
               class='grep-cli-search-input'
               placeholder='搜索'
-              value={searchValue.value}
+              value={props.searchValue}
               on-enter={handleSearchInput}
               size='small'
             />

@@ -8,9 +8,9 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 8px;
-      white-space: nowrap;
-      color: #313238;
       font-size: 12px;
+      color: #313238;
+      white-space: nowrap;
 
       .range {
         color: #63656E;
@@ -27,24 +27,24 @@
 
     .slider-range {
       position: relative;
-      margin-top: 12px;
       padding: 0 5px;
+      margin-top: 12px;
 
       &::before {
         position: absolute;
         left: 0;
         width: 100%;
         height: 4px;
+        content: '';
         background: #dcdee5;
         border-radius: 2px;
-        content: '';
       }
 
       /** 重置滑动选择器样式 */
       .bk-slider-button {
+        z-index: 99;
         width: 12px;
         height: 12px;
-        z-index: 99;
 
         &.horizontal {
           top: -4px;
@@ -57,4 +57,9 @@
       }
     }
   }
+}
+
+
+.chart-filtering-skeleton {
+  height: 63px;
 }
