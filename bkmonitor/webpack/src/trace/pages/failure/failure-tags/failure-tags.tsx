@@ -39,7 +39,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
-import BkUserDisplayName, { getUserComponentConfig } from 'monitor-pc/common/user-display-name';
+import { getUserComponentConfig, getBkUserDisplayNameInstance } from 'monitor-pc/common/user-display-name';
 
 import TagShow from './tag-show';
 import { useTagsOverflow } from './tags-utils';
@@ -97,7 +97,8 @@ export default defineComponent({
       const displayNameConfig = getUserComponentConfig();
       const assignees = incidentDetailData.value?.assignees || [];
       if (assignees.length && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
-        const displayNames = await new BkUserDisplayName()
+        console.info('assigneesxxxxxxxxxxxxxxxxxx', getBkUserDisplayNameInstance());
+        const displayNames = await getBkUserDisplayNameInstance()
           .getMultipleUsersDisplayName(incidentDetailData.value?.assignees || [])
           .then(v => v?.split(',') || assignees)
           .catch(() => assignees);

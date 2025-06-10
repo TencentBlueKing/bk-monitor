@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/ai-blueking": "0.3.25-beta.0",
-    "@blueking/bk-user-display-name": "1.0.3-beta.4",
+    "@blueking/bk-user-display-name": "1.0.3-beta.5",
     "@blueking/bk-user-selector": "^0.0.28",
     "@blueking/bk-weweb": "0.0.35",
     "@blueking/bkui-library": "0.0.0-beta.4",

@@ -35,5 +35,22 @@ export const getUserComponentConfig = (): ConfigOptions => {
 export const userDisplayNameConfigure = () => {
   UserDisplayName.configure(getUserComponentConfig());
 };
+
+let BkUserDisplayNameInstance: Readonly<UserDisplayName>;
+
+export const getBkUserDisplayNameInstance = () => {
+  if (!BkUserDisplayNameInstance) {
+    // 跨 shadow dom 直接运行会报错
+    if (window.__POWERED_BY_BK_WEWEB__) {
+      const cls = customElements.get('bk-user-display-name') as any;
+      BkUserDisplayNameInstance = Object.freeze(new cls());
+    } else {
+      BkUserDisplayNameInstance = Object.freeze(new UserDisplayName());
+    }
+  }
+  return BkUserDisplayNameInstance;
+};
+
 export const getUserCache = () => UserDisplayName.userCache;
+
 export default UserDisplayName;

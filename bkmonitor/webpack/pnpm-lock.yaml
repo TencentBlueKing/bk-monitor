@@ -348,8 +348,8 @@ importers:
         specifier: 0.3.25-beta.0
         version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-user-display-name':
-        specifier: 1.0.3-beta.4
-        version: 1.0.3-beta.4
+        specifier: 1.0.3-beta.5
+        version: 1.0.3-beta.5
       '@blueking/bk-user-selector':
         specifier: ^0.0.28
         version: 0.0.28(@blueking/bkui-library@0.0.0-beta.4)
@@ -1513,8 +1513,8 @@ packages:
   '@blueking/bk-user-display-name@1.0.3-beta.3':
     resolution: {integrity: sha512-6SKMombzfE23vHZCN8E++yh1CSDPVrCgi1hpgwNKD+xppepDNv35EDTc2y8iq1XmAomJptVPM3CxrqO8Wz7Jxg==}
 
-  '@blueking/bk-user-display-name@1.0.3-beta.4':
-    resolution: {integrity: sha512-Xsq/XIlTrYCpycTF6pp1v84oItPtdBr7uIRspy7Q5t1pfFTgXK/IphPotbpTKI3MT7jg2ANc9bdWttiqBinkOQ==}
+  '@blueking/bk-user-display-name@1.0.3-beta.5':
+    resolution: {integrity: sha512-Qzlu8rf5hbi7/p72+oJacZ38WNcN6MMsIbhfH9NNNZ1jAUZgwHC2dX8P5c839ugkP1TvNvQ90uALfIPfgcjf3A==}
 
   '@blueking/bk-user-selector@0.0.28':
     resolution: {integrity: sha512-0FEwNHo2F5GVRcDhPPHw3qFcRCbEu2q2AMOORhZH1Mae5jLe+bxu6ycjG8TWn+RkIbuIYAmGRcHKT9exJuFlqg==}
@@ -9603,7 +9603,7 @@ snapshots:
 
   '@blueking/bk-user-display-name@1.0.3-beta.3': {}
 
-  '@blueking/bk-user-display-name@1.0.3-beta.4': {}
+  '@blueking/bk-user-display-name@1.0.3-beta.5': {}
 
   '@blueking/bk-user-selector@0.0.28(@blueking/bkui-library@0.0.0-beta.4)':
     dependencies:
