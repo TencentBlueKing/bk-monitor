@@ -226,9 +226,7 @@ class DataFlowHandler(BaseAiopsHandler):
         flow = json.loads(pre_treat_flow)
         create_pre_treat_flow_request = CreateFlowCls(
             nodes=flow,
-            flow_name="{}_{}_pre_treat_flow_{}".format(
-                settings.ENVIRONMENT, clustering_config.index_set_id, time_format
-            ),
+            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.index_set_id}_pre_treat_flow_{time_format}",
             project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(create_pre_treat_flow_request)
@@ -268,22 +266,25 @@ class DataFlowHandler(BaseAiopsHandler):
                 rules.append(filter_rule.get("logic_operator"))
 
             if nested_field_name:
-                # 如果有嵌套字段，则用JSON提取的方式
-                rules.extend(
-                    [
-                        f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
-                        cls.change_op(filter_rule.get("op")),
-                        "'{}'".format(filter_rule.get("value")),
-                    ]
-                )
+                rule = [
+                    f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
+                    cls.change_op(filter_rule.get("op")),
+                    "'{}'".format(filter_rule.get("value")),
+                ]
+                if isinstance(filter_rule.get("value"), list):
+                    rule = cls.build_condition_list(
+                        all_fields_dict, field_name, filter_rule, nested_field_name=nested_field_name
+                    )
+                rules.extend(rule)
             else:
-                rules.extend(
-                    [
-                        f"`{all_fields_dict[field_name]}`",
-                        cls.change_op(filter_rule.get("op")),
-                        "'{}'".format(filter_rule.get("value")),
-                    ]
-                )
+                rule = [
+                    f"`{all_fields_dict[field_name]}`",
+                    cls.change_op(filter_rule.get("op")),
+                    "'{}'".format(filter_rule.get("value")),
+                ]
+                if isinstance(filter_rule.get("value"), list):
+                    rule = cls.build_condition_list(all_fields_dict, field_name, filter_rule)
+                rules.extend(rule)
 
         if rules and is_not_null_rules != "":
             rules_str = " ".join([OPERATOR_AND, "(", is_not_null_rules, ")", OPERATOR_AND, "(", *rules, ")"])
@@ -295,6 +296,44 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_rule_list = ["where", default_filter_rule, rules_str]
         not_clustering_rule_list = ["where", "NOT", "(", default_filter_rule, rules_str, ")"]
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
+
+    @classmethod
+    def build_condition_list(cls, all_fields_dict, field_name, filter_rule, nested_field_name=None):
+        result = []
+        # 如果有嵌套字段，则用JSON提取的方式
+        if nested_field_name:
+            if len(filter_rule.get("value")) == 1:
+                return [
+                    f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
+                    cls.change_op(filter_rule.get("op")),
+                    "'{}'".format(filter_rule.get("value")),
+                ]
+
+            for idx, val in enumerate(filter_rule.get("value")):
+                if idx > 0:
+                    result.append("or")
+                result.extend(
+                    [
+                        f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
+                        cls.change_op(filter_rule.get("op")),
+                        f"'{val}'",
+                    ]
+                )
+            return result
+
+        else:
+            if len(filter_rule.get("value")) == 1:
+                return [
+                    f"`{all_fields_dict[field_name]}`",
+                    cls.change_op(filter_rule.get("op")),
+                    "'{}'".format(filter_rule.get("value")),
+                ]
+
+            for idx, val in enumerate(filter_rule.get("value")):
+                if idx > 0:
+                    result.append("or")
+                result.extend([f"`{all_fields_dict[field_name]}`", cls.change_op(filter_rule.get("op")), f"'{val}'"])
+            return result
 
     @classmethod
     def change_op(cls, op):
@@ -426,9 +465,7 @@ class DataFlowHandler(BaseAiopsHandler):
             flow, new_cls_pattern_rt = self.deal_diversion_node(flow=flow, after_treat_flow_dict=after_treat_flow_dict)
         create_after_treat_flow_request = CreateFlowCls(
             nodes=flow,
-            flow_name="{}_{}_after_treat_flow_{}".format(
-                settings.ENVIRONMENT, clustering_config.index_set_id, time_format
-            ),
+            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.index_set_id}_after_treat_flow_{time_format}",
             project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(create_after_treat_flow_request)
@@ -1778,9 +1815,7 @@ class DataFlowHandler(BaseAiopsHandler):
         flow = json.loads(predict_flow)
         create_predict_flow_request = CreateFlowCls(
             nodes=flow,
-            flow_name="{}_{}_{}_online_flow".format(
-                settings.ENVIRONMENT, clustering_config.bk_biz_id, clustering_config.index_set_id
-            ),
+            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.bk_biz_id}_{clustering_config.index_set_id}_online_flow",
             project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(create_predict_flow_request)
@@ -1965,9 +2000,7 @@ class DataFlowHandler(BaseAiopsHandler):
         flow = json.loads(log_count_aggregation_flow)
         create_log_count_aggregation_flow_request = CreateFlowCls(
             nodes=flow,
-            flow_name="{}_{}_{}_agg_flow".format(
-                settings.ENVIRONMENT, clustering_config.bk_biz_id, clustering_config.index_set_id
-            ),
+            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.bk_biz_id}_{clustering_config.index_set_id}_agg_flow",
             project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(create_log_count_aggregation_flow_request)
