@@ -6,8 +6,8 @@ from typing import Any
 
 import pymysql
 from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.serializers import FastCollectorCreateSerializer
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -362,8 +362,8 @@ class MigrateToolBase:
 
     def create_table_if_not_exists(self) -> None:
         """创建日志mapping表"""
-        sql = """
-        CREATE TABLE IF NOT EXISTS `{table_name}` (
+        sql = f"""
+        CREATE TABLE IF NOT EXISTS `{self.bk_log_search_resource_mapping_table}` (
           `id` int NOT NULL AUTO_INCREMENT,
           `bk_biz_id` int NOT NULL,
           `origin_bk_biz_id` int NOT NULL,
@@ -374,7 +374,7 @@ class MigrateToolBase:
           `details` text ,
           PRIMARY KEY (`id`)
         ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-        """.format(table_name=self.bk_log_search_resource_mapping_table)
+        """
         self.db.execute_sql(sql)
 
     def migrate(self, data: dict[str, Any]) -> dict[str, Any]:
