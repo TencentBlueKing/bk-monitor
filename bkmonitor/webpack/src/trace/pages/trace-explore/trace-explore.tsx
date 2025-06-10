@@ -72,7 +72,7 @@ import FavoriteBox, { EditFavorite, type IFavoriteGroup } from './components/fav
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
-import { getFilterByCheckboxFilter, safeParseJsonValueForWhere } from './utils';
+import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
@@ -392,11 +392,11 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        where.value = JSON.parse((queryWhere as string) || '[]');
-        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
-        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
+        where.value = tryURLDecodeParse(queryWhere as string, []);
+        commonWhere.value = tryURLDecodeParse(queryCommonWhere as string, []);
+        checkboxFilters.value = tryURLDecodeParse(selectedType as string, []);
         queryString.value = (query || queryQueryString) as string;
-        showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
+        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, true);
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         favorite_id && (defaultFavoriteId.value = Number(favorite_id));
         if (trace_id) {
