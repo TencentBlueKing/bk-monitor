@@ -318,9 +318,11 @@
       leftValue = `${leftValue} `;
     }
 
+    const isEndWithConnection = regExpAndOrNot.test(leftValue);
+
     const rightValue = getFocusRightValue();
 
-    const rightEndPosition = rightValue.indexOf(':');
+    const rightEndPosition = isEndWithConnection ? 0 : rightValue.indexOf(':');
     const targetPosition = rightEndPosition >= 0 ? rightEndPosition : 0;
     const rightFieldStr = rightValue.slice(targetPosition);
     const result = `${leftValue}${field}${rightFieldStr}`;
@@ -371,7 +373,8 @@
     const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
     const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
 
-    const rightFirstValue = rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '';
+    const rightFirstValue =
+      matchValueWithQuotes.length >= 1 ? rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '' : '';
 
     const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
     const appendSpace = formatRightValue === '' ? ' ' : '';
