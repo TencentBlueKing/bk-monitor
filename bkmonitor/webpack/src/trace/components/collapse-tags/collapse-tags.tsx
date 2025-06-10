@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, ref as deepRef, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, ref as deepRef, shallowRef, watch, computed } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
 
-import './tag-show.scss';
+import './collapse-tags.scss';
 
 export default defineComponent({
   name: 'TagShow',
@@ -45,6 +45,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** tag 之间的水平间距（默认为 4px），不建议另外css单独设置，计算tag宽度溢出时需要使用该值进行计算 */
+    tagColGap: {
+      type: Number,
+      default: 4,
+    },
     enableEllipsis: {
       type: Boolean,
       default: true,
@@ -56,7 +61,12 @@ export default defineComponent({
 
     const tagContainerRef = deepRef(null);
     const sectionRef = deepRef(null);
+    const maxCountCollectTagRef = shallowRef(null);
     const calculateTagCount = shallowRef(props?.data?.length || 0);
+
+    const cssVars = computed(() => ({
+      '--tag-col-gap': `${props.tagColGap}px`,
+    }));
 
     /**
      * @description 核心计算逻辑（带防抖）
@@ -70,17 +80,19 @@ export default defineComponent({
       requestAnimationFrame(() => {
         const domList = sectionRef.value?.children || [];
         const maxWidth = sectionRef.value?.parentNode?.clientWidth;
-        let num = 0;
+        // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
+        let num = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
         let count = -1;
         for (let i = 0; i < domList.length; i++) {
           const clientWidth = domList[i]?.clientWidth;
-          num = clientWidth + num + (i + 1) * 5;
+          num = clientWidth + num + (i + 1) * props.tagColGap;
+          count = i;
+
           if (num >= maxWidth) {
-            count = i;
             break;
           }
         }
-        calculateTagCount.value = count;
+        calculateTagCount.value = count + 1;
       });
     }, 200);
 
@@ -135,7 +147,7 @@ export default defineComponent({
       cleanupObserver();
     });
 
-    return { calculateTagCount, tagContainerRef, sectionRef };
+    return { calculateTagCount, tagContainerRef, sectionRef, maxCountCollectTagRef, cssVars };
   },
   render() {
     const dataLen = (this.data || []).length;
@@ -148,6 +160,7 @@ export default defineComponent({
     return (
       <span
         ref='tagContainerRef'
+        style={this.cssVars}
         class='bk-common-tag-show'
       >
         <span
@@ -164,6 +177,12 @@ export default defineComponent({
           ))}
         </span>
         {status && <span class='top-bar-tag'>+{dataLen - countIndex}</span>}
+        <span
+          ref='maxCountCollectTagRef'
+          class='top-bar-tag top-bar-tag-fill'
+        >
+          +{dataLen}
+        </span>
         {/*
         <span
             v-bk-tooltips={{ content: props.data.slice(calculateTagCount).join(','), width: 250 }}>
