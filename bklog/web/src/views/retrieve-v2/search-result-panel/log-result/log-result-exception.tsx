@@ -61,55 +61,56 @@ export default defineComponent({
         return (
           <div class='bklog-empty-data'>
             <h1>{$t('检索无数据')}</h1>
-            <div class='sub-title'>您可按照以下顺序调整检索方式</div>
+            <div class='sub-title'>{$t('您可按照以下顺序调整检索方式')}</div>
             <div class='empty-validate-steps'>
               <div class='validate-step1'>
-                <h3>1. 优化查询语句</h3>
+                <h3>1. {$t('优化查询语句')}</h3>
                 <div class='step1-content'>
-                  <span class='step1-content-label'>查询范围：</span>
+                  <span class='step1-content-label'>{$t('查询范围')}：</span>
                   <span class='step1-content-value'>
                     log: bklog*
                     <br />
-                    包含bklog
-                    <br />= bklog 使用通配符 (*)
+                    {$t('包含')} bklog
+                    <br />= bklog {$t('使用通配符')} (*)
                   </span>
                 </div>
                 <div class='step1-content'>
-                  <span class='step1-content-label'>精准匹配：</span>
+                  <span class='step1-content-label'>{$t('精准匹配')}：</span>
                   <span class='step1-content-value'>log: "bklog"</span>
                 </div>
               </div>
               <div class='validate-step2'>
-                <h3>2. 检查是否为分词问题</h3>
+                <h3>2. {$t('检查是否为分词问题')}</h3>
                 <div>
-                  当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。
+                  {$t('当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。')}
                   <br />
+                  <br /> 
+                  {$t('若目标内容为整段蓝色，或中间存在字符粘连的情况。')}
                   <br />
-                  若目标内容为整段蓝色，或中间存在字符粘连的情况。
-                  <br />
-                  可能是因为分词导致的问题；
+                  {$t('可能是因为分词导致的问题')}；
                   <br />
                   <span
                     class='segment-span-tag'
                     onClick={openConfiguration}
                   >
-                    点击设置自定义分词
+                    {$t('点击设置自定义分词')}
                   </span>
                   <br />
                   <br />
-                  将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
+                  {$t('将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。')}
                 </div>
               </div>
               <div class='validate-step3'>
-                <h3>3. 一键反馈</h3>
+                <h3>3.{$t('一键反馈')}</h3>
                 <div>
-                  若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
+                {$t('若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。')}
+                   <br></br>
                   {/* <span class='segment-span-tag'>问题反馈</span> */}
                   <a
                     class='segment-span-tag'
                     href={`wxwork://message/?username=BK助手`}
                   >
-                    问题反馈
+                    {$t('问题反馈')}
                   </a>
                 </div>
               </div>

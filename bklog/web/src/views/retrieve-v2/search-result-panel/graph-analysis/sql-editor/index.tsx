@@ -263,8 +263,7 @@ export default defineComponent({
           ref={refSqlPreviewElement}
         >
           <div class='sql-preview-title'>
-            <span class='bklog-icon bklog-circle-alert-filled'></span>检测到「顶部查询条件」，已自动补充 SQL（与已输入
-            SQL 语句叠加生效）：
+            <span class='bklog-icon bklog-circle-alert-filled'></span>{$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入SQL 语句叠加生效）：')}
           </div>
           <div class='sql-preview-text'>{previewSqlContent.value}</div>
         </div>
