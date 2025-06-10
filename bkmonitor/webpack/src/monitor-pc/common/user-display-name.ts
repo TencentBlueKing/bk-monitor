@@ -25,9 +25,17 @@
  */
 import UserDisplayName, { type ConfigOptions } from '@blueking/bk-user-display-name';
 export const getUserComponentConfig = (): ConfigOptions => {
+  if (window.enable_multi_tenant_mode) {
+    return {
+      tenantId: 'system',
+      apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,
+      cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
+      emptyText: '--',
+    };
+  }
   return {
-    tenantId: 'system',
-    apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,
+    tenantId: '',
+    apiBaseUrl: `${window.site_url}rest/v2/commons/user/list_users/`,
     cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
     emptyText: '--',
   };

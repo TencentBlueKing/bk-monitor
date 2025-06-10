@@ -42,6 +42,7 @@ interface IBkUserSelectorProps {
   draggable?: boolean;
   tenantId?: string;
   userGroup?: IUserGroup[];
+  enableMultiTenantMode?: boolean;
   onChange?: (value: string[]) => void;
 }
 
@@ -62,6 +63,9 @@ export default class UserSelector extends tsc<
   @Prop({ type: Boolean, default: false }) readonly draggable: boolean;
   @Model('change', { type: Array, default: () => [] }) userIds: string[];
   componentConfig: Partial<ConfigOptions> = {};
+  get enableMultiTenantMode() {
+    return window.enable_multi_tenant_mode ?? false;
+  }
   created() {
     this.componentConfig = getUserComponentConfig();
   }
@@ -74,6 +78,7 @@ export default class UserSelector extends tsc<
       <BkUserSelector
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
+        enableMultiTenantMode={this.enableMultiTenantMode}
         modelValue={this.userIds}
         multiple={this.multiple}
         tenantId={this.componentConfig.tenantId}

@@ -154,6 +154,8 @@ declare global {
     enable_aiops_event_center_biz_list?: number[];
     // 多租户用户中心接口地址
     bk_user_web_api_url?: string;
+    // 多租户用户中心是否开启
+    enable_multi_tenant_mode?: boolean;
   }
   interface HTMLElement {
     ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
