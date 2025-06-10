@@ -15,11 +15,7 @@ from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from metadata import models
 
 # 这里添加需要更新的指标名
-TARGET_METRIC_NAME_LIST = (
-    []
-    or """kube_endpoint_address_available
-kube_endpoint_address_not_ready""".split("\n")
-)
+TARGET_METRIC_NAME_LIST = [] or """""".split("\n")
 
 IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
 
