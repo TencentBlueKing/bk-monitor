@@ -187,7 +187,14 @@ export default defineComponent({
                     content: () => (
                       <div class='user-item'>
                         <div class='time'>{data.other.time}</div>
-                        <div class='users'>{data.other.users}</div>
+                        <div class='users'>
+                          {data.users.map((u, index, arr) => [
+                            `${u.id}(`,
+                            <bk-user-display-name user-id={u.name} />,
+                            ')',
+                            index !== arr.length - 1 && ',',
+                          ])}
+                        </div>
                       </div>
                     ),
                   }}
