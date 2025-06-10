@@ -63,9 +63,7 @@ class CollectorScenario:
         }
         try:
             collector_scenario = import_string(
-                "apps.log_databus.handlers.collector_scenario.{}.{}".format(
-                    collector_scenario_id, mapping.get(collector_scenario_id)
-                )
+                f"apps.log_databus.handlers.collector_scenario.{collector_scenario_id}.{mapping.get(collector_scenario_id)}"
             )
             return collector_scenario()
         except ImportError as error:
@@ -117,7 +115,7 @@ class CollectorScenario:
         change bk_data_id result_table_id
         :return:
         """
-        from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+        from apps.log_databus.handlers.collector import CollectorHandler
 
         new_bk_data_id = cls.update_or_create_data_id(
             data_link_id=collector_config.data_link_id,

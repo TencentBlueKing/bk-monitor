@@ -18,3 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+from apps.log_databus.handlers.collector.base import CollectorHandler
+from apps.log_databus.handlers.collector.host import HostCollectorHandler
+from apps.log_databus.handlers.collector.k8s import K8sCollectorHandler
+
+__all__ = ["CollectorHandler", "HostCollectorHandler", "K8sCollectorHandler"]

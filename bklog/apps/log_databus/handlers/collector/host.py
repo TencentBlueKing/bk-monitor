@@ -69,9 +69,7 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_search.constants import CMDB_HOST_SEARCH_FIELDS
 from apps.models import model_to_dict
 
-from apps.log_databus.handlers.collector_handler.base import (
-    CollectorHandler,
-)
+from apps.log_databus.handlers.collector import CollectorHandler
 
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.models import LogIndexSet, Space
@@ -244,11 +242,7 @@ class HostCollectorHandler(CollectorHandler):
 
         # 判断是否已存在同英文名collector
         if self._pre_check_collector_config_en(model_fields=model_fields, bk_biz_id=bk_biz_id):
-            logger.error(
-                "collector_config_name_en {collector_config_name_en} already exists".format(
-                    collector_config_name_en=collector_config_name_en
-                )
-            )
+            logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
                     collector_config_name_en=collector_config_name_en
@@ -300,9 +294,7 @@ class HostCollectorHandler(CollectorHandler):
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
                         TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
                         logger.info(
-                            "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                                self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                            )
+                            f"[modify_data_name] bk_data_id=>{self.data.bk_data_id}, data_name {self.data.bk_data_name}=>{bk_data_name}"
                         )
                         self.data.bk_data_name = bk_data_name
 
@@ -460,11 +452,7 @@ class HostCollectorHandler(CollectorHandler):
         self._cat_illegal_ips(params)
         # 判断是否已存在同英文名collector
         if self._pre_check_collector_config_en(model_fields=model_fields, bk_biz_id=bk_biz_id):
-            logger.error(
-                "collector_config_name_en {collector_config_name_en} already exists".format(
-                    collector_config_name_en=collector_config_name_en
-                )
-            )
+            logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
                     collector_config_name_en=collector_config_name_en
@@ -508,9 +496,7 @@ class HostCollectorHandler(CollectorHandler):
                 if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
                     TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
                     logger.info(
-                        "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                            self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                        )
+                        f"[modify_data_name] bk_data_id=>{self.data.bk_data_id}, data_name {self.data.bk_data_name}=>{bk_data_name}"
                     )
                     self.data.bk_data_name = bk_data_name
 
@@ -1263,9 +1249,7 @@ class HostCollectorHandler(CollectorHandler):
                 if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
                     TransferApi.modify_data_id({"data_id": self.data.bk_data_id, "data_name": bk_data_name})
                     logger.info(
-                        "[modify_data_name] bk_data_id=>{}, data_name {}=>{}".format(
-                            self.data.bk_data_id, self.data.bk_data_name, bk_data_name
-                        )
+                        f"[modify_data_name] bk_data_id=>{self.data.bk_data_id}, data_name {self.data.bk_data_name}=>{bk_data_name}"
                     )
                     self.data.bk_data_name = bk_data_name
 

@@ -454,7 +454,7 @@ class EtlStorage:
         :param alias_settings: 别名配置
         :param total_shards_per_node: 每个节点的分片总数
         """
-        from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+        from apps.log_databus.handlers.collector import CollectorHandler
 
         # ES 配置
         es_config = get_es_config(instance.get_bk_biz_id())
