@@ -138,13 +138,13 @@ export default defineComponent({
     return { calculateTagCount, tagContainerRef, sectionRef };
   },
   render() {
-    const dataLen = (this.$props.data || []).length;
+    const dataLen = (this.data || []).length;
     if (dataLen === 0) {
       return;
     }
     const countIndex: any = this.calculateTagCount;
     const status = dataLen > countIndex;
-    const list = (this.$props.data || []).slice(0, this.calculateTagCount);
+    const list = (this.data || []).slice(0, this.calculateTagCount);
     return (
       <span
         ref='tagContainerRef'
@@ -154,8 +154,13 @@ export default defineComponent({
           ref='sectionRef'
           class='item-tags'
         >
-          {list.map((tag: any) => (
-            <Tag ext-cls={this.$props.styleName}>{{ default: () => this.$slots?.tagDefault?.(tag) || tag }}</Tag>
+          {list.map((tag, index) => (
+            <Tag
+              key={index}
+              ext-cls={this.styleName}
+            >
+              {{ default: () => this.$slots?.tagDefault?.(tag) || tag }}
+            </Tag>
           ))}
         </span>
         {status && <span class='top-bar-tag'>+{dataLen - countIndex}</span>}

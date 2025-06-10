@@ -23,11 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  watch,
+  watchEffect,
+} from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
+import BkUserDisplayName, { getUserComponentConfig } from 'monitor-pc/common/user-display-name';
 
 import TagShow from './tag-show';
 import { useTagsOverflow } from './tags-utils';
@@ -49,19 +61,18 @@ export default defineComponent({
       '--animation-timeline': 0.5,
       '--animation-delay': 0.2,
     };
-    const isHover = ref<boolean>(false);
-    const isShow = ref<boolean>(false);
-    const selectCollapseTagsStatus = ref<boolean>(!isHover.value);
+    const isHover = shallowRef<boolean>(false);
+    const isShow = shallowRef<boolean>(false);
+    const selectCollapseTagsStatus = shallowRef<boolean>(!isHover.value);
     let selectDelayTimer: any = null;
-    const failureTags = ref<HTMLDivElement>();
-    const tagsRefs = ref([]);
-    const collapseTagRef = ref();
-    const itemMainRefs = ref([]);
+    const failureTags = shallowRef<HTMLDivElement>();
+    const tagsRefs = shallowRef([]);
+    const collapseTagRef = shallowRef();
+    const itemMainRefs = shallowRef([]);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const incidentDetailData = computed(() => {
-      return incidentDetail.value;
-    });
+    const incidentDetailData = shallowRef<IIncident>();
+    const userDisplayNameList = shallowRef<string[]>([]);
     const failureTagsShowStates = computed(() => (isHover.value ? 'failure-tags-show-all' : 'failure-tags-show-omit'));
     const failureTagsPostionsStates = computed(() =>
       isShow.value ? 'failure-tags-positons-relative' : 'failure-tags-positions-absolute'
@@ -80,6 +91,22 @@ export default defineComponent({
     const handleToSpan = () => {
       emit('toSpan');
     };
+    // 获取负责人显示名称
+    watchEffect(async () => {
+      incidentDetailData.value = incidentDetail.value;
+      const displayNameConfig = getUserComponentConfig();
+      const assignees = incidentDetailData.value?.assignees || [];
+      if (assignees.length && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
+        const displayNames = await new BkUserDisplayName()
+          .getMultipleUsersDisplayName(incidentDetailData.value?.assignees || [])
+          .then(v => v?.split(',') || assignees)
+          .catch(() => assignees);
+        userDisplayNameList.value = displayNames;
+      } else {
+        userDisplayNameList.value = assignees;
+      }
+    });
+
     const renderList = [
       {
         label: t('影响空间'),
@@ -194,17 +221,14 @@ export default defineComponent({
       {
         label: t('故障负责人'),
         renderFn: () => {
-          const list = incidentDetailData.value?.assignees || [];
-          return list.length === 0 ? (
+          return userDisplayNameList.value.length === 0 ? (
             <span class='empty-text'>--</span>
           ) : (
             <TagShow
               class='principal-tag'
-              data={list}
+              data={userDisplayNameList.value}
               enableEllipsis={selectCollapseTagsStatus.value}
-            >
-              {{ tagDefault: v => <bk-user-display-name user-id={v} /> }}
-            </TagShow>
+            />
           );
         },
       },
