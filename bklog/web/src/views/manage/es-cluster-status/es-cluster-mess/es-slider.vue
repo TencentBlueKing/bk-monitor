@@ -1255,7 +1255,6 @@
       handleClickOutside() {
         // searchSelect组件若没有点击确认则清除输入框和选中的值
         if (!this.$refs.searchSelectRef.input.focus) {
-          console.log(this.$refs.searchSelectRef);
           this.$refs.searchSelectRef.input.value = '';
           this.$refs.searchSelectRef.menu.active = -1;
           this.$refs.searchSelectRef.menu.id = null;
