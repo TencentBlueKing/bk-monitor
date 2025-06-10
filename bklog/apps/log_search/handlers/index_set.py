@@ -1548,6 +1548,7 @@ class BaseIndexSetHandler:
         try:
             TransferApi.create_or_update_log_router(
                 {
+                    "query_alias_settings": index_set.query_alias_settings,
                     "cluster_id": index_set.storage_cluster_id,
                     "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
                     "source_type": index_set.scenario_id,
