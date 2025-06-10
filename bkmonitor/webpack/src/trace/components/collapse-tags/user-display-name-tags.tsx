@@ -70,7 +70,7 @@ export default defineComponent({
   },
   render() {
     return !this.userDisplayNameList?.length ? (
-      <span class='user-display-name-tags__empty-text'>--</span>
+      this.$slots?.tagsEmpty?.() || <span class='user-display-name-tags__empty-text'>--</span>
     ) : (
       <CollapseTag
         class='user-display-name-tags'
