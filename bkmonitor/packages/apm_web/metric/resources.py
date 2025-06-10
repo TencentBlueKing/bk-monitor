@@ -15,10 +15,10 @@ import json
 import logging
 import operator
 from collections import defaultdict
+from collections.abc import Callable
 from enum import Enum
 from json import JSONDecodeError
 from typing import Any
-from collections.abc import Callable
 
 from django.conf import settings
 from django.core.cache import cache
@@ -2329,11 +2329,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + '&conditionList={{"resource.service.name": {{'
-                        '"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{service_name}"]}},'
-                        '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint_name}"]}}}}',
+                        + "&sceneMode=span&filterMode=ui"
+                        + "&where=["
+                        '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                        '{{"key": "span_name","operator": "equal","value": ["{endpoint_name}"]}}'
+                        "]",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     )
