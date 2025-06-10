@@ -97,7 +97,6 @@ export default defineComponent({
       const displayNameConfig = getUserComponentConfig();
       const assignees = incidentDetailData.value?.assignees || [];
       if (assignees.length && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
-        console.info('assigneesxxxxxxxxxxxxxxxxxx', getBkUserDisplayNameInstance());
         const displayNames = await getBkUserDisplayNameInstance()
           .getMultipleUsersDisplayName(incidentDetailData.value?.assignees || [])
           .then(v => v?.split(',') || assignees)
