@@ -21,6 +21,7 @@ class AgentConfig(BaseModel):
     non_thinking_llm_model_name: str = Field(..., description="非深度思考模型")
     role_prompt: str | None = Field(None, description="角色提示词")
     knowledgebase_ids: list = Field(default_factory=list, description="知识库ID列表")
+    knowledge_ids: list = Field(default_factory=list, description="知识ID列表")
     tool_codes: list = Field(default_factory=list, description="工具列表")
     opening_mark: str | None = Field(None, description="智能体开场白")
 
@@ -29,6 +30,14 @@ class AgentConfigManager:
     """智能体配置管理器"""
 
     _config_cache: dict[str, AgentConfig] = {}
+
+    @classmethod
+    def register_agent_config(cls, **kwargs):
+        """
+        注册智能体配置
+        :param kwargs: 智能体配置参数
+        """
+        pass
 
     @classmethod
     def get_config(cls, agent_code: str, force_refresh: bool = False) -> AgentConfig:
@@ -56,6 +65,7 @@ class AgentConfigManager:
         )
 
         # 创建配置实例
+        # TODO: 待确认knowledge_ids如何配置&获取
         config = AgentConfig(
             agent_code=agent_code,
             agent_name=res["agent_name"],
@@ -70,7 +80,3 @@ class AgentConfigManager:
         # 更新缓存
         cls._config_cache[agent_code] = config
         return config
-
-
-# 使用示例
-# config = AgentConfigManager.get_config("your_agent_code")
