@@ -81,6 +81,7 @@ export default defineComponent({
         .map(f => ({
           field_name: f.field_name,
           query_alias: f.query_alias,
+          path_type: f.field_type,
         })),
     );
 
@@ -274,7 +275,7 @@ export default defineComponent({
         >
           <div class='sql-preview-title'>
             <span class='bklog-icon bklog-circle-alert-filled'></span>
-            {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入SQL 语句叠加生效）：')}
+            {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：')}
           </div>
           <div class='sql-preview-text'>{previewSqlContent.value}</div>
         </div>
