@@ -392,9 +392,9 @@ export default defineComponent({
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
         });
-        where.value = JSON.parse(decodeURIComponent((queryWhere as string) || '[]'));
-        commonWhere.value = JSON.parse(decodeURIComponent((queryCommonWhere as string) || '[]'));
-        checkboxFilters.value = JSON.parse(decodeURIComponent((selectedType as string) || '[]'));
+        where.value = JSON.parse((queryWhere as string) || '[]');
+        commonWhere.value = JSON.parse((queryCommonWhere as string) || '[]');
+        checkboxFilters.value = JSON.parse((selectedType as string) || '[]');
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = JSON.parse((queryShowResidentBtn as string) || 'true');
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
