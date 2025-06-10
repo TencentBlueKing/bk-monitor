@@ -23,30 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type Ref,
-  computed,
-  defineComponent,
-  inject,
-  onBeforeUnmount,
-  onMounted,
-  onUnmounted,
-  watch,
-  watchEffect,
-} from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
-import { getUserComponentConfig, getBkUserDisplayNameInstance } from 'monitor-pc/common/user-display-name';
 
-import TagShow from './tag-show';
+import UserDisplayNameTags from '../../../components/collapse-tags/user-display-name-tags';
 import { useTagsOverflow } from './tags-utils';
 
 import type { ICurrentISnapshot, IIncident } from '../types';
 
-// import TagShow from './tag-show';
 import './failure-tags.scss';
 
 export default defineComponent({
@@ -71,8 +59,7 @@ export default defineComponent({
     const itemMainRefs = shallowRef([]);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const incidentDetailData = shallowRef<IIncident>();
-    const userDisplayNameList = shallowRef<string[]>([]);
+    const incidentDetailData = computed(() => incidentDetail.value);
     const failureTagsShowStates = computed(() => (isHover.value ? 'failure-tags-show-all' : 'failure-tags-show-omit'));
     const failureTagsPostionsStates = computed(() =>
       isShow.value ? 'failure-tags-positons-relative' : 'failure-tags-positions-absolute'
@@ -91,21 +78,6 @@ export default defineComponent({
     const handleToSpan = () => {
       emit('toSpan');
     };
-    // 获取负责人显示名称
-    watchEffect(async () => {
-      incidentDetailData.value = incidentDetail.value;
-      const displayNameConfig = getUserComponentConfig();
-      const assignees = incidentDetailData.value?.assignees || [];
-      if (assignees.length && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
-        const displayNames = await getBkUserDisplayNameInstance()
-          .getMultipleUsersDisplayName(incidentDetailData.value?.assignees || [])
-          .then(v => v?.split(',') || assignees)
-          .catch(() => assignees);
-        userDisplayNameList.value = displayNames;
-      } else {
-        userDisplayNameList.value = assignees;
-      }
-    });
 
     const renderList = [
       {
@@ -221,12 +193,10 @@ export default defineComponent({
       {
         label: t('故障负责人'),
         renderFn: () => {
-          return userDisplayNameList.value.length === 0 ? (
-            <span class='empty-text'>--</span>
-          ) : (
-            <TagShow
+          return (
+            <UserDisplayNameTags
               class='principal-tag'
-              data={userDisplayNameList.value}
+              data={incidentDetailData.value?.assignees}
               enableEllipsis={selectCollapseTagsStatus.value}
             />
           );

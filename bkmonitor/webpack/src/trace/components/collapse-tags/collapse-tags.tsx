@@ -28,7 +28,7 @@ import { defineComponent, nextTick, onBeforeUnmount, ref as deepRef, shallowRef,
 import { useDebounceFn } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
 
-import './tag-show.scss';
+import './collapse-tags.scss';
 
 export default defineComponent({
   name: 'TagShow',
@@ -81,7 +81,7 @@ export default defineComponent({
         const domList = sectionRef.value?.children || [];
         const maxWidth = sectionRef.value?.parentNode?.clientWidth;
         // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
-        let num = maxCountCollectTagRef.value?.clientWidth + 1;
+        let num = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
         let count = -1;
         for (let i = 0; i < domList.length; i++) {
           const clientWidth = domList[i]?.clientWidth;
