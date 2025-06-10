@@ -256,8 +256,8 @@ export default defineComponent({
     // 由于使用了组件库中的下拉框，在进行动画效果无法使用css处理保证同步，
     // 所以使用js 定时器来控制
     watch(isHover, val => {
+      clearTimeout(selectDelayTimer);
       if (!val) {
-        clearTimeout(selectDelayTimer);
         selectDelayTimer = setTimeout(
           () => {
             selectCollapseTagsStatus.value = !val;
