@@ -186,7 +186,11 @@
   const handleDeleteExtraLabel = (index) => {
     extraLabelList.value.splice(index, 1);
   }
+  
   const extraLabelsValidate = () => {
+    if(!switcherValue.value){
+      return true;
+    }
     if (extraLabelList.value.length) {
       extraLabelList.value.forEach(item => {
         if (item.key === '' || item.value === '') {
