@@ -181,7 +181,8 @@ def update_metric_list():
     from monitor.models import GlobalConfig
 
     now_timestamp = arrow.get(datetime.datetime.now()).timestamp
-    for bk_tenant_id in api.bk_login.list_tenant():
+    for tenant in api.bk_login.list_tenant():
+        bk_tenant_id = tenant["id"]
         last_timestamp_key = (
             f"{bk_tenant_id}_METRIC_CACHE_TASK_LAST_TIMESTAMP"
             if bk_tenant_id != DEFAULT_TENANT_ID
@@ -213,7 +214,7 @@ def update_metric_list():
 
         # 更新任务轮次
         GlobalConfig.objects.filter(key=task_round_key).update(
-            value=0 if period <= 1 or offset == period - 1 else offset + 1
+            value=0 if period <= 1 or offset >= period - 1 else offset + 1
         )
 
         # 刷新指定租户的指标列表结果表
