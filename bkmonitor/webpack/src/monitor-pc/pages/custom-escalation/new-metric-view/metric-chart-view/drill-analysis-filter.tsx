@@ -133,7 +133,6 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
 
   mounted() {
     const resizeObserver = new ResizeObserver(this.calcLableWidth);
-    console.log(resizeObserver, 'resizeObserver');
     resizeObserver.observe(this.rootRef);
     this.$once('hook:beforeDestroy', () => {
       resizeObserver.disconnect();
