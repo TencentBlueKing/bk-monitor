@@ -151,12 +151,12 @@ export default class PipelineSelectPanel extends tsc<
     this.handleChange();
   }
 
-  /** 是否显示checkbox */
+  // 是否显示checkbox
   isShowCheckbox(data: TreeNodeData) {
     return !data.root && data.key !== 'more';
   }
 
-  /** 加载更多 */
+  // 加载更多
   async handleShowMore(data: TreeNode) {
     const { id, projectId, page } = data;
     data.loading = true;
@@ -225,6 +225,7 @@ export default class PipelineSelectPanel extends tsc<
     return expanded;
   }
 
+  // 默认选中checkbox的节点
   getDefaultCheckedIds() {
     return this.localValue.map(item => item.id);
   }
@@ -278,7 +279,7 @@ export default class PipelineSelectPanel extends tsc<
                 key: 'more',
                 name: '加载更多',
                 loading: false,
-                page: 1,
+                page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
               },
             ];
           }
@@ -298,11 +299,7 @@ export default class PipelineSelectPanel extends tsc<
     }));
   }
 
-  /**
-   * @description: 高亮列表内的搜索内容
-   * @param {string} str
-   * @return {*}
-   */
+  // 高亮列表内的搜索内容
   getSearchNode = (str: string, search: string) => {
     if (!str || !search) return str;
     let keyword = search.trim();
@@ -327,6 +324,7 @@ export default class PipelineSelectPanel extends tsc<
     return list.length ? list : str;
   };
 
+  // 加载更多
   renderLoadMore(item: TreeNode) {
     return (
       <div class='show-more'>
@@ -348,6 +346,7 @@ export default class PipelineSelectPanel extends tsc<
     );
   }
 
+  // 新增流水线按钮
   renderPipelineAdd() {
     return (
       <bk-popover
@@ -422,6 +421,7 @@ export default class PipelineSelectPanel extends tsc<
     );
   }
 
+  // 已选择的流水线/传入的流水线信息
   renderPipelineItem() {
     return this.localValue.map(item => (
       <div
