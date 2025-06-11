@@ -943,17 +943,6 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         },
     ]
 
-    def get_metric_pool(self):
-        # todo 包括 k8s event (映射到 bk_monitor + event 去了)
-        # 当前先不映射
-        query_set = super().get_metric_pool()
-        return query_set | MetricListCache.objects.filter(
-            result_table_label="kubernetes",
-            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-            data_type_label=DataTypeLabel.EVENT,
-            bk_tenant_id=self.bk_tenant_id,
-        )
-
     def get_tables(self):
         # 系统事件
         if self.bk_biz_id == 0:
@@ -1143,12 +1132,6 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
     """
 
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),)
-
-    # todo 当前默认k8s事件走自定义分类（直接复用前端)
-    # def get_metric_pool(self):
-    #     # 忽略k8s的采集指标，因为实际来自 自定义事件
-    #     query_set = super(BaseAlarmMetricCacheManager, self).get_metric_pool()
-    #     return query_set.exclude(result_table_label="kubernetes")
 
     def add_gse_process_event_metrics(self, result_table_label):
         """
