@@ -5,7 +5,6 @@ from django.db import migrations
 
 def create_system_base_metric_data_source(apps, schema_editor):
     from metadata import models
-    from metadata.resources import CreateTimeSeriesGroupResource
 
     bk_data_id = 1100030
 
@@ -32,15 +31,6 @@ def create_system_base_metric_data_source(apps, schema_editor):
             type_label=type_label,
             is_platform_data_id=True,
         )
-
-        CreateTimeSeriesGroupResource().request(
-            bk_data_id=bk_data_id,
-            bk_biz_id=bk_biz_id,
-            time_series_group_name=time_series_group_name,
-            label=label,
-            operator=operator,
-            data_label=data_label,
-        )
     except Exception as e:
         print(e)
         return
@@ -48,7 +38,6 @@ def create_system_base_metric_data_source(apps, schema_editor):
 
 def create_system_base_event_data_source(apps, schema_editor):
     from metadata import models
-    from metadata.resources import CreateEventGroupResource
 
     bk_data_id = 1100031
     if models.DataSource.objects.filter(bk_data_id=bk_data_id).exists():
@@ -73,15 +62,6 @@ def create_system_base_event_data_source(apps, schema_editor):
             source_label=source_label,
             type_label=type_label,
             is_platform_data_id=True,
-        )
-
-        CreateEventGroupResource().request(
-            bk_data_id=bk_data_id,
-            bk_biz_id=bk_biz_id,
-            event_group_name=event_group_name,
-            label=label,
-            operator=operator,
-            data_label=data_label,
         )
     except Exception as e:
         print(e)
