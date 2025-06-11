@@ -185,4 +185,9 @@ export default {
     'It is recommended to "refresh the page" to experience the new features. If you choose "Do not refresh", you may encounter unknown exceptions. You can manually refresh to solve the problem.',
   'Trace 检索': 'Trace Search',
   'Tracing 检索': 'Tracing Search',
+
+  流水线事件: 'Pipeline Event',
+  '关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。': 
+    'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
+  新增流水线: 'Add Pipeline',
 };

@@ -430,6 +430,24 @@
         }
       }
     }
+
+    .pipeline-event {
+      .pipeline-wrap {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+      }
+
+      .pipeline-label {
+        margin-right: 23px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4D4F56;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+      
+    }
   }
 
   .form-content {
