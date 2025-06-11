@@ -203,6 +203,7 @@
       });
     }
     if (isExtraError.value) {
+      isExtraError.value = false;
       throw new Error
     }
     handleExtraLabelsChange()
