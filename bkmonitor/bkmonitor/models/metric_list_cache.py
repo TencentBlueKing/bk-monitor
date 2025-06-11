@@ -106,6 +106,7 @@ class MetricListCache(models.Model):
 
     class Meta:
         index_together = (
+            ("bk_tenant_id", "bk_biz_id"),
             ("result_table_id", "metric_field", "bk_biz_id"),
             ("data_type_label", "data_source_label", "bk_biz_id"),
             ("data_label", "metric_field", "bk_biz_id"),
