@@ -42,12 +42,9 @@ export function isEllipsisActiveSingleLine(element: HTMLElement): {
   range.setStart(element, 0);
   range.setEnd(element, element.childNodes.length);
 
-  let rangeWidth = range.getBoundingClientRect().width;
+  const rangeWidth = range.getBoundingClientRect().width;
+  const containerWidth = element.getBoundingClientRect().width;
 
-  const offsetWidth = rangeWidth - Math.floor(rangeWidth);
-  if (offsetWidth < 0.001) {
-    rangeWidth = Math.floor(rangeWidth);
-  }
   const paddingLeft = Number.parseInt(style.paddingLeft, 10) || 0;
   const paddingRight = Number.parseInt(style.paddingRight, 10) || 0;
   const horizontalPadding = paddingLeft + paddingRight;
@@ -55,6 +52,6 @@ export function isEllipsisActiveSingleLine(element: HTMLElement): {
   return {
     content: range.toString(),
     // @ts-ignore
-    isEllipsisActive: range.scrollWidth > element.clientWidth || rangeWidth + horizontalPadding > element.clientWidth,
+    isEllipsisActive: range.scrollWidth > containerWidth || rangeWidth + horizontalPadding > containerWidth,
   };
 }
