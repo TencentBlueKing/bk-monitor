@@ -266,7 +266,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 rules.append(filter_rule.get("logic_operator"))
 
             rule = cls.build_condition_list(
-                all_fields_dict, field_name, filter_rule, nested_field_name=nested_field_name
+                all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=nested_field_name
             )
             rules.extend(rule)
 
@@ -282,7 +282,7 @@ class DataFlowHandler(BaseAiopsHandler):
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
 
     @classmethod
-    def build_condition_list(cls, all_fields_dict, field_name, filter_rule, nested_field_name=None):
+    def build_condition_list(cls, all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=None):
         if not isinstance(filter_rule.get("value"), list):
             filter_rule["value"] = [filter_rule.get("value")]
 
@@ -303,7 +303,7 @@ class DataFlowHandler(BaseAiopsHandler):
                     f"'{val}'",
                 ]
             )
-        if len(filter_rule.get("value")) > 0:
+        if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
             result.append(")")
             result.insert(0, "(")
         return result

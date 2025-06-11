@@ -44,38 +44,36 @@ CLUSTERINGCONFIG_CREATE_PARAMS = {
     "regex_rule_type": "template",
     "regex_template_id": 1,
 }
-VALUE_IS_LIST_RESULT = (
-    "where `log` is not null and length(`log`) > 1 and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'info' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'info' ) ) )",
+RESULT = (
+    "where `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' or `log` LIKE 'info' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' or `log` LIKE 'info' ) )",
 )
 
 FILTER_RULES1 = [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log.name", "logic_operator": None}]
 RESULT1 = (
-    "where `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' ) ) )",
+    "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' ) )",
 )
 
 FILTER_RULES2 = [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None}]
 RESULT2 = (
-    "where `log` is not null and length(`log`) > 1 and ( ( `log` LIKE '%ERROR%' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( ( `log` LIKE '%ERROR%' ) ) )",
+    "where `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' ) )",
 )
-
 
 FILTER_RULES3 = [{"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log.name", "logic_operator": None}]
 RESULT3 = (
-    "where `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' ) ) )",
+    "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' ) )",
 )
-
 
 FILTER_RULES4 = [
     {"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None},
     {"op": "=", "value": "1.1.1.1", "fields_name": "serverIp", "logic_operator": "and"},
 ]
 RESULT4 = (
-    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' ) and ( `serverIp` = '1.1.1.1' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' ) and ( `serverIp` = '1.1.1.1' ) ) )",
+    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' ) )",
 )
 
 FILTER_RULES5 = [
@@ -83,8 +81,8 @@ FILTER_RULES5 = [
     {"op": "=", "value": ["1.1.1.1"], "fields_name": "serverIp", "logic_operator": "and"},
 ]
 RESULT5 = (
-    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' ) ) )",
+    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' )",
+    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' ) )",
 )
 
 FILTER_RULES6 = [
@@ -104,7 +102,7 @@ class TestPatternSearch(TestCase):
         result = DataFlowHandler._init_filter_rule(
             clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
         )
-        self.assertEqual(result, VALUE_IS_LIST_RESULT)
+        self.assertEqual(result, RESULT)
 
         ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES1)
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
