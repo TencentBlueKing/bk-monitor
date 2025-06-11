@@ -467,13 +467,11 @@ export default defineComponent({
 
     // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
-      debugger;
       handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink) => {
-      debugger;
       handleOperation(option.operation, {
         value: option.value,
         fieldName: option.fieldName,
