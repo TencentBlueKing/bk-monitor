@@ -2937,14 +2937,13 @@ class ServiceQueryExceptionResource(PageListResource):
                 + "&search_type=scope"
                 + "&listType=trace"
                 + "&start_time={start_time}&end_time={end_time}"
-                + "&query=status.code:+2+"
-                + '&conditionList={{"resource.service.name": '
-                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{service_name}"]}},'
-                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{span_name}"]}},'
-                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
+                + "&sceneMode=span&filterMode=ui"
+                + "&where=["
+                '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                '{{"key": "span_name","operator": "equal","value": ["{span_name}"]}},'
+                '{{"key": "resource.bk.instance.id","operator": "equal","value": ["{bk_instance_id}"]}},'
+                '{{"key": "status.code","operator": "equal","value": [2]}},'
+                "]",
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),
