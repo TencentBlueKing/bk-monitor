@@ -257,7 +257,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
 
     updateChart(isInit);
-    console.log('dataset', isInit, options);
     return count;
   };
 
