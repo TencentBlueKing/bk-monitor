@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, DefaultDict
+from typing import Any
 from collections.abc import Callable
 
 import arrow
@@ -1351,9 +1351,9 @@ class PlainStrategyListV2Resource(Resource):
         # 获取指定业务下启用的策略
         bk_biz_id = validated_request_data.get("bk_biz_id")
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
-            .values("id", "name", "scenario")
-            .order_by("-update_time")
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+            .values("id", "name", "scenario", "is_enabled")
+            .order_by("-is_enabled", "-update_time")
         )
         # 获取分类标签
         labels = resource.commons.get_label()
@@ -2308,7 +2308,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新告警通知
 
         ```pyhon
-        notice["append_keys"]: List[str] # 追加逻辑的字段
+        notice["append_keys"]: List[str]  # 追加逻辑的字段
         ```
 
         当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
@@ -2407,8 +2407,8 @@ class UpdatePartialStrategyV2Resource(Resource):
     def process_extra_data(
         extra_create_or_update_datas: dict[str, list[dict[str, any]]],
         key: str,
-        updates_data: DefaultDict[str, dict[str, any]],
-        create_datas: DefaultDict[str, dict[str, any]],
+        updates_data: defaultdict[str, dict[str, any]],
+        create_datas: defaultdict[str, dict[str, any]],
     ):
         extra_update_datas = extra_create_or_update_datas.get("update_data", [])
         extra_create_datas = extra_create_or_update_datas.get("create_data", [])

@@ -267,6 +267,18 @@ const store = new Vuex.Store({
           return addition;
         });
 
+      // 格式化 addition value
+      // 如果字段类型为 text & is_case_sensitive = false 则将 value 转换为小写
+      // 操作符为"=~", "&=~", "!=~", "&!=~"  四者之一
+      filterAddition.forEach(item => {
+        if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
+          const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+          if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
+            item.value = item.value.map(v => v?.toLowerCase() ?? '');
+          }
+        }
+      });
+
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
 
@@ -1554,6 +1566,10 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
+        if (isVirtualObjNode && textType === 'object') {
+          mappingKey = textMappingKey;
+        }
+
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1630,10 +1646,10 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
             } else {
-              const mapOperator = getAdditionMappingOperator({ field, operator, value });
               newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
             }
           }

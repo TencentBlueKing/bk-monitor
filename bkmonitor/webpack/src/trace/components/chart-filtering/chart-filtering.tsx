@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, ref, watch } from 'vue';
+import { defineComponent, type PropType, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Slider } from 'bkui-vue';
@@ -39,6 +39,13 @@ import type { ISpanListItem, ITraceListItem } from '../../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-filtering.scss';
+
+export interface DurationRangeItem {
+  alias: string;
+  value: string;
+  count: number;
+  proportions: number;
+}
 
 export interface ISliderItem {
   overallText?: string;
@@ -57,6 +64,10 @@ export default defineComponent({
     list: {
       type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
       default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
     },
     listType: {
       type: String,
@@ -89,6 +100,8 @@ export default defineComponent({
       max: 0, // 最大值
       step: 0, // 步长 / 刻度
     });
+
+    const durationRangeList = shallowRef<DurationRangeItem[]>([]);
 
     const { t } = useI18n();
 
@@ -151,6 +164,17 @@ export default defineComponent({
             },
           })
         ) as MonitorEchartOptions;
+        durationRangeList.value = seriesData.map((item, index) => {
+          const [start, end] = xAxisData[index].split('-');
+          const startLabel = formatDuration(Number(start || 0));
+          const endLabel = formatDuration(Number(end || 0));
+          return {
+            count: item,
+            alias: `${startLabel} - ${endLabel}`,
+            value: xAxisData[index],
+            proportions: Number(((item / props.list.length) * 100).toFixed(2)),
+          };
+        });
         handleSetDurationSlider(minDuration, maxDuration, durationStep);
       } else {
         durationModal.value = null;
@@ -194,15 +218,21 @@ export default defineComponent({
       return curStart >= selectStart && curEnd <= selectEnd ? '#5AB8A8' : '#DCDEE5';
     };
 
+    const getDurationList = () => {
+      return durationRangeList.value;
+    };
+
     return {
       barChartref,
       chartOptions,
       durationSlider,
       handleDurationChange,
+      getDurationList,
       t,
     };
   },
   render() {
+    if (this.loading) return <div class='skeleton-element chart-filtering-skeleton' />;
     return (
       <div class='chart-filtering-wrap'>
         {this.chartOptions && (

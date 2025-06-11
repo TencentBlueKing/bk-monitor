@@ -46,10 +46,10 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
 }
 // 设置全局业务ID
 export const setGlobalBizId = () => {
-  let bizId = +getUrlParam('bizId')?.replace(/\//gim, '');
+  let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
-  const isSpicialEvent = !!getUrlParam('specEvent');
+  const isSpacialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
@@ -83,7 +83,13 @@ export const setGlobalBizId = () => {
     }
     return false;
   };
-  if (bizId && (!isInSpaceList(bizId) || (bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)))) {
+  // 如果bizId不在空间列表中 几没有权限或者是不存在的 bizId，则返回到无权限页面进行申请
+  if (bizId && !isInSpaceList(bizId)) {
+    location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
+    return true;
+  }
+
+  if (bizId && bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)) {
     const newBizId = defaultBizId || localBizId;
     if (hasAuth(newBizId)) {
       window.bk_biz_id = +newBizId;
@@ -122,10 +128,9 @@ export const setGlobalBizId = () => {
       location.href = `${location.origin}${location.pathname}?${`bizId=${newBizId}`}#/no-business`;
       return ['#/no-business'].includes(location.hash.replace(/\?.*/, '')) ? newBizId : false;
     }
-
     bizId = newBizId;
   }
-  if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
+  if (!isSpacialEvent && !hasRouteHash && !isEmailSubscriptions) {
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {
