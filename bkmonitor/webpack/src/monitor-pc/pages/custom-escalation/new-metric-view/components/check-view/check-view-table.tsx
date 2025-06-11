@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -31,16 +31,16 @@ import { xssFilter } from 'monitor-common/utils/xss';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
+import { Table as TTable, ConfigProvider as TConfigProvider } from 'tdesign-vue';
 
-import { handleGetMinPrecision, typeEnums } from '../../metric-chart-view/utils';
+import { typeEnums } from '../../metric-chart-view/utils';
 
-import type { ITableColumn } from '../../type';
 import type { IColumnItem, IDataItem } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
 import type { ILegendItem } from 'monitor-ui/chart-plugins/typings';
-import type { ITableDataItem } from 'monitor-ui/chart-plugins/typings/table-chart';
 import type { CreateElement } from 'vue';
 
 import './check-view-table.scss';
+import 'tdesign-vue/es/style/index.css';
 
 @Component
 export default class CheckViewTable extends tsc<object, object> {
@@ -50,153 +50,285 @@ export default class CheckViewTable extends tsc<object, object> {
   @Prop({ default: true }) loading: boolean;
   @Prop({ default: false }) isHasCompare: boolean;
   @Prop({ default: false }) isHasDimensions: boolean;
+  @Prop({ default: () => [] }) hoverPoint: number[];
   @Prop({ default: '' }) title: string;
-  fluctuationColumn: IColumnItem[] = [{ label: this.$t('波动'), prop: 'fluctuation' }];
+  @Prop({ default: () => [] }) compare: string[];
+  @Ref('dataTable') dataTableRef: HTMLElement;
+  @Ref('checkViewTable') checkViewTableRef: HTMLElement;
 
-  // 统计类型映射
-  typeArr = {
-    max: this.$t('最大值'),
-    min: this.$t('最小值'),
-    latest: this.$t('最新值'),
-    avg: this.$t('平均值'),
-    total: this.$t('累计值'),
+  firstColumn: IColumnItem[] = [
+    {
+      title: 'Time',
+      colKey: 'time',
+      minWidth: '180',
+      sortType: 'all',
+      sorter: true,
+      fixed: 'left',
+    },
+  ];
+  fluctuationColumn: IColumnItem[] = [
+    {
+      label: this.$t('波动'),
+      title: this.renderColorHead,
+      colKey: 'fluctuation0',
+      render: this.renderFluctuationCol,
+    },
+  ];
+
+  baseColumnConfig = {
+    title: this.renderColorHead,
+    render: this.renderCol,
+    foot: this.renderFooter,
+    ellipsisTitle: true,
+    minWidth: '170',
   };
 
-  keys: string[] = [];
-  selectLegendInd = 0;
-  sortProp: null | string = null;
-  sortOrder: 'ascending' | 'descending' | null = null;
+  selectLegendKey = '';
+  sort = {};
+  timeData = [];
 
+  tableData = [];
+  footerDataList = [];
+  defaultHeight = 400;
+  maxHeight = 0;
+
+  globalLocale = {
+    table: {
+      sortIcon: h => h && <i class='icon-monitor icon-mc-arrow-down sort-icon' />,
+    },
+  };
+  // Web Worker 实例
+  worker: null | Worker = null;
   @Watch('loading')
   handleLoading() {
-    this.selectLegendInd = 0;
+    this.initTableData();
+    this.selectLegendKey = '';
   }
 
-  get rawDataList() {
-    const len = Object.keys(this.data).length;
-    if (this.data && len > 0) {
-      const { series } = this.data;
-      return this.classifyData(series);
+  @Watch('hoverPoint')
+  handleHoverPoint(val) {
+    const { index } = val;
+    const table = this.dataTableRef;
+    if (!table) return;
+    const tableBody = table.$el.querySelector('.t-table__body');
+    const rows = tableBody.querySelectorAll('tbody tr');
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    rows.forEach(row => row.classList.remove('highlight-row'));
+    // 高亮当前行
+    if (index < rows.length) {
+      rows[index].classList.add('highlight-row');
+      // 滚动到该行
+      this.scrollToRow(index);
     }
-    return [];
   }
-
-  classifyData(data: ILegendItem[]) {
-    const byDimensions: Record<string, any[]> = {};
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < data.length; i++) {
-      const item = data[i];
-      const dimensionsKey = JSON.stringify(item.dimensions);
-      if (!byDimensions[dimensionsKey]) {
-        byDimensions[dimensionsKey] = [];
+  mounted() {
+    this.$nextTick(() => {
+      if (!this.checkViewTableRef) {
+        return;
       }
-      byDimensions[dimensionsKey].push(item);
-    }
-
-    return Object.entries(byDimensions).map(([dimensionsKey, items]) => ({
-      dimensions: JSON.parse(dimensionsKey),
-      items,
-    }));
+      const height = this.checkViewTableRef.offsetHeight - 10;
+      this.maxHeight = height > this.defaultHeight ? this.defaultHeight : height;
+    });
   }
+
   /** 有维度且有时间对比 */
   get isMergeTable() {
     return this.isHasCompare && this.isHasDimensions;
   }
+
   /** 有时间对比没有维度 */
   get isCompareNotDimensions() {
     return this.isHasCompare && !this.isHasDimensions;
   }
 
-  /** 动态生成对比列 */
-  get compareColumn(): IColumnItem[] {
-    const newData = this.classifyData(this.legendData);
-    if (this.isCompareNotDimensions) {
-      const data = newData[0] || { items: [] };
-      return data.items.map(ele => ({
-        ...ele,
-        label: typeEnums[ele.timeOffset] || timeOffsetDateFormat(ele.timeOffset),
-        prop: ele.timeOffset,
-      }));
-    }
-    return newData.map(item => {
-      const label = this.handleProp(item);
-      return { ...item, label, prop: label || 'current' };
-    });
-  }
+  /** 基础数据 */
+  get baseData() {
+    const len = Object.keys(this.data).length;
+    const columnsData = this.classifyData(this.legendData);
 
-  /** 转换后的表格数据 */
-  get tableDataList() {
-    const length = this.rawDataList.length;
-    if (length > 0) {
-      const formateData = this.transformData(this.rawDataList);
-      const len = formateData.length;
-      /** 排序 */
-      if (this.sortProp && this.sortOrder && len) {
-        formateData.sort((a, b) => {
-          if (this.sortOrder === 'ascending') {
-            return a[this.sortProp] > b[this.sortProp] ? 1 : -1;
-          }
-          return a[this.sortProp] < b[this.sortProp] ? 1 : -1;
+    if (this.data && len > 0) {
+      const { series } = this.data;
+      this.timeData = [];
+      const timeList = series[0]?.datapoints || [];
+      timeList.map(item => {
+        this.timeData.push({
+          time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ss'),
+          date: item[1],
+          rowKey: item[1],
         });
-      }
-      return formateData;
-    }
-    return [];
-  }
-
-  transformData(data: IDataItem[]) {
-    const resultMap = new Map<
-      number,
-      {
-        time: string;
-        date: number;
-        list: {
-          [timeOffset: string]: { [key: string]: number };
-        };
-        unit: string;
-      }
-    >();
-
-    for (const item of data) {
-      const key = this.handleProp(item);
-      for (const subItem of item.items) {
-        const { time_offset = 'current', unit, datapoints } = subItem;
-        for (const [value, timestamp] of datapoints) {
-          if (!resultMap.has(timestamp)) {
-            const time = dayjs.tz(timestamp).format('YYYY-MM-DD HH:mm:ss');
-            resultMap.set(timestamp, {
-              time,
-              date: timestamp,
-              list: {},
-              unit,
-            });
-          }
-
-          const entry = resultMap.get(timestamp)!;
-          if (!entry.list[time_offset]) {
-            entry.list[time_offset] = {};
-          }
-          entry.list[time_offset][key || time_offset] = value;
-        }
-      }
-    }
-
-    return Array.from(resultMap.values());
-  }
-
-  /** 统计行数据 */
-  get statisticalDataList() {
-    if (this.compareColumn.length === 0) return [];
-    return Object.keys(this.typeArr).map(type => {
-      const res: Record<string, any> = {
-        type: this.$t(this.typeArr[type]),
-        key: type,
-      };
-      this.compareColumn.map(item => {
-        res[item.prop] = item.items || [item];
       });
-      return res;
+      return {
+        data: this.classifyData(series),
+        columns: columnsData,
+      };
+    }
+    return {};
+  }
+
+  get compareColumn(): IColumnItem[] {
+    const { columns = [] } = this.baseData;
+
+    // 情况1：有比较但无维度
+    if (this.isCompareNotDimensions) {
+      return this.generateSimpleCompareColumns(columns);
+    }
+    // 情况2：有维度（可能有合并表格）
+    return this.generateDimensionCompareColumns(columns);
+  }
+
+  get columns() {
+    return this.isCompareNotDimensions
+      ? [...this.firstColumn, ...this.compareColumn, ...this.fluctuationColumn]
+      : [...this.firstColumn, ...this.compareColumn];
+  }
+
+  get footerData() {
+    return this.isShowStatistical ? this.footerDataList : [];
+  }
+
+  scrollToRow(index) {
+    const table = this.dataTableRef;
+    if (!table) return;
+
+    const tableBody = table.$el.querySelector('.t-table__content');
+    if (!tableBody) return;
+
+    const rows = tableBody.querySelectorAll('tr');
+    if (rows.length <= index) return;
+
+    const row = rows[index];
+    const rowTop = row.offsetTop;
+    const rowHeight = row.offsetHeight;
+    const tableHeight = tableBody.clientHeight;
+
+    // 计算滚动位置，使行居中显示
+    const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + 32;
+
+    // 平滑滚动
+    tableBody.scrollTo({
+      top: scrollPosition,
+      behavior: 'smooth',
     });
+  }
+
+  // 生成简单比较列（无维度）
+  generateSimpleCompareColumns(columns: any[]): IColumnItem[] {
+    const firstColumn = columns[0] || { items: [] };
+
+    return firstColumn.items.map((ele: any) => ({
+      ...ele,
+      ...this.baseColumnConfig,
+      label: this.formatTimeOffset(ele.timeOffset),
+      colKey: ele.timeOffset,
+    }));
+  }
+
+  // 生成带维度的比较列
+  generateDimensionCompareColumns(columns: any[]): IColumnItem[] {
+    return columns.map((item: any, index: number) => {
+      const title = this.handleProp(item) || '';
+      const baseConfig = {
+        ...item,
+        ...this.baseColumnConfig,
+        label: title || this.title,
+        colKey: `${title}${item.timeOffset || 'current'}`,
+      };
+      // 处理合并表格的子列
+      if (this.isMergeTable) {
+        const children = this.generateMergeTableChildren(item, index, title);
+        return { ...baseConfig, children };
+      }
+      const firstColumn = item.items[0] || {};
+
+      return {
+        ...baseConfig,
+        ...firstColumn,
+      };
+    });
+  }
+
+  // 生成合并表格的子列
+  generateMergeTableChildren(item: any, parentIndex: number, parentKey: string): IColumnItem[] {
+    const children = item.items.map((ele: any, ind: number) => ({
+      ...ele,
+      ...this.baseColumnConfig,
+      label: this.formatTimeOffset(ele.timeOffset),
+      colKey: `${parentKey}${ele.timeOffset}${ind}`,
+    }));
+
+    // 添加波动列
+    children.push({
+      label: this.$t('波动'),
+      title: this.renderColorHead,
+      colKey: `fluctuation${parentIndex}`,
+      render: this.renderFluctuationCol,
+      ellipsisTitle: true,
+    });
+
+    return children;
+  }
+
+  renderValue(row: IDataItem, prop: string, unit: string) {
+    if (row[prop] === undefined || row[prop] === null) {
+      return '--';
+    }
+    const unitFormatter = getValueFormat(unit);
+    const set: any = unitFormatter(row[prop], 2);
+    return (
+      <span>
+        {set.text} {set.suffix}
+      </span>
+    );
+  }
+
+  renderCol(h: CreateElement, { row, col }) {
+    return <span>{this.renderValue(row, col.colKey, row.unit)}</span>;
+  }
+
+  renderFluctuationCol(h: CreateElement, { row, col }) {
+    const data = row[col.colKey];
+    const color = data >= 0 ? '#3AB669' : '#E91414';
+    return <span style={{ color: data > 0 ? color : '#313238' }}>{data > 0 ? `${data.toFixed(2)}%` : data}</span>;
+  }
+
+  renderColorHead(h: CreateElement, { col }) {
+    return (
+      <span
+        class={[
+          'header-cell',
+          {
+            disabled: this.selectLegendKey && this.selectLegendKey !== col.colKey,
+          },
+        ]}
+        v-bk-tooltips={this.renderTipsContent(col)}
+        onClick={e => this.handleRowClick(e, col)}
+      >
+        {col.color && (
+          <span
+            style={{
+              backgroundColor: col.color,
+            }}
+            class='color-box'
+          />
+        )}
+        <span class='title'>
+          {col.label}
+          {/* -{col.colKey} */}
+        </span>
+      </span>
+    );
+  }
+
+  /** 点击表格的图例，与图表联动 */
+  handleRowClick(e: Event, item: IColumnItem) {
+    e.stopPropagation();
+    this.selectLegendKey = this.selectLegendKey === item.colKey ? '' : item.colKey;
+    this.$emit('headClick', item);
+  }
+
+  // 格式化时间偏移
+  formatTimeOffset(timeOffset?: string): string {
+    return typeEnums[timeOffset] || timeOffsetDateFormat(timeOffset) || '';
   }
 
   /** prop值处理 */
@@ -205,18 +337,72 @@ export default class CheckViewTable extends tsc<object, object> {
     return dimensions.length > 0 ? dimensions.join(' | ') : item.target;
   }
 
-  /** 点击表格的图例，与图表联动 */
-  handleRowClick(item: ILegendItem, index: number) {
-    this.selectLegendInd = this.selectLegendInd === index ? 0 : index;
-    this.$emit('headClick', item);
+  classifyData(data: ILegendItem[]) {
+    const byDimensions = new Map<string, any[]>();
+    data.map(item => {
+      const dimensionsKey = JSON.stringify(item.dimensions);
+      if (!byDimensions.has(dimensionsKey)) {
+        byDimensions.set(dimensionsKey, []);
+      }
+      byDimensions.get(dimensionsKey)!.push(item);
+    });
+
+    return Array.from(byDimensions.entries()).map(([dimensionsKey, items]) => ({
+      dimensions: JSON.parse(dimensionsKey),
+      items,
+    }));
+  }
+
+  // 使用 Web Worker 处理大数据量计算
+  initTableData() {
+    const { data = [], columns = [] } = this.baseData;
+    const compare = [...['current'], ...this.compare];
+    if (this.worker) {
+      this.worker.terminate();
+    }
+
+    this.worker = new Worker(new URL('./tableDataWorker.ts', import.meta.url));
+
+    this.worker.onmessage = e => {
+      const { tableData, footerDataList } = e.data;
+      this.tableData = tableData;
+      this.footerDataList = footerDataList;
+
+      this.worker?.terminate();
+      this.worker = null;
+    };
+
+    this.worker.postMessage({
+      data,
+      columns,
+      compare,
+      timeData: this.timeData,
+      isCompareNotDimensions: this.isCompareNotDimensions,
+      isMergeTable: this.isMergeTable,
+    });
+  }
+
+  renderFooter(h: CreateElement, { col, row }) {
+    return (
+      <span class='num-cell'>
+        {row[col.colKey]}
+        <span class='gray-text'>@{dayjs(row[`${col.colKey}Time`]).format('HH:mm')}</span>
+      </span>
+    );
   }
 
   /** 维度（组合）tips展示 */
-  renderTipsContent(item: ILegendItem, disabled = false) {
+  renderTipsContent(item: IColumnItem) {
+    let name = '';
+    name = item.name;
+    if (this.isMergeTable && item.items) {
+      name = item.items[0]?.name || '';
+    }
+    const disabled = (!this.isMergeTable && !item.name) || !this.isHasDimensions || (this.isMergeTable && !item.items);
     const tipContent = `<span class='head-tips-view'>
       <span class='tips-name'>${this.$t('维度（组合）')}</span><br/>
       ${
-        (item.name || '')
+        (name || '')
           .split('|')
           .map((item: string, ind: number) => {
             const className = ind % 2 !== 0 ? 'tips-item' : 'tips-item-even';
@@ -238,218 +424,48 @@ export default class CheckViewTable extends tsc<object, object> {
     };
   }
 
-  getIsCheck(key: number) {
-    return this.selectLegendInd >= 1 && this.selectLegendInd !== key ? 'disabled' : '';
-  }
-
-  /** 自定义表头渲染，支持颜色和维度提示 */
-  renderHeader(h: CreateElement, data: ITableColumn, item: IColumnItem) {
-    const { $index } = data;
-    if ((item.items || []).length > 1) {
-      return (
-        <span
-          class={'color-head'}
-          v-bk-tooltips={this.renderTipsContent(item.items[0])}
-        >
-          <span class='color-label'>{item.label}</span>
-          {this.isMergeTable && (
-            <span class='head-list'>
-              {(item.items || []).map((ele: ILegendItem, ind: number) => {
-                const key = Number(`${$index}${ind}`);
-                return (
-                  <span
-                    key={`${ele.timeOffset}${ind}`}
-                    class={`head-list-item ${this.getIsCheck(key)}`}
-                    onClick={() => this.handleRowClick(ele, key)}
-                  >
-                    <span
-                      style={{ backgroundColor: ele.color }}
-                      class='color-box'
-                    />
-                    {typeEnums[ele.timeOffset] || timeOffsetDateFormat(ele.timeOffset)}
-                  </span>
-                );
-              })}
-              <span class='head-list-item'>{this.$t('波动')}</span>
-            </span>
-          )}
-        </span>
-      );
-    }
-    if (item.prop !== 'time') {
-      const data = item?.items ? item.items[0] : item;
-      return (
-        <span
-          class={`color-head  no-compare ${this.getIsCheck($index)}`}
-          v-bk-tooltips={this.renderTipsContent(data, !this.isHasDimensions)}
-          onClick={() => this.handleRowClick(data, $index)}
-        >
-          {data.color && (
-            <span
-              style={{
-                backgroundColor: data.color,
-              }}
-              class='color-box'
-            />
-          )}
-          <span class='color-label not-color'>{item.label || this.title}</span>
-        </span>
-      );
-    }
-    return <span class='color-label not-color'>{item.label}</span>;
-  }
-
-  renderValue(row: IDataItem, prop: string, unit: string) {
-    if (row[prop] === undefined || row[prop] === null) {
-      return '--';
-    }
-    const precision = handleGetMinPrecision(
-      this.tableDataList.map(item => item[prop]).filter((set: any) => typeof set === 'number'),
-      getValueFormat(unit),
-      unit
-    );
-    const unitFormatter = getValueFormat(unit);
-    const set: any = unitFormatter(row[prop], unit !== 'none' && precision < 1 ? 2 : precision);
-    return (
-      <span>
-        {set.text} {set.suffix}
-      </span>
-    );
-  }
-
-  renderFluctuation(row: IDataItem, prop: string, keys: string[]) {
-    const color = row[prop] >= 0 ? '#3AB669' : '#E91414';
-    const data = ((row[keys[1]][prop] - row[keys[0]][prop]) / row[keys[0]][prop]) * 100;
-    const isShow = !Number.isNaN(data) && Number.isFinite(data);
-    return <span style={{ color: row[prop] ? color : '#313238' }}>{isShow ? `${data}%` : '--'}</span>;
-  }
-
-  /** 渲染表格列 */
-  renderColumns(isStatistical = false): IColumnItem[] {
-    const baseColumn: IColumnItem[] = [
-      {
-        label: isStatistical ? 'type' : 'Time',
-        prop: isStatistical ? 'type' : 'time',
-        sortable: !isStatistical,
-        fixed: 'left',
-        minWidth: 200,
-      },
-    ];
-    const columnList = this.isCompareNotDimensions
-      ? [...baseColumn, ...this.compareColumn, ...this.fluctuationColumn]
-      : [...baseColumn, ...this.compareColumn];
-
-    return columnList.map((item: IColumnItem, ind: number) => (
-      <bk-table-column
-        key={`${item.prop}_${ind}`}
-        width={item.width}
-        scopedSlots={{
-          default: (data: ITableDataItem) => {
-            const { row } = data;
-            if (isStatistical) {
-              if (item.prop !== 'type') {
-                const data = row[item.prop];
-                const len = (data || []).length;
-                return (data || []).map((item: IDataItem, ind: number) => (
-                  <span
-                    key={`${row.key}-${ind}`}
-                    style={{ width: len > 1 ? '33.33%' : '100%' }}
-                    class='num-cell'
-                  >
-                    {item[row.key] === undefined || item[row.key] === null ? '--' : item[row.key]}
-                    <span class='gray-text'>@{dayjs(item[`${row.key}Time`]).format('HH:mm')}</span>
-                  </span>
-                ));
-              }
-              return row[item.prop];
-            }
-
-            const { list, unit } = row;
-            const keys = Object.keys(list);
-            if (item.prop === 'time') {
-              return row[item.prop] === undefined || row[item.prop] === null ? '--' : row[item.prop];
-            }
-            if (this.isMergeTable) {
-              return (
-                <span class='check-table-merge'>
-                  {keys.map((key: string, ind: number) => (
-                    <span
-                      key={`${key}-${ind}`}
-                      class='check-table-merge-item'
-                      v-bk-overflow-tips
-                    >
-                      {this.renderValue(list[key], item.prop, unit)}
-                    </span>
-                  ))}
-                  <span
-                    class='check-table-merge-item'
-                    v-bk-overflow-tips
-                  >
-                    {this.renderFluctuation(list, item.prop, keys)}
-                  </span>
-                </span>
-              );
-            }
-            if (this.isCompareNotDimensions) {
-              return list[item.prop]
-                ? this.renderValue(list[item.prop], item.prop, unit)
-                : this.renderFluctuation(list, item.prop, keys);
-            }
-            return this.renderValue(list[keys[0]], item.prop, unit);
-          },
-        }}
-        fixed={item.fixed || false}
-        label={item.label}
-        min-width={item.minWidth || (this.isMergeTable ? 240 : 120)}
-        prop={item.prop}
-        renderHeader={(h: CreateElement, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
-        sortable={item.sortable}
-        show-overflow-tooltip
-      />
-    ));
+  sortChange(sortInfo: { sortBy?: string; descending?: boolean }) {
+    this.sort = sortInfo;
+    this.handleSort(sortInfo);
   }
 
   /** 排序 */
-  handleSort({ order, prop }: { order: string; prop: string }) {
-    this.sortProp = prop;
-    this.sortOrder = order as 'ascending' | 'descending' | null;
+  handleSort(sort: { sortBy?: string; descending?: boolean }) {
+    if (sort) {
+      this.tableData = this.timeData.concat().sort((a, b) => (sort.descending ? b.date - a.date : a.date - b.date));
+    } else {
+      this.tableData = this.timeData.concat();
+    }
   }
-
-  getCellName = ({ column }: { column: ITableColumn }) => {
-    // console.log(column, 'column');
-    return '';
-  };
 
   render() {
     return (
-      <div class='check-view-table'>
+      <div
+        ref='checkViewTable'
+        class='check-view-table'
+      >
         {this.loading ? (
           <TableSkeleton
             class='table-skeleton-block'
             type={1}
           />
         ) : (
-          <bk-table
-            height={300}
-            ext-cls={`check-view-table-main ${this.isMergeTable ? 'is-nowrap' : ''}`}
-            cell-class-name={this.getCellName}
-            data={this.tableDataList}
-            header-border={false}
-            outer-border={false}
-            on-sort-change={this.handleSort}
-          >
-            {this.renderColumns()}
-          </bk-table>
-        )}
-        {!this.loading && this.isShowStatistical && this.statisticalDataList.length > 0 && (
-          <bk-table
-            ext-cls='check-view-table-statistical'
-            data={this.statisticalDataList}
-            outer-border={false}
-            show-header={false}
-          >
-            {this.renderColumns(true)}
-          </bk-table>
+          <TConfigProvider globalConfig={this.globalLocale}>
+            <TTable
+              ref='dataTable'
+              class='check-view-table-main'
+              bordered={'bordered'}
+              columns={this.columns}
+              data={this.tableData}
+              foot-data={this.footerData}
+              max-height={this.maxHeight}
+              row-key='key'
+              scroll={{ type: 'lazy', bufferSize: 10 }}
+              sort={this.sort}
+              lazyLoad
+              on-sort-change={this.sortChange}
+            />
+          </TConfigProvider>
         )}
       </div>
     );

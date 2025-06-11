@@ -36,16 +36,23 @@ export interface IDimensionItem {
 }
 
 export interface IColumnItem {
-  label: string;
-  prop: string;
-  width?: number | undefined;
+  label?: string | undefined;
+  prop?: string;
+  width?: number | string;
   sortable?: boolean | undefined;
   renderFn?: (row) => void;
   fixed?: string;
-  minWidth?: number;
+  minWidth?: number | string;
   items?: IDataItem[];
   name?: string;
   color?: string;
+  title?: Function | string;
+  colKey?: string;
+  key?: string;
+  sortBy?: string;
+  field?: string;
+  sorter?: boolean;
+  sortType?: string;
 }
 export interface IDataItem {
   name?: string;
@@ -65,6 +72,8 @@ export interface IDataItem {
   unit?: string;
   show?: boolean;
   target?: string;
+  timeOffset?: string;
+  time_offset?: string;
 }
 
 export interface IRefreshItem {

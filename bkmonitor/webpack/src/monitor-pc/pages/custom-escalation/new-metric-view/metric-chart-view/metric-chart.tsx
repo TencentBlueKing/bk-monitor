@@ -94,6 +94,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: '' }) groupId: string;
   /** 是否展示图例 */
   @Prop({ default: false }) isNeedMenu: boolean;
+  /** 是否需要鼠标hover事件 */
+  @Prop({ type: Boolean, default: false }) isNeedMouseover: boolean;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -104,6 +106,7 @@ class NewMetricChart extends CommonSimpleChart {
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
   @Ref('baseChart') readonly baseChart: HTMLElement;
+  @Ref('chart') readonly chart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
@@ -162,6 +165,8 @@ class NewMetricChart extends CommonSimpleChart {
   seriesList = null;
   minBase = 0;
   enableContextmenu = true;
+  // 自动粒度降采样
+  downSampleRange = 'auto';
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -410,6 +415,20 @@ class NewMetricChart extends CommonSimpleChart {
     }
     return [startTime, endTime];
   }
+  /* 粒度计算 */
+  downSampleRangeComputed(downSampleRange: string, timeRange: number[]) {
+    if (downSampleRange === 'auto') {
+      let width = 1;
+      if (this.$refs.chart) {
+        width = this.$refs.chart.clientWidth;
+      } else {
+        width = this.$refs.chart!.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
+      }
+      const size = ((timeRange[1] - timeRange[0]) / width) * 1.5;
+      return size > 0 ? `${Math.ceil(size)}s` : undefined;
+    }
+    return downSampleRange;
+  }
   /**
    * @description: 获取图表数据
    */
@@ -468,6 +487,7 @@ class NewMetricChart extends CommonSimpleChart {
           unify_query_param: {
             ...newParams.unify_query_param,
           },
+          down_sample_range: this.downSampleRangeComputed(this.downSampleRange, [startTime, endTime]),
         });
         return graphUnifyQuery(...paramsArr, {
           cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -878,6 +898,9 @@ class NewMetricChart extends CommonSimpleChart {
       }
     }
   }
+  handleZrMouseover(params) {
+    this.$emit('zrMouseover', { index: params.dataIndex, value: params.value });
+  }
   render() {
     return (
       <div class='new-metric-chart'>
@@ -890,7 +913,7 @@ class NewMetricChart extends CommonSimpleChart {
           metrics={this.metrics}
           needMoreMenu={true}
           showMore={true}
-          subtitle={this.panel.sub_title || ''}
+          subtitle={this.panel?.sub_title || ''}
           title={this.panel.title}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleIconClick}
@@ -930,10 +953,12 @@ class NewMetricChart extends CommonSimpleChart {
                   height={this.chartHeight}
                   groupId={this.panel.groupId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  isNeedMouseover={this.isNeedMouseover}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
+                  onZrMouseover={this.handleZrMouseover}
                 />
               ) : (
                 <div class='skeleton-loading-chart'>

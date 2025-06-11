@@ -210,15 +210,19 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    */
   handleFullScreen(config: IPanelModel, compareValue?: any) {
     this.showViewDetail = true;
-    const { offset, type } = this.filterOption.compare;
-    const newFilterOption = {
-      ...this.filterOption,
-      compare: {
-        ...this.filterOption.compare,
-        offset: offset.slice(0, 1),
-        type: type === 'metric' ? '' : type,
-      },
-    };
+    let newFilterOption = deepClone(this.filterOption);
+    if (this.filterOption.compare) {
+      const { offset, type } = this.filterOption.compare;
+      newFilterOption = {
+        ...this.filterOption,
+        compare: {
+          ...this.filterOption.compare,
+          offset: offset.slice(0, 1),
+          type: type === 'metric' ? '' : type,
+        },
+      };
+    }
+
     this.viewQueryConfig = {
       config: this.deepCloneWithTargetProcessing(config),
       compareValue: deepClone({ ...this.compareValue, ...compareValue }),

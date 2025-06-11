@@ -90,11 +90,14 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   loading = false;
   isHasCompare = false;
   isHasDimensions = false;
+  compare: string[] = [];
+  hoverPoint: { index?: number; value?: number[] } = {};
   get titleName() {
     return this.panel?.config?.title || '';
   }
 
   mounted() {
+    this.loading = true;
     this.timeRange = this.timeRangeData;
     this.refreshList = refreshList;
     this.$nextTick(() => {
@@ -104,6 +107,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
       this.dimensionParams = deepClone(filterOption);
       this.isHasDimensions = filterOption?.group_by?.length > 0;
       this.isHasCompare = filterOption?.compare?.offset?.length > 0;
+      this.compare = filterOption?.compare?.offset || [];
       if (this.viewMainRef) {
         // 初始化 ResizeObserver
         this.resizeObserver = new ResizeObserver(entries => {
@@ -148,19 +152,18 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   /** 手动刷新 */
   handleImmediateRefresh() {
     this.chartKey = random(8);
-    this.getTableList();
+    this.loading = true;
   }
   /** 修改时间间隔 */
   handleTimeRangeChange(val: TimeRangeType) {
     this.timeRange = [...val];
-    this.getTableList();
+    this.loading = true;
   }
   /** 修改时区 */
   handleTimezoneChange(timezone: string) {
     updateTimezone(timezone);
-    this.getTableList();
+    this.loading = true;
   }
-  getTableList() {}
   /** 支持上下拖拽 */
   handleResizing(height: number) {
     this.drag.height = height;
@@ -211,6 +214,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     ]);
     this.panelData.targets[0].function = !compare.type ? {} : { time_compare: compare.offset };
     this.isHasCompare = compare.offset.length > 0;
+    this.compare = compare.offset || [];
     this.dimensionParams = Object.freeze(payload);
     this.loading = true;
   }
@@ -230,6 +234,10 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
 
   handleContextMenuClick() {
     this.$emit('contextMenuClick', this.panelData);
+  }
+
+  handleZrMouseover(data: { index: number; value: number[] }) {
+    this.hoverPoint = data;
   }
 
   render() {
@@ -313,12 +321,14 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   chartHeight={this.drag.height}
                   currentMethod={this.currentMethod}
                   isNeedMenu={true}
+                  isNeedMouseover={true}
                   isShowLegend={false}
                   isToolIconShow={false}
                   panel={this.panelData}
                   onContextmenuClick={this.handleContextMenuClick}
                   onLegendData={this.handleLegendData}
                   onSeriesData={this.handleGetSeriesData}
+                  onZrMouseover={this.handleZrMouseover}
                 />
               </div>
               <div
@@ -327,13 +337,15 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                 slot='main'
               >
                 <CheckViewTable
+                  compare={this.compare}
                   data={this.tableData}
+                  hoverPoint={this.hoverPoint}
                   isHasCompare={this.isHasCompare}
                   isHasDimensions={this.isHasDimensions}
                   isShowStatistical={this.showStatisticalValue}
                   legendData={this.legendData}
                   loading={this.loading}
-                  title={this.panelData.title}
+                  title={this.panelData?.title}
                   onHeadClick={this.handleRowClick}
                 />
               </div>

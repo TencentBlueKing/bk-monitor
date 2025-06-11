@@ -49,6 +49,7 @@ export interface ILegendItem {
   minTime?: number;
   latestTime?: number;
   tipsName?: string;
+  key?: string;
 }
 export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
