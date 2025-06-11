@@ -386,7 +386,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return (
       <span class='num-cell'>
         {row[col.colKey]}
-        <span class='gray-text'>@{dayjs(row[`${col.colKey}Time`]).format('HH:mm')}</span>
+        {row[`${col.colKey}Time`] && <span class='gray-text'>@{dayjs(row[`${col.colKey}Time`]).format('HH:mm')}</span>}
       </span>
     );
   }
