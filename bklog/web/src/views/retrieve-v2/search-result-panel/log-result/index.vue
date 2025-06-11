@@ -36,7 +36,7 @@
             :key="type"
             @click="handleClickTableBtn(type)"
           >
-            {{ type === 'table' ? '表格' : '原始' }}
+            {{ type === 'table' ? $t('表格') : $t('原始') }}
           </span>
         </div>
         <ResultStorage></ResultStorage>
@@ -47,7 +47,7 @@
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label>高亮</label>
+            <label class="light-search-label">{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
@@ -57,7 +57,7 @@
               :maxWidth="highlightStyle.width"
               :minWidth="highlightStyle.width"
               :value="highlightValue"
-              placeholder="输入后按 Enter..."
+              :placeholder="$t('输入后按 Enter...')"
               template="tag-input"
               @change="handleHighlightEnter"
             >

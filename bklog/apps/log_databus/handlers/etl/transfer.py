@@ -27,7 +27,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl import EtlHandler
@@ -129,7 +129,6 @@ class TransferEtlHandler(EtlHandler):
             es_shards=es_shards,
             sort_fields=sort_fields,
             target_fields=target_fields,
-            alias_settings=alias_settings,
             total_shards_per_node=total_shards_per_node,
         )
 
@@ -144,6 +143,7 @@ class TransferEtlHandler(EtlHandler):
             username=username,
             sort_fields=sort_fields,
             target_fields=target_fields,
+            alias_settings=alias_settings,
         )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
