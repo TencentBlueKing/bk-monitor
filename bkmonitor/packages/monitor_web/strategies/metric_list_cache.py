@@ -1277,7 +1277,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.TIME_SERIES,
             bk_tenant_id=self.bk_tenant_id,
-        ).exclude(result_table_id="", result_table_id__in=BuildInProcessMetric.result_table_list())
+        ).exclude(result_table_id="", result_table_id__in=BuildInProcessMetric.result_table_list() + [""])
 
     def get_tables(self):
         if self.bk_biz_id is None:
