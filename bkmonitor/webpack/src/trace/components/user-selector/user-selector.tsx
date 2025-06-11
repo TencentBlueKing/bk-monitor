@@ -70,6 +70,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 占位文本
+     */
+    placeholder: {
+      type: String,
+    },
+    emptyText: {
+      type: String,
+    },
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
@@ -99,8 +108,10 @@ export default defineComponent({
       <BkUserSelector
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
+        emptyText={this.emptyText}
         modelValue={this.modelValue}
         multiple={this.multiple}
+        placeholder={this.placeholder}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.handleChange}

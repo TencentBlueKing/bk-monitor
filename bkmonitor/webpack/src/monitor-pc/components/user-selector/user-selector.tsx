@@ -43,6 +43,8 @@ interface IBkUserSelectorProps {
   tenantId?: string;
   userGroup?: IUserGroup[];
   enableMultiTenantMode?: boolean;
+  placeholder?: string;
+  emptyText?: string;
   onChange?: (value: string[]) => void;
 }
 
@@ -54,13 +56,23 @@ const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelec
   name: 'user-selector',
 })
 export default class UserSelector extends tsc<
-  { userIds: string[]; userGroupList: IUserGroup[]; userGroup: string[]; multiple: boolean; draggable: boolean },
+  {
+    userIds: string[];
+    userGroupList?: IUserGroup[];
+    userGroup?: string[];
+    multiple?: boolean;
+    draggable?: boolean;
+    placeholder?: string;
+    emptyText?: string;
+  },
   { onChange: string[] }
 > {
   @Prop({ type: Array, default: () => [] }) readonly userGroupList: IUserGroup[];
   @Prop({ type: Array, default: () => [] }) readonly userGroup: string[];
   @Prop({ type: Boolean, default: true }) readonly multiple: boolean;
   @Prop({ type: Boolean, default: false }) readonly draggable: boolean;
+  @Prop({ type: String }) readonly placeholder: string;
+  @Prop({ type: String }) readonly emptyText: string;
   @Model('change', { type: Array, default: () => [] }) userIds: string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
@@ -78,9 +90,11 @@ export default class UserSelector extends tsc<
       <BkUserSelector
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
+        emptyText={this.emptyText}
         enableMultiTenantMode={this.enableMultiTenantMode}
         modelValue={this.userIds}
         multiple={this.multiple}
+        placeholder={this.placeholder}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.onChange}
