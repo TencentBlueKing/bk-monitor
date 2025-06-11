@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
-import { type ConfigOptions, getUserComponentConfig } from 'monitor-pc/common/user-display-name';
+import { getUserComponentConfig } from 'monitor-pc/common/user-display-name';
 
 import type { IUserGroup } from './user-group';
+import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
 import '@blueking/bk-user-selector/vue3/vue3.css';
 
@@ -86,6 +87,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const componentConfig = shallowRef<Partial<ConfigOptions>>({});
+    const enableMultiTenantMode = computed(() => window.enable_multi_tenant_mode ?? false);
     onMounted(() => {
       componentConfig.value = getUserComponentConfig();
     });
@@ -95,6 +97,7 @@ export default defineComponent({
     };
 
     return {
+      enableMultiTenantMode,
       componentConfig,
       handleChange,
     };
@@ -103,12 +106,12 @@ export default defineComponent({
     if (!this.componentConfig.apiBaseUrl) {
       return undefined;
     }
-
     return (
       <BkUserSelector
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
         emptyText={this.emptyText}
+        enableMultiTenantMode={this.enableMultiTenantMode}
         modelValue={this.modelValue}
         multiple={this.multiple}
         placeholder={this.placeholder}

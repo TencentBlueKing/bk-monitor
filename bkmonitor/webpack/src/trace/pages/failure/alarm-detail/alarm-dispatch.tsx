@@ -26,6 +26,7 @@
 import { computed, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+// import UserSelector from '@/components/user-selector/user-selector';
 import { Button, Checkbox, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { assignAlert } from 'monitor-api/modules/action';
@@ -60,7 +61,7 @@ export default defineComponent({
   emits: ['show', 'success', 'refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const users = ref([]);
+    const users = ref<string>([]);
     const noticeWay = ref([]);
     const noticeWayList = ref<{ label: string; type: string }[]>([]);
     const reason = ref('');
@@ -209,6 +210,11 @@ export default defineComponent({
                     class='content'
                     onClick={this.handleFocus}
                   >
+                    {/* <UserSelector
+                      class='content-user-selector'
+                      v-model={this.users}
+                      empty-text={this.t('搜索结果为空')}
+                    /> */}
                     <BkUserSelector
                       class='content-user-selector'
                       v-model={this.users}
@@ -290,6 +296,7 @@ export default defineComponent({
         header-position='left'
         is-show={this.show}
         mask-close={true}
+        render-directive='if'
         title={this.t('告警分派')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}

@@ -67,6 +67,8 @@ declare global {
     AJAX_URL_PREFIX: string;
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+    // 多租户用户中心是否开启
+    enable_multi_tenant_mode?: boolean;
   }
 }
 
