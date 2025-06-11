@@ -133,7 +133,7 @@ class MonitorEventAdapter:
             "target_type": target_type,
             "target": target,
             "status": status or EventStatus.ABNORMAL,
-            "metric": metric,
+            "metric": list(dict.fromkeys(metric)),
             "category": self.strategy["scenario"],
             "data_type": self.strategy["items"][0]["query_configs"][0]["data_type_label"],
             "dedupe_keys": [f"tags.{key}" for key in data_dimensions.keys()],
