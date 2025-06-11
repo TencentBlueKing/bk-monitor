@@ -140,4 +140,40 @@ export default class {
       }
     });
   }
+
+  getRegExp(reg: string | RegExp | number | boolean): RegExp {
+    // 如果已经是 RegExp 对象，直接返回
+    if (reg instanceof RegExp) return reg;
+
+    const regString = String(reg);
+
+    // 如果是纯字符串（非 /pattern/flags 格式）
+    if (!regString.startsWith('/')) {
+      // 处理转义字符（如 \b → \\b）
+      const escapedPattern = regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+      return new RegExp(escapedPattern);
+    }
+
+    // 处理标准正则格式 /pattern/flags
+    const lastSlashIndex = regString.lastIndexOf('/');
+    if (lastSlashIndex <= 0) {
+      // 如果只有一个 /（如 "/pattern"），默认无 flags
+      const pattern = regString.slice(1);
+      return new RegExp(pattern);
+    }
+
+    // 提取 pattern 和 flags
+    const pattern = regString.slice(1, lastSlashIndex);
+    const flags = regString.slice(lastSlashIndex + 1);
+
+    // 处理转义字符（如 \b → \\b）
+    const normalizedPattern = pattern.replace(/\\(.)/g, (match, char) => {
+      // 保留正则特殊字符的转义（如 \b, \d, \w）
+      if (/[bdDfnrsStvwW0]/.test(char)) return match;
+      // 其他情况去掉多余的转义（如 \/ → /）
+      return char;
+    });
+
+    return new RegExp(normalizedPattern, flags);
+  }
 }
