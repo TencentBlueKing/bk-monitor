@@ -2312,8 +2312,8 @@ class QueryEndpointStatisticsResource(PageListResource):
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
         items = super().get_pagination_data(data, params, column_type)
-
-        service_name = params.get("filter_params", {}).get(OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME))
+        service_name_key = OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
+        service_name = params.get("filter_params", {}).get(service_name_key)
 
         # url 拼接
         for item in items["data"]:
@@ -2321,7 +2321,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                 {"key": item.get("filter_key"), "operator": "equal", "value": [item.get("summary")]}
             ]
             if service_name:
-                filters.append({"key": "resource.service.name", "operator": "equal", "value": [service_name]})
+                filters.append({"key": service_name_key, "operator": "equal", "value": [service_name]})
 
             for i in item["operation"]:
                 i["url"] = i["url"] + "&where=" + json.dumps(filters)
