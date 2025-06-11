@@ -96,7 +96,7 @@
       <div>
         <div class="fields-tab-container">
           <div class="show-field">
-            <div class="text-type">字段显示：</div>
+            <div class="text-type">{{ $t('字段显示') }}:</div>
             <fieldSetting
               ref="fieldSettingRef"
               :init-data="shadowVisible"
@@ -106,7 +106,7 @@
             style="padding-left: 12px"
             class="table-sort"
           >
-            <div class="text-type">表格排序：</div>
+            <div class="text-type">{{ $t('表格排序') }}：</div>
             <tableSort
               ref="tableSortRef"
               style="max-height: 340px; overflow: scroll"
@@ -129,7 +129,7 @@
           style="font-size: 14px"
           class="bklog-icon bklog-help"
         ></span>
-        当前设置仅对个人生效，可以
+        {{ $t('当前设置仅对个人生效，可以') }}
         <save-as-popover
           :confirm-handler="handleUpdateConfig"
           :display-fields="currentVisibleList"

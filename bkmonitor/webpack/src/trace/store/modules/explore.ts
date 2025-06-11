@@ -40,6 +40,7 @@ export interface ITraceExploreState {
   refreshImmediate: string;
   appList: IApplicationItem[];
   tableList: ISpanListItem[] | ITraceListItem[];
+  tableLoading: boolean;
   filterTableList: ISpanListItem[] | ITraceListItem[];
 }
 export const useTraceExploreStore = defineStore('explore', {
@@ -52,6 +53,7 @@ export const useTraceExploreStore = defineStore('explore', {
     refreshImmediate: '',
     appList: [],
     tableList: [],
+    tableLoading: false,
     filterTableList: [],
   }),
   getters: {
@@ -81,6 +83,9 @@ export const useTraceExploreStore = defineStore('explore', {
     },
     updateTableList(tableList: ISpanListItem[] | ITraceListItem[]) {
       this.tableList = tableList;
+    },
+    updateTableLoading(loading: boolean) {
+      this.tableLoading = loading;
     },
     updateFilterTableList(filterTableList: ISpanListItem[] | ITraceListItem[]) {
       this.filterTableList = filterTableList;

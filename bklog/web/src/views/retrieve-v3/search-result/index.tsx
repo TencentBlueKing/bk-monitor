@@ -31,6 +31,9 @@ import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import { MSearchResultTab } from '../type';
+import Grep from '../grep';
+
 import './index.scss';
 
 export default defineComponent({
@@ -52,7 +55,6 @@ export default defineComponent({
     }, 60);
 
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
-    const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
@@ -68,24 +70,30 @@ export default defineComponent({
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
     });
 
+    const renderTabContent = () => {
+      if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {
+        return <GraphAnalysis></GraphAnalysis>;
+      }
+
+      if (activeTab.value === MSearchResultTab.GREP) {
+        return <Grep></Grep>;
+      }
+
+      return (
+        <SearchResultPanel
+          active-tab={activeTab.value}
+          onUpdate:active-tab={handleTabChange}
+        ></SearchResultPanel>
+      );
+    };
+
     return () => (
       <div class='v3-bklog-body'>
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}
         ></SearchResultTab>
-        {showAnalysisTab.value ? (
-          <GraphAnalysis></GraphAnalysis>
-        ) : (
-          <SearchResultPanel
-            active-tab={activeTab.value}
-            {...{
-              on: {
-                'update:active-tab': v => handleTabChange(v, true),
-              },
-            }}
-          ></SearchResultPanel>
-        )}
+        {renderTabContent()}
       </div>
     );
   },

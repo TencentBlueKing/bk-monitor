@@ -852,7 +852,7 @@ export default class CollectIndex extends tsc<IProps> {
           <div class='search-container-new'>
             <div class='search-container-new-title'>
               <div>
-                <span style={{ fontSize: '14px', color: '#313238' }}>收藏夹</span>
+                <span style={{ fontSize: '14px', color: '#313238' }}>{ this.$t('收藏夹') }</span>
                 <span class='search-container-new-title-num'>{this.allFavoriteNumber}</span>
               </div>
               <div
@@ -890,7 +890,7 @@ export default class CollectIndex extends tsc<IProps> {
                       style={{ marginRight: '4px' }}
                       class={`bklog-icon ${type === 'origin' ? 'bklog-table-2' : 'bklog-chart-2'}`}
                     ></span>
-                    <span style={{ marginRight: '4px' }}>{type === 'origin' ? '原始日志' : '图表分析'}</span>
+                    <span class='search-category-text' style={{ marginRight: '4px' }}>{type === 'origin' ? this.$t('原始日志') : this.$t('图表分析') }</span>
                     <span class='search-category-num'>
                       {type === 'origin' ? this.originFavoriteCount : this.chartFavoriteCount}
                     </span>
@@ -906,7 +906,7 @@ export default class CollectIndex extends tsc<IProps> {
                   true-value={true}
                   onChange={this.handleShowCurrentChange}
                 >
-                  仅查看当前索引集
+                  {this.$t('仅查看当前索引集') }
                 </bk-checkbox>
               </span>
               <div
@@ -938,7 +938,7 @@ export default class CollectIndex extends tsc<IProps> {
                     >
                       <FormItem
                         icon-offset={34}
-                        label='分组名称'
+                        label={this.$t('分组名称')}
                         property='groupName'
                         required
                       >

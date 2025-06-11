@@ -27,9 +27,9 @@ from django.test import TestCase, override_settings
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
-from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import HostCollectorHandler
+from apps.log_databus.handlers.collector import K8sCollectorHandler
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 

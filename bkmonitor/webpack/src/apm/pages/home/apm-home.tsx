@@ -139,6 +139,10 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
         this.appName = (val || '').toString();
       }
     }
+    // 服务或者应用内点击了apm首页，时间同步
+    if (query.from && query.to) {
+      this.timeRange = [query.from as string, query.to as string];
+    }
   }
 
   /**
@@ -197,6 +201,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       query: {
         ...this.$route.query,
         ...serviceParams,
+        from: this.timeRange[0] || this.$route.query.from, // apm首页缺少from和to导致子页面时间范围选择器不同步
+        to: this.timeRange[1] || this.$route.query.to,
         app_keyword: this.searchCondition || undefined,
         app_name: this.appName,
         profiling_data_status: appSearchParams.profiling_data_status || undefined,

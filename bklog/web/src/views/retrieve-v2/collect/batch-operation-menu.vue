@@ -432,7 +432,6 @@ watch(moveToGroupAddGroup, (val) => {
     }
 
     .tips {
-      height: 46px;
       padding: 0 16px;
       margin-bottom: 16px;
       line-height: 46px;
@@ -447,7 +446,6 @@ watch(moveToGroupAddGroup, (val) => {
       border-radius: 2px;
 
       .list-title {
-        height: 32px;
         padding: 0 16px;
         font-size: 14px;
         line-height: 32px;

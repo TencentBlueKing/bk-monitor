@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicabl：qe law or agreed to in writing, software distribu
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from itertools import chain
-from typing import Dict, List
 
 import xxhash
 import yaml
@@ -58,11 +57,11 @@ logger = logging.getLogger(__name__)
 def convert_notices(
     bk_biz_id: int,
     app: str,
-    configs: Dict[str, Dict],
-    snippets: Dict[str, Dict],
-    duty_rules: Dict[str, Dict],
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
+    duty_rules: dict[str, dict],
     overwrite: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """
     1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
     2. db查询，对应path的md5差异比对
@@ -136,10 +135,10 @@ def convert_notices(
 def convert_actions(
     bk_biz_id: int,
     app: str,
-    configs: Dict[str, Dict],
-    snippets: Dict[str, Dict],
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
     overwrite: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """
     动作配置转换导入
     """
@@ -207,12 +206,12 @@ def convert_actions(
 def convert_rules(
     bk_biz_id: int,
     app: str,
-    configs: Dict[str, Dict],
-    snippets: Dict[str, Dict],
-    notice_group_ids: Dict[str, int],
-    action_ids: Dict[str, int],
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
+    notice_group_ids: dict[str, int],
+    action_ids: dict[str, int],
     overwrite: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """
     1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
     2. db查询，对应path的md5差异比对
@@ -224,24 +223,24 @@ def convert_rules(
     path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
     name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
 
-    topo_nodes: Dict[str, Dict] = {}
+    topo_nodes: dict[str, dict] = {}
     for topo_link in api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link().values():
         topo_link = list(reversed(topo_link[:-1]))
         for index, topo_node in enumerate(topo_link):
             path = "/".join(node.bk_inst_name for node in topo_link[: index + 1])
             topo_nodes[path] = {"bk_obj_id": topo_node.bk_obj_id, "bk_inst_id": topo_node.bk_inst_id}
 
-    service_templates: Dict[str, Dict] = {
+    service_templates: dict[str, dict] = {
         service_template["name"]: {"bk_obj_id": "SERVICE_TEMPLATE", "bk_inst_id": service_template["id"]}
         for service_template in api.cmdb.get_dynamic_query(bk_biz_id=bk_biz_id, dynamic_type="SERVICE_TEMPLATE")[
             "children"
         ]
     }
-    set_templates: Dict[str, Dict] = {
+    set_templates: dict[str, dict] = {
         set_template["name"]: {"bk_obj_id": "SET_TEMPLATE", "bk_inst_id": set_template["id"]}
         for set_template in api.cmdb.get_dynamic_query(bk_biz_id=bk_biz_id, dynamic_type="SET_TEMPLATE")["children"]
     }
-    dynamic_groups: Dict[str, Dict] = {
+    dynamic_groups: dict[str, dict] = {
         dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
         for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
     }
@@ -309,7 +308,7 @@ def convert_rules(
     return records
 
 
-def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
+def sync_grafana_dashboards(bk_biz_id: int, dashboards: dict[str, dict]):
     """
     同步Grafana仪表盘配置
     """
@@ -317,7 +316,7 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
     folders = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id)["data"]
     folder_names_to_ids = {folder["title"].replace("/", "-"): folder["id"] for folder in folders}
 
-    datasources: List = api.grafana.get_all_data_source(org_id=org_id)["data"]
+    datasources: list = api.grafana.get_all_data_source(org_id=org_id)["data"]
 
     # 获取数据源信息
     datasource_types = {}
@@ -379,10 +378,10 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
 def convert_assign_groups(
     bk_biz_id: int,
     app: str,
-    configs: Dict[str, Dict],
-    snippets: Dict[str, Dict],
-    notice_group_ids: Dict[str, int],
-    action_ids: Dict[str, int],
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
+    notice_group_ids: dict[str, int],
+    action_ids: dict[str, int],
     overwrite: bool = False,
 ):
     """
@@ -453,7 +452,7 @@ def convert_assign_groups(
 
 
 def convert_duty_rules(
-    bk_biz_id: int, app: str, configs: Dict[str, Dict], snippets: Dict[str, Dict], overwrite: bool = False
+    bk_biz_id: int, app: str, configs: dict[str, dict], snippets: dict[str, dict], overwrite: bool = False
 ):
     """
     转换轮值规则
@@ -512,7 +511,7 @@ def convert_duty_rules(
     return records
 
 
-def get_errors(records) -> Dict[str, str]:
+def get_errors(records) -> dict[str, str]:
     errors = {}
     for record in records:
         if not record["schema_error"] and not record["parse_error"] and not record["validate_error"]:
@@ -522,7 +521,7 @@ def get_errors(records) -> Dict[str, str]:
     return errors
 
 
-def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwrite: bool = False, incremental=False):
+def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwrite: bool = False, incremental=False):
     # 配置分类
     rule_configs = {}
     rule_snippets = {}
@@ -576,7 +575,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
     duty_records = convert_duty_rules(
         bk_biz_id=bk_biz_id, app=app, snippets=duty_snippets, configs=duty_configs, overwrite=overwrite
     )
-    errors: Dict[str, str] = get_errors(duty_records)
+    errors: dict[str, str] = get_errors(duty_records)
     if errors:
         return errors
 
@@ -584,7 +583,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         record["obj"].save()
 
     duty_rules = {}
-    for duty_rule in DutyRule.objects.all().only("name", "id", "path"):
+    for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("name", "id", "path"):
         if duty_rule.path and duty_rule.app == app:
             duty_rules[duty_rule.path] = duty_rule.id
         duty_rules[duty_rule.name] = duty_rule.id
@@ -604,7 +603,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         bk_biz_id=bk_biz_id, app=app, snippets=action_snippets, configs=action_configs, overwrite=overwrite
     )
 
-    errors: Dict[str, str] = get_errors(chain(notice_records, action_records))
+    errors: dict[str, str] = get_errors(chain(notice_records, action_records))
     if errors:
         return errors
 
@@ -652,7 +651,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         overwrite=overwrite,
     )
 
-    errors: Dict[str, str] = get_errors(rule_records)
+    errors: dict[str, str] = get_errors(rule_records)
     if errors:
         return errors
 
@@ -673,7 +672,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
         overwrite=overwrite,
     )
 
-    errors: Dict[str, str] = get_errors(assign_group_records)
+    errors: dict[str, str] = get_errors(assign_group_records)
     if errors:
         return errors
 

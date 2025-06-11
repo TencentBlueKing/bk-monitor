@@ -137,12 +137,10 @@ class CollectorHandler:
     def get_instance(cls, collector_config_id=None, env=None):
         if env and not collector_config_id:
             if env == Environment.CONTAINER:
-                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
                 return collector_handler()
             else:
-                collector_handler = import_string(
-                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
-                )
+                collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
                 return collector_handler()
 
         if collector_config_id:
@@ -152,12 +150,10 @@ class CollectorHandler:
                 raise CollectorConfigNotExistException()
 
             if data.is_container_environment:
-                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
                 return collector_handler(collector_config_id, data)
             else:
-                collector_handler = import_string(
-                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
-                )
+                collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
                 return collector_handler(collector_config_id, data)
         else:
             raise CollectorIdNotExistException()
@@ -989,13 +985,13 @@ class CollectorHandler:
         collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
     ):
         if collector_obj.is_container_environment:
-            collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+            collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
             return_data = collector_handler.get_container_return_data(
                 collector_obj, container_collector_mapping, return_data
             )
             return return_data, subscription_id_list, subscription_collector_map
 
-        collector_handler = import_string("apps.log_databus.handlers.collector_handler.host.HostCollectorHandler")
+        collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
         return_data, subscription_id_list, subscription_collector_map = collector_handler.get_subscription_dispose(
             collector_obj, return_data, subscription_collector_map, subscription_id_list
         )

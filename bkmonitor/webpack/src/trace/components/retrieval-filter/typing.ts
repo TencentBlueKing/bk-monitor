@@ -322,6 +322,7 @@ export const RETRIEVAL_FILTER_EMITS = {
   showResidentBtnChange: (_v: boolean) => true,
   search: () => true,
   copyWhere: (_v: IWhereItem[]) => true,
+  setFavoriteCache: (_commonWhere: IWhereItem[]) => true,
 } as const;
 export const UI_SELECTOR_PROPS = {
   fields: {

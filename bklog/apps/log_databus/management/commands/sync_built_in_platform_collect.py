@@ -35,7 +35,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TargetObjectTypeEnum,
 )
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
@@ -79,7 +79,7 @@ class Command(BaseCommand):
         for built_in_info in config.get("builtin_collect") or []:
             try:
                 if not (BUILT_IN_MIN_DATAID <= int(built_in_info["dataId"]) <= BUILT_IN_MAX_DATAID):
-                    print("data id (%s) not valid, do nothing" % built_in_info["dataId"])
+                    print("data id ({}) not valid, do nothing".format(built_in_info["dataId"]))
                     continue
 
                 # 1. 创建采集配置

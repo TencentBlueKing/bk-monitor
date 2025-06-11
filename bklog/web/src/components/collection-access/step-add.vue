@@ -1163,7 +1163,7 @@
         if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
         // 物理环境验证
         if (this.isPhysicsEnvironment) {
-          return await this.$refs.formConfigRef.logFilterValidate();
+          return await this.$refs.formConfigRef.logFilterValidate() && await this.$refs.formConfigRef.extraLabelsValidate();;
         }
         // 容器环境并且打开yaml模式时进行yaml语法检测
         if (this.isYaml && !this.isPhysicsEnvironment) {
