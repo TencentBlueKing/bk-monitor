@@ -352,6 +352,7 @@ def update_metric_list_by_biz(bk_biz_id):
     ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_update_metric_cache").delete()
 
 
+@shared_task(ignore_result=True)
 def run_metric_manager_async(manager):
     """
     异步执行更新任务
