@@ -50,14 +50,23 @@ const generateFooterDataList = (columns: IColumnItem[], isCompareNotDimensions: 
     time: typeArr[key],
   }));
 
-  columns.map(item => {
+  const keyMap = new Map();
+
+  // biome-ignore lint/complexity/noForEach: <explanation>
+  columns.forEach(item => {
     const title = handleProp(item) || '';
+
     item.items.forEach((child, index) => {
       const key = isCompareNotDimensions ? child.timeOffset : handleKey(child, title, index, isMergeTable);
-      footerDataList.map(footer => {
-        footer[key] = child[footer.key];
-        footer[`${key}Time`] = child[`${footer.key}Time`];
-      });
+      keyMap.set(key, child);
+    });
+  });
+
+  // biome-ignore lint/complexity/noForEach: <explanation>
+  footerDataList.forEach(footer => {
+    keyMap.forEach((child, key) => {
+      footer[key] = child[footer.key];
+      footer[`${key}Time`] = child[`${footer.key}Time`];
     });
   });
 
@@ -74,24 +83,45 @@ const processTimeData = (
 ) => {
   const processedTimeData = [...timeData];
 
+  // 为时间数据创建一个映射，便于快速查找
+  const timeMap = new Map();
+  processedTimeData.map(time => {
+    timeMap.set(time.date, time);
+  });
+
+  const unitMap = new Map();
+
   data.forEach((item, ind) => {
-    const title = handleProp(item) || '';
+    const title = isCompareNotDimensions ? '' : handleProp(item) || '';
+
     item.items.forEach((child, index) => {
       const key = isCompareNotDimensions ? child.time_offset : handleKey(child, title, index, isMergeTable);
 
-      child.datapoints.map(point => {
-        processedTimeData.map(time => {
-          time.unit = child.unit;
-          if (point[1] === time.date) {
-            time[key] = point[0];
-          }
-          const first = time[`${title}${compare[0]}${index}`];
-          const second = time[`${title}${compare[1]}${index}`];
-          const data = ((second - first) / first) * 100;
-          const isShow = !Number.isNaN(data) && Number.isFinite(data);
-          time[`fluctuation${ind}`] = isShow ? data : '--';
-        });
+      if (!unitMap.has(key)) {
+        unitMap.set(key, child.unit);
+      }
+
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      child.datapoints.forEach(point => {
+        const time = timeMap.get(point[1]);
+        if (time) {
+          time[key] = point[0];
+        }
       });
+    });
+
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    processedTimeData.forEach(time => {
+      time.unit = unitMap.get(Object.keys(time).find(key => unitMap.has(key)));
+
+      const first = time[`${title}${compare[0]}${isCompareNotDimensions ? '' : 0}`];
+      const second = time[`${title}${compare[1]}${isCompareNotDimensions ? '' : 1}`];
+      if (first && second) {
+        const data = ((second - first) / first) * 100;
+        time[`fluctuation${ind}`] = Number.isFinite(data) ? data : '--';
+      } else {
+        time[`fluctuation${ind}`] = '--';
+      }
     });
   });
 

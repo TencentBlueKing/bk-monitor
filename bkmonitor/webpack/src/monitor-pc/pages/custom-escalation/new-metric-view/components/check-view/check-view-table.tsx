@@ -122,12 +122,12 @@ export default class CheckViewTable extends tsc<object, object> {
     }
   }
   mounted() {
-    this.$nextTick(() => {
+    setTimeout(() => {
       if (!this.checkViewTableRef) {
         return;
       }
-      const height = this.checkViewTableRef.offsetHeight - 10;
-      this.maxHeight = height > this.defaultHeight ? this.defaultHeight : height;
+      const height = this.checkViewTableRef.offsetHeight - 20;
+      this.maxHeight = height < this.defaultHeight ? this.defaultHeight : height;
     });
   }
 
@@ -214,7 +214,6 @@ export default class CheckViewTable extends tsc<object, object> {
   // 生成简单比较列（无维度）
   generateSimpleCompareColumns(columns: any[]): IColumnItem[] {
     const firstColumn = columns[0] || { items: [] };
-
     return firstColumn.items.map((ele: any) => ({
       ...ele,
       ...this.baseColumnConfig,
@@ -287,8 +286,9 @@ export default class CheckViewTable extends tsc<object, object> {
 
   renderFluctuationCol(h: CreateElement, { row, col }) {
     const data = row[col.colKey];
+    const isFix = data !== '--' && data !== 0;
     const color = data >= 0 ? '#3AB669' : '#E91414';
-    return <span style={{ color: data > 0 ? color : '#313238' }}>{data > 0 ? `${data.toFixed(2)}%` : data}</span>;
+    return <span style={{ color: isFix ? color : '#313238' }}>{isFix ? `${data.toFixed(2)}%` : '--'}</span>;
   }
 
   renderColorHead(h: CreateElement, { col }) {
