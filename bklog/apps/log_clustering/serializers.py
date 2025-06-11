@@ -67,7 +67,7 @@ class PatternSearchSerlaizer(serializers.Serializer):
         return attrs
 
 
-class FlexibleValueField(serializers.Field):
+class StringOrListField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, str):
             return [data]
@@ -82,13 +82,13 @@ class FlexibleValueField(serializers.Field):
         raise serializers.ValidationError("Invalid data type. Must be a string or a list of strings.")
 
     def to_representation(self, value):
-        return value[0] if isinstance(value, list) and len(value) == 1 else value
+        return value
 
 
 class FilerRuleSerializer(serializers.Serializer):
-    fields_name = serializers.CharField(required=False)
-    op = serializers.CharField(required=False)
-    value = FlexibleValueField(required=False)
+    fields_name = serializers.CharField()
+    op = serializers.CharField()
+    value = StringOrListField()
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 

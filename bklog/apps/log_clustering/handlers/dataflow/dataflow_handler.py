@@ -303,8 +303,9 @@ class DataFlowHandler(BaseAiopsHandler):
                     f"'{val}'",
                 ]
             )
-        result.append(")")
-        result.insert(0, "(")
+        if len(filter_rule.get("value")) > 0:
+            result.append(")")
+            result.insert(0, "(")
         return result
 
     @classmethod
