@@ -38,7 +38,8 @@ from apps.log_databus.constants import (
     CRD_NAME,
     DAEMONSET_NAME,
     DAEMONSET_POD_LABELS,
-    CollectStatus, BK_LOG_COLLECTOR_NAMESPACE,
+    CollectStatus,
+    BK_LOG_COLLECTOR_NAMESPACE,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.collector import CollectorHandler
