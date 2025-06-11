@@ -129,7 +129,6 @@ class TransferEtlHandler(EtlHandler):
             es_shards=es_shards,
             sort_fields=sort_fields,
             target_fields=target_fields,
-            alias_settings=alias_settings,
             total_shards_per_node=total_shards_per_node,
         )
 

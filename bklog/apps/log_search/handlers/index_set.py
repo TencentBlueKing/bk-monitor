@@ -1546,39 +1546,39 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_log_router(
-                {
-                    "query_alias_settings": index_set.query_alias_settings,
-                    "cluster_id": index_set.storage_cluster_id,
-                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
-                    "source_type": index_set.scenario_id,
-                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "need_create_index": True if index_set.collector_config_id else False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set.time_field,
-                                    "type": index_set.time_field_type,
-                                    "unit": index_set.time_field_unit
-                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                        },
-                    ],
-                }
-            )
+            request_params = {
+                "cluster_id": index_set.storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
+                "source_type": index_set.scenario_id,
+                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
+                "space_id": index_set.space_uid.split("__")[-1],
+                "space_type": index_set.space_uid.split("__")[0],
+                "need_create_index": True if index_set.collector_config_id else False,
+                "options": [
+                    {
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
+                            {
+                                "name": index_set.time_field,
+                                "type": index_set.time_field_type,
+                                "unit": index_set.time_field_unit
+                                if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
+                            }
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": json.dumps(index_set.scenario_id != Scenario.ES),
+                    },
+                ],
+            }
+            if query_alias_settings := index_set.query_alias_settings:
+                request_params["query_alias_settings"] = query_alias_settings
+            TransferApi.create_or_update_log_router(request_params)
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True

@@ -432,7 +432,6 @@ class EtlStorage:
         index_settings: dict = None,
         sort_fields: list = None,
         target_fields: list = None,
-        alias_settings: list = None,
         total_shards_per_node: int = None,
     ):
         """
@@ -451,7 +450,6 @@ class EtlStorage:
         :param index_settings: 索引配置
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
-        :param alias_settings: 别名配置
         :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector_handler.base import CollectorHandler
