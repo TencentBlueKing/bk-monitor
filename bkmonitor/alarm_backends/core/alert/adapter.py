@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import time as time_mod
-from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -33,7 +32,7 @@ class MonitorEventAdapter:
     SPECIAL_ALERT_TAG_KEY_WHITELIST = [DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY]
 
     @classmethod
-    def push_to_kafka(cls, events: List[Dict]):
+    def push_to_kafka(cls, events: list[dict]):
         """
         将事件推送到 Kafka，提供给故障自愈进行消费
         :param events: 从 Adapter 解析出来的事件对象
@@ -121,6 +120,8 @@ class MonitorEventAdapter:
 
             tags.append({"key": k, "value": v})
 
+        metric = [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])]
+        metric += [item["name"] for item in self.strategy["items"]]
         event = {
             "event_id": self.record["anomaly"][str(severity)]["anomaly_id"],
             "plugin_id": settings.MONITOR_EVENT_PLUGIN_ID,  # 来源固定为监控
@@ -132,7 +133,7 @@ class MonitorEventAdapter:
             "target_type": target_type,
             "target": target,
             "status": status or EventStatus.ABNORMAL,
-            "metric": [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])],
+            "metric": metric,
             "category": self.strategy["scenario"],
             "data_type": self.strategy["items"][0]["query_configs"][0]["data_type_label"],
             "dedupe_keys": [f"tags.{key}" for key in data_dimensions.keys()],
@@ -155,7 +156,7 @@ class MonitorEventAdapter:
         return event
 
     @classmethod
-    def extract_target(cls, strategy: Dict, dimensions: Dict, dimension_fields: List[str] = None):
+    def extract_target(cls, strategy: dict, dimensions: dict, dimension_fields: list[str] = None):
         """
         解析事件的 target，将对应的维度pop出去
         返回 target_type, target, data_dimensions
