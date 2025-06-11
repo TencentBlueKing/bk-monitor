@@ -252,9 +252,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
 
     sortKeys.forEach(key => {
-      const { dst, dataMap } = dataset.get(key);
+      const { dst, dataMap, group } = dataset.get(key);
       dst.data = Array.from(dataMap.values());
     });
+
+    console.log('setGroupData', options);
 
     updateChart(isInit);
     return count;
@@ -335,13 +337,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     if (!chartInstance) {
       return;
     }
-
-    options.series.forEach(s => {
-      s.barMinHeight = 2;
-      s.itemStyle.color = params => {
-        return (params.value[1] ?? 0) > 0 ? params.color : '#fff';
-      };
-    });
 
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
