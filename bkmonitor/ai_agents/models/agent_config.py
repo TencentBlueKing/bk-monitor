@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from aidev_agent.api import BKAidevApi
 from pydantic import BaseModel, Field
 
 
@@ -40,11 +39,12 @@ class AgentConfigManager:
         pass
 
     @classmethod
-    def get_config(cls, agent_code: str, force_refresh: bool = False) -> AgentConfig:
+    def get_config(cls, agent_code: str, api_client, force_refresh: bool = False) -> AgentConfig:
         """
         获取智能体配置
         :param agent_code: 智能体代码
         :param force_refresh: 是否强制刷新配置
+        :param api_client: API客户端
         :return: AgentConfig实例
         """
         # 检查缓存中是否存在且不需要强制刷新
@@ -52,9 +52,8 @@ class AgentConfigManager:
             return cls._config_cache[agent_code]
 
         # 实时从AIDev平台拉取配置
-        client = BKAidevApi.get_client()
         try:
-            res = client.api.retrieve_agent_config(path_params={"agent_code": agent_code})["data"]
+            res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})["data"]
         except Exception as e:
             # 添加适当的错误处理或日志记录
             raise ValueError(f"Failed to retrieve agent config: {e}")

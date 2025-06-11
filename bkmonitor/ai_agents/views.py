@@ -15,6 +15,10 @@ from ai_agents.resources.resources import (
     RetrieveChatSessionResource,
     DestroyChatSessionResource,
     UpdateChatSessionContentResource,
+    CreateChatSessionContentResource,
+    GetChatSessionContentsResource,
+    DestroyChatSessionContentResource,
+    CreateChatCompletionResource,
 )
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -42,8 +46,15 @@ class SessionContentViewSet(ResourceViewSet):
         return []
 
     resource_routes = [
-        ResourceRoute("POST", CreateChatSessionResource),
-        ResourceRoute("GET", RetrieveChatSessionResource),
-        ResourceRoute("POST", UpdateChatSessionContentResource, endpoint="modifybi"),
-        ResourceRoute("DELETE", DestroyChatSessionResource, pk_field="session_code"),
+        ResourceRoute("POST", CreateChatSessionContentResource),
+        ResourceRoute("GET", GetChatSessionContentsResource),
+        ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="session_code"),
+        ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
     ]
+
+
+class ChatCompletionViewSet(ResourceViewSet):
+    def get_permissions(self):
+        return []
+
+    resource_routes = [ResourceRoute("POST", CreateChatCompletionResource)]

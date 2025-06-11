@@ -224,12 +224,29 @@ class StreamingResponseWrapper:
         return sr
 
 
+# def _handle_streaming_response(agent_instance, execute_kwargs):
+#     """处理流式响应"""
+#     logger.info("Starting streaming chat completion")
+#
+#     def streaming_generator():
+#         yield from agent_instance.execute(ExecuteKwargs.model_validate(execute_kwargs))
+#
+#     return StreamingResponseWrapper(streaming_generator())
+
+
 def _handle_streaming_response(agent_instance, execute_kwargs):
     """处理流式响应"""
-    logger.info("Starting streaming chat completion")
+    logger.info(f"Starting streaming chat completion with kwargs: {execute_kwargs}")
 
     def streaming_generator():
-        yield from agent_instance.execute(ExecuteKwargs.model_validate(execute_kwargs))
+        try:
+            logger.info("ExecuteKwargs->[%s]", execute_kwargs)
+            for chunk in agent_instance.execute(ExecuteKwargs.model_validate(execute_kwargs)):
+                logger.info(f"Yielding chunk: {chunk}")
+                yield chunk
+        except Exception as e:
+            logger.error(f"Error in streaming generator: {e}")
+            raise
 
     return StreamingResponseWrapper(streaming_generator())
 
@@ -260,5 +277,6 @@ class CreateChatCompletionResource(Resource):
 
         # 根据流式配置执行
         if execute_kwargs.get("stream", False):
-            return _handle_streaming_response(agent_instance, execute_kwargs)
+            streaming_wrapper = _handle_streaming_response(agent_instance, execute_kwargs)
+            return streaming_wrapper.as_streaming_response()
         return None

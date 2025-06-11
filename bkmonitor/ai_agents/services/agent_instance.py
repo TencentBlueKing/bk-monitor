@@ -33,7 +33,7 @@ class AgentInstanceBuilder:
 
 
 def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatPrompt]) -> ChatCompletionAgent:
-    config = AgentConfigManager.get_config(agent_code=agent_code)
+    config = AgentConfigManager.get_config(agent_code=agent_code, api_client=api_client)
     llm = ChatModel.get_setup_instance(model=config.llm_model_name)
     knowledge_bases = [
         api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
