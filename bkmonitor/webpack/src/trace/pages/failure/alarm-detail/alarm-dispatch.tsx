@@ -26,14 +26,14 @@
 import { computed, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-// import UserSelector from '@/components/user-selector/user-selector';
+import UserSelector from '@/components/user-selector/user-selector';
 import { Button, Checkbox, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { assignAlert } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 
-import BkUserSelector from '../../alarm-shield/components/member-selector';
+// import BkUserSelector from '../../alarm-shield/components/member-selector';
 
 import './alarm-dispatch.scss';
 
@@ -210,17 +210,17 @@ export default defineComponent({
                     class='content'
                     onClick={this.handleFocus}
                   >
-                    {/* <UserSelector
+                    <UserSelector
                       class='content-user-selector'
                       v-model={this.users}
                       empty-text={this.t('搜索结果为空')}
-                    /> */}
-                    <BkUserSelector
+                    />
+                    {/* <BkUserSelector
                       class='content-user-selector'
                       v-model={this.users}
                       api={this.bkUrl}
                       empty-text={this.t('搜索结果为空')}
-                    />
+                    /> */}
                   </div>
                   {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}
                 </div>
