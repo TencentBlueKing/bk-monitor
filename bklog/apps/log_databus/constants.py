@@ -613,6 +613,7 @@ CHECK_COLLECTOR_SCRIPT_TIMEOUT = 7200
 # 一键检测工具容器采集项常量
 CRD_NAME = "bklogconfigs.bk.tencent.com"
 CONFIGMAP_NAME = "bk-log-bkunifylogbeat"
+BK_LOG_COLLECTOR_NAMESPACE = os.getenv("BK_LOG_COLLECTOR_NAMESPACE", "kube-system")
 DAEMONSET_NAME: str = os.getenv("BK_LOG_COLLECTOR_DAEMONSET_NAME", "bk-log-collector")
 DAEMONSET_POD_LABELS: str = "name=bkunifylogbeat-bklog"
 BK_LOG_COLLECTOR_CONTAINER_NAME = "bkunifylogbeat-bklog"

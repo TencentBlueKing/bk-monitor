@@ -1008,8 +1008,8 @@ class CollectorHandler:
             )
         finally:
             if (
-                params.get("is_allow_alone_data_id", True)
-                and params.get("etl_processor") != ETLProcessorChoices.BKBASE.value
+                    params.get("is_allow_alone_data_id", True)
+                    and params.get("etl_processor") != ETLProcessorChoices.BKBASE.value
             ):
                 # 创建数据平台data_id
                 async_create_bkdata_data_id.delay(self.data.collector_config_id)
@@ -1069,7 +1069,7 @@ class CollectorHandler:
         """
         # 1. 重新命名采集项名称
         collector_config_name = (
-            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         )
 
         # 2. 停止采集（删除配置文件）
@@ -1701,9 +1701,9 @@ class CollectorHandler:
 
             # 静态节点：排除订阅任务历史IP（不是最新订阅且不在当前节点范围的ip）
             if (
-                self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value
-                and str(instance_obj["task_id"]) != latest_id
-                and ((bk_host_innerip, bk_cloud_id) not in host_list and bk_host_id not in host_list)
+                    self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value
+                    and str(instance_obj["task_id"]) != latest_id
+                    and ((bk_host_innerip, bk_cloud_id) not in host_list and bk_host_id not in host_list)
             ):
                 continue
             instance_list.append(
@@ -2349,27 +2349,27 @@ class CollectorHandler:
         return resp
 
     def custom_create(
-        self,
-        bk_biz_id=None,
-        collector_config_name=None,
-        collector_config_name_en=None,
-        data_link_id=None,
-        custom_type=None,
-        category_id=None,
-        description=None,
-        etl_config=None,
-        etl_params=None,
-        fields=None,
-        storage_cluster_id=None,
-        retention=7,
-        allocation_min_days=0,
-        storage_replies=1,
-        es_shards=settings.ES_SHARDS,
-        bk_app_code=settings.APP_CODE,
-        bkdata_biz_id=None,
-        is_display=True,
-        sort_fields=None,
-        target_fields=None,
+            self,
+            bk_biz_id=None,
+            collector_config_name=None,
+            collector_config_name_en=None,
+            data_link_id=None,
+            custom_type=None,
+            category_id=None,
+            description=None,
+            etl_config=None,
+            etl_params=None,
+            fields=None,
+            storage_cluster_id=None,
+            retention=7,
+            allocation_min_days=0,
+            storage_replies=1,
+            es_shards=settings.ES_SHARDS,
+            bk_app_code=settings.APP_CODE,
+            bkdata_biz_id=None,
+            is_display=True,
+            sort_fields=None,
+            target_fields=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -2488,21 +2488,21 @@ class CollectorHandler:
         return ret
 
     def custom_update(
-        self,
-        collector_config_name=None,
-        category_id=None,
-        description=None,
-        etl_config=None,
-        etl_params=None,
-        fields=None,
-        storage_cluster_id=None,
-        retention=7,
-        allocation_min_days=0,
-        storage_replies=1,
-        es_shards=settings.ES_SHARDS,
-        is_display=True,
-        sort_fields=None,
-        target_fields=None,
+            self,
+            collector_config_name=None,
+            category_id=None,
+            description=None,
+            etl_config=None,
+            etl_params=None,
+            fields=None,
+            storage_cluster_id=None,
+            retention=7,
+            allocation_min_days=0,
+            storage_replies=1,
+            es_shards=settings.ES_SHARDS,
+            is_display=True,
+            sort_fields=None,
+            target_fields=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -2949,7 +2949,7 @@ class CollectorHandler:
 
     @classmethod
     def format_bcs_container_config(
-        cls, collector_config: CollectorConfig, container_config: ContainerCollectorConfig
+            cls, collector_config: CollectorConfig, container_config: ContainerCollectorConfig
     ) -> dict[str, Any]:
         enable_stdout = container_config.collector_type == ContainerCollectorType.STDOUT
         return {
@@ -3092,8 +3092,8 @@ class CollectorHandler:
             }
 
             collector_config_id = (
-                collector["path_collector_config"].collector_config_id
-                or collector["std_collector_config"].collector_config_id
+                    collector["path_collector_config"].collector_config_id
+                    or collector["std_collector_config"].collector_config_id
             )
             container_configs = path_container_config_dict.get(collector_config_id) or std_container_config_dict.get(
                 collector_config_id
@@ -3439,7 +3439,7 @@ class CollectorHandler:
 
     def check_collector_config(self, collector_config_params):
         if self._pre_check_collector_config_en(
-            model_fields=collector_config_params, bk_biz_id=collector_config_params["bk_biz_id"]
+                model_fields=collector_config_params, bk_biz_id=collector_config_params["bk_biz_id"]
         ):
             logger.error(
                 "collector_config_name_en {collector_config_name_en} already exists".format(
@@ -3936,7 +3936,7 @@ class CollectorHandler:
         return cluster_info
 
     @staticmethod
-    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str) -> list[Any]:
+    def _get_shared_cluster_namespace(bk_biz_id: int, bcs_cluster_id: str, bk_tenant_id=None) -> list[Any]:
         """
         获取共享集群有权限的namespace
         """
@@ -3946,13 +3946,15 @@ class CollectorHandler:
         space = Space.objects.get(bk_biz_id=bk_biz_id)
 
         if space.space_type_id == SpaceTypeEnum.BCS.value:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id,
+                                                                              bk_tenant_id=bk_tenant_id)
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_id, [])]
         elif space.space_type_id == SpaceTypeEnum.BKCC.value:
             # 如果是业务，先获取业务关联了哪些项目，再将每个项目有权限的ns过滤出来
             bcs_projects = BcsApi.list_project({"businessID": bk_biz_id})
             project_ids = {p["projectID"] for p in bcs_projects}
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id,
+                                                                              bk_tenant_id=bk_tenant_id)
             namespaces = set()
             for project_id, ns_list in project_id_to_ns.items():
                 if project_id not in project_ids:
@@ -3961,15 +3963,16 @@ class CollectorHandler:
                     namespaces.add(ns)
             return [{"id": n, "name": n} for n in namespaces]
         elif space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code:
-            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id)
+            project_id_to_ns = BcsHandler().list_bcs_shared_cluster_namespace(bcs_cluster_id=bcs_cluster_id,
+                                                                              bk_tenant_id=bk_tenant_id)
             return [{"id": n, "name": n} for n in project_id_to_ns.get(space.space_code, [])]
         else:
             return []
 
-    def list_namespace(self, bk_biz_id, bcs_cluster_id):
+    def list_namespace(self, bk_biz_id, bcs_cluster_id, bk_tenant_id=None):
         cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
         if cluster_info["is_shared"]:
-            return self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id)
+            return self._get_shared_cluster_namespace(bk_biz_id, bcs_cluster_id, bk_tenant_id)
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         try:
@@ -3979,7 +3982,6 @@ class CollectorHandler:
             raise BCSApiException(BCSApiException.MESSAGE.format(error=e))
         if not namespaces.get("items"):
             return []
-
         return [
             {"id": namespace["metadata"]["name"], "name": namespace["metadata"]["name"]}
             for namespace in namespaces["items"]
@@ -4055,16 +4057,16 @@ class CollectorHandler:
         ]
 
     def filter_pods(
-        self,
-        pods,
-        namespaces=None,
-        namespaces_exclude=None,
-        workload_type="",
-        workload_name="",
-        container_name="",
-        container_name_exclude="",
-        is_shared_cluster=False,
-        shared_cluster_namespace=None,
+            self,
+            pods,
+            namespaces=None,
+            namespaces_exclude=None,
+            workload_type="",
+            workload_name="",
+            container_name="",
+            container_name_exclude="",
+            is_shared_cluster=False,
+            shared_cluster_namespace=None,
     ):
         namespaces_exclude = namespaces_exclude or []
         container_names = container_name.split(",") if container_name else []
