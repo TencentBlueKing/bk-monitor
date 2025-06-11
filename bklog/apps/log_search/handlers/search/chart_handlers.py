@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import re
 import time
-from typing import List
 
 import arrow
 from django.utils.module_loading import import_string
@@ -65,7 +64,7 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
 
 
-class ChartHandler(object):
+class ChartHandler:
     AND = "AND"
     OR = "OR"
 
@@ -85,9 +84,7 @@ class ChartHandler(object):
             SearchMode.SQL.value: "SQLChartHandler",
         }
         try:
-            chart_instance = import_string(
-                "apps.log_search.handlers.search.chart_handlers.{}".format(mapping.get(mode))
-            )
+            chart_instance = import_string(f"apps.log_search.handlers.search.chart_handlers.{mapping.get(mode)}")
             return chart_instance(index_set_id=index_set_id)
         except ImportError as error:
             raise NotImplementedError(f"{mode} class not implement, error: {error}")
@@ -114,7 +111,7 @@ class ChartHandler(object):
         return value
 
     @classmethod
-    def lucene_to_where_clause(cls, lucene_query):
+    def lucene_to_where_clause(cls, lucene_query, alias_mappings):
         # 解析 Lucene 查询
         query_tree = parser.parse(lucene_query, lexer=lexer.clone())
 
@@ -122,6 +119,9 @@ class ChartHandler(object):
         def build_condition(node):
             if isinstance(node, SearchField):
                 field_name = node.name
+                # 使用别名替换
+                if field_name in alias_mappings:
+                    field_name = alias_mappings[field_name]
                 # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
                 if "." in field_name:
                     field_list = field_name.split(".")
@@ -241,6 +241,7 @@ class ChartHandler(object):
         sql_param=None,
         keyword=None,
         action=SQLGenerateMode.COMPLETE.value,
+        alias_mappings=None,
     ) -> dict:
         """
         根据过滤条件生成sql
@@ -250,7 +251,9 @@ class ChartHandler(object):
         :param end_time: 结束时间
         :param keyword: 搜索关键字
         :param action: 生成SQL的方式
+        :param alias_mappings: 别名映射
         """
+        alias_mappings = alias_mappings or {}
         start_date = arrow.get(start_time).format("YYYYMMDD")
         end_date = arrow.get(end_time).format("YYYYMMDD")
         additional_where_clause = (
@@ -262,13 +265,15 @@ class ChartHandler(object):
             # 加上keyword的查询条件
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=keyword)
             keyword = enhance_lucene_adapter.enhance()
-            where_clause = cls.lucene_to_where_clause(keyword)
+            where_clause = cls.lucene_to_where_clause(keyword, alias_mappings)
             if where_clause:
                 additional_where_clause += f" AND {where_clause}"
 
         sql = ""
         for condition in addition:
             field_name = condition["field"]
+            if field_name in alias_mappings:
+                field_name = alias_mappings[field_name]
             operator = condition["operator"]
             values = condition["value"]
             # 获取sql操作符
@@ -313,7 +318,7 @@ class ChartHandler(object):
                     tmp_sql += f" {condition_type} "
                 if isinstance(value, str):
                     value = value.replace("'", "''")
-                    value = f"\'{value}\'"
+                    value = f"'{value}'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
@@ -333,7 +338,7 @@ class ChartHandler(object):
         return {"sql": final_sql, "additional_where_clause": f"WHERE {additional_where_clause}"}
 
     @staticmethod
-    def convert_to_where_clause(grep_field, commands: List[dict]):
+    def convert_to_where_clause(grep_field, commands: list[dict]):
         """
         将解析后的grep命令转换为 doris SQL的where子句
         :param grep_field: grep查询字段
@@ -418,6 +423,7 @@ class SQLChartHandler(ChartHandler):
             end_time=params["end_time"],
             keyword=params.get("keyword"),
             action=SQLGenerateMode.WHERE_CLAUSE.value,
+            alias_mappings=params["alias_mappings"],
         )
         # 如果不存在FROM则添加,存在则覆盖
         pattern = (
@@ -459,7 +465,7 @@ class SQLChartHandler(ChartHandler):
                     errors_message = errors_message + ":" + errors
                 exc = errors_message
                 logger.info(
-                    "[doris query] QUERY ERROR! username: %s, execute sql: \"%s\", error info: %s",
+                    '[doris query] QUERY ERROR! username: %s, execute sql: "%s", error info: %s',
                     get_request_username(),
                     sql.replace("\n", " "),
                     errors_message,
@@ -491,7 +497,7 @@ class SQLChartHandler(ChartHandler):
         # 记录doris日志
         if result_data["data"]["timetaken"] < 5:
             logger.info(
-                "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                '[doris query] username: %s, execute sql: "%s", total records: %s, time taken: %ss',
                 get_request_username(),
                 sql.replace("\n", " "),
                 result_data["data"]["totalRecords"],
@@ -500,7 +506,7 @@ class SQLChartHandler(ChartHandler):
         else:
             # 大于 5s 的判定为慢查询
             logger.info(
-                "[doris query] SLOW QUERY! username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                '[doris query] SLOW QUERY! username: %s, execute sql: "%s", total records: %s, time taken: %ss',
                 get_request_username(),
                 sql.replace("\n", " "),
                 result_data["data"]["totalRecords"],

@@ -26,7 +26,7 @@ from django.test import TestCase
 
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import LogPluginInfo
-from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
+from apps.log_databus.handlers.collector.host import HostCollectorHandler
 
 BK_DATA_ID = 1
 BK_DATA_NAME = "2_log_test_collector"

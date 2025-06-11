@@ -205,6 +205,17 @@ export default defineComponent({
       showResidentSetting.value = !showResidentSetting.value;
       if (!showResidentSetting.value && propsCommonWhere.value.some(item => item.value.length)) {
         cacheCommonWhere.value = deepClone(propsCommonWhere.value);
+        if (!isDefaultResidentSetting.value && residentSettingValue.value.length) {
+          /* 当已选择收藏的情况下添加key到设置筛选需要缓存到当前收藏下 */
+          emit(
+            'setFavoriteCache',
+            propsCommonWhere.value.map(item => ({
+              key: item.key,
+              operator: item.method,
+              value: [],
+            }))
+          );
+        }
         uiValue.value = residentSettingToUiValue();
         handleCommonWhereChange([]);
         handleChange();
@@ -221,7 +232,7 @@ export default defineComponent({
       // 收回常驻设置是需要把常驻设置的值带到ui模式中
       for (const item of cacheCommonWhere.value) {
         if (item.value?.length) {
-          const field = props.fields.find(field => field.name === item.key);
+          const field = localFields.value.find(field => field.name === item.key);
           const methodName =
             field.supported_operations?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
           uiValueAdd.push({
@@ -302,7 +313,7 @@ export default defineComponent({
       }
       cacheWhere.value = structuredClone(where);
       const fieldsMap: Map<string, IFilterField> = new Map();
-      for (const item of props.fields) {
+      for (const item of localFields.value) {
         fieldsMap.set(item.name, item);
       }
       const uiCacheData = getCacheUIData();
@@ -322,8 +333,10 @@ export default defineComponent({
       }
       for (const w of where) {
         const cacheItem = uiCacheDataMap.get(w.key);
+        const methods = fieldsMap.get(w.key)?.supported_operations || [];
+        let methodName = methods.find(v => v.value === w.method)?.alias || METHOD_MAP[w.method];
         if (cacheItem) {
-          const methodName = cacheItem.method.id === w.method ? cacheItem.method.name : METHOD_MAP[w.method];
+          methodName = cacheItem.method.id === w.method ? cacheItem.method.name : methodName;
           const cacheValueMap = new Map();
           for (const v of cacheItem.value) {
             cacheValueMap.set(v.id, v.name);
@@ -346,7 +359,7 @@ export default defineComponent({
           localValue.push({
             key: keyItem,
             condition: { id: ECondition.and, name: 'AND' },
-            method: { id: w.method as EMethod, name: METHOD_MAP[w.method] || w.method },
+            method: { id: w.method as EMethod, name: methodName || w.method },
             options: w.options || {},
             value: w.value.map(v => ({
               id: v,
