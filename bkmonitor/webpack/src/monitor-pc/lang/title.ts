@@ -177,7 +177,7 @@ export default {
   数值分布直方图: 'Numerical distribution histogram',
   'TOP 5 时序图': 'TOP 5 Time Series Chart',
 
-  版本更新: 'Version update',
+  监控版本已更新: 'The BKMonitor version has been updated',
   刷新页面: 'Refresh page',
   暂不刷新: 'Do not refresh',
   查看新特性: 'View new features',

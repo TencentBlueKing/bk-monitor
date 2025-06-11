@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-const data = {
+/**
+ * @description 各个模块引导页模板数据 用于在引导 api 报错或者无权限数据页面时展示
+ */
+export const introduceTemplateData = {
   // 主机监控
   performance: {
     // 是否无数据
@@ -44,7 +46,7 @@ const data = {
       buttons: [
         {
           name: '接入主机',
-          url: '',
+          url: window.bk_nodeman_host || '',
         },
         {
           name: 'DEMO',
@@ -80,7 +82,7 @@ const data = {
     is_no_data: true,
     is_no_source: true,
     data: {
-      title: '开启综合拨测',
+      title: '开启拨测',
       subTitle:
         '拨测是主动探测应用可用性的监控方式，通过拨测节点对目标进行周期性探测，通过可用性和响应时间来度量目标的状态。帮助业务主动发现问题和提升用户体验。',
       introduce: [
@@ -100,7 +102,7 @@ const data = {
       ],
       links: [
         {
-          name: '开启综合拨测',
+          name: '开启拨测',
           url: '产品白皮书/scene-synthetic/synthetic_monitor.md',
         },
         {
@@ -139,7 +141,7 @@ const data = {
       ],
       links: [
         {
-          name: 'button-开启APM',
+          name: '开启APM',
           url: '产品白皮书/scene-apm/apm_monitor_overview.md',
         },
         {
@@ -149,6 +151,47 @@ const data = {
         {
           name: 'APM策略说明',
           url: '产品白皮书/scene-apm/apm_default_rules.md',
+        },
+      ],
+    },
+  },
+  // 新版容器监控
+  'k8s-new': {
+    is_no_data: true,
+    is_no_source: true,
+    data: {
+      title: '开启Kubernetes监控',
+      subTitle:
+        '基于Kubernetes的云原生场景，提供了围绕云平台本身及上的应用数据监控解决方案。兼容了Prometheus的使用并且解决了原本的一些短板问题。开启容器监控需要将Kubernetes接入到蓝鲸容器管理平台中。',
+      introduce: [
+        '提供开箱即用的K8s服务组件的各种监控视角',
+        '兼容serviceMonitor、podMonitor的使用',
+        '提供了Events、Log、Metrics的采集方案',
+        '提供远程服务注册的方式',
+        '提供本地拉取和均衡拉取的能力',
+      ],
+      buttons: [
+        {
+          name: '接入Kubernetes',
+          url: window.bk_bcs_url || '',
+        },
+        {
+          name: 'DEMO',
+          url: '',
+        },
+      ],
+      links: [
+        {
+          name: '开启容器监控',
+          url: '产品白皮书/scene-k8s/k8s_monitor_overview.md',
+        },
+        {
+          name: '容器指标说明',
+          url: '产品白皮书/scene-k8s/k8s_metrics.md',
+        },
+        {
+          name: 'k8s策略说明',
+          url: '产品白皮书/scene-k8s/k8s_default_rules.md',
         },
       ],
     },
@@ -171,7 +214,7 @@ const data = {
       buttons: [
         {
           name: '接入Kubernetes',
-          url: '',
+          url: window.bk_bcs_url || '',
         },
         {
           name: 'DEMO',
@@ -188,7 +231,7 @@ const data = {
           url: '产品白皮书/scene-k8s/k8s_metrics.md',
         },
         {
-          name: 'K8s策略说明',
+          name: 'k8s策略说明',
           url: '产品白皮书/scene-k8s/k8s_default_rules.md',
         },
       ],
@@ -211,7 +254,7 @@ const data = {
       buttons: [
         {
           name: '开始自定义',
-          url: '',
+          url: '#/collect-config',
         },
         {
           name: 'DEMO',
@@ -255,5 +298,38 @@ const data = {
       ],
     },
   },
+  'plugin-manager': {
+    is_no_data: true,
+    is_no_source: true,
+    data: {
+      title: '开始数据采集',
+      subTitle:
+        '数据采集是通过下发监控插件或配置来实现数据采集，并且提供插件和配置的全生命周期管理，所以依赖服务器安装bkmonitorbeat采集器。',
+      introduce: ['结合插件提供本地和远程采集两种方式', '提供基于配置平台节点的动态扩缩容', '提供物理和容器环境的采集'],
+      buttons: [
+        {
+          name: '新建数据采集',
+          url: '#/collect-config/add',
+        },
+        {
+          name: 'DEMO',
+          url: '',
+        },
+      ],
+      links: [
+        {
+          name: '什么是指标和维度',
+          url: '产品白皮书/integrations-metrics/what_metrics.md',
+        },
+        {
+          name: '开始指标数据采集',
+          url: '产品白皮书/integrations-metrics/collect_tasks.md',
+        },
+        {
+          name: '插件制作快速入门',
+          url: '产品白皮书/integrations-metric-plugins/plugins.md',
+        },
+      ],
+    },
+  },
 };
-export default data;
