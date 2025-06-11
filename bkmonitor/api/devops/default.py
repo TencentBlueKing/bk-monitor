@@ -1,7 +1,6 @@
 import abc
 import json
 import logging
-import os
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -45,8 +44,8 @@ class DevopsBaseResource(APIResource, metaclass=abc.ABCMeta):
         auth_header = json.loads(headers["x-bkapi-authorization"])
         auth_header.update(
             {
-                "bk_app_code": os.getenv("BKCI_APP_CODE"),
-                "bk_app_secret": os.getenv("BKCI_APP_SECRET"),
+                "bk_app_code": settings.BKCI_APP_CODE,
+                "bk_app_secret": settings.BKCI_APP_SECRET,
             }
         )
         headers["x-bkapi-authorization"] = json.dumps(auth_header)

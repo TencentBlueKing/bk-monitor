@@ -658,7 +658,6 @@ class PipelineOverviewResource(Resource):
         pipeline_overview.append(cls.query_pipelines(**params))
 
     @classmethod
-    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda v: v is None)
     def query_pipelines(cls, bk_biz_id, app_name, project_id, project_name, keyword, page, page_size) -> dict[str, Any]:
         """
         查询项目下的流水线
