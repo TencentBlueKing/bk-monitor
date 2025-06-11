@@ -94,17 +94,30 @@ export default defineComponent({
       requestAnimationFrame(() => {
         const domList = sectionRef.value?.children || [];
         const maxWidth = sectionRef.value?.parentNode?.clientWidth;
-        // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
-        let num = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
+        let num = 0;
         let index = -1;
+
         for (let i = 0; i < domList.length; i++) {
           const clientWidth = domList[i]?.clientWidth;
-          num = clientWidth + num + (i + 1) * props.tagColGap;
+          num = clientWidth + num + props.tagColGap;
 
           if (num >= maxWidth) {
+            num = num - clientWidth - props.tagColGap;
             break;
           }
           index = i;
+        }
+        if (domList.length >= index + 1) {
+          // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
+          const collectTagWidth = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
+          for (let i = index; i > 0; i--) {
+            if (num + collectTagWidth < maxWidth) {
+              break;
+            }
+            const clientWidth = domList[i]?.clientWidth;
+            num = num - clientWidth - props.tagColGap;
+            index = i - 1;
+          }
         }
         calculateTagCount.value = index + 1;
       });
