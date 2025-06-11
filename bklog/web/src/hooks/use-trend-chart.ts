@@ -256,8 +256,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       dst.data = Array.from(dataMap.values());
     });
 
-    console.log('setGroupData', options);
-
     updateChart(isInit);
     return count;
   };
