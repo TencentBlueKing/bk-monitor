@@ -252,11 +252,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
 
     sortKeys.forEach(key => {
-      const { dst, dataMap, group } = dataset.get(key);
+      const { dst, dataMap } = dataset.get(key);
       dst.data = Array.from(dataMap.values());
     });
-
-    console.log('setGroupData', options);
 
     updateChart(isInit);
     return count;
