@@ -2935,19 +2935,27 @@ class GetClusterInfoFromBcsSpaceResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, default=None)
 
     def perform_request(self, params: dict) -> dict:
-        space_uid = params.get("space_uid")
+        space_uid: str | None = params.get("space_uid")
         shard_only = params.get("shard_only")
         bk_biz_id = params.get("bk_biz_id")
 
         if space_uid:
             bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-        if bk_biz_id == 0:
+        elif bk_biz_id == 0:
             return {}
-        if bk_biz_id:
+        elif bk_biz_id:
             if bk_biz_id > 0:
                 # 业务空间下无共享集群
                 return {}
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        else:
+            raise ValueError("space_uid or bk_biz_id is required")
+
+        # 仅有bkci和bcs空间支持获取集群信息
+        space_type_id, space_id = space_uid.split("__", 1)
+        if space_type_id not in [SpaceTypeEnum.BKCI.value, SpaceTypeEnum.BCS.value]:
+            return {}
+
         cluster_list = api.metadata.get_clusters_by_space_uid(space_uid=space_uid)
 
         data = {}
