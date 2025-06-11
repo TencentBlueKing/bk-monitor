@@ -52,7 +52,7 @@ import {
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
 import PipelineSelectPanel from './components/pipeline-select-panel';
-import RelationSelectPanel from './components/relation-select-panel'
+import RelationSelectPanel from './components/relation-select-panel';
 import DebuggerDialog from './debugger-dialog';
 import { languageIconBase64 } from './utils';
 
