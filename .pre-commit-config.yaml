@@ -8,13 +8,6 @@ repos:
       # 检查 private key
       - id: detect-private-key
 
-  # 将代码中的 python2 语法转换为 python3 语法
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.1
-    hooks:
-      - id: pyupgrade
-        args: [--py310-plus]
-
   # ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.

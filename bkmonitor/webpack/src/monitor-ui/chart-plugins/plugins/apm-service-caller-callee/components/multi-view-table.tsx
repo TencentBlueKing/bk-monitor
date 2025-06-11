@@ -510,13 +510,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         kind: tagTraceMapping[kind].value,
         'resource.service.name': [service_name],
       };
-      const query = [];
       groupBy.map(item => {
         if (row[item]) {
-          query.push(`${tagTraceMapping[item].field}: "${row[item]}"`);
+          filter[tagTraceMapping[item].field] = [row[item]];
         }
       });
-      const queryString = query.join(' AND ');
 
       const conditionList = Object.keys(filter).map(key => {
         return {
@@ -528,7 +526,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&queryString=${queryString}&start_time=${from}&end_time=${to}&sceneMode=span&filterMode=ui`
+          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&start_time=${from}&end_time=${to}&sceneMode=span&filterMode=ui`
         )
       );
       return;

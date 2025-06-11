@@ -41,8 +41,6 @@ import { PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
-import ChartFiltering from '../../../../components/chart-filtering/chart-filtering';
-import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
@@ -60,13 +58,15 @@ import {
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
 } from './constants';
 import { useExploreColumnConfig } from './hooks/use-explore-column-config';
+import { useExploreDataCache } from './hooks/use-explore-data-cache';
 import { useTableCell } from './hooks/use-table-cell';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
-import { ExploreTableLoadingEnum } from './typing';
+import { type ActiveConditionMenuTarget, type ExploreTableColumn, ExploreTableLoadingEnum } from './typing';
 import { getTableList } from './utils/api-utils';
 import { isEllipsisActiveSingleLine } from './utils/dom-helper';
 
 import type { ConditionChangeEvent, ExploreFieldList, ICommonParams, IDimensionFieldTreeItem } from '../../typing';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './trace-explore-table.scss';
 
@@ -114,9 +114,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useTraceExploreStore();
 
-    /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => props.mode === 'span');
-
     /** 表格单页条数 */
     const limit = 30;
     /** 表格logs数据请求中止控制器 */
@@ -131,8 +128,44 @@ export default defineComponent({
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
-    const durationPopover = useTemplateRef<HTMLDivElement>('durationPopoverRef');
 
+    /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
+    const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
+    /** 打开抽屉所需的数据Id(traceId/spanId) */
+    const activeSliderId = shallowRef('');
+    /** 判断table数据是否还有数据可以获取 */
+    const tableHasMoreData = shallowRef(false);
+    /** table loading 配置 */
+    const tableLoading = reactive({
+      /** table body部分 骨架屏 loading */
+      [ExploreTableLoadingEnum.BODY_SKELETON]: false,
+      /** table header部分 骨架屏 loading */
+      [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
+      /** 表格触底加载更多 loading  */
+      [ExploreTableLoadingEnum.SCROLL]: false,
+    });
+
+    /** 统计面板的 抽屉页展示状态 */
+    let statisticsSliderShow = false;
+    /** 字段分析弹窗 popover 显隐 */
+    const showStatisticsPopover = shallowRef(false);
+    /** 当前激活字段分析弹窗面板展示的字段 */
+    const activeStatisticsField = shallowRef('');
+    /** click弹出 conditionMenu popover组件所需参数 */
+    const activeConditionMenuTarget = reactive({
+      rowId: '',
+      colId: '',
+      conditionValue: '',
+      /** 除公共菜单项外需要自定义菜单项列表 */
+      customMenuList: [],
+    });
+
+    /** 当前视角是否为 Span 视角 */
+    const isSpanVisual = computed(() => props.mode === 'span');
+    /** 表格行可用作 唯一主键值 的字段名 */
+    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
+
+    const { cacheRows, getCellComplexValue, clearCache } = useExploreDataCache(tableRowKeyField);
     /** 表格功能单元格内容溢出弹出 popover 功能 */
     const { initListeners: initEllipsisListeners, handlePopoverHide: ellipsisPopoverHide } = useTableEllipsis(
       tableRef,
@@ -162,14 +195,20 @@ export default defineComponent({
         delay: 0,
       },
       getContentOptions: triggerDom => {
-        if (
-          triggerDom.dataset.colKey === activeConditionMenuTarget.conditionKey &&
-          triggerDom.dataset.cellSource === activeConditionMenuTarget.conditionValue
-        ) {
-          setActiveConditionMenu();
+        const oldRowId = activeConditionMenuTarget.rowId;
+        const oldColId = activeConditionMenuTarget.colId;
+        setActiveConditionMenu();
+        if (triggerDom.dataset.rowId === oldRowId && triggerDom.dataset.colId === oldColId) {
           return;
         }
-        setActiveConditionMenu(triggerDom.dataset.colKey, triggerDom.dataset.cellSource);
+        const sourceValue = getCellComplexValue(triggerDom.dataset.rowId, triggerDom.dataset.colId, {
+          index: triggerDom.dataset.index ? Number(triggerDom.dataset.index) : null,
+        });
+        setActiveConditionMenu({
+          rowId: triggerDom.dataset.rowId,
+          colId: triggerDom.dataset.colId,
+          conditionValue: Array.isArray(sourceValue) ? JSON.stringify(sourceValue) : String(sourceValue),
+        });
         const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
         return {
           content: conditionMenuRef.value.$el,
@@ -182,10 +221,12 @@ export default defineComponent({
       popoverOptions: {
         theme: 'light padding-0',
         placement: 'bottom',
+        interactive: true,
+        duration: [50, null],
       },
     });
 
-    const { tableCellRender } = useTableCell();
+    const { tableCellRender } = useTableCell(tableRowKeyField);
     const {
       tableColumns,
       displayColumnFields,
@@ -197,43 +238,12 @@ export default defineComponent({
     } = useExploreColumnConfig({
       props,
       isSpanVisual,
+      rowKeyField: tableRowKeyField,
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,
       handleSliderShowChange,
     });
-
-    /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
-    const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
-    /** 打开抽屉所需的数据Id(traceId/spanId) */
-    const activeSliderId = shallowRef('');
-    /** 判断table数据是否还有数据可以获取 */
-    const tableHasMoreData = shallowRef(false);
-    /** table loading 配置 */
-    const tableLoading = reactive({
-      /** table body部分 骨架屏 loading */
-      [ExploreTableLoadingEnum.BODY_SKELETON]: false,
-      /** table header部分 骨架屏 loading */
-      [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
-      /** 表格触底加载更多 loading  */
-      [ExploreTableLoadingEnum.SCROLL]: false,
-    });
-
-    /** 统计面板的 抽屉页展示状态 */
-    let statisticsSliderShow = false;
-    /** 字段分析弹窗 popover 显隐 */
-    const showStatisticsPopover = shallowRef(false);
-    /** 当前激活字段分析弹窗面板展示的字段 */
-    const activeStatisticsField = shallowRef('');
-    /** click弹出 conditionMenu popover组件所需参数 */
-    const activeConditionMenuTarget = reactive({
-      conditionKey: '',
-      conditionValue: '',
-      linkUrl: '',
-    });
-
-    /** 表格行可用作 唯一主键值 的字段名 */
-    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
 
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
     const isLocalFilterMode = computed(() => store?.filterTableList?.length);
@@ -415,20 +425,15 @@ export default defineComponent({
       const { app_name, start_time, end_time } = queryParams.value;
       if (!app_name || !start_time || !end_time) {
         store.updateTableList([]);
+        clearCache();
         tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
         tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
         tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
-      let updateTableDataFn = list => {
-        store.updateTableList([...tableData.value, ...list]);
-      };
-
       if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
         store.updateTableList([]);
-        updateTableDataFn = list => {
-          store.updateTableList(list);
-        };
+        clearCache();
       }
 
       tableLoading[loadingType] = true;
@@ -438,17 +443,25 @@ export default defineComponent({
         offset: tableData.value?.length || 0,
       };
       abortController = new AbortController();
+      store.updateTableLoading(true);
       const res = await getTableList(requestParam, isSpanVisual.value, {
         signal: abortController.signal,
       });
+      store.updateTableLoading(false);
       if (res?.isAborted) {
         tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
       tableLoading[loadingType] = false;
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
-      updateTableDataFn(res.data);
-      tableHasMoreData.value = res.data?.length === limit;
+      // 更新表格数据
+      if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
+        store.updateTableList(res.data);
+      } else {
+        store.updateTableList([...tableData.value, ...res.data]);
+      }
+      cacheRows(res.data);
+      tableHasMoreData.value = res.data?.length >= limit;
       requestAnimationFrame(() => {
         // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
         // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
@@ -465,18 +478,26 @@ export default defineComponent({
      * @description: 修改条件菜单所需数据
      *
      */
-    function setActiveConditionMenu(colKey = '', cellSource = '', linkUrl = '') {
-      activeConditionMenuTarget.conditionKey = colKey;
-      activeConditionMenuTarget.conditionValue = cellSource;
-      activeConditionMenuTarget.linkUrl = linkUrl;
+    function setActiveConditionMenu(item: Partial<ActiveConditionMenuTarget> = {}) {
+      activeConditionMenuTarget.rowId = item.rowId || '';
+      activeConditionMenuTarget.colId = item.colId || '';
+      activeConditionMenuTarget.conditionValue = item.conditionValue || '';
+      activeConditionMenuTarget.customMenuList = item.customMenuList || [];
     }
 
     /**
      * @description: 显示条件菜单
      *
      */
-    function handleConditionMenuShow(triggerDom, colKey, cellSource, linkUrl) {
-      setActiveConditionMenu(colKey, cellSource, linkUrl);
+    function handleConditionMenuShow(triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) {
+      const oldRowId = activeConditionMenuTarget.rowId;
+      const oldColId = activeConditionMenuTarget.colId;
+      conditionMenuPopoverHide();
+      setActiveConditionMenu();
+      if (conditionMenuTarget.rowId === oldRowId && conditionMenuTarget.colId === oldColId) {
+        return;
+      }
+      setActiveConditionMenu(conditionMenuTarget);
       const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
       conditionMenuPopoverShow(isEllipsisActive ? triggerDom.parentElement : triggerDom, conditionMenuRef.value.$el);
     }
@@ -549,19 +570,16 @@ export default defineComponent({
       e.stopPropagation();
       handleStatisticsPopoverHide();
       activeStatisticsField.value = item.name;
-      const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
       if (!item.is_dimensions) return;
       statisticsPopoverInstance = $bkPopover({
         target: e.currentTarget as HTMLDivElement,
-        content: isDuration
-          ? durationPopover.value
-          : (statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement),
+        content: statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement,
         trigger: 'click',
         placement: 'right',
         theme: 'light',
         arrow: true,
         boundary: 'viewport',
-        extCls: isDuration ? 'duration-popover-cls' : 'statistics-dimension-popover-cls',
+        extCls: 'statistics-dimension-popover-cls',
         width: 405,
         // @ts-ignore
         distance: -5,
@@ -573,9 +591,7 @@ export default defineComponent({
         },
       });
       setTimeout(() => {
-        if (!isDuration) {
-          showStatisticsPopover.value = true;
-        }
+        showStatisticsPopover.value = true;
         statisticsPopoverInstance.show();
       }, 100);
     }
@@ -606,14 +622,6 @@ export default defineComponent({
     }
 
     /**
-     * @description 耗时分析统计弹窗中 筛选时间范围列表数据 回调
-     *
-     */
-    function handleFilterListChange(list) {
-      store.updateFilterTableList(list);
-    }
-
-    /**
      * @description 字段分析组件渲染方法
      *
      */
@@ -631,27 +639,6 @@ export default defineComponent({
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}
         />,
-        <div
-          key='chartFiltering'
-          style='display: none;'
-        >
-          <div
-            ref='durationPopoverRef'
-            class='duration-popover'
-          >
-            {tableData.value.length ? (
-              <ChartFiltering
-                filterList={store.filterTableList}
-                isShowSlider={false}
-                list={tableData.value}
-                listType={props.commonParams.mode}
-                onFilterListChange={handleFilterListChange}
-              />
-            ) : (
-              <EmptyStatus type='empty' />
-            )}
-          </div>
-        </div>,
       ];
     }
 
@@ -661,35 +648,36 @@ export default defineComponent({
      * @param tipText 列描述
      *
      */
-    function tableHeaderCellRender(title, tipText, column) {
+    function tableHeaderCellRender(title: string, tipText: string, column: ExploreTableColumn) {
       const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
       const fieldType = fieldOptions?.type || '';
       const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
-      return () => (
-        <div
-          key={title}
-          class={`explore-header-col ${chartIconActive}`}
-        >
-          <FieldTypeIcon
-            class='col-type-icon'
-            type={fieldType}
-          />
-          <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
-            <span
-              class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
-              data-col-description={tipText}
-            >
-              {title}
-            </span>
-          </div>
-          {fieldOptions?.is_dimensions ? (
-            <i
-              class='icon-monitor icon-Chart statistics-icon'
-              onClick={e => handleStatisticsPopoverShow(e, fieldOptions)}
+      return () =>
+        (
+          <div
+            key={title}
+            class={`explore-header-col ${chartIconActive}`}
+          >
+            <FieldTypeIcon
+              class='col-type-icon'
+              type={fieldType}
             />
-          ) : null}
-        </div>
-      );
+            <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+              <span
+                class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
+                data-col-description={tipText}
+              >
+                {title}
+              </span>
+            </div>
+            {fieldOptions?.is_dimensions ? (
+              <i
+                class='icon-monitor icon-Chart statistics-icon'
+                onClick={e => handleStatisticsPopoverShow(e, fieldOptions)}
+              />
+            ) : null}
+          </div>
+        ) as unknown as SlotReturnValue;
     }
 
     function handleClearRetrievalFilter() {
@@ -743,6 +731,7 @@ export default defineComponent({
             ),
           }}
           columns={[
+            // @ts-ignore
             ...this.tableDisplayColumns,
             {
               width: '32px',
@@ -752,6 +741,7 @@ export default defineComponent({
               resizable: false,
               thClassName: '__table-custom-setting-col__',
               colKey: '__col_setting__',
+              // @ts-ignore
               title: () => {
                 return (
                   <ExploreFieldSetting
@@ -773,6 +763,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={{
             container: SCROLL_ELEMENT_CLASS_NAME,
           }}
+          // @ts-ignore
           lastFullRow={
             this.tableViewData.length
               ? () => (
@@ -831,14 +822,9 @@ export default defineComponent({
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'
-            showMenuIdsSet={
-              this.activeConditionMenuTarget.linkUrl
-                ? new Set(['link', 'copy', 'add', 'delete', 'new-page'])
-                : undefined
-            }
-            conditionKey={this.activeConditionMenuTarget.conditionKey}
+            conditionKey={this.activeConditionMenuTarget.colId}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
-            linkUrl={this.activeConditionMenuTarget.linkUrl}
+            customMenuList={this.activeConditionMenuTarget.customMenuList}
             onConditionChange={this.handleConditionChange}
             onMenuClick={this.handleMenuClick}
           />

@@ -787,13 +787,11 @@ class UnifyQueryHandler:
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [
-                {"method": "date_histogram", "window": interval},
-            ]
             if group_field:
-                q["function"].append({"method": method, "dimensions": [group_field]})
+                q["function"] = [{"method": method, "dimensions": [group_field]}]
             else:
-                q["function"].append({"method": method})
+                q["function"] = [{"method": method}]
+            q["function"].append({"method": "date_histogram", "window": interval})
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
@@ -807,6 +805,16 @@ class UnifyQueryHandler:
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
+        # 无分组处理
+        if not group_field:
+            for value in response["series"][0]["values"]:
+                key_as_string = timestamp_to_timeformat(
+                    value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+                )
+                tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+                return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
+            return return_data
+        # 分组组装
         for item in response["series"]:
             group_value = item["group_values"][0]
             for value in item["values"]:

@@ -460,7 +460,7 @@ class ClusteringConfigHandler:
         :param partition:
         :return:
         """
-        collector_handler = CollectorHandler(self.data.collector_config_id)
+        collector_handler = CollectorHandler.get_instance(self.data.collector_config_id)
         if not self.data.log_bk_data_id:
             self.data.log_bk_data_id = CollectorScenario.change_data_stream(
                 collector_handler.data, mq_topic=topic, mq_partition=partition
