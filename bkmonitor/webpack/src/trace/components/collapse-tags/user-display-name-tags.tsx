@@ -30,6 +30,8 @@ import { getBkUserDisplayNameInstance, getUserComponentConfig } from 'monitor-pc
 
 import CollapseTag from './collapse-tags';
 
+import type { SlotReturnValue } from 'tdesign-vue-next';
+
 export default defineComponent({
   name: 'UserDisplayNameTag',
   props: {
@@ -45,6 +47,9 @@ export default defineComponent({
     enableEllipsis: {
       type: Boolean,
       default: true,
+    },
+    ellipsisTip: {
+      type: Function as PropType<(ellipsisList: string[]) => SlotReturnValue>,
     },
   },
   setup(props) {
@@ -75,9 +80,14 @@ export default defineComponent({
       <CollapseTag
         class='user-display-name-tags'
         data={this.userDisplayNameList}
+        ellipsisTip={this.ellipsisTip}
         enableEllipsis={this.enableEllipsis}
         tagColGap={this.tagColGap}
-      />
+      >
+        {{
+          tagDefault: this.$slots?.tagDefault ? tag => this.$slots?.tagDefault?.(tag) : null,
+        }}
+      </CollapseTag>
     );
   },
 });

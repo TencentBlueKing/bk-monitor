@@ -23,10 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, ref as deepRef, shallowRef, watch, computed } from 'vue';
+import {
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  ref as deepRef,
+  shallowRef,
+  watch,
+  computed,
+  type PropType,
+} from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
+
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './collapse-tags.scss';
 
@@ -34,7 +45,7 @@ export default defineComponent({
   name: 'TagShow',
   props: {
     data: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
     filter: {
@@ -53,6 +64,9 @@ export default defineComponent({
     enableEllipsis: {
       type: Boolean,
       default: true,
+    },
+    ellipsisTip: {
+      type: Function as PropType<(ellipsisList: string[]) => SlotReturnValue>,
     },
   },
   setup(props) {
@@ -80,19 +94,32 @@ export default defineComponent({
       requestAnimationFrame(() => {
         const domList = sectionRef.value?.children || [];
         const maxWidth = sectionRef.value?.parentNode?.clientWidth;
-        // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
-        let num = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
-        let count = -1;
+        let num = 0;
+        let index = -1;
+
         for (let i = 0; i < domList.length; i++) {
           const clientWidth = domList[i]?.clientWidth;
-          num = clientWidth + num + (i + 1) * props.tagColGap;
-          count = i;
+          num = clientWidth + num + props.tagColGap;
 
           if (num >= maxWidth) {
+            num = num - clientWidth - props.tagColGap;
             break;
           }
+          index = i;
         }
-        calculateTagCount.value = count + 1;
+        if (domList.length >= index + 1) {
+          // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
+          const collectTagWidth = (maxCountCollectTagRef.value?.clientWidth || 0) + 1;
+          for (let i = index; i > 0; i--) {
+            if (num + collectTagWidth < maxWidth) {
+              break;
+            }
+            const clientWidth = domList[i]?.clientWidth;
+            num = num - clientWidth - props.tagColGap;
+            index = i - 1;
+          }
+        }
+        calculateTagCount.value = index + 1;
       });
     }, 200);
 
@@ -150,13 +177,19 @@ export default defineComponent({
     return { calculateTagCount, tagContainerRef, sectionRef, maxCountCollectTagRef, cssVars };
   },
   render() {
+    /** 数据总长度 */
     const dataLen = (this.data || []).length;
     if (dataLen === 0) {
       return;
     }
-    const countIndex: any = this.calculateTagCount;
-    const status = dataLen > countIndex;
-    const list = (this.data || []).slice(0, this.calculateTagCount);
+    /** 折叠个数 */
+    const collapseCount = dataLen - this.calculateTagCount;
+    /** 是否展示折叠标签 */
+    const canShowCollapseTag = collapseCount > 0;
+    /** 需要渲染的数据数组 */
+    const showList = (this.data || []).slice(0, this.calculateTagCount);
+    /** 折叠的数据数组 */
+    const ellipsisList = (this.data || []).slice(this.calculateTagCount);
     return (
       <span
         ref='tagContainerRef'
@@ -167,7 +200,7 @@ export default defineComponent({
           ref='sectionRef'
           class='item-tags'
         >
-          {list.map((tag, index) => (
+          {showList.map((tag, index) => (
             <Tag
               key={index}
               ext-cls={this.styleName}
@@ -176,17 +209,24 @@ export default defineComponent({
             </Tag>
           ))}
         </span>
-        {status && <span class='top-bar-tag'>+{dataLen - countIndex}</span>}
+        {canShowCollapseTag && (
+          <span
+            class='top-bar-tag'
+            v-tippy={{
+              content: this.ellipsisTip?.(ellipsisList) || ellipsisList.join(','),
+              theme: 'dark text-wrap max-width-50vw',
+              delay: 300,
+            }}
+          >
+            +{collapseCount}
+          </span>
+        )}
         <span
           ref='maxCountCollectTagRef'
           class='top-bar-tag top-bar-tag-fill'
         >
           +{dataLen}
         </span>
-        {/*
-        <span
-            v-bk-tooltips={{ content: props.data.slice(calculateTagCount).join(','), width: 250 }}>
-        </span>} */}
       </span>
     );
   },
