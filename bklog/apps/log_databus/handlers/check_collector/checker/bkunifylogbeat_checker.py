@@ -38,7 +38,7 @@ from apps.log_databus.constants import (
     CRD_NAME,
     DAEMONSET_NAME,
     DAEMONSET_POD_LABELS,
-    CollectStatus,
+    CollectStatus, BK_LOG_COLLECTOR_NAMESPACE,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -74,7 +74,7 @@ class BkunifylogbeatChecker(Checker):
         self.target_server: Dict[str, Any] = {}
         # 初始化bcs_client
         self.k8s_client: Bcs = Bcs(cluster_id=collector_config.bcs_cluster_id)
-        self.namespace: str = settings.BK_LOG_COLLECTOR_NAMESPACE
+        self.namespace: str = BK_LOG_COLLECTOR_NAMESPACE
         self.crd_name: str = CRD_NAME
         self.configmap_name: str = CONFIGMAP_NAME
         self.daemonset_name: str = DAEMONSET_NAME
@@ -287,6 +287,10 @@ class BkunifylogbeatChecker(Checker):
             self.append_error_info(_("在Pod列表中没有匹配到配置文件"))
             return
         for pod in self.pod_list:
+            pod_name = pod.name if hasattr(pod, "name") else ""
+            if not pod_name:
+                print("Pod对象的name属性为空，无法继续处理该Pod")
+                continue
             if not pod.sub_config_list:
                 self.append_error_info(_("Pod[{pod_name}]中没有匹配到配置文件").format(pod_name=pod.name))
                 continue
@@ -297,27 +301,66 @@ class BkunifylogbeatChecker(Checker):
         """
         匹配子配置文件, CR会成为配置文件的后缀, 所以认定Pod中有该后缀的配置文件的才是实际采集的Pod
         """
-        config_list = []
+        config_set = set()
+        # 这里pod_name可能为空, 需要处理，直接返回空列表并记录日志
+        if not pod_name:
+            self.append_error_info(_("匹配子配置文件时 pod_name 为空，无法继续匹配"))
+            return []
         for cr_name in self.cr_list:
-            command = ["/bin/ls", f"{self.sub_config_dir} | grep {cr_name}"]
-            result = self.k8s_client.exec_command(
-                pod_name=pod_name, namespace=self.namespace, command=command, container_name=self.container_name
-            )
+            command = ["/bin/sh", "-c", f"ls {self.sub_config_dir} | grep {cr_name}"]
+            try:
+                result = self.k8s_client.exec_command(
+                    pod_name=pod_name,
+                    namespace=self.namespace,
+                    command=command,
+                    container_name=self.container_name
+                )
+            except Exception as e:
+                self.append_error_info(_("执行命令时发生异常: {}").format(str(e)))
+                continue
             if not result:
                 continue
             for config_path in result.splitlines():
                 if not config_path or "No such file or directory" in config_path:
                     continue
-                config_list.append(config_path.splitlines()[0])
-        return config_list
+                config_set.add(config_path)
+        return list(config_set)
 
     def _check_pod_status(self, pod: v1_pod.V1Pod):
         """
         检查Pod状态, 包括容器状态, 重启次数, 等待原因, 退出原因等
         """
-        for container_status in pod.status.container_statuses:
+        if not pod or not pod.status:
+            self.append_error_info(_("Pod状态信息不完整"))
+            return
+        container_statuses = pod.status.container_statuses or []
+        if not container_statuses:
+            self.append_error_info(
+                _("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(
+                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
+            )
+            return
+        found_container = False
+        for container_status in container_statuses:
             if container_status.name != self.container_name:
                 continue
+            found_container = True
+            state = getattr(container_status, "state", None)
+            if not state:
+                self.append_error_info(
+                    _("Pod[{pod_name}]容器状态信息缺失").format(
+                        pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
+                )
+                continue
+            # 检查重启次数
+            restart_count = getattr(container_status, "restart_count", 0)
+            if restart_count > 3:
+                self.append_warning_info(
+                    _("Pod[{pod_name}]重启次数过多: {restart_cnt}").format(
+                        pod_name=pod.metadata.name,
+                        restart_cnt=restart_count,
+                    )
+                )
             if container_status.state.waiting:
                 self.append_warning_info(
                     _("Pod[{pod_name}]状态为等待, 原因: {reason}, 原因详情: {message}").format(
@@ -344,6 +387,19 @@ class BkunifylogbeatChecker(Checker):
                         restart_cnt=container_status.restart_count,
                     )
                 )
+                continue
+            # 兜底异常
+            self.append_warning_info(
+                _("Pod[{pod_name}]容器状态未知").format(
+                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
+            )
+        if not found_container:
+            self.append_error_info(
+                _("Pod[{pod_name}]未找到名为{container_name}的容器").format(
+                    pod_name=pod.metadata.name if pod.metadata.name else 'unknown',
+                    container_name=self.container_name
+                )
+            )
 
     def _check_main_config(self, pod_name: str):
         """
@@ -428,92 +484,133 @@ class BkunifylogbeatChecker(Checker):
         )
 
     def _check_path_match(self, paths: List[str]):
+        """检查日志路径是否存在"""
+        if not paths:
+            self.append_error_info(_("无路径需要检查"))
+            return
+        total_pods = len(self.pod_list) if self.pod_list is not None else 0
+        successful_pods = 0
+        path_match_results = {path: [] for path in paths}
         for pod in self.pod_list:
-            if not pod.sub_config_list:
-                continue
-            missing_paths = []
-            existing_files = []
+            pod.name = pod.name if pod.name else 'unknown'
+            pod_success = False
             for path in paths:
-                # 在容器内执行ls命令检查路径
-                cmd = ["/bin/ls", "-d", "--", path]
-                ls_output = self.k8s_client.exec_command(
-                    pod_name=pod.name,
-                    namespace=self.namespace,
-                    command=cmd,
-                    container_name=self.container_name
-                )
-                if "No such file or directory" in ls_output:
-                    missing_paths.append(path)
-                else:
-                    existing_files.extend(ls_output.splitlines())
-            if missing_paths:
-                self.append_error_info(
-                    _("Pod[{pod_name}] 以下路径无匹配文件: {paths}").format(
+                command = [
+                    "sh", "-c",
+                    f'grep -r --color=always "{path}" "{self.sub_config_dir}"'
+                ]
+                try:
+                    ls_output = self.k8s_client.exec_command(
                         pod_name=pod.name,
-                        paths=", ".join(missing_paths)
+                        namespace=self.namespace,
+                        command=command,
+                        container_name=self.container_name
                     )
-                )
-                if existing_files:
-                    self.append_normal_info(
-                        _("Pod[{pod_name}] 已存在的文件:\n{files}").format(
+                    if ls_output:
+                        path_match_results[path].append(pod.name)
+                        pod_success = True
+                        self.append_normal_info(
+                            _("Pod[{pod_name}]中找到日志路径[{path}]的配置").format(
+                                pod_name=pod.name,
+                                path=path
+                            )
+                        )
+                    else:
+                        self.append_warning_info(
+                            _("Pod[{pod_name}]中未找到日志路径[{path}]的配置").format(
+                                pod_name=pod.name,
+                                path=path
+                            )
+                        )
+                except Exception as e:
+                    self.append_error_info(
+                        _("检查Pod[{pod_name}]的日志路径[{path}]时发生错误: {error}").format(
                             pod_name=pod.name,
-                            files="\n".join(existing_files[:10])
+                            path=path,
+                            error=str(e)
                         )
                     )
-            else:
+            if pod_success:
+                successful_pods += 1
+        # 输出统计信息
+        self.append_normal_info(
+            _("日志路径检查统计: 共检查{total_pods}个Pod，其中{successful_pods}个Pod成功匹配到配置").format(
+                total_pods=total_pods,
+                successful_pods=successful_pods
+            )
+        )
+        # 输出每个路径的匹配结果
+        for path, matched_pods in path_match_results.items():
+            if matched_pods:
                 self.append_normal_info(
-                    _("Pod[{pod_name}] 所有路径检查通过").format(pod_name=pod.name)
-                )
-                if existing_files:
-                    self.append_normal_info(
-                        _("Pod[{pod_name}] 匹配到的文件:\n{files}").format(
-                            pod_name=pod.name,
-                            files="\n".join(existing_files[:10])
-                        )
+                    _("日志路径[{path}]在以下Pod中找到配置: {pods}").format(
+                        path=path,
+                        pods=", ".join(matched_pods)
                     )
+                )
+            else:
+                self.append_error_info(
+                    _("日志路径[{path}]在所有Pod中均未找到配置").format(path=path)
+                )
 
     def _check_file_held(self, paths: List[str]):
-        """检查文件是否被占用"""
+        """检查文件句柄是否被占用"""
         for pod in self.pod_list:
-            if not pod.sub_config_list:
-                continue
-            # 获取bkunifylogbeat进程打开的文件
-            cmd = ["/usr/bin/lsof", "-c", "bkunifylogbeat"]
-            lsof_output = self.k8s_client.exec_command(
-                pod_name=pod.name,
-                namespace=self.namespace,
-                command=cmd,
-                container_name=self.container_name
-            )
-            held_files = {parts[8] for line in lsof_output.splitlines()
-                          if line.strip() and len(parts := line.split()) > 8}
-            conflict_files = []
-            for path in paths:
-                cmd = ["/bin/ls", "-d", "--", path]
-                matched_files = self.k8s_client.exec_command(
-                    pod_name=pod.name,
-                    namespace=self.namespace,
-                    command=cmd,
-                    container_name=self.container_name
-                )
-                if matched_files:
-                    for file_path in matched_files.splitlines():
-                        if file_path in held_files:
-                            conflict_files.append(file_path)
-            if conflict_files:
-                self.append_error_info(
-                    _("Pod[{pod_name}] 文件被占用: {files}").format(
+            if pod.pod.status.phase != "Running" or not pod.pod.status:
+                self.append_warning_info(
+                    _("Pod[{pod_name}] 状态异常: {phase}，跳过检查").format(
                         pod_name=pod.name,
-                        files=", ".join(conflict_files[:3])
+                        phase=pod.pod.status.phase if pod.pod.status else "Unknown"
                     )
                 )
-            else:
-                self.append_normal_info(
-                    _("Pod[{pod_name}] 无文件占用冲突").format(pod_name=pod.name)
-                )
+            for path in paths:
+                command = [
+                    "sh",
+                    "-c",
+                    f"lsof -c bkunifylogbeat | grep '{path}'"
+                ]
+                try:
+                    lsof_output = self.k8s_client.exec_command(
+                        pod_name=pod.name,
+                        namespace=self.namespace,
+                        command=command,
+                        container_name=self.container_name
+                    )
+                    if lsof_output and lsof_output.strip():
+                        # 文件被占用，解析lsof输出获取详细信息
+                        self.append_normal_info(
+                            _("Pod[{pod_name}]中的路径[{path}]已被采集进程持有句柄").format(
+                                pod_name=pod.name,
+                                path=path
+                            )
+                        )
+                    else:
+                        # 文件未被占用
+                        self.append_warning_info(
+                            _("Pod[{pod_name}]中的路径[{path}]未被采集进程持有句柄，可能未正常采集").format(
+                                pod_name=pod.name,
+                                path=path
+                            )
+                        )
+                except Exception as e:
+                    self.append_error_info(
+                        _("Pod[{pod_name}] 检查文件句柄时发生错误: {error}").format(
+                            pod_name=pod.name,
+                            error=str(e)
+                        )
+                    )
 
     def filter_target_server(self):
-        node_ip_list = [pod.node_ip for pod in self.pod_list]
+        # 排除 None、空字符串等
+        node_ip_list = []
+        for pod in self.pod_list or []:
+            node_ip = getattr(pod, "node_ip", None)
+            if isinstance(node_ip, str) and node_ip.strip():
+                node_ip_list.append(node_ip.strip())
+        # 检测有效IP列表，防御性编程
+        if not node_ip_list:
+            self.append_warning_info(_("没有获取到有效的 Pod 节点 IP"))
+            return
         params = {
             "page": {
                 "start": 0,
