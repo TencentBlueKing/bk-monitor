@@ -28,7 +28,7 @@
  * 全文检索操作符
  * 这里是固定的，只支持包含操作
  */
-export const FulltextOperator = 'contains match phrase prefix';
+export const FulltextOperator = 'contains match phrase';
 
 /**
  * 全文检索时，默认生成的查询数据结构
@@ -73,7 +73,7 @@ export const getFieldConditonItem = () => {
 /**
  * 全文检索操作符字典Key
  */
-export const FulltextOperatorKey = '*contains match phrase prefix';
+export const FulltextOperatorKey = '*contains match phrase';
 
 // 需要排除的字段
 export const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
