@@ -32,8 +32,8 @@ class CreateChatSessionResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        session_code = serializers.CharField(label="会话代码", required=False)
-        session_name = serializers.CharField(label="会话名称", required=False)
+        session_code = serializers.CharField(label="会话代码", required=True)
+        session_name = serializers.CharField(label="会话名称", required=True)
 
         # agent_code = serializers.CharField(label="Agent代码", required=False)
 
