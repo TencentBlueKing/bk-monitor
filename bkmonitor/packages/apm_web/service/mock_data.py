@@ -59,12 +59,20 @@ API_LIST_PIPELINE_RESPONSE = {
     "data": {
         "count": 3,
         "items": [
-            {"project_id": "bkee", "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4", "pipeline_name": "蓝盾镜像提交"},
-            {"project_id": "bkee", "pipeline_id": "p-1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", "pipeline_name": "打包构建"},
             {
                 "project_id": "bkee",
-                "pipeline_id": "p-0f1e2d3c4b5a6978f0e1d2c3b4a5f6e",
-                "pipeline_name": "服务缩容流水线",
+                "pipeline_id": "p-ac20c1943d1c4d21af87599a41afae98",
+                "pipeline_name": "[check] Helm规范检查",
+            },
+            {
+                "project_id": "bkee",
+                "pipeline_id": "p-710ea9a979a743928d50c39cc482b034",
+                "pipeline_name": "【bkmonitor-datalink】 镜像推送",
+            },
+            {
+                "project_id": "bkee",
+                "pipeline_id": "p-12ea0d9f42874a91b3e41dbe65d4379d",
+                "pipeline_name": "开发框架打包",
             },
         ],
     },
