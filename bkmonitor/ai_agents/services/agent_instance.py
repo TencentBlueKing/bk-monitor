@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from aidev_agent.core.extend.models.llm_gateway import ChatModel
 from aidev_agent.services.chat import ChatCompletionAgent
 from aidev_agent.services.pydantic_models import ChatPrompt
-
+from django.conf import settings
 from ai_agents.agent_factory import agent_factory
 from ai_agents.agent_factory import DEFAULT_AGENT
 from ai_agents.models import AgentConfigManager
@@ -34,11 +34,20 @@ class AgentInstanceBuilder:
 
 def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatPrompt]) -> ChatCompletionAgent:
     config = AgentConfigManager.get_config(agent_code=agent_code, api_client=api_client)
-    llm = ChatModel.get_setup_instance(model=config.llm_model_name)
-    knowledge_bases = [
-        api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
-        for _id in config.knowledgebase_ids
-    ]
+
+    auth_headers = {
+        "bk_app_code": settings.AIDEV_AGENT_APP_CODE,
+        "bk_app_secret": settings.AIDEV_AGENT_APP_SECRET,
+    }
+
+    llm = ChatModel.get_setup_instance(
+        model=config.llm_model_name, base_url=settings.AIDEV_APIGW_ENDPOINT, auth_headers=auth_headers
+    )
+
+    # knowledge_bases = [
+    #     api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
+    #     for _id in config.knowledgebase_ids
+    # ]
     # knowledge_items = [
     #     api_client.api.appspace_retrieve_knowledge(path_params={"id": _id})["data"] for _id in config.knowledge_ids
     # ]
@@ -50,7 +59,7 @@ def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatP
         chat_model=llm,
         role_prompt=config.role_prompt,
         tools=tools,
-        knowledge_bases=knowledge_bases,
+        # knowledge_bases=knowledge_bases,
         # knowledge_items=knowledge_items,
         chat_history=chat_history,
         agent_cls=agent_cls,
