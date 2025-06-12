@@ -24,7 +24,7 @@ from requests.exceptions import HTTPError, ReadTimeout
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import make_userinfo
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.contrib.cache import CacheResource
@@ -168,16 +168,15 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         return validated_request_data
 
     def _get_tenant_id(self) -> str:
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            if self.bk_tenant_id:
-                return self.bk_tenant_id
-            request = get_request(peaceful=True)
-            if request and request.user.tenant_id:
-                return request.user.tenant_id
-            logger.warning(f"get_tenant_id: 获取租户ID失败，使用默认租户ID, {self.module_name} {self.action}")
+        if self.bk_tenant_id:
+            return self.bk_tenant_id
+        bk_tenant_id = get_request_tenant_id(peaceful=True)
+        if not bk_tenant_id:
+            logger.warning(
+                f"get_request_tenant_id: cannot get tenant_id from request or local, {self.module_name} {self.action}"
+            )
             return DEFAULT_TENANT_ID
-        else:
-            return DEFAULT_TENANT_ID
+        return bk_tenant_id
 
     def before_request(self, kwargs):
         return kwargs
