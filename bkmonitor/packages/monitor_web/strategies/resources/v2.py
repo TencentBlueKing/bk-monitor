@@ -10,7 +10,6 @@ from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any
-from collections.abc import Callable
 
 import arrow
 import pytz
@@ -1419,22 +1418,20 @@ class GetMetricListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
-    def filter_by_double_paragaphs_metric_id(cls, metrics,filter_dict:dict) -> QuerySet:
+    def filter_by_double_paragaphs_metric_id(cls, metrics, filter_dict: dict) -> QuerySet:
         """
         处理二段式指标ID查询
         """
-        filters:list[Q] = []
+        filters: list[Q] = []
         for metric_id in filter_dict["metric_id"]:
             split_field_list = metric_id.split(".")
             if len(split_field_list) == 2:
-                filters.append(Q(**{
-                    "data_label":split_field_list[0],
-                    "metric_field":split_field_list[1]
-                }))
-        
+                filters.append(Q(**{"data_label": split_field_list[0], "metric_field": split_field_list[1]}))
+
         if filters:
             return metrics.filter(reduce(lambda x, y: x | y, filters))
-        return metrics.filter(id__in=[])
+        return metrics.none()
+
     @classmethod
     def filter_by_conditions(cls, metrics: QuerySet, params: dict) -> QuerySet:
         """
@@ -1491,7 +1488,7 @@ class GetMetricListV2Resource(Resource):
 
         # 支持metric_id查询
         if filter_dict["metric_id"]:
-            queries:list[Q] = []
+            queries: list[Q] = []
             for metric_id in filter_dict["metric_id"]:
                 metric: dict = parse_metric_id(metric_id)
 
@@ -1500,12 +1497,13 @@ class GetMetricListV2Resource(Resource):
                     del metric["index_set_id"]
                 if metric:
                     queries.append(Q(**metric))
-            if queries:
-                _metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
-                metrics = _metrics if _metrics.exists() else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
-            else:
-                metrics = cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
 
+            found_metric = False
+            if queries:
+                metric_filter = metrics.filter(reduce(lambda x, y: x | y, queries))
+                found_metric = metric_filter.exists()
+
+            metrics = metric_filter if found_metric else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
         # 模糊搜索
         if filter_dict["query"]:
             # 尝试解析指标ID格式的query字符串
