@@ -137,13 +137,21 @@ export default class CheckViewTable extends tsc<object, object> {
 
   mounted() {
     this.initializeTableHeight();
-  }
+    // 添加 ResizeObserver 监听容器大小变化
+    const resizeObserver = new ResizeObserver(() => {
+      this.initializeTableHeight();
+    });
 
-  initializeTableHeight() {
-    setTimeout(() => {
-      if (!this.checkViewTableRef) return;
-      const height = this.checkViewTableRef.offsetHeight - 20;
-      this.maxHeight = height < this.defaultHeight ? this.defaultHeight : height;
+    if (this.checkViewTableRef) {
+      resizeObserver.observe(this.checkViewTableRef);
+    }
+
+    // 组件销毁时清理
+    this.$once('hook:beforeDestroy', () => {
+      resizeObserver.disconnect();
+      if (this.worker) {
+        this.worker.terminate();
+      }
     });
   }
 
@@ -190,33 +198,51 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   get footerData(): IFooterData[] {
-    return this.isShowStatistical ? this.footerDataList : [];
+    return this.tableData.length > 0 && this.isShowStatistical ? this.footerDataList : [];
+  }
+
+  initializeTableHeight() {
+    setTimeout(() => {
+      if (!this.checkViewTableRef) return;
+      const height = this.checkViewTableRef.offsetHeight - 20;
+      this.maxHeight = height < this.defaultHeight ? this.defaultHeight : height;
+    });
   }
 
   scrollToRow(index: number): void {
     const table = this.dataTableRef;
     if (!table?.$el) return;
 
-    const tableBody = table.$el.querySelector('.t-table__content');
-    if (!tableBody) return;
+    requestAnimationFrame(() => {
+      const tableBody = table.$el.querySelector('.t-table__content');
+      if (!tableBody) return;
 
-    const rows = tableBody.querySelectorAll('tr');
-    if (rows.length <= index) return;
+      const rows = tableBody.querySelectorAll('tr');
+      if (rows.length <= index) return;
 
-    const row = rows[index];
-    const rowTop = row.offsetTop;
-    const rowHeight = row.offsetHeight;
-    const tableHeight = tableBody.clientHeight;
-    const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + 32;
+      const row = rows[index];
+      const rowTop = row.offsetTop;
+      const rowHeight = row.offsetHeight;
+      const tableHeight = tableBody.clientHeight;
+      const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + 32;
 
-    tableBody.scrollTo({
-      top: scrollPosition,
-      behavior: 'smooth',
+      tableBody.scrollTo({
+        top: scrollPosition,
+        behavior: 'smooth',
+      });
     });
   }
-
-  generateSimpleCompareColumns(columns: any[]): IColumnItem[] {
+  handleAddCol(item: IColumnItem) {
+    const len = item.items.length;
+    if (len === 1) {
+      item.items.push({
+        timeOffset: this.compare[0],
+      });
+    }
+  }
+  generateSimpleCompareColumns(columns: IColumnItem[]): IColumnItem[] {
     const firstColumn = columns[0] || { items: [] };
+    this.handleAddCol(firstColumn);
     return firstColumn.items.map((ele: any) => ({
       ...ele,
       ...this.baseColumnConfig,
@@ -225,7 +251,7 @@ export default class CheckViewTable extends tsc<object, object> {
     }));
   }
 
-  generateDimensionCompareColumns(columns: any[]): IColumnItem[] {
+  generateDimensionCompareColumns(columns: IColumnItem[]): IColumnItem[] {
     return columns.map((item: any, index: number) => {
       const title = this.handleProp(item) || '';
       const baseConfig = {
@@ -248,7 +274,8 @@ export default class CheckViewTable extends tsc<object, object> {
     });
   }
 
-  generateMergeTableChildren(item: any, parentIndex: number, parentKey: string): IColumnItem[] {
+  generateMergeTableChildren(item: IColumnItem, parentIndex: number, parentKey: string): IColumnItem[] {
+    this.handleAddCol(item);
     const children = item.items.map((ele: any, ind: number) => ({
       ...ele,
       ...this.baseColumnConfig,
@@ -267,7 +294,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return children;
   }
 
-  renderValue(row: IDataItem, prop: string, unit: string): string | JSX.Element {
+  renderValue(row: IDataItem, prop: string, unit: string): JSX.Element | string {
     if (row[prop] === undefined || row[prop] === null) {
       return '--';
     }
@@ -318,6 +345,9 @@ export default class CheckViewTable extends tsc<object, object> {
 
   handleRowClick(e: Event, item: IColumnItem): void {
     e.stopPropagation();
+    if (!item.color) {
+      return;
+    }
     this.selectLegendKey = this.selectLegendKey === item.colKey ? '' : item.colKey;
     this.$emit('headClick', item);
   }
@@ -450,14 +480,16 @@ export default class CheckViewTable extends tsc<object, object> {
             <TTable
               ref='dataTable'
               bordered={'bordered'}
+              cache={true}
               columns={this.columns}
               data={this.tableData}
               foot-data={this.footerData}
               max-height={this.maxHeight}
               row-key='key'
+              rowHeight={32}
               scroll={{ type: 'lazy', bufferSize: 10 }}
               sort={this.sort}
-              lazyLoad
+              virtual={true}
               on-sort-change={this.sortChange}
             />
           </TConfigProvider>
