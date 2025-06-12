@@ -99,10 +99,11 @@ class BkunifylogbeatChecker(Checker):
         self.check_task_status()
         self.check_crd()
         self.check_cr()
-        self.check_log_paths()
+
         self.check_config_map()
         self.check_daemonset()
         self.get_match_pod()
+        self.check_log_paths()
         self.check_pod()
         self.filter_target_server()
 
@@ -245,6 +246,11 @@ class BkunifylogbeatChecker(Checker):
         if not pod_list:
             self.append_error_info(_("获取采集器Pod列表为空"))
             return
+        stats = {
+            "total": 0,
+            "success": 0,
+            "error_list": []
+        }
         for pod in pod_list.items:
             try:
                 pod_name = pod.metadata.name if pod.metadata else 'unknown'
@@ -267,7 +273,7 @@ class BkunifylogbeatChecker(Checker):
                         str(e)
                     )
                 )
-            self._check_pod_status(pod=pod)
+            self._check_pod_status(pod=pod, stats=stats)
             pod_name = pod.metadata.name
             sub_config_list = self._match_sub_config(pod_name=pod_name)
             match_pod: Pod = Pod(
@@ -279,6 +285,22 @@ class BkunifylogbeatChecker(Checker):
                 pod=pod,
             )
             self.pod_list.append(match_pod)
+            # 汇总日志输出
+        if not stats["error_list"]:
+            self.append_normal_info(
+                _("共检测{total}个Pod，全部正常，无异常。").format(total=stats["total"])
+            )
+        else:
+            self.append_error_info(
+                _("共检测{total}个Pod，{success}个正常，{error_count}个异常。异常详情: {details}").format(
+                    total=stats["total"],
+                    success=stats["success"],
+                    error_count=len(stats["error_list"]),
+                    details="; ".join(
+                        ["[{}] {}".format(item["name"], item["error"]) for item in stats["error_list"]]
+                    )
+                )
+            )
 
     def check_pod(self):
         """
@@ -295,8 +317,8 @@ class BkunifylogbeatChecker(Checker):
             if not pod.sub_config_list:
                 self.append_error_info(_("Pod[{pod_name}]中没有匹配到配置文件").format(pod_name=pod.name))
                 continue
-            for sub_config in pod.sub_config_list:
-                self._check_sub_config(pod_name=pod.name, sub_config=sub_config)
+            # for sub_config in pod.sub_config_list:
+            #     self._check_sub_config(pod_name=pod.name, sub_config=sub_config)
 
     def _match_sub_config(self, pod_name: str) -> List[str]:
         """
@@ -327,80 +349,71 @@ class BkunifylogbeatChecker(Checker):
                 config_set.add(config_path)
         return list(config_set)
 
-    def _check_pod_status(self, pod: v1_pod.V1Pod):
+    def _check_pod_status(self, pod: v1_pod.V1Pod, stats: Dict[str, Any]) -> None:
+        # 优化：只输出一条汇总日志，包含检测总数、成功数、异常数及异常详情
         """
         检查Pod状态, 包括容器状态, 重启次数, 等待原因, 退出原因等
         """
         if not pod or not pod.status:
             self.append_error_info(_("Pod状态信息不完整"))
             return
+        # 安全获取 pod name
+        pod_name = (
+            pod.metadata.name if pod.metadata and pod.metadata.name
+            else 'unknown'
+        )
         container_statuses = pod.status.container_statuses or []
         if not container_statuses:
             self.append_error_info(
-                _("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(
-                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
+                _("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(pod_name=pod_name)
             )
             return
-        found_container = False
         for container_status in container_statuses:
             if container_status.name != self.container_name:
                 continue
-            found_container = True
+            stats["total"] += 1
             state = getattr(container_status, "state", None)
             if not state:
-                self.append_error_info(
-                    _("Pod[{pod_name}]容器状态信息缺失").format(
-                        pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
-                )
+                stats["error_list"].append({
+                    "name": pod_name,
+                    "error": _("容器状态信息缺失")
+                })
                 continue
             # 检查重启次数
             restart_count = getattr(container_status, "restart_count", 0)
             if restart_count > 3:
-                self.append_warning_info(
-                    _("Pod[{pod_name}]重启次数过多: {restart_cnt}").format(
-                        pod_name=pod.metadata.name,
-                        restart_cnt=restart_count,
-                    )
-                )
+                stats["error_list"].append({
+                    "name": pod_name,
+                    "error": _("重启次数过多: {restart_cnt}").format(restart_cnt=restart_count)
+                })
+                continue
             if container_status.state.waiting:
-                self.append_warning_info(
-                    _("Pod[{pod_name}]状态为等待, 原因: {reason}, 原因详情: {message}").format(
-                        pod_name=pod.metadata.name,
+                stats["error_list"].append({
+                    "name": pod_name,
+                    "error": _("状态为等待, 原因: {reason}, 原因详情: {message}").format(
                         reason=container_status.state.waiting.reason,
                         message=container_status.state.waiting.message,
                     )
-                )
+                })
                 continue
             if container_status.state.terminated:
-                self.append_error_info(
-                    _("Pod[{pod_name}]状态为退出, 原因: {reason}, 退出代码: {exit_code}").format(
-                        pod_name=pod.metadata.name,
+                stats["error_list"].append({
+                    "name": pod_name,
+                    "error": _("状态为退出, 原因: {reason}, 退出代码: {exit_code}").format(
                         reason=container_status.state.terminated.reason,
                         exit_code=container_status.state.terminated.exit_code,
                     )
-                )
+                })
                 continue
             if container_status.state.running:
-                self.append_normal_info(
-                    _("Pod[{pod_name}]状态正常, 容器开始运行时间: {start_time}, 重启次数: {restart_cnt}").format(
-                        pod_name=pod.metadata.name,
-                        start_time=container_status.state.running.started_at,
-                        restart_cnt=container_status.restart_count,
-                    )
-                )
+                stats["success"] += 1
                 continue
             # 兜底异常
-            self.append_warning_info(
-                _("Pod[{pod_name}]容器状态未知").format(
-                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
-            )
-        if not found_container:
-            self.append_error_info(
-                _("Pod[{pod_name}]未找到名为{container_name}的容器").format(
-                    pod_name=pod.metadata.name if pod.metadata.name else 'unknown',
-                    container_name=self.container_name
-                )
-            )
+            stats["error_list"].append({
+                "name": pod_name,
+                "error": _("容器状态未知")
+            })
+            continue
 
     def _check_main_config(self, pod_name: str):
         """
