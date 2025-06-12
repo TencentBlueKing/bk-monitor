@@ -4,6 +4,7 @@ import operator
 import re
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
@@ -21,6 +22,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
+from bkm_ipchooser.handlers import template_handler
 from bkmonitor.action.utils import get_strategy_user_group_dict
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -47,6 +49,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
     Algorithm,
@@ -85,8 +88,6 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
-from bkmonitor.models.strategy import AlgorithmChoiceConfig
-from bkm_ipchooser.handlers import template_handler
 
 logger = logging.getLogger(__name__)
 
@@ -1418,6 +1419,23 @@ class GetMetricListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
+    def filter_by_double_paragaphs_metric_id(cls, metrics,filter_dict:dict):
+        """
+        处理二段式指标ID查询
+        """
+        filters:list[Q] = []
+        for metric_id in filter_dict["metric_id"]:
+            split_field_list = metric_id.split(".")
+            if len(split_field_list) == 2:
+                filters.append(Q(**{
+                    "data_label":split_field_list[0],
+                    "metric_field":split_field_list[1]
+                }))
+        
+        if filters:
+            return metrics.filter(reduce(lambda x, y: x | y, filters))
+        return metrics.filter(id__in=[])
+    @classmethod
     def filter_by_conditions(cls, metrics: QuerySet, params: dict) -> QuerySet:
         """
         按查询条件过滤指标
@@ -1473,9 +1491,9 @@ class GetMetricListV2Resource(Resource):
 
         # 支持metric_id查询
         if filter_dict["metric_id"]:
-            queries = []
+            queries:list[Q] = []
             for metric_id in filter_dict["metric_id"]:
-                metric = parse_metric_id(metric_id)
+                metric: dict = parse_metric_id(metric_id)
 
                 if "index_set_id" in metric:
                     metric["related_id"] = metric["index_set_id"]
@@ -1483,9 +1501,10 @@ class GetMetricListV2Resource(Resource):
                 if metric:
                     queries.append(Q(**metric))
             if queries:
-                metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
+                _metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
+                metrics = _metrics if _metrics.exists() else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
             else:
-                metrics = metrics.filter(id__in=[])
+                cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
 
         # 模糊搜索
         if filter_dict["query"]:
