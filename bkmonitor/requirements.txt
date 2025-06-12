@@ -120,3 +120,7 @@ pika==1.3.2
 
 # load .env
 python-dotenv==0.21.1
+
+
+# aidev
+aidev-agent==1.0.0b2
