@@ -25,7 +25,6 @@
  */
 import type { IColumnItem, IDataItem } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
 
-// 使用常量对象替代字符串字面量
 const TYPE_ARR = {
   max: '最大值',
   min: '最小值',
