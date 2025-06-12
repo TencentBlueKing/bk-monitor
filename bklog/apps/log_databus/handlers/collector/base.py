@@ -498,7 +498,7 @@ class CollectorHandler:
             if query_alias_settings := log_index_set_obj.query_alias_settings:
                 alias_dict = {}
                 for item in query_alias_settings:
-                    alias_dict[item["field_name"]] = {"type": "alias", "path": item["query_alias"]}
+                    alias_dict[item["query_alias"]] = {"type": "alias", "path": item["field_name"]}
                 if alias_dict:
                     collector_config.update({"alias_settings": alias_dict})
         return collector_config
