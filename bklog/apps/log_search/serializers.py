@@ -1026,7 +1026,7 @@ class ChartSerializer(serializers.Serializer):
         representation = super().to_representation(instance)
         # 根据 alias_settings 的内容创建 alias_mappings
         alias_mappings = {
-            alias["field_name"]: alias["query_alias"] for alias in representation.get("alias_settings", [])
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
         }
         # 添加 alias_mappings 字段到序列化输出中
         representation["alias_mappings"] = alias_mappings
@@ -1049,7 +1049,7 @@ class UISearchSerializer(serializers.Serializer):
         representation = super().to_representation(instance)
         # 根据 alias_settings 的内容创建 alias_mappings
         alias_mappings = {
-            alias["field_name"]: alias["query_alias"] for alias in representation.get("alias_settings", [])
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
         }
         # 添加 alias_mappings 字段到序列化输出中
         representation["alias_mappings"] = alias_mappings
