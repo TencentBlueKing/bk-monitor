@@ -13,10 +13,11 @@ import json
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from itertools import chain, groupby
 from operator import itemgetter
-from collections.abc import Callable, Iterable
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -143,10 +144,12 @@ class StrategyCacheManager(CacheManager):
             strategy["is_invalid"] = True
 
     @classmethod
-    def check_metrics(cls, strategy, item, invalid_strategy_dict):
+    def check_metrics(cls, strategy: dict[str, Any], item: dict[str, Any], invalid_strategy_dict: dict[str, Any]):
         """
         检测指标是否失效
         """
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
+
         data_type_map = {
             DataTypeLabel.TIME_SERIES: StrategyModel.InvalidType.INVALID_METRIC,
             DataTypeLabel.ALERT: StrategyModel.InvalidType.DELETED_RELATED_STRATEGY,
@@ -198,7 +201,7 @@ class StrategyCacheManager(CacheManager):
                     if "index_set_id" in metric_params:
                         metric_params["related_id"] = metric_params["index_set_id"]
                         del metric_params["index_set_id"]
-                    if MetricListCache.objects.filter(**metric_params).exists():
+                    if MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, **metric_params).exists():
                         invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_id)
                     else:
                         invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_id)

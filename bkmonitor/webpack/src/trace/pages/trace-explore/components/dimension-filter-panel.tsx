@@ -29,14 +29,11 @@ import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input } from 'bkui-vue';
-import { storeToRefs } from 'pinia';
 
-import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
-import { useTraceExploreStore } from '../../../store/modules/explore';
 import { convertToTree } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
@@ -55,8 +52,6 @@ export default defineComponent({
   emits: ['conditionChange', 'close', 'showEventSourcePopover'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const store = useTraceExploreStore();
-    const { tableList, filterTableList } = storeToRefs(store);
     const emptyStatus = shallowRef<EmptyStatusType>('empty');
     /* 搜索关键字 */
     const searchVal = shallowRef('');
@@ -158,10 +153,6 @@ export default defineComponent({
     /** popover实例 */
     const popoverInstance = shallowRef(null);
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
-    const durationPopover = useTemplateRef<HTMLDivElement>('durationPopover');
-    const handleFilterListChange = list => {
-      store.updateFilterTableList(list);
-    };
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
@@ -169,20 +160,17 @@ export default defineComponent({
       if (item?.children) {
         item.expand = !item.expand;
       } else {
-        const isDuration = ['trace_duration', 'elapsed_time'].includes(item.name);
         if (!item.is_dimensions) return;
         selectField.value = item;
         popoverInstance.value = $bkPopover({
           target: e.currentTarget as HTMLDivElement,
-          content: isDuration
-            ? durationPopover.value
-            : (statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement),
+          content: statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement,
           trigger: 'click',
           placement: 'right',
           theme: 'light',
           arrow: true,
           boundary: 'viewport',
-          extCls: isDuration ? 'duration-popover-cls' : 'statistics-dimension-popover-cls',
+          extCls: 'statistics-dimension-popover-cls',
           width: 405,
           distance: -5,
           onHide() {
@@ -191,9 +179,7 @@ export default defineComponent({
           },
         });
         setTimeout(() => {
-          if (!isDuration) {
-            showStatisticsPopover.value = true;
-          }
+          showStatisticsPopover.value = true;
           popoverInstance.value.show();
         }, 100);
       }
@@ -239,8 +225,6 @@ export default defineComponent({
 
     return {
       t,
-      tableList,
-      filterTableList,
       showStatisticsPopover,
       activeFieldName,
       emptyStatus,
@@ -252,7 +236,6 @@ export default defineComponent({
       popoverInstance,
       statisticsListRef,
       handleDimensionItemClick,
-      handleFilterListChange,
       destroyPopover,
       handleConditionChange,
       handleClose,
@@ -308,25 +291,6 @@ export default defineComponent({
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />
-
-        <div style='display: none;'>
-          <div
-            ref='durationPopover'
-            class='duration-popover'
-          >
-            {this.tableList.length ? (
-              <ChartFiltering
-                filterList={this.filterTableList}
-                isShowSlider={false}
-                list={this.tableList}
-                listType={this.params.mode}
-                onFilterListChange={this.handleFilterListChange}
-              />
-            ) : (
-              <EmptyStatus type='empty' />
-            )}
-          </div>
-        </div>
       </div>
     );
   },

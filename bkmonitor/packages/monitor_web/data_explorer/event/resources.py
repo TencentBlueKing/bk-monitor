@@ -21,6 +21,7 @@ from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
 
@@ -67,6 +68,8 @@ from .utils import (
     get_field_alias,
     get_q_from_query_config,
     get_qs_from_req_data,
+    is_dimensions,
+    format_field,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,9 +152,10 @@ class EventViewConfigResource(Resource):
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
         data_labels_map = get_data_labels_map(bk_biz_id, tuple(sorted(tables)))
-        dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
-            "dimensions", "result_table_id"
-        )
+        dimensions_queryset = MetricListCache.objects.filter(
+            result_table_id__in=data_labels_map.keys(),
+            bk_tenant_id=get_request_tenant_id(),
+        ).values("dimensions", "result_table_id")
         dimension_metadata_map = {
             default_dimension_field: {"table_ids": set(), "data_labels": set()}
             for default_dimension_field in DEFAULT_DIMENSION_FIELDS
@@ -185,7 +189,6 @@ class EventViewConfigResource(Resource):
                 # 内置字段，没有 data_labels，这里直接传 common
                 alias, field_category, index = get_field_alias(name, EventCategory.COMMON.value)
             is_option_enabled = cls.is_option_enabled(field_type)
-            is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
             fields.append(
                 {
@@ -193,7 +196,7 @@ class EventViewConfigResource(Resource):
                     "alias": alias,
                     "type": field_type,
                     "is_option_enabled": is_option_enabled,
-                    "is_dimensions": is_dimensions,
+                    "is_dimensions": is_dimensions(name),
                     "supported_operations": supported_operations,
                     "index": index,
                     "category": field_category,
@@ -210,11 +213,6 @@ class EventViewConfigResource(Resource):
             del field["index"]
             del field["category"]
         return fields
-
-    @classmethod
-    def is_dimensions(cls, name) -> bool:
-        # 如果是内置字段，不需要补充 dimensions.
-        return name not in INNER_FIELD_TYPE_MAPPINGS
 
     @classmethod
     def get_field_type(cls, field) -> str:
@@ -705,5 +703,10 @@ class EventGenerateQueryStringResource(Resource):
     def perform_request(self, data):
         generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
         for f in data["where"]:
-            generator.add_filter(f["key"], f["method"], f["value"], f.get("options", {}))
+            generator.add_filter(
+                format_field(f["key"]),
+                f["method"],
+                f["value"],
+                is_wildcard=f.get("options", {}).get("is_wildcard", False),
+            )
         return generator.to_query_string()

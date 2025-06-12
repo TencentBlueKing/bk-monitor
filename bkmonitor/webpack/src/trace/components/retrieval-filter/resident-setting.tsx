@@ -100,18 +100,14 @@ export default defineComponent({
             }
           }
         };
-        if (!props.isDefaultSetting) {
-          if (props.value?.length) {
-            for (const where of props.value) {
-              if (fieldNameMap.value[where.key]) {
-                fields.push({
-                  field: fieldNameMap.value[where.key],
-                  value: where,
-                });
-              }
+        if (!props.isDefaultSetting && props.value?.length) {
+          for (const where of props.value) {
+            if (fieldNameMap.value[where.key]) {
+              fields.push({
+                field: fieldNameMap.value[where.key],
+                value: where,
+              });
             }
-          } else {
-            pushFields(props.defaultResidentSetting);
           }
         } else {
           pushFields(defaultConfig.length ? defaultConfig : props.defaultResidentSetting);

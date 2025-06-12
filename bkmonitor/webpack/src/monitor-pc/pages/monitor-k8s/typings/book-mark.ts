@@ -208,7 +208,7 @@ export class BookMarkModel implements IBookMark {
     if (this.overview_panels?.length) {
       this.updatePanels('overview');
     }
-    if (bookmark.variables?.length) {
+    if (bookmark?.variables?.length) {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
     this.allVariables = this.getAllVariables();

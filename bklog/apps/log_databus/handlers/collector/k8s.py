@@ -75,9 +75,8 @@ from apps.log_databus.handlers.collector_scenario.utils import (
     convert_filters_to_collector_condition,
     deal_collector_scenario_param,
 )
-from apps.log_databus.handlers.collector_handler.base import (
-    CollectorHandler,
-)
+from apps.log_databus.handlers.collector import CollectorHandler
+
 from apps.log_databus.models import (
     BcsRule,
     CollectorConfig,
@@ -203,9 +202,9 @@ class K8sCollectorHandler(CollectorHandler):
         return None
 
     def _generate_bklog_config_name(self, container_config_id) -> str:
-        return "{}-{}-{}".format(
-            self.data.collector_config_name_en.lower(), self.data.bk_biz_id, container_config_id
-        ).replace("_", "-")
+        return f"{self.data.collector_config_name_en.lower()}-{self.data.bk_biz_id}-{container_config_id}".replace(
+            "_", "-"
+        )
 
     @staticmethod
     def list_bcs_clusters(bk_biz_id):
