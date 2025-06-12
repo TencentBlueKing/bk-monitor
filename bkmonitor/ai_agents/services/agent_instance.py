@@ -40,9 +40,9 @@ def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatP
         "bk_app_secret": settings.AIDEV_AGENT_APP_SECRET,
     }
 
-    llm = ChatModel.get_setup_instance(
-        model=config.llm_model_name, base_url=settings.AIDEV_APIGW_ENDPOINT, auth_headers=auth_headers
-    )
+    llm_base_url = settings.AIDEV_AGENT_LLM_GW_ENDPOINT
+
+    llm = ChatModel.get_setup_instance(model=config.llm_model_name, base_url=llm_base_url, auth_headers=auth_headers)
 
     # knowledge_bases = [
     #     api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
