@@ -278,7 +278,12 @@ export default () => {
           store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
-            if (route.query.tab === 'origin') {
+            if (
+              route.query.tab === 'origin' ||
+              route.query.tab === undefined ||
+              route.query.tab === null ||
+              route.query.tab === ''
+            ) {
               if (resp?.data?.fields?.length) {
                 store.dispatch('requestIndexSetQuery').then(() => {
                   RetrieveHelper.setSearchingValue(false);

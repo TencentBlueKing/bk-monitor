@@ -25,6 +25,12 @@
  */
 
 /**
+ * 全文检索操作符
+ * 这里是固定的，只支持包含操作
+ */
+export const FulltextOperator = 'contains match phrase';
+
+/**
  * 全文检索时，默认生成的查询数据结构
  * @param value
  * @returns
@@ -32,7 +38,7 @@
 export const getInputQueryDefaultItem = (value: string[] = []) => {
   return {
     field: '*',
-    operator: 'contains match phrase',
+    operator: FulltextOperator,
     isInclude: false,
     value: [...(Array.isArray(value) ? value : [value])],
     relation: 'OR',
@@ -63,12 +69,6 @@ export const getFieldConditonItem = () => {
     field_operator: [],
   };
 };
-
-/**
- * 全文检索操作符
- * 这里是固定的，只支持包含操作
- */
-export const FulltextOperator = 'contains match phrase';
 
 /**
  * 全文检索操作符字典Key

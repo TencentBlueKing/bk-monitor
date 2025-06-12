@@ -12,7 +12,7 @@
       &.control-active {
         .bk-form-input {
           border: 1px solid #3a84ff;
-          box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+          box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
         }
       }
 
@@ -20,7 +20,7 @@
         border-right: 0;
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
-        transition: border-color .3s;
+        transition: border-color 0.3s;
       }
     }
   }
@@ -28,8 +28,9 @@
   .cycle-unit {
     position: relative;
     display: inline-block;
-    height: 32px;
+    flex-shrink: 0;
     min-width: 40px;
+    height: 32px;
     font-size: 12px;
     line-height: 30px;
     color: #63656e;
@@ -38,10 +39,9 @@
     border: 1px solid #c4c6cc;
     border-left: 0;
     border-radius: 2px;
-    border-bottom-left-radius: 0;
     border-top-left-radius: 0;
-    transition: all .2s;
-    flex-shrink: 0;
+    border-bottom-left-radius: 0;
+    transition: all 0.2s;
 
     &::before {
       position: absolute;
@@ -49,9 +49,9 @@
       bottom: 0;
       left: 0;
       width: 1px;
-      background-color: #f0f1f5;
       content: '';
-      transition: all .2s;
+      background-color: #f0f1f5;
+      transition: all 0.2s;
     }
 
     &.line-active {
@@ -62,9 +62,9 @@
 
     &.unit-active {
       border-color: #3a84ff;
-      box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
     }
-  } 
+  }
 }
 
 .cycle-list-wrapper-theme {
@@ -72,27 +72,27 @@
   padding: 0;
 
   /* stylelint-disable-next-line declaration-no-important */
-  padding: 0!important;
+  padding: 0 !important;
   border-radius: 0;
-  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
 
   .cycle-list,
   .unit-list {
+    box-sizing: border-box;
     display: flex;
+    flex-direction: column;
     width: 100%;
-    max-height: 210px;
     min-width: 98px;
+    max-height: 210px;
     padding: 6px 0;
     overflow: auto;
     background-color: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    box-sizing: border-box;
-    flex-direction: column;
 
     .cycle-item {
-      flex: 0 0 32px;
       display: flex;
+      flex: 0 0 32px;
       align-items: center;
       padding: 0 15px;
 

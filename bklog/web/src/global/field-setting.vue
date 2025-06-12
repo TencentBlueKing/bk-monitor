@@ -405,7 +405,6 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
-
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(indexfieldTable.value.getData());
@@ -670,9 +669,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 90px;
       height: 52px;
       font-size: 12px;
+      width: 90px;
       cursor: pointer;
 
       span {

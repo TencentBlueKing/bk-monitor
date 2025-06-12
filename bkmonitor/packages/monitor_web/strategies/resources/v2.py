@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, DefaultDict
+from typing import Any
 from collections.abc import Callable
 
 import arrow
@@ -586,7 +586,9 @@ class GetStrategyListV2Resource(Resource):
         """
         # 过滤指标别名
         if filter_dict["metric_field_name"]:
-            metric_qs = MetricListCache.objects.filter(metric_field_name__in=filter_dict["metric_field_name"])
+            metric_qs = MetricListCache.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), metric_field_name__in=filter_dict["metric_field_name"]
+            )
             if bk_biz_id is not None:
                 metric_qs = metric_qs.filter(bk_biz_id__in=[0, bk_biz_id])
             metric_fields = metric_qs.values_list("metric_field", flat=True).distinct()
@@ -1093,9 +1095,9 @@ class GetStrategyListV2Resource(Resource):
         if not queries:
             return {}
 
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).filter(
-            reduce(lambda x, y: x | y, queries)
-        )
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[bk_biz_id, 0]
+        ).filter(reduce(lambda x, y: x | y, queries))
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 
@@ -1351,9 +1353,9 @@ class PlainStrategyListV2Resource(Resource):
         # 获取指定业务下启用的策略
         bk_biz_id = validated_request_data.get("bk_biz_id")
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
-            .values("id", "name", "scenario")
-            .order_by("-update_time")
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+            .values("id", "name", "scenario", "is_enabled")
+            .order_by("-is_enabled", "-update_time")
         )
         # 获取分类标签
         labels = resource.commons.get_label()
@@ -1928,7 +1930,9 @@ class GetMetricListV2Resource(Resource):
 
     def perform_request(self, params):
         # 从指标选择器缓存表根据业务查询指标
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[0, params["bk_biz_id"]])
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, params["bk_biz_id"]]
+        )
 
         if get_source_app() == SourceApp.FTA:
             metrics = metrics.filter(
@@ -2308,7 +2312,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新告警通知
 
         ```pyhon
-        notice["append_keys"]: List[str] # 追加逻辑的字段
+        notice["append_keys"]: List[str]  # 追加逻辑的字段
         ```
 
         当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
@@ -2407,8 +2411,8 @@ class UpdatePartialStrategyV2Resource(Resource):
     def process_extra_data(
         extra_create_or_update_datas: dict[str, list[dict[str, any]]],
         key: str,
-        updates_data: DefaultDict[str, dict[str, any]],
-        create_datas: DefaultDict[str, dict[str, any]],
+        updates_data: defaultdict[str, dict[str, any]],
+        create_datas: defaultdict[str, dict[str, any]],
     ):
         extra_update_datas = extra_create_or_update_datas.get("update_data", [])
         extra_create_datas = extra_create_or_update_datas.get("create_data", [])
@@ -3177,14 +3181,15 @@ class PromqlToQueryConfig(Resource):
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                qs = MetricListCache.objects.filter(
+                metric = MetricListCache.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(),
                     data_label=data_label,
                     data_source_label=data_source_label,
                     data_type_label=data_type_label,
                     metric_field=query["field_name"],
-                )
-                if qs.exists():
-                    result_table_id = qs.first().result_table_id
+                ).first()
+                if metric:
+                    result_table_id = metric.result_table_id
 
             query_config = {
                 "data_source_label": data_source_label,

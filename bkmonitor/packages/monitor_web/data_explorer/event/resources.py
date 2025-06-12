@@ -21,6 +21,7 @@ from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
 
@@ -151,9 +152,10 @@ class EventViewConfigResource(Resource):
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
         data_labels_map = get_data_labels_map(bk_biz_id, tuple(sorted(tables)))
-        dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
-            "dimensions", "result_table_id"
-        )
+        dimensions_queryset = MetricListCache.objects.filter(
+            result_table_id__in=data_labels_map.keys(),
+            bk_tenant_id=get_request_tenant_id(),
+        ).values("dimensions", "result_table_id")
         dimension_metadata_map = {
             default_dimension_field: {"table_ids": set(), "data_labels": set()}
             for default_dimension_field in DEFAULT_DIMENSION_FIELDS

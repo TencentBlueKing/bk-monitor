@@ -27,7 +27,7 @@ from django.conf import settings
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -167,7 +167,7 @@ class BKBaseEtlHandler(EtlHandler):
 
         # 合流入库
         if not params.get("is_allow_alone_storage", True):
-            timestamp_format = "{%s}" % params.get("rt_timestamp_format", "yyyyMMdd")
+            timestamp_format = "{{{}}}".format(params.get("rt_timestamp_format", "yyyyMMdd"))
             if isinstance(instance, CollectorConfig) and instance.collector_plugin_id:
                 collector_plugin = CollectorPlugin.objects.get(collector_plugin_id=instance.collector_plugin_id)
                 table_name = collector_plugin.get_en_name()

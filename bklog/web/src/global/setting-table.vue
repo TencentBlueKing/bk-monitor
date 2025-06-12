@@ -226,9 +226,9 @@
                     style="width: 85%; margin-left: 15px"
                   >
                     <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars :  $t('自然语言分词') }}
                     </div>
-                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
+                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                   </div>
                   <div
                     v-else-if="props.row.is_built_in"
@@ -319,9 +319,9 @@
                           style="width: 85%"
                         >
                           <div>
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
                           </div>
-                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
+                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                         </div>
                         <div
                           v-else

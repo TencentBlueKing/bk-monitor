@@ -3,7 +3,6 @@ import logging
 import re
 from collections import defaultdict
 from functools import lru_cache, reduce
-from typing import Dict, Optional
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -151,10 +150,10 @@ class CreateCustomTimeSeries(Resource):
             return attrs
 
     def data_name(self, bk_biz_id, ts_name):
-        return "{}_{}_{}".format(bk_biz_id, self.CUSTOM_TS_NAME, ts_name)
+        return f"{bk_biz_id}_{self.CUSTOM_TS_NAME}_{ts_name}"
 
     def table_id(self, bk_biz_id, data_id):
-        database_name = "{}_{}_{}".format(bk_biz_id, self.CUSTOM_TS_NAME, data_id)
+        database_name = f"{bk_biz_id}_{self.CUSTOM_TS_NAME}_{data_id}"
         return "{}.{}".format(database_name, "base")
 
     @staticmethod
@@ -175,7 +174,9 @@ class CreateCustomTimeSeries(Resource):
                 param.update(space_uid=space_uid)
             data_id_info = api.metadata.create_data_id(param)
         else:
-            raise CustomValidationNameError(data=data_id_info["bk_data_id"], msg=_("数据源名称[{}]已存在").format(data_name))
+            raise CustomValidationNameError(
+                data=data_id_info["bk_data_id"], msg=_("数据源名称[{}]已存在").format(data_name)
+            )
         bk_data_id = data_id_info["bk_data_id"]
         return bk_data_id
 
@@ -295,7 +296,7 @@ class ModifyCustomTimeSeries(Resource):
                 )
             return attrs
 
-    def update_fields(self, table: CustomTSTable, params: Dict):
+    def update_fields(self, table: CustomTSTable, params: dict):
         """
         更新自定义时序字段信息
         """
@@ -336,7 +337,7 @@ class ModifyCustomTimeSeries(Resource):
             ).delete()
 
     @atomic()
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         table = CustomTSTable.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             time_series_group_id=params["time_series_group_id"],
@@ -382,7 +383,7 @@ class DeleteCustomTimeSeries(Resource):
         ).first()
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
         operator = get_request_username()
         api.metadata.delete_time_series_group(
@@ -409,7 +410,7 @@ class CustomTimeSeriesList(Resource):
         is_platform = serializers.BooleanField(required=False)
 
     @staticmethod
-    def get_strategy_count(table_ids, request_bk_biz_id: Optional[int] = None):
+    def get_strategy_count(table_ids, request_bk_biz_id: int | None = None):
         """
         获取绑定的策略数
         """
@@ -491,7 +492,9 @@ class CustomTimeSeriesDetail(Resource):
         model_only = serializers.BooleanField(required=False, default=False, label="是否只查询自定义时序表信息")
         with_target = serializers.BooleanField(required=False, default=False, label="是否查询target")
         with_metrics = serializers.BooleanField(required=False, default=True, label="是否查询指标信息")
-        empty_if_not_found = serializers.BooleanField(required=False, default=False, label="如果自定义时序表不存在，是否返回空数据")
+        empty_if_not_found = serializers.BooleanField(
+            required=False, default=False, label="如果自定义时序表不存在，是否返回空数据"
+        )
 
     def perform_request(self, params):
         # 获取自定义时序表信息
@@ -542,7 +545,7 @@ class GetCustomTsFields(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         table = CustomTSTable.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             time_series_group_id=params["time_series_group_id"],
@@ -618,7 +621,7 @@ class ModifyCustomTsFields(Resource):
         update_fields = serializers.ListField(label="更新字段列表", child=FieldSerializer(), default=list)
         delete_fields = serializers.ListField(label="删除字段列表", child=FieldSerializer(), default=list)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         table = CustomTSTable.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             time_series_group_id=params["time_series_group_id"],
@@ -714,7 +717,7 @@ class ValidateCustomTsGroupLabel(Resource):
             for attr in dir(PluginType)
             if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
         ]
-        return re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
+        return re.compile(r"^(?!" + "|".join(plugin_type_list) + r")[a-zA-Z][a-zA-Z0-9_]*$")
 
     def perform_request(self, params: dict):
         data_label = params["data_label"]
@@ -722,7 +725,9 @@ class ValidateCustomTsGroupLabel(Resource):
             raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
 
         if not self.metric_data_label_pattern.match(data_label):
-            raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"))
+            raise CustomValidationLabelError(
+                msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名")
+            )
 
         # 内置指标，不做校验
         if params["bk_biz_id"] == 0:
@@ -759,9 +764,9 @@ class AddCustomMetricResource(Resource):
         queryset = CustomTSTable.objects.filter(bk_biz_id=params["bk_biz_id"])
 
         # 查询该任务是否已有执行任务
-        table = queryset.filter(table_id__startswith=params['result_table_id'])
+        table = queryset.filter(table_id__startswith=params["result_table_id"])
         if not table.exists():
-            table = queryset.filter(data_label=params['result_table_id'])
+            table = queryset.filter(data_label=params["result_table_id"])
             if not table.exists():
                 raise ValidationError(f"结果表或datalabel({params['result_table_id']})不存在")
 
@@ -771,10 +776,11 @@ class AddCustomMetricResource(Resource):
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "bk_biz_id": params["bk_biz_id"],
             "result_table_id": table.first().table_id,
+            "bk_tenant_id": get_request_tenant_id(),
         }
         metric_list = MetricListCache.objects.filter(**filter_params)
         if metric_list.filter(metric_field=params["metric_field"]).exists():
-            raise ValidationError(f"指标({params['result_table_id']}." f"{params['metric_field']})已存在")
+            raise ValidationError(f"指标({params['result_table_id']}.{params['metric_field']})已存在")
         create_params = {
             "metric_field": params["metric_field"],
             "metric_field_name": params["metric_field"],
@@ -824,7 +830,7 @@ class CustomTsGroupingRuleList(Resource):
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 获取指标信息
@@ -857,21 +863,21 @@ class ModifyCustomTsGroupingRuleList(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=list)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         group_rules = {}
         for index, group in enumerate(params["group_list"]):
             # 校验分组名称唯一
             if group_rules.get(group["name"]):
-                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group['name']))
+                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group["name"]))
 
             group["index"] = index
             group_rules[group["name"]] = group
@@ -888,7 +894,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
             # 记录分组规则名称
             exists_group_rule_names.add(exist_group_rule.name)
 
-            current_group_rule: Optional[Dict] = group_rules.get(exist_group_rule.name)
+            current_group_rule: dict | None = group_rules.get(exist_group_rule.name)
             # 如果分组规则不存在，则删除
             if not current_group_rule:
                 need_delete_rules.append(exist_group_rule)
@@ -934,14 +940,14 @@ class CreateOrUpdateGroupingRule(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 获取分组规则
@@ -994,7 +1000,7 @@ class PreviewGroupingRule(Resource):
         manual_list = serializers.ListField(label="手动分组的指标列表", default=list)
         auto_rules = serializers.ListField(label="自动分组的匹配规则列表", default=list)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表信息
         table = CustomTSTable.objects.filter(
             time_series_group_id=params["time_series_group_id"],
@@ -1002,7 +1008,7 @@ class PreviewGroupingRule(Resource):
         ).first()
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 获取指标信息
@@ -1042,7 +1048,7 @@ class DeleteGroupingRule(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         name = serializers.CharField(required=True, label="分组规则名称")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.filter(
             time_series_group_id=params["time_series_group_id"],
@@ -1050,7 +1056,7 @@ class DeleteGroupingRule(Resource):
         ).first()
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 查询分组规则
@@ -1079,7 +1085,7 @@ class UpdateGroupingRuleOrder(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         group_names = serializers.ListField(required=True, label="分组规则名称列表")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             time_series_group_id=params["time_series_group_id"],
@@ -1087,7 +1093,7 @@ class UpdateGroupingRuleOrder(Resource):
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 获取分组规则
@@ -1140,7 +1146,7 @@ class ImportCustomTimeSeriesFields(Resource):
             required=True, label="指标列表", many=True, allow_empty=True
         )
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             time_series_group_id=params["time_series_group_id"],
@@ -1148,7 +1154,7 @@ class ImportCustomTimeSeriesFields(Resource):
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 导入字段信息
@@ -1178,7 +1184,7 @@ class ExportCustomTimeSeriesFields(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             time_series_group_id=params["time_series_group_id"],
@@ -1186,7 +1192,7 @@ class ExportCustomTimeSeriesFields(Resource):
         )
         if not table:
             raise ValidationError(
-                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
 
         # 导出字段信息
