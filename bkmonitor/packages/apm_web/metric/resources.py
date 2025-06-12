@@ -2942,7 +2942,7 @@ class ServiceQueryExceptionResource(PageListResource):
                 '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
                 '{{"key": "span_name","operator": "equal","value": ["{span_name}"]}},'
                 '{{"key": "resource.bk.instance.id","operator": "equal","value": ["{bk_instance_id}"]}},'
-                '{{"key": "status.code","operator": "equal","value": [2]}},'
+                '{{"key": "status.code","operator": "equal","value": [2]}}'
                 "]",
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
