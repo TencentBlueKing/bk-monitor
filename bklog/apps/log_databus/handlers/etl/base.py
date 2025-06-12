@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import arrow
 from django.conf import settings
 from django.db import transaction
@@ -69,7 +69,7 @@ from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
-class EtlHandler:
+class EtlHandler(object):
     def __init__(self, collector_config_id=None, etl_processor=ETLProcessorChoices.TRANSFER.value):
         super().__init__()
         self.collector_config_id = collector_config_id
@@ -99,7 +99,9 @@ class EtlHandler:
         }
         # 获取处理器
         try:
-            etl_handler = import_string(f"apps.log_databus.handlers.etl.{etl_processor}.{mapping.get(etl_processor)}")
+            etl_handler = import_string(
+                "apps.log_databus.handlers.etl.{}.{}".format(etl_processor, mapping.get(etl_processor))
+            )
             return etl_handler(collector_config_id=collector_config_id, etl_processor=etl_processor)
         except ImportError as error:
             raise NotImplementedError(f"EtlHandler of {etl_processor} not implement, error: {error}")
@@ -309,7 +311,6 @@ class EtlHandler:
         username="",
         sort_fields=None,
         target_fields=None,
-        alias_settings=None,
     ):
         """
         创建索引集
@@ -338,7 +339,6 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
-                alias_settings=alias_settings,
             )
         else:
             if not view_roles:
@@ -355,7 +355,6 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
-                alias_settings=alias_settings,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config

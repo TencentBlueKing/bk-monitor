@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import collections
 
 from django.db.models import Q
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.models.collecting import CollectConfigMeta
 
@@ -43,6 +42,7 @@ class ServiceCategoryList(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         cc_manager = CmdbUtil(bk_biz_id)
 
         category_result = api.cmdb.search_service_category(bk_biz_id=bk_biz_id)
@@ -70,7 +70,7 @@ class ServiceCategoryList(Resource):
                 item.category_ids = []
 
         # 从指标表里查询与采集配置相关联的所有指标
-        metric_list = list(MetricListCache.objects.filter(~Q(collect_config="")))
+        metric_list = list(MetricListCache.objects.filter(~Q(collect_config=""), bk_tenant_id=bk_tenant_id))
 
         # 遍历category, 找到一二级标签，以及包含该category的采集配置数和策略配置数
         result = []
