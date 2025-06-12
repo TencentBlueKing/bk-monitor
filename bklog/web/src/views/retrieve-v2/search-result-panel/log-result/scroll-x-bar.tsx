@@ -68,11 +68,12 @@ export default defineComponent({
       event.stopPropagation();
       event.preventDefault();
       event.stopImmediatePropagation();
-
+      
       if (!isAnimating) {
         isAnimating = true;
+        const newTarget = event.target;
         requestAnimationFrame(() => {
-          emit('scroll-change', event);
+          emit('scroll-change', newTarget);
           isAnimating = false;
         });
       }
