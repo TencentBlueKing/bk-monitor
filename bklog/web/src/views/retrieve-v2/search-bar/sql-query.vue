@@ -6,7 +6,6 @@
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
-  import useInputState from './use-input-state';
 
   const props = defineProps({
     value: {
@@ -34,10 +33,6 @@
   let editorInstance = null;
   let isSelectedText = false;
 
-  // 使用输入状态管理 hook
-  const { inputState, resetInputState, updateInputState, getSelectionRange, startSelecting, endSelecting } =
-    useInputState();
-
   /**
    * 更新编辑器内容
    * @param val 更新值
@@ -45,7 +40,7 @@
    * @param to 结束位置：如果是指定位置插入，To可以忽略，只要指定from位置就行
    * 如果是替换，需要指定结束位置；to：设置为 Infinity 表示从from位置到结束位置全部替换
    */
-  const setEditorContext = (val, from = 0, to = undefined) => {
+  const setEditorContext = (val, from = 0, to = Infinity) => {
     editorInstance?.setValue(val, from, to);
   };
 
@@ -93,9 +88,9 @@
         if (refSqlQueryOption.value?.beforeShowndFn?.()) {
           instance.popper?.style.setProperty('width', '100%');
           refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-          requestAnimationFrame(() => {
-            editorInstance?.setFocus();
-          });
+          // requestAnimationFrame(() => {
+          //   editorInstance?.setFocus();
+          // });
           return true;
         }
 
@@ -145,33 +140,28 @@
     debounceRetrieve(value);
   };
 
-  const handleQueryChange = (value, retrieve, replace = true, type = undefined) => {
+  const handleQueryChange = (value, retrieve, replace = true, focusPosition) => {
     if (modelValue.value !== value) {
       // 确保编辑器实例存在
       if (!editorInstance) {
         return;
       }
 
-      // 标记为选择填充状态
-      startSelecting();
-
-      const range = getSelectionRange(editorFocusPosition.value, replace);
-      const { from, to, insertSpace } = range;
-
-      // 如果需要插入空格，在值后面添加空格
-      const finalValue = insertSpace ? `${value} ` : value;
-      setEditorContext(finalValue, from, to);
-
+      setEditorContext(value);
       // 更新光标位置
       nextTick(() => {
         if (editorInstance) {
           if (retrieve) {
-            const resolvedValue = editorInstance.getValue();
             closeAndRetrieve(resolvedValue);
           }
-          // 重置选择状态
-          endSelecting();
         }
+      });
+    }
+
+    if (focusPosition) {
+      setTimeout(() => {
+        editorFocusPosition.value = focusPosition;
+        editorInstance?.setFocus?.(focusPosition);
       });
     }
   };
@@ -229,14 +219,11 @@
           if (!(getTippyInstance()?.state?.isShown ?? false)) {
             delayShowInstance(refEditorParent.value);
           }
-          // 重置选择状态
-          endSelecting();
         }
       },
       onFocusPosChange: state => {
         editorFocusPosition.value = state.selection.main.to;
         isSelectedText = state.selection.main.to > state.selection.main.from;
-        updateInputState(state);
       },
     });
   };

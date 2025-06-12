@@ -323,7 +323,7 @@ export function useExploreColumnConfig({
             (
               <i
                 class='icon-monitor icon-Tracing'
-                v-bk-tooltips={{ content: t('查看关联 Trace') }}
+                v-bk-tooltips={{ content: t('查看关联 Trace'), delay: 400 }}
                 onClick={() => handleSliderShowChange('trace', row.trace_id)}
               />
             ) as unknown as VNode,

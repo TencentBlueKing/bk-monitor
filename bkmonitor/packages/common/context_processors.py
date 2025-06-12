@@ -160,6 +160,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "SPACE_LIST": space_list,
             "BK_BIZ_ID": bk_biz_id,
             "BK_TENANT_ID": get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID,
+            "ENABLE_MULTI_TENANT_MODE": settings.ENABLE_MULTI_TENANT_MODE,
             # 服务拨测设置最大 duration
             "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
             # 所有图表渲染必须

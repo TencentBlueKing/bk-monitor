@@ -23,7 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { spaceIntroduce } from 'monitor-api/modules/commons';
+
+import { introduceTemplateData } from '../router/space';
 
 import type { ISPaceIntroduceData } from '../types';
 import type { RouteConfig } from 'vue-router';
@@ -82,9 +85,16 @@ class IntroduceStore {
 
     // 设置加载状态，发送请求并更新数据
     this.data[tag].loading = true;
-    const data = await spaceIntroduce({
-      tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag,
-    }).catch(() => undefined);
+    const data = await spaceIntroduce(
+      {
+        tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag,
+      },
+      { needMessage: false }
+    ).catch(() => ({
+      ...introduceTemplateData[tag],
+      is_no_data: true,
+      is_no_source: true,
+    }));
     this.data[tag].loading = false;
     this.data[tag].introduce = data;
   }
@@ -96,8 +106,8 @@ class IntroduceStore {
 
   // 根据路由判断是否显示指南页面
   getShowGuidePageByRoute(routeId: IntroduceRouteKey) {
-    if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce.is_no_source;
-    return !!(this.data[routeId]?.introduce.is_no_data || this.data[routeId]?.introduce.is_no_source);
+    if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce?.is_no_source;
+    return !!(this.data[routeId]?.introduce?.is_no_data || this.data[routeId]?.introduce?.is_no_source);
   }
 
   // 初始化所有介绍数据
@@ -114,12 +124,19 @@ class IntroduceStore {
             setTimeout(() => {
               if (this.data[tag].introduce || this.data[tag].loading) return;
               this.data[tag].loading = true;
-              spaceIntroduce({ tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag })
+              spaceIntroduce(
+                { tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag },
+                { needMessage: false }
+              )
                 .then(data => {
                   this.data[tag].introduce = data;
                 })
                 .catch(() => {
-                  value.introduce = undefined;
+                  value.introduce = {
+                    ...introduceTemplateData[tag],
+                    is_no_data: true,
+                    is_no_source: true,
+                  };
                 })
                 .finally(() => {
                   value.loading = false;

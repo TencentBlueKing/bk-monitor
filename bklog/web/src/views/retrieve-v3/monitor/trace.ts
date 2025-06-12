@@ -23,46 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = true;
+window.__IS_MONITOR_APM__ = false;
+import Vue from 'vue';
 
-import { getTargetElement } from '@/hooks/hooks-helper';
-import useLocale from '@/hooks/use-locale';
+import i18n from '@/language/i18n';
+if (!window.mainComponent?.$t) {
+  window.mainComponent = {
+    $t: i18n.t.bind(i18n),
+    $i18n: i18n,
+  };
+}
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
+import useStore from '@/hooks/use-store';
 
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import MonitorTraceLog from './monitor';
 
-export default defineComponent({
-  emits: ['scroll-top'],
-  setup(_, { emit }) {
-    const { $t } = useLocale();
-    const offsetTop = ref(0);
-    const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
+const logStore = useStore();
 
-    RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
-      if (event.target) {
-        offsetTop.value = (event.target as HTMLElement).scrollTop;
-      }
-    });
-
-    const showBox = computed(() => offsetTop.value > 1000);
-    const scrollTop = () => {
-      getTargetElement(GLOBAL_SCROLL_SELECTOR)?.scrollTo(0, 0);
-      emit('scroll-top');
-    };
-
-    const renderBody = () => (
-      <span
-        class={['btn-scroll-top', { 'show-box': showBox.value }]}
-        v-bk-tooltips={$t('返回顶部')}
-        onClick={() => scrollTop()}
-      >
-        <i class='bklog-icon bklog-backtotop'></i>
-      </span>
-    );
-    return {
-      renderBody,
-    };
-  },
-  render() {
-    return this.renderBody();
-  },
-});
+const initMonitorState = payload => {
+  logStore.commit('initMonitorState', payload);
+};
+const initGlobalComponents = () => {
+  Vue.component('JsonFormatWrapper', JsonFormatWrapper);
+};
+const Vue2 = Vue;
+export { MonitorTraceLog, logStore, i18n, Vue2, initMonitorState, initGlobalComponents };

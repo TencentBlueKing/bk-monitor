@@ -191,6 +191,7 @@ class DataFlowHandler(BaseAiopsHandler):
             )
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}, result -> {result}")
 
+
     @classmethod
     def _init_filter_rule(cls, filter_rules, all_fields_dict, clustering_field):
         default_filter_rule = cls._init_default_filter_rule(all_fields_dict.get(clustering_field))
@@ -219,23 +220,10 @@ class DataFlowHandler(BaseAiopsHandler):
                 # 如果不是第一个条件，则把运算符加进去
                 rules.append(filter_rule.get("logic_operator"))
 
-            if nested_field_name:
-                # 如果有嵌套字段，则用JSON提取的方式
-                rules.extend(
-                    [
-                        f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
-                        cls.change_op(filter_rule.get("op")),
-                        "'{}'".format(filter_rule.get("value")),
-                    ]
-                )
-            else:
-                rules.extend(
-                    [
-                        f"`{all_fields_dict[field_name]}`",
-                        cls.change_op(filter_rule.get("op")),
-                        "'{}'".format(filter_rule.get("value")),
-                    ]
-                )
+            rule = cls.build_condition_list(
+                all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=nested_field_name
+            )
+            rules.extend(rule)
 
         if rules and is_not_null_rules != "":
             rules_str = " ".join([OPERATOR_AND, "(", is_not_null_rules, ")", OPERATOR_AND, "(", *rules, ")"])
@@ -247,6 +235,33 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_rule_list = ["where", default_filter_rule, rules_str]
         not_clustering_rule_list = ["where", "NOT", "(", default_filter_rule, rules_str, ")"]
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
+
+    @classmethod
+    def build_condition_list(cls, all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=None):
+        if not isinstance(filter_rule.get("value"), list):
+            filter_rule["value"] = [filter_rule.get("value")]
+
+        result = []
+        # 如果有嵌套字段，则用JSON提取的方式
+        query_field_name = (
+            f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')"
+            if nested_field_name
+            else f"`{all_fields_dict[field_name]}`"
+        )
+        for idx, val in enumerate(filter_rule.get("value")):
+            if idx > 0:
+                result.append("or")
+            result.extend(
+                [
+                    query_field_name,
+                    cls.change_op(filter_rule.get("op")),
+                    f"'{val}'",
+                ]
+            )
+        if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
+            result.append(")")
+            result.insert(0, "(")
+        return result
 
     @classmethod
     def change_op(cls, op):

@@ -2005,6 +2005,7 @@ class SearchViewSet(APIViewSet):
             end_time=params["end_time"],
             sql_param=params["sql"],
             keyword=params["keyword"],
+            alias_mappings=params["alias_mappings"],
         )
         return Response(data)
 

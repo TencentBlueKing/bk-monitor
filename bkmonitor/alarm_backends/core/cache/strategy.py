@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,7 +16,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain, groupby
 from operator import itemgetter
-from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import Any
+from collections.abc import Callable, Iterable
 
 import arrow
 from django.conf import settings
@@ -41,6 +41,7 @@ from bkmonitor.models import (
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
@@ -114,7 +115,9 @@ class StrategyCacheManager(CacheManager):
                     new_value.append(
                         {
                             "bk_obj_id": bk_obj_id,
-                            "bk_inst_id": instance if isinstance(instance, int) else instance["bk_inst_id"],  # 新老缓存兼容
+                            "bk_inst_id": instance
+                            if isinstance(instance, int)
+                            else instance["bk_inst_id"],  # 新老缓存兼容
                         }
                     )
         else:
@@ -134,10 +137,12 @@ class StrategyCacheManager(CacheManager):
             strategy["is_invalid"] = True
 
     @classmethod
-    def check_metrics(cls, strategy, item, invalid_strategy_dict):
+    def check_metrics(cls, strategy: dict[str, Any], item: dict[str, Any], invalid_strategy_dict: dict[str, Any]):
         """
         检测指标是否失效
         """
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
+
         data_type_map = {
             DataTypeLabel.TIME_SERIES: StrategyModel.InvalidType.INVALID_METRIC,
             DataTypeLabel.ALERT: StrategyModel.InvalidType.DELETED_RELATED_STRATEGY,
@@ -189,7 +194,7 @@ class StrategyCacheManager(CacheManager):
                     if "index_set_id" in metric_params:
                         metric_params["related_id"] = metric_params["index_set_id"]
                         del metric_params["index_set_id"]
-                    if MetricListCache.objects.filter(**metric_params).exists():
+                    if MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, **metric_params).exists():
                         invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_id)
                     else:
                         invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_id)
@@ -327,11 +332,11 @@ class StrategyCacheManager(CacheManager):
                     del value["bk_cloud_id"]
 
     @classmethod
-    def get_strategies_map(cls, filter_dict: Union[Dict, None] = None) -> Dict:
+    def get_strategies_map(cls, filter_dict: dict | None = None) -> dict:
         """
         获取全部策略配置, 返回字典格式
         """
-        filter_dict: Dict = filter_dict or {}
+        filter_dict: dict = filter_dict or {}
         # 初始化策略失效检测信息
         invalid_strategy_dict = {
             # 已检测的指标id缓存
@@ -382,7 +387,7 @@ class StrategyCacheManager(CacheManager):
         return result_map
 
     @classmethod
-    def get_strategies(cls, filter_dict: Union[Dict, None] = None) -> List[Dict]:
+    def get_strategies(cls, filter_dict: dict | None = None) -> list[dict]:
         """
         获取全部策略配置
         """
@@ -397,7 +402,7 @@ class StrategyCacheManager(CacheManager):
         return result
 
     @classmethod
-    def get_query_md5(cls, bk_biz_id: int, item: Dict) -> str:
+    def get_query_md5(cls, bk_biz_id: int, item: dict) -> str:
         """
         生成监控项查询MD5
         """
@@ -463,7 +468,7 @@ class StrategyCacheManager(CacheManager):
         )
 
     @classmethod
-    def is_disabled_strategy(cls, strategy: Dict) -> bool:
+    def is_disabled_strategy(cls, strategy: dict) -> bool:
         """
         判断策略是否被规则禁用
         {"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}
@@ -496,7 +501,7 @@ class StrategyCacheManager(CacheManager):
         return False
 
     @classmethod
-    def handle_strategy(cls, strategy: Dict, invalid_strategy_dict=None) -> bool:
+    def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:
         """
         策略预处理
         """
@@ -574,7 +579,7 @@ class StrategyCacheManager(CacheManager):
         return json.loads(cls.cache.get(cls.IDS_CACHE_KEY) or "[]")
 
     @classmethod
-    def get_strategy_by_ids(cls, strategy_ids: List[int]) -> List[Dict]:
+    def get_strategy_by_ids(cls, strategy_ids: list[int]) -> list[dict]:
         """
         从缓存中获取策略详情
         """
@@ -587,7 +592,7 @@ class StrategyCacheManager(CacheManager):
         return [Strategy.convert_v1_to_v2(json.loads(strategy)) for strategy in strategies if strategy]
 
     @classmethod
-    def get_strategy_by_id(cls, strategy_id: int) -> Dict:
+    def get_strategy_by_id(cls, strategy_id: int) -> dict:
         """
         从缓存中获取策略详情
         """
@@ -597,7 +602,7 @@ class StrategyCacheManager(CacheManager):
         return strategy
 
     @classmethod
-    def get_all_bk_biz_ids(cls) -> List:
+    def get_all_bk_biz_ids(cls) -> list:
         """
         获取有策略的全部业务ID
         """
@@ -647,21 +652,21 @@ class StrategyCacheManager(CacheManager):
         return json.loads(cls.cache.get(cls.GSE_ALARM_CACHE_KEY) or "{}")
 
     @classmethod
-    def get_nodata_strategy_ids(cls) -> List[int]:
+    def get_nodata_strategy_ids(cls) -> list[int]:
         """
         获取无数据策略ID列表
         """
         return json.loads(cls.cache.get(cls.NO_DATA_CACHE_KEY) or "[]")
 
     @classmethod
-    def get_aiops_sdk_strategy_ids(cls) -> List[int]:
+    def get_aiops_sdk_strategy_ids(cls) -> list[int]:
         """
         获取启用AIOPS SDK 相关策略
         """
         return json.loads(cls.cache.get(cls.AIOPS_SDK_CACHE_KEY) or "[]")
 
     @classmethod
-    def get_fta_alert_strategy_ids(cls, strategy_id=None, alert_name=None) -> Dict:
+    def get_fta_alert_strategy_ids(cls, strategy_id=None, alert_name=None) -> dict:
         """
         获取自愈关联告警策略
         :rtype: dict (bk_biz_id -> strategy_ids)
@@ -698,7 +703,7 @@ class StrategyCacheManager(CacheManager):
         return json.loads(data)
 
     @classmethod
-    def refresh_strategy_ids(cls, strategies: List[Dict], to_be_deleted_strategy_ids=None):
+    def refresh_strategy_ids(cls, strategies: list[dict], to_be_deleted_strategy_ids=None):
         """
         刷新策略ID列表缓存
 
@@ -710,9 +715,9 @@ class StrategyCacheManager(CacheManager):
         :param to_be_deleted_strategy_ids: 可选参数，指定需要从缓存中删除的策略ID列表。
         """
         # 从传入的策略列表中提取所有策略的ID，形成一个新集合。
-        updated_strategy_ids: Set = {strategy["id"] for strategy in strategies}
+        updated_strategy_ids: set = {strategy["id"] for strategy in strategies}
         # 从缓存中获取当前保存的所有策略ID，形成一个集合。
-        old_strategy_ids: Set = set(cls.get_strategy_ids())
+        old_strategy_ids: set = set(cls.get_strategy_ids())
 
         # 如果指定了需要删除的策略ID列表，则进行增量更新。
         if to_be_deleted_strategy_ids is not None:
@@ -732,7 +737,7 @@ class StrategyCacheManager(CacheManager):
                 cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
     @classmethod
-    def refresh_bk_biz_ids(cls, strategies: List[Dict], partial=None):
+    def refresh_bk_biz_ids(cls, strategies: list[dict], partial=None):
         """
         刷新配置了策略的业务ID列表
         """
@@ -752,7 +757,7 @@ class StrategyCacheManager(CacheManager):
         return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(old_bk_biz_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_real_time_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_real_time_strategy_ids(cls, strategies: list[dict]):
         """
         刷新实时数据的相关策略
         :param strategies: 策略列表
@@ -778,7 +783,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.set(cls.REAL_TIME_CACHE_KEY, json.dumps(real_time_strategys), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_nodata_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_nodata_strategy_ids(cls, strategies: list[dict]):
         """
         刷新无数据策略ID列表缓存
         """
@@ -793,7 +798,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(nodata_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_aiops_sdk_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_aiops_sdk_strategy_ids(cls, strategies: list[dict]):
         """
         刷新启用了aiops sdk模块的策略ID列表缓存
         """
@@ -808,7 +813,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.set(cls.AIOPS_SDK_CACHE_KEY, json.dumps(aiops_sdk_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_gse_alarm_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_gse_alarm_strategy_ids(cls, strategies: list[dict]):
         """
         刷新gse事件策略ID列表缓存
         """
@@ -827,7 +832,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.set(cls.GSE_ALARM_CACHE_KEY, json.dumps(gse_event_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_fta_alert_strategy_ids(cls, strategies: List[Dict]):
+    def refresh_fta_alert_strategy_ids(cls, strategies: list[dict]):
         """
         刷新自愈策略列表缓存
         """
@@ -867,7 +872,7 @@ class StrategyCacheManager(CacheManager):
         cls.cache.expire(cls.FTA_ALERT_CACHE_KEY, cls.CACHE_TIMEOUT)
 
     @classmethod
-    def refresh_strategy(cls, strategies: List[Dict], old_groups=None):
+    def refresh_strategy(cls, strategies: list[dict], old_groups=None):
         """
         刷新策略缓存
         该方法用于更新策略的缓存，确保策略及其相关分组信息是最新的
@@ -908,8 +913,7 @@ class StrategyCacheManager(CacheManager):
                         try:
                             interval = int(interval)
                             assert interval > 0, (
-                                f"strategy({strategy['id']}) item({item['id']}) "
-                                f"interval config is invalid: {config}"
+                                f"strategy({strategy['id']}) item({item['id']}) interval config is invalid: {config}"
                             )
                             strategy_groups[item["query_md5"]].setdefault("interval_list", []).append(interval)
                         except (TypeError, ValueError, AssertionError):
@@ -937,7 +941,7 @@ class StrategyCacheManager(CacheManager):
         pipeline.execute()
 
     @classmethod
-    def add_enabled_cluster_condition(cls, strategy_configs: List[Dict]):
+    def add_enabled_cluster_condition(cls, strategy_configs: list[dict]):
         """
         针对k8s策略添加启用集群范围生效条件
         """
@@ -976,7 +980,7 @@ class StrategyCacheManager(CacheManager):
                 add_condition(enabled_cluster_map[bk_biz_id], strategy_config)
 
     @classmethod
-    def add_target_shield_condition(cls, strategy_configs: List[Dict]):
+    def add_target_shield_condition(cls, strategy_configs: list[dict]):
         """
         添加监控目标抑制条件
         1. 主机目标抑制拓扑目标
@@ -1058,8 +1062,7 @@ class StrategyCacheManager(CacheManager):
         histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(start_time))
         if not histories.exists():
             logger.info(
-                f"[refresh_strategy_cache]: no changed strategy found in the past {time.time() - start_time}"
-                f" seconds"
+                f"[refresh_strategy_cache]: no changed strategy found in the past {time.time() - start_time} seconds"
             )
         else:
             target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories, with_group_key=False)
@@ -1079,7 +1082,7 @@ class StrategyCacheManager(CacheManager):
                 logger.exception(f"[refresh_strategy_cache]: get data of changed_strategies_map failed: {e}")
                 exc = e
 
-        processors: List[Callable[[List[Dict]], None]] = [
+        processors: list[Callable[[list[dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
             cls.refresh_strategy_ids,  # 刷新缓存策略ID
@@ -1115,7 +1118,7 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
     @classmethod
-    def handle_history_strategies(cls, histories: List[StrategyHistoryModel], with_group_key=True) -> Tuple[Set, Set]:
+    def handle_history_strategies(cls, histories: list[StrategyHistoryModel], with_group_key=True) -> tuple[set, set]:
         """
         处理策略历史，确定受影响的业务和待删除的策略。
 
@@ -1125,7 +1128,7 @@ class StrategyCacheManager(CacheManager):
         """
         target_biz_set = set()
         # 初始化待删除的策略ID集合
-        to_be_deleted_strategy_ids: Set[Tuple] = set()
+        to_be_deleted_strategy_ids: set[tuple] = set()
         # 遍历变更策略以确定受影响的业务和待删除的策略
         for history in histories:
             # 变更的策略，需要判定is_enabled变化
@@ -1255,7 +1258,7 @@ class StrategyCacheManager(CacheManager):
             cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(list(old_nodata_strategy_ids)), cls.CACHE_TIMEOUT)
 
         # 定义处理函数列表
-        processors: List[Callable[[List[Dict]], None]] = [
+        processors: list[Callable[[list[dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
             refresh_strategy_ids,
@@ -1300,13 +1303,13 @@ class TargetShieldProcessor:
     策略目标抑制处理器
     """
 
-    def __init__(self, strategies: List, cmdb_levels: List[str]):
+    def __init__(self, strategies: list, cmdb_levels: list[str]):
         self.strategies = strategies
         self.static_nodes = self.get_static_nodes()
         self.dynamic_nodes = self.get_dynamic_nodes()
         self.cmdb_levels = cmdb_levels
 
-    def get_static_nodes(self) -> List[Dict]:
+    def get_static_nodes(self) -> list[dict]:
         """
         静态节点所属模块列表
         """
@@ -1314,7 +1317,7 @@ class TargetShieldProcessor:
         for strategy in self.strategies:
             target = strategy["items"][0]["target"][0][0]
 
-            if not target["field"] in [TargetFieldType.host_target_ip, TargetFieldType.host_ip]:
+            if target["field"] not in [TargetFieldType.host_target_ip, TargetFieldType.host_ip]:
                 continue
 
             for host in target["value"]:
@@ -1334,7 +1337,7 @@ class TargetShieldProcessor:
                 records.append(record)
         return records
 
-    def get_dynamic_nodes(self) -> Set[Tuple]:
+    def get_dynamic_nodes(self) -> set[tuple]:
         """
         动态节点列表
         """
@@ -1361,11 +1364,11 @@ class TargetShieldProcessor:
 
         # 将监控目标按节点类型进行条件分组，比分组节点类型层级低的抑制条件会被加入
         # 如同时存在set和module两种节点，则分为两组条件，set分组条件内会加入module类型的抑制条件
-        new_conditions: List[List[Dict]] = []
+        new_conditions: list[list[dict]] = []
         if self.dynamic_nodes and target["field"] != TargetFieldType.dynamic_group:
             # 将监控目标节点及抑制节点分别按节点类型分组
-            eq_targets: Dict[str, Set] = defaultdict(set)
-            neq_targets: Dict[str, Set] = defaultdict(set)
+            eq_targets: dict[str, set] = defaultdict(set)
+            neq_targets: dict[str, set] = defaultdict(set)
             for node in target["value"]:
                 eq_targets[node["bk_obj_id"]].add(node["bk_inst_id"])
             for dynamic_node in self.dynamic_nodes:

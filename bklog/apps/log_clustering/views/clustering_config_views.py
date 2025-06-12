@@ -327,6 +327,8 @@ class ClusteringConfigViewSet(APIViewSet):
             ClusteringConfigHandler().debug(
                 input_data=params["input_data"],
                 predefined_varibles=params["predefined_varibles"],
+                delimeter=params["delimeter"],
+                max_log_length=params["max_log_length"],
             )
         )
 

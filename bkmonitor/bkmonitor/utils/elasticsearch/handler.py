@@ -102,7 +102,8 @@ class QueryStringGenerator:
         self.operator_mapping = operator_mapping
         self.query_string_list = []
 
-    def _process_values_by_wildcard(self, values: list, is_wildcard: bool) -> list:
+    @staticmethod
+    def _process_values_by_wildcard(values: list, is_wildcard: bool) -> list:
         """根据是否使用通配符预处理值"""
 
         result_values = []
@@ -119,7 +120,8 @@ class QueryStringGenerator:
             result_values.append(f"*{''.join(c_list)}*")
         return result_values
 
-    def _process_values_by_add_double_quotation(self, values: list) -> list:
+    @staticmethod
+    def _process_values_by_add_double_quotation(values: list) -> list:
         """将值两端添加双引号"""
 
         result_values = []
@@ -145,7 +147,7 @@ class QueryStringGenerator:
         operator: str,
         values: list,
         is_wildcard: bool = False,
-        group_realtion: OperatorGroupRelation = OperatorGroupRelation.OR,
+        group_relation: OperatorGroupRelation = OperatorGroupRelation.OR,
     ):
         query_string_operator = self.operator_mapping.get(operator, QueryStringOperators.EQUAL)
         self.filters.append(
@@ -153,12 +155,12 @@ class QueryStringGenerator:
                 "key": key,
                 "query_string_operator": query_string_operator,
                 "values": values,
-                "options": {"is_wildcard": is_wildcard, "group_realtion": group_realtion},
+                "options": {"is_wildcard": is_wildcard, "group_relation": group_relation},
             }
         )
 
+    @staticmethod
     def _get_query_string(
-        self,
         field: str,
         query_string_operator: str,
         values: list,
@@ -187,7 +189,7 @@ class QueryStringGenerator:
             values = f["values"]
             values = self._process_values(query_string_operator, values, f["options"]["is_wildcard"])
             query_string = self._get_query_string(
-                f["key"], query_string_operator, values, f["options"]["group_realtion"]
+                f["key"], query_string_operator, values, f["options"]["group_relation"]
             )
             self.query_string_list.append(query_string)
         return f" {QueryStringLogicOperators.AND} ".join(self.query_string_list)

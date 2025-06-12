@@ -36,18 +36,17 @@
             :key="type"
             @click="handleClickTableBtn(type)"
           >
-            {{ type === 'table' ? '表格' : '原始' }}
+            {{ type === 'table' ? $t('表格') : $t('原始') }}
           </span>
         </div>
         <ResultStorage></ResultStorage>
       </div>
       <div
-        v-if="!isMonitorTrace"
         class="tools-more"
       >
         <div class="operation-icons">
           <div class="group-text light-search">
-            <label>高亮</label>
+            <label class="light-search-label">{{ $t('高亮') }}</label>
             <bklogTagChoice
               :foucsFixed="true"
               :onTagRender="handleTagRender"
@@ -57,7 +56,7 @@
               :maxWidth="highlightStyle.width"
               :minWidth="highlightStyle.width"
               :value="highlightValue"
-              placeholder="输入后按 Enter..."
+              :placeholder="$t('输入后按 Enter...')"
               template="tag-input"
               @change="handleHighlightEnter"
             >
@@ -66,6 +65,7 @@
           </div>
 
           <export-log
+            v-if="!isMonitorTrace"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
             :index-set-list="indexSetList"
@@ -112,8 +112,11 @@
 <script>
   import { mapGetters, mapState } from 'vuex';
   import { debounce } from 'lodash';
-
+  // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
+  // #else
+  // #code const ExportLog = () => null;
+  // #endif
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import TableLog from './log-result.vue';
   import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';

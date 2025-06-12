@@ -65,12 +65,11 @@
     }
     item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
-    if (!item?.showList || item.showList.length !== item.value.length){
+    if (item?.showList?.length && item?.showList?.length !== item.value?.length) {
       item.showList = Array.from(
-        { length: item.value.length }, 
-        (_, i) => item.showList?.[i] ?? false
+        { length: item.value.length },
+        (_, i) => (i < (item.showList?.length || 0) ? item.showList[i] : false)
       );
-
     }
     return { disabled: false, ...(item ?? {}) };
   };
