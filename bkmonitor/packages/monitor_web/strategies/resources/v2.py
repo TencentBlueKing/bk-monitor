@@ -1419,7 +1419,7 @@ class GetMetricListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
-    def filter_by_double_paragaphs_metric_id(cls, metrics,filter_dict:dict):
+    def filter_by_double_paragaphs_metric_id(cls, metrics,filter_dict:dict) -> QuerySet:
         """
         处理二段式指标ID查询
         """
@@ -1504,7 +1504,7 @@ class GetMetricListV2Resource(Resource):
                 _metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
                 metrics = _metrics if _metrics.exists() else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
             else:
-                cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
+                metrics = cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
 
         # 模糊搜索
         if filter_dict["query"]:
