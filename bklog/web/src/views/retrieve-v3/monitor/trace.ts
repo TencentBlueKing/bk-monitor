@@ -23,31 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const fs = require('node:fs');
-const postcss = require('postcss');
-const { resolve } = require('node:path');
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = true;
+window.__IS_MONITOR_APM__ = false;
+import Vue from 'vue';
 
-const input = fs.readFileSync(resolve(__dirname, '../node_modules/bk-magic-vue/dist/bk-magic-vue.min.css'), 'utf-8'); // 需要添加前缀的输入文件
-postcss([
-  postcss.plugin('postcss-add-monitor-class', () => {
-    return root => {
-      root.walkRules(rule => {
-        // 对于每个规则，更新它的选择器
-        rule.selectors = rule.selectors.map(selector => {
-          if (/^\.(tippy-|bk-tooltip-|bk-option-|bk-select-search-input|bk-select-dropdown-)/.test(selector)) {
-            return selector;
-          }
-          // if (/^\.(bk-form-|bk-input-|bk-button-|bk-select-dropdown-)/.test(selector)) {
-          //   return `.monitor-trace-log ${selector}, .tippy-content ${selector}`;
-          // }
-          return `.tippy-content ${selector}, .monitor-trace-log ${selector}`;
-        });
-      });
-    };
-  }),
-])
-  .process(input, { from: undefined })
-  .then(result => {
-    const cssText = result.css.replace(/url\((fonts|images)([^)]+)(\))/gim, 'url(../$1$2$3');
-    fs.appendFileSync(resolve(__dirname, '../monitor-trace-retrieve/css/main.css'), cssText); // 最终生成的文件
-  });
+import i18n from '@/language/i18n';
+if (!window.mainComponent?.$t) {
+  window.mainComponent = {
+    $t: i18n.t.bind(i18n),
+    $i18n: i18n,
+  };
+}
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
+import useStore from '@/hooks/use-store';
+
+import MonitorTraceLog from './monitor';
+
+const logStore = useStore();
+
+const initMonitorState = payload => {
+  logStore.commit('initMonitorState', payload);
+};
+const initGlobalComponents = () => {
+  Vue.component('JsonFormatWrapper', JsonFormatWrapper);
+};
+const Vue2 = Vue;
+export { MonitorTraceLog, logStore, i18n, Vue2, initMonitorState, initGlobalComponents };

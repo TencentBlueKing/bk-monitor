@@ -36,6 +36,7 @@
       :title="isEdit ? $t('编辑集群') : $t('新建集群')"
       :width="640"
       transfer
+      zIndex="3000"
       @animation-end="updateIsShow"
     >
       <template #content>
@@ -1591,6 +1592,7 @@
 
 <style lang="scss">
   @import '@/scss/space-tag-option';
+
   .bk-search-list {
     margin: 0
   }

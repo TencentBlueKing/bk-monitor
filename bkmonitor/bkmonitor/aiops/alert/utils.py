@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import copy
 import json
@@ -18,7 +18,6 @@ import re
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs
 
 from django.conf import settings
@@ -31,6 +30,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, AlgorithmModel, MetricListCache
 from bkmonitor.strategy.new_strategy import parse_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import CLUSTER_PATTERN, EventSeverity
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS
@@ -65,7 +65,7 @@ class AIOPSManager(abc.ABC):
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
     )
 
-    def __init__(self, alert: AlertDocument, ai_settings: Optional[ReadOnlyAiSetting] = None):
+    def __init__(self, alert: AlertDocument, ai_settings: ReadOnlyAiSetting | None = None):
         self.alert = alert
 
         if ai_settings:
@@ -105,7 +105,7 @@ class AIOPSManager(abc.ABC):
     def get_graph_panel(
         cls,
         alert: AlertDocument,
-        compare_function: Optional[Dict] = None,
+        compare_function: dict | None = None,
         use_raw_query_config: bool = False,
         with_anomaly: bool = True,
     ):
@@ -228,7 +228,7 @@ class AIOPSManager(abc.ABC):
                     if key in dimension_fields and not (key == "le" and value is None)
                 }
                 filter_dict = {}
-                translate_method_name = 'translate_{}_{}_metric'.format(
+                translate_method_name = "translate_{}_{}_metric".format(
                     query_config["data_source_label"].lower(), query_config["data_type_label"].lower()
                 )
 
@@ -244,7 +244,9 @@ class AIOPSManager(abc.ABC):
                     where = []
                     agg_dimension = []
                     metrics = []
-                    filter_dict = { key: value for key, value in dimensions.items() if key not in ["__NO_DATA_DIMENSION__"]}
+                    filter_dict = {
+                        key: value for key, value in dimensions.items() if key not in ["__NO_DATA_DIMENSION__"]
+                    }
                 else:
                     where = cls.create_where_with_dimensions(
                         query_config["agg_condition"],
@@ -484,8 +486,8 @@ class AIOPSManager(abc.ABC):
 
 class DimensionDrillManager(AIOPSManager):
     def parse_serving_result(
-        self, metric: MetricListCache, serving_output: Dict
-    ) -> Tuple[Dict, List[Dict], List[Dict]]:
+        self, metric: MetricListCache, serving_output: dict
+    ) -> tuple[dict, list[dict], list[dict]]:
         """解析维度下钻算法的预测结果.
 
         :param metric: 告警指标详情
@@ -502,11 +504,7 @@ class DimensionDrillManager(AIOPSManager):
         # 维度中文名映射
         dim_mappings = {}
         if metric:
-            dim_mappings = {
-                item["id"]: item["name"]
-                for item in metric.dimensions
-                if item.get("is_dimension", True)
-            }
+            dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
 
         anomaly_dimensions = []
         for root_dimension in root_dimensions:
@@ -533,8 +531,8 @@ class DimensionDrillManager(AIOPSManager):
 
     @classmethod
     def generate_anomaly_graph_panels(
-        cls, alert: AlertDocument, metric: MetricListCache, graph_panel: Dict, graph_dimensions: List[Dict]
-    ) -> List[Dict]:
+        cls, alert: AlertDocument, metric: MetricListCache, graph_panel: dict, graph_dimensions: list[dict]
+    ) -> list[dict]:
         """生成异常分值较高的维度图表参数.
 
         :param alert: 告警信息
@@ -566,11 +564,7 @@ class DimensionDrillManager(AIOPSManager):
         # 维度中文名映射
         dim_mappings = {}
         if metric:
-            dim_mappings = {
-                item["id"]: item["name"]
-                for item in metric.dimensions
-                if item.get("is_dimension", True)
-            }
+            dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
 
         for dimension in graph_dimensions:
             base_graph_panel = copy.deepcopy(graph_panel)
@@ -609,7 +603,7 @@ class DimensionDrillManager(AIOPSManager):
         return sorted(graph_panels, key=lambda x: -x["anomaly_score"])
 
     @classmethod
-    def generate_anomaly_score_top10(cls, root_dimension: Dict) -> List[Dict]:
+    def generate_anomaly_score_top10(cls, root_dimension: dict) -> list[dict]:
         """根据API Serving的异常维度信息构建异常分值Top10的维度组合列表.
         :param root_dimension: 异常维度信息
             {
@@ -661,7 +655,7 @@ class DimensionDrillManager(AIOPSManager):
         ]
 
     @classmethod
-    def generate_anomaly_score_distribution(cls, metric: MetricListCache, root_dimension: Dict) -> Dict:
+    def generate_anomaly_score_distribution(cls, metric: MetricListCache, root_dimension: dict) -> dict:
         """根据API Serving的异常维度信息构建异常维度分布.
 
         :param alert: 告警详情
@@ -776,7 +770,7 @@ class DimensionDrillManager(AIOPSManager):
         }
 
     @classmethod
-    def generate_id_by_dimension_dict(cls, dimensions: Dict) -> str:
+    def generate_id_by_dimension_dict(cls, dimensions: dict) -> str:
         """根据维度字典生成某个维度组合的唯一ID.
 
         :param dimensions: 维度字典
@@ -786,7 +780,7 @@ class DimensionDrillManager(AIOPSManager):
         return "&".join(f"{key}-{dimensions[key]}" for key in keys)
 
     @classmethod
-    def generate_anomaly_dimension_detail(cls, dimension_keys: List, dimension_data: List) -> Dict:
+    def generate_anomaly_dimension_detail(cls, dimension_keys: list, dimension_data: list) -> dict:
         """根据异常维度数据生成维度详情.
 
         :param dimension_keys: 维度列表
@@ -798,14 +792,16 @@ class DimensionDrillManager(AIOPSManager):
             "dimensions": dimensions,
             "dimension_value": "|".join(dimension_data[0]),
             "metric_value": float(dimension_data[1]) if not math.isnan(float(dimension_data[1])) else "NaN",
-            "anomaly_score": max(round(float(dimension_data[2]), 2), 0),  # 如果异常分值小于0，说明维度是正常的，则取0来作展示
+            "anomaly_score": max(
+                round(float(dimension_data[2]), 2), 0
+            ),  # 如果异常分值小于0，说明维度是正常的，则取0来作展示
             "anomaly_level": generate_anomaly_level(max(round(float(dimension_data[2]), 2), 0)),
         }
 
     def is_enable(self):
         return self.ai_setting.dimension_drill.is_enabled
 
-    def generate_predict_args(self, metric: MetricListCache, query_configs: List[dict]) -> Dict:
+    def generate_predict_args(self, metric: MetricListCache, query_configs: list[dict]) -> dict:
         """基于告警信息构建维度下钻API Serving的预测参数
         :param metric: 告警指标详情
         :param query_configs: 告警指标默认查询参数
@@ -839,7 +835,7 @@ class DimensionDrillManager(AIOPSManager):
             ),
         }
 
-    def get_serving_output(self, metric: MetricListCache, graph_panel: Dict):
+    def get_serving_output(self, metric: MetricListCache, graph_panel: dict):
         processing_id = settings.BK_DATA_DIMENSION_DRILL_PROCESSING_ID
         query_configs = copy.deepcopy(graph_panel["targets"][0]["data"]["query_configs"])
 
@@ -852,7 +848,7 @@ class DimensionDrillManager(AIOPSManager):
             )
             if not response["result"]:
                 logger.exception(f"aiops api serving return error: ({processing_id}): {response['message']}")
-                raise AIOpsResultError({"err": response['message']})
+                raise AIOpsResultError({"err": response["message"]})
 
             if len(response["data"]["data"][0]["output"]) == 0:
                 raise AIOpsResultError({"err": _("算法无输出")})
@@ -884,7 +880,7 @@ class DimensionDrillManager(AIOPSManager):
 
         return self.format_result(metric, serving_output, graph_panel)
 
-    def format_result(self, metric: MetricListCache, serving_output: Dict, graph_panel: Dict):
+    def format_result(self, metric: MetricListCache, serving_output: dict, graph_panel: dict):
         info, anomaly_dimensions, graph_dimensions = self.parse_serving_result(metric, serving_output)
         graph_panels = self.generate_anomaly_graph_panels(self.alert, metric, graph_panel, graph_dimensions)
 
@@ -900,7 +896,7 @@ class RecommendMetricManager(AIOPSManager):
     def is_enable(self):
         return self.ai_setting.metric_recommend.is_enabled
 
-    def generate_predict_args(self, exp_config: Dict) -> Dict:
+    def generate_predict_args(self, exp_config: dict) -> dict:
         """
         基于告警信息构建指标推荐PI Serving的预测参数.
         :param exp_config: 查询表达式配置
@@ -936,24 +932,24 @@ class RecommendMetricManager(AIOPSManager):
             raise AIOpsFunctionAccessedError({"func": _("指标推荐")})
 
         graph_panel = self.get_graph_panel(self.alert, use_raw_query_config=True)
-        processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}'
+        processing_id = f"{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}"
         try:
             response = api.bkdata.api_serving_execute(
                 timeout=30,
                 processing_id=processing_id,
                 data={"inputs": [{"timestamp": self.alert.first_anomaly_time * 1000}]},
-                config={"predict_args": self.generate_predict_args(copy.deepcopy(graph_panel['targets'][0]['data']))},
+                config={"predict_args": self.generate_predict_args(copy.deepcopy(graph_panel["targets"][0]["data"]))},
             )
             if not response["result"]:
                 logger.exception(f"aiops api serving return error: ({processing_id}): {response['message']}")
                 if self.AIOPS_FUNCTION_LOGIC_ERROR_CODE in response["message"]:
                     return {"info": {}, "recommended_metrics": []}
-                raise AIOpsResultError({"err": response['message']})
+                raise AIOpsResultError({"err": response["message"]})
 
             if len(response["data"]["data"][0]["output"]) == 0:
                 raise AIOpsResultError({"err": _("算法无输出")})
         except BKAPIError as e:
-            logger.exception(f'failed to call aiops api serving({processing_id}): {e}')
+            logger.exception(f"failed to call aiops api serving({processing_id}): {e}")
 
             if e.data.get("code") == self.AIOPS_FUNCTION_NOT_ACCESSED_CODE:
                 raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
@@ -978,8 +974,8 @@ class RecommendMetricManager(AIOPSManager):
 
     @classmethod
     def generate_recommended_metric_panels(
-        cls, alert: AlertDocument, graph_panel: Dict, recommended_results: Dict
-    ) -> List[Dict]:
+        cls, alert: AlertDocument, graph_panel: dict, recommended_results: dict
+    ) -> list[dict]:
         """
         生成推荐指标的图表配置
         :param alert: 告警信息
@@ -1050,7 +1046,10 @@ class RecommendMetricManager(AIOPSManager):
         )
 
         # 批量获取所有需要查询的指标
-        metric_data_set = MetricListCache.objects.filter(filter_conditions).values(*field_set)
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(alert.event["bk_biz_id"])
+        metric_data_set = MetricListCache.objects.filter(filter_conditions, bk_tenant_id=bk_tenant_id).values(
+            *field_set
+        )
 
         for key_tuple, met_info_recommends in filter_conditions_group.items():
             # 根据key_tuple组成新的key，用于查询
@@ -1064,7 +1063,7 @@ class RecommendMetricManager(AIOPSManager):
                     # 没有获取到目标数据，跳过
                     continue
 
-                metric = MetricListCache(**metric_data)
+                metric = MetricListCache(bk_tenant_id=bk_tenant_id, **metric_data)
 
                 recommend_info = {
                     "reasons": recommend_metric[3],
@@ -1077,9 +1076,7 @@ class RecommendMetricManager(AIOPSManager):
                 dim_mappings = {}
                 if metric:
                     dim_mappings = {
-                        item["id"]: item["name"]
-                        for item in metric.dimensions
-                        if item.get("is_dimension", True)
+                        item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)
                     }
                 dimension_keys = sorted(dimensions.keys())
 
@@ -1133,12 +1130,12 @@ class RecommendMetricManager(AIOPSManager):
         return graph_panels
 
     @classmethod
-    def parse_recommend_metric(cls, recommend_metric: str) -> Tuple[str, Dict]:
+    def parse_recommend_metric(cls, recommend_metric: str) -> tuple[str, dict]:
         """解析推荐的指标及其维度信息.
 
         :param recommend_metric: 推荐的指标
         """
-        metric_tokens = recommend_metric.split('|')
+        metric_tokens = recommend_metric.split("|")
         if len(metric_tokens) <= 1:
             return metric_tokens[0], {}
 
@@ -1147,7 +1144,7 @@ class RecommendMetricManager(AIOPSManager):
         return metric_tokens[0], dimensions
 
     @classmethod
-    def classify_recommended_metrics(cls, recommended_metric_panels: List[Dict]) -> List[Dict]:
+    def classify_recommended_metrics(cls, recommended_metric_panels: list[dict]) -> list[dict]:
         """把推荐指标进行分类.
 
         :param recommended_metric_panels: 未分类的推荐指标列表，包含画图的panels信息
@@ -1181,7 +1178,7 @@ class RecommendMetricManager(AIOPSManager):
 
 
 class DimensionDrillLightManager(DimensionDrillManager):
-    def format_result(self, metric: MetricListCache, serving_output: Dict, graph_panel: Dict):
+    def format_result(self, metric: MetricListCache, serving_output: dict, graph_panel: dict):
         root_dimensions = json.loads(serving_output["root_dims"])
         return {
             "info": {
