@@ -409,12 +409,17 @@ class ClusteringConfigHandler:
             "task_detail": task_detail,
         }
 
-    def debug(self, input_data, predefined_varibles):
+    def debug(self, input_data, predefined_varibles, delimeter, max_log_length):
         """
         正则调试
         """
         try:
-            return pattern.debug(log=input_data, predefined_variables=predefined_varibles)
+            return pattern.debug(
+                log=input_data,
+                predefined_variables=predefined_varibles,
+                delimeter=delimeter,
+                max_log_length=max_log_length,
+            )
         except Exception as e:
             raise ClusteringDebugException(ClusteringDebugException.MESSAGE.format(e=e))
 
