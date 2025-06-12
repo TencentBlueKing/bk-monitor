@@ -60,7 +60,7 @@ export default defineComponent({
   emits: ['show', 'success', 'refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const users = ref<string>([]);
+    const users = ref<string[]>([]);
     const noticeWay = ref([]);
     const noticeWayList = ref<{ label: string; type: string }[]>([]);
     const reason = ref('');
@@ -76,6 +76,7 @@ export default defineComponent({
       () => props.show,
       async v => {
         if (v) {
+          users.value = [];
           loading.value = true;
           handleFocus();
           await getNoticeWayList();
@@ -83,6 +84,7 @@ export default defineComponent({
         }
       }
     );
+
     /* 通知方式列表 */
     const getNoticeWayList = async () => {
       if (!noticeWayList.value.length) {
