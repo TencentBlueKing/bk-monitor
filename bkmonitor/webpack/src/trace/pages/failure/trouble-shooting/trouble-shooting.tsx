@@ -41,22 +41,88 @@ export default defineComponent({
   emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const isAllCollapsed = shallowRef(true);
+    const data = [
+      {
+        key: 'name',
+        value: 'VM-156-110-centos',
+        label: '主机名',
+      },
+      {
+        key: 'ip',
+        value: '11.185.157.110',
+        label: '目标IP',
+      },
+
+      {
+        key: 'area',
+        value: 0,
+        label: '管控区域',
+      },
+      {
+        key: 'key',
+        value: 'Value 占位',
+        label: 'Key占位',
+      },
+    ];
+    const alert = ['日志平台-es 磁盘容量告警', '蓝鲸-es 磁盘容量告警', 'GSE-es 磁盘容量告警'];
     const activeIndex = shallowRef([0, 1]);
+    const childActiveIndex = shallowRef([0]);
     const dimensional = shallowRef([
       {
         name: '异常维度（组合）1',
         content: '拥有支撑数百款腾讯业务的经验沉淀，兼容各种复杂的系统架构，生于运维 · 精于运维',
+        percentage: '90%',
+        data,
+        alert,
       },
       {
         name: '异常维度（组合）2',
+        percentage: '80%',
         content:
           '从配置管理，到作业执行、任务调度和监控自愈，再通过运维大数据分析辅助运营决策，全方位覆盖业务运营的全周期保障管理。',
+        data,
+        alert,
       },
       {
         name: '异常维度（组合）3',
+        percentage: '70%',
         content: '开放的PaaS，具备强大的开发框架和调度引擎，以及完整的运维开发培训体系，助力运维快速转型升级。',
+        data,
+        alert,
       },
     ]);
+    const dimensionalTitleSlot = item => (
+      <span class='dimensional-title'>
+        {item.name}
+        <span class='red-font'>异常程度 {item.percentage}</span>
+      </span>
+    );
+    const dimensionalContentSlot = item => (
+      <span class='dimensional-content'>
+        {item.data.map(ele => (
+          <span
+            key={ele.key}
+            class='dimensional-content-item'
+          >
+            <span class='item-label'>{ele.label}</span>
+            <span>{ele.value}</span>
+          </span>
+        ))}
+        <span class='content-title'>
+          包含 <b class='blue-txt'>{item.alert.length}</b> 个告警
+        </span>
+        {item.alert.map((ele, ind) => (
+          <span
+            key={ind}
+            class='dimensional-content-item'
+          >
+            <span class='blue-txt'>{ele}</span>
+          </span>
+        ))}
+      </span>
+    );
+
     const renderDisposal = () => (
       <div>
         基于历史故障知识库的处置建议
@@ -66,16 +132,17 @@ export default defineComponent({
         <div>3. XXXXXXXXXXXXXXXXXX </div>
       </div>
     );
+
     const renderDimensional = () => (
       <div>
         <span>故障关联的告警，统计出最异常的维度（组合）：</span>
         <Collapse
           class='dimensional-collapse'
-          // v-model={this.activeIndex}
-          // v-slots={{
-          //   default: item => titleSlot(item),
-          //   content: item => contentSlot(item),
-          // }}
+          v-model={childActiveIndex.value}
+          v-slots={{
+            default: item => dimensionalTitleSlot(item),
+            content: item => dimensionalContentSlot(item),
+          }}
           list={dimensional.value}
         />
       </div>
@@ -92,11 +159,17 @@ export default defineComponent({
         render: renderDimensional,
       },
     ]);
+    const handleToggleAll = () => {
+      isAllCollapsed.value = !isAllCollapsed.value;
+      activeIndex.value = isAllCollapsed.value ? list.value.map((_, ind) => ind) : [];
+    };
 
     return {
       t,
       activeIndex,
       list,
+      isAllCollapsed,
+      handleToggleAll,
     };
   },
   render() {
@@ -111,7 +184,14 @@ export default defineComponent({
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
           {this.t('诊断分析')}
-          <i class='icon-monitor icon-zhankai2 icon-btn' />
+          <i
+            class={`icon-monitor icon-${this.isAllCollapsed ? 'shouqi3' : 'zhankai2'} icon-btn`}
+            v-bk-tooltips={{
+              content: this.isAllCollapsed ? this.t('全部收起') : this.t('全部展开'),
+              placements: ['top'],
+            }}
+            onClick={this.handleToggleAll}
+          />
         </div>
         <div class='trouble-shooting-main'>
           <div class='ai-card'>
