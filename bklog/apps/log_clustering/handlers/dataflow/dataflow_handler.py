@@ -70,12 +70,9 @@ from apps.log_clustering.handlers.dataflow.constants import (
     DEFAULT_SPARK_PSEUDO_SHUFFLE,
     DIST_CLUSTERING_FIELDS,
     DIST_FIELDS,
-    DIVERSION_NODE_NAME,
     NOT_CLUSTERING_FILTER_RULE,
     NOT_CONTAIN_SQL_FIELD_LIST,
     OPERATOR_AND,
-    SPLIT_TYPE,
-    STREAM_SOURCE_NODE_TYPE,
     TSPIDER_STORAGE_INDEX_FIELDS,
     TSPIDER_STORAGE_NODE_TYPE,
     ActionEnum,
@@ -98,13 +95,11 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
     MergeNodeCls,
     ModelCls,
     ModelClusterPredictNodeCls,
-    ModifyFlowCls,
     OperatorFlowCls,
     PredictDataFlowCls,
     PreTreatDataFlowCls,
     RealTimeCls,
     RedisStorageCls,
-    RequireNodeCls,
     SplitCls,
     StreamSourceCls,
     TspiderStorageCls,
@@ -196,46 +191,6 @@ class DataFlowHandler(BaseAiopsHandler):
             )
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}, result -> {result}")
 
-    def create_pre_treat_flow(self, index_set_id: int):
-        """
-        创建pre-treat flow
-        """
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-
-        self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
-
-        all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
-        filter_rule, not_clustering_rule = self._init_filter_rule(
-            clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
-        )
-        time_format = arrow.now().format("YYYYMMDDHHmmssSSS")
-        bk_biz_id = self.conf.get("bk_biz_id") if clustering_config.collector_config_id else clustering_config.bk_biz_id
-        pre_treat_flow_dict = asdict(
-            self._init_pre_treat_flow(
-                result_table_id=clustering_config.bkdata_etl_result_table_id,
-                filter_rule=filter_rule,
-                not_clustering_rule=not_clustering_rule,
-                clustering_fields=all_fields_dict.get(clustering_config.clustering_fields),
-                time_format=time_format,
-                bk_biz_id=bk_biz_id,
-            )
-        )
-        pre_treat_flow = self._render_template(
-            flow_mode=FlowMode.PRE_TREAT_FLOW.value, render_obj={"pre_treat": pre_treat_flow_dict}
-        )
-        flow = json.loads(pre_treat_flow)
-        create_pre_treat_flow_request = CreateFlowCls(
-            nodes=flow,
-            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.index_set_id}_pre_treat_flow_{time_format}",
-            project_id=self.conf.get("project_id"),
-        )
-        request_dict = self._set_username(create_pre_treat_flow_request)
-        request_dict.update({"bk_biz_id": bk_biz_id})
-        result = BkDataDataFlowApi.create_flow(request_dict)
-        clustering_config.pre_treat_flow = pre_treat_flow_dict
-        clustering_config.pre_treat_flow_id = result["flow_id"]
-        clustering_config.save()
-        return result
 
     @classmethod
     def _init_filter_rule(cls, filter_rules, all_fields_dict, clustering_field):
@@ -394,137 +349,6 @@ class DataFlowHandler(BaseAiopsHandler):
         env = Environment(loader=file_loader)
         template = env.get_template(file_name)
         return template.render(**render_obj)
-
-    def create_after_treat_flow(self, index_set_id):
-        """
-        create_after_treat_flow
-        @param index_set_id:
-        @return:
-        """
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
-        source_rt_name = (
-            clustering_config.collector_config_name_en
-            if clustering_config.collector_config_name_en
-            else clustering_config.source_rt_name
-        )
-        time_format = arrow.now().format("YYYYMMDDHHmmssSSS")
-        bk_biz_id = self.conf.get("bk_biz_id") if clustering_config.collector_config_id else clustering_config.bk_biz_id
-
-        after_treat_flow_dict = asdict(
-            self._init_after_treat_flow(
-                clustering_fields=all_fields_dict.get(clustering_config.clustering_fields),
-                sample_set_result_table_id=clustering_config.pre_treat_flow["sample_set"]["result_table_id"],
-                non_clustering_result_table_id=clustering_config.pre_treat_flow["not_clustering"]["result_table_id"],
-                model_id=clustering_config.model_id,
-                model_release_id=self.get_latest_released_id(clustering_config.model_id),
-                src_rt_name=source_rt_name,
-                target_bk_biz_id=clustering_config.bk_biz_id,
-                clustering_config=clustering_config,
-                time_format=time_format,
-                bk_biz_id=bk_biz_id,
-            )
-        )
-        after_treat_flow = self._render_template(
-            flow_mode=FlowMode.AFTER_TREAT_FLOW.value
-            if clustering_config.collector_config_id
-            else FlowMode.AFTER_TREAT_FLOW_BKDATA.value,
-            render_obj={"after_treat": after_treat_flow_dict},
-        )
-        flow = json.loads(after_treat_flow)
-        new_cls_pattern_rt = after_treat_flow_dict["diversion"]["result_table_id"]
-        # 这里是为了越过分流节点
-        if clustering_config.bk_biz_id == self.conf.get("bk_biz_id") or not clustering_config.collector_config_id:
-            flow, new_cls_pattern_rt = self.deal_diversion_node(flow=flow, after_treat_flow_dict=after_treat_flow_dict)
-        create_after_treat_flow_request = CreateFlowCls(
-            nodes=flow,
-            flow_name=f"{settings.ENVIRONMENT}_{clustering_config.index_set_id}_after_treat_flow_{time_format}",
-            project_id=self.conf.get("project_id"),
-        )
-        request_dict = self._set_username(create_after_treat_flow_request)
-        request_dict.update({"bk_biz_id": bk_biz_id})
-        result = BkDataDataFlowApi.create_flow(request_dict)
-        clustering_config.after_treat_flow = after_treat_flow_dict
-        clustering_config.after_treat_flow_id = result["flow_id"]
-        clustering_config.new_cls_pattern_rt = new_cls_pattern_rt
-        clustering_config.save()
-        self.add_kv_source_node(
-            clustering_config.after_treat_flow_id,
-            clustering_config.after_treat_flow["join_signature_tmp"]["result_table_id"],
-            bk_biz_id=bk_biz_id,
-        )
-        if clustering_config.bk_biz_id != self.conf.get("bk_biz_id") and clustering_config.collector_config_id:
-            stream_source_node = self.add_stream_source(
-                flow_id=clustering_config.after_treat_flow_id,
-                stream_source_table_id=clustering_config.after_treat_flow["diversion"]["result_table_id"],
-                target_bk_biz_id=clustering_config.bk_biz_id,
-            )
-            self.add_tspider_storage(
-                flow_id=clustering_config.after_treat_flow_id,
-                tspider_storage_table_id=clustering_config.after_treat_flow["diversion"]["result_table_id"],
-                target_bk_biz_id=clustering_config.bk_biz_id,
-                expires=clustering_config.after_treat_flow["diversion_tspider"]["expires"],
-                cluster=clustering_config.after_treat_flow["diversion_tspider"]["cluster"],
-                source_node_id=stream_source_node["node_id"],
-            )
-        modify_flow_dict = asdict(
-            self.modify_flow(
-                after_treat_flow_id=clustering_config.after_treat_flow_id,
-                group_by_result_table_id=clustering_config.after_treat_flow["group_by"]["result_table_id"],
-                redis_result_table_id=clustering_config.after_treat_flow["join_signature_tmp"]["result_table_id"],
-                modify_node_result_table_id=clustering_config.after_treat_flow["join_signature"]["result_table_id"],
-                modify_node_result_table_name=clustering_config.after_treat_flow["join_signature"]["table_name"],
-                bk_biz_id=bk_biz_id,
-            )
-        )
-        modify_flow = self._render_template(
-            flow_mode=FlowMode.MODIFY_FLOW.value, render_obj={"modify_flow": modify_flow_dict}
-        )
-        modify_flow_json = json.loads(modify_flow)
-        request_dict = self._set_username(modify_flow_json)
-        clustering_config.modify_flow = modify_flow_dict
-        clustering_config.save()
-        flow_res = BkDataDataFlowApi.put_flow_nodes(request_dict)
-        data_processing_id_config = self.get_serving_data_processing_id_config(
-            clustering_config.after_treat_flow["model"]["result_table_id"]
-        )
-        self.update_model_instance(model_instance_id=data_processing_id_config["id"])
-        return flow_res
-
-    def deal_diversion_node(self, flow, after_treat_flow_dict):
-        """
-        为了处理分流节点不能分流到同业务id
-        @param flow:
-        @param after_treat_flow_dict:
-        @return:
-        """
-        storage_type = self.conf.get("tspider_storage_type", TSPIDER_STORAGE_NODE_TYPE)
-
-        for flow_obj in flow:
-            if flow_obj["node_type"] == SPLIT_TYPE:
-                flow.remove(flow_obj)
-                flow.append(
-                    {
-                        "name": _("新类判断({})").format(storage_type),
-                        "result_table_id": after_treat_flow_dict["judge_new_class"]["result_table_id"],
-                        "bk_biz_id": after_treat_flow_dict["target_bk_biz_id"],
-                        "indexed_fields": TSPIDER_STORAGE_INDEX_FIELDS,
-                        "cluster": after_treat_flow_dict["diversion_tspider"]["cluster"],
-                        "expires": after_treat_flow_dict["diversion_tspider"]["expires"],
-                        "has_unique_key": False,
-                        "storage_keys": [],
-                        "id": 283090,
-                        "from_nodes": [
-                            {
-                                "id": 268099,
-                                "from_result_table_ids": [after_treat_flow_dict["judge_new_class"]["result_table_id"]],
-                            }
-                        ],
-                        "node_type": storage_type,
-                        "frontend_info": {"x": 2231, "y": 73},
-                    }
-                )
-        return flow, after_treat_flow_dict["judge_new_class"]["result_table_id"]
 
     def _init_after_treat_flow(
         self,
@@ -760,44 +584,6 @@ class DataFlowHandler(BaseAiopsHandler):
 
         return storage_config
 
-    def add_kv_source_node(self, flow_id, kv_source_result_table_id, bk_biz_id):
-        """
-        给flow添加kv_source节点
-        @param flow_id:
-        @param kv_source_result_table_id:
-        @param bk_biz_id:
-        @return:
-        """
-        add_kv_source_node_request = AddFlowNodesCls(
-            flow_id=flow_id,
-            result_table_id=kv_source_result_table_id,
-        )
-        add_kv_source_node_request.config["bk_biz_id"] = bk_biz_id
-        add_kv_source_node_request.config["from_result_table_ids"].append(kv_source_result_table_id)
-        add_kv_source_node_request.config["result_table_id"] = kv_source_result_table_id
-        request_dict = self._set_username(add_kv_source_node_request)
-        return BkDataDataFlowApi.add_flow_nodes(request_dict)
-
-    def add_stream_source(self, flow_id, stream_source_table_id, target_bk_biz_id):
-        """
-        add_stream_source
-        @param flow_id:
-        @param stream_source_table_id:
-        @param target_bk_biz_id:
-        @return:
-        """
-        add_stream_source_request = AddFlowNodesCls(
-            flow_id=flow_id,
-            result_table_id=stream_source_table_id,
-        )
-        add_stream_source_request.config["bk_biz_id"] = target_bk_biz_id
-        add_stream_source_request.config["from_result_table_ids"].append(stream_source_table_id)
-        add_stream_source_request.config["result_table_id"] = stream_source_table_id
-        add_stream_source_request.config["name"] = DIVERSION_NODE_NAME
-        add_stream_source_request.node_type = STREAM_SOURCE_NODE_TYPE
-        request_dict = self._set_username(add_stream_source_request)
-        return BkDataDataFlowApi.add_flow_nodes(request_dict)
-
     def add_tspider_storage(
         self, flow_id, tspider_storage_table_id, target_bk_biz_id, expires, cluster, source_node_id
     ):
@@ -837,50 +623,6 @@ class DataFlowHandler(BaseAiopsHandler):
         add_tspider_storage_request.node_type = storage_type
         request_dict = self._set_username(add_tspider_storage_request)
         return BkDataDataFlowApi.add_flow_nodes(request_dict)
-
-    def modify_flow(
-        self,
-        after_treat_flow_id: int,
-        group_by_result_table_id: str,
-        redis_result_table_id: str,
-        modify_node_result_table_id: str,
-        modify_node_result_table_name: str,
-        bk_biz_id: int,
-    ):
-        """
-        modify_flow
-        @param after_treat_flow_id:
-        @param group_by_result_table_id:
-        @param redis_result_table_id:
-        @param modify_node_result_table_id:
-        @param modify_node_result_table_name:
-        @param bk_biz_id:
-        @return:
-        """
-        graph = BkDataDataFlowApi.get_flow_graph(
-            params={"flow_id": after_treat_flow_id, "bk_username": self.conf.get("bk_username"), "bk_biz_id": bk_biz_id}
-        )
-        graph_nodes_dict = {
-            (node["result_table_ids"][0], node["node_type"]): node["node_id"] for node in graph["nodes"]
-        }
-        modify_flow_cls = ModifyFlowCls(
-            flow_id=after_treat_flow_id,
-            node_id=graph_nodes_dict.get((modify_node_result_table_id, NodeType.REALTIME)),
-            id=f"ch_{graph_nodes_dict.get((modify_node_result_table_id, NodeType.REALTIME))}",
-            bk_biz_id=bk_biz_id,
-            table_name=modify_node_result_table_name,
-            group_by_node=RequireNodeCls(
-                node_id=graph_nodes_dict.get((group_by_result_table_id, NodeType.REALTIME)),
-                result_table_id=group_by_result_table_id,
-                id=f"ch_{graph_nodes_dict.get((group_by_result_table_id, NodeType.REALTIME))}",
-            ),
-            redis_node=RequireNodeCls(
-                node_id=graph_nodes_dict.get((redis_result_table_id, NodeType.REDIS_KV_SOURCE)),
-                result_table_id=redis_result_table_id,
-                id=f"ch_{graph_nodes_dict.get((redis_result_table_id, NodeType.REDIS_KV_SOURCE))}",
-            ),
-        )
-        return modify_flow_cls
 
     def get_latest_deploy_data(self, flow_id, bk_biz_id):
         """
