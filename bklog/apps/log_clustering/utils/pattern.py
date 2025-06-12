@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import base64
 import json
 import re
@@ -6,18 +5,17 @@ import string
 
 import jieba_fast
 
-from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 
-NUMBER_REGEX_LST = ['NUMBER', 'PERIOD', 'IP', 'CAPACITY']
+NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
 
 
 def format_pattern(pattern):
-    return ' %s' % ' '.join([f'#{o.name}#' if hasattr(o, 'name') else o for o in pattern]) if pattern else ''
+    return " {}".format(" ".join([f"#{o.name}#" if hasattr(o, "name") else o for o in pattern])) if pattern else ""
 
 
 def sort_func(elem):
     """对正则列表进行排序"""
-    return 1 if elem[0] not in ('NUMBER', 'CHAR') else 0
+    return 1 if elem[0] not in ("NUMBER", "CHAR") else 0
 
 
 def parse_regex(predefined_varibles=None):
@@ -30,11 +28,11 @@ def parse_regex(predefined_varibles=None):
         predefined_varibles = []
 
     def single_parse_regex(variable):
-        parts = variable.split(':')
+        parts = variable.split(":")
         if len(parts) <= 1:
-            raise Exception('Invalid variable format')
+            raise Exception("Invalid variable format")
         name = parts[0]
-        wrapped_regex = ':'.join([str(i) for i in parts[1:]])
+        wrapped_regex = ":".join([str(i) for i in parts[1:]])
         return name, re.compile(wrapped_regex)
 
     variables = [single_parse_regex(variable) for variable in predefined_varibles]
@@ -44,18 +42,18 @@ def parse_regex(predefined_varibles=None):
 def is_contains_chinese(strs):
     """判断字符串是否包含中文."""
     for _char in strs:
-        if '\u4e00' <= _char <= '\u9fa5':
+        if "\u4e00" <= _char <= "\u9fa5":
             return True
     return False
 
 
 def judge_chinese(strs):
     """判断是否有中文，是否全部中文."""
-    r = ['\u4e00' <= _char <= '\u9fa5' for _char in strs]
+    r = ["\u4e00" <= _char <= "\u9fa5" for _char in strs]
     return any(r), all(r)
 
 
-class Variable(object):
+class Variable:
     def __init__(self, name, value):
         self.value = value
         self.name = name
@@ -66,7 +64,7 @@ class Variable(object):
         return self.name == other.name
 
     def __repr__(self):
-        return "'%s'" % self.value
+        return f"'{self.value}'"
 
     def __str__(self):
         return self.value
@@ -107,7 +105,7 @@ def match_text_and_tokenize(variables, content, delimeter, number_variables, is_
             matched_object = re.search(regex, content)
 
     tokens = re.split(delimeter, content.strip())
-    tokens = [w.strip(" '") for w in tokens if w is not None and len(w) > 0 and not (w in string.punctuation)]
+    tokens = [w.strip(" '") for w in tokens if w is not None and len(w) > 0 and w not in string.punctuation]
 
     cate_tokens = []
     for t in tokens:
@@ -148,10 +146,10 @@ def match_text_and_tokenize(variables, content, delimeter, number_variables, is_
                         if match:
                             idx = chinese_tokens.index(tt)
                             if idx > 0:
-                                cate_tokens.append(''.join(chinese_tokens[:idx]))
+                                cate_tokens.append("".join(chinese_tokens[:idx]))
                             cate_tokens.append(Variable(name.upper(), tt))
                             if idx + 1 < len(chinese_tokens):
-                                cate_tokens.append(''.join(chinese_tokens[idx + 1 :]))
+                                cate_tokens.append("".join(chinese_tokens[idx + 1 :]))
                             break
                     if not match:
                         cate_tokens.append(t)
@@ -162,21 +160,21 @@ def match_text_and_tokenize(variables, content, delimeter, number_variables, is_
 
 def debug(
     log,
-    predefined_variables=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
-    delimeter=OnlineTaskTrainingArgs.DELIMETER,
-    max_log_length=OnlineTaskTrainingArgs.MAX_LOG_LENGTH,
+    predefined_variables,
+    delimeter,
+    max_log_length,
 ):
     """
     正则调试
     """
-    predefined_variables_list = json.loads(base64.b64decode(predefined_variables).decode('utf-8'))
+    predefined_variables_list = json.loads(base64.b64decode(predefined_variables).decode("utf-8"))
     variables = parse_regex(predefined_variables_list)
     variables.sort(key=sort_func, reverse=True)
     # 和number有关/无关的正则
     number_variables = [(name, regex) for (name, regex) in variables if name in NUMBER_REGEX_LST]
     variables = [(name, regex) for (name, regex) in variables if name not in NUMBER_REGEX_LST]
 
-    delimeter = json.loads(base64.b64decode(delimeter).decode('utf-8'))
+    delimeter = json.loads(base64.b64decode(delimeter).decode("utf-8"))
 
     seq = match_text_and_tokenize(variables, log[: min(max_log_length, len(log))], delimeter, number_variables)
     return format_pattern(seq)

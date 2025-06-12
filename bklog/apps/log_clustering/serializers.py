@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     StrategiesAlarmLevelEnum,
     StrategiesType,
 )
+from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 
@@ -93,9 +94,9 @@ class ClusteringConfigSerializer(serializers.Serializer):
 
 class ClusteringDebugSerializer(serializers.Serializer):
     input_data = serializers.CharField()
-    predefined_varibles = serializers.CharField()
-    delimeter = serializers.CharField(required=False)
-    max_log_length = serializers.IntegerField(required=False)
+    predefined_varibles = serializers.CharField(default=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES)
+    delimeter = serializers.CharField(required=False, default=OnlineTaskTrainingArgs.DELIMETER)
+    max_log_length = serializers.IntegerField(required=False, default=OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
 
 
 class SetRemarkSerializer(serializers.Serializer):
