@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,41 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { createRouter, createWebHashHistory } from 'vue-router';
+import { defineComponent } from 'vue';
 
-import alarmCenterRoutes from './modules/alarm-center';
-import alarmShield from './modules/alarm-shield';
-import Report from './modules/email-subscription';
-import failureRoutes from './modules/failure';
-import homeRoutes from './modules/home';
-import profilingRoutes from './modules/profiling';
-import rotationRoutes from './modules/rotation';
-
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes: [
-    ...[
-      ...homeRoutes,
-      ...alarmShield,
-      ...rotationRoutes,
-      ...profilingRoutes,
-      ...Report,
-      ...failureRoutes,
-      ...alarmCenterRoutes,
-    ].map(item => ({
-      ...item,
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/'),
-    })),
-    {
-      path: '/:pathMatch(.*)',
-      redirect: {
-        name: 'home',
-      },
-    },
-  ],
+import './alarm-center.scss';
+export default defineComponent({
+  name: 'AlarmCenter',
+  setup() {},
+  render() {
+    return <div class='alarm-center'>AlarmCenter</div>;
+  },
 });
-router.onError(e => {
-  console.error('router error: ', e);
-});
-
-export default router;
