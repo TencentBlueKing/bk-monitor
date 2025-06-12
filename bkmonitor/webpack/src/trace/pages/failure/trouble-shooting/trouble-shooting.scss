@@ -27,6 +27,16 @@
         border-radius: 2px;
       }
     }
+    .header-bg {
+      position: absolute;
+      right: 22px;
+      display: inline-block;
+      width: 230px;
+      height: 42px;
+      background-image: url('../../../static/img/failure/ai-title-bg.png');
+      background-size: cover;
+      opacity: 0.9;
+    }
   }
   .trouble-shooting-main {
     width: 100%;

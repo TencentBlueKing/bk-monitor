@@ -184,6 +184,7 @@ export default defineComponent({
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
           {this.t('诊断分析')}
+          <span class='header-bg' />
           <i
             class={`icon-monitor icon-${this.isAllCollapsed ? 'shouqi3' : 'zhankai2'} icon-btn`}
             v-bk-tooltips={{
