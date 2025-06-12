@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 
+from celery import current_task
 from django.conf import settings
 from django.http import HttpRequest
 
@@ -22,6 +23,22 @@ from constants.common import DEFAULT_TENANT_ID, SourceApp
 logger = logging.getLogger(__name__)
 
 
+def _is_in_celery_task() -> bool:
+    """
+    判断当前逻辑是否处于Celery任务中
+    """
+    return current_task is not None and current_task.request is not None and current_task.name is not None
+
+
+def _get_current_celery_task_name() -> str | None:
+    """
+    获取当前Celery任务名（如果有）
+    """
+    if _is_in_celery_task():
+        return current_task.name
+    return None
+
+
 def get_request_tenant_id(peaceful=False) -> str | None:
     """
     获取当前请求的租户id
@@ -30,22 +47,26 @@ def get_request_tenant_id(peaceful=False) -> str | None:
 
     request = get_request(peaceful=True)
 
-    # 单租户模式下，租户id为默认租户id
-    if not settings.ENABLE_MULTI_TENANT_MODE:
-        if not request:
-            logger.warning("get_request_tenant_id: cannot get request for bk_tenant_id from local.")
-        return DEFAULT_TENANT_ID
-
     # 从request获取
     if request and getattr(request, "user", None) and getattr(request.user, "tenant_id", None):
-        return getattr(request.user, "tenant_id")
-
-    logger.warning("get_request_tenant_id: cannot get bk_tenant_id from request.")
+        return request.user.tenant_id
 
     # 从local获取
     tenant_id = get_local_tenant_id()
     if tenant_id:
         return tenant_id
+
+    # 单租户模式下，返回默认租户ID
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        # 打印日志，方便排查有多租户改造遗漏的celery任务
+        current_task_name = _get_current_celery_task_name()
+        if current_task_name:
+            logger.warning(
+                f"get_request_tenant_id: cannot get tenant_id from request or local, current celery task name: {current_task_name}"
+            )
+        else:
+            logger.warning("get_request_tenant_id: cannot get tenant_id from request or local.")
+        return DEFAULT_TENANT_ID
 
     # 如果peaceful为True，则不需要抛出异常
     if peaceful:
