@@ -95,6 +95,14 @@
       "vue-property-decorator": "^9.1.2",
       "vue-tsx-support": "^3.2.0",
       "vuex-module-decorators": "^1.2.0"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "@biomejs/biome",
+      "@parcel/watcher",
+      "core-js",
+      "simple-git-hooks",
+      "vue-demi",
+      "vuex-module-decorators"
+    ]
   }
 }
