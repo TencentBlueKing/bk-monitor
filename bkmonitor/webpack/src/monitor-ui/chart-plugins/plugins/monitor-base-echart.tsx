@@ -61,7 +61,6 @@ class MonitorBaseEchart extends BaseEchart {
   @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
   @Prop({ type: Boolean, default: false }) needZrClick: boolean;
-
   /** 是否需要图表的鼠标右击事件 */
   @Prop({ type: Boolean, default: false }) needMenuClick: boolean;
   /* tooltips内容最后一项格式化函数 */
@@ -178,7 +177,6 @@ class MonitorBaseEchart extends BaseEchart {
             });
           });
         }
-
         this.$emit('loaded');
       }, 100);
     }
