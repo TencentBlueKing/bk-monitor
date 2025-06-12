@@ -246,7 +246,7 @@ class BkunifylogbeatChecker(Checker):
         if not pod_list:
             self.append_error_info(_("获取采集器Pod列表为空"))
             return
-        stats = {"total": 0, "success": 0, "error_list": []}
+        stats = {"success": 0, "error_list": []}
         for pod in pod_list.items:
             try:
                 pod_name = pod.metadata.name if pod.metadata else "unknown"
@@ -276,11 +276,11 @@ class BkunifylogbeatChecker(Checker):
             self.pod_list.append(match_pod)
         # 汇总日志输出
         if not stats["error_list"]:
-            self.append_normal_info(_("共检测{total}个Pod，全部正常，无异常。").format(total=stats["total"]))
+            self.append_normal_info(_("共检测{total}个Pod，全部正常，无异常。").format(total=len(pod_list.items)))
         else:
             self.append_error_info(
                 _("共检测{total}个Pod，{success}个正常，{error_count}个异常。异常详情: {details}").format(
-                    total=stats["total"],
+                    total=len(pod_list.items),
                     success=stats["success"],
                     error_count=len(stats["error_list"]),
                     details="; ".join(["[{}] {}".format(item["name"], item["error"]) for item in stats["error_list"]]),
@@ -341,15 +341,14 @@ class BkunifylogbeatChecker(Checker):
         pod_name = pod.metadata.name if pod.metadata and pod.metadata.name else "unknown"
         container_statuses = pod.status.container_statuses or []
         if not container_statuses:
-            self.append_error_info(_("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(pod_name=pod_name))
+            stats["error_list"].append({"name": pod_name, "error": "Pod状态异常: 容器状态信息缺失(container_statuses)"})
             return
         for container_status in container_statuses:
             if container_status.name != self.container_name:
                 continue
-            stats["total"] += 1
             state = getattr(container_status, "state", None)
             if not state:
-                stats["error_list"].append({"name": pod_name, "error": _("容器状态信息缺失")})
+                stats["error_list"].append(_({"name": pod_name, "error": _("容器状态信息缺失(state)")}))
                 continue
             # 检查重启次数
             restart_count = getattr(container_status, "restart_count", 0)
@@ -487,9 +486,6 @@ class BkunifylogbeatChecker(Checker):
                     if ls_output:
                         path_match_results[path].append(pod.name)
                         pod_success = True
-                        self.append_normal_info(
-                            _("Pod[{pod_name}]中找到日志路径[{path}]的配置").format(pod_name=pod.name, path=path)
-                        )
                     else:
                         self.append_warning_info(
                             _("Pod[{pod_name}]中未找到日志路径[{path}]的配置").format(pod_name=pod.name, path=path)
@@ -519,13 +515,20 @@ class BkunifylogbeatChecker(Checker):
 
     def _check_file_held(self, paths: list[str]):
         """检查文件句柄是否被占用"""
+        total_pods = len(self.pod_list) if self.pod_list is not None else 0
+        held_count = 0
+        not_held_count = 0
+        error_count = 0
+        details = []
         for pod in self.pod_list:
             if pod.pod.status.phase != "Running" or not pod.pod.status:
-                self.append_warning_info(
+                self.append_error_info(
                     _("Pod[{pod_name}] 状态异常: {phase}，跳过检查").format(
                         pod_name=pod.name, phase=pod.pod.status.phase if pod.pod.status else "Unknown"
                     )
                 )
+                error_count += 1
+                continue
             for path in paths:
                 command = ["sh", "-c", f"lsof -c bkunifylogbeat | grep '{path}'"]
                 try:
@@ -533,31 +536,34 @@ class BkunifylogbeatChecker(Checker):
                         pod_name=pod.name, namespace=self.namespace, command=command, container_name=self.container_name
                     )
                     if lsof_output and lsof_output.strip():
-                        # 文件被占用，解析lsof输出获取详细信息
-                        self.append_normal_info(
-                            _("Pod[{pod_name}]中的路径[{path}]已被采集进程持有句柄").format(
-                                pod_name=pod.name, path=path
-                            )
-                        )
+                        held_count += 1
+                        details.append(f"[{pod.name}] {path}: held")
                     else:
-                        # 文件未被占用
-                        self.append_warning_info(
-                            _("Pod[{pod_name}]中的路径[{path}]未被采集进程持有句柄，可能未正常采集").format(
-                                pod_name=pod.name, path=path
-                            )
-                        )
+                        not_held_count += 1
+                        details.append(f"[{pod.name}] {path}: not held")
                 except Exception as e:
-                    self.append_error_info(
-                        _("Pod[{pod_name}] 检查文件句柄时发生错误: {error}").format(pod_name=pod.name, error=str(e))
-                    )
+                    error_count += 1
+                    details.append(f"[{pod.name}] {path}: error {str(e)}")
+        self.append_normal_info(
+            _(
+                "文件句柄检查统计: 共检查{total}个Pod，{held}个路径被持有，{not_held}个未被持有，{error}个异常。详情: {details}"
+            ).format(
+                total=total_pods,
+                held=held_count,
+                not_held=not_held_count,
+                error=error_count,
+                details="; ".join(details),
+            )
+        )
 
     def filter_target_server(self):
-        # 排除 None、空字符串等
+        # 保证长度与 pod_list 一致，None 或空字符串用占位符 "__NONE__"
         node_ip_list = []
         for pod in self.pod_list or []:
             node_ip = getattr(pod, "node_ip", None)
-            if isinstance(node_ip, str) and node_ip.strip():
-                node_ip_list.append(node_ip.strip())
+            if isinstance(node_ip, str):
+                node_ip = node_ip.strip()
+            node_ip_list.append(node_ip if node_ip else "__NONE__")
         # 检测有效IP列表，防御性编程
         if not node_ip_list:
             self.append_warning_info(_("没有获取到有效的 Pod 节点 IP"))
@@ -580,11 +586,17 @@ class BkunifylogbeatChecker(Checker):
             return
         if len(node_ip_list) != len(result["info"]):
             self.append_error_info(
-                _("找到的主机数量: {found}, 与期望的数量: {expected} 不一致").format(
-                    found=len(result["info"]), expected=len(node_ip_list)
+                _(
+                    "找到的主机数量: {found}, 与期望的数量: {expected} 不一致，可能原因：节点IP异常（为None)。已找到节点IP: {ips}"
+                ).format(
+                    found=len(result["info"]),
+                    expected=len(node_ip_list),
+                    ips=", ".join([host.get("bk_host_innerip", "") for host in result["info"]]),
                 )
             )
             return
+        else:
+            self.append_normal_info(_("成功匹配到所有节点 IP，对应主机数量: {count}").format(count=len(result["info"])))
         if settings.ENABLE_DHCP:
             self.target_server = {"host_id_list": [host["bk_host_id"] for host in result["info"]]}
         else:
