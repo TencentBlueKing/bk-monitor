@@ -15,8 +15,9 @@ from bkapi_client_core.utils import generic_type_partial as _partial
 
 from aidev_agent.api.base import ApiProtocol
 from aidev_agent.api.bkaidev_client.client import Client
-from aidev_agent.api.domains import BKAIDEV_URL
 from django.conf import settings
+
+AIDEV_APIGW_ENDPOINT = settings.AIDEV_APIGW_ENDPOINT
 
 
 class AidevApiClientBuilder(ApiProtocol):
@@ -24,13 +25,13 @@ class AidevApiClientBuilder(ApiProtocol):
     def get_client(cls, bk_app_code=settings.APP_CODE, bk_app_secret=settings.SECRET_KEY) -> Client:
         # 现阶段 暂未支持一个大的app_code下管理多个子智能体,因此需要基于不同的智能体code去获取
         return _get_client_by_settings(
-            Client, endpoint=BKAIDEV_URL, bk_app_code=bk_app_code, bk_app_secret=bk_app_secret
+            Client, endpoint=AIDEV_APIGW_ENDPOINT, bk_app_code=bk_app_code, bk_app_secret=bk_app_secret
         )
 
     @classmethod
     def get_client_by_request(cls, request):
-        return _partial(Client, _get_client_by_request)(request, endpoint=BKAIDEV_URL)
+        return _partial(Client, _get_client_by_request)(request, endpoint=AIDEV_APIGW_ENDPOINT)
 
     @classmethod
     def get_client_by_username(cls, username):
-        return _partial(Client, _get_client_by_username)(username, endpoint=BKAIDEV_URL)
+        return _partial(Client, _get_client_by_username)(username, endpoint=AIDEV_APIGW_ENDPOINT)
