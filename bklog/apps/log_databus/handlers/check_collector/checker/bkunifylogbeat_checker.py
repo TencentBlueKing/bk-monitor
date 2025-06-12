@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 from django.conf import settings
@@ -54,7 +54,7 @@ class Pod:
     node: str = ""
     node_ip: str = ""
     main_config: str = ""
-    sub_config_list: List[str] = field(default_factory=list)
+    sub_config_list: list[str] = field(default_factory=list)
     pod: v1_pod.V1Pod = field(default_factory=v1_pod.V1Pod)
 
 
@@ -64,15 +64,15 @@ class BkunifylogbeatChecker(Checker):
     CHECKER_NAME = _("采集器检查")
 
     def __init__(
-            self,
-            collector_config: CollectorConfig,
-            *args,
-            **kwargs,
+        self,
+        collector_config: CollectorConfig,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.collector_config = collector_config
         # target_server, 获取NodeIP, 作为target_server传递到agent_checker中
-        self.target_server: Dict[str, Any] = {}
+        self.target_server: dict[str, Any] = {}
         # 初始化bcs_client
         self.k8s_client: Bcs = Bcs(cluster_id=collector_config.bcs_cluster_id)
         self.namespace: str = BK_LOG_COLLECTOR_NAMESPACE
@@ -93,16 +93,17 @@ class BkunifylogbeatChecker(Checker):
         self.cr_list = []
 
         # 匹配到的pod列表
-        self.pod_list: List[Pod] = []
+        self.pod_list: list[Pod] = []
 
     def _run(self):
         self.check_task_status()
         self.check_crd()
         self.check_cr()
-        self.check_log_paths()
+
         self.check_config_map()
         self.check_daemonset()
         self.get_match_pod()
+        self.check_log_paths()
         self.check_pod()
         self.filter_target_server()
 
@@ -245,29 +246,23 @@ class BkunifylogbeatChecker(Checker):
         if not pod_list:
             self.append_error_info(_("获取采集器Pod列表为空"))
             return
+        stats = {"total": 0, "success": 0, "error_list": []}
         for pod in pod_list.items:
             try:
-                pod_name = pod.metadata.name if pod.metadata else 'unknown'
+                pod_name = pod.metadata.name if pod.metadata else "unknown"
                 status = pod.status
                 if status is None:
-                    self.append_error_info(
-                        _("Pod[{}]状态异常，原因: {}").format(pod_name, _("状态信息缺失"))
-                    )
+                    self.append_error_info(_("Pod[{}]状态异常，原因: {}").format(pod_name, _("状态信息缺失")))
                     continue
-                container_statuses = status.container_statuses if status.container_statuses else 'unknown'
+                container_statuses = status.container_statuses if status.container_statuses else "unknown"
                 if not container_statuses:
-                    self.append_error_info(
-                        _("Pod[{}]状态异常，原因: {}").format(pod_name, _("容器状态信息缺失"))
-                    )
+                    self.append_error_info(_("Pod[{}]状态异常，原因: {}").format(pod_name, _("容器状态信息缺失")))
                     continue
             except Exception as e:
                 self.append_error_info(
-                    _("检查Pod[{}]时发生错误: {}").format(
-                        pod.metadata.name if pod.metadata else 'unknown',
-                        str(e)
-                    )
+                    _("检查Pod[{}]时发生错误: {}").format(pod.metadata.name if pod.metadata else "unknown", str(e))
                 )
-            self._check_pod_status(pod=pod)
+            self._check_pod_status(pod=pod, stats=stats)
             pod_name = pod.metadata.name
             sub_config_list = self._match_sub_config(pod_name=pod_name)
             match_pod: Pod = Pod(
@@ -279,6 +274,18 @@ class BkunifylogbeatChecker(Checker):
                 pod=pod,
             )
             self.pod_list.append(match_pod)
+        # 汇总日志输出
+        if not stats["error_list"]:
+            self.append_normal_info(_("共检测{total}个Pod，全部正常，无异常。").format(total=stats["total"]))
+        else:
+            self.append_error_info(
+                _("共检测{total}个Pod，{success}个正常，{error_count}个异常。异常详情: {details}").format(
+                    total=stats["total"],
+                    success=stats["success"],
+                    error_count=len(stats["error_list"]),
+                    details="; ".join(["[{}] {}".format(item["name"], item["error"]) for item in stats["error_list"]]),
+                )
+            )
 
     def check_pod(self):
         """
@@ -295,10 +302,8 @@ class BkunifylogbeatChecker(Checker):
             if not pod.sub_config_list:
                 self.append_error_info(_("Pod[{pod_name}]中没有匹配到配置文件").format(pod_name=pod.name))
                 continue
-            for sub_config in pod.sub_config_list:
-                self._check_sub_config(pod_name=pod.name, sub_config=sub_config)
 
-    def _match_sub_config(self, pod_name: str) -> List[str]:
+    def _match_sub_config(self, pod_name: str) -> list[str]:
         """
         匹配子配置文件, CR会成为配置文件的后缀, 所以认定Pod中有该后缀的配置文件的才是实际采集的Pod
         """
@@ -311,10 +316,7 @@ class BkunifylogbeatChecker(Checker):
             command = ["/bin/sh", "-c", f"ls {self.sub_config_dir} | grep {cr_name}"]
             try:
                 result = self.k8s_client.exec_command(
-                    pod_name=pod_name,
-                    namespace=self.namespace,
-                    command=command,
-                    container_name=self.container_name
+                    pod_name=pod_name, namespace=self.namespace, command=command, container_name=self.container_name
                 )
             except Exception as e:
                 self.append_error_info(_("执行命令时发生异常: {}").format(str(e)))
@@ -327,80 +329,62 @@ class BkunifylogbeatChecker(Checker):
                 config_set.add(config_path)
         return list(config_set)
 
-    def _check_pod_status(self, pod: v1_pod.V1Pod):
+    def _check_pod_status(self, pod: v1_pod.V1Pod, stats: dict[str, Any]) -> None:
+        # 优化：只输出一条汇总日志，包含检测总数、成功数、异常数及异常详情
         """
         检查Pod状态, 包括容器状态, 重启次数, 等待原因, 退出原因等
         """
         if not pod or not pod.status:
             self.append_error_info(_("Pod状态信息不完整"))
             return
+        # 安全获取 pod name
+        pod_name = pod.metadata.name if pod.metadata and pod.metadata.name else "unknown"
         container_statuses = pod.status.container_statuses or []
         if not container_statuses:
-            self.append_error_info(
-                _("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(
-                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
-            )
+            self.append_error_info(_("Pod[{pod_name}]状态异常: 容器状态信息缺失").format(pod_name=pod_name))
             return
-        found_container = False
         for container_status in container_statuses:
             if container_status.name != self.container_name:
                 continue
-            found_container = True
+            stats["total"] += 1
             state = getattr(container_status, "state", None)
             if not state:
-                self.append_error_info(
-                    _("Pod[{pod_name}]容器状态信息缺失").format(
-                        pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
-                )
+                stats["error_list"].append({"name": pod_name, "error": _("容器状态信息缺失")})
                 continue
             # 检查重启次数
             restart_count = getattr(container_status, "restart_count", 0)
             if restart_count > 3:
-                self.append_warning_info(
-                    _("Pod[{pod_name}]重启次数过多: {restart_cnt}").format(
-                        pod_name=pod.metadata.name,
-                        restart_cnt=restart_count,
-                    )
+                stats["error_list"].append(
+                    {"name": pod_name, "error": _("重启次数过多: {restart_cnt}").format(restart_cnt=restart_count)}
                 )
+                continue
             if container_status.state.waiting:
-                self.append_warning_info(
-                    _("Pod[{pod_name}]状态为等待, 原因: {reason}, 原因详情: {message}").format(
-                        pod_name=pod.metadata.name,
-                        reason=container_status.state.waiting.reason,
-                        message=container_status.state.waiting.message,
-                    )
+                stats["error_list"].append(
+                    {
+                        "name": pod_name,
+                        "error": _("状态为等待, 原因: {reason}, 原因详情: {message}").format(
+                            reason=container_status.state.waiting.reason,
+                            message=container_status.state.waiting.message,
+                        ),
+                    }
                 )
                 continue
             if container_status.state.terminated:
-                self.append_error_info(
-                    _("Pod[{pod_name}]状态为退出, 原因: {reason}, 退出代码: {exit_code}").format(
-                        pod_name=pod.metadata.name,
-                        reason=container_status.state.terminated.reason,
-                        exit_code=container_status.state.terminated.exit_code,
-                    )
+                stats["error_list"].append(
+                    {
+                        "name": pod_name,
+                        "error": _("状态为退出, 原因: {reason}, 退出代码: {exit_code}").format(
+                            reason=container_status.state.terminated.reason,
+                            exit_code=container_status.state.terminated.exit_code,
+                        ),
+                    }
                 )
                 continue
             if container_status.state.running:
-                self.append_normal_info(
-                    _("Pod[{pod_name}]状态正常, 容器开始运行时间: {start_time}, 重启次数: {restart_cnt}").format(
-                        pod_name=pod.metadata.name,
-                        start_time=container_status.state.running.started_at,
-                        restart_cnt=container_status.restart_count,
-                    )
-                )
+                stats["success"] += 1
                 continue
-            # 兜底异常
-            self.append_warning_info(
-                _("Pod[{pod_name}]容器状态未知").format(
-                    pod_name=pod.metadata.name if pod.metadata and pod.metadata.name else 'unknown')
-            )
-        if not found_container:
-            self.append_error_info(
-                _("Pod[{pod_name}]未找到名为{container_name}的容器").format(
-                    pod_name=pod.metadata.name if pod.metadata.name else 'unknown',
-                    container_name=self.container_name
-                )
-            )
+            stats["error_list"].append({"name": pod_name, "error": _("容器状态未知")})
+            continue
 
     def _check_main_config(self, pod_name: str):
         """
@@ -479,12 +463,11 @@ class BkunifylogbeatChecker(Checker):
                 continue
         self.append_normal_info(
             _("子配置文件中路径: {filepath}, 最后修改时间: {mtime}, 文件大小: {size}MB").format(
-                filepath=filepath,
-                mtime=mtime,
-                size=size)
+                filepath=filepath, mtime=mtime, size=size
+            )
         )
 
-    def _check_path_match(self, paths: List[str]):
+    def _check_path_match(self, paths: list[str]):
         """检查日志路径是否存在"""
         if not paths:
             self.append_error_info(_("无路径需要检查"))
@@ -493,42 +476,28 @@ class BkunifylogbeatChecker(Checker):
         successful_pods = 0
         path_match_results = {path: [] for path in paths}
         for pod in self.pod_list:
-            pod.name = pod.name if pod.name else 'unknown'
+            pod.name = pod.name if pod.name else "unknown"
             pod_success = False
             for path in paths:
-                command = [
-                    "sh", "-c",
-                    f'grep -r --color=always "{path}" "{self.sub_config_dir}"'
-                ]
+                command = ["sh", "-c", f'grep -r --color=always "{path}" "{self.sub_config_dir}"']
                 try:
                     ls_output = self.k8s_client.exec_command(
-                        pod_name=pod.name,
-                        namespace=self.namespace,
-                        command=command,
-                        container_name=self.container_name
+                        pod_name=pod.name, namespace=self.namespace, command=command, container_name=self.container_name
                     )
                     if ls_output:
                         path_match_results[path].append(pod.name)
                         pod_success = True
                         self.append_normal_info(
-                            _("Pod[{pod_name}]中找到日志路径[{path}]的配置").format(
-                                pod_name=pod.name,
-                                path=path
-                            )
+                            _("Pod[{pod_name}]中找到日志路径[{path}]的配置").format(pod_name=pod.name, path=path)
                         )
                     else:
                         self.append_warning_info(
-                            _("Pod[{pod_name}]中未找到日志路径[{path}]的配置").format(
-                                pod_name=pod.name,
-                                path=path
-                            )
+                            _("Pod[{pod_name}]中未找到日志路径[{path}]的配置").format(pod_name=pod.name, path=path)
                         )
                 except Exception as e:
                     self.append_error_info(
                         _("检查Pod[{pod_name}]的日志路径[{path}]时发生错误: {error}").format(
-                            pod_name=pod.name,
-                            path=path,
-                            error=str(e)
+                            pod_name=pod.name, path=path, error=str(e)
                         )
                     )
             if pod_success:
@@ -536,69 +505,50 @@ class BkunifylogbeatChecker(Checker):
         # 输出统计信息
         self.append_normal_info(
             _("日志路径检查统计: 共检查{total_pods}个Pod，其中{successful_pods}个Pod成功匹配到配置").format(
-                total_pods=total_pods,
-                successful_pods=successful_pods
+                total_pods=total_pods, successful_pods=successful_pods
             )
         )
         # 输出每个路径的匹配结果
         for path, matched_pods in path_match_results.items():
             if matched_pods:
                 self.append_normal_info(
-                    _("日志路径[{path}]在以下Pod中找到配置: {pods}").format(
-                        path=path,
-                        pods=", ".join(matched_pods)
-                    )
+                    _("日志路径[{path}]在以下Pod中找到配置: {pods}").format(path=path, pods=", ".join(matched_pods))
                 )
             else:
-                self.append_error_info(
-                    _("日志路径[{path}]在所有Pod中均未找到配置").format(path=path)
-                )
+                self.append_error_info(_("日志路径[{path}]在所有Pod中均未找到配置").format(path=path))
 
-    def _check_file_held(self, paths: List[str]):
+    def _check_file_held(self, paths: list[str]):
         """检查文件句柄是否被占用"""
         for pod in self.pod_list:
             if pod.pod.status.phase != "Running" or not pod.pod.status:
                 self.append_warning_info(
                     _("Pod[{pod_name}] 状态异常: {phase}，跳过检查").format(
-                        pod_name=pod.name,
-                        phase=pod.pod.status.phase if pod.pod.status else "Unknown"
+                        pod_name=pod.name, phase=pod.pod.status.phase if pod.pod.status else "Unknown"
                     )
                 )
             for path in paths:
-                command = [
-                    "sh",
-                    "-c",
-                    f"lsof -c bkunifylogbeat | grep '{path}'"
-                ]
+                command = ["sh", "-c", f"lsof -c bkunifylogbeat | grep '{path}'"]
                 try:
                     lsof_output = self.k8s_client.exec_command(
-                        pod_name=pod.name,
-                        namespace=self.namespace,
-                        command=command,
-                        container_name=self.container_name
+                        pod_name=pod.name, namespace=self.namespace, command=command, container_name=self.container_name
                     )
                     if lsof_output and lsof_output.strip():
                         # 文件被占用，解析lsof输出获取详细信息
                         self.append_normal_info(
                             _("Pod[{pod_name}]中的路径[{path}]已被采集进程持有句柄").format(
-                                pod_name=pod.name,
-                                path=path
+                                pod_name=pod.name, path=path
                             )
                         )
                     else:
                         # 文件未被占用
                         self.append_warning_info(
                             _("Pod[{pod_name}]中的路径[{path}]未被采集进程持有句柄，可能未正常采集").format(
-                                pod_name=pod.name,
-                                path=path
+                                pod_name=pod.name, path=path
                             )
                         )
                 except Exception as e:
                     self.append_error_info(
-                        _("Pod[{pod_name}] 检查文件句柄时发生错误: {error}").format(
-                            pod_name=pod.name,
-                            error=str(e)
-                        )
+                        _("Pod[{pod_name}] 检查文件句柄时发生错误: {error}").format(pod_name=pod.name, error=str(e))
                     )
 
     def filter_target_server(self):
@@ -652,7 +602,7 @@ class BkunifylogbeatChecker(Checker):
         self._check_path_match(paths)
         self._check_file_held(paths)
 
-    def get_log_paths(self) -> List[str]:
+    def get_log_paths(self) -> list[str]:
         collector_config_id = self.collector_config.collector_config_id
         try:
             params = ContainerCollectorConfig.objects.get(collector_config_id=collector_config_id).params or {}
