@@ -31,7 +31,7 @@ from rest_framework.exceptions import ValidationError
 
 from bk_dataview.api import get_or_create_org
 from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
 from bkmonitor.utils.user import get_local_username
@@ -286,7 +286,7 @@ class ExportPackageResource(Resource):
         self.RequestSerializer = ExportPackageRequestSerializer
 
     def perform_request(self, validated_request_data):
-        self.bk_biz_id = validated_request_data.get("bk_biz_id")
+        self.bk_biz_id = validated_request_data["bk_biz_id"]
         self.package_name = "bk_monitor_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         self.package_path = os.path.join(self.tmp_path, self.package_name)
         self.collect_config_ids = validated_request_data.get("collect_config_ids", [])
@@ -353,7 +353,10 @@ class ExportPackageResource(Resource):
 
         all_collect_ids = list(set(self.collect_config_ids + self.associated_collect_config_list))
         self.associated_plugin_list = list(
-            {config.plugin_id for config in CollectConfigMeta.objects.filter(id__in=all_collect_ids)}
+            {
+                config.plugin_id
+                for config in CollectConfigMeta.objects.filter(bk_biz_id=self.bk_biz_id, id__in=all_collect_ids)
+            }
         )
         associated_plugin = len(self.associated_plugin_list)
         return {
@@ -371,10 +374,10 @@ class ExportPackageResource(Resource):
             return
 
         os.makedirs(os.path.join(self.package_path, "collect_config_directory"))
-        for collect_config_id in all_collect_config_ids:
-            collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=collect_config_id
-            )
+        collect_configs = CollectConfigMeta.objects.select_related("deployment_config").filter(
+            bk_biz_id=self.bk_biz_id, id__in=all_collect_config_ids
+        )
+        for collect_config_meta in collect_configs:
             collect_config_detail = {
                 "id": collect_config_meta.id,
                 "name": collect_config_meta.name,
@@ -395,7 +398,7 @@ class ExportPackageResource(Resource):
                 os.path.join(
                     self.package_path,
                     "collect_config_directory",
-                    "{}_{}.json".format(convert_filename(collect_config_file_name), collect_config_id),
+                    "{}_{}.json".format(convert_filename(collect_config_file_name), collect_config_meta.id),
                 ),
                 "w",
             ) as fs:
@@ -422,12 +425,14 @@ class ExportPackageResource(Resource):
     def make_plugin_file(self):
         if not self.associated_plugin_list:
             return
-
+        bk_tenant_id = get_request_tenant_id()
         plugin_file_path = os.path.join(self.package_path, "plugin_directory")
         os.makedirs(plugin_file_path)
         for plugin_id in self.associated_plugin_list:
-            plugin = CollectorPluginMeta.objects.filter(plugin_id=plugin_id).first()
-            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin, tmp_path=plugin_file_path)
+            plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).first()
+            plugin_manager = PluginManagerFactory.get_manager(
+                bk_tenant_id=bk_tenant_id, plugin=plugin, tmp_path=plugin_file_path
+            )
             plugin_manager.version = plugin.current_version
             plugin_manager.make_package(need_tar=False)
 
@@ -605,7 +610,9 @@ class HistoryDetailResource(Resource):
             if config["type"] == ConfigType.STRATEGY and config["import_status"] == ImportDetailStatus.SUCCESS
         ]
 
-        collect_instances = CollectConfigMeta.objects.filter(id__in=collect_ids).select_related("deployment_config")
+        collect_instances = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id, id__in=collect_ids).select_related(
+            "deployment_config"
+        )
         strategy_instances = StrategyModel.objects.filter(id__in=strategy_ids)
         item_instances = ItemModel.objects.filter(strategy_id__in=strategy_ids)
         strategy_to_items = {}
@@ -894,28 +901,36 @@ class ImportConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         uuid_list = serializers.ListField(required=True, label="配置的uuid")
         import_history_id = serializers.IntegerField(required=False, label="导入历史ID")
-        is_overwrite_mode = serializers.BooleanField(required=False, label="是否覆盖", default=False)
+        # 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
+        # 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
+        is_overwrite_mode = serializers.BooleanField(required=False, label="是否覆盖同名的策略、告警组、处理套餐", default=False)
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
         self.uuid_list = validated_request_data["uuid_list"]
         import_history_id = validated_request_data.get("import_history_id", "")
         bk_biz_id = validated_request_data["bk_biz_id"]
+
+        # 校验解析文件有效性
         parse_instances = ImportParse.objects.filter(uuid__in=self.uuid_list, file_status=ImportDetailStatus.SUCCESS)
         if not parse_instances:
             raise ImportConfigError({"msg": _("没有找到对应的解析文件内容")})
 
         parse_ids = [parse_obj.id for parse_obj in parse_instances]
         if import_history_id:
+            # 校验已有导入历史记录
             self.import_history_instance = ImportHistory.objects.filter(
                 id=import_history_id, bk_biz_id=bk_biz_id
             ).first()
             if not self.import_history_instance:
                 raise ImportHistoryNotExistError
+
+            # 获取需要重新导入的配置（排除已成功/正在导入的）
             all_config_list = ImportDetail.objects.filter(
                 history_id=self.import_history_instance.id, parse_id__in=parse_ids
             ).exclude(import_status__in=[ImportDetailStatus.SUCCESS, ImportDetailStatus.IMPORTING])
         else:
+            # 创建新的导入历史记录和详情记录
             self.import_history_instance = ImportHistory.objects.create(
                 status=ImportHistoryStatus.IMPORTING, bk_biz_id=bk_biz_id
             )
@@ -1043,7 +1058,7 @@ class AddMonitorTargetResource(Resource):
         # 添加采集配置目标
         target_node_type = taget_node_type_map.get(target_field, TargetNodeType.TOPO)
         params_list = []
-        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids):
+        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids, bk_biz_id=bk_biz_id):
             params = {
                 "bk_biz_id": bk_biz_id,
                 "id": instance.id,

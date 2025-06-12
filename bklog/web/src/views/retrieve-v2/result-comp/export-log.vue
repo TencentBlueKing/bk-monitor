@@ -34,7 +34,6 @@
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div
-      v-if="!isUnionSearch"
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
@@ -380,8 +379,8 @@
       quickDownload() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
-        const data = {
+        const downRequestUrl = this.isUnionSearch ? `/search/index_set/union_async_export/`: `/search/index_set/${this.routerIndexSet}/quick_export/`;
+        const data  = {
           ...params,
           size: this.totalCount,
           time_range: 'customized',
@@ -389,6 +388,14 @@
           is_desensitize: this.desensitizeRadioType === 'desensitize',
           file_type: this.documentType,
         };
+        if (this.isUnionSearch) {
+          Object.assign(data, {is_quick_export: true, union_configs: this.unionIndexList.map(item => {
+            return {
+              begin: 0,
+              index_set_id: item,
+            };
+          }) });
+        }
         axiosInstance
           .post(downRequestUrl, data, {
             originalResponse: true,
@@ -458,18 +465,27 @@
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const data = { ...params };
+        let downRequestUrl =  this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
         data.size = this.totalCount;
         data.export_fields = this.submitSelectFiledList;
         data.is_desensitize = this.desensitizeRadioType === 'desensitize';
-
+        if (this.isUnionSearch) {
+          Object.assign(data, {is_quick_export: false, union_configs: this.unionIndexList.map(item => {
+            return {
+              begin: 0,
+              index_set_id: item,
+            };
+          }) });
+        }
         this.exportLoading = true;
-        this.$http
-          .request('retrieve/exportAsync', {
-            params: {
-              index_set_id: this.routerIndexSet,
-            },
+        const requestConfig = this.isUnionSearch
+        ? { data }
+        : {
+            params: { index_set_id: this.routerIndexSet },
             data,
-          })
+          };
+        this.$http
+          .request(downRequestUrl, requestConfig)
           .then(res => {
             if (res.result) {
               this.$bkMessage({

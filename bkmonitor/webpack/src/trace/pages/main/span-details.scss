@@ -48,35 +48,78 @@
     display: flex;
     justify-content: space-between;
     width: 100%;
-    padding-right: 40px;
+    height: 100%;
 
     .sideslider-hd {
       display: flex;
       align-items: center;
 
-      &.show-flip-button {
-        .sideslider-title {
+      .sideslider-title {
+          display: flex;
+          align-items: center;
           width: 230px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          .status {
+            position: relative;
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            margin: 0 4.5px;
+            border-radius: 50%;
+
+            &::after {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              width: 7px;
+              height: 7px;
+              content: '';
+              border-radius: 50%;
+              transform: translate(-50%, -50%);
+            }
+
+            &.warning {
+              background-color: #fff1db;
+
+              &::after {
+                background-color: #fe9c00;
+              }
+            }
+
+            &.normal {
+              background-color: #3fc06d29;
+
+              &::after {
+                background-color: #3fc06d;
+              }
+            }
+
+            &.failed {
+              background: #ffebeb;
+
+              &::after {
+                background-color: #ea3636;
+              }
+            }
+          }
         }
-      }
     }
 
     .arrow-wrap {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       cursor: pointer;
-      background-color: transparent;
-      border: 1px solid #c4c6cc;
+      background: #f0f1f5;
       border-radius: 2px;
 
       &:first-of-type {
-        margin-right: 8px;
+        margin-right: 4px;
         margin-left: 16px;
       }
 
@@ -84,7 +127,6 @@
         color: #dcdee5;
         cursor: not-allowed;
         background-color: #faf9fd;
-        border-color: #dcdee5;
 
         .icon-monitor {
           color: #c4c6cc;
@@ -94,15 +136,37 @@
       .icon-monitor {
         font-size: 24px;
         color: #4d4f56;
+
+        &.top {
+          transform: rotateZ(180deg);
+        }
       }
     }
 
     .header-tool {
+      display: flex;
+      height: 100%;
       font-size: 14px;
       color: #63656e;
 
-      .switcher {
-        margin-right: 8px;
+      .tool-item {
+        padding: 0 24px;
+        font-size: 12px;
+        line-height: 20px;
+        border-left: 1px solid #f5f7fa;
+
+        .tool-item-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          cursor: pointer;
+        }
+
+        .switcher {
+          margin-bottom: 2px;
+        }
       }
 
       .download-btn {
@@ -121,24 +185,25 @@
   }
 
   .bk-modal-body {
-    position: fixed;
-    top: 0;
-    z-index: 99;
-
-    width: auto !important;
+    // position: fixed;
+    // top: 0;
+    // z-index: 99;
+    // width: auto !important;
+    width: 100%;
     height: 100%;
 
     .bk-modal-content {
-      width: 1280px;
+      // width: 1280px;
+      width: 100%;
       height: 100%;
-      background: #f5f7fa;
+      background: #f3f6fa;
 
       .tag {
-        height: 16px;
+        height: 14px;
         padding: 0 4px;
-        margin-left: 8px;
+        margin-left: 10px;
         font-size: 12px;
-        line-height: 16px;
+        line-height: 14px;
         color: #fff;
         background: #979ba5;
         border-radius: 2px;
@@ -166,7 +231,7 @@
 
   // padding: 24px 40px;
   .info-tab {
-    padding: 18px 40px 0 40px;
+    padding: 10px 16px 0;
 
     .bk-tab-content {
       padding: 0;
@@ -215,41 +280,46 @@
     }
   }
 
-  .header {
-    padding: 24px 40px 0 40px;
-
-    margin-right: 20px !important;
+  .details-header {
+    padding: 12px 16px 0;
   }
 
   .title {
     display: flex;
     align-items: center;
-    font-size: 20px;
-    line-height: 28px;
+    font-size: 16px;
+    line-height: 24px;
     color: #313238;
 
     .name {
       overflow: hidden;
       text-overflow: ellipsis;
+      font-family: ArialMT;
       white-space: nowrap;
+    }
+
+    .tag {
+      font-family: Arial-BoldMT;
+      line-height: 12px;
     }
   }
 
-  .others {
+  .details-others {
     display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
+    column-gap: 24px;
+    margin-top: 8px;
 
     .other-item {
       display: flex;
-      flex-direction: column;
-      max-width: 120px;
+      column-gap: 4px;
+      align-items: center;
 
       &:last-child {
         margin-right: 0;
       }
 
       .label {
+        flex-shrink: 0;
         color: #979ba5;
       }
 
@@ -261,7 +331,7 @@
         white-space: normal;
 
         .icon-type {
-          margin: 0 4px 0 0 !important;
+          margin-left: 4px !important;
         }
 
         .link {
@@ -289,10 +359,11 @@
             color: #3a84ff;
           }
 
-          .span-icon {
-            width: 12px;
-            height: 12px;
+          .icon-wangye {
+            position: unset;
+            display: unset;
             margin-right: 4px;
+            margin-left: 0px;
           }
 
           &:hover {
@@ -308,8 +379,8 @@
   .content-list {
     box-sizing: border-box;
     // margin-top: 24px;
-    height: calc(100% - 166px);
-    padding: 0 40px 14px;
+    height: calc(100% - 112px);
+    padding: 0 16px 14px;
     overflow-y: auto;
     background: #fff;
 
@@ -332,7 +403,7 @@
     }
 
     &.is-log-tab {
-      padding: 0 16px 14px 40px;
+      padding: 0 16px;
       overflow: initial;
 
       .flex-dashboard-item {
@@ -348,11 +419,38 @@
       .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
         display: none;
       }
+      .bk-nested-loading {
+        height: 100%;
+        & > div {
+          height: 100%;
+          .dashboard-panel {
+            height: 100%;
+            .flex-dashboard {
+              height: 100%;
+              .flex-dashboard-item {
+                height: 100%;
+                .monitor-trace-log {
+                  padding: 0;
+                  .v3-bklog-root {
+                    background: #fff;
+                    .v3-bklog-content {
+                      padding: 0;
+                      .v3-bklog-container {
+                        margin-top: 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     &.is-host-tab,
     &.is-container-tab {
-      padding: 0 0 0 40px;
+      padding: 0 0 0 16px;
 
       .host-tab-container {
         height: 100%;
@@ -370,12 +468,11 @@
     .expan-item-head {
       display: flex;
       align-items: center;
-      height: 54px;
-      padding: 0 24px;
+      padding: 12px 10px 16px;
       cursor: pointer;
 
-      .icon-mc-triangle-down {
-        font-size: 24px;
+      .icon-mc-arrow-down {
+        font-size: 14px;
         transform: rotate(-90deg);
         transition: transform 0.3s;
 
@@ -385,7 +482,7 @@
       }
 
       .expan-item-title {
-        margin-left: 8px;
+        margin-left: 6px;
         font-size: 14px;
         font-weight: Bold;
         color: #313238;
@@ -425,7 +522,7 @@
 
       &.active {
         height: auto;
-        padding: 0 24px 24px 24px;
+        padding: 0 24px 14px 24px;
       }
 
       /* kv结构 */
@@ -743,6 +840,7 @@
           flex: 1;
           overflow: hidden;
           text-overflow: ellipsis;
+          font-family: Roboto-Regular, 'PingFang SC', 'Microsoft Yahei', Helvetica, Aria, sans-serif;
           white-space: nowrap;
         }
 
@@ -773,6 +871,7 @@
         max-height: 480px;
         padding-right: 16px;
         overflow: auto;
+        font-family: oboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
         color: #63656e;
         word-break: break-all;
         white-space: pre-wrap;

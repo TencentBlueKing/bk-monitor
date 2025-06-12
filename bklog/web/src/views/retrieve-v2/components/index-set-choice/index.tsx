@@ -25,14 +25,16 @@
  */
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
+
+import { Props } from 'tippy.js';
+
+import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
-import { getOsCommandLabel } from '../../../../common/util';
-import { Props } from 'tippy.js';
 import Content from './content';
+import { IndexSetTabList, IndexSetType } from './use-choice';
 
 import './index.scss';
-import { IndexSetTabList, IndexSetType } from './use-choice';
 
 export default defineComponent({
   props: {
@@ -96,18 +98,22 @@ export default defineComponent({
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
+    const refContentObject: Ref<any | null> = ref(null);
 
     let unionListValue = [];
 
     const tippyOptions: Props = {
       hideOnClick: false,
       arrow: false,
+      // #if MONITOR_APP !== 'trace'
       zIndex: props.zIndex,
+      // #endif
       appendTo: document.body,
       maxWidth: 900,
 
       onShow: () => {
         isOpened.value = true;
+        refContentObject.value?.resetUnionList();
       },
       onHide: () => {
         isOpened.value = false;
@@ -142,7 +148,7 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (value: any, type: 'single' | 'union', id: string | number) => {
+    const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
         emit('value-change', value, type, id);
@@ -196,38 +202,39 @@ export default defineComponent({
     return () => {
       return (
         <BklogPopover
+          ref={refRootElement}
+          style={rootStyle.value}
           class={[
             'bklog-v3-indexset-container',
             { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
           ]}
           data-shortcut-key={shortcutKey}
-          style={rootStyle.value}
-          ref={refRootElement}
           options={tippyOptions}
           {...{
             scopedSlots: {
               content: () => (
                 <Content
+                  ref={refContentObject}
+                  style={contentStyleVar.value}
+                  activeId={props.activeTab}
                   list={props.indexSetList}
+                  spaceUid={props.spaceUid}
                   type={props.activeType}
                   value={props.indexSetValue}
-                  spaceUid={props.spaceUid}
-                  activeId={props.activeTab}
                   zIndex={props.zIndex}
-                  style={contentStyleVar.value}
+                  on-auth-request={handleAuthRequest}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
-                  on-auth-request={handleAuthRequest}
                 ></Content>
               ),
             },
           }}
         >
           <EllipsisTagList
-            list={selectedValues.value}
-            activeEllipsisCount={selectedValues.value.length > 1}
-            placement='right'
             class='indexset-value-list'
+            activeEllipsisCount={selectedValues.value.length > 1}
+            list={selectedValues.value}
+            placement='right'
             {...{
               scopedSlots: {
                 item: v => (

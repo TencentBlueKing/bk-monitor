@@ -334,6 +334,7 @@ export default defineComponent({
       showContextMenu,
       handleContextMenuClick,
       handleClickWrapper,
+      t,
     };
   },
   render() {
@@ -341,7 +342,7 @@ export default defineComponent({
       return (
         <Exception
           style='flex: 1'
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );

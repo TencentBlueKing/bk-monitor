@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,21 +7,23 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import operator
 from functools import reduce
 
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from iam import DjangoQuerySetConverter
 from iam.resource.provider import ListResult, ResourceProvider
+from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
 
 from apm_web.models import Application
 from bk_dataview.api import get_org_by_id, get_org_by_name
-from bk_dataview.models import Dashboard
+from bk_dataview.models import Dashboard, Org
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
-from bkmonitor.utils.request import get_request_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata.models import Space, SpaceType
@@ -62,6 +63,14 @@ class ExternalViewSet(ResourceViewSet):
     ]
 
 
+class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
+    def _get_options(self, request):
+        options = super()._get_options(request)
+        if not options.get("bk_tenant_id"):
+            options["bk_tenant_id"] = DEFAULT_TENANT_ID
+        return options
+
+
 class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
     def list_attr(self, **options):
         return ListResult(results=[], count=0)
@@ -72,9 +81,9 @@ class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
 
 class ApmApplicationProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
+        bk_tenant_id = options["bk_tenant_id"]
         queryset = []
         with_path = False
-        bk_tenant_id = get_request_tenant_id()
         if not (filter.parent or filter.search or filter.resource_type_chain):
             queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         elif filter.parent:
@@ -124,13 +133,13 @@ class ApmApplicationProvider(BaseResourceProvider):
         if filter.ids:
             ids = [int(i) for i in filter.ids]
 
-        queryset = Application.objects.filter(pk__in=ids)
+        queryset = Application.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
 
         results = [{"id": str(item.pk), "display_name": item.app_alias} for item in queryset]
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = options["bk_tenant_id"]
         if not filter.parent or "id" not in filter.parent:
             queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
@@ -147,7 +156,7 @@ class ApmApplicationProvider(BaseResourceProvider):
         return ListResult(results=results, count=queryset.count())
 
     def search_instance(self, filter, page, **options):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = options["bk_tenant_id"]
         if not filter.parent or "id" not in filter.parent:
             queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
@@ -203,7 +212,7 @@ class SpaceProvider(BaseResourceProvider):
         return resources
 
     def list_instance(self, filter, page, **options):
-        queryset = self.get_space_queryset()
+        queryset = self.get_space_queryset().filter(bk_tenant_id=options["bk_tenant_id"])
 
         if filter.search:
             keywords = filter.search.get("space", [])
@@ -231,7 +240,9 @@ class SpaceProvider(BaseResourceProvider):
         if not conditions:
             return ListResult(results=[], count=0)
 
-        queryset = self.get_space_queryset().filter(reduce(operator.or_, conditions))
+        queryset = self.get_space_queryset().filter(
+            reduce(operator.or_, conditions), bk_tenant_id=options["bk_tenant_id"]
+        )
         results = self.generate_resources(queryset)
         return ListResult(results=results, count=queryset.count())
 
@@ -242,20 +253,33 @@ class SpaceProvider(BaseResourceProvider):
 
         converter = SpaceQuerySetConverter()
         filters = converter.convert(expression)
-        queryset = self.get_space_queryset().filter(filters)
+        queryset = self.get_space_queryset().filter(filters, bk_tenant_id=options["bk_tenant_id"])
         results = self.generate_resources(queryset[page.slice_from : page.slice_to])
         return ListResult(results=results, count=queryset.count())
 
     def search_instance(self, filter, page, **options):
         keyword = filter.keyword
         queryset = self.get_space_queryset().filter(
-            Q(space_type_id=keyword) | Q(space_id=keyword) | Q(space_name__icontains=keyword)
+            Q(space_type_id=keyword) | Q(space_id=keyword) | Q(space_name__icontains=keyword),
+            bk_tenant_id=options["bk_tenant_id"],
         )
         results = self.generate_resources(queryset[page.slice_from : page.slice_to])
         return ListResult(results=results, count=queryset.count())
 
 
 class GrafanaDashboardProvider(BaseResourceProvider):
+    def filter_dashboard_by_options(self, dashboards: QuerySet[Dashboard], options: dict):
+        """
+        支持按租户ID 过滤仪表盘
+        """
+        bk_tenant_id = options["bk_tenant_id"]
+        spaces = Space.objects.filter(bk_tenant_id=bk_tenant_id)
+        bk_biz_ids = {
+            str(-space.id) if space.space_type_id != SpaceTypeEnum.BKCC.value else space.space_id for space in spaces
+        }
+        org_ids = {org.id for org in Org.objects.all() if org.name in bk_biz_ids}
+        return [d for d in dashboards if d.org_id in org_ids]
+
     def list_instance(self, filter, page, **options):
         queryset = Dashboard.objects.filter(is_folder=False)
         folder_queryset = Dashboard.objects.filter(is_folder=True)
@@ -277,7 +301,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         folders = {folder.id: folder.title for folder in folder_queryset}
         results = []
         org_map = {}
-        for dashboard in queryset[page.slice_from : page.slice_to]:
+
+        dashboards = self.filter_dashboard_by_options(queryset, options)
+        for dashboard in dashboards[page.slice_from : page.slice_to]:
             result = {
                 "id": f"{dashboard.org_id}|{dashboard.uid}",
                 "display_name": f"{folders.get(dashboard.folder_id, 'General')}/{dashboard.title}",
@@ -303,7 +329,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
                 ]
             results.append(result)
 
-        return ListResult(results=results, count=queryset.count())
+        return ListResult(results=results, count=len(dashboards))
 
     def fetch_instance_info(self, filter, **options):
         ids = []
@@ -311,9 +337,10 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             ids = [str(i) for i in filter.ids]
 
         queryset = Dashboard.objects.filter(uid__in=ids)
+        dashboards = self.filter_dashboard_by_options(queryset, options)
 
-        results = [{"id": item.uid, "display_name": item.title} for item in queryset]
-        return ListResult(results=results, count=queryset.count())
+        results = [{"id": item.uid, "display_name": item.title} for item in dashboards]
+        return ListResult(results=results, count=len(dashboards))
 
     def list_instance_by_policy(self, filter, page, **options):
         if not filter.parent or "id" not in filter.parent:
@@ -328,8 +355,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         if filter.keyword:
             queryset = queryset.filter(title__icontains=filter.keyword)
 
-        results = [{"id": item.uid, "display_name": item.title} for item in queryset[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=queryset.count())
+        dashboards = self.filter_dashboard_by_options(queryset, options)
+        results = [{"id": item.uid, "display_name": item.title} for item in dashboards[page.slice_from : page.slice_to]]
+        return ListResult(results=results, count=len(dashboards))
 
     def search_instance(self, filter, page, **options):
         if not filter.parent or "id" not in filter.parent:
@@ -344,5 +372,6 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         if filter.keyword:
             queryset = queryset.filter(title__icontains=filter.keyword)
 
-        results = [{"id": item.uid, "display_name": item.title} for item in queryset[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=queryset.count())
+        dashboards = self.filter_dashboard_by_options(queryset, options)
+        results = [{"id": item.uid, "display_name": item.title} for item in dashboards[page.slice_from : page.slice_to]]
+        return ListResult(results=results, count=len(dashboards))

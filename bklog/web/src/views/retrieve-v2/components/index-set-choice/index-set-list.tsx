@@ -61,7 +61,7 @@ export default defineComponent({
 
     const { $t } = useLocale();
 
-    const hiddenEmptyItem = ref(false);
+    const hiddenEmptyItem = ref(true);
     const searchText = ref('');
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
@@ -83,39 +83,130 @@ export default defineComponent({
       props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`)),
     );
 
-    const formatList = computed(() =>
-      props.list.map((item: any) => {
-        let is_shown_node = true;
+    const formatList = computed(() => {
+      const filterFn = node => {
+        return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
+          key =>
+            `${node[key]}`.indexOf(searchText.value) !== -1 ||
+            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+        );
+      };
+      // 检查节点是否应该显示
+      const checkNodeShouldShow = (node: any, defaultIsShown = true) => {
+        // 如果当前节点在选中列表中，直接返回 true
+        if (propValueStrList.value.includes(`${node.index_set_id}`)) {
+          return true;
+        }
+
+        let is_shown_node = defaultIsShown;
 
         // 判定是不是已经选中Tag进行过滤
-        // 如果已经选中了Tag进行过滤，这里需要判定当前索引是否满足Tag标签
         if (tagItem.value.tag_id !== undefined) {
-          is_shown_node = item.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+          is_shown_node = node.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
         }
 
         // 如果满足Tag标签或者当前条目为显示状态
-        // 继续判断其他过滤条件
         if (is_shown_node) {
           // 如果启用隐藏空数据
           if (hiddenEmptyItem.value) {
-            // 如果当前索引不是传入的选中值
-            if (!props.value.includes(`${item.index_set_id}`)) {
-              // 判断当前索引Tag标签是否有标识为空数据
-              // 如果结果为True，说明当前索引不展示
-              is_shown_node = !item.tags.some(tag => tag.tag_id === 4);
+            if (!props.value.includes(`${node.index_set_id}`)) {
+              is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
+            }
+          }
+        }
+
+        // 继续判定检索匹配是否满足匹配条件
+        if (searchText.value.length > 0) {
+          is_shown_node = filterFn(node);
+        }
+
+        return is_shown_node;
+      };
+
+      // 处理子节点
+      const processChildren = (children: any[], parentNode) => {
+        if (!children?.length) return [];
+
+        // 处理子节点的显示状态
+        const processedChildren = children.map(child => ({
+          ...child,
+          is_shown_node: checkNodeShouldShow(child, listNodeOpenManager.value[parentNode.index_set_id] === 'opened'),
+        }));
+
+        // 对子节点进行排序
+        return processedChildren.sort((a: any, b: any) => {
+          // 单选模式下才进行特殊排序
+          if (props.type === 'single') {
+            // 如果节点在选中列表中，优先级最高
+            const aIsSelected = propValueStrList.value.includes(`${a.index_set_id}`);
+            const bIsSelected = propValueStrList.value.includes(`${b.index_set_id}`);
+            if (aIsSelected !== bIsSelected) {
+              return aIsSelected ? -1 : 1;
             }
           }
 
-          // 如果此时判定结果仍然为true
-          // 继续判定检索匹配是否满足匹配条件
-          if (is_shown_node) {
-            is_shown_node = item.index_set_name.indexOf(searchText.value) !== -1;
+          // 其次按是否有数据排序
+          const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
+          const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+          if (aHasNoData !== bHasNoData) {
+            return aHasNoData ? 1 : -1;
+          }
+
+          return 0;
+        });
+      };
+
+      // 处理根节点
+      const processedList = props.list.map((item: any) => {
+        const is_shown_node = checkNodeShouldShow(item);
+
+        // 处理子节点
+        if (item.children?.length) {
+          item.children = processChildren(item.children, item);
+        }
+
+        const isOpenNode = item.children?.some(child => child.is_shown_node);
+        // 检查是否有子节点被选中
+        const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.index_set_id}`));
+
+        return {
+          ...item,
+          is_shown_node: is_shown_node || isOpenNode,
+          is_children_open: isOpenNode,
+          has_selected_child: hasSelectedChild,
+          has_no_data_child: item.children?.some(child => child.tags?.some(tag => tag.tag_id === 4)),
+        };
+      });
+
+      // 对根节点进行排序
+      return processedList.sort((a: any, b: any) => {
+        // 单选模式下才进行特殊排序
+        if (props.type === 'single') {
+          // 如果节点在选中列表中，优先级最高
+          const aIsSelected = propValueStrList.value.includes(`${a.index_set_id}`);
+          const bIsSelected = propValueStrList.value.includes(`${b.index_set_id}`);
+          if (aIsSelected !== bIsSelected) {
+            return aIsSelected ? -1 : 1;
+          }
+
+          // 如果节点有子节点被选中，次优先级
+          const aHasSelectedChild = a.has_selected_child;
+          const bHasSelectedChild = b.has_selected_child;
+          if (aHasSelectedChild !== bHasSelectedChild) {
+            return aHasSelectedChild ? -1 : 1;
           }
         }
-        Object.assign(item, { is_shown_node });
-        return item;
-      }),
-    );
+
+        // 按是否有数据排序（所有模式都生效）
+        const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
+        const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+        if (aHasNoData !== bHasNoData) {
+          return aHasNoData ? 1 : -1;
+        }
+
+        return 0;
+      });
+    });
 
     const filterFullList = computed(() => formatList.value.filter((item: any) => item.is_shown_node));
 
@@ -230,7 +321,20 @@ export default defineComponent({
 
     const handleNodeOpenClick = (e: MouseEvent, node) => {
       e.stopPropagation();
-      const nextStatus = listNodeOpenManager.value[node.index_set_id] === 'closed' ? 'opened' : 'closed';
+      let nextStatus = listNodeOpenManager.value[node.index_set_id] === 'opened' ? 'closed' : 'opened';
+
+      if (searchText.value?.length > 0 && listNodeOpenManager.value[node.index_set_id] !== 'forceClosed') {
+        nextStatus = 'forceClosed';
+      }
+
+      if (node.is_children_open) {
+        nextStatus = 'forceClosed';
+      }
+
+      if (listNodeOpenManager.value[node.index_set_id] === 'forceClosed') {
+        nextStatus = 'opened';
+      }
+
       set(listNodeOpenManager.value, node.index_set_id, nextStatus);
     };
 
@@ -253,6 +357,22 @@ export default defineComponent({
       );
     };
 
+    const isClosedNode = (item: any) => {
+      if (listNodeOpenManager.value[item.index_set_id] === 'forceClosed') {
+        return true;
+      }
+
+      if (searchText.value?.length > 0) {
+        return false;
+      }
+
+      if (item.is_children_open) {
+        return false;
+      }
+
+      return !['opened'].includes(listNodeOpenManager.value[item.index_set_id]);
+    };
+
     /**
      * 渲染节点数据
      * @param item
@@ -261,8 +381,17 @@ export default defineComponent({
      * @param is_root_checked
      * @returns
      */
-    const renderNodeItem = (item: any, is_child = false, has_child = true, is_root_checked = false) => {
+    const renderNodeItem = (
+      item: any,
+      is_child = false,
+      has_child = true,
+      is_root_checked = false,
+      has_no_data_child = false,
+    ) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
+      const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
+      const isClosed = () => isClosedNode(item);
+
       return (
         <div
           class={[
@@ -271,6 +400,8 @@ export default defineComponent({
               'no-authority': !hasPermission,
               'is-child': is_child,
               'has-child': has_child,
+              'is-empty': isEmptyNode,
+              'has-no-data-child': has_no_data_child,
               active: propValueStrList.value.includes(item.index_set_id),
             },
           ]}
@@ -287,7 +418,7 @@ export default defineComponent({
               class={[
                 'node-open-arrow',
                 {
-                  'is-closed': listNodeOpenManager.value[item.index_set_id] === 'closed',
+                  'is-closed': isClosed(),
                 },
               ]}
               onClick={e => handleNodeOpenClick(e, item)}
@@ -297,7 +428,7 @@ export default defineComponent({
 
             <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
               {getCheckBoxRender(item, is_root_checked)}
-
+              <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }}></span>
               <span class='group-icon'>
                 <i class='bklog-icon bklog-suoyin-mulu'></i>
               </span>
@@ -342,10 +473,10 @@ export default defineComponent({
             const result = [];
             const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
-            if (listNodeOpenManager.value[item.index_set_id] !== 'closed') {
+            if (!isClosedNode(item)) {
               (item.children ?? []).forEach(child => {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
-                  result.push(renderNodeItem(child, true, false, is_root_checked));
+                  result.push(renderNodeItem(child, true, false, is_root_checked, item.has_no_data_child));
                 }
               });
             }
@@ -359,19 +490,7 @@ export default defineComponent({
     };
 
     const getSingleBody = () => {
-      return [
-        getMainRender(),
-        // <div class='bklog-v3-item-info'>
-        //   {activeValueItems.value.map((item: any) => (
-        //     <ObjectView
-        //       object={item}
-        //       showList={objectShowList}
-        //       labelWidth={100}
-        //       class='item-row'
-        //     ></ObjectView>
-        //   ))}
-        // </div>,
-      ];
+      return [getMainRender()];
     };
 
     /**
@@ -485,6 +604,17 @@ export default defineComponent({
       }
     };
 
+    const handleSearchTextChange = (val: string) => {
+      searchText.value = val;
+      if (searchText.value.length > 0) {
+        Object.keys(listNodeOpenManager.value).forEach(key => {
+          if (listNodeOpenManager.value[key] === 'forceClosed') {
+            delete listNodeOpenManager.value[key];
+          }
+        });
+      }
+    };
+
     const getFilterRow = () => {
       return (
         <div class='bklog-v3-content-filter'>
@@ -495,7 +625,7 @@ export default defineComponent({
               right-icon="'bk-icon icon-search'"
               style='width: 650px; margin-right: 12px;'
               value={searchText.value}
-              on-input={val => (searchText.value = val)}
+              on-input={handleSearchTextChange}
             ></bk-input>
             <bk-checkbox
               checked={hiddenEmptyItem.value}

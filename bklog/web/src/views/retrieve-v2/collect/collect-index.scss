@@ -73,6 +73,9 @@
       background-color: #ffffff;
     }
 
+    .search-category-text{
+      white-space: nowrap;
+    }
     .search-category-num {
       font-family: RobotoMono-Medium;
       font-size: 12px;
@@ -89,6 +92,10 @@
 
     span:hover {
       color: #3a84ff;
+    }
+    .bk-form-checkbox{
+      display: flex;
+      align-items: center
     }
   }
 

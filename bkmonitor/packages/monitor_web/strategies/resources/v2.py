@@ -4,12 +4,12 @@ import operator
 import re
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, DefaultDict
-from collections.abc import Callable
+from typing import Any
 
 import arrow
 import pytz
@@ -21,6 +21,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
+from bkm_ipchooser.handlers import template_handler
 from bkmonitor.action.utils import get_strategy_user_group_dict
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -47,6 +48,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
     Algorithm,
@@ -57,7 +59,7 @@ from bkmonitor.strategy.new_strategy import (
     parse_metric_id,
 )
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.request import get_request_username, get_source_app
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.aiops import SDKDetectStatus
@@ -85,8 +87,6 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
-from bkmonitor.models.strategy import AlgorithmChoiceConfig
-from bkm_ipchooser.handlers import template_handler
 
 logger = logging.getLogger(__name__)
 
@@ -384,14 +384,9 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
-                "plugin_id"
-            )
-            # plugin_table_ids = []
-            # for plugin in plugins:
-            #     version = plugin.current_version
-            #     for table in version.info.metric_json:
-            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]
+            ).values("plugin_id")
 
             plugin_strategy_ids = []
             query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
@@ -591,7 +586,9 @@ class GetStrategyListV2Resource(Resource):
         """
         # 过滤指标别名
         if filter_dict["metric_field_name"]:
-            metric_qs = MetricListCache.objects.filter(metric_field_name__in=filter_dict["metric_field_name"])
+            metric_qs = MetricListCache.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), metric_field_name__in=filter_dict["metric_field_name"]
+            )
             if bk_biz_id is not None:
                 metric_qs = metric_qs.filter(bk_biz_id__in=[0, bk_biz_id])
             metric_fields = metric_qs.values_list("metric_field", flat=True).distinct()
@@ -1098,9 +1095,9 @@ class GetStrategyListV2Resource(Resource):
         if not queries:
             return {}
 
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).filter(
-            reduce(lambda x, y: x | y, queries)
-        )
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[bk_biz_id, 0]
+        ).filter(reduce(lambda x, y: x | y, queries))
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 
@@ -1356,9 +1353,9 @@ class PlainStrategyListV2Resource(Resource):
         # 获取指定业务下启用的策略
         bk_biz_id = validated_request_data.get("bk_biz_id")
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
-            .values("id", "name", "scenario")
-            .order_by("-update_time")
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+            .values("id", "name", "scenario", "is_enabled")
+            .order_by("-is_enabled", "-update_time")
         )
         # 获取分类标签
         labels = resource.commons.get_label()
@@ -1421,6 +1418,21 @@ class GetMetricListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
+    def filter_by_double_paragaphs_metric_id(cls, metrics, filter_dict: dict) -> QuerySet:
+        """
+        处理二段式指标ID查询
+        """
+        filters: list[Q] = []
+        for metric_id in filter_dict["metric_id"]:
+            split_field_list = metric_id.split(".")
+            if len(split_field_list) == 2:
+                filters.append(Q(**{"data_label": split_field_list[0], "metric_field": split_field_list[1]}))
+
+        if filters:
+            return metrics.filter(reduce(lambda x, y: x | y, filters))
+        return metrics.none()
+
+    @classmethod
     def filter_by_conditions(cls, metrics: QuerySet, params: dict) -> QuerySet:
         """
         按查询条件过滤指标
@@ -1476,20 +1488,22 @@ class GetMetricListV2Resource(Resource):
 
         # 支持metric_id查询
         if filter_dict["metric_id"]:
-            queries = []
+            queries: list[Q] = []
             for metric_id in filter_dict["metric_id"]:
-                metric = parse_metric_id(metric_id)
+                metric: dict = parse_metric_id(metric_id)
 
                 if "index_set_id" in metric:
                     metric["related_id"] = metric["index_set_id"]
                     del metric["index_set_id"]
                 if metric:
                     queries.append(Q(**metric))
-            if queries:
-                metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
-            else:
-                metrics = metrics.filter(id__in=[])
 
+            found_metric = False
+            if queries:
+                metric_filter = metrics.filter(reduce(lambda x, y: x | y, queries))
+                found_metric = metric_filter.exists()
+
+            metrics = metric_filter if found_metric else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
         # 模糊搜索
         if filter_dict["query"]:
             # 尝试解析指标ID格式的query字符串
@@ -1933,7 +1947,9 @@ class GetMetricListV2Resource(Resource):
 
     def perform_request(self, params):
         # 从指标选择器缓存表根据业务查询指标
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[0, params["bk_biz_id"]])
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, params["bk_biz_id"]]
+        )
 
         if get_source_app() == SourceApp.FTA:
             metrics = metrics.filter(
@@ -2313,7 +2329,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新告警通知
 
         ```pyhon
-        notice["append_keys"]: List[str] # 追加逻辑的字段
+        notice["append_keys"]: List[str]  # 追加逻辑的字段
         ```
 
         当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
@@ -2412,8 +2428,8 @@ class UpdatePartialStrategyV2Resource(Resource):
     def process_extra_data(
         extra_create_or_update_datas: dict[str, list[dict[str, any]]],
         key: str,
-        updates_data: DefaultDict[str, dict[str, any]],
-        create_datas: DefaultDict[str, dict[str, any]],
+        updates_data: defaultdict[str, dict[str, any]],
+        create_datas: defaultdict[str, dict[str, any]],
     ):
         extra_update_datas = extra_create_or_update_datas.get("update_data", [])
         extra_create_datas = extra_create_or_update_datas.get("create_data", [])
@@ -3182,14 +3198,15 @@ class PromqlToQueryConfig(Resource):
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                qs = MetricListCache.objects.filter(
+                metric = MetricListCache.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(),
                     data_label=data_label,
                     data_source_label=data_source_label,
                     data_type_label=data_type_label,
                     metric_field=query["field_name"],
-                )
-                if qs.exists():
-                    result_table_id = qs.first().result_table_id
+                ).first()
+                if metric:
+                    result_table_id = metric.result_table_id
 
             query_config = {
                 "data_source_label": data_source_label,
@@ -3552,7 +3569,7 @@ class GetDevopsStrategyListResource(Resource):
             return {"result": False, "status": 1, "data": [], "message": "无法获取当前用户"}
 
         # 检查用户是否有权限访问指定业务
-        p = Permission(username=username)
+        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
         # 强制检查权限
         p.skip_check = False
         if not p.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_RULE):

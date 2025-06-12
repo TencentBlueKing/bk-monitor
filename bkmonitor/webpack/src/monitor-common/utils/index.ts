@@ -46,10 +46,10 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
 }
 // 设置全局业务ID
 export const setGlobalBizId = () => {
-  let bizId = +getUrlParam('bizId')?.replace(/\//gim, '');
+  let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
-  const isSpicialEvent = !!getUrlParam('specEvent');
+  const isSpacialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
@@ -76,14 +76,20 @@ export const setGlobalBizId = () => {
     !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
   };
   const setLocationSearch = (bizId: number | string) => {
-    if (location.search) {
+    if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {
       location.search = location.search.replace(/(space_uid|bizId)=([^#&/]+)/gim, `bizId=${bizId}`);
     } else {
       location.href = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
     }
     return false;
   };
-  if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
+  // 如果bizId不在空间列表中 几没有权限或者是不存在的 bizId，则返回到无权限页面进行申请
+  if (bizId && !isInSpaceList(bizId)) {
+    location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
+    return true;
+  }
+
+  if (bizId && bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)) {
     const newBizId = defaultBizId || localBizId;
     if (hasAuth(newBizId)) {
       window.bk_biz_id = +newBizId;
@@ -95,7 +101,7 @@ export const setGlobalBizId = () => {
     url.search = searchParams.toString();
     url.hash = '#/';
     history.replaceState({}, '', url.toString());
-    bizId = window.bk_biz_id;
+    bizId = +window.bk_biz_id;
   }
   if (!isCanAllIn && !bizList?.length && !isNoBusiness) {
     location.href = `${location.origin}${location.pathname}#/no-business`;
@@ -122,10 +128,9 @@ export const setGlobalBizId = () => {
       location.href = `${location.origin}${location.pathname}?${`bizId=${newBizId}`}#/no-business`;
       return ['#/no-business'].includes(location.hash.replace(/\?.*/, '')) ? newBizId : false;
     }
-
     bizId = newBizId;
   }
-  if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
+  if (!isSpacialEvent && !hasRouteHash && !isEmailSubscriptions) {
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {
@@ -258,5 +263,6 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
 
 export * from './colorHelpers';
 export * from './constant';
+export * from './equal';
 export * from './utils';
 export * from './xss';

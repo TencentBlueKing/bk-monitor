@@ -540,6 +540,7 @@ export default defineComponent({
       handleShowLegend,
       diffPercentList,
       localIsCompared,
+      t,
     };
   },
   render() {
@@ -547,7 +548,7 @@ export default defineComponent({
       return (
         <Exception
           style='flex: 1'
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );

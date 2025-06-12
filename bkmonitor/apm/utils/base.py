@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -40,3 +39,13 @@ def balanced_biscuit(input_list, num_splits):
 
 def rt_id_to_index(rt_id: str) -> str:
     return rt_id.replace(".", "_")
+
+
+def get_bar_interval_number(start_time, end_time, size=30) -> int:
+    """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
+    # 最低聚合为一分钟
+    c = (end_time - start_time) / 60
+    if c < size:
+        return 60
+
+    return int((end_time - start_time) // size)

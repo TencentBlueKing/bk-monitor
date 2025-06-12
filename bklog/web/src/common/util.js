@@ -630,7 +630,7 @@ export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
  * @param {*} val 文本
  * @param {*} alertMsg 弹窗文案
  */
-export const copyMessage = (val, alertMsg) => {
+export const copyMessage = (val, alertMsg = undefined) => {
   try {
     const input = document.createElement('input');
     input.setAttribute('value', val);

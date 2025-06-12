@@ -76,7 +76,7 @@ export default class PerformanceView extends tsc<IProps> {
   // 当前业务id
   @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
-  @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive('readonly') readonly: boolean;
   // 是否展示复位
   @ProvideReactive('showRestore') showRestore = false;
   // 是否开启（框选/复位）全部操作
@@ -202,7 +202,7 @@ export default class PerformanceView extends tsc<IProps> {
   }
 
   handleToNodemanHost() {
-    window.open(`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`);
+    window.open(`${this.$store.getters.bkNodeManHost}#/plugin-manager/list`);
   }
 
   render() {

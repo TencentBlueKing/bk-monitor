@@ -24,20 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { defineComponent, type PropType, ref, shallowRef, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
 
-import { useTraceStore } from '../../store/modules/trace';
 import { formatDuration } from '../trace-view/utils/date';
 import BarChart from './bar-chart';
 import { BASE_BAR_OPTIONS, DURATION_AVERAGE_COUNT, DurationDataModal } from './utils';
 
+import type { ISpanListItem, ITraceListItem } from '../../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-filtering.scss';
+
+export interface DurationRangeItem {
+  alias: string;
+  value: string;
+  count: number;
+  proportions: number;
+}
 
 export interface ISliderItem {
   overallText?: string;
@@ -52,9 +60,30 @@ export interface ISliderItem {
 
 export default defineComponent({
   name: 'ChartFiltering',
-  setup() {
-    const store = useTraceStore();
-
+  props: {
+    list: {
+      type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
+      default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    listType: {
+      type: String,
+      default: 'span',
+    },
+    filterList: {
+      type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
+      default: () => [],
+    },
+    isShowSlider: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  emits: ['filterListChange'],
+  setup(props, { emit }) {
     /** 耗时图表 */
     const barChartref = ref<HTMLDivElement>();
     /** 耗时图表配置 */
@@ -72,8 +101,9 @@ export default defineComponent({
       step: 0, // 步长 / 刻度
     });
 
-    /** trace列表数据 */
-    const listData = computed(() => (store.listType === 'trace' ? store.traceList : store.spanList));
+    const durationRangeList = shallowRef<DurationRangeItem[]>([]);
+
+    const { t } = useI18n();
 
     /** 设置滑动选择器状态 */
     const handleSetDurationSlider = (min: number, max: number, step: number) => {
@@ -87,8 +117,7 @@ export default defineComponent({
         max,
         step,
       };
-
-      if (store.filterTraceList.length) {
+      if (props.filterList.length) {
         // 说明此前已通过滑动选择器过滤且当前范围不在两端
         // 刻度列是固定的 刻度值会根据大小变化 当数据发生变化 保留当前刻度比例范围 重置选中值即可
         const [scaleStart, scaleEnd] = durationSlider.value.scaleRange;
@@ -104,8 +133,8 @@ export default defineComponent({
     };
     /** 初始化图表数据 */
     const initData = () => {
-      if (listData.value?.length) {
-        durationModal.value = new DurationDataModal(listData.value);
+      if (props.list?.length) {
+        durationModal.value = new DurationDataModal(props.list, props.listType);
         const { minDuration, maxDuration, durationStep, xAxisData, seriesData } = durationModal.value;
 
         const echartOptions = deepmerge(deepClone(BASE_BAR_OPTIONS), {});
@@ -135,6 +164,17 @@ export default defineComponent({
             },
           })
         ) as MonitorEchartOptions;
+        durationRangeList.value = seriesData.map((item, index) => {
+          const [start, end] = xAxisData[index].split('-');
+          const startLabel = formatDuration(Number(start || 0));
+          const endLabel = formatDuration(Number(end || 0));
+          return {
+            count: item,
+            alias: `${startLabel} - ${endLabel}`,
+            value: xAxisData[index],
+            proportions: Number(((item / props.list.length) * 100).toFixed(2)),
+          };
+        });
         handleSetDurationSlider(minDuration, maxDuration, durationStep);
       } else {
         durationModal.value = null;
@@ -142,7 +182,7 @@ export default defineComponent({
       }
     };
 
-    watch(() => listData.value, initData, { immediate: true });
+    watch(() => props.list, initData, { immediate: true });
 
     /** 耗时滑动选择器选择 */
     const handleDurationChange = (val: number[]) => {
@@ -158,11 +198,7 @@ export default defineComponent({
       const [start, end] = durationSlider.value.curValue;
       const list = durationModal.value?.handleFilter(start, end);
       const newList = list?.length ? list : [];
-      if (store.listType === 'trace') {
-        store.setFilterTraceList(newList);
-      } else {
-        store.setFilterSpanList(newList);
-      }
+      emit('filterListChange', newList);
     };
     /** 格式化图表series数据显示 */
     const formatterDurationFunc = (params: any, xAxisData: string[]) => {
@@ -176,10 +212,14 @@ export default defineComponent({
       const lastXAxisItemFirst = Number(lastXAxisItem.split('-')?.[0] ?? 0); // 最大刻度范围起始值
       // 由于刻度均分原因 最大值不一定与最大刻度值相等
       if (curStart === lastXAxisItemFirst) {
-        return curStart < selectEnd ? '#A3C5FD' : '#DCDEE5';
+        return curStart < selectEnd ? '#5AB8A8' : '#DCDEE5';
       }
 
-      return curStart >= selectStart && curEnd <= selectEnd ? '#A3C5FD' : '#DCDEE5';
+      return curStart >= selectStart && curEnd <= selectEnd ? '#5AB8A8' : '#DCDEE5';
+    };
+
+    const getDurationList = () => {
+      return durationRangeList.value;
     };
 
     return {
@@ -187,15 +227,18 @@ export default defineComponent({
       chartOptions,
       durationSlider,
       handleDurationChange,
+      getDurationList,
+      t,
     };
   },
   render() {
+    if (this.loading) return <div class='skeleton-element chart-filtering-skeleton' />;
     return (
       <div class='chart-filtering-wrap'>
         {this.chartOptions && (
           <div class='chart-item'>
             <div class='header'>
-              <span>{this.$t('耗时区间')}</span>
+              <span>{this.t('耗时区间')}</span>
               <span class='range'>
                 <span class='active'>{this.durationSlider.curValText}</span>
                 <span>{` / ${this.durationSlider.overallText}`}</span>
@@ -206,15 +249,17 @@ export default defineComponent({
               options={this.chartOptions}
               selectedRange={this.durationSlider.curValue}
             />
-            <Slider
-              class='slider-range'
-              v-model={this.durationSlider.curValue}
-              maxValue={this.durationSlider.max}
-              minValue={this.durationSlider.min}
-              step={this.durationSlider.step}
-              range
-              onChange={this.handleDurationChange}
-            />
+            {this.isShowSlider && (
+              <Slider
+                class='slider-range'
+                v-model={this.durationSlider.curValue}
+                maxValue={this.durationSlider.max}
+                minValue={this.durationSlider.min}
+                step={this.durationSlider.step}
+                range
+                onChange={this.handleDurationChange}
+              />
+            )}
           </div>
         )}
       </div>

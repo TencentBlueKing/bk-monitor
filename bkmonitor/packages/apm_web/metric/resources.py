@@ -15,10 +15,10 @@ import json
 import logging
 import operator
 from collections import defaultdict
+from collections.abc import Callable
 from enum import Enum
 from json import JSONDecodeError
 from typing import Any
-from collections.abc import Callable
 
 from django.conf import settings
 from django.core.cache import cache
@@ -79,6 +79,7 @@ from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
     fill_series,
+    fill_unify_query_series,
     get_bar_interval_number,
     handle_filter_fields,
 )
@@ -289,7 +290,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 self.fill_custom_metric_method(config, custom_metric_methods)
 
         if validate_data.get("fill_bar"):
-            interval = get_bar_interval_number(
+            interval = self.get_bar_interval(
                 validate_data["start_time"],
                 validate_data["end_time"],
             )
@@ -574,13 +575,13 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         end_time = validate_data["end_time"]
 
         if require_fill_series:
-            interval = get_bar_interval_number(
+            interval = cls.get_bar_interval(
                 validate_data["start_time"],
                 validate_data["end_time"],
             )
             response = {
                 "metrics": response.get("metrics"),
-                "series": fill_series(response.get("series", []), start_time, end_time, interval),
+                "series": fill_unify_query_series(response.get("series", []), start_time, end_time, interval),
             }
 
         if validate_data.get("unit"):
@@ -618,6 +619,15 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 metric["method"] = custom_method_config["method"]
                 metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
         config["functions"] = list(metric_functions.values())
+
+    @classmethod
+    def get_bar_interval(cls, start_time: int, end_time: int) -> int:
+        """获取时间间隔
+
+        因为数据是以一分钟的间隔聚合的，所以返回的间隔需要是 60 的倍数
+        柱子数在默认值 30 的上下浮动
+        """
+        return round(get_bar_interval_number(start_time, end_time) / 60) * 60
 
 
 class ServiceListResource(PageListResource):
@@ -1634,11 +1644,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + '&conditionList={{"resource.service.name": '
-                        '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{service}"]}},'
-                        '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint}"]}}}}' + "&query=status.code:+2+",
+                        + "&sceneMode=span&filterMode=ui",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -1877,6 +1883,34 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         paginated_data = self.get_pagination_data(error_data, data, data["service_name"])
         paginated_data["filter"] = self.get_status_filter()
         return paginated_data
+
+    def get_pagination_data(self, origin_data, params, column_type=None):
+        items = super().get_pagination_data(origin_data, params, column_type)
+        # url 拼接
+        for item in items["data"]:
+            filters: list[dict[str, Any]] = [
+                {
+                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                    "operator": "equal",
+                    "value": [item.get("service_name")],
+                },
+                {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item.get("endpoint")]},
+                {"key": OtlpKey.STATUS_CODE, "operator": "equal", "value": [2]},
+            ]
+
+            if item.get("exception_type") != self.UNKNOWN_EXCEPTION_TYPE:
+                filters.append(
+                    {
+                        "key": f"events.{OtlpKey.get_attributes_key(SpanAttributes.EXCEPTION_TYPE)}",
+                        "operator": "equal",
+                        "value": [item.get("exception_type")],
+                    }
+                )
+
+            for i in item["operations"]:
+                i["url"] = i["url"] + "&where=" + json.dumps(filters)
+
+        return items
 
 
 class TopNQueryResource(ApiAuthResource):
@@ -2319,11 +2353,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + '&conditionList={{"resource.service.name": {{'
-                        '"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{service_name}"]}},'
-                        '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint_name}"]}}}}',
+                        + "&sceneMode=span&filterMode=ui"
+                        + "&where=["
+                        '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                        '{{"key": "span_name","operator": "equal","value": ["{endpoint_name}"]}}'
+                        "]",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     )
@@ -2903,14 +2937,13 @@ class ServiceQueryExceptionResource(PageListResource):
                 + "&search_type=scope"
                 + "&listType=trace"
                 + "&start_time={start_time}&end_time={end_time}"
-                + "&query=status.code:+2+"
-                + '&conditionList={{"resource.service.name": '
-                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{service_name}"]}},'
-                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{span_name}"]}},'
-                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
+                + "&sceneMode=span&filterMode=ui"
+                + "&where=["
+                '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                '{{"key": "span_name","operator": "equal","value": ["{span_name}"]}},'
+                '{{"key": "resource.bk.instance.id","operator": "equal","value": ["{bk_instance_id}"]}},'
+                '{{"key": "status.code","operator": "equal","value": [2]}},'
+                "]",
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),

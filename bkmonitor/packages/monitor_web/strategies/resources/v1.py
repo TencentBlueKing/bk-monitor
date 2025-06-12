@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
@@ -32,7 +32,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.metric_list_cache import MetricListCache
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
@@ -76,7 +76,7 @@ from monitor_web.strategies.serializers import (
     validate_recovery_config_msg,
     validate_trigger_config_msg,
 )
-from monitor_web.strategies.resources.v2 import GetTargetDetailWithCache
+from monitor_web.tasks import update_target_detail
 
 logger = logging.getLogger(__name__)
 
@@ -295,13 +295,17 @@ class GetMetricListResource(Resource):
             ]
         elif metric["metric_field"] == "corefile-gse":
             return [
-                _("查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"),
+                _(
+                    "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"
+                ),
                 _("依赖bkmonitorbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"),
             ]
         elif metric["metric_field"] == "gse_custom_event":
             return [
                 _("【已废弃】"),
-                _("功能通过上报 自定义事件 覆盖").format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
+                _("功能通过上报 自定义事件 覆盖").format(
+                    settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID
+                ),
             ]
         elif metric["metric_field"] == "agent-gse":
             return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
@@ -321,7 +325,10 @@ class GetMetricListResource(Resource):
                 _("由监控后台部署的bk-collector去探测目标IP是否存活。"),
             ]
         elif metric["metric_field"] == "proc_port":
-            return [_("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"), _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警")]
+            return [
+                _("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"),
+                _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"),
+            ]
 
         return []
 
@@ -439,7 +446,7 @@ class StrategyConfigListResource(Resource):
     """
 
     def __init__(self):
-        super(StrategyConfigListResource, self).__init__()
+        super().__init__()
         self.node_manager = None
         self.label_map = None
         self.shield_manager = None
@@ -466,7 +473,7 @@ class StrategyConfigListResource(Resource):
             try:
                 return json.loads(value)
             except Exception as e:
-                logger.exception("data_source_list参数错误, %s" % e)
+                logger.exception(f"data_source_list参数错误, {e}")
                 return []
 
     def get_label_msg(self, scenario):
@@ -719,7 +726,7 @@ class StrategyConfigListResource(Resource):
 
                 # 如果是动态拓扑
                 if target[0][0]["field"] in ["host_topo_node", "service_topo_node"]:
-                    target_topos = {f'{obj["bk_obj_id"]}|{obj["bk_inst_id"]}' for obj in target[0][0]["value"]}
+                    target_topos = {f"{obj['bk_obj_id']}|{obj['bk_inst_id']}" for obj in target[0][0]["value"]}
                     if target_topos.intersection(topo_set):
                         is_matched = True
                         filter_ids.append(strategy_config["id"])
@@ -858,7 +865,7 @@ class StrategyConfigListResource(Resource):
 
         # 精准搜索指标名/别名
         if conditions.get("metric_alias") or conditions.get("metric_name"):
-            metrics = MetricListCache.objects.all()
+            metrics = MetricListCache.objects.filter(bk_tenant_id=get_request_tenant_id())
             if conditions.get("metric_alias"):
                 metrics = metrics.filter(metric_field_name__in=conditions["metric_alias"])
             if conditions.get("metric_name"):
@@ -1240,6 +1247,7 @@ class StrategyConfigDetailResource(Resource):
                 custom_event_group = CustomEventGroup.objects.get(table_id=item["result_table_id"])
                 item["result_table_id"] = str(custom_event_group.bk_data_id)
                 metric = MetricListCache.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(),
                     data_source_label=DataSourceLabel.CUSTOM,
                     data_type_label=DataTypeLabel.EVENT,
                     result_table_id=item["result_table_id"],
@@ -1506,7 +1514,9 @@ class StrategyConfigResource(Resource):
                     algorithm_type = serializers.ChoiceField(
                         required=True, choices=DETECT_ALGORITHM_CHOICES, label="检测算法"
                     )
-                    algorithm_unit = serializers.CharField(required=False, allow_blank=True, default="", label="算法单位")
+                    algorithm_unit = serializers.CharField(
+                        required=False, allow_blank=True, default="", label="算法单位"
+                    )
 
                     def validate_algorithm_config(self, value):
                         return validate_algorithm_config_msg(value)
@@ -1595,7 +1605,7 @@ class StrategyConfigResource(Resource):
                 raise ValidationError({self.get_resource_name(): {"request_data_invalid": request_serializer.errors}})
             return request_serializer.validated_data
 
-        return super(StrategyConfigResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def handle_strategy_dict(self, strategy_dict):
         no_data_config = strategy_dict.pop("no_data_config", None)
@@ -1858,20 +1868,13 @@ class BulkEditStrategyResource(Resource):
         刷新监控目标缓存
         """
 
-        if  "target" not in edit_data or not strategies:
+        if "target" not in edit_data or not strategies:
             return
-
         bk_biz_id = strategies[0].bk_biz_id
         strategy_ids = [strategy.id for strategy in strategies]
-        items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
-        # 构建映射关系，避免重复查询
-        mapping = {item.strategy_id: (bk_biz_id, item.target) for item in items}
-        get_target_detail_with_cache = GetTargetDetailWithCache()
-        get_target_detail_with_cache.set_mapping(mapping)
-
-        for i in items:
-            get_target_detail_with_cache.request.refresh({"strategy_id": i.strategy_id})
+        # 异步刷新监控目标缓存
+        update_target_detail.delay(bk_biz_id, strategy_ids)
 
     @staticmethod
     def update_message_template(strategy: Strategy, edit_data):
@@ -1907,7 +1910,7 @@ class BulkEditStrategyResource(Resource):
             self.update(strategy, edit_data)
             strategy.save()
 
-        self.refresh_target_cache(strategies,edit_data)
+        self.refresh_target_cache(strategies, edit_data)
 
         return params["id_list"]
 
@@ -1966,7 +1969,7 @@ class GetDimensionListResource(Resource):
             data_target = DataTargetMapping().get_data_target(table_msg["label"], data_source_label, data_type_label)
 
             if not result_table_id.startswith("system.") and not result_table_id.startswith(
-                "{}.".format(Scenario.UPTIME_CHECK)
+                f"{Scenario.UPTIME_CHECK}."
             ):
                 dimensions.append({"id": "bk_collect_config_id", "name": _("采集配置")})
 
@@ -1974,7 +1977,7 @@ class GetDimensionListResource(Resource):
                 dimensions.extend(DEFAULT_DIMENSIONS_MAP[data_target])
 
             # 编辑时HTTP/UDP/TCP仅允许对指定维度配置策略,ICMP开放所有维度,与metadata保持一致
-            if result_table_id.startswith("{}.".format(Scenario.UPTIME_CHECK)):
+            if result_table_id.startswith(f"{Scenario.UPTIME_CHECK}."):
                 if result_table_id.split(".")[1] != "icmp":
                     dimensions = DefaultDimensions.uptime_check
 
@@ -2240,7 +2243,9 @@ class BackendStrategyConfigResource(Resource):
                     check_window = serializers.IntegerField(required=True, label="检测周期")
 
                 trigger_config = TriggerConfigSerializers()
-                algorithm_type = serializers.ChoiceField(required=False, choices=DETECT_ALGORITHM_CHOICES, label="检测算法")
+                algorithm_type = serializers.ChoiceField(
+                    required=False, choices=DETECT_ALGORITHM_CHOICES, label="检测算法"
+                )
                 algorithm_unit = serializers.CharField(required=False, allow_blank=True, label="算法单位")
                 recovery_config = RecoveryConfigSerializers()
                 message_template = serializers.CharField(required=False, allow_blank=True, label="通知模板")

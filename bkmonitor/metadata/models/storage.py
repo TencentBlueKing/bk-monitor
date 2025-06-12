@@ -1755,8 +1755,8 @@ class KafkaStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, "
-                "nothing will add." % table_id,
+                "result_table->[%s] of bk_tenant_id->[%s] already has redis storage config, nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
@@ -1780,7 +1780,7 @@ class KafkaStorage(models.Model, StorageResultTable):
         if is_sync_db:
             new_record.ensure_topic()
 
-        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config" % table_id, bk_tenant_id)
+        logger.info("table->[%s] of bk_tenant_id->[%s] now has create kafka storage config", table_id, bk_tenant_id)
         return new_record
 
     @property
@@ -1882,6 +1882,8 @@ class ESStorage(models.Model, StorageResultTable):
     archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
 
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+
+    long_term_storage_settings = models.TextField("长期存储配置信息", blank=True, null=True)
 
     class Meta:
         unique_together = ("table_id", "bk_tenant_id")
@@ -2013,8 +2015,8 @@ class ESStorage(models.Model, StorageResultTable):
         # 1. 校验table_id， key是否存在冲突
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "result_table->[%s] already has es storage config under bk_tenant_id->[%s]"
-                ", nothing will add." % table_id,
+                "result_table->[%s] already has es storage config under bk_tenant_id->[%s], nothing will add.",
+                table_id,
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]配置已存在，请确认后重试") % table_id)
@@ -3262,6 +3264,8 @@ class ESStorage(models.Model, StorageResultTable):
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
                 "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
+                self.table_id,
+                new_index_name,
             )
         except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
@@ -3418,6 +3422,33 @@ class ESStorage(models.Model, StorageResultTable):
             return
 
         logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
+
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取所有的写入别名
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
@@ -3439,6 +3470,16 @@ class ESStorage(models.Model, StorageResultTable):
                     "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
                 )
                 continue
+
+            # 如果索引包含在长期存储索引列表中,不予处理,跳过
+            if index_name in long_term_storage_indices:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                    self.table_id,
+                    index_name,
+                )
+                continue
+
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
                 logger.info(
@@ -3508,6 +3549,32 @@ class ESStorage(models.Model, StorageResultTable):
             self.bk_tenant_id,
         )
 
+        # 解析长期存储配置
+        long_term_storage_indices = []
+        if self.long_term_storage_settings:
+            try:
+                long_term_storage_indices = json.loads(self.long_term_storage_settings)
+                if not isinstance(long_term_storage_indices, list):
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] long_term_storage_settings is not a list, ignore it",
+                        self.table_id,
+                    )
+                    long_term_storage_indices = []
+                else:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] loaded long_term_storage_indices->[%s]",
+                        self.table_id,
+                        long_term_storage_indices,
+                    )
+            except Exception as e:
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to parse long_term_storage_settings->[%s], error->[%s]",
+                    self.table_id,
+                    self.long_term_storage_settings,
+                    e,
+                )
+                long_term_storage_indices = []
+
         # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
         storage_records = StorageClusterRecord.objects.filter(
             table_id=self.table_id, is_deleted=False, is_current=False, bk_tenant_id=self.bk_tenant_id
@@ -3569,6 +3636,15 @@ class ESStorage(models.Model, StorageResultTable):
                         self.table_id,
                         index_name,
                         cluster_id,
+                    )
+                    continue
+
+                # 如果索引包含在长期存储索引列表中,不予处理,跳过
+                if index_name in long_term_storage_indices:
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] is in long_term_storage_indices, skip all cleanup",
+                        self.table_id,
+                        index_name,
                     )
                     continue
 
@@ -3695,19 +3771,28 @@ class ESStorage(models.Model, StorageResultTable):
 
         database_field_list = list(es_properties.keys())
 
-        # 获取ES中的当前别名列表,别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
+        # 获取ES中的当前别名列表, 别名是作为value嵌套在字典中的 {key:value} -- {field:{type:alias,path:xxx}}
         try:
+            # 别名字段列表
             alias_field_list = [k for k, v in current_mapping.items() if v.get("type") == "alias"]
         except KeyError:
             alias_field_list = []
 
-            # 获取DB中的别名字段类表
+        try:  # 配置了别名的原始字段列表
+            # Q：为什么要提取原始字段列表
+            # A：当用户对__ext.xxx 等动态字段配置了别名时,动态字段会出现在es_properties的keys中,而ES的current_mapping中不会有动态字段
+            # A：会导致索引非预期额外轮转
+            alias_path_list = [v.get("path") for k, v in current_mapping.items() if v.get("type") == "alias"]
+        except KeyError:
+            alias_path_list = []
+
+        # 获取DB中的别名字段类表
         try:
             db_alias_field_list = [k for k, v in es_properties.items() if v.get("type") == "alias"]
         except KeyError:
             db_alias_field_list = []
 
-        current_field_list = list(current_mapping.keys()) + alias_field_list
+        current_field_list = list(current_mapping.keys()) + alias_field_list + alias_path_list
 
         # 数据库中字段多于es的index中数据，则进行分裂
         field_diff_set = set(database_field_list) - set(current_field_list)
@@ -3730,12 +3815,22 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 遍历判断字段的内容是否完全一致
         for field_name, database_config in list(es_properties.items()):
+            # 如果字段是 __ext.xxx，跳过
+            # 动态字段不应参与mapping比对
+            if field_name.startswith("__ext."):
+                logger.info(
+                    "is_mapping_same: table_id->[%s] field->[%s] is dynamic fields, skip", self.table_id, field_name
+                )
+                continue
             try:
                 current_config = current_mapping[field_name]
             except KeyError:
                 logger.info(
-                    "is_mapping_same: table_id->[{}] found field->[{}] is missing in current_mapping->[{}], "
-                    "will delete it and recreate."
+                    "is_mapping_same: table_id->[%s] found field->[%s] is missing in current_mapping->[%s], "
+                    "will delete it and recreate.",
+                    self.table_id,
+                    field_name,
+                    current_mapping,
                 )
                 return False
 
@@ -3767,12 +3862,14 @@ class ESStorage(models.Model, StorageResultTable):
                     # object 字段动态写入数据后 不再有type这个字段 只有 properties
                     if current_field_properties and database_value != ResultTableField.FIELD_TYPE_OBJECT:
                         logger.info(
-                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es field type is object"
+                            "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es "
+                            "field type is object"
                             "so not same".format(self.table_id, index_name, field_name, field_config, database_value)
                         )
                         return False
                     logger.info(
-                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config is None, "
+                        "is_mapping_same：table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es config "
+                        "is None,"
                         "so nothing will do.".format(
                             self.table_id, index_name, field_name, field_config, database_value
                         )
@@ -3781,7 +3878,8 @@ class ESStorage(models.Model, StorageResultTable):
 
                 if database_value != current_value:
                     logger.info(
-                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] is "
+                        "is_mapping_same: table_id->[{}] index->[{}] field->[{}] config->[{}] database->[{}] es->[{}] "
+                        "is"
                         "not the same, ".format(
                             self.table_id, index_name, field_name, field_config, database_value, current_value
                         )

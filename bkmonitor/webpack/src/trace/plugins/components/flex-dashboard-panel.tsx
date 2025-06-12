@@ -42,7 +42,7 @@ export default defineComponent({
   name: 'FlexDashboardPanelMigrated',
   props: {
     // 视图集合
-    panels: { required: true, type: Array as PropType<IPanelModel[]> },
+    panels: { required: false, type: Array as PropType<IPanelModel[]> },
     // dashboard id
     id: { required: true, type: String },
     // 自动展示初始化列数

@@ -1,0 +1,26 @@
+.time-consuming-component {
+  &.default {
+    display: flex;
+    align-items: center;
+    min-width: 212px;
+    height: 32px;
+    padding: 0 4px 0 8px;
+    background: #FFFFFF;
+    border: 1px solid #DCDEE5;
+    border-radius: 2px;
+
+    .time-consuming-title {
+      margin-right: 4px;
+      font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: #000000;
+    }
+  }
+
+  &.form {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+}

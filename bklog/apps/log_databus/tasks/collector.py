@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import time
 import traceback
@@ -85,6 +85,7 @@ def shutdown_collector_warm_storage_config(cluster_id):
                     "table_id": collector.table_id,
                     "default_storage": "elasticsearch",
                     "default_storage_config": {"warm_phase_days": 0},
+                    "bk_biz_id": collector.bk_biz_id,
                 }
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -109,10 +110,12 @@ def collector_status():
         if (
             FeatureToggleObject.switch(FEATURE_BKDATA_DATAID)
             and _collector.bkdata_data_id
-            and BkDataDatabusApi.get_cleans(params={"raw_data_id": _collector.bkdata_data_id})
+            and BkDataDatabusApi.get_cleans(
+                params={"raw_data_id": _collector.bkdata_data_id, "bk_biz_id": _collector.bk_biz_id}
+            )
         ):
             continue
-        CollectorHandler(collector_config_id=_collector.collector_config_id).stop()
+        CollectorHandler.get_instance(_collector.collector_config_id).stop()
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -175,7 +178,7 @@ def sync_storage_capacity():
                     defaults={"storage_used": storage_used},
                 )
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception("sync_storage_info error: %s" % e)
+            logger.exception(f"sync_storage_info error: {e}")
 
 
 def query(cluster_id):
@@ -337,12 +340,10 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
 
     for collector in collectors:
         try:
-            collect_config = CollectorHandler(collector.collector_config_id).retrieve()
+            collect_config = CollectorHandler.get_instance(collector.collector_config_id).retrieve()
             if collect_config["storage_cluster_id"] == storage_cluster_id:
                 logger.info(
-                    "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
-                        collector.collector_config_id, storage_cluster_id
-                    )
+                    f"switch collector->[{collector.collector_config_id}] old storage cluster is the same: {storage_cluster_id}, skip it."
                 )
                 continue
             etl_params = {
@@ -363,9 +364,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
                 )
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
-            )
+            logger.exception(f"switch collector->[{collector.collector_config_id}] storage cluster error: {e}")
 
 
 @high_priority_task(ignore_result=True)
@@ -380,7 +379,7 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
-            handler = CollectorHandler(collector.collector_config_id)
+            handler = CollectorHandler.get_instance(collector.collector_config_id)
             collect_config = handler.retrieve()
             clean_stash = handler.get_clean_stash()
             etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
@@ -421,7 +420,7 @@ def update_alias_settings(collector_config_id, alias_settings):
     更新别名配置
     """
     try:
-        handler = CollectorHandler(collector_config_id)
+        handler = CollectorHandler.get_instance(collector_config_id)
         collect_config = handler.retrieve()
         clean_stash = handler.get_clean_stash()
 
@@ -454,5 +453,24 @@ def update_alias_settings(collector_config_id, alias_settings):
         logger.exception(
             "[update_alias_settings] executed failed, collector_config_id->%s, reason: %s",
             collector_config_id,
+            e,
+        )
+
+
+@high_priority_task(ignore_result=True)
+def modify_result_table(params):
+    """
+    更新结果表
+    """
+    try:
+        TransferApi.modify_result_table(params)
+        logger.info(
+            "[modify_result_table] executed successfully, table_id->%s",
+            params["table_id"],
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "[modify_result_table] executed failed, table_id->%s, reason: %s",
+            params["table_id"],
             e,
         )

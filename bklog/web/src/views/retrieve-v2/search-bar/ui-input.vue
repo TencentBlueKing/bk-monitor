@@ -28,7 +28,21 @@
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
-
+  const popoverRefs = ref(new Map())
+  const morePopoverRefs = ref([]);
+  const setPopoverRef = (el, parentIndex, childIndex) => {
+    const key = `${parentIndex}-${childIndex}`
+    if (el) {
+      popoverRefs.value.set(key, el)
+    } else {
+      popoverRefs.value.delete(key)
+    }
+  }
+  const setMorePopoverRef = (el, index) => {
+    if (el) {
+      morePopoverRefs.value[index] = el;
+    }
+  }
   const inputValueLength = ref(0);
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
@@ -51,6 +65,12 @@
     }
     item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
+    if (item?.showList?.length && item?.showList?.length !== item.value?.length) {
+      item.showList = Array.from(
+        { length: item.value.length },
+        (_, i) => (i < (item.showList?.length || 0) ? item.showList[i] : false)
+      );
+    }
     return { disabled: false, ...(item ?? {}) };
   };
 
@@ -229,6 +249,7 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
+    set(item, 'showList', new Array(item.value.length).fill(item.disabled))
     emitChange(modelValue.value);
   };
 
@@ -364,6 +385,37 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
+  const handlePopoverShow = (parentIndex, childIndex)=>{
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.showHandler()
+  }
+  const changeOptionShow = (parentIndex,childIndex,item,show)=>{
+    if(!item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(false))
+    }
+    set(item.showList, childIndex, show)
+    if (item.showList.every(f => f === false)) {
+      set(item, 'disabled', false);
+    }else if (item.showList.every(f => f === true)) {
+      set(item, 'disabled', true);
+    }
+
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const onlyOptionShow =  (parentIndex,childIndex,item)=>{
+    if(!item.showList || item.showList.length !== item.value.length){
+      set(item, 'showList', new Array(item.value.length).fill(true))
+    }
+    item.showList = item.showList.map((_, index) => index !== childIndex);
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const moreOption = (index) => {
+    morePopoverRefs.value[index].showHandler()
+  }
 </script>
 
 <template>
@@ -380,7 +432,7 @@
     </li>
     <li
       v-for="(item, index) in modelValue"
-      :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
+      :class="['search-item', 'tag-item', {'is-common-fixed': item.isCommonFixed }]"
       :key="`${item.field}-${index}`"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
@@ -409,12 +461,25 @@
             :key="childIndex"
           >
             <template v-if="item.showAll ? true : childIndex < 3">
-              <span
-                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
-                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
+              <bk-popover 
+                :ref="(el) => setPopoverRef(el, index, childIndex)"
+                placement="bottom" 
+                theme="light" 
+                trigger="click"
               >
-                {{ formatDateTimeField(child, item.field_type) }}
-              </span>
+                <span
+                  v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line':item.showList?.[childIndex]}]"
+                  @click.stop="() => handlePopoverShow(index,childIndex)"
+                >
+                  {{ formatDateTimeField(child, item.field_type) }}
+                </span>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex]" @click="changeOptionShow(index,childIndex,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
               <span
                 v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
                 class="match-value-relation"
@@ -423,12 +488,41 @@
               </span>
             </template>
           </span>
-          <span
-            v-if="item.value.length > 3 && !item.showAll"
-            style="color: #f59500"
+          <bk-popover 
+            :ref="(el) => setMorePopoverRef(el, index)"
+            placement="bottom" 
+            theme="light" 
+            trigger="click"
           >
-            +{{ item.value.length - 3 }}
-          </span>
+            <span
+              v-if="item.value.length > 3 && !item.showAll"
+              style="color: #f59500"
+              @click.stop="moreOption(index)"
+              class="match-value-more"
+            >
+              +{{ item.value.length - 3 }}
+            </span>
+            <div slot="content">
+              <div class="match-value-content">
+              <bk-popover 
+                v-for="(child, childIndex) in item.value.slice(3)"
+                :ref="(el) => setPopoverRef(el, index, childIndex+3)"
+                :key="childIndex"
+                placement="right" 
+                theme="light" 
+                trigger="click"
+                extCls="match-value-popover"
+              >
+                <div class="match-value-child"  :class="[{'delete-line':item.showList?.[childIndex+3]}]">{{ child }}</div>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex+3]" @click="changeOptionShow(index,childIndex+3,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex+3,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex+3,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
+            </div>
+            </div>
+          </bk-popover>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -440,7 +534,7 @@
             'bklog-icon',
             { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
           ]"
-          @click.stop="e => handleDisabledTagItem(item, e)"
+          @click.stop="handleDisabledTagItem(item)"
         />
         <span
           class="bklog-icon bklog-shanchu tag-options-close"
@@ -541,5 +635,36 @@
         }
       }
     }
+  }
+
+  .bk-tooltip-content{
+    .match-value-select{
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 32px;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .delete-line{
+      color: #979ba5;
+      text-decoration: line-through;
+    }
+  }
+  .match-value-content{
+    display: flex;
+    flex-direction: column;
+    .bk-tooltip-ref{
+      width: 100%;
+      cursor: pointer;
+    }
+    .match-value-child{
+      font-size: 12px;
+      line-height: 32px;
+    }
+  }
+  .match-value-popover{
+    left: 15px !important;
   }
 </style>

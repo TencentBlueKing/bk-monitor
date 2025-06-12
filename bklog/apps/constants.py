@@ -427,6 +427,9 @@ class ViewSetActionEnum(ChoicesEnum):
     FIELD_VIEWSET_TOPK = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_topk_list"
     )
+    FIELD_VIEWSET_VALUE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_value_list"
+    )
     # ======================================= 日志聚类-FieldViewSet =======================================
     CLUSTERING_CONFIG_VIEWSET_STATUS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
@@ -599,6 +602,7 @@ class ViewSetActionEnum(ChoicesEnum):
         FIELD_VIEWSET_TOTAL,
         FIELD_VIEWSET_GRAPH,
         FIELD_VIEWSET_TOPK,
+        FIELD_VIEWSET_VALUE,
         # ======================================= 字段分析-FieldViewSet =======================================
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,

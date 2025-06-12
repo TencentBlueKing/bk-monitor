@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
 from api.cmdb.define import Set
@@ -22,7 +20,7 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
 
     ObjectClass = Set
     type = "set"
-    CACHE_KEY = "{prefix}.cmdb.set".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
 
     @classmethod
     def key_to_internal_value(cls, bk_set_id):
@@ -41,7 +39,7 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
         :param bk_set_id: 集群ID
         :rtype: Set
         """
-        return super(SetManager, cls).get(bk_set_id)
+        return super().get(bk_set_id)
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
@@ -50,9 +48,3 @@ class SetManager(RefreshByBizMixin, CMDBCacheManager):
         """
         biz_sets = api.cmdb.get_set(bk_biz_id=bk_biz_id)  # type: list[Set]
         return {cls.key_to_internal_value(biz_set.bk_set_id): biz_set for biz_set in biz_sets}
-
-
-def main():
-    if "set" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    SetManager.refresh()

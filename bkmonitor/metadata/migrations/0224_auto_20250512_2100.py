@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 from typing import Any
 
@@ -17,6 +16,7 @@ from django.db.models import QuerySet, Q, Model
 from django.db import migrations
 
 from constants.apm import PreCalculateSpecificField, TRACE_RESULT_TABLE_OPTION, PRECALCULATE_RESULT_TABLE_OPTION
+from metadata.migration_util import parse_value, sync_index_set_to_es_storages
 
 logger = logging.getLogger("metadata")
 
@@ -29,25 +29,6 @@ APM_PRECALCULATE_TABLE_PREFIX: str = "apm_global.precalculate_storage"
 models: dict[str, type[Model] | None] = {"ESStorage": None, "ResultTable": None, "ResultTableOption": None}
 
 
-def parse_value(value):
-    if type(value) in (bool, list, dict):
-        val = json.dumps(value)
-        if isinstance(value, bool):
-            val_type = "bool"
-        elif isinstance(value, list):
-            val_type = "list"
-        else:
-            val_type = "dict"
-
-    elif type(value) in (int,):
-        val = json.dumps(value)
-        val_type = "int"
-
-    else:
-        val, val_type = value, "string"
-    return val, val_type
-
-
 def is_precalculate(table_id: str) -> bool:
     return table_id.startswith(APM_PRECALCULATE_TABLE_PREFIX)
 
@@ -58,7 +39,10 @@ def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
         models["ResultTable"]
         .objects
         # 只过滤出 APM 相关的结果表。
-        .filter(Q(table_id__contains="bkapm.trace") | Q(table_id__contains=APM_PRECALCULATE_TABLE_PREFIX))
+        .filter(
+            (Q(table_id__contains="bkapm") & Q(table_id__contains=".trace"))
+            | Q(table_id__contains=APM_PRECALCULATE_TABLE_PREFIX)
+        )
         .values("table_id", "bk_biz_id", "id", "bk_tenant_id")
         .order_by("table_id")
     )
@@ -98,14 +82,7 @@ def sync_router(result_table_infos: list[dict[str, Any]]):
     logger.info("[sync_trace_unify_query_router] update rt -> %s", len(to_be_updated_rts))
 
     # Step-2: ESStorage 指定索引集。
-    to_be_updated_storages = []
-    for es_storage_obj in models["ESStorage"].objects.filter(table_id__in=table_ids):
-        es_storage_obj.index_set = es_storage_obj.table_id.replace(".", "_")
-        to_be_updated_storages.append(es_storage_obj)
-
-    if to_be_updated_storages:
-        models["ESStorage"].objects.bulk_update(to_be_updated_storages, fields=["index_set"])
-    logger.info("[sync_trace_unify_query_router] sync index_set to ESStorage: %s", len(to_be_updated_storages))
+    sync_index_set_to_es_storages(models["ESStorage"], table_ids)
 
     # Step-3：设置查询选项，例如事件字段、是否在查询索引中增加日期等。
     rt_option_map: dict[str, Any] = {

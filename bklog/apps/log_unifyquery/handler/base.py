@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+from collections import defaultdict
 from typing import Any
 
 import arrow
@@ -782,10 +783,15 @@ class UnifyQueryHandler:
     def date_histogram(self):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
+        group_field = self.search_params["group_field"]
         # count聚合
         method = "count"
         for q in params["query_list"]:
-            q["function"] = [{"method": method}, {"method": "date_histogram", "window": interval}]
+            if group_field:
+                q["function"] = [{"method": method, "dimensions": [group_field]}]
+            else:
+                q["function"] = [{"method": method}]
+            q["function"].append({"method": "date_histogram", "window": interval})
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
@@ -795,15 +801,36 @@ class UnifyQueryHandler:
         if not response["series"]:
             return return_data
 
+        time_field_mappings = defaultdict(list)
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
-        values = response["series"][0]["values"]
-        for value in values:
+        # 无分组处理
+        if not group_field:
+            for value in response["series"][0]["values"]:
+                key_as_string = timestamp_to_timeformat(
+                    value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+                )
+                tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+                return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
+            return return_data
+        # 分组组装
+        for item in response["series"]:
+            group_value = item["group_values"][0]
+            for value in item["values"]:
+                time_field_mappings[value[0]].append({"key": group_value, "doc_count": value[1]})
+
+        for _timestamp, data_list in time_field_mappings.items():
             key_as_string = timestamp_to_timeformat(
-                value[0], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
+                _timestamp, time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
             )
-            tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
+            doc_count = sum(item["doc_count"] for item in data_list)
+            tmp = {
+                "key_as_string": key_as_string,
+                "key": _timestamp,
+                "doc_count": doc_count,
+                group_field: {"buckets": data_list},
+            }
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
 
@@ -1004,7 +1031,6 @@ class UnifyQueryHandler:
         return user_sort_list
 
     def fields(self, scope="default"):
-        # self = self.unify_query_handler
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
         scenario_id = index_info["origin_scenario_id"]
@@ -1134,7 +1160,7 @@ class UnifyQueryHandler:
         @return:
         """
         # 设置了自定义排序字段的，默认认为支持上下文
-        if self.index_set.target_fields and self.index_set.sort_fields:
+        if self.index_set["index_set_obj"].target_fields and self.index_set["index_set_obj"].sort_fields:
             return True, {"reason": "", "context_fields": []}
         result = MappingHandlers.analyze_fields(field_result)
         if result["context_search_usable"]:
@@ -1155,14 +1181,14 @@ class UnifyQueryHandler:
             return ERROR_MSG_CHECK_FIELDS_FROM_LOG
 
     @fields_config("async_export")
-    def async_export(self, field_result, scenario_id):  # TODO ?? index_set
+    def async_export(self, field_result, scenario_id):
         """
         async_export
         @param field_result:
         @param scenario_id:
         @return:
         """
-        sort_fields = self.index_set.sort_fields if self.index_set else []
+        sort_fields = self.index_set["index_set_obj"].sort_fields if self.index_set else []
         result = MappingHandlers.async_export_fields(field_result, scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
@@ -1174,7 +1200,7 @@ class UnifyQueryHandler:
 
     @fields_config("apm_relation")
     def apm_relation(self, index_set_id):
-        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set.collector_config_id)
+        qs = CollectorConfig.objects.filter(collector_config_id=self.index_set["index_set_obj"].collector_config_id)
         try:
             if qs.exists():
                 collector_config = qs.first()
@@ -1208,7 +1234,7 @@ class UnifyQueryHandler:
             return (
                 clustering_config.signature_enable,
                 {
-                    "collector_config_id": self.index_set.collector_config_id,
+                    "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
                     "signature_switch": clustering_config.signature_enable,
                     "clustering_field": clustering_config.clustering_fields,
                 },
@@ -1220,13 +1246,15 @@ class UnifyQueryHandler:
         """
         获取清洗配置
         """
-        if not self.index_set.collector_config_id:
+        if not self.index_set["index_set_obj"].collector_config_id:
             return False, {"collector_config_id": None}
-        collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        collector_config = CollectorConfig.objects.get(
+            collector_config_id=self.index_set["index_set_obj"].collector_config_id
+        )
         return (
             collector_config.etl_config != EtlConfig.BK_LOG_TEXT,
             {
                 "collector_scenario_id": collector_config.collector_scenario_id,
-                "collector_config_id": self.index_set.collector_config_id,
+                "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
             },
         )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 import arrow
@@ -66,7 +66,7 @@ from bkm_space.errors import NoRelatedResourceError
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
-class ClusteringConfigHandler(object):
+class ClusteringConfigHandler:
     class AccessStatusCode:
         PENDING = "PENDING"
         RUNNING = "RUNNING"
@@ -324,7 +324,9 @@ class ClusteringConfigHandler(object):
                     # 如果原始数据也没有上报，那么就直接判定为接入完成
                     access_finished = True
             except Exception as e:
-                result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e))
+                result["data_check"].update(
+                    status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e)
+                )
         else:
             result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
 
@@ -339,7 +341,9 @@ class ClusteringConfigHandler(object):
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
             # 此处简化流程，只检查模型预测 flow 的状态即可
-            result["flow_run"].update(self.check_dataflow_status(clustering_config.predict_flow_id))
+            result["flow_run"].update(
+                self.check_dataflow_status(clustering_config.predict_flow_id, bk_biz_id=clustering_config.bk_biz_id)
+            )
         else:
             # 如果 flow 不存在，说明基本流程没走完
             result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
@@ -367,17 +371,17 @@ class ClusteringConfigHandler(object):
 
         return result
 
-    def check_dataflow_status(self, flow_id):
+    def check_dataflow_status(self, flow_id, bk_biz_id):
         """
         检查 dataflow 状态
         """
         flow_status = ""
         try:
-            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id)
+            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if flow:
                 flow_status = flow["status"]
         except Exception as e:  # pylint:disable=broad-except
-            return {"status": self.AccessStatusCode.FAILED, "message": _("dataflow({}) 获取信息失败: {}".format(flow_id, e))}
+            return {"status": self.AccessStatusCode.FAILED, "message": _(f"dataflow({flow_id}) 获取信息失败: {e}")}
 
         flow_status_mapping = {
             "": {"status": self.AccessStatusCode.FAILED, "message": _("未创建")},
@@ -390,7 +394,7 @@ class ClusteringConfigHandler(object):
 
         task_detail = {}
         if flow_status == "running":
-            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id)
+            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if deploy_data["status"] == "failure":
                 flow_status = "failure"
             elif deploy_data["status"] == "success":
@@ -456,7 +460,7 @@ class ClusteringConfigHandler(object):
         :param partition:
         :return:
         """
-        collector_handler = CollectorHandler(self.data.collector_config_id)
+        collector_handler = CollectorHandler.get_instance(self.data.collector_config_id)
         if not self.data.log_bk_data_id:
             self.data.log_bk_data_id = CollectorScenario.change_data_stream(
                 collector_handler.data, mq_topic=topic, mq_partition=partition
@@ -518,4 +522,8 @@ class ClusteringConfigHandler(object):
         if space:
             return space.bk_biz_id
         # 无业务关联的空间，不允许创建日志聚类 当前抛出异常
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(bk_biz_id=bk_biz_id))
+        raise NoRelatedResourceError(
+            _(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(
+                bk_biz_id=bk_biz_id
+            )
+        )

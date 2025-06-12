@@ -24,18 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ComputedRef, defineComponent } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
+
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
-import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
-import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+// #else
+// #code const GraphAnalysis = () => null
+// #endif
+import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+// #else
+// #code const SearchResultTab = () => null;
+// #endif
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import { MSearchResultTab } from '../type';
+import Grep from '../grep';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-result-container',
-  setup(_, {}) {
+  name: 'V3ResultContainer',
+  setup() {
     const router = useRouter();
     const route = useRoute();
 
@@ -52,15 +65,37 @@ export default defineComponent({
     }, 60);
 
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
-    const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 
-    const handleTabChange = (tab: string) => {
+    const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
+
+      if (triggerTrend) {
+        setTimeout(() => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        }, 300);
+      }
     };
 
     RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, item => {
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
     });
+
+    const renderTabContent = () => {
+      if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {
+        return <GraphAnalysis></GraphAnalysis>;
+      }
+
+      if (activeTab.value === MSearchResultTab.GREP) {
+        return <Grep></Grep>;
+      }
+
+      return (
+        <SearchResultPanel
+          active-tab={activeTab.value}
+          onUpdate:active-tab={handleTabChange}
+        ></SearchResultPanel>
+      );
+    };
 
     return () => (
       <div class='v3-bklog-body'>
@@ -68,14 +103,7 @@ export default defineComponent({
           value={activeTab.value}
           on-input={handleTabChange}
         ></SearchResultTab>
-        {showAnalysisTab.value ? (
-          <GraphAnalysis></GraphAnalysis>
-        ) : (
-          <SearchResultPanel
-            active-tab={activeTab.value}
-            onUpdate:active-tab={handleTabChange}
-          ></SearchResultPanel>
-        )}
+        {renderTabContent()}
       </div>
     );
   },
