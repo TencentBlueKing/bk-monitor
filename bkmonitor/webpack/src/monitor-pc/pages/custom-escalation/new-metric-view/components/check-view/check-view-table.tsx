@@ -137,7 +137,6 @@ export default class CheckViewTable extends tsc<object, object> {
 
   mounted() {
     this.initializeTableHeight();
-    // 添加 ResizeObserver 监听容器大小变化
     const resizeObserver = new ResizeObserver(() => {
       this.initializeTableHeight();
     });
