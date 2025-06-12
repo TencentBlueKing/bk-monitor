@@ -95,8 +95,8 @@ class ClusteringConfigSerializer(serializers.Serializer):
 class ClusteringDebugSerializer(serializers.Serializer):
     input_data = serializers.CharField()
     predefined_varibles = serializers.CharField(default=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES)
-    delimeter = serializers.CharField(required=False, default=OnlineTaskTrainingArgs.DELIMETER)
-    max_log_length = serializers.IntegerField(required=False, default=OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
+    delimeter = serializers.CharField(default=OnlineTaskTrainingArgs.DELIMETER)
+    max_log_length = serializers.IntegerField(default=OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
 
 
 class SetRemarkSerializer(serializers.Serializer):

@@ -5,6 +5,7 @@ import string
 
 import jieba_fast
 
+from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 
 NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
 
@@ -160,9 +161,9 @@ def match_text_and_tokenize(variables, content, delimeter, number_variables, is_
 
 def debug(
     log,
-    predefined_variables,
-    delimeter,
-    max_log_length,
+    predefined_variables=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
+    delimeter=OnlineTaskTrainingArgs.DELIMETER,
+    max_log_length=OnlineTaskTrainingArgs.MAX_LOG_LENGTH,
 ):
     """
     正则调试
