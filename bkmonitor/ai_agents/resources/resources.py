@@ -24,6 +24,7 @@ from aidev_agent.config import settings
 settings.APP_CODE = bkm_settings.AIDEV_AGENT_APP_CODE
 settings.SECRET_KEY = bkm_settings.AIDEV_AGENT_APP_SECRET
 settings.BK_API_URL_TMPL = bkm_settings.AIDEV_AGENT_API_URL_TMPL
+bkm_settings.BK_API_URL_TMPL = bkm_settings.AIDEV_AGENT_API_URL_TMPL
 
 logger = logging.getLogger("ai_agents")
 
