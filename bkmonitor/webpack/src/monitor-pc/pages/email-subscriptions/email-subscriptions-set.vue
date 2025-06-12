@@ -35,28 +35,28 @@
       </div>
       <div class="content-main">
         <bk-form
-          class="base-info-form"
-          :rules="rules"
-          :model="formData"
           ref="validateForm"
+          class="base-info-form"
+          :model="formData"
+          :rules="rules"
         >
           <bk-form-item
-            :label="$t('邮件标题')"
-            :required="true"
-            :property="'mailTitle'"
             :error-display-type="'normal'"
+            :label="$t('邮件标题')"
+            :property="'mailTitle'"
+            :required="true"
           >
             <bk-input
               class="input"
-              :placeholder="$t('输入邮件标题')"
               v-model="formData.mailTitle"
+              :placeholder="$t('输入邮件标题')"
             />
           </bk-form-item>
           <bk-form-item
+            :error-display-type="'normal'"
             :label="$t('订阅人')"
             :required="true"
             property="subscribe"
-            :error-display-type="'normal'"
           >
             <div class="subscribe-item">
               <div class="subscribe-title">
@@ -69,10 +69,11 @@
                 v-show="formData.receiversEnabled"
               >
                 <!-- 人员选择器 -->
-                <member-selector
+                <user-selector
                   style="width: 465px; height: 32px"
-                  v-model="formData.receivers"
-                  :group-list="memberGroupListFilter"
+                  :user-group-list="memberGroupListFilter"
+                  :user-ids="formData.receivers"
+                  @change="handleSelectReceiver"
                 />
               </div>
             </div>
@@ -82,11 +83,11 @@
                   {{ $t('外部邮件') }}
                 </bk-checkbox>
                 <span
-                  v-show="formData.channels[0].isEnabled"
                   class="warning-hint"
+                  v-show="formData.channels[0].isEnabled"
                 >
                   <i class="icon-monitor icon-remind" />
-                  <span class="text">{{ $t("请遵守公司规范，切勿泄露敏感信息，后果自负！") }}</span>
+                  <span class="text">{{ $t('请遵守公司规范，切勿泄露敏感信息，后果自负！') }}</span>
                 </span>
               </div>
               <div
@@ -101,7 +102,7 @@
                     showOnInit: false,
                     duration: 200,
                     placements: ['right'],
-                    theme: 'light'
+                    theme: 'light',
                   }"
                 >
                   <template slot="prepend">
@@ -130,7 +131,7 @@
                     showOnInit: false,
                     duration: 200,
                     placements: ['right'],
-                    theme: 'light'
+                    theme: 'light',
                   }"
                 >
                   <template slot="prepend">
@@ -146,24 +147,25 @@
                     showOnInit: false,
                     duration: 200,
                     placements: ['right'],
-                    allowHTML: false
+                    allowHTML: false,
                   }"
                 />
               </div>
             </div>
           </bk-form-item>
           <bk-form-item
-            :label="$t('管理员')"
-            :required="true"
-            :property="'managers'"
             :error-display-type="'normal'"
+            :label="$t('管理员')"
+            :property="'managers'"
+            :required="true"
           >
             <div class="form-item-row">
               <!-- 人员选择器 -->
-              <member-selector
+              <user-selector
                 style="width: 465px; height: 32px"
-                v-model="formData.managers"
-                :group-list="memberGroupListFilter"
+                :user-group-list="memberGroupListFilter"
+                :user-ids="formData.managers"
+                @change="handleSelectManager"
               />
               <i
                 class="icon-monitor icon-tips"
@@ -171,12 +173,12 @@
                   content: $t('可以对本订阅内容进行修改的人员'),
                   showOnInit: false,
                   duration: 200,
-                  placements: ['top']
+                  placements: ['top'],
                 }"
               />
               <div
-                class="receiver-btn"
                 ref="receiverTarget"
+                class="receiver-btn"
                 @click="handleShowReceiver"
               >
                 <i class="icon-monitor icon-audit" />
@@ -193,8 +195,8 @@
           <bk-form-item
             :label="$t('数据范围')"
             :required="true"
-            property="timeRange"
             error-display-type="normal"
+            property="timeRange"
           >
             <bk-select
               class="time-range-select"
@@ -203,8 +205,8 @@
             >
               <bk-option
                 v-for="opt in timeRangeOption"
-                :key="opt.id"
                 :id="opt.id"
+                :key="opt.id"
                 :name="opt.name"
               />
             </bk-select>
@@ -213,56 +215,60 @@
           <bk-form-item
             ref="reportContentsFormItem"
             v-show="false"
-            :required="true"
-            :property="'reportContents'"
             :error-display-type="'normal'"
+            :property="'reportContents'"
+            :required="true"
           />
         </bk-form>
       </div>
     </div>
     <div class="content-wrap mt24">
       <div
+        style="margin-bottom: 8px"
         class="title-wrap"
-        style="margin-bottom: 8px;"
       >
-        <span class="title">{{$t('订阅内容')}}</span>
+        <span class="title">{{ $t('订阅内容') }}</span>
         <div class="is-link-enabled">
           <span>{{ $t('是否附带链接') }}</span>
           <bk-switcher
             v-model="formData.isLinkEnabled"
-            theme="primary"
             size="small"
+            theme="primary"
           />
         </div>
       </div>
       <subscription-content
-        :data="tableData"
         :content-type="contentType"
-        @typeChange="(type) => handleTabChange(type)"
-        @viewSort="(data) => formData.reportContents = data"
+        :data="tableData"
         @add="() => handleShowContent('add')"
         @del="index => handleDelContent(index)"
         @edit="({ row, index }) => handleShowContent('edit', row, index)"
+        @typeChange="type => handleTabChange(type)"
+        @viewSort="data => (formData.reportContents = data)"
       />
       <div
-        class="errors-tips"
         v-if="errors && errors.field === 'reportContents'"
-      >{{errors.content}}</div>
+        class="errors-tips"
+      >
+        {{ errors.content }}
+      </div>
     </div>
     <div class="footer-wrap">
       <bk-button
+        :loading="saveLoading"
         theme="primary"
         @click="handleSave"
-        :loading="saveLoading"
-      >{{ $t('保存') }}</bk-button>
+        >{{ $t('保存') }}</bk-button
+      >
       <bk-button
         v-bk-tooltips="{
           content: $t('往当前用户发送一封测试邮件'),
-          placements: ['top']
+          placements: ['top'],
         }"
-        @click="handleTest"
         :loading="testLoading"
-      >{{ $t('测试') }}</bk-button>
+        @click="handleTest"
+        >{{ $t('测试') }}</bk-button
+      >
       <bk-button @click="handleCancel">
         {{ $t('取消') }}
       </bk-button>
@@ -270,8 +276,8 @@
     <!-- 侧栏-添加内容 -->
     <add-content
       :content-type="contentType"
-      :show.sync="showAddContent"
       :data="curEditContentData"
+      :show.sync="showAddContent"
       :type="setType"
       @change="handleContentChange"
     />
@@ -293,37 +299,39 @@
     </monitor-dialog>
     <!-- 接收人列表浮层 -->
     <receiver-list
-      :show.sync="receiverList.show"
-      :target="receiverTargetRef"
-      :table-data="receiverListTableData"
-      placement="bottom-start"
-      :need-handle="true"
       :loading="receiverListLoading"
+      :need-handle="true"
+      :show.sync="receiverList.show"
+      :table-data="receiverListTableData"
+      :target="receiverTargetRef"
+      placement="bottom-start"
       @on-receiver="handleOnReciver"
     />
   </div>
 </template>
 
 <script lang="ts">
+import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { groupList, reportContent, reportCreateOrUpdate, reportTest } from 'monitor-api/modules/report';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Sortable } from 'sortablejs';
-import type VueI18n from 'vue-i18n';
-import type { TranslateResult } from 'vue-i18n';
-import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 
+import userSelector from '../../components/user-selector/user-selector';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
-
 import addContent from './components/add-content.vue';
 import ReceiverList from './components/receiver-list.vue';
 import SubscriptionContent from './components/subscription-content';
 import timePeriod from './components/time-period.vue';
-import type { IContentFormData, ITableColumnItem } from './types';
 import { splitGraphId } from './utils';
+
+import type { IContentFormData, ITableColumnItem } from './types';
+import type VueI18n from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 /** 默认的图表数据时间范围 按照发送频率 */
 const DEFAULT_TIME_RANGE = 'none';
 
@@ -332,7 +340,7 @@ interface IOption {
   name: string | TranslateResult;
 }
 interface ITimeRangeObj {
-  timeLevel: 'minutes' | 'hours' | 'days';
+  timeLevel: 'days' | 'hours' | 'minutes';
   number: number;
 }
 /**
@@ -347,6 +355,7 @@ interface ITimeRangeObj {
     memberSelector,
     ReceiverList,
     SubscriptionContent,
+    userSelector,
   },
 })
 export default class SubscriptionsSet extends Vue {
@@ -432,7 +441,7 @@ export default class SubscriptionsSet extends Vue {
 
   // 测试提示数据
   showTips = false;
-  tipsType: 'success' | 'fail' = 'fail';
+  tipsType: 'fail' | 'success' = 'fail';
   tipsContent: any = {
     success: {
       icon: 'icon-mc-check-fill',
@@ -580,15 +589,17 @@ export default class SubscriptionsSet extends Vue {
   get memberGroupListFilter() {
     if (this.isSuperUser) {
       const temp = deepClone(this.memberList);
-      const list = temp.filter(item => item.id === 'group');
-      list.forEach(item => {
-        item.children = item.children.map(group => {
-          group.username = group.id;
-          delete group.children;
-          return group;
-        });
-      });
-      return list;
+      return temp
+        .filter(item => item.id === 'group')[0]
+        ?.children?.map(item => ({
+          id: item.id,
+          name: item.display_name,
+          hidden: false,
+          members: item.members?.map(member => ({
+            id: member.id,
+            name: member.display_name,
+          })),
+        }));
     }
     return [];
   }
@@ -621,6 +632,14 @@ export default class SubscriptionsSet extends Vue {
         },
       ];
     });
+  }
+
+  /** 人员选择器 */
+  handleSelectManager(user: string[]) {
+    this.formData.managers = user;
+  }
+  handleSelectReceiver(user: string[]) {
+    this.formData.receiver = user;
   }
   /** 更新面包屑 */
   updateNavData(name: string | VueI18n.TranslateResult = '') {
@@ -1086,7 +1105,7 @@ export default class SubscriptionsSet extends Vue {
     padding: 22px 37px;
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .05);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
 
     .title-wrap {
       display: flex;
