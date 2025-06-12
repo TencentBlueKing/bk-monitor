@@ -1736,45 +1736,21 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         max_length = len(times)
         return self.format_time(times[0]), self.format_time(times[max_length - 1])
 
-    def compare_message(self, messages):
-        for message in messages:
-            if message:
-                return message
-        return None
-
-    def compare_exception_type(self, exception_types):
-        for i in exception_types:
-            if i:
-                return i
-
-        return None
-
     def has_events(self, events):
         for event in events:
             if event["name"] == "exception":
                 return True
         return False
 
-    def compare_exception_stacks(self, exception_stacks):
-        for i in exception_stacks:
-            if i:
-                return i
-
-        return None
-
-    def combine_errors(self, bk_biz_id, service_mappings, trace_ids, service, endpoint, errors):
+    def combine_errors(self, bk_biz_id, service_mappings, trace_ids, service, endpoint, errors, exception_type):
         times = set()
-        exception_types = set()
 
         has_exception = False
         for error in errors:
             times.add(error["time"])
-            exception_types |= {i.get("attributes", {}).get("exception.type") for i in error.get("events", [])}
             if not has_exception:
                 has_exception = self.has_events(error.get("events", []))
         first_time, last_time = self.compare_time(list(times))
-        exception_type = self.compare_exception_type(list(exception_types))
-        exception_type = exception_type if exception_type else self.UNKNOWN_EXCEPTION_TYPE
 
         trace_id = trace_ids[-1]
 
@@ -1797,7 +1773,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "exception_type": exception_type,
         }
 
-    def handle_error_map(self, error_map, key, service, endpoint, span):
+    def handle_error_map(self, error_map, key, service, endpoint, span, exception_type):
         if key in error_map:
             error_map[key]["trace_ids"].append(span["trace_id"])
             error_map[key]["errors"].append(span)
@@ -1805,6 +1781,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             error_map[key] = {
                 "service": service,
                 "endpoint": endpoint,
+                "exception_type": exception_type,
                 "errors": [span],
                 "trace_ids": [span["trace_id"]],
             }
@@ -1829,11 +1806,11 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     )
                     key = (service, endpoint, exception_type)
 
-                    self.handle_error_map(error_map, key, service, endpoint, span)
+                    self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
             else:
                 exception_type = self.UNKNOWN_EXCEPTION_TYPE
                 key = (service, endpoint, exception_type)
-                self.handle_error_map(error_map, key, service, endpoint, span)
+                self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)
