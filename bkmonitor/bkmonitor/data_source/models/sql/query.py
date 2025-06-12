@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from importlib import import_module
 
@@ -89,7 +87,7 @@ def load_backends(using):
     query_func = config["query"]
     backend_name = config["backends"]
     try:
-        return query_func, import_module("%s.connection" % backend_name)
+        return query_func, import_module(f"{backend_name}.connection")
     except ImportError:
         raise
 
@@ -108,7 +106,7 @@ def get_limit_range(low=None, high=None, low_mark=None, high_mark=None):
     return low_mark, high_mark
 
 
-class RawQuery(object):
+class RawQuery:
     """
     A single raw SQL query
     """
@@ -126,7 +124,7 @@ class RawQuery(object):
         return conn.execute(sql)
 
 
-class Query(object):
+class Query:
     """
     A single SQL query.
     """
@@ -134,6 +132,7 @@ class Query(object):
     compiler = "SQLCompiler"
 
     def __init__(self, using, where=WhereNode):
+        self.bk_tenant_id = None
         self.select = []
         self.table_name = None
         self.where = where()
@@ -171,6 +170,7 @@ class Query(object):
 
     def clone(self):
         obj = self.__class__(using=self.using)
+        obj.bk_tenant_id = self.bk_tenant_id
         obj.select = self.select[:]
         obj.table_name = self.table_name
         obj.where = self.where.clone()
@@ -199,6 +199,10 @@ class Query(object):
         obj.enable_date_histogram = self.enable_date_histogram
 
         return obj
+
+    def set_bk_tenant_id(self, bk_tenant_id: int):
+        if bk_tenant_id:
+            self.bk_tenant_id = bk_tenant_id
 
     def sql_with_params(self):
         """
@@ -263,4 +267,4 @@ class InsertQuery(Query):
     compiler = "SQLInsertCompiler"
 
     def __init__(self, *args, **kwargs):
-        super(InsertQuery, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
