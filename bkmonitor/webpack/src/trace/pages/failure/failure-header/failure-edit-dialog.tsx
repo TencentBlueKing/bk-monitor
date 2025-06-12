@@ -194,7 +194,7 @@ export default defineComponent({
                 <UserSelector
                   class='width-940'
                   modelValue={this.incidentDetailData.assignees}
-                  onChange={this.handleUserChange}
+                  onUpdate:modelValue={this.handleUserChange}
                 />
               </Form.FormItem>
               <Form.FormItem label={this.t('故障标签')}>

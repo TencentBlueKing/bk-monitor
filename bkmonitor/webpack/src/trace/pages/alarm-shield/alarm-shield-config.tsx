@@ -651,7 +651,7 @@ export default defineComponent({
                       class='width-940'
                       modelValue={this.formData.noticeMember}
                       userGroupList={this.defaultUserGroupList}
-                      onChange={this.handleUserChange}
+                      onUpdate:modelValue={this.handleUserChange}
                     />
                   </FormItem>
                   <FormItem
