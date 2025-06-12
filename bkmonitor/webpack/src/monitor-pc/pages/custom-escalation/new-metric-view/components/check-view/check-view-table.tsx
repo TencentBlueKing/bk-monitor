@@ -118,8 +118,12 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   @Watch('hoverPoint')
-  handleHoverPoint(val: { index: number }) {
-    const { index } = val;
+  handleHoverPoint(val: { value: number[]; index: number }) {
+    const { value = [] } = val;
+    if (!value?.length) return;
+    const targetValue = value[0];
+    const index = this.tableData.findIndex(row => row.date === targetValue);
+
     const table = this.dataTableRef;
     if (!table?.$el) return;
 
@@ -129,7 +133,7 @@ export default class CheckViewTable extends tsc<object, object> {
     const rows = tableBody.querySelectorAll('tbody tr');
     rows.forEach(row => row.classList.remove('highlight-row'));
 
-    if (index < rows.length) {
+    if (index !== -1 && index < rows.length) {
       rows[index].classList.add('highlight-row');
       this.scrollToRow(index);
     }
@@ -312,7 +316,7 @@ export default class CheckViewTable extends tsc<object, object> {
 
   renderFluctuationCol(h: CreateElement, { row, col }: { row: IDataItem; col: IColumnItem }): JSX.Element {
     const data = row[col.colKey];
-    const isFix = data !== '--' && data !== 0;
+    const isFix = data !== '--' && data !== 0 && data !== undefined;
     const color = data >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: isFix ? color : '#313238' }}>{isFix ? `${data.toFixed(2)}%` : '--'}</span>;
   }

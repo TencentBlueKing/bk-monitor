@@ -61,8 +61,6 @@ class MonitorBaseEchart extends BaseEchart {
   @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
   @Prop({ type: Boolean, default: false }) needZrClick: boolean;
-  /** 是否需要鼠标hover事件 */
-  @Prop({ type: Boolean, default: false }) isNeedMouseover: boolean;
 
   /** 是否需要图表的鼠标右击事件 */
   @Prop({ type: Boolean, default: false }) needMenuClick: boolean;
@@ -178,12 +176,6 @@ class MonitorBaseEchart extends BaseEchart {
               yAxis: data[0].v,
               dimensions: data[0].s.dimensions,
             });
-          });
-        }
-        /** 鼠标hover事件 */
-        if (this.isNeedMouseover) {
-          (this as any).instance.on('mouseover', params => {
-            this.$emit('zrMouseover', params);
           });
         }
 

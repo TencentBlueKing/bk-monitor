@@ -321,7 +321,6 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   chartHeight={this.drag.height}
                   currentMethod={this.currentMethod}
                   isNeedMenu={true}
-                  isNeedMouseover={true}
                   isShowLegend={false}
                   isToolIconShow={false}
                   panel={this.panelData}

@@ -94,8 +94,6 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: '' }) groupId: string;
   /** 是否展示图例 */
   @Prop({ default: false }) isNeedMenu: boolean;
-  /** 是否需要鼠标hover事件 */
-  @Prop({ type: Boolean, default: false }) isNeedMouseover: boolean;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -953,12 +951,11 @@ class NewMetricChart extends CommonSimpleChart {
                   height={this.chartHeight}
                   groupId={this.panel.groupId}
                   hoverAllTooltips={this.hoverAllTooltips}
-                  isNeedMouseover={this.isNeedMouseover}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
+                  onMouseover={this.handleZrMouseover}
                   onRestore={this.handleRestore}
-                  onZrMouseover={this.handleZrMouseover}
                 />
               ) : (
                 <div class='skeleton-loading-chart'>
