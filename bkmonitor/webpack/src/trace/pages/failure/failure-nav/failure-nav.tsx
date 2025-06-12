@@ -31,6 +31,7 @@ import { incidentAlertAggregate } from 'monitor-api/modules/incident';
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
+import TroubleShooting from '../trouble-shooting/trouble-shooting';
 
 import type { ITagInfoType, IAggregationRoot } from '../types';
 
@@ -59,13 +60,20 @@ export default defineComponent({
       {
         name: 'FailureHandle',
         label: t('故障处理'),
+        component: FailureHandle,
       },
       {
         name: 'FailureProcess',
         label: t('故障流转'),
+        component: FailureProcess,
+      },
+      {
+        name: 'TroubleShooting',
+        label: t('故障诊断'),
+        component: TroubleShooting,
       },
     ];
-    const active = ref('FailureHandle');
+    const active = ref('TroubleShooting');
     const handleChange = (name: string) => {
       if (active.value !== name) {
         active.value = name;
@@ -145,7 +153,7 @@ export default defineComponent({
     };
   },
   render() {
-    const Component = this.active === 'FailureHandle' ? FailureHandle : FailureProcess;
+    const Component = this.tabList.find(item => item.name === this.active).component;
     return (
       <div class='failure-nav'>
         {this.playLoading && <div class='failure-nav-loading' />}
