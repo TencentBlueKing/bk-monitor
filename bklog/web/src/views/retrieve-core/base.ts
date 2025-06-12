@@ -145,35 +145,33 @@ export default class {
     // 如果已经是 RegExp 对象，直接返回
     if (reg instanceof RegExp) return reg;
 
-    const regString = String(reg);
+    const regString = String(reg).trim();
 
-    // 如果是纯字符串（非 /pattern/flags 格式）
-    if (!regString.startsWith('/')) {
-      // 处理转义字符（如 \b → \\b）
-      const escapedPattern = regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
-      return new RegExp(escapedPattern);
+    // 判定是否为标准正则表达式字符串 /pattern/flags
+    if (regString.startsWith('/') && regString.lastIndexOf('/') > 0) {
+      const lastSlashIndex = regString.lastIndexOf('/');
+      const pattern = regString.slice(1, lastSlashIndex); // 提取正则表达式的主体部分
+      const flags = regString.slice(lastSlashIndex + 1); // 提取正则表达式的 flags（可能为空）
+
+      // 如果 flags 中包含非法字符，直接将整个字符串作为普通字符串处理
+      if (!/^[gimsuy]*$/.test(flags)) {
+        return new RegExp(regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1')); // 转义特殊字符
+      }
+
+      try {
+        return new RegExp(pattern, flags); // 创建 RegExp 对象
+      } catch (error) {
+        console.error(`Invalid regular expression: ${regString}`, error);
+        throw error; // 如果正则表达式无效，抛出错误
+      }
     }
 
-    // 处理标准正则格式 /pattern/flags
-    const lastSlashIndex = regString.lastIndexOf('/');
-    if (lastSlashIndex <= 0) {
-      // 如果只有一个 /（如 "/pattern"），默认无 flags
-      const pattern = regString.slice(1);
-      return new RegExp(pattern);
+    // 如果不是标准正则表达式字符串，将字符串作为整体处理
+    try {
+      return new RegExp(regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1')); // 转义特殊字符
+    } catch (error) {
+      console.error(`Invalid regular expression: ${regString}`, error);
+      throw error; // 如果正则表达式无效，抛出错误
     }
-
-    // 提取 pattern 和 flags
-    const pattern = regString.slice(1, lastSlashIndex);
-    const flags = regString.slice(lastSlashIndex + 1);
-
-    // 处理转义字符（如 \b → \\b）
-    const normalizedPattern = pattern.replace(/\\(.)/g, (match, char) => {
-      // 保留正则特殊字符的转义（如 \b, \d, \w）
-      if (/[bdDfnrsStvwW0]/.test(char)) return match;
-      // 其他情况去掉多余的转义（如 \/ → /）
-      return char;
-    });
-
-    return new RegExp(normalizedPattern, flags);
   }
 }

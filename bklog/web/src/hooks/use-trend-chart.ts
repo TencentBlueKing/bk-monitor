@@ -336,13 +336,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return;
     }
 
-    options.series.forEach(s => {
-      s.barMinHeight = 2;
-      s.itemStyle.color = params => {
-        return (params.value[1] ?? 0) > 0 ? params.color : '#fff';
-      };
-    });
-
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
