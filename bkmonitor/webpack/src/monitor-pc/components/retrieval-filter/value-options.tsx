@@ -233,6 +233,7 @@ export default class ValueOptions extends tsc<IProps> {
     }
     if (this.fieldInfo?.isEnableOptions) {
       const limit = this.pageSize * this.page;
+      await this.delay(300);
       const data = await this.getValueFn({
         search: this.search,
         limit,
@@ -245,6 +246,10 @@ export default class ValueOptions extends tsc<IProps> {
     this.scrollLoading = false;
     this.loading = false;
     return list;
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   localOptionsFilter(list: IValue[]) {
