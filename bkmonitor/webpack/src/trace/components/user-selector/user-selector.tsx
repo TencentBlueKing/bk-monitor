@@ -83,7 +83,6 @@ export default defineComponent({
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
-    change: (value: string[]) => Array.isArray(value),
   },
   setup(props, { emit }) {
     const componentConfig = shallowRef<Partial<ConfigOptions>>({});
@@ -91,15 +90,15 @@ export default defineComponent({
     onMounted(() => {
       componentConfig.value = getUserComponentConfig();
     });
-    const handleChange = (value: string[]) => {
+
+    const handleUpdateModuleValue = (value: string[]) => {
       emit('update:modelValue', value);
-      emit('change', value);
     };
 
     return {
       enableMultiTenantMode,
       componentConfig,
-      handleChange,
+      handleUpdateModuleValue,
     };
   },
   render() {
@@ -117,7 +116,7 @@ export default defineComponent({
         placeholder={this.placeholder}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
-        onChange={this.handleChange}
+        onUpdate:modelValue={this.handleUpdateModuleValue}
       />
     );
   },

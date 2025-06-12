@@ -68,6 +68,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
   @Watch('show')
   async handleShow(v: boolean) {
     if (v) {
+      this.users = [];
       this.loading = true;
       this.handleFocus();
       await this.getNoticeWayList();
@@ -165,6 +166,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
         extCls={'alarm-dispatch-component-dialog'}
         header-position='left'
         mask-close={true}
+        render-directive='if'
         title={this.$t('告警分派')}
         value={this.show}
         on-cancel={() => this.$emit('show', false)}
