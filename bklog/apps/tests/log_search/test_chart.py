@@ -84,7 +84,7 @@ WHERE_CLAUSE = [
         "AND "
         "dtEventTimeStamp <= 1732820443"
         " AND "
-        "title = \"Pyth?n\""
+        "title1 = \"Pyth?n\""
         " AND "
         "(bk_host_id = '1' OR bk_host_id = '2')"
     ),
@@ -93,7 +93,7 @@ WHERE_CLAUSE = [
         "AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
-        "title = \"Pyth?n\" OR title REGEXP '[Pp]ython.*'"
+        "title1 = \"Pyth?n\" OR title1 REGEXP '[Pp]ython.*'"
         " AND "
         "CAST(__ext['bcs_id'] AS TEXT) = \"test\""
         " AND "
@@ -129,7 +129,7 @@ WHERE_CLAUSE = [
         " AND "
         "(log NOT MATCH_PHRASE 'error' AND log NOT MATCH_PHRASE '500')"
         " AND "
-        "(describe LIKE '%_el%' AND describe LIKE '%wor_d%')"
+        "(desc LIKE '%_el%' AND desc LIKE '%wor_d%')"
         " AND "
         "(theme NOT LIKE '%pg%' AND theme NOT LIKE '%_h_%')"
         " AND "
@@ -159,7 +159,7 @@ WHERE_CLAUSE = [
         " AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
-        "title = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
+        "title1 = \"Python Programming\" AND (author LIKE '%John%' AND author LIKE '%6%' OR author = \"7\")"
         " AND "
         "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
     ),
@@ -195,8 +195,8 @@ WHERE_CLAUSE_RESULT = [
     "log MATCH_PHRASE \"\"",
     "log MATCH_PHRASE \"002\" OR log LIKE '%error%'",
     "year BETWEEN 2020 AND 2023",
-    "title REGEXP '[Pp]ython.*'",
-    "title LIKE '%Pyth_n%'",
+    "title1 REGEXP '[Pp]ython.*'",
+    "title1 LIKE '%Pyth_n%'",
     "(name LIKE '%John%' AND name LIKE '%6%' OR name = \"7\") AND (log LIKE '%python%' OR log MATCH_PHRASE \"django\")",
     "CAST(__ext['bcs_id'] AS TEXT) LIKE '%1%' OR CAST(__ext['bcs_id'] AS TEXT) = \"ts\"",
     "NOT log MATCH_PHRASE \"ts\" AND NOT a = \"b\"",
@@ -234,11 +234,12 @@ class TestChart(TestCase):
                 end_time=end_time,
                 sql_param=sql_param,
                 keyword=keyword,
+                alias_mappings={"title": "title1", "describe": "desc"},
             )
             self.assertEqual(data["sql"], sql_result)
             self.assertEqual(data["additional_where_clause"], where_clause)
 
     def test_lucene_to_where_clause(self):
         for where_clause_case, where_clause_result in zip(WHERE_CLAUSE_CASE, WHERE_CLAUSE_RESULT):
-            result = ChartHandler.lucene_to_where_clause(where_clause_case)
+            result = ChartHandler.lucene_to_where_clause(where_clause_case, alias_mappings={"title": "title1"})
             self.assertEqual(result, where_clause_result)

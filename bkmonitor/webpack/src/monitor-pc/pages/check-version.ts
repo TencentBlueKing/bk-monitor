@@ -82,7 +82,7 @@ const promptForReload = async () => {
       resolve(true);
     };
     notify = Vue.prototype.$bkNotify({
-      title: window.i18n.tc('版本更新'),
+      title: window.i18n.tc('监控版本已更新'),
       message: h(
         'div',
         {

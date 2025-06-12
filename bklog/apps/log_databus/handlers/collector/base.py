@@ -137,12 +137,10 @@ class CollectorHandler:
     def get_instance(cls, collector_config_id=None, env=None):
         if env and not collector_config_id:
             if env == Environment.CONTAINER:
-                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
                 return collector_handler()
             else:
-                collector_handler = import_string(
-                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
-                )
+                collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
                 return collector_handler()
 
         if collector_config_id:
@@ -152,12 +150,10 @@ class CollectorHandler:
                 raise CollectorConfigNotExistException()
 
             if data.is_container_environment:
-                collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
                 return collector_handler(collector_config_id, data)
             else:
-                collector_handler = import_string(
-                    "apps.log_databus.handlers.collector_handler.host.HostCollectorHandler"
-                )
+                collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
                 return collector_handler(collector_config_id, data)
         else:
             raise CollectorIdNotExistException()
@@ -492,11 +488,6 @@ class CollectorHandler:
         for process in RETRIEVE_CHAIN:
             collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
-        if self.data.table_id:
-            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
-            alias_dict = result_table.get("query_alias_settings", dict())
-            if alias_dict:
-                collector_config.update({"alias_settings": alias_dict})
 
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
@@ -504,7 +495,12 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
-
+            if query_alias_settings := log_index_set_obj.query_alias_settings:
+                alias_dict = {}
+                for item in query_alias_settings:
+                    alias_dict[item["field_name"]] = {"type": "alias", "path": item["query_alias"]}
+                if alias_dict:
+                    collector_config.update({"alias_settings": alias_dict})
         return collector_config
 
     def custom_update(
@@ -989,13 +985,13 @@ class CollectorHandler:
         collector_obj, container_collector_mapping, return_data, subscription_collector_map, subscription_id_list
     ):
         if collector_obj.is_container_environment:
-            collector_handler = import_string("apps.log_databus.handlers.collector_handler.k8s.K8sCollectorHandler")
+            collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
             return_data = collector_handler.get_container_return_data(
                 collector_obj, container_collector_mapping, return_data
             )
             return return_data, subscription_id_list, subscription_collector_map
 
-        collector_handler = import_string("apps.log_databus.handlers.collector_handler.host.HostCollectorHandler")
+        collector_handler = import_string("apps.log_databus.handlers.collector.HostCollectorHandler")
         return_data, subscription_id_list, subscription_collector_map = collector_handler.get_subscription_dispose(
             collector_obj, return_data, subscription_collector_map, subscription_id_list
         )

@@ -34,7 +34,7 @@ import { handleGetReferenceKeyList } from '../../utils';
 import WhereFilters from '../where-filters/where-filters';
 import FilterVarSelect, { type CustomParamsType, type FilterDictType } from './filter-var-select';
 
-import type { IConditionItem } from '@/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
+import type { IConditionItem } from '../../../../pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import type { IVariableModel, IViewOptions, VariableModel } from 'monitor-ui/chart-plugins/typings';
 const DIMENSION_LIST_KEY = 'dimension_list';
 import './filter-var-select-group.scss';

@@ -29,8 +29,8 @@ from apps.log_databus.exceptions import (
     CollectorPluginNameDuplicateException,
     CollectorPluginNotExistException,
 )
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin, DataLinkConfig
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username

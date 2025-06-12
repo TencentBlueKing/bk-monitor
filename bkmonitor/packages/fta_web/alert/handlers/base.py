@@ -228,7 +228,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
             return value
 
         # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r'\{.*(=|~).*\}'
+        pattern = r"\{.*(=|~).*\}"
         query_string = re.sub(pattern, replace, query_string)
         return query_string
 
@@ -413,6 +413,18 @@ class BaseQueryHandler:
         """
         解析单个filter条件为 Q
         """
+        if condition["method"] == "include":
+            if isinstance(condition["value"], list):
+                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合
+                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                return queries[0] if len(queries) == 1 else Q("bool", should=queries)
+            return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+        elif condition["method"] == "exclude":
+            if isinstance(condition["value"], list):
+                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反
+                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
+            return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
         return Q("terms", **{condition["key"]: condition["value"]})
 
     @classmethod

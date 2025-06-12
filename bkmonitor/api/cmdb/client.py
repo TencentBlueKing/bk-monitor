@@ -55,6 +55,8 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     def get_request_url(self, params: dict):
         request_url = super().get_request_url(params)
+        params = params.copy()
+
         if "bk_supplier_account" not in params:
             params["bk_supplier_account"] = settings.BK_SUPPLIER_ACCOUNT
         return request_url.format(**params)
@@ -217,6 +219,14 @@ class SearchObjectAttribute(CMDBBaseResource):
         return "/api/v3/find/objectattr" if self.use_apigw() else "/search_object_attribute/"
 
     method = "POST"
+
+    def full_request_data(self, validated_request_data):
+        """
+        这个接口传入bk_supplier_account会使用该字段进行过滤，在某些环境数据下会有问题，因此需要移除该字段
+        """
+        result = super().full_request_data(validated_request_data)
+        result.pop("bk_supplier_account", None)
+        return result
 
 
 class SearchBusiness(CMDBBaseResource):

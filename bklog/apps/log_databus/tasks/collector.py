@@ -42,7 +42,7 @@ from apps.log_databus.constants import (
     CollectItsmStatus,
     ContainerCollectStatus,
 )
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import (
     BcsStorageClusterConfig,
@@ -178,7 +178,7 @@ def sync_storage_capacity():
                     defaults={"storage_used": storage_used},
                 )
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception("sync_storage_info error: %s" % e)
+            logger.exception(f"sync_storage_info error: {e}")
 
 
 def query(cluster_id):
@@ -343,9 +343,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
             collect_config = CollectorHandler.get_instance(collector.collector_config_id).retrieve()
             if collect_config["storage_cluster_id"] == storage_cluster_id:
                 logger.info(
-                    "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
-                        collector.collector_config_id, storage_cluster_id
-                    )
+                    f"switch collector->[{collector.collector_config_id}] old storage cluster is the same: {storage_cluster_id}, skip it."
                 )
                 continue
             etl_params = {

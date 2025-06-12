@@ -39,9 +39,9 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-from apps.log_databus.handlers.collector_handler.host import HostCollectorHandler
-from apps.log_databus.handlers.collector_handler.k8s import K8sCollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import HostCollectorHandler
+from apps.log_databus.handlers.collector import K8sCollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler

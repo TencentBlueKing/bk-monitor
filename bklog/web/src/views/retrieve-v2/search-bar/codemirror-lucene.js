@@ -159,12 +159,16 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     }
   };
 
-  const setFocus = () => {
+  const setFocus = (focusPosition) => {
     if (!view) return;
     
     view.focus();
-    // 确保光标位置正确
-    const pos = view.state.selection.main.to;
+    // 确保光标位置在有效范围内
+    const docLength = view.state.doc.length;
+    const pos = typeof focusPosition === 'number' 
+      ? Math.min(Math.max(0, focusPosition), docLength)
+      : 0;
+    
     view.dispatch({
       selection: EditorSelection.cursor(pos),
       userEvent: 'focus',

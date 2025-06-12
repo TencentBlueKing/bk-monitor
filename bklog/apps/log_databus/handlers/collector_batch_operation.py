@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from apps.log_databus.constants import CollectorBatchOperationType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig

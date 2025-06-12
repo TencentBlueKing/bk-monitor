@@ -140,7 +140,7 @@ class RetrieveHelper extends RetrieveBase {
       return group.fieldValue?.includes(fieldValue) ?? false;
     }
 
-    const regExp = new RegExp(group.regExp);
+    const regExp = this.getRegExp(group.regExp);
     return regExp.test(fieldValue);
   }
 
