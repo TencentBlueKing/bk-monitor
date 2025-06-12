@@ -16,7 +16,14 @@ from core.drf_resource import Resource
 from rest_framework import serializers
 from ai_agents.services.api_client import AidevApiClientBuilder
 import logging
-from django.conf import settings
+from django.conf import settings as bkm_settings
+
+from aidev_agent.config import settings
+
+
+settings.APP_CODE = bkm_settings.AIDEV_AGENT_APP_CODE
+settings.SECRET_KEY = bkm_settings.AIDEV_AGENT_APP_SECRET
+
 
 logger = logging.getLogger("ai_agents")
 
@@ -49,7 +56,7 @@ class CreateChatSessionResource(Resource):
         # agent_code = validated_request_data.get("agent_code")
 
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session(json=validated_request_data)
         return res["data"]
@@ -72,7 +79,7 @@ class RetrieveChatSessionResource(Resource):
         logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
 
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
         return res["data"]
@@ -93,7 +100,7 @@ class DestroyChatSessionResource(Resource):
         logger.info("DestroyChatSessionResource: try to destroy session with session_code->[%s]", session_code)
 
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session(path_params={"session_code": session_code})
         return res["data"]
@@ -117,7 +124,7 @@ class CreateChatSessionContentResource(Resource):
         logger.info("CreateChatSessionContentResource: try to create content with session_code->[%s]", session_code)
 
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session_content(json=validated_request_data)
         return res["data"]
@@ -136,7 +143,7 @@ class GetChatSessionContentsResource(Resource):
         session_code = validated_request_data.get("session_code")
         logger.info("GetChatSessionContentResource: try to get content with session_code->[%s]", session_code)
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.get_chat_session_contents(params={"session_code": session_code})
 
@@ -154,7 +161,7 @@ class DestroyChatSessionContentResource(Resource):
     def perform_request(self, validated_request_data):
         id = validated_request_data.get("id")
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session_content(path_params={"id": id})
         return res["data"]
@@ -179,7 +186,7 @@ class UpdateChatSessionContentResource(Resource):
         id = validated_request_data.get("id")
         logger.info("UpdateChatSessionContentResource: try to update content with session_code->[%s]", session_code)
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.update_chat_session_content(path_params={"id": id}, json=validated_request_data)
         return res["data"]
@@ -200,7 +207,7 @@ class GetAgentInfoResource(Resource):
         agent_code = validated_request_data.get("agent_code")
         logger.info("GetAgentInfoResource: try to get agent info with agent_code->[%s]", agent_code)
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
         return res["data"]
@@ -238,10 +245,17 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
     """处理流式响应"""
     logger.info(f"Starting streaming chat completion with kwargs: {execute_kwargs}")
 
+    # 检查 ExecuteKwargs 解析是否正确
+    try:
+        validated_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
+        logger.info(f"Validated execute_kwargs: {validated_kwargs}")
+    except Exception as e:
+        logger.error(f"ExecuteKwargs validation failed: {e}")
+        raise
+
     def streaming_generator():
         try:
-            logger.info("ExecuteKwargs->[%s]", execute_kwargs)
-            for chunk in agent_instance.execute(ExecuteKwargs.model_validate(execute_kwargs)):
+            for chunk in agent_instance.execute(validated_kwargs):
                 logger.info(f"Yielding chunk: {chunk}")
                 yield chunk
         except Exception as e:
@@ -260,7 +274,7 @@ class CreateChatCompletionResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
         execute_kwargs = serializers.DictField(label="执行参数", required=True)
-        agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
+        agent_code = serializers.CharField(label="Agent代码", required=False, default=bkm_settings.AIDEV_AGENT_APP_CODE)
 
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
@@ -268,7 +282,7 @@ class CreateChatCompletionResource(Resource):
         agent_code = validated_request_data.get("agent_code")
 
         api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+            bk_app_code=bkm_settings.AIDEV_AGENT_APP_CODE, bk_app_secret=bkm_settings.AIDEV_AGENT_APP_SECRET
         )
 
         agent_instance = AgentInstanceBuilder.build_agent_instance_by_session(
