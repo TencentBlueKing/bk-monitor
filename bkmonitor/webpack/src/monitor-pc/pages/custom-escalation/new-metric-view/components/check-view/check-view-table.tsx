@@ -42,6 +42,17 @@ import type { CreateElement } from 'vue';
 import './check-view-table.scss';
 import 'tdesign-vue/es/style/index.css';
 
+interface ITableData {
+  time: string;
+  date: number;
+  rowKey: number;
+  [key: string]: any;
+}
+
+interface IFooterData {
+  [key: string]: any;
+}
+
 @Component
 export default class CheckViewTable extends tsc<object, object> {
   @Prop({ default: () => ({}) }) data: { series: IDataItem[] };
@@ -66,9 +77,10 @@ export default class CheckViewTable extends tsc<object, object> {
       fixed: 'left',
     },
   ];
+
   fluctuationColumn: IColumnItem[] = [
     {
-      label: this.$t('波动'),
+      label: this.$t('波动') as string,
       title: this.renderColorHead,
       colKey: 'fluctuation0',
       render: this.renderFluctuationCol,
@@ -80,25 +92,25 @@ export default class CheckViewTable extends tsc<object, object> {
     render: this.renderCol,
     foot: this.renderFooter,
     ellipsisTitle: true,
-    minWidth: '170',
+    minWidth: '180',
   };
 
   selectLegendKey = '';
   sort = {};
-  timeData = [];
-
-  tableData = [];
-  footerDataList = [];
+  timeData: ITableData[] = [];
+  tableData: ITableData[] = [];
+  footerDataList: IFooterData[] = [];
   defaultHeight = 400;
   maxHeight = 0;
 
   globalLocale = {
     table: {
-      sortIcon: h => h && <i class='icon-monitor icon-mc-arrow-down sort-icon' />,
+      sortIcon: (h: CreateElement) => h && <i class='icon-monitor icon-mc-arrow-down sort-icon' />,
     },
   };
-  // Web Worker 实例
+
   worker: null | Worker = null;
+
   @Watch('loading')
   handleLoading() {
     this.initTableData();
@@ -106,42 +118,43 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   @Watch('hoverPoint')
-  handleHoverPoint(val) {
+  handleHoverPoint(val: { index: number }) {
     const { index } = val;
     const table = this.dataTableRef;
-    if (!table) return;
+    if (!table?.$el) return;
+
     const tableBody = table.$el.querySelector('.t-table__body');
+    if (!tableBody) return;
+
     const rows = tableBody.querySelectorAll('tbody tr');
-    // biome-ignore lint/complexity/noForEach: <explanation>
     rows.forEach(row => row.classList.remove('highlight-row'));
-    // 高亮当前行
+
     if (index < rows.length) {
       rows[index].classList.add('highlight-row');
-      // 滚动到该行
       this.scrollToRow(index);
     }
   }
+
   mounted() {
+    this.initializeTableHeight();
+  }
+
+  initializeTableHeight() {
     setTimeout(() => {
-      if (!this.checkViewTableRef) {
-        return;
-      }
+      if (!this.checkViewTableRef) return;
       const height = this.checkViewTableRef.offsetHeight - 20;
       this.maxHeight = height < this.defaultHeight ? this.defaultHeight : height;
     });
   }
 
-  /** 有维度且有时间对比 */
-  get isMergeTable() {
+  get isMergeTable(): boolean {
     return this.isHasCompare && this.isHasDimensions;
   }
 
-  /** 有时间对比没有维度 */
-  get isCompareNotDimensions() {
+  get isCompareNotDimensions(): boolean {
     return this.isHasCompare && !this.isHasDimensions;
   }
 
-  /** 基础数据 */
   get baseData() {
     const len = Object.keys(this.data).length;
     const columnsData = this.classifyData(this.legendData);
@@ -150,13 +163,11 @@ export default class CheckViewTable extends tsc<object, object> {
       const { series } = this.data;
       this.timeData = [];
       const timeList = series[0]?.datapoints || [];
-      timeList.map(item => {
-        this.timeData.push({
-          time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ss'),
-          date: item[1],
-          rowKey: item[1],
-        });
-      });
+      this.timeData = timeList.map(item => ({
+        time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ss'),
+        date: item[1],
+        rowKey: item[1],
+      }));
       return {
         data: this.classifyData(series),
         columns: columnsData,
@@ -167,28 +178,24 @@ export default class CheckViewTable extends tsc<object, object> {
 
   get compareColumn(): IColumnItem[] {
     const { columns = [] } = this.baseData;
-
-    // 情况1：有比较但无维度
-    if (this.isCompareNotDimensions) {
-      return this.generateSimpleCompareColumns(columns);
-    }
-    // 情况2：有维度（可能有合并表格）
-    return this.generateDimensionCompareColumns(columns);
+    return this.isCompareNotDimensions
+      ? this.generateSimpleCompareColumns(columns)
+      : this.generateDimensionCompareColumns(columns);
   }
 
-  get columns() {
+  get columns(): IColumnItem[] {
     return this.isCompareNotDimensions
       ? [...this.firstColumn, ...this.compareColumn, ...this.fluctuationColumn]
       : [...this.firstColumn, ...this.compareColumn];
   }
 
-  get footerData() {
+  get footerData(): IFooterData[] {
     return this.isShowStatistical ? this.footerDataList : [];
   }
 
-  scrollToRow(index) {
+  scrollToRow(index: number): void {
     const table = this.dataTableRef;
-    if (!table) return;
+    if (!table?.$el) return;
 
     const tableBody = table.$el.querySelector('.t-table__content');
     if (!tableBody) return;
@@ -200,18 +207,14 @@ export default class CheckViewTable extends tsc<object, object> {
     const rowTop = row.offsetTop;
     const rowHeight = row.offsetHeight;
     const tableHeight = tableBody.clientHeight;
-
-    // 计算滚动位置，使行居中显示
     const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + 32;
 
-    // 平滑滚动
     tableBody.scrollTo({
       top: scrollPosition,
       behavior: 'smooth',
     });
   }
 
-  // 生成简单比较列（无维度）
   generateSimpleCompareColumns(columns: any[]): IColumnItem[] {
     const firstColumn = columns[0] || { items: [] };
     return firstColumn.items.map((ele: any) => ({
@@ -222,7 +225,6 @@ export default class CheckViewTable extends tsc<object, object> {
     }));
   }
 
-  // 生成带维度的比较列
   generateDimensionCompareColumns(columns: any[]): IColumnItem[] {
     return columns.map((item: any, index: number) => {
       const title = this.handleProp(item) || '';
@@ -232,13 +234,13 @@ export default class CheckViewTable extends tsc<object, object> {
         label: title || this.title,
         colKey: `${title}${item.timeOffset || 'current'}`,
       };
-      // 处理合并表格的子列
+
       if (this.isMergeTable) {
         const children = this.generateMergeTableChildren(item, index, title);
         return { ...baseConfig, children };
       }
-      const firstColumn = item.items[0] || {};
 
+      const firstColumn = item.items[0] || {};
       return {
         ...baseConfig,
         ...firstColumn,
@@ -246,7 +248,6 @@ export default class CheckViewTable extends tsc<object, object> {
     });
   }
 
-  // 生成合并表格的子列
   generateMergeTableChildren(item: any, parentIndex: number, parentKey: string): IColumnItem[] {
     const children = item.items.map((ele: any, ind: number) => ({
       ...ele,
@@ -255,9 +256,8 @@ export default class CheckViewTable extends tsc<object, object> {
       colKey: `${parentKey}${ele.timeOffset}${ind}`,
     }));
 
-    // 添加波动列
     children.push({
-      label: this.$t('波动'),
+      label: this.$t('波动') as string,
       title: this.renderColorHead,
       colKey: `fluctuation${parentIndex}`,
       render: this.renderFluctuationCol,
@@ -267,7 +267,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return children;
   }
 
-  renderValue(row: IDataItem, prop: string, unit: string) {
+  renderValue(row: IDataItem, prop: string, unit: string): string | JSX.Element {
     if (row[prop] === undefined || row[prop] === null) {
       return '--';
     }
@@ -280,18 +280,18 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  renderCol(h: CreateElement, { row, col }) {
+  renderCol(h: CreateElement, { row, col }: { row: IDataItem; col: IColumnItem }): JSX.Element {
     return <span>{this.renderValue(row, col.colKey, row.unit)}</span>;
   }
 
-  renderFluctuationCol(h: CreateElement, { row, col }) {
+  renderFluctuationCol(h: CreateElement, { row, col }: { row: IDataItem; col: IColumnItem }): JSX.Element {
     const data = row[col.colKey];
     const isFix = data !== '--' && data !== 0;
     const color = data >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: isFix ? color : '#313238' }}>{isFix ? `${data.toFixed(2)}%` : '--'}</span>;
   }
 
-  renderColorHead(h: CreateElement, { col }) {
+  renderColorHead(h: CreateElement, { col }: { col: IColumnItem }): JSX.Element {
     return (
       <span
         class={[
@@ -311,39 +311,35 @@ export default class CheckViewTable extends tsc<object, object> {
             class='color-box'
           />
         )}
-        <span class='title'>
-          {col.label}
-          {/* -{col.colKey} */}
-        </span>
+        <span class='title'>{col.label}</span>
       </span>
     );
   }
 
-  /** 点击表格的图例，与图表联动 */
-  handleRowClick(e: Event, item: IColumnItem) {
+  handleRowClick(e: Event, item: IColumnItem): void {
     e.stopPropagation();
     this.selectLegendKey = this.selectLegendKey === item.colKey ? '' : item.colKey;
     this.$emit('headClick', item);
   }
 
-  // 格式化时间偏移
   formatTimeOffset(timeOffset?: string): string {
     return typeEnums[timeOffset] || timeOffsetDateFormat(timeOffset) || '';
   }
 
-  /** prop值处理 */
   handleProp(item: IDataItem): string {
     const dimensions = Object.values(item.dimensions || {});
     return dimensions.length > 0 ? dimensions.join(' | ') : item.target;
   }
 
-  classifyData(data: ILegendItem[]) {
+  classifyData(data: ILegendItem[]): any[] {
     const byDimensions = new Map<string, any[]>();
-    data.map(item => {
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    data.forEach(item => {
       const dimensionsKey = JSON.stringify(item.dimensions);
       if (!byDimensions.has(dimensionsKey)) {
         byDimensions.set(dimensionsKey, []);
       }
+      // biome-ignore lint/style/noNonNullAssertion: <explanation>
       byDimensions.get(dimensionsKey)!.push(item);
     });
 
@@ -353,10 +349,10 @@ export default class CheckViewTable extends tsc<object, object> {
     }));
   }
 
-  // 使用 Web Worker 处理大数据量计算
-  initTableData() {
+  initTableData(): void {
     const { data = [], columns = [] } = this.baseData;
     const compare = [...['current'], ...this.compare];
+
     if (this.worker) {
       this.worker.terminate();
     }
@@ -382,7 +378,7 @@ export default class CheckViewTable extends tsc<object, object> {
     });
   }
 
-  renderFooter(h: CreateElement, { col, row }) {
+  renderFooter(h: CreateElement, { col, row }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return (
       <span class='num-cell'>
         {row[col.colKey]}
@@ -391,10 +387,8 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  /** 维度（组合）tips展示 */
-  renderTipsContent(item: IColumnItem) {
-    let name = '';
-    name = item.name;
+  renderTipsContent(item: IColumnItem): any {
+    let name = item.name;
     if (this.isMergeTable && item.items) {
       name = item.items[0]?.name || '';
     }
@@ -424,13 +418,12 @@ export default class CheckViewTable extends tsc<object, object> {
     };
   }
 
-  sortChange(sortInfo: { sortBy?: string; descending?: boolean }) {
+  sortChange(sortInfo: { sortBy?: string; descending?: boolean }): void {
     this.sort = sortInfo;
     this.handleSort(sortInfo);
   }
 
-  /** 排序 */
-  handleSort(sort: { sortBy?: string; descending?: boolean }) {
+  handleSort(sort: { sortBy?: string; descending?: boolean }): void {
     if (sort) {
       this.tableData = this.timeData.concat().sort((a, b) => (sort.descending ? b.date - a.date : a.date - b.date));
     } else {
@@ -450,10 +443,12 @@ export default class CheckViewTable extends tsc<object, object> {
             type={1}
           />
         ) : (
-          <TConfigProvider globalConfig={this.globalLocale}>
+          <TConfigProvider
+            class='check-view-table-main'
+            globalConfig={this.globalLocale}
+          >
             <TTable
               ref='dataTable'
-              class='check-view-table-main'
               bordered={'bordered'}
               columns={this.columns}
               data={this.tableData}
