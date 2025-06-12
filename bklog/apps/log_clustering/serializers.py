@@ -68,10 +68,28 @@ class PatternSearchSerlaizer(serializers.Serializer):
         return attrs
 
 
+class StringOrListField(serializers.Field):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            return [data]
+
+        if isinstance(data, list):
+            if not data:
+                raise serializers.ValidationError("The list cannot be empty.")
+            if not all(isinstance(item, str) for item in data):
+                raise serializers.ValidationError("All items in the list must be strings.")
+            return data
+
+        raise serializers.ValidationError("Invalid data type. Must be a string or a list of strings.")
+
+    def to_representation(self, value):
+        return value
+
+
 class FilerRuleSerializer(serializers.Serializer):
-    fields_name = serializers.CharField(required=False)
-    op = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+    fields_name = serializers.CharField()
+    op = serializers.CharField()
+    value = StringOrListField()
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
