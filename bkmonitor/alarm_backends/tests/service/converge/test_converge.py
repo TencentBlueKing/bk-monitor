@@ -415,14 +415,14 @@ class TestActionConverge:
         actions_mapping = {
             "1": get_action(),  # 创建action，并执行动作
             "2": get_action(),  # 不创建action，超时
-            "3": get_action(),  # 创建action，超时，但信号错误，不会跳过
+            "3": get_action(),  # 创建action，超时，但信号错误，会成功执行动作
             "4": get_action(),  # 创建action,但是动作被收敛
             "5": get_action(),  # 创建action,但是动作被收敛
         }
         # 设置enable_delay时间限制为1小时
-        actions_mapping["2"]["options"]["enable_delay"] = ONE_HOUR  # 限制为1小时，会超时
+        actions_mapping["2"]["options"]["enable_delay"] = ONE_HOUR  # 设置为1小时，会超时
         actions_mapping["3"]["options"]["enable_delay"] = ONE_HOUR
-        actions_mapping["3"]["signal"] = ["manual"]  # 设置错误的信号，用于测试
+        actions_mapping["3"]["signal"] = ["manual"]  # 设置错误的信号
         actions_mapping["4"]["options"]["enable_delay"] = ONE_HOUR * 20  # 设置为20小时，不会超时
         actions_mapping["5"]["signal"] = ["manual"]
 
@@ -444,9 +444,8 @@ class TestActionConverge:
             }
 
             if action["id"] in [3, 5]:
-                # 修改信号为recovered， 确保CreateActionProcessor能够获取到action
                 params["signal"] = "manual"
-                alert.data["status"] = "MANUAL"  # 同步告警的状态，避免在
+                alert.data["status"] = "MANUAL"  # 同步告警的状态，避免在判断enable_delay参数之前被过滤
             else:
                 # 恢复为正确的状态
                 alert.data["status"] = "ABNORMAL"
