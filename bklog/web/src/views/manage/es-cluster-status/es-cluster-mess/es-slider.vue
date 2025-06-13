@@ -257,7 +257,7 @@
                   v-model="bkBizLabelsList"
                   v-show="isBizAttr"
                   :data="bizParentList"
-                  :popover-zindex="3007"
+                  :popover-zindex="9999"
                   :remote-method="handleRemoteMethod"
                   :show-condition="false"
                   :show-popover-tag-change="false"
@@ -1594,6 +1594,6 @@
   @import '@/scss/space-tag-option';
 
   .bk-search-list {
-    margin: 0
+    margin: 0;
   }
 </style>
