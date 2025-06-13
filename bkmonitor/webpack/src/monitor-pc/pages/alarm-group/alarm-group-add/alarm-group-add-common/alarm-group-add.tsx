@@ -52,7 +52,6 @@ import UserSelector from '../../../../components/user-selector/user-selector';
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import RotationConfig from '../../rotation/rotation-config';
-import MemberSelector from '../member-selector.vue';
 
 import type { IDutyItem } from '../../duty-arranges/duty-arranges';
 import type { VNode } from 'vue';
@@ -111,7 +110,7 @@ const mentListDefaultItem = {
   username: 'all',
 };
 @Component({
-  components: { MemberSelector, UserSelector },
+  components: { UserSelector },
 })
 export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   @Prop({ default: 'monitor', type: String, validator: (val: TGroupType) => ['monitor', 'fta'].includes(val) })
