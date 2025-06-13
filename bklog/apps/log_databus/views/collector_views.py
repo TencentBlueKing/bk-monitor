@@ -38,7 +38,7 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig
+from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig, Environment
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector import K8sCollectorHandler
@@ -2382,7 +2382,7 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        handler = CollectorHandler.get_instance(env=request.data.get("environment", Environment.LINUX))
         data = self.params_valid(handler.FAST_CREATE_SERIALIZER)
         return Response(handler.fast_create(data))
 
@@ -2456,7 +2456,7 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
         data = self.params_valid(handler.FAST_UPDATE_SERIALIZER)
         return Response(handler.fast_update(data))
 

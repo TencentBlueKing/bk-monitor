@@ -15,10 +15,10 @@ import json
 import logging
 import operator
 from collections import defaultdict
+from collections.abc import Callable
 from enum import Enum
 from json import JSONDecodeError
 from typing import Any
-from collections.abc import Callable
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1644,11 +1644,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + '&conditionList={{"resource.service.name": '
-                        '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{service}"]}},'
-                        '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint}"]}}}}' + "&query=status.code:+2+",
+                        + "&sceneMode=span&filterMode=ui",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -1887,6 +1883,34 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         paginated_data = self.get_pagination_data(error_data, data, data["service_name"])
         paginated_data["filter"] = self.get_status_filter()
         return paginated_data
+
+    def get_pagination_data(self, origin_data, params, column_type=None):
+        items = super().get_pagination_data(origin_data, params, column_type)
+        # url 拼接
+        for item in items["data"]:
+            filters: list[dict[str, Any]] = [
+                {
+                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                    "operator": "equal",
+                    "value": [item.get("service_name")],
+                },
+                {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item.get("endpoint")]},
+                {"key": OtlpKey.STATUS_CODE, "operator": "equal", "value": [2]},
+            ]
+
+            if item.get("exception_type") != self.UNKNOWN_EXCEPTION_TYPE:
+                filters.append(
+                    {
+                        "key": f"events.{OtlpKey.get_attributes_key(SpanAttributes.EXCEPTION_TYPE)}",
+                        "operator": "equal",
+                        "value": [item.get("exception_type")],
+                    }
+                )
+
+            for i in item["operations"]:
+                i["url"] = i["url"] + "&where=" + json.dumps(filters)
+
+        return items
 
 
 class TopNQueryResource(ApiAuthResource):
@@ -2329,11 +2353,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + '&conditionList={{"resource.service.name": {{'
-                        '"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{service_name}"]}},'
-                        '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                        '"selectedConditionValue": ["{endpoint_name}"]}}}}',
+                        + "&sceneMode=span&filterMode=ui"
+                        + "&where=["
+                        '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                        '{{"key": "span_name","operator": "equal","value": ["{endpoint_name}"]}}'
+                        "]",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     )
@@ -2913,14 +2937,13 @@ class ServiceQueryExceptionResource(PageListResource):
                 + "&search_type=scope"
                 + "&listType=trace"
                 + "&start_time={start_time}&end_time={end_time}"
-                + "&query=status.code:+2+"
-                + '&conditionList={{"resource.service.name": '
-                + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{service_name}"]}},'
-                + '"span_name": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{span_name}"]}},'
-                + '"resource.bk.instance.id": {{"selectedCondition": {{"label": "=","value": "equal"}},'
-                + '"selectedConditionValue": ["{bk_instance_id}"]}}}}',
+                + "&sceneMode=span&filterMode=ui"
+                + "&where=["
+                '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+                '{{"key": "span_name","operator": "equal","value": ["{span_name}"]}},'
+                '{{"key": "resource.bk.instance.id","operator": "equal","value": ["{bk_instance_id}"]}},'
+                '{{"key": "status.code","operator": "equal","value": [2]}},'
+                "]",
                 target="blank",
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             ),
