@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import base64
 import json
 import os
@@ -55,15 +55,15 @@ class AgentChecker(Checker):
     CHECKER_NAME = "agent checker"
 
     def __init__(
-            self,
-            bk_biz_id: int,
-            target_server: dict,
-            subscription_id: int,
-            gse_path: str,
-            ipc_path: str,
-            collector_config_id: int,
-            *args,
-            **kwargs,
+        self,
+        bk_biz_id: int,
+        target_server: dict,
+        subscription_id: int,
+        gse_path: str,
+        ipc_path: str,
+        collector_config_id: int,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.bk_biz_id = bk_biz_id
@@ -111,12 +111,13 @@ class AgentChecker(Checker):
         }
         script_pwd = os.path.join(BASE_DIR, "apps/log_databus/scripts/check_bkunifylogbeat/check.py")
         try:
-            with open(script_pwd, "r") as f:
+            with open(script_pwd) as f:
                 params["script_content"] = base64.b64encode(f.read().encode()).decode()
                 f.close()
         except Exception as e:  # pylint: disable=broad-except
             self.append_error_info(
-                _("[快速执行脚本] 打开脚本{script_pwd}失败, 报错为: {e}").format(script_pwd=script_pwd, e=e))
+                _("[快速执行脚本] 打开脚本{script_pwd}失败, 报错为: {e}").format(script_pwd=script_pwd, e=e)
+            )
             return
 
         try:
@@ -190,7 +191,8 @@ class AgentChecker(Checker):
             )
         if not self.ip_logs:
             error_msg = _("[获取作业执行结果] 作业: {job_instance_id}, 数据为空").format(
-                job_instance_id=self.job_instance_id)
+                job_instance_id=self.job_instance_id
+            )
         if len(self.ip_status) != len(self.ip_logs):
             self.append_warning_info(
                 _("[获取作业执行结果] 作业: {job_instance_id}, 数据不完整").format(job_instance_id=self.job_instance_id)
@@ -242,8 +244,9 @@ class AgentChecker(Checker):
 
                     except Exception as e:  # pylint: disable=broad-except
                         self.append_error_info(
-                            _("[获取作业执行结果] [{host}] 获取脚本执行结果失败, 报错为: {e}").format(host=host,
-                                                                                                      e=str(e))
+                            _("[获取作业执行结果] [{host}] 获取脚本执行结果失败, 报错为: {e}").format(
+                                host=host, e=str(e)
+                            )
                         )
             else:
                 self.append_error_info(
