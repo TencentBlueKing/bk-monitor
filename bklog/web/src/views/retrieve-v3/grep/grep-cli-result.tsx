@@ -1,5 +1,5 @@
-import { computed, defineComponent, nextTick, PropType, ref } from 'vue';
-import TextSegmentation from '../../retrieve-v2/search-result-panel/log-result/text-segmentation';
+import { computed, defineComponent, PropType, ref } from 'vue';
+import TextSegmentation from '../../retrieve-v2/components/text-segmentation/index';
 import RetrieveHelper from '../../retrieve-helper';
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import useLocale from '@/hooks/use-locale';

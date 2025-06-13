@@ -26,6 +26,7 @@
 import Mark from 'mark.js';
 import { getTargetElement } from '../../hooks/hooks-helper';
 import { Ref } from 'vue';
+import StaticUtil from './static.util';
 // types.ts
 export type ChunkStrategy = 'auto' | 'fixed' | 'custom';
 export type ObserverPriority = 'visible-first' | 'order';
@@ -95,10 +96,46 @@ export default class OptimizedHighlighter {
   private markKeywords: string[] = [];
   private rootElement: HTMLElement;
 
+  // 是否区分大小写
+  private caseSensitive: boolean = false;
+  private afterMarkFn: (() => void) | undefined;
+  // 正则表达式标记
+  private regExpMark: boolean = false;
+  private accuracy: 'exactly' | 'partially' = 'partially';
+
   constructor(userConfig: HighlightConfig = { target: document.body }) {
     this.config = this.mergeConfigs(userConfig);
     this.rootElement = getTargetElement(this.config.target);
     this.observer = this.createObserver();
+  }
+
+  /**
+   * 设置是否区分大小写
+   * @param caseSensitive - 是否区分大小写
+   * @param caseSensitive
+   */
+  public setCaseSensitive(caseSensitive: boolean): void {
+    if (this.caseSensitive !== caseSensitive) {
+      // 如果大小写敏感状态发生变化，重置当前关键词
+      this.caseSensitive = caseSensitive;
+      this.highlight(this.currentKeywords, true, this.afterMarkFn);
+    }
+  }
+
+  public setRegExpMode(regExpMark: boolean): void {
+    if (this.regExpMark !== regExpMark) {
+      // 如果正则表达式标记状态没有变化，则不需要重新标记
+      this.regExpMark = regExpMark;
+      this.highlight(this.currentKeywords, true, this.afterMarkFn);
+    }
+  }
+
+  public setAccuracy(accuracy: 'exactly' | 'partially'): void {
+    if (this.accuracy !== accuracy) {
+      // 如果精确度状态没有变化，则不需要重新标记
+      this.accuracy = accuracy;
+      this.highlight(this.currentKeywords, true, this.afterMarkFn);
+    }
   }
 
   public setObserverConfig(observerConfig: ObserverConfig): void {
@@ -132,6 +169,7 @@ export default class OptimizedHighlighter {
   }
 
   public async highlight(keywords: KeywordItem[], reset = true, afterMarkFn?: () => void): Promise<void> {
+    this.afterMarkFn = afterMarkFn;
     if (reset) {
       this.resetState();
       if (keywords.length === 0) {
@@ -151,7 +189,7 @@ export default class OptimizedHighlighter {
       const chunk = this.chunkMap.get(element);
       if (chunk && !chunk.highlighted && chunk.isIntersecting) {
         this.instanceExecMark(chunk.instance);
-        afterMarkFn?.();
+        this.afterMarkFn?.();
       }
     });
   }
@@ -168,6 +206,7 @@ export default class OptimizedHighlighter {
     this.observer.disconnect();
     this.unmarkChunks();
     this.resetState();
+    this.caseSensitive = false;
   }
 
   public unmark(): void {
@@ -269,16 +308,34 @@ export default class OptimizedHighlighter {
     this.isProcessing = false;
   }
 
-  private instanceExecMark(instance: Mark, resolve?: Function) {
+  private instanceExecMark(instance: Mark, resolve?: Function): void {
+    if (this.regExpMark) {
+      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword));
+      instance.markRegExp(regList[0], {
+        element: 'mark',
+        exclude: ['mark'],
+        done: resolve ?? (() => {}),
+        each: (element: HTMLElement) => {
+          if (element.parentElement?.classList.contains('valid-text')) {
+            element.classList.add('valid-text');
+          }
+          const backgroundColor = this.getBackgroundColor(element.textContent);
+          if (backgroundColor) {
+            element.style.backgroundColor = backgroundColor;
+          }
+        },
+      });
+
+      return;
+    }
+
     instance.mark(this.markKeywords, {
       element: 'mark',
       exclude: ['mark'],
+      caseSensitive: this.caseSensitive ?? false,
+      accuracy: this.accuracy ?? 'partially',
       done: resolve ?? (() => {}),
       each: (element: HTMLElement) => {
-        if (!element.hasAttribute('data-filter-item')) {
-          element.classList.add('data-filter-item');
-        }
-
         if (element.parentElement?.classList.contains('valid-text')) {
           element.classList.add('valid-text');
         }
