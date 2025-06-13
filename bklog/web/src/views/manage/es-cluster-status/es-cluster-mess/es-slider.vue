@@ -875,7 +875,7 @@
       },
     },
     methods: {
-      handleShowSlider(){
+      handleShowSlider() {
         this.selectZIndex = window.__bk_zIndex_manager.nextZIndex();
       },
       updateIsShow() {
@@ -1598,6 +1598,6 @@
   @import '@/scss/space-tag-option';
 
   .bk-search-list {
-    margin: 0
+    margin: 0;
   }
 </style>
