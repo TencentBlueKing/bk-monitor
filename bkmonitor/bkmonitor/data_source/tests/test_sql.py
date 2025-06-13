@@ -21,7 +21,6 @@ class TestSQL:
         print("before {}: {}".format(method, self.q_obj), file=sys.stderr)  # noqa
 
     def teardown_method(self, method):
-        self.q_obj = None
         print("after {}: {}".format(method, self.q_obj), file=sys.stderr)  # noqa
 
     def test_table_name(self):
@@ -56,7 +55,6 @@ class TestComplexQuerySQL:
         print(f"before {method}: {self.q_obj}", file=sys.stderr)
 
     def teardown_method(self, method):
-        self.q_obj = None
         print(f"after {method}: {self.q_obj}", file=sys.stderr)
 
     def test_single_condition(self):
@@ -127,7 +125,6 @@ class TestLookupCondition:
         print(f"before {method}: {self.q_obj}", file=sys.stderr)
 
     def teardown_method(self, method):
-        self.q_obj = None
         print(f"after {method}: {self.q_obj}", file=sys.stderr)
 
     def test_default_lookup(self):
@@ -199,7 +196,6 @@ class TestSpecialCondition:
         print(f"before {method}: {self.q_obj}", file=sys.stderr)
 
     def teardown_method(self, method):
-        self.q_obj = None
         print(f"after {method}: {self.q_obj}", file=sys.stderr)
 
     def test_special_sql(self):
