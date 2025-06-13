@@ -1051,9 +1051,7 @@ export default defineComponent({
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
             ...result.overview_panels[0],
@@ -1067,6 +1065,7 @@ export default defineComponent({
           };
         }
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Host') {
         const result = await getSceneView(
