@@ -82,7 +82,7 @@ class Business(ResourceMeta):
     CMDB业务
     """
 
-    system_id = "bk_log_search"
+    system_id = "bk_monitorv3"
     id = "space"
     name = _lazy("空间")
     selection_mode = "instance"
@@ -149,7 +149,7 @@ class Collection(ResourceMeta):
             "id": str(instance_id),
             "name": config.collector_config_name,
             "bk_biz_id": str(config.bk_biz_id),
-            "_bk_iam_path_": f"/{Business.id},{config.bk_biz_id}/",
+            "_bk_iam_path_": f"/{Business.system_id},{Business.id},{config.bk_biz_id}/",
         }
         return resource
 
@@ -181,7 +181,7 @@ class EsSource(ResourceMeta):
             "id": str(instance_id),
             "name": name,
             "bk_biz_id": str(bk_biz_id),
-            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
+            "_bk_iam_path_": f"/{Business.system_id},{Business.id},{bk_biz_id}/",
         }
         return resource
 
@@ -210,7 +210,7 @@ class Indices(ResourceMeta):
             "id": str(instance_id),
             "name": index_set.index_set_name,
             "bk_biz_id": bk_biz_id,
-            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
+            "_bk_iam_path_": f"/{Business.system_id},{Business.id},{bk_biz_id}/",
         }
         return resource
 
