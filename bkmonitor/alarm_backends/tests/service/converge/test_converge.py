@@ -433,6 +433,7 @@ class TestActionConverge:
         strategy = alert.strategy
 
         actions = []
+        execute_action_count = 0
         for action in alert.strategy["actions"]:
             params = {
                 "strategy_id": strategy["id"],
@@ -459,12 +460,14 @@ class TestActionConverge:
             mock_push_converge_queue.assert_not_called()
             # action id 为1和3时，会执行动作
             if action["id"] in [1, 3]:
-                # 第一次执行，动作不收敛，执行动作
                 assert len(action_ids) == 1
-                mock_push_to_action_queue.assert_called()
+                execute_action_count += 1
+                assert mock_push_to_action_queue.call_count == execute_action_count
                 # 更新动作状态为执行成功
                 ActionInstance.objects.filter(id=action_ids[0]).update(status="success")
             elif action["id"] in [4, 5]:
                 assert mock_push_to_action_queue.call_count == 2
 
+        # 创建了4个action，但成功执行的action只有两个
         assert len(actions) == 4
+        assert execute_action_count == 2
