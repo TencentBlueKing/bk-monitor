@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 
@@ -47,14 +45,17 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.charset = charset or DEFAULT_CHARSET
         self.ops = DatabaseOperations(self)
 
-    def execute(self, sql, params):
+    def execute(self, sql, params: tuple):
+        bk_tenant_id: str = params[-1]
+        params = params[:-1]
+
         params = tuple(self.escape(arg) for arg in params)
         sql_str = sql % params
-        logger.info("BKSQL QUERY: %s" % sql_str)
+        logger.info(f"BKSQL QUERY: {sql_str}")
         with tracer.start_as_current_span("bksql") as span:
             span.set_attribute("bk.system", "bksql")
             span.set_attribute("bk.bksql.statement", sql_str)
-            result = self.query_func(sql=sql_str, prefer_storage="")
+            result = self.query_func(sql=sql_str, prefer_storage="", bk_tenant_id=bk_tenant_id)
             return result.get("list")
 
     def escape(self, obj, mapping=None):

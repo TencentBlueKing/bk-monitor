@@ -64,7 +64,7 @@ class QueryConfig(Query):
         self.conditions: list[dict[str, Any]] = []
 
     def clone(self) -> "QueryConfig":
-        obj: "QueryConfig" = super().clone()
+        obj: QueryConfig = super().clone()
         obj.reference_name = self.reference_name
         obj.interval = self.interval
         obj.metrics = self.metrics[:]
@@ -349,7 +349,7 @@ class UnifyQueryConfig:
         self.search_after_key: dict[str, Any] | None = None
 
     def clone(self) -> "UnifyQueryConfig":
-        obj: "UnifyQueryConfig" = self.__class__()
+        obj: UnifyQueryConfig = self.__class__()
         obj.bk_biz_id = self.bk_biz_id
         obj.instant = self.instant
         obj.is_time_agg = self.is_time_agg

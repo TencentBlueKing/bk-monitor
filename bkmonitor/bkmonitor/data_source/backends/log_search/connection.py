@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 
 from opentelemetry import trace
+
 from bkmonitor.data_source.backends.base.connection import BaseDatabaseConnection
 
 from .operations import DatabaseOperations
@@ -38,7 +39,7 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.ops = DatabaseOperations(self)
 
     def execute(self, sql, params):
-        logger.info("LOG SEARCH QUERY: %s" % params)
+        logger.info(f"LOG SEARCH QUERY: {params}")
         with tracer.start_as_current_span("bk_log_search") as span:
             span.set_attribute("bk.system", "bk_log_search")
             span.set_attribute("bk.bk_log_search.statement", json.dumps(params))

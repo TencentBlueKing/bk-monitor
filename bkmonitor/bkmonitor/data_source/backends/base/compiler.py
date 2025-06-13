@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,16 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.core.exceptions import EmptyResultSet
 
+from bkmonitor.data_source.models.sql.query import Query
 
-class SQLCompiler(object):
-    def __init__(self, query, connection, using):
+
+class SQLCompiler:
+    def __init__(self, query: Query, connection, using):
         self.query = query
         self.connection = connection
         self.using = using
-        pass
 
     def compile(self, node):
         vendor_impl = getattr(node, "as_" + self.connection.vendor, None)
@@ -53,7 +52,7 @@ class SQLInsertCompiler(SQLCompiler):
 
     def __init__(self, *args, **kwargs):
         self.return_id = False
-        super(SQLInsertCompiler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def as_sql(self):
         raise NotImplementedError

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
 from django.conf import settings
-from mock import MagicMock
 
 from bkmonitor.data_source import (
     BkApmTraceDataSource,
@@ -25,6 +25,7 @@ from bkmonitor.data_source import (
     LogSearchTimeSeriesDataSource,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.errors.iam import PermissionDeniedError
 
 
 @pytest.fixture()
@@ -145,7 +146,7 @@ class TestDataSource:
             ]
         }
 
-        data_source = BkMonitorTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=12345, end_time=54321, limit=100)
 
         assert len(data) == 2
@@ -199,7 +200,7 @@ class TestDataSource:
             }
         )
 
-        data_source = BkMonitorTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data()
         assert len(data) == 3
         assert (
@@ -236,7 +237,14 @@ class TestDataSource:
             "list": [{"dtEventTimeStamp": 1232456, "iWorldId": "123", "iUserNum": "321"}]
         }
 
-        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config)
+        # 测试无权限
+        try:
+            BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+            assert False
+        except PermissionDeniedError:
+            pass
+
+        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=123)
         data = data_source.query_data()
 
         assert len(data) == 1
@@ -279,7 +287,7 @@ class TestDataSource:
             ]
         }
 
-        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=123)
         data = data_source.query_data(start_time=123450, end_time=543210, limit=100)
 
         assert len(data) == 3
@@ -311,7 +319,7 @@ class TestDataSource:
 
         mock_get_ts_data.return_value = {"list": [{"time": 123456, "test": 123}, {"time": 123456, "test": 123}]}
 
-        data_source = CustomTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = CustomTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=12345, end_time=54321, limit=100)
 
         assert len(data) == 2
@@ -348,7 +356,7 @@ class TestDataSource:
             ]
         }
 
-        data_source = CustomTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = CustomTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=123400, end_time=543200)
 
         assert len(data) == 3
@@ -457,18 +465,19 @@ class TestDataSource:
             },
         }
 
-        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config)
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=123456, end_time=654321, limit=1000)
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", 'time_zone': 'UTC'},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", "time_zone": "UTC"},
                             "aggregations": {"status": {"avg": {"field": "status"}}},
                         }
                     },
@@ -482,10 +491,11 @@ class TestDataSource:
         data, _ = data_source.query_log(start_time=123456, end_time=654321, limit=1000)
         assert len(data) == 1
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "dtEventTimeStamp": {
-                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", 'time_zone': 'UTC'},
+                    "date_histogram": {"field": "dtEventTimeStamp", "interval": "60s", "time_zone": "UTC"},
                     "aggregations": {"count": {"value_count": {"field": "_index"}}},
                 }
             },
@@ -591,18 +601,19 @@ class TestDataSource:
             },
         }
 
-        data_source = LogSearchLogDataSource.init_by_query_config(query_config)
+        data_source = LogSearchLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=123456, end_time=654321, limit=1000)
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", 'time_zone': 'UTC'},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", "time_zone": "UTC"},
                             "aggregations": {"_index": {"value_count": {"field": "_index"}}},
                         }
                     },
@@ -619,13 +630,14 @@ class TestDataSource:
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
                     "terms": {"field": "remote_user", "size": 10000},
                     "aggregations": {
                         "dtEventTimeStamp": {
-                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", 'time_zone': 'UTC'},
+                            "date_histogram": {"field": "dtEventTimeStamp", "interval": "30s", "time_zone": "UTC"},
                             "aggregations": {"_index": {"value_count": {"field": "_index"}}},
                         }
                     },
@@ -721,7 +733,7 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert len(data) == 2
@@ -730,6 +742,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_ip": "127.0.0.2", "event.count": 9.0, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -773,7 +786,7 @@ class TestBkMonitorLogDataSource:
         query_config["agg_dimension"] = []
         query_config["agg_method"] = "AVG"
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert len(data) == 1
@@ -847,12 +860,13 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert len(data) == 1
         assert data == [{"event.count": 4, "bk_target_cloud_id": "0", "_time_": 1614334800000}]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -864,7 +878,7 @@ class TestBkMonitorLogDataSource:
                                 "terms": {"field": "dimensions.bk_target_cloud_id", "size": 1440},
                                 "aggregations": {
                                     "time": {
-                                        "date_histogram": {"field": "time", "interval": "60s", 'time_zone': 'UTC'},
+                                        "date_histogram": {"field": "time", "interval": "60s", "time_zone": "UTC"},
                                         "aggregations": {
                                             "event.count": {"sum": {"field": "event.count"}},
                                             "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -951,7 +965,7 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert len(data) == 1
@@ -1032,7 +1046,7 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         # limit=200000 验证 limit 始终为 None
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=200000)
 
@@ -1042,6 +1056,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_ip": "127.0.0.2", "event.count": 1.5, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1053,7 +1068,7 @@ class TestBkMonitorLogDataSource:
                                 "terms": {"field": "dimensions.bk_target_ip", "size": 1440},
                                 "aggregations": {
                                     "time": {
-                                        "date_histogram": {"field": "time", "interval": "30s", 'time_zone': 'UTC'},
+                                        "date_histogram": {"field": "time", "interval": "30s", "time_zone": "UTC"},
                                         "aggregations": {
                                             "event.count": {"sum": {"field": "event.count"}},
                                             "distinct": {"cardinality": {"field": "dimensions.bk_module_id"}},
@@ -1217,10 +1232,11 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1351,7 +1367,7 @@ class TestBkMonitorLogDataSource:
             "timed_out": False,
         }
 
-        data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
+        data_source = BkMonitorLogDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert len(data) == 2
@@ -1360,6 +1376,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_service_instance_id": "9348", "event.count": 12.0, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1469,10 +1486,11 @@ class TestCustomEventDataSource:
             },
         }
 
-        data_source = CustomEventDataSource.init_by_query_config(query_config)
+        data_source = CustomEventDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_524629",
             "use_full_index_names": False,
             "query_body": {
@@ -1522,10 +1540,11 @@ class TestCustomEventDataSource:
         }
         mock_get_es_data.return_value = {}
 
-        data_source = CustomEventDataSource.init_by_query_config(query_config)
+        data_source = CustomEventDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "dimensions.user_name": {
@@ -1591,10 +1610,11 @@ class TestBkApmTraceDataSource:
             },
         }
 
-        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=30)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "span_name": {
@@ -1622,7 +1642,7 @@ class TestBkApmTraceDataSource:
         }
 
         assert len(data) == 2
-        assert data == [{'span_name': 'Sub', 'total_count': 2109}, {'span_name': 'Add', 'total_count': 2086}]
+        assert data == [{"span_name": "Sub", "total_count": 2109}, {"span_name": "Add", "total_count": 2086}]
 
         assert data_source.to_unify_query_config() == [
             {
@@ -1634,10 +1654,10 @@ class TestBkApmTraceDataSource:
                 "time_field": "end_time",
                 "order_by": [],
                 "dimensions": ["span_name"],
-                'query_string': '*',
+                "query_string": "*",
                 "conditions": {"field_list": [], "condition_list": []},
                 "function": [{"method": "sum", "dimensions": ["span_name"]}],
-                "time_aggregation": {"function": "count_over_time", 'window': "0s"},
+                "time_aggregation": {"function": "count_over_time", "window": "0s"},
                 "keep_columns": [],
             }
         ]
@@ -1691,10 +1711,11 @@ class TestBkApmTraceDataSource:
             },
         }
 
-        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=1, search_after_key={})
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "_group_": {
@@ -1812,10 +1833,11 @@ class TestBkApmTraceDataSource:
             },
         }
 
-        data_source = BkApmTraceDataSource.init_by_query_config(query_config)
+        data_source = BkApmTraceDataSource.init_by_query_config(query_config, bk_biz_id=1)
         data, __ = data_source.query_log(start_time=1614334800, end_time=1614334860, limit=1)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "_source": select,
                 "query": {
@@ -1871,9 +1893,9 @@ class TestBkApmTraceDataSource:
                 "time_field": "end_time",
                 "dimensions": [],
                 "order_by": [],
-                'query_string': '*',
+                "query_string": "*",
                 "conditions": {
-                    "field_list": [{'field_name': 'parent_span_id', 'op': 'eq', 'value': ['']}],
+                    "field_list": [{"field_name": "parent_span_id", "op": "eq", "value": [""]}],
                     "condition_list": [],
                 },
                 "function": [],

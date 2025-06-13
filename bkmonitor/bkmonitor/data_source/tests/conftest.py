@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -35,3 +34,9 @@ def mock_timezone_localtime():
         with patch("django.utils.timezone.get_current_timezone", mock_get_current_timezone):
             with patch("django.utils.timezone.localtime", mock_localtime):
                 yield
+
+
+@pytest.fixture(autouse=True)
+def mock_bk_biz_id_to_bk_tenant_id():
+    with patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="system"):
+        yield
