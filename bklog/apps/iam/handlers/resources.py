@@ -62,9 +62,11 @@ class ResourceMeta(metaclass=abc.ABCMeta):
         # 补充路径信息
         if "space_uid" in attribute:
             bk_biz_id = space_uid_to_bk_biz_id(attribute["space_uid"])
-            attribute.update({"_bk_iam_path_": f"/{Business.id},{bk_biz_id}/"})
+            attribute.update({"_bk_iam_path_": f"/{Business.system_id},{Business.id},{bk_biz_id}/"})
         elif "bk_biz_id" in attribute:
-            attribute.update({"_bk_iam_path_": "/{},{}/".format(Business.id, attribute["bk_biz_id"])})
+            attribute.update(
+                {"_bk_iam_path_": "/{},{},{}/".format(Business.system_id, Business.id, attribute["bk_biz_id"])}
+            )
         return Resource(cls.system_id, cls.id, str(instance_id), attribute)
 
     @classmethod
