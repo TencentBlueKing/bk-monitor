@@ -1257,7 +1257,6 @@ const store = new Vuex.Store({
         sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
 
-
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload.isPagination
@@ -1567,6 +1566,10 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
+        if (isVirtualObjNode && textType === 'object') {
+          mappingKey = textMappingKey;
+        }
+
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1643,10 +1646,10 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
             } else {
-              const mapOperator = getAdditionMappingOperator({ field, operator, value });
               newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
             }
           }

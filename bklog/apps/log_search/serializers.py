@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.exceptions import ValidationError
+from apps.log_databus.serializers import AliasSettingSerializer
 from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleStateEnum
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
@@ -1019,6 +1020,17 @@ class ChartSerializer(serializers.Serializer):
     query_mode = serializers.ChoiceField(
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
 
 
 class UISearchSerializer(serializers.Serializer):
@@ -1031,6 +1043,17 @@ class UISearchSerializer(serializers.Serializer):
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
 
 
 class QueryStringSerializer(serializers.Serializer):

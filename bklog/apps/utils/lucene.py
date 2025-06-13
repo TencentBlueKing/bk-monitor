@@ -656,7 +656,7 @@ def generate_query_string(params: dict) -> str:
     if additions:
         str_additions = []
         for addition in additions:
-            if not addition.get("field"):
+            if not addition.get("field") or not addition.get("operator"):
                 continue
             if addition["operator"] in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
                 str_additions.append(f"{addition['field']} {addition['operator']}")

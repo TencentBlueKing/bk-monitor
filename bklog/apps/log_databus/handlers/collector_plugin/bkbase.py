@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 from apps.log_databus.constants import ETLProcessorChoices
-from apps.log_databus.handlers.collector_handler.base import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_plugin import CollectorPluginHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage

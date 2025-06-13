@@ -34,7 +34,6 @@
     height: 4px;
     margin-right: 4px;
     border-radius: 50%;
-    transform: translateY(-2px);
 
     &.is-use {
       background: #2dcb56;
@@ -50,6 +49,7 @@
   display: inline-flex;
   flex: 1;
   flex-wrap: nowrap;
+  align-items: center;
   margin-right: 8px;
   overflow: hidden;
   text-overflow: ellipsis;

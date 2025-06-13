@@ -432,25 +432,73 @@
   }
 
   .content-list.is-log-tab {
+    height: 100% !important;
     padding: 0 !important;
 
-    .flex-dashboard-item {
-      height: calc(100vh - 257px) !important;
+    .bk-nested-loading {
+      height: 100%;
+      & > div {
+        height: 100%;
+        .dashboard-panel {
+          height: 100%;
+          .flex-dashboard {
+            height: 100%;
+            .flex-dashboard-item {
+              height: 100%;
+              .monitor-trace-log {
+                padding: 0;
+                .v3-bklog-root {
+                  background: #fff;
+                  .v3-bklog-content {
+                    padding: 0;
+                    .v3-bklog-toolbar {
+                      .subbar-container {
+                        box-shadow: none;
+                        padding: 0;
+                        .box-biz-select {
+                          margin-left: 0 !important;
+                        }
+                      }
+                    }
+                    .v3-bklog-container {
+                      margin-top: 0;
+                      .search-bar-wrapper {
+                        .search-bar-container {
+                          box-shadow: none;
+                          border: 1px solid #DCDEE5;
+                          border-radius: 2px;
+                          &::before {
+                            background: #fff;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
-    .dashboard-panel .flex-dashboard-item {
-      margin-right: 0 !important;
-      margin-bottom: 0 !important;
-    }
+    // .flex-dashboard-item {
+    //   height: calc(100vh - 257px) !important;
+    // }
 
-    .related-table-container {
-      height: calc(100vh - 568px);
-    }
+    // .dashboard-panel .flex-dashboard-item {
+    //   margin-right: 0 !important;
+    //   margin-bottom: 0 !important;
+    // }
 
-    .related-log-chart-wrap .related-log-chart-main {
-      margin-right: 16px;
-      margin-left: 16px;
-    }
+    // .related-table-container {
+    //   height: calc(100vh - 568px);
+    // }
+
+    // .related-log-chart-wrap .related-log-chart-main {
+    //   margin-right: 16px;
+    //   margin-left: 16px;
+    // }
   }
 
   .content-list.is-host-tab {

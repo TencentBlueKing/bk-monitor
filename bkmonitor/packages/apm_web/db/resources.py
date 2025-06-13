@@ -12,26 +12,26 @@ import datetime
 import json
 from typing import Any
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
+from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
 from apm_web.constants import (
+    METRIC_RATE_TUPLE,
+    METRIC_RELATION_MAP,
     METRIC_TUPLE,
     DbCategoryEnum,
     SceneEventKey,
-    METRIC_RATE_TUPLE,
-    METRIC_RELATION_MAP,
 )
-from django.db.models import Q
-from opentelemetry.trace import StatusCode
 from apm_web.db.db_utils import build_db_param, get_offset
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbInstanceHandler, DbQuery
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
-from bkmonitor.data_source.unify_query.builder import UnifyQuerySet, QueryConfigBuilder
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 from core.drf_resource import Resource, api
@@ -102,17 +102,7 @@ class ListDbStatisticsResource(PageListResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + "&sceneMode=span",
-                        target="blank",
-                        event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-                    ),
-                    LinkTableFormat(
-                        id="statistics",
-                        name=_("统计"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
-                        + "&search_type=scope"
-                        + "&start_time={start_time}&end_time={end_time}"
-                        + "&listType=interfaceStatistics",
+                        + "&sceneMode=span&filterMode=ui",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -164,6 +154,11 @@ class ListDbStatisticsResource(PageListResource):
         for item in items["data"]:
             filters: list[dict[str, Any]] = [
                 {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item["span_name"]]},
+                {
+                    "key": OtlpKey.get_attributes_key(SpanAttributes.DB_STATEMENT),
+                    "operator": "equal",
+                    "value": [item["summary"]],
+                },
             ]
             if service_name:
                 filters.append(

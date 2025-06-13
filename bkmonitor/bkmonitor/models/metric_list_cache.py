@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Optional
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -17,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.request import get_request
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from metadata.models import TimeSeriesGroup
 
@@ -26,17 +26,8 @@ logger = logging.getLogger(__name__)
 class MetricListCacheManager(models.Manager):
     """指标选择器缓存管理器"""
 
-    def get_metric_by_readable_name(self, readable_name: str) -> Optional["MetricListCache"]:
-        """通过 readable_name 获取 metric"""
-
-        metrics = self.filter(readable_name=readable_name)
-        if not metrics:
-            return None
-
-        return metrics.first()
-
     def get_queryset(self):
-        queryset = super(MetricListCacheManager, self).get_queryset()
+        queryset = super().get_queryset()
         # 过滤重名内置指标，目前仅针对容器指标处理
         # 从request中获取业务id，获取不到则返回原queryset
         request = get_request(peaceful=True)
@@ -79,6 +70,7 @@ class MetricListCache(models.Model):
         "agentmetric",
     ]
 
+    bk_tenant_id = models.CharField(max_length=128, default=DEFAULT_TENANT_ID, verbose_name="租户ID")
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
     result_table_id = models.CharField(max_length=256, default="", verbose_name="sql查询表")
     result_table_name = models.CharField(max_length=256, default="", verbose_name="表别名")
@@ -114,6 +106,7 @@ class MetricListCache(models.Model):
 
     class Meta:
         index_together = (
+            ("bk_tenant_id", "bk_biz_id"),
             ("result_table_id", "metric_field", "bk_biz_id"),
             ("data_type_label", "data_source_label", "bk_biz_id"),
             ("data_label", "metric_field", "bk_biz_id"),
@@ -165,7 +158,7 @@ class MetricListCache(models.Model):
         templates = {
             DataSourceLabel.BK_MONITOR_COLLECTOR: {
                 DataTypeLabel.TIME_SERIES: _(
-                    "指标：{metric_field}；指标分类：{result_table_name}；" "插件名：{related_name}；数据来源：监控采集"
+                    "指标：{metric_field}；指标分类：{result_table_name}；插件名：{related_name}；数据来源：监控采集"
                 ),
                 DataTypeLabel.EVENT: _("数据来源：系统事件"),
                 DataTypeLabel.LOG: _("数据来源：采集配置"),
@@ -179,8 +172,12 @@ class MetricListCache(models.Model):
                 DataTypeLabel.LOG: _("数据来源：日志平台"),
             },
             DataSourceLabel.CUSTOM: {
-                DataTypeLabel.EVENT: _("数据ID：{result_table_id}；数据名称：{result_table_name}；数据来源：自定义事件"),
-                DataTypeLabel.TIME_SERIES: _("指标：{metric_field_name}；数据名称：{related_name}；数据来源：自定义时序"),
+                DataTypeLabel.EVENT: _(
+                    "数据ID：{result_table_id}；数据名称：{result_table_name}；数据来源：自定义事件"
+                ),
+                DataTypeLabel.TIME_SERIES: _(
+                    "指标：{metric_field_name}；数据名称：{related_name}；数据来源：自定义时序"
+                ),
             },
             DataSourceLabel.BK_FTA: {
                 DataTypeLabel.EVENT: _("数据来源：故障自愈第三方告警"),

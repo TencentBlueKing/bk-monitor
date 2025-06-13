@@ -467,7 +467,7 @@ export default defineComponent({
 
     // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
-      handleOperation(type, { content, field, row, isLink, depth, isNestedField });
+      handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
     // 替换原有的handleMenuClick
@@ -895,7 +895,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       setRowboxTransform();
     };
 

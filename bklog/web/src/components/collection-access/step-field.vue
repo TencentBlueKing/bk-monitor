@@ -541,7 +541,7 @@
           </bk-form-item>
           <bk-form-item
             ext-cls="en-bk-form"
-            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
+            :desc="$t('定义元数据并补充至日志中，可通过元数据进行过滤筛选')"
             :icon-offset="120"
             :label="$t('路径元数据')"
           >

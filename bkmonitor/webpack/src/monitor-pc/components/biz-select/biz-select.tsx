@@ -171,7 +171,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       ?.toLocaleUpperCase();
   }
   /* 当前业务的ID */
-  get curentBizId() {
+  get currentBizId() {
     return this.curentBizItem?.space_type_id === ETagsType.BKCC
       ? `#${this.curentBizItem?.id}`
       : this.curentBizItem?.space_id || this.curentBizItem?.space_code || '';
@@ -560,7 +560,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   v-bk-overflow-tips
                 >
                   {this.bizName}
-                  <span class='biz-name-text-id'>({this.curentBizId})</span>
+                  {this.currentBizId ? (
+                    <span class='biz-name-text-id'>({this.currentBizId})</span>
+                  ) : (
+                    <span class='biz-name-text-id'>{this.$t('无业务')}</span>
+                  )}
                 </span>
                 <i
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}

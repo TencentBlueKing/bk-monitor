@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
 from distutils.version import StrictVersion
@@ -112,11 +113,11 @@ class ListLegacySubscription(Resource):
             # 插件采集的 step_id 固定是 bkmonitorbeat
             # 其他有 bkmonitorproxy, bkmonitorbeat_http。需要特别注意不要把这些计算在内
             # 节点管理2.1及之后，新增category字段
-            all_monitor_subscription_query_sql = '''
+            all_monitor_subscription_query_sql = """
             select a.subscription_id from node_man_subscriptionstep as a
             inner join node_man_subscription as b on a.subscription_id = b.id
             where a.step_id IN ("bkmonitorbeat","bkmonitorlog") and b.is_deleted = 0
-            and config not like "%MAIN_%_PLUGIN%" and b.category is null;'''
+            and config not like "%MAIN_%_PLUGIN%" and b.category is null;"""
             cursor.execute(all_monitor_subscription_query_sql)
             all_monitor_subscription_ids = {item[0] for item in cursor.fetchall()}
 
@@ -273,7 +274,9 @@ class ListRelatedStrategy(Resource):
 
         # 1.拿到所有指标的collect_config_ids
         related_metrics = []
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]])
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, validated_request_data["bk_biz_id"]]
+        )
 
         # 2.找到要删除的采集配置对应的指标
         for metric in metrics:
