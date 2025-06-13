@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { defineComponent, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn, useEventListener } from '@vueuse/core';
@@ -112,6 +112,10 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    onUnmounted(() => {
+      cleanup?.();
+    });
 
     function getSearchFavoriteOptions() {
       const favoriteOptions$ = [];
