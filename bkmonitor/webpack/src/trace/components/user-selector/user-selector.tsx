@@ -41,7 +41,7 @@ export default defineComponent({
      * 选中的用户ID列表
      */
     modelValue: {
-      type: Array as PropType<string[]>,
+      type: [Array, String] as PropType<string | string[]>,
       default: () => [],
     },
     /**
