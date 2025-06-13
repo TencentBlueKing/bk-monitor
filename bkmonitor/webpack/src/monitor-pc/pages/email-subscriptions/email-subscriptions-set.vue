@@ -323,7 +323,6 @@ import { Sortable } from 'sortablejs';
 
 import userSelector from '../../components/user-selector/user-selector';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
-import memberSelector from '../alarm-group/alarm-group-add/member-selector.vue';
 import addContent from './components/add-content.vue';
 import ReceiverList from './components/receiver-list.vue';
 import SubscriptionContent from './components/subscription-content';
@@ -353,7 +352,6 @@ interface ITimeRangeObj {
     timePeriod,
     addContent,
     MonitorDialog,
-    memberSelector,
     ReceiverList,
     SubscriptionContent,
     userSelector,

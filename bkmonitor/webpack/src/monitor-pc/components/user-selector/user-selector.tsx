@@ -26,7 +26,7 @@
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BkUserSelectorOrigin from '@blueking/bk-user-selector/vue2';
+import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-selector/vue2';
 
 import { getUserComponentConfig } from '../../common/user-display-name';
 
@@ -37,7 +37,7 @@ import '@blueking/bk-user-selector/vue2/vue2.css';
 
 interface IBkUserSelectorProps {
   apiBaseUrl?: string;
-  modelValue?: string[];
+  modelValue?: string | string[];
   multiple?: boolean;
   draggable?: boolean;
   tenantId?: string;
@@ -45,6 +45,8 @@ interface IBkUserSelectorProps {
   enableMultiTenantMode?: boolean;
   placeholder?: string;
   emptyText?: string;
+  renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
+  renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
   onChange?: (value: string[]) => void;
 }
 
@@ -57,7 +59,7 @@ const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelec
 })
 export default class UserSelector extends tsc<
   {
-    userIds: string[];
+    userIds: string | string[];
     userGroupList?: IUserGroup[];
     userGroup?: string[];
     multiple?: boolean;
@@ -73,7 +75,7 @@ export default class UserSelector extends tsc<
   @Prop({ type: Boolean, default: false }) readonly draggable: boolean;
   @Prop({ type: String }) readonly placeholder: string;
   @Prop({ type: String }) readonly emptyText: string;
-  @Model('change', { type: Array, default: () => [] }) userIds: string[];
+  @Model('change', { type: [Array, String], default: () => [] }) userIds: string | string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
     return window.enable_multi_tenant_mode ?? false;
@@ -84,6 +86,7 @@ export default class UserSelector extends tsc<
   onChange(value: string[]) {
     this.$emit('change', value);
   }
+
   render() {
     if (!this.componentConfig.apiBaseUrl) return undefined;
     return (

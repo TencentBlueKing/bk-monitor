@@ -24,6 +24,10 @@
  * IN THE SOFTWARE.
  */
 import UserDisplayName, { type ConfigOptions } from '@blueking/bk-user-display-name';
+
+/** 判断 item 是否为用户组 */
+export const USER_GROUP_TYPE = new Set(['userGroup', 'group']);
+
 export const getUserComponentConfig = (): ConfigOptions => {
   if (window.enable_multi_tenant_mode) {
     return {
