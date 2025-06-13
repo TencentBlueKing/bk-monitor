@@ -15,10 +15,10 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.3.0-beta.44",
     "@blueking/login-modal": "^1.0.6",
-    "@blueking/monitor-trace-log": "1.0.0-beta.12",
-    "@blueking/tdesign-ui": "0.0.1-beta.29",
+    "@blueking/monitor-trace-log": "2.0.3",
+    "@blueking/tdesign-ui": "0.0.1-beta.32",
     "@dagrejs/dagre": "^1.1.4",
-    "@vue-flow/core": "^1.44.0",
+    "@vue-flow/core": "^1.45.0",
     "@vue-flow/minimap": "^1.5.3",
     "@vue/compiler-dom": "3.5.15",
     "@vue/compiler-sfc": "3.5.15",
@@ -26,7 +26,7 @@
     "@vue/shared": "3.5.15",
     "@vueuse/core": "^13.3.0",
     "apm": "workspace:*",
-    "bkui-vue": "2.0.2-beta.15",
+    "bkui-vue": "^2.0.2-beta.29",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",
@@ -63,7 +63,10 @@
     "vue-router": "^4.5.1",
     "vue-tippy": "^6.7.1"
   },
-  "keywords": ["monitor", "trace"],
+  "keywords": [
+    "monitor",
+    "trace"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

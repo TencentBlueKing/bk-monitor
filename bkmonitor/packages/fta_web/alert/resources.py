@@ -62,7 +62,7 @@ from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.time_tools import (
     datetime2timestamp,
     now,
@@ -2734,7 +2734,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
         if not metric_info:
             return {}
 
-        metric = MetricListCache.objects.filter(**metric_info).first()
+        metric = MetricListCache.objects.filter(bk_tenant_id=get_request_tenant_id(), **metric_info).first()
         if not metric:
             return {}
 

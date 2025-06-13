@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import operator
 import time
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Tuple
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -26,6 +25,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string
 from constants.action import ConvergeStatus
 from constants.alert import (
@@ -62,9 +62,10 @@ logger = logging.getLogger(__name__)
 
 def readable_name_alias_to_id(node: SearchField):
     """将 readable name 挂载到 metric id 查询"""
+    bk_tenant_id = get_request_tenant_id()
 
     # 尝试查找是否存在对应的 readable_name
-    metric = MetricListCache.objects.get_metric_by_readable_name(readable_name=str(node.expr).strip('"'))
+    metric = MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, readable_name=str(node.expr).strip('"')).first()
     if not metric:
         return
 
@@ -151,7 +152,10 @@ class AlertQueryTransformer(BaseQueryTransformer):
                     # 尝试将匹配翻译值，并转换回原值
                     if display == node.value:
                         node.value = str(value)
-            elif search_field_name == "id" and context.get("search_field_origin_name") in ["action_id", _("处理记录ID")]:
+            elif search_field_name == "id" and context.get("search_field_origin_name") in [
+                "action_id",
+                _("处理记录ID"),
+            ]:
                 # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
                 action_id = node.value
                 try:
@@ -164,7 +168,10 @@ class AlertQueryTransformer(BaseQueryTransformer):
                     alert_ids = []
                 node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
                 context = {"ignore_search_field": True, "ignore_word": True}
-            elif search_field_name == "id" and context.get("search_field_origin_name") in ["converge_id", _("收敛记录ID")]:
+            elif search_field_name == "id" and context.get("search_field_origin_name") in [
+                "converge_id",
+                _("收敛记录ID"),
+            ]:
                 # 收敛动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
                 converge_id = node.value
                 try:
@@ -183,7 +190,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 context = {"ignore_search_field": True, "ignore_word": True}
             elif search_field_name == "event.ipv6":
                 ip = exploded_ip(node.value.strip('"'))
-                node.value = f"\"{ip}\""
+                node.value = f'"{ip}"'
             elif not search_field_name:
                 for key, choices in self.VALUE_TRANSLATE_FIELDS.items():
                     origin_value = None
@@ -220,14 +227,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def __init__(
         self,
-        bk_biz_ids: List[int] = None,
+        bk_biz_ids: list[int] = None,
         username: str = "",
-        status: List[str] = None,
+        status: list[str] = None,
         is_time_partitioned: bool = False,
         is_finaly_partition: bool = False,
         **kwargs,
     ):
-        super(AlertQueryHandler, self).__init__(bk_biz_ids, username, **kwargs)
+        super().__init__(bk_biz_ids, username, **kwargs)
         self.must_exists_fields = kwargs.get("must_exists_fields", [])
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:
@@ -366,10 +373,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def _get_buckets(
         self,
-        result: Dict[Tuple[Tuple[str, any]], any],
-        dimensions: Dict[str, any],
+        result: dict[tuple[tuple[str, any]], any],
+        dimensions: dict[str, any],
         aggregation: BucketData,
-        agg_fields: List[str],
+        agg_fields: list[str],
     ):
         """
         获取聚合结果
@@ -384,10 +391,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 dimensions[field] = bucket.key
                 self._get_buckets(result, dimensions, bucket, agg_fields[1:])
         else:
-            dimension_tuple: Tuple = tuple(dimensions.items())
+            dimension_tuple: tuple = tuple(dimensions.items())
             result[dimension_tuple] = aggregation
 
-    def date_histogram(self, interval: str = "auto", group_by: List[str] = None):
+    def date_histogram(self, interval: str = "auto", group_by: list[str] = None):
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
 
         # 默认按status聚合
@@ -456,7 +463,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 for status in EVENT_STATUS_DICT
             }
         )
-        if hasattr(search_result.aggs, 'begin_time'):
+        if hasattr(search_result.aggs, "begin_time"):
             for time_bucket in search_result.aggs.begin_time.time.buckets:
                 begin_time_result = {}
                 self._get_buckets(begin_time_result, {}, time_bucket, group_by)
@@ -466,7 +473,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     if key in result[dimension_tuple][EventStatus.ABNORMAL]:
                         result[dimension_tuple][EventStatus.ABNORMAL][key] = bucket.doc_count
 
-        if hasattr(search_result.aggs, 'end_time') and hasattr(search_result.aggs.end_time, 'end_alert'):
+        if hasattr(search_result.aggs, "end_time") and hasattr(search_result.aggs.end_time, "end_alert"):
             for time_bucket in search_result.aggs.end_time.end_alert.time.buckets:
                 for status_bucket in time_bucket.status.buckets:
                     end_time_result = {}
@@ -478,7 +485,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                             result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
 
         init_alert_result = {}
-        if hasattr(search_result.aggs, 'init_alert'):
+        if hasattr(search_result.aggs, "init_alert"):
             self._get_buckets(init_alert_result, {}, search_result.aggs.init_alert, group_by)
 
         # 获取全部维度
@@ -540,7 +547,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"
-        return super(AlertQueryHandler, self).parse_condition_item(condition)
+        return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
         queries = []
@@ -825,7 +832,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         }
         return result
 
-    def export_with_docs(self) -> Tuple[List[AlertDocument], List[dict]]:
+    def export_with_docs(self) -> tuple[list[AlertDocument], list[dict]]:
         """导出告警数据，并附带原始文档。"""
         raw_docs = [AlertDocument(**hit.to_dict()) for hit in self.scan()]
         cleaned_docs = (self.clean_document(doc, exclude=["extra_info"]) for doc in raw_docs)
@@ -836,7 +843,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return cls.clean_document(AlertDocument(**hit.to_dict()), exclude=["extra_info"])
 
     @classmethod
-    def clean_document(cls, doc: AlertDocument, exclude: List = None) -> dict:
+    def clean_document(cls, doc: AlertDocument, exclude: list = None) -> dict:
         """
         清洗告警数据，填充空字段
         """
@@ -887,15 +894,15 @@ class AlertQueryHandler(BaseBizQueryHandler):
             event[field] = alert.get(field)
         return event
 
-    def top_n(self, fields: List, size=10, translators: dict = None, char_add_quotes=True):
+    def top_n(self, fields: list, size=10, translators: dict = None, char_add_quotes=True):
         translators = {
             "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=self.bk_biz_ids),
             "bk_biz_id": BizTranslator(),
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
-            'plugin_id': PluginTranslator(),
+            "plugin_id": PluginTranslator(),
         }
-        return super(AlertQueryHandler, self).top_n(fields, size, translators, char_add_quotes)
+        return super().top_n(fields, size, translators, char_add_quotes)
 
     def list_tags(self):
         """

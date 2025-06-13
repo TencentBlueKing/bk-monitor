@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.db.models import Count
 from monitor_web.statistics.v2.base import BaseCollector
 
@@ -20,14 +20,18 @@ class MonitorMetricCollector(BaseCollector):
     监控指标
     """
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_source_label", "data_type_label", "scenario"))
+    @register(
+        labelnames=("bk_biz_id", "bk_biz_name", "data_source_label", "data_type_label", "scenario", "bk_tenant_id")
+    )
     def monitor_metric_count(self, metric: Metric):
         """
         监控指标数
         """
 
         monitor_metrics = (
-            MetricListCache.objects.values("bk_biz_id", "data_source_label", "data_type_label", "result_table_label")
+            MetricListCache.objects.values(
+                "bk_biz_id", "data_source_label", "data_type_label", "result_table_label", "bk_tenant_id"
+            )
             .annotate(count=Count("id"))
             .order_by()
         )
@@ -36,6 +40,7 @@ class MonitorMetricCollector(BaseCollector):
             if not self.biz_exists(bk_biz_id):
                 continue
             metric.labels(
+                bk_tenant_id=monitor_metric["bk_tenant_id"],
                 bk_biz_id=bk_biz_id,
                 bk_biz_name=self.get_biz_name(bk_biz_id),
                 data_source_label=monitor_metric["data_source_label"],
