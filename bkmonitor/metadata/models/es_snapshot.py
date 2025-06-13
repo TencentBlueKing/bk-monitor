@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.time_tools import biz2utc_str
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.utils.db import array_group
 from metadata.utils.es_tools import (
@@ -55,22 +56,28 @@ class EsSnapshot(models.Model):
     last_modify_user = models.CharField("最后更新者", max_length=32)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField("快照状态", blank=True, null=True, default="running", max_length=16)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_snapshot(cls, table_id, target_snapshot_repository_name, snapshot_days, operator):
+    def create_snapshot(
+        cls, table_id, target_snapshot_repository_name, snapshot_days, operator, bk_tenant_id=DEFAULT_TENANT_ID
+    ):
         from metadata.models import ESStorage
 
-        es_storage = ESStorage.objects.filter(table_id=table_id).first()
+        es_storage = ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
         if not es_storage:
             raise ValueError(_("结果表不存在"))
 
         if not EsSnapshotRepository.objects.filter(
-            repository_name=target_snapshot_repository_name, cluster_id=es_storage.storage_cluster_id, is_deleted=False
+            repository_name=target_snapshot_repository_name,
+            cluster_id=es_storage.storage_cluster_id,
+            is_deleted=False,
+            bk_tenant_id=bk_tenant_id,
         ).exists():
             raise ValueError(_("快照仓库不存在或已经被删除"))
 
-        if cls.objects.filter(table_id=table_id).exists():
+        if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("结果表快照存在"))
 
         return cls.objects.create(
@@ -80,13 +87,16 @@ class EsSnapshot(models.Model):
             creator=operator,
             last_modify_user=operator,
             status=cls.ES_RUNNING_STATUS,
+            bk_tenant_id=bk_tenant_id,
         )
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_snapshot(cls, table_id, snapshot_days, operator, status: str | None = None):
+    def modify_snapshot(
+        cls, table_id, snapshot_days, operator, status: str | None = None, bk_tenant_id=DEFAULT_TENANT_ID
+    ):
         try:
-            obj = cls.objects.get(table_id=table_id)
+            obj = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             return
         obj.snapshot_days = snapshot_days
@@ -100,31 +110,39 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_snapshot(cls, table_id, is_sync: bool | None = False):
+    def delete_snapshot(cls, table_id, is_sync: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         当快照产生当比较多当会产生很多的es调用 比较重 移到后台去执行实际的快照清理
         """
         from metadata.task.tasks import delete_es_result_table_snapshot
 
         try:
-            snapshot = cls.objects.get(table_id=table_id)
+            snapshot = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
             raise ValueError(_("快照仓库不存在或已经被删除"))
 
         if is_sync:
             logger.info("table_id %s sync to delete snapshot %s", table_id, snapshot.target_snapshot_repository_name)
-            delete_es_result_table_snapshot(table_id, snapshot.target_snapshot_repository_name)
+            delete_es_result_table_snapshot(
+                table_id=table_id,
+                target_snapshot_repository_name=snapshot.target_snapshot_repository_name,
+                bk_tenant_id=bk_tenant_id,
+            )
         else:
             logger.info("table_id %s async to delete snapshot %s", table_id, snapshot.target_snapshot_repository_name)
-            delete_es_result_table_snapshot.delay(table_id, snapshot.target_snapshot_repository_name)
+            delete_es_result_table_snapshot.delay(
+                table_id=table_id,
+                target_snapshot_repository_name=snapshot.target_snapshot_repository_name,
+                bk_tenant_id=bk_tenant_id,
+            )
         snapshot.delete()
 
     @classmethod
-    def batch_get_state(cls, table_ids: list):
+    def batch_get_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
         from metadata.models import ESStorage
 
-        es_storages = ESStorage.objects.filter(table_id__in=table_ids)
+        es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
         result = []
 
         for es_storage in es_storages:
@@ -135,9 +153,7 @@ class EsSnapshot(models.Model):
                 ).get("snapshots", [])
             except Exception as e:  # noqa
                 logger.exception(
-                    "batch get es snapshots error, target_snapshot_repository_name({}), search_snapshot({})".format(
-                        es_storage.snapshot_obj.target_snapshot_repository_name, es_storage.search_snapshot
-                    )
+                    f"batch get es snapshots error, target_snapshot_repository_name({es_storage.snapshot_obj.target_snapshot_repository_name}), search_snapshot({es_storage.search_snapshot})"
                 )
 
             for snapshot in snapshots:
@@ -163,22 +179,21 @@ class EsSnapshot(models.Model):
             "create_time": self.create_time.timestamp(),
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.timestamp(),
+            "bk_tenant_id": self.bk_tenant_id,
         }
 
     def to_json(self):
         from metadata.models import ESStorage
 
         all_snapshots = []
-        es_storage = ESStorage.objects.get(table_id=self.table_id)
+        es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         try:
             all_snapshots = es_storage.es_client.snapshot.get(
                 self.target_snapshot_repository_name, es_storage.search_snapshot
             ).get("snapshots", [])
         except Exception as e:  # noqa
             logger.exception(
-                "get es snapshots error, target_snapshot_repository_name({}), search_snapshot({})".format(
-                    self.target_snapshot_repository_name, es_storage.search_snapshot
-                )
+                f"get es snapshots error, target_snapshot_repository_name({self.target_snapshot_repository_name}), search_snapshot({es_storage.search_snapshot})"
             )
 
         return [
@@ -202,6 +217,7 @@ class EsSnapshotRepository(models.Model):
     last_modify_user = models.CharField("最后更新者", max_length=32)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     is_deleted = models.BooleanField("仓库表是否已经禁用", default=False)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         verbose_name = "ES仓库记录表"
@@ -209,7 +225,9 @@ class EsSnapshotRepository(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_repository(cls, cluster_id, snapshot_repository_name, es_config, alias, operator):
+    def create_repository(
+        cls, cluster_id, snapshot_repository_name, es_config, alias, operator, bk_tenant_id=DEFAULT_TENANT_ID
+    ):
         from metadata.models import ClusterInfo
 
         cluster: ClusterInfo = ClusterInfo.objects.filter(cluster_id=cluster_id).first()
@@ -227,6 +245,7 @@ class EsSnapshotRepository(models.Model):
             alias=alias,
             creator=operator,
             last_modify_user=operator,
+            bk_tenant_id=bk_tenant_id,
         )
         try:
             es_client.snapshot.create_repository(snapshot_repository_name, es_config)
@@ -236,25 +255,27 @@ class EsSnapshotRepository(models.Model):
         return new_rep
 
     @classmethod
-    def modify_repository(cls, cluster_id, snapshot_repository_name, alias, operator):
+    def modify_repository(cls, cluster_id, snapshot_repository_name, alias, operator, bk_tenant_id=DEFAULT_TENANT_ID):
         cls.objects.filter(cluster_id=cluster_id, repository_name=snapshot_repository_name).update(
-            alias=alias, last_modify_user=operator
+            alias=alias, last_modify_user=operator, bk_tenant_id=bk_tenant_id
         )
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_repository(cls, cluster_id, snapshot_repository_name, operator):
-        if EsSnapshotIndice.objects.filter(cluster_id=cluster_id, repository_name=snapshot_repository_name).exists():
+    def delete_repository(cls, cluster_id, snapshot_repository_name, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+        if EsSnapshotIndice.objects.filter(
+            cluster_id=cluster_id, repository_name=snapshot_repository_name, bk_tenant_id=bk_tenant_id
+        ).exists():
             raise ValueError(_("集群还存在快照无法删除"))
-        cls.objects.filter(cluster_id=cluster_id, repository_name=snapshot_repository_name).update(
-            is_deleted=True, last_modify_user=operator
-        )
+        cls.objects.filter(
+            cluster_id=cluster_id, repository_name=snapshot_repository_name, bk_tenant_id=bk_tenant_id
+        ).update(is_deleted=True, last_modify_user=operator)
         get_client(cluster_id).snapshot.delete_repository(snapshot_repository_name)
 
     @classmethod
-    def verify_repository(cls, cluster_id, snapshot_repository_name):
+    def verify_repository(cls, cluster_id, snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
         if not cls.objects.filter(
-            cluster_id=cluster_id, repository_name=snapshot_repository_name, is_deleted=False
+            cluster_id=cluster_id, repository_name=snapshot_repository_name, is_deleted=False, bk_tenant_id=bk_tenant_id
         ).exists():
             raise ValueError(_("仓库不存在"))
         return get_client(cluster_id).snapshot.verify_repository(snapshot_repository_name)
@@ -268,6 +289,7 @@ class EsSnapshotRepository(models.Model):
             "create_time": self.create_time.timestamp(),
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.timestamp(),
+            "bk_tenant_id": self.bk_tenant_id,
         }
         try:
             result.update(
@@ -298,14 +320,14 @@ class EsSnapshotIndice(models.Model):
         verbose_name_plural = "快照物理索引记录"
 
     @classmethod
-    def batch_to_json(cls, table_id, snapshot_name):
-        batch_obj = cls.objects.filter(table_id=table_id, snapshot_name=snapshot_name)
+    def batch_to_json(cls, table_id, snapshot_name, bk_tenant_id=DEFAULT_TENANT_ID):
+        batch_obj = cls.objects.filter(table_id=table_id, snapshot_name=snapshot_name, bk_tenant_id=bk_tenant_id)
         return [obj.to_json() for obj in batch_obj]
 
     @classmethod
-    def all_doc_count_and_store_size(cls, table_ids):
+    def all_doc_count_and_store_size(cls, table_ids, bk_tenant_id=DEFAULT_TENANT_ID):
         agg_result = (
-            cls.objects.filter(table_id__in=table_ids)
+            cls.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
             .values("table_id")
             .annotate(doc_count=Sum("doc_count"), store_size=Sum("store_size"), index_count=Count("table_id"))
         )
@@ -324,6 +346,7 @@ class EsSnapshotIndice(models.Model):
             "doc_count": self.doc_count,
             "store_size": self.store_size,
             "is_stored": EsSnapshotRestore.is_restored_index(self.index_name, now),
+            "bk_tenant_id": self.bk_tenant_id,
         }
 
 
@@ -355,6 +378,8 @@ class EsSnapshotRestore(models.Model):
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     is_deleted = models.BooleanField("仓库表是否已经禁用", default=False)
 
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+
     class Meta:
         verbose_name = "ES回溯任务表"
         verbose_name_plural = "ES回溯任务表"
@@ -365,10 +390,19 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_restore(cls, table_id, start_time, end_time, expired_time, operator, is_sync: bool | None = False):
+    def create_restore(
+        cls,
+        table_id,
+        start_time,
+        end_time,
+        expired_time,
+        operator,
+        is_sync: bool | None = False,
+        bk_tenant_id=DEFAULT_TENANT_ID,
+    ):
         from metadata.models import ESStorage
 
-        es_storage = ESStorage.objects.filter(table_id=table_id).first()
+        es_storage = ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
         if not es_storage:
             raise ValueError(_("结果表不存在"))
         if not es_storage.have_snapshot_conf:
@@ -381,7 +415,10 @@ class EsSnapshotRestore(models.Model):
 
         # 筛选与目标时间区间产生交集的物理索引
         snapshot_indices = EsSnapshotIndice.objects.filter(
-            start_time__lt=end_time_with_tz, end_time__gte=start_time_with_tz, table_id=table_id
+            start_time__lt=end_time_with_tz,
+            end_time__gte=start_time_with_tz,
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
         )
         if not snapshot_indices.exists():
             raise ValueError(_("该时间区间内没有快照数据"))
@@ -409,7 +446,10 @@ class EsSnapshotRestore(models.Model):
             indices=",".join(indices),
             creator=operator,
             last_modify_user=operator,
+            bk_tenant_id=bk_tenant_id,
         )
+
+        # TODO: 多租户改造标记位！！！！
 
         # 需要过滤出已经回溯了的索引 来进行创建回溯
         snapshot_indices = [
