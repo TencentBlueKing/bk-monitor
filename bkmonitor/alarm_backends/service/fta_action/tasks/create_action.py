@@ -203,9 +203,7 @@ class CreateIntervalActionProcessor:
         self.create_interval_action()
 
         logger.info(
-            "check_create_poll_action need_polled_actions({}), polled_actions({}) finished_actions({})".format(
-                len(self.need_polled_actions.keys()), len(self.polled_actions), len(self.finished_actions)
-            )
+            f"check_create_poll_action need_polled_actions({len(self.need_polled_actions.keys())}), polled_actions({len(self.polled_actions)}) finished_actions({len(self.finished_actions)})"
         )
 
     def check_polled_actions(self):
@@ -647,6 +645,15 @@ class CreateActionProcessor:
                 if not self.is_action_config_valid(alert, action_config):
                     continue
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
+                enable_delay = int(action["options"].get("enable_delay", 0))
+                current_time = int(time.time())
+                # 如果当前时间距离告警开始时间，大于enable_delay，则不处理改套餐
+                if (
+                    ActionSignal.ABNORMAL in action["signal"]
+                    and enable_delay != 0
+                    and current_time - alert["begin_time"] > enable_delay
+                ):
+                    continue
                 action_instances.append(
                     self.do_create_action(
                         action_config,
