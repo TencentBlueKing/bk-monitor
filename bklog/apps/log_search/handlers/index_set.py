@@ -395,6 +395,7 @@ class IndexSetHandler(APIModel):
         is_editable=True,
         target_fields=None,
         sort_fields=None,
+        alias_settings=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -419,6 +420,7 @@ class IndexSetHandler(APIModel):
             is_editable=is_editable,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            alias_settings=alias_settings,
         ).create_index_set()
 
         # add user_operation_record
@@ -467,6 +469,7 @@ class IndexSetHandler(APIModel):
         username="",
         target_fields=None,
         sort_fields=None,
+        alias_settings=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -485,6 +488,7 @@ class IndexSetHandler(APIModel):
             username=username,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            alias_settings=alias_settings,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1380,6 +1384,7 @@ class BaseIndexSetHandler:
         is_editable=True,
         target_fields=None,
         sort_fields=None,
+        alias_settings=None,
     ):
         super().__init__()
 
@@ -1426,6 +1431,7 @@ class BaseIndexSetHandler:
         self.sort_fields = sort_fields if sort_fields else []
         self.target_fields_raw = target_fields
         self.sort_fields_raw = sort_fields
+        self.alias_settings = alias_settings
 
     def create_index_set(self):
         """
@@ -1498,11 +1504,10 @@ class BaseIndexSetHandler:
             is_editable=self.is_editable,
             target_fields=self.target_fields,
             sort_fields=self.sort_fields,
+            query_alias_settings=self.alias_settings,
         )
         logger.info(
-            "[create_index_set][{}]index_set_name => {}, indexes => {}".format(
-                self.index_set_obj.index_set_id, self.index_set_name, len(self.indexes)
-            )
+            f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
         )
 
         # 创建索引集的同时添加索引
@@ -1541,38 +1546,39 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_log_router(
-                {
-                    "cluster_id": index_set.storage_cluster_id,
-                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
-                    "source_type": index_set.scenario_id,
-                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "need_create_index": True if index_set.collector_config_id else False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set.time_field,
-                                    "type": index_set.time_field_type,
-                                    "unit": index_set.time_field_unit
-                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                        },
-                    ],
-                }
-            )
+            request_params = {
+                "cluster_id": index_set.storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
+                "source_type": index_set.scenario_id,
+                "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
+                "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
+                "space_id": index_set.space_uid.split("__")[-1],
+                "space_type": index_set.space_uid.split("__")[0],
+                "need_create_index": True if index_set.collector_config_id else False,
+                "options": [
+                    {
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
+                            {
+                                "name": index_set.time_field,
+                                "type": index_set.time_field_type,
+                                "unit": index_set.time_field_unit
+                                if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
+                            }
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": json.dumps(index_set.scenario_id != Scenario.ES),
+                    },
+                ],
+            }
+            if query_alias_settings := index_set.query_alias_settings:
+                request_params["query_alias_settings"] = query_alias_settings
+            TransferApi.create_or_update_log_router(request_params)
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True
@@ -1608,6 +1614,8 @@ class BaseIndexSetHandler:
             self.index_set_obj.target_fields = self.target_fields_raw
         if self.sort_fields_raw is not None:
             self.index_set_obj.sort_fields = self.sort_fields_raw
+
+        self.index_set_obj.query_alias_settings = self.alias_settings
 
         self.index_set_obj.save()
 
