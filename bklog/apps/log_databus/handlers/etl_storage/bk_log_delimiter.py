@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 import re
@@ -34,7 +34,6 @@ from apps.log_databus.constants import (
     EtlConfig,
     MetadataTypeEnum,
 )
-from apps.log_databus.exceptions import EtlDelimiterParseException
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
 from apps.utils.db import array_group
@@ -126,7 +125,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
     @classmethod
     def parse_result_table_config(cls, result_table_config, result_table_storage=None, fields_dict=None):
         if not result_table_config["option"].get("separator_field_list"):
-            raise EtlDelimiterParseException()
+            logger.exception("delimiter configuration parsed exception, table_id->%s", result_table_config["table_id"])
 
         collector_config = super().parse_result_table_config(result_table_config, result_table_storage, fields_dict)
         collector_fields = array_group(
@@ -134,7 +133,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         )
 
         fields = []
-        for index, key in enumerate(result_table_config["option"]["separator_field_list"]):
+        for index, key in enumerate(result_table_config["option"].get("separator_field_list", [])):
             if key in collector_fields:
                 field_info = collector_fields[key]
                 field_info["field_index"] = index + 1
