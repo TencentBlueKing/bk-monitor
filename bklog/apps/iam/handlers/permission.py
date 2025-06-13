@@ -39,7 +39,6 @@ from iam.apply.models import (
 )
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
-from iam.utils import gen_perms_apply_data
 
 from apps.iam.exceptions import (
     ActionNotExistError,
@@ -50,6 +49,7 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.iam.utils import gen_perms_apply_data
 from apps.utils.local import get_request, get_request_username, get_local_username
 from apps.utils.log import logger
 
