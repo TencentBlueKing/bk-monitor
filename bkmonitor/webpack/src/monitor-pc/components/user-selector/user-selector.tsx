@@ -26,13 +26,14 @@
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BkUserSelectorOrigin from '@blueking/bk-user-selector/vue2';
+import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-selector/vue2';
 
-import { getUserComponentConfig } from '../../common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE } from '../../common/user-display-name';
 
 import type { IUserGroup } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
+import './user-selector.scss';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
 interface IBkUserSelectorProps {
@@ -45,6 +46,8 @@ interface IBkUserSelectorProps {
   enableMultiTenantMode?: boolean;
   placeholder?: string;
   emptyText?: string;
+  renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
+  renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
   onChange?: (value: string[]) => void;
 }
 
@@ -84,6 +87,59 @@ export default class UserSelector extends tsc<
   onChange(value: string[]) {
     this.$emit('change', value);
   }
+
+  /**
+   * @description 人员选择器下拉框列表项渲染
+   *
+   */
+  listItemRender(_, userInfo) {
+    let prefixIcon = <span class='icon-monitor icon-mc-user-one no-img' />;
+    if (userInfo?.logo) {
+      prefixIcon = (
+        <img
+          alt={userInfo.name}
+          src={userInfo.logo}
+        />
+      );
+    } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
+      prefixIcon = <span class='icon-monitor icon-mc-user-group no-img' />;
+    }
+    return (
+      <div class='user-selector-list-item'>
+        <div class='user-selector-list-prefix'>{prefixIcon}</div>
+        <div class='user-selector-list-main'>
+          <span class='user-selector-list-item-name'>{userInfo.name}</span>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * @description 人员选择器已选项 tag 渲染
+   *
+   */
+  tagItemRender(_, userInfo) {
+    let prefixIcon = <span class='icon-monitor icon-mc-user-one no-img' />;
+    if (userInfo?.logo) {
+      prefixIcon = (
+        <img
+          alt={userInfo.name}
+          src={userInfo.logo}
+        />
+      );
+    } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
+      prefixIcon = <span class='icon-monitor icon-mc-user-group no-img' />;
+    }
+    return (
+      <div class='user-selector-tag-item'>
+        <div class='user-selector-tag-prefix'>{prefixIcon}</div>
+        <div class='user-selector-tag-main'>
+          <span class='user-selector-tag-item-name'>{userInfo.name}</span>
+        </div>
+      </div>
+    );
+  }
+
   render() {
     if (!this.componentConfig.apiBaseUrl) return undefined;
     return (
@@ -95,6 +151,8 @@ export default class UserSelector extends tsc<
         modelValue={this.userIds}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        renderListItem={this.listItemRender}
+        renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.onChange}
