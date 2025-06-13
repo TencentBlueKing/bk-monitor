@@ -229,7 +229,7 @@ class EsSourceResourceProvider(BaseResourceProvider):
             for cluster in clusters
             if cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT
             and cluster["cluster_config"]["custom_option"].get("bk_biz_id")
-            and bk_tenant_id in cluster["cluster_config"]["custom_option"]["admin"]
+            and bk_tenant_id in cluster["cluster_config"]["custom_option"].get("admin", [])
         ]
         return clusters
 
