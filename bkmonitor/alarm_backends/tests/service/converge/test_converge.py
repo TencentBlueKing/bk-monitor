@@ -402,7 +402,6 @@ class TestActionConverge:
                 mock_push_to_action_queue.assert_called_once()
 
         assert len(actions) == len(actions_mapping)
-        print(actions)
 
     def test_action_converge_by_enable_delay(
         self,
