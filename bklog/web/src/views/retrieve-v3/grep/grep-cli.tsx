@@ -114,7 +114,6 @@ export default defineComponent({
     // 上一个匹配
     const gotoPrevMatch = () => {
       if (hasResults.value) {
-        currentMatchIndex.value = currentMatchIndex.value > 1 ? currentMatchIndex.value - 1 : props.searchCount;
         emit('search-change', {
           content: grepValue.value,
           searchValue: props.searchValue,
@@ -123,7 +122,6 @@ export default defineComponent({
             regexMode: isRegexMode.value,
             wordMatch: isWordMatch.value,
           },
-          currentIndex: currentMatchIndex.value,
         });
       }
     };
@@ -131,7 +129,6 @@ export default defineComponent({
     // 下一个匹配
     const gotoNextMatch = () => {
       if (hasResults.value) {
-        currentMatchIndex.value = currentMatchIndex.value < props.searchCount ? currentMatchIndex.value + 1 : 1;
         emit('search-change', {
           content: grepValue.value,
           searchValue: props.searchValue,
@@ -140,7 +137,6 @@ export default defineComponent({
             regexMode: isRegexMode.value,
             wordMatch: isWordMatch.value,
           },
-          currentIndex: currentMatchIndex.value,
         });
       }
     };
@@ -165,23 +161,25 @@ export default defineComponent({
     return () => (
       <div class='grep-cli-container grep-cli-flex'>
         <div class='grep-cli-left'>
-          <span class='grep-cli-label'>字段：</span>
-          <bk-select
-            class='grep-cli-select'
-            value={props.fieldValue}
-            on-change={handleFieldChange}
-            popover-min-width={200}
-            size='small'
-            style='min-width: 80px; border: none;'
-          >
-            {fieldList.value.map(option => (
-              <bk-option
-                key={option.field_name}
-                id={option.field_name}
-                name={option.field_name}
-              />
-            ))}
-          </bk-select>
+          <div style={{ display: 'flex', width: '128px' }}>
+            <span class='grep-cli-label'>字段:</span>
+            <bk-select
+              class='grep-cli-select'
+              value={props.fieldValue}
+              on-change={handleFieldChange}
+              popover-min-width={200}
+              size='small'
+              style='min-width: 80px; border: none;'
+            >
+              {fieldList.value.map(option => (
+                <bk-option
+                  key={option.field_name}
+                  id={option.field_name}
+                  name={option.field_name}
+                />
+              ))}
+            </bk-select>
+          </div>
           <div class='grep-cli-editor'>
             <GrepCliEditor
               value={grepValue.value}
@@ -212,14 +210,14 @@ export default defineComponent({
                 onClick={toggleCaseSensitive}
               />
               <span
-                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isRegexMode.value }]}
+                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
                 title='精准匹配'
-                onClick={toggleRegexMode}
+                onClick={toggleWordMatch}
               />
               <span
-                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isWordMatch.value }]}
-                title='通配符'
-                onClick={toggleWordMatch}
+                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isRegexMode.value }]}
+                title='通正则匹配'
+                onClick={toggleRegexMode}
               />
             </div>
           </div>

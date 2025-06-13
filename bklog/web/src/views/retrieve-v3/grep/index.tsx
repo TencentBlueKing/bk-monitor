@@ -161,14 +161,17 @@ export default defineComponent({
     // 处理搜索更新
     const handleSearchUpdate = (data: any) => {
       searchValue.value = data.searchValue;
-      matchMode.value = data.matchMode;
+      // matchMode.value = data.matchMode;
 
       RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
-      matchMode.value = mode;
+      Object.assign(matchMode.value, mode);
+      RetrieveHelper.markInstance?.setCaseSensitive(matchMode.value.caseSensitive);
+      RetrieveHelper.markInstance?.setRegExpMode(matchMode.value.regexMode);
+      RetrieveHelper.markInstance?.setAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
       RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 

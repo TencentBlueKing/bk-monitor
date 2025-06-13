@@ -86,7 +86,11 @@ export default defineComponent({
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
 
-    let unPropsWatch = null;
+    let logInstance = null;
+    const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
+      logInstance?.$forceUpdate?.();
+    });
+
     async function init() {
       empty.value = true;
       loading.value = true;
@@ -144,11 +148,9 @@ export default defineComponent({
         app.$route = fakeRoute;
         app._$route = fakeRoute;
         app.$t = (...args) => i18n.t(...args);
-        unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
-          app.$forceUpdate();
-        });
         await nextTick();
         app.$mount(mainRef.value);
+        logInstance = app;
         window.mainComponent = app;
       } else {
         empty.value = true;

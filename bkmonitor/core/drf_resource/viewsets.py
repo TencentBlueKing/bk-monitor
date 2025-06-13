@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
 
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_control
@@ -27,7 +25,7 @@ Resource的ViewSet定义
 """
 
 
-class ResourceRoute(object):
+class ResourceRoute:
     """
     Resource的视图配置，应用于viewsets
     """
@@ -59,7 +57,7 @@ class ResourceRoute(object):
         if isinstance(resource_class, Resource):
             resource_class = resource_class.__class__
         if not issubclass(resource_class, Resource):
-            raise ValueError(_("resource_class参数必须提供Resource的子类, 当前类型: %s" % resource_class))
+            raise ValueError(_("resource_class参数必须提供Resource的子类, 当前类型: {}".format(resource_class)))
 
         self.resource_class = resource_class
 
@@ -84,7 +82,7 @@ class ResourceViewSet(viewsets.GenericViewSet):
     }
 
     # 用于执行请求的Resource类
-    resource_routes: List[ResourceRoute] = []
+    resource_routes: list[ResourceRoute] = []
     filter_backends = []
     pagination_class = None
     resource_mapping = {}
@@ -155,14 +153,20 @@ class ResourceViewSet(viewsets.GenericViewSet):
                         cls.list = function
                 elif resource_route.method == "POST":
                     if resource_route.pk_field:
-                        raise AssertionError(_("当请求方法为 %s，且 endpoint 为空时，禁止设置 pk_field 参数") % resource_route.method)
+                        raise AssertionError(
+                            _("当请求方法为 %s，且 endpoint 为空时，禁止设置 pk_field 参数") % resource_route.method
+                        )
                     cls.create = function
                 elif resource_route.method in cls.EMPTY_ENDPOINT_METHODS:
                     if not resource_route.pk_field:
-                        raise AssertionError(_("当请求方法为 %s，且 endpoint 为空时，必须提供 pk_field 参数") % resource_route.method)
+                        raise AssertionError(
+                            _("当请求方法为 %s，且 endpoint 为空时，必须提供 pk_field 参数") % resource_route.method
+                        )
                     setattr(cls, cls.EMPTY_ENDPOINT_METHODS[resource_route.method], function)
                 else:
-                    raise AssertionError(_("不支持的请求方法: %s，请确认resource_routes配置是否正确!") % resource_route.method)
+                    raise AssertionError(
+                        _("不支持的请求方法: %s，请确认resource_routes配置是否正确!") % resource_route.method
+                    )
 
                 cls.resource_mapping[
                     (resource_route.method, f"{view_set_path}-{cls.EMPTY_ENDPOINT_METHODS[resource_route.method]}")
@@ -183,9 +187,9 @@ class ResourceViewSet(viewsets.GenericViewSet):
 
                 function = decorator_function(function)
                 setattr(cls, function.__name__, function)
-                cls.resource_mapping[
-                    (resource_route.method, f"{view_set_path}-{resource_route.endpoint}")
-                ] = resource_route.resource_class
+                cls.resource_mapping[(resource_route.method, f"{view_set_path}-{resource_route.endpoint}")] = (
+                    resource_route.resource_class
+                )
 
     @classmethod
     def _generate_function_template(cls, resource_route: ResourceRoute):
@@ -209,6 +213,8 @@ class ResourceViewSet(viewsets.GenericViewSet):
             else:
                 data = resource.request(params)
                 if isinstance(data, HttpResponse):
+                    return data
+                if isinstance(data, StreamingHttpResponse):
                     return data
                 if resource_route.enable_paginate:
                     page = self.paginate_queryset(data)

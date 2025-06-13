@@ -96,7 +96,7 @@ export default defineComponent({
         {isJsonFormat.value && (
           <bk-input
             style='margin: 0 12px 0 0'
-            class='json-depth-num'
+            class='json-depth-num json-depth-num-input'
             max={15}
             min={1}
             value={jsonFormatDeep.value}
