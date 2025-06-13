@@ -489,7 +489,7 @@
   }
 </style>
 <style lang="scss">
-  .json-depth-num {
+  .json-depth-num.json-depth-num-input {
     &.bk-form-control {
       width: 96px;
 

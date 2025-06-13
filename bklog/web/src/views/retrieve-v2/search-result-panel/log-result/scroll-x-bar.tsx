@@ -71,9 +71,8 @@ export default defineComponent({
       
       if (!isAnimating) {
         isAnimating = true;
-        const newTarget = event.target;
         requestAnimationFrame(() => {
-          emit('scroll-change', newTarget);
+          emit('scroll-change', event);
           isAnimating = false;
         });
       }

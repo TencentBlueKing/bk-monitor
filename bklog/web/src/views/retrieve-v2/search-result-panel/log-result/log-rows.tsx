@@ -894,8 +894,8 @@ export default defineComponent({
       });
     };
 
-    const handleScrollXChanged = (element: HTMLElement) => {
-      scrollXOffsetLeft = element?.scrollLeft;
+    const handleScrollXChanged = (event: MouseEvent) => {
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
       setRowboxTransform();
     };
 
