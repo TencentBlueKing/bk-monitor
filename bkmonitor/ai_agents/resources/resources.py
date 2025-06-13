@@ -186,7 +186,7 @@ class GetAgentInfoResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        agent_code = serializers.CharField(label="Agent代码", required=True)
+        agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
 
     def perform_request(self, validated_request_data):
         agent_code = validated_request_data.get("agent_code")
