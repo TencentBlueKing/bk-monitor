@@ -165,6 +165,8 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   };
   isShowDetail = false;
 
+  disableDelay = false; // 关闭数据延迟秒数输入
+
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
     this.data = deepClone(data);
@@ -189,6 +191,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
 
   // 数据延迟switch
   handleChangeDelay(isSwitchOn: boolean) {
+    this.disableDelay = !isSwitchOn;
     if (!isSwitchOn) {
       this.data.options.enable_delay = 0;
       this.handleChange();
@@ -380,7 +383,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                   class='small-input'
                   v-model={this.data.options.enable_delay}
                   behavior='simplicity'
-                  readonly={this.readonly}
+                  readonly={this.readonly || this.disableDelay}
                   showControls={false}
                   size='small'
                   type='number'
