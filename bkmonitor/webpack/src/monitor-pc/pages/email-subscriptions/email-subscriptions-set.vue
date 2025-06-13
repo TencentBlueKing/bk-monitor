@@ -71,6 +71,7 @@
                 <!-- 人员选择器 -->
                 <user-selector
                   style="width: 465px; height: 32px"
+                  class="user-selector-receiver"
                   :user-group-list="memberGroupListFilter"
                   :user-ids="formData.receivers"
                   @change="handleSelectReceiver"
@@ -1258,6 +1259,9 @@ export default class SubscriptionsSet extends Vue {
           align-items: center;
           margin-bottom: 6px;
           line-height: 20px;
+        }
+        .user-selector-receiver {
+          z-index: 1;
         }
 
         .warning-hint {
