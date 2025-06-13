@@ -336,7 +336,7 @@
       if (this.isContainer) return;
       this.getCollectList();
     },
-    beforeUnmount() {
+    beforeDestroy() {
       // 清除定时器
       this.timer && clearInterval(this.timer);
     },
