@@ -1,5 +1,4 @@
 import time
-import copy
 from unittest.mock import patch, MagicMock
 import pytest
 
@@ -165,7 +164,7 @@ def get_alert_dict():
         "ack_duration": 583,
     }
 
-    return copy.deepcopy(alert_dict)
+    return alert_dict
 
 
 def get_action() -> dict:
@@ -214,7 +213,7 @@ def get_action() -> dict:
             },
         },
     }
-    return copy.deepcopy(action)
+    return action
 
 
 @pytest.fixture(scope="module", autouse=True)
