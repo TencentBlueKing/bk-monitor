@@ -9,12 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.data_source.backends.time_series.compiler import SQLCompiler
+from bkmonitor.data_source.models.sql.query import Query as OldQuery
 from bkmonitor.data_source.data_source import _filter_dict_to_conditions
 
 
 def test_agg_condition_compile():
-    class Query:
-        pass
+    class Query(OldQuery):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
 
     c = SQLCompiler(Query(), 2, 3)
     c.query.agg_condition = [
@@ -22,6 +24,8 @@ def test_agg_condition_compile():
         {"condition": "and", "key": "a", "method": "eq", "value": [1, 2]},
     ]
     q = c._parse_agg_condition()
+    assert q is not None
+
     assert q.connector == "AND"
     assert q.children[0].children[0][0] == "a__eq"
     assert q.children[0].children[0][1] == [1]
@@ -33,6 +37,8 @@ def test_agg_condition_compile():
         {"condition": "or", "key": "a", "method": "eq", "value": [1, 2]},
     ]
     q = c._parse_agg_condition()
+    assert q is not None
+
     assert q.connector == "OR"
     assert q.children[0].children[0][0] == "a__eq"
     assert q.children[0].children[0][1] == [1]
