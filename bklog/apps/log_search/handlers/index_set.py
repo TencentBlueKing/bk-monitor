@@ -80,6 +80,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
     BaseSearchIndexSetException,
+    BaseSearchBkDataException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -1356,6 +1357,24 @@ class IndexSetHandler(APIModel):
             "bk_tenant_id": space.bk_tenant_id,
         }
 
+    @classmethod
+    def query_by_bk_data_id(cls, bk_data_id):
+        collector_config = CollectorConfig.objects.filter(bk_data_id=bk_data_id).first()
+        if not collector_config:
+            raise BaseSearchBkDataException(BaseSearchBkDataException.MESSAGE.format(bk_data_id=bk_data_id))
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=collector_config.index_set_id).first()
+        if not index_set_obj:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
+        return {
+            "index_set_id": index_set_obj.index_set_id,
+            "index_set_name": index_set_obj.index_set_name,
+            "space_uid": index_set_obj.space_uid,
+            "collector_config_id": collector_config.collector_config_id,
+            "collector_config_name": collector_config.collector_config_name,
+        }
+
 
 class BaseIndexSetHandler:
     scenario_id = None
@@ -1500,9 +1519,7 @@ class BaseIndexSetHandler:
             sort_fields=self.sort_fields,
         )
         logger.info(
-            "[create_index_set][{}]index_set_name => {}, indexes => {}".format(
-                self.index_set_obj.index_set_id, self.index_set_name, len(self.indexes)
-            )
+            f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
         )
 
         # 创建索引集的同时添加索引

@@ -1347,3 +1347,28 @@ class IndexSetViewSet(ModelViewSet):
         }
         """
         return Response(IndexSetHandler.get_space_info(int(index_set_id)))
+
+    @list_route(methods=["GET"], url_path="query_by_dataid")
+    def query_by_dataid(self, request):
+        """
+        @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
+        @apiDescription 根据 bk_data_id 获取采集项和索引集信息的接口
+        @apiName query_by_dataid
+        @apiSuccessExample {json} 成功返回:
+        {
+            'result': True,
+            'data': {
+                'index_set_id': 39,
+                'index_set_name': 'xxxx',
+                'space_uid': 'bkcc__2',
+                'collector_config_id': 131,
+                'collector_config_name': 'xxxxxx'
+            },
+            'code': 0,
+            'message': ''
+        }
+        """
+        bk_data_id = request.GET.get("bk_data_id")
+        if not bk_data_id:
+            raise ValidationError(errors=_("bk_data_id 不能为空"))
+        return Response(IndexSetHandler.query_by_bk_data_id(bk_data_id=bk_data_id))

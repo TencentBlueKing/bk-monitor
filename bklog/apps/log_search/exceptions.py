@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -491,6 +491,11 @@ class MultiFieldsErrorException(BaseSearchException):
 class LogSearchException(BaseSearchException):
     ERROR_CODE = "447"
     MESSAGE = _("日志检索异常, 原因: {e}")
+
+
+class BaseSearchBkDataException(BaseException):
+    ERROR_CODE = "448"
+    MESSAGE = _('"{bk_data_id}"未能找到关联的索引集')
 
 
 # =================================================
