@@ -96,7 +96,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   // 当前指标标题
   curMetricTitle = window.i18n.tc('指标名');
   // 编辑/新增页时当前更新时间
-  curUpdateInfo = '';
+  curUpdateInfo: IExperience | string = '';
   // 获取变量值的参数
   metricMeta = null;
   // 维度列表
@@ -288,7 +288,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         this.curMetricName = metricItem.alert_name;
         this.curMetricTitle = this.$tc('告警名称');
       }
-      this.curUpdateInfo = this.getUpdataInfo(metricItem) as string;
+      this.curUpdateInfo = metricItem;
     } else {
       const queryConfigs = this.detail.extra_info?.strategy.items[0].query_configs || [];
       if (queryConfigs.length) {
@@ -307,7 +307,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     );
     const confirm = () => {
       this.curDescription = this.experienceList[index].description;
-      this.curUpdateInfo = this.getUpdataInfo(this.experienceList[index]) as string;
+      this.curUpdateInfo = this.experienceList[index];
       this.errMsg = '';
     };
     if (index > -1) {
@@ -338,7 +338,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   handleEdit(v: IExperience) {
     this.curBind = v.type;
     this.curDescription = v.description;
-    this.curUpdateInfo = this.getUpdataInfo(v) as string;
+    this.curUpdateInfo = v;
     if (v.type === EType.METRIC) {
       this.curMetricName = v.metric.map(id => this.metricNameMap[id] || id).join(',') || v.alert_name;
       if (v.metric.length) {
@@ -443,10 +443,21 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
 
   getUpdataInfo(item: IExperience) {
+    if (!item) return null;
     if (item.update_user) {
-      return this.$t('{0} 于 {1} 更新', [item.update_user, dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
+      return (
+        <div>
+          <bk-user-display-name user-id={item.update_user} />
+          {this.$t(' 于 {0} 更新', [dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')])},
+        </div>
+      );
     }
-    return this.$t('{0} 于 {1} 创建', [item.create_user, dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
+    return (
+      <div>
+        <bk-user-display-name user-id={item.create_user} />,
+        {this.$t(' 于 {0} 创建', [dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')])}
+      </div>
+    );
   }
 
   render() {
@@ -595,7 +606,9 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   <div class='err-red'>{this.errConditions}</div>
                 ) : undefined}
               </div>
-              <div class='updata-time'>{this.curUpdateInfo}</div>
+              <div class='updata-time'>
+                {this.curUpdateInfo ? this.getUpdataInfo(this.curUpdateInfo as IExperience) : ''}
+              </div>
             </div>
             <div class='content-md'>
               <Editor

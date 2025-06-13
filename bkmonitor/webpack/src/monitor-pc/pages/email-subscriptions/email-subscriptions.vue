@@ -375,12 +375,17 @@ export default class EmailSubscriptions extends Vue {
   private managerFormatter(row) {
     return row.managers
       .filter(item => !item.group)
-      .map(item =>
-        item.type === 'group'
-          ? this.groupList.find(me => me.id === item.id)?.display_name // eslint-disable-line
-          : item.id
-      )
-      .join(',');
+      .map((v, index, arr) => {
+        const userId = v.type === 'group'? this.groupList.find(me => me.id === v.id)?.display_name : v.id
+        return [
+        this.$createElement('bk-user-display-name', {
+          attrs: {
+            'user-id': userId,
+          }
+        }),
+        index === arr.length - 1 ? '' : ','
+      ]
+      });
   }
 
   /**

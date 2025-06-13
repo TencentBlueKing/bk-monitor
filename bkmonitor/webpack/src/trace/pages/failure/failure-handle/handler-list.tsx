@@ -133,12 +133,20 @@ export default defineComponent({
           class={['list-item', { active: item.id === activeId.value }]}
           onClick={() => handleClickItem(item)}
         >
-          <span
-            class='item-name'
-            title={item.name}
-          >
-            {item.name}
-          </span>
+          {isShowEmpty ? (
+            <bk-user-display-name
+              class='item-name'
+              title={item.name}
+              user-id={item.name}
+            />
+          ) : (
+            <span
+              class='item-name'
+              title={item.name}
+            >
+              {item.name}
+            </span>
+          )}
           {item.alert_count === 0 ? (
             <i class='icon-monitor icon-mc-check-small item-icon' />
           ) : (

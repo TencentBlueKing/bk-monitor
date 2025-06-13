@@ -228,12 +228,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   return self.indexOf(value) === index;
                 })
                 ?.map(name => (
-                  <span
+                  <bk-user-display-name
                     key={name}
                     class='tag-item'
-                  >
-                    {name}
-                  </span>
+                    user-id={name}
+                  />
                 )) || '--',
           },
         },
@@ -513,12 +512,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.appointee?.map((appointee, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {appointee}
-                </span>
+                  user-id={appointee}
+                />
               )) || '--',
           },
         },
@@ -532,12 +530,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.assignee?.map((assignee, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {assignee}
-                </span>
+                  user-id={assignee}
+                />
               )) || '--',
           },
         },
@@ -551,12 +548,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.follower?.map((follower, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {follower}
-                </span>
+                  user-id={follower}
+                />
               )) || '--',
           },
         },
@@ -1148,7 +1144,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   key={item}
                   class='tag-item'
                 >
-                  <span class='text-overflow'>{item}</span>
+                  <bk-user-display-name
+                    class='text-overflow'
+                    user-id={item}
+                  />
                 </span>
               ))}
             </div>

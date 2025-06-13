@@ -165,7 +165,12 @@ export default defineComponent({
                             style={{ color: data.color }}
                             class='user-content'
                           >
-                            <span>{data.users.map(u => u.name).join(',')}</span>
+                            <span>
+                              {data.users.map((u, index, arr) => [
+                                <bk-user-display-name user-id={u.name} />,
+                                index !== arr.length - 1 && ',',
+                              ])}
+                            </span>
                           </div>
                         </div>
                       ) : (
@@ -182,7 +187,14 @@ export default defineComponent({
                     content: () => (
                       <div class='user-item'>
                         <div class='time'>{data.other.time}</div>
-                        <div class='users'>{data.other.users}</div>
+                        <div class='users'>
+                          {data.users.map((u, index, arr) => [
+                            `${u.id}(`,
+                            <bk-user-display-name user-id={u.name} />,
+                            ')',
+                            index !== arr.length - 1 && ',',
+                          ])}
+                        </div>
                       </div>
                     ),
                   }}

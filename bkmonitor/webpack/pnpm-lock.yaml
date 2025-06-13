@@ -202,8 +202,8 @@ importers:
         specifier: 0.0.1-beta.6
         version: 0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
       '@blueking/bk-weweb':
-        specifier: 0.0.35
-        version: 0.0.35
+        specifier: 0.0.35-beta.5
+        version: 0.0.35-beta.5
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -347,9 +347,15 @@ importers:
       '@blueking/ai-blueking':
         specifier: 0.3.25-beta.0
         version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+      '@blueking/bk-user-display-name':
+        specifier: 1.0.3-beta.5
+        version: 1.0.3-beta.5
+      '@blueking/bk-user-selector':
+        specifier: ^0.0.29-beta.6
+        version: 0.0.29-beta.6(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
-        specifier: 0.0.35
-        version: 0.0.35
+        specifier: 0.0.35-beta.5
+        version: 0.0.35-beta.5
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -598,6 +604,12 @@ importers:
       '@antv/g6':
         specifier: ^4.8.25
         version: 4.8.25
+      '@blueking/bk-user-display-name':
+        specifier: 1.0.3-beta.3
+        version: 1.0.3-beta.3
+      '@blueking/bk-user-selector':
+        specifier: 0.0.29-beta.6
+        version: 0.0.29-beta.6(@blueking/bkui-library@0.0.0-beta.6)
       '@blueking/date-picker':
         specifier: 2.0.0-beta.46
         version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
@@ -1501,8 +1513,20 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/bk-weweb@0.0.35':
-    resolution: {integrity: sha512-sVBhLhacO2GdmVqHyF5FHR/LGev99gyHQ8qxlG01W+kSg2hyYt207Zgk9/QdGnrbSQ5/kFyRsgXYqVV9RHY9zA==}
+  '@blueking/bk-user-display-name@1.0.3-beta.3':
+    resolution: {integrity: sha512-6SKMombzfE23vHZCN8E++yh1CSDPVrCgi1hpgwNKD+xppepDNv35EDTc2y8iq1XmAomJptVPM3CxrqO8Wz7Jxg==}
+
+  '@blueking/bk-user-display-name@1.0.3-beta.5':
+    resolution: {integrity: sha512-Qzlu8rf5hbi7/p72+oJacZ38WNcN6MMsIbhfH9NNNZ1jAUZgwHC2dX8P5c839ugkP1TvNvQ90uALfIPfgcjf3A==}
+
+  '@blueking/bk-user-selector@0.0.29-beta.6':
+    resolution: {integrity: sha512-ai/lzak9gVFih1Gi1zXZbrYVoxFV/+Kuul808ArNAiWR5B8qT6gDiABxA5Q2BouRt4baIJ5td4vmKSloYmm3gA==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+
+  '@blueking/bk-weweb@0.0.35-beta.5':
+    resolution: {integrity: sha512-BzZEC1bFSM7Kcgw0yXzc4TSJrJ3NbEuxiBOuK4IWjKt/gC9QKivpahtS8rfjq8NLLk9rw8U5OQY39zOR/39YjQ==}
     engines: {node: '>=14.18.1'}
 
   '@blueking/bkmonitor-cli@7.0.1':
@@ -9610,7 +9634,23 @@ snapshots:
       vue: 2.7.16
       web-worker: 1.5.0
 
-  '@blueking/bk-weweb@0.0.35': {}
+  '@blueking/bk-user-display-name@1.0.3-beta.3': {}
+
+  '@blueking/bk-user-display-name@1.0.3-beta.5': {}
+
+  '@blueking/bk-user-selector@0.0.29-beta.6(@blueking/bkui-library@0.0.0-beta.4)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      lodash: 4.17.21
+      sortablejs: 1.15.6
+
+  '@blueking/bk-user-selector@0.0.29-beta.6(@blueking/bkui-library@0.0.0-beta.6)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      lodash: 4.17.21
+      sortablejs: 1.15.6
+
+  '@blueking/bk-weweb@0.0.35-beta.5': {}
 
   '@blueking/bkmonitor-cli@7.0.1(@types/node@22.9.0)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.5.3)(vue-template-compiler@2.7.16)(vue@3.5.15(typescript@5.8.3))':
     dependencies:

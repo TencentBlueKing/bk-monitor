@@ -308,12 +308,11 @@ export default defineComponent({
           cell: (_, { row: data }) => {
             const content = data.send_results.map(item => item.id).toString();
             return (
-              <span
+              <bk-user-display-name
                 style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'
                 v-overflow-tips
-              >
-                {content}
-              </span>
+                user-id={content}
+              />
             );
           },
         },
@@ -949,14 +948,15 @@ export default defineComponent({
           );
         }
         case 'create_user': {
-          return (
-            <span
+          return row.create_user ? (
+            <bk-user-display-name
               class={{
                 'gray-text': isGrayText,
               }}
-            >
-              {row.create_user}
-            </span>
+              user-id={row.create_user}
+            />
+          ) : (
+            '--'
           );
         }
         case 'is_enabled': {
@@ -1546,11 +1546,17 @@ export default defineComponent({
                             content: () => {
                               return (
                                 <div>
-                                  <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
+                                  <div>
+                                    <span>{`${this.t('更新人')}: `}</span>
+                                    <bk-user-display-name user-id={this.subscriptionDetail.update_user} />
+                                  </div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
                                     'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
-                                  <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
+                                  <div>
+                                    <span>{`${this.t('创建人')}: `}</span>
+                                    <bk-user-display-name user-id={this.subscriptionDetail.create_user} />
+                                  </div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
                                     'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
