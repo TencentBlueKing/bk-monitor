@@ -207,6 +207,8 @@ export default class OptimizedHighlighter {
     this.unmarkChunks();
     this.resetState();
     this.caseSensitive = false;
+    this.regExpMark = false;
+    this.accuracy = 'partially';
   }
 
   public unmark(): void {
