@@ -77,6 +77,7 @@ class SQLCompiler(compiler.SQLCompiler):
         if self.query.slimit is not None:
             result.append(f"SLIMIT {self.query.slimit}")
 
+        # 添加 bk_tenant_id 参数
         params.append(bk_tenant_id)
 
         return " ".join(result), tuple(params)

@@ -8,9 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
 from django.conf import settings
-from unittest.mock import MagicMock
 
 from bkmonitor.data_source import (
     BkApmTraceDataSource,
@@ -24,6 +25,7 @@ from bkmonitor.data_source import (
     LogSearchTimeSeriesDataSource,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.errors.iam import PermissionDeniedError
 
 
 @pytest.fixture()
@@ -235,7 +237,14 @@ class TestDataSource:
             "list": [{"dtEventTimeStamp": 1232456, "iWorldId": "123", "iUserNum": "321"}]
         }
 
-        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+        # 测试无权限
+        try:
+            BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+            assert False
+        except PermissionDeniedError:
+            pass
+
+        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=123)
         data = data_source.query_data()
 
         assert len(data) == 1
@@ -278,7 +287,7 @@ class TestDataSource:
             ]
         }
 
-        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+        data_source = BkdataTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=123)
         data = data_source.query_data(start_time=123450, end_time=543210, limit=100)
 
         assert len(data) == 3
@@ -461,6 +470,7 @@ class TestDataSource:
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
@@ -481,6 +491,7 @@ class TestDataSource:
         data, _ = data_source.query_log(start_time=123456, end_time=654321, limit=1000)
         assert len(data) == 1
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "dtEventTimeStamp": {
@@ -595,6 +606,7 @@ class TestDataSource:
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
@@ -618,6 +630,7 @@ class TestDataSource:
 
         assert len(data) == 3
         assert mock_es_query_search.call_args[1] == {
+            "bk_tenant_id": "system",
             "index_set_id": 1,
             "aggs": {
                 "remote_user": {
@@ -729,6 +742,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_ip": "127.0.0.2", "event.count": 9.0, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -852,6 +866,7 @@ class TestBkMonitorLogDataSource:
         assert len(data) == 1
         assert data == [{"event.count": 4, "bk_target_cloud_id": "0", "_time_": 1614334800000}]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1041,6 +1056,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_ip": "127.0.0.2", "event.count": 1.5, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1220,6 +1236,7 @@ class TestBkMonitorLogDataSource:
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1359,6 +1376,7 @@ class TestBkMonitorLogDataSource:
             {"bk_target_service_instance_id": "9348", "event.count": 12.0, "_time_": 1614334800000},
         ]
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_1500110",
             "use_full_index_names": False,
             "query_body": {
@@ -1472,6 +1490,7 @@ class TestCustomEventDataSource:
         data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "table_id": "2_bkmonitor_event_524629",
             "use_full_index_names": False,
             "query_body": {
@@ -1525,6 +1544,7 @@ class TestCustomEventDataSource:
         data_source.query_data(start_time=1614334800000, end_time=1614334860000)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "dimensions.user_name": {
@@ -1594,6 +1614,7 @@ class TestBkApmTraceDataSource:
         data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=30)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "span_name": {
@@ -1694,6 +1715,7 @@ class TestBkApmTraceDataSource:
         data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=1, search_after_key={})
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "aggregations": {
                     "_group_": {
@@ -1815,6 +1837,7 @@ class TestBkApmTraceDataSource:
         data, __ = data_source.query_log(start_time=1614334800, end_time=1614334860, limit=1)
 
         assert mock_get_es_data.call_args[1] == {
+            "bk_tenant_id": "system",
             "query_body": {
                 "_source": select,
                 "query": {

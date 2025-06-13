@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-from typing import Any, Dict, List
+from typing import Any
 
 from bkmonitor.data_source.backends.elastic_search.compiler import (
     SQLCompiler as ElasticSearchSQLCompiler,
@@ -67,7 +65,7 @@ class SQLCompiler(ElasticSearchSQLCompiler):
         if self.query.time_field:
             aggs = {
                 self.query.time_field: {
-                    "date_histogram": {"field": self.query.time_field, "interval": "%sm" % agg_interval},
+                    "date_histogram": {"field": self.query.time_field, "interval": f"{agg_interval}m"},
                     "aggs": self._get_agg_method_dict(select_fields),
                 },
             }
@@ -104,13 +102,13 @@ class SQLCompiler(ElasticSearchSQLCompiler):
         return aggs
 
     @classmethod
-    def _handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_middle_bucket(cls, dimension: str, bucket: dict[str, Any]) -> dict[str, Any]:
         if dimension.startswith(cls.TAGS_FIELD_PREFIX):
             return bucket["_reverse"]
         return bucket
 
     @classmethod
-    def _extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_dimension_buckets(cls, dimension: str, aggs: dict[str, Any]) -> list[dict[str, Any]]:
         if dimension.startswith(cls.TAGS_FIELD_PREFIX):
             return aggs[dimension]["key"]["value"]["buckets"]
         return aggs[dimension]["buckets"]
@@ -128,13 +126,13 @@ class SQLCompiler(ElasticSearchSQLCompiler):
     @staticmethod
     def _operate_include(and_map, field, values):
         for value in values:
-            dsl = SQLCompiler._convert_tag_query("wildcard", field, "*{}*".format(value))
+            dsl = SQLCompiler._convert_tag_query("wildcard", field, f"*{value}*")
             and_map.setdefault("should", []).append(dsl)
 
     @staticmethod
     def _operate_exclude(and_map, field, values):
         for value in values:
-            dsl = SQLCompiler._convert_tag_query("wildcard", field, "*{}*".format(value))
+            dsl = SQLCompiler._convert_tag_query("wildcard", field, f"*{value}*")
             and_map.setdefault("must_not", []).append(dsl)
 
     @staticmethod

@@ -166,6 +166,7 @@ class Query:
 
     def __str__(self):
         sql, params = self.sql_with_params()
+        params = params[:-1]
         return sql % params
 
     def clone(self):
