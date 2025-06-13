@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,6 +19,31 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-TIMESTAMP_FIELD_TYPE = "timestamp"
-TS_FILED_ATTR_TYPE = "ts_field"
-FEATURE_ATTR_TYPE = "feature"
+from django.test import TestCase
+from rest_framework.exceptions import ValidationError
+from apps.log_clustering.serializers import FilerRuleSerializer
+
+
+FILTER_RULE_STR = {"fields_name": "log", "op": "LIKE", "value": "%ERROR%"}
+FILTER_RULE_LIST = {"fields_name": "log", "op": "LIKE", "value": ["%ERROR%", "INFO"]}
+FILTER_RULE_EMPTY_LIST = {"fields_name": "log", "op": "LIKE", "value": []}
+FILTER_RULE_OTHER_TYPE = {"fields_name": "log", "op": "LIKE", "value": {}}
+
+
+class TestFilerRuleSerializer(TestCase):
+    def test_is_valid(self):
+        self._serializer = FilerRuleSerializer(data=FILTER_RULE_STR)
+        self._serializer.is_valid(raise_exception=True)
+
+        self._serializer = FilerRuleSerializer(data=FILTER_RULE_LIST)
+        self._serializer.is_valid(raise_exception=True)
+
+        with self.assertRaises(ValidationError) as context:
+            self._serializer = FilerRuleSerializer(data=FILTER_RULE_EMPTY_LIST)
+            self._serializer.is_valid(raise_exception=True)
+        self.assertTrue("The list cannot be empty." in str(context.exception))
+
+        with self.assertRaises(ValidationError) as context:
+            self._serializer = FilerRuleSerializer(data=FILTER_RULE_OTHER_TYPE)
+            self._serializer.is_valid(raise_exception=True)
+        self.assertTrue("Invalid data type. Must be a string or a list of strings." in str(context.exception))

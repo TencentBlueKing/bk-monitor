@@ -432,7 +432,7 @@
         >
           <bk-form-item
             :property="'name'"
-            label="收藏名称"
+            :label="$t('收藏名称')"
             required
           >
             <bk-input
@@ -442,14 +442,14 @@
           </bk-form-item>
           <bk-form-item
             :property="'project'"
-            label="所属分组"
+            :label="$t('所属分组')"
           >
             <bk-select
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"
-              placeholder="未编组"
+              :placeholder="$t('未编组')"
               searchable
               @change="handleSelectGroup"
             >
@@ -519,7 +519,7 @@
             </bk-select>
           </bk-form-item>
 
-          <bk-form-item label="索引集">
+          <bk-form-item :label="$t('索引集')">
             <bk-input
               :value="indexSetName"
               readonly
@@ -527,7 +527,7 @@
             ></bk-input>
           </bk-form-item>
 
-          <bk-form-item label="查询语句">
+          <bk-form-item :label="$t('查询语句')">
             <bk-input
               :value="sqlString"
               type="textarea"

@@ -30,7 +30,7 @@ from django.utils.translation import gettext as _
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError
 from apps.log_clustering.constants import PatternEnum
-from apps.log_databus.constants import META_DATA_ENCODING, EtlConfig
+from apps.log_databus.constants import EtlConfig
 from apps.log_databus.exceptions import (
     BaseCollectorConfigException,
     DataLinkConfigPartitionException,
@@ -63,9 +63,7 @@ class CollectorScenario:
         }
         try:
             collector_scenario = import_string(
-                "apps.log_databus.handlers.collector_scenario.{}.{}".format(
-                    collector_scenario_id, mapping.get(collector_scenario_id)
-                )
+                f"apps.log_databus.handlers.collector_scenario.{collector_scenario_id}.{mapping.get(collector_scenario_id)}"
             )
             return collector_scenario()
         except ImportError as error:
@@ -110,37 +108,6 @@ class CollectorScenario:
         if sort_fields:
             field_list.extend(sort_fields)
         return sorted(set(field_list))
-
-    @classmethod
-    def change_data_stream(cls, collector_config: CollectorConfig, mq_topic: str | None = None, mq_partition: int = 1):
-        """
-        change bk_data_id result_table_id
-        :return:
-        """
-        from apps.log_databus.handlers.collector_handler.base import CollectorHandler
-
-        new_bk_data_id = cls.update_or_create_data_id(
-            data_link_id=collector_config.data_link_id,
-            mq_config={"topic": mq_topic, "partition": mq_partition},
-            data_name=CollectorHandler.build_bk_data_name(
-                collector_config.bk_biz_id, f"clustering_{collector_config.collector_config_name_en}"
-            ),
-            description=collector_config.description,
-            encoding=META_DATA_ENCODING,
-        )
-        TransferApi.modify_datasource_result_table(
-            {
-                "bk_data_id": new_bk_data_id,
-                "table_id": collector_config.table_id,
-                "bk_biz_id": collector_config.bk_biz_id,
-            }
-        )
-        logger.info(
-            f"[change_bk_data_id] "
-            f"change bk_data_id => [{new_bk_data_id}]"
-            f" result_table_id => [{collector_config.table_id}]"
-        )
-        return new_bk_data_id
 
     @staticmethod
     def delete_data_id(bk_data_id, data_name):

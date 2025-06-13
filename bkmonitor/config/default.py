@@ -154,8 +154,8 @@ FORCE_SCRIPT_NAME = SITE_URL
 STATICFILES_DIRS = []
 STATIC_VERSION = "1.0"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
-STATIC_URL = "%sstatic/" % SITE_URL
-REMOTE_STATIC_URL = "%sremote/" % STATIC_URL
+STATIC_URL = f"{SITE_URL}static/"
+REMOTE_STATIC_URL = f"{STATIC_URL}remote/"
 
 # 文件资源配置
 MEDIA_ROOT = os.path.join(BASE_DIR, "USERRES")
@@ -181,8 +181,8 @@ BK_PAAS_INNER_HOST = (
 )
 BK_COMPONENT_API_URL = os.getenv("BK_COMPONENT_API_URL") or BK_PAAS_INNER_HOST
 BK_COMPONENT_API_URL_FRONTEND = os.getenv("BK_COMPONENT_API_URL") or BK_PAAS_HOST
-BK_LOGIN_URL = os.getenv("BKPAAS_LOGIN_URL", "%s/login" % BK_PAAS_HOST).rstrip("/")
-BK_LOGIN_INNER_URL = os.getenv("BK_LOGIN_INNER_URL", "%s/login" % BK_PAAS_INNER_HOST).rstrip("/")
+BK_LOGIN_URL = os.getenv("BKPAAS_LOGIN_URL", f"{BK_PAAS_HOST}/login").rstrip("/")
+BK_LOGIN_INNER_URL = os.getenv("BK_LOGIN_INNER_URL", f"{BK_PAAS_INNER_HOST}/login").rstrip("/")
 ESB_SDK_NAME = "blueking.component"
 
 # 内外差异化配置
@@ -948,7 +948,6 @@ BK_DATA_AIOPS_INCIDENT_BROKER_URL = os.getenv(
 )
 BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE = os.getenv("BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE", "aiops_incident")
 
-
 # 表后缀(字母或数字([A-Za-z0-9]), 不能有下划线"_", 且最好不超过10个字符)
 BK_DATA_RAW_TABLE_SUFFIX = "raw"  # 数据接入
 BK_DATA_CMDB_FULL_TABLE_SUFFIX = "full"  # 补充cmdb节点信息后的表后缀
@@ -1179,8 +1178,11 @@ BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
+# 蓝盾网关接口请求头应用鉴权信息，有此配置，认证请求头优先使用此配置
+BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
+BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
 )
@@ -1274,7 +1276,6 @@ SHOW_REALTIME_STRATEGY = False
 
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
-
 
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
@@ -1391,7 +1392,7 @@ ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
-    os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
+    os.environ["BK_API_URL_TMPL"] = f"{BK_COMPONENT_API_URL}/api/{{api_name}}"
 
 BK_API_URL_TMPL = os.getenv("BK_API_URL_TMPL")
 

@@ -22,6 +22,7 @@ from apm_web.constants import METRIC_COMMON_DIMENSION
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models.scene_view import (
@@ -513,6 +514,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
     def get_metrics(cls, params: dict):
         resource_id = params["id"]
         bk_biz_id = params["bk_biz_id"]
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         bcs_cluster_id = params.get("bcs_cluster_id")
         name = params.get("name")
         namespace = params.get("namespace")
@@ -575,16 +577,24 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                                 filter_metrics.add(metric["field"])
 
         if k8s_metric_fields:
-            k8s_metrics = MetricListCache.objects.filter(result_table_id="", metric_field__in=k8s_metric_fields)
+            k8s_metrics = MetricListCache.objects.filter(
+                bk_tenant_id=bk_tenant_id, result_table_id="", metric_field__in=k8s_metric_fields
+            )
             yield from k8s_metrics
         for (data_source_label, data_type_label), tables in result_table_ids.items():
             if data_source_label != DataSourceLabel.BK_LOG_SEARCH:
                 metrics = MetricListCache.objects.filter(
-                    data_source_label=data_source_label, data_type_label=data_type_label, result_table_id__in=tables
+                    bk_tenant_id=bk_tenant_id,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    result_table_id__in=tables,
                 )
             else:
                 metrics = MetricListCache.objects.filter(
-                    data_source_label=data_source_label, data_type_label=data_type_label, related_id__in=tables
+                    bk_tenant_id=bk_tenant_id,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    related_id__in=tables,
                 )
 
             if filter_with_metric:
@@ -705,7 +715,7 @@ class GetStrategyAndEventCountResource(Resource):
             task_id = params["target"].get("task_id")
             if task_id:
                 conditions.append({"key": "task_id", "value": task_id})
-                query_string = 'tags.task_id : "%s"' % task_id
+                query_string = f'tags.task_id : "{task_id}"'
 
         elif params["scene_id"] == "kubernetes":
             scenario = ["kubernetes"]

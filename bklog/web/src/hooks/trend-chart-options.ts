@@ -245,7 +245,6 @@ export const getSeriesData = ({ data, name, color }) => ({
   name,
   type: 'bar',
   stack: 'total',
-  barMinHeight: 4,
   z: 4,
   markLine: {},
   markArea: {},
@@ -260,6 +259,7 @@ export const getSeriesData = ({ data, name, color }) => ({
   itemStyle: {
     color,
   },
+
   colorBy: 'data',
   emphasis: {
     label: {},

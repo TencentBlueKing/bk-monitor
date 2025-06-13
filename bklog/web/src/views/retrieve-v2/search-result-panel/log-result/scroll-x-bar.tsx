@@ -68,7 +68,7 @@ export default defineComponent({
       event.stopPropagation();
       event.preventDefault();
       event.stopImmediatePropagation();
-
+      
       if (!isAnimating) {
         isAnimating = true;
         requestAnimationFrame(() => {

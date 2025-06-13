@@ -968,7 +968,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     // if (this.selectorPanelPriority) this.refleshVariablesKey = random(8);
     needLoading && (this.loading = false);
     this.handleResizeCollapse();
-    console.log(v);
     this.emitTabChange(v);
     this.emitLocalSceneTypeChange();
   }
