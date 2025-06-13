@@ -27,8 +27,12 @@ import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
-
-import { type ICalendarData, type ICalendarDataUser, calendarDataConversion, getCalendarNew } from './calendar-preview';
+import {
+  type ICalendarData,
+  type ICalendarDataUser,
+  calendarDataConversion,
+  getCalendarNew,
+} from 'monitor-common/rotation-utils/calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
