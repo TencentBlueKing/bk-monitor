@@ -345,7 +345,9 @@ class EsSnapshotIndice(models.Model):
             "end_time": self.end_time.timestamp(),
             "doc_count": self.doc_count,
             "store_size": self.store_size,
-            "is_stored": EsSnapshotRestore.is_restored_index(self.index_name, now),
+            "is_stored": EsSnapshotRestore.is_restored_index(
+                index=self.index_name, now=now, bk_tenant_id=self.bk_tenant_id
+            ),
             "bk_tenant_id": self.bk_tenant_id,
         }
 
@@ -449,13 +451,13 @@ class EsSnapshotRestore(models.Model):
             bk_tenant_id=bk_tenant_id,
         )
 
-        # TODO: 多租户改造标记位！！！！
-
         # 需要过滤出已经回溯了的索引 来进行创建回溯
         snapshot_indices = [
             snapshot_indice
             for snapshot_indice in snapshot_indices
-            if not cls.is_restored_index(snapshot_indice.index_name, now, restore.restore_id)
+            if not cls.is_restored_index(
+                index=snapshot_indice.index_name, now=now, restore_id=restore.restore_id, bk_tenant_id=bk_tenant_id
+            )
         ]
         # 如果都已经回溯过了 就不再执行创建回溯操作，直接返回数据
         if not snapshot_indices:
@@ -473,6 +475,7 @@ class EsSnapshotRestore(models.Model):
         # 根据参数进行同步或者异步操作的处理
         if is_sync:
             logger.info("restore id %s sync to create restore %s", restore.restore_id, indices_group_by_snapshot)
+            # 通过ID方式指定，无需再次使用租户ID过滤
             restore_result_table_snapshot(indices_group_by_snapshot, restore.restore_id)
         else:
             logger.info("restore id %s async to create restore %s", restore.restore_id, indices_group_by_snapshot)
@@ -557,21 +560,23 @@ class EsSnapshotRestore(models.Model):
         ]
 
     @classmethod
-    def is_restored_index(cls, index, now, restore_id=None):
+    def is_restored_index(cls, index, now, restore_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         判断索引是否已经被回溯
         """
         queryset = cls.objects.exclude(is_deleted=True).exclude(expired_delete=True)
         if restore_id:
             queryset = queryset.exclude(restore_id=restore_id)
-        return queryset.filter(indices__icontains=index, expired_time__gt=now).exists()
+        return queryset.filter(indices__icontains=index, expired_time__gt=now, bk_tenant_id=bk_tenant_id).exists()
 
     def create_es_restore(self, indices_group_by_snapshot):
         for snapshot, snapshot_indices in indices_group_by_snapshot.items():
             try:
                 indices = [indice.get("index_name") for indice in snapshot_indices]
                 repository_name = snapshot_indices[0]["repository_name"]
-                cluster_id = EsSnapshotRepository.objects.get(repository_name=repository_name).cluster_id
+                cluster_id = EsSnapshotRepository.objects.get(
+                    repository_name=repository_name, bk_tenant_id=self.bk_tenant_id
+                ).cluster_id
                 es_client = get_client(cluster_id)
 
                 es_client.snapshot.restore(
@@ -595,11 +600,17 @@ class EsSnapshotRestore(models.Model):
     def delete_restore_indices(self):
         indices = self.indices.split(",")
         now = datetime.datetime.utcnow()
-        indices = [indice for indice in indices if not self.is_restored_index(indice, now, self.restore_id)]
+        indices = [
+            indice
+            for indice in indices
+            if not self.is_restored_index(
+                index=indice, now=now, restore_id=self.restore_id, bk_tenant_id=self.bk_tenant_id
+            )
+        ]
 
         from metadata.models import ESStorage
 
-        es_storage = ESStorage.objects.get(table_id=self.table_id)
+        es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         es_client = get_client(es_storage.storage_cluster_id)
 
         # es index 删除是通过url带参数 防止索引太多超过url长度限制 所以进行多批删除
@@ -624,7 +635,7 @@ class EsSnapshotRestore(models.Model):
 
         from metadata.models import ESStorage
 
-        es_storage = ESStorage.objects.get(table_id=self.table_id)
+        es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         try:
             es_indices = es_storage.get_client().cat.indices(f"{self.RESTORE_INDEX_PREFIX}*", format="json")
         except Exception as e:
@@ -663,4 +674,5 @@ class EsSnapshotRestore(models.Model):
             "create_time": self.create_time.timestamp(),
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.timestamp(),
+            "bk_tenant_id": self.bk_tenant_id,
         }

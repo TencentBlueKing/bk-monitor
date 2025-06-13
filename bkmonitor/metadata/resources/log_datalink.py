@@ -27,6 +27,8 @@ from metadata.service.space_redis import (
 
 logger = logging.getLogger(__name__)
 
+# TODO：LogDataLink整体接口 多租户验证
+
 
 class ParamsSerializer(serializers.Serializer):
     """参数序列化器"""
