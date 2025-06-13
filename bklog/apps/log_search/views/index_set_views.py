@@ -51,7 +51,9 @@ from apps.log_search.serializers import (
     StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
+    QueryByDataIdSerializer,
 )
+from rest_framework.decorators import permission_classes
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
 from bkm_space.serializers import SpaceUIDField
@@ -76,7 +78,14 @@ class IndexSetViewSet(ModelViewSet):
                 return []
         except Exception:  # pylint: disable=broad-except
             pass
-        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite", "space"]:
+        if self.action in [
+            "mark_favorite",
+            "cancel_favorite",
+            "user_search",
+            "user_favorite",
+            "space",
+            "query_by_dataid",
+        ]:
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
@@ -1349,6 +1358,7 @@ class IndexSetViewSet(ModelViewSet):
         return Response(IndexSetHandler.get_space_info(int(index_set_id)))
 
     @list_route(methods=["GET"], url_path="query_by_dataid")
+    @permission_classes([])
     def query_by_dataid(self, request):
         """
         @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
@@ -1368,7 +1378,5 @@ class IndexSetViewSet(ModelViewSet):
             'message': ''
         }
         """
-        bk_data_id = request.GET.get("bk_data_id")
-        if not bk_data_id:
-            raise ValidationError(errors=_("bk_data_id 不能为空"))
-        return Response(IndexSetHandler.query_by_bk_data_id(bk_data_id=bk_data_id))
+        params = self.params_valid(QueryByDataIdSerializer)
+        return Response(IndexSetHandler.query_by_bk_data_id(bk_data_id=params["bk_data_id"]))

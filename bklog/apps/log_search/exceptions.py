@@ -493,9 +493,9 @@ class LogSearchException(BaseSearchException):
     MESSAGE = _("日志检索异常, 原因: {e}")
 
 
-class BaseSearchBkDataException(BaseException):
+class DataIDNotExistException(BaseException):
     ERROR_CODE = "448"
-    MESSAGE = _('"{bk_data_id}"未能找到关联的索引集')
+    MESSAGE = _("DataID({bk_data_id}) 未能找到关联的索引集")
 
 
 # =================================================

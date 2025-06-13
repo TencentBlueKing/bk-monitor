@@ -80,7 +80,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
     BaseSearchIndexSetException,
-    BaseSearchBkDataException,
+    DataIDNotExistException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -1361,7 +1361,7 @@ class IndexSetHandler(APIModel):
     def query_by_bk_data_id(cls, bk_data_id):
         collector_config = CollectorConfig.objects.filter(bk_data_id=bk_data_id).first()
         if not collector_config:
-            raise BaseSearchBkDataException(BaseSearchBkDataException.MESSAGE.format(bk_data_id=bk_data_id))
+            raise DataIDNotExistException(DataIDNotExistException.MESSAGE.format(bk_data_id=bk_data_id))
         index_set_obj = LogIndexSet.objects.filter(index_set_id=collector_config.index_set_id).first()
         if not index_set_obj:
             raise BaseSearchIndexSetException(
