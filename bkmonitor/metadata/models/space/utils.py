@@ -297,6 +297,7 @@ def get_dimension_values(space_type_id: str, space_id: str, resource_type: str |
     return dimension_list
 
 
+# TODO: 多租户改造联调验证
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_space(
     creator: str,
@@ -305,6 +306,7 @@ def create_space(
     space_name: str,
     resources: list | None = None,
     space_code: str | None = "",
+    bk_tenant_id: str = DEFAULT_TENANT_ID,
 ) -> dict:
     """创建空间
 
@@ -316,6 +318,7 @@ def create_space(
     :param space_name: 空间中文名称
     :param resources: 绑定的资源信息，如[{"resource_type": "xxx", "resource_id": "xxx"}]
     :param space_code: 空间 Code，用于标识 BCS 的项目 ID
+    :param bk_tenant_id: 租户 ID
     :return: 空间的详情
     """
     # 创建空间实例
@@ -326,6 +329,7 @@ def create_space(
         "space_code": space_code,
         "space_name": space_name,
         "status": SpaceStatus.NORMAL.value,
+        "bk_tenant_id": bk_tenant_id,
     }
     # NOTE: 针对空间 code 不为空时，认为开启容器服务功能
     if space_code:

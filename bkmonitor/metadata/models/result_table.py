@@ -51,8 +51,8 @@ logger = logging.getLogger("metadata")
 class ResultTable(models.Model):
     """逻辑结果表"""
 
-    CONSUL_INFLUXDB_INFO_PREFIX_PATH = "%s/unify-query/data/influxdb/info" % config.CONSUL_PATH
-    CONSUL_INFLUXDB_INFO_VERSION_PATH = "%s/unify-query/version/influxdb/info" % config.CONSUL_PATH
+    CONSUL_INFLUXDB_INFO_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/influxdb/info"
+    CONSUL_INFLUXDB_INFO_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/influxdb/info"
     SCHEMA_TYPE_FREE = "free"
     SCHEMA_TYPE_DYNAMIC = "dynamic"
     SCHEMA_TYPE_FIXED = "fixed"
@@ -177,7 +177,7 @@ class ResultTable(models.Model):
 
         hash_consul.put(key=cls.CONSUL_INFLUXDB_INFO_VERSION_PATH, value={"time": time.time()})
 
-        logger.info("all es table info is refresh to consul success count->[%s]." % total_count)
+        logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
 
     @property
     def real_storage_list(self):
@@ -394,7 +394,12 @@ class ResultTable(models.Model):
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
             # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
-            start_string = "%s_" % bk_biz_id
+            # 若开启多租户模式，需要获取租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                start_string = f"{bk_tenant_id}_{bk_biz_id}_"
+            else:  # 若未开启多租户模式，沿用此前的命名规范
+                start_string = f"{bk_biz_id}_"
+
             if not table_id.startswith(start_string):
                 logger.error(
                     "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
@@ -557,9 +562,7 @@ class ResultTable(models.Model):
             bk_data_id=bk_data_id, table_id=table_id, creator=operator, bk_tenant_id=bk_tenant_id
         )
         logger.info(
-            "create_result_table: result_table->[{}] now has relate to bk_data->[{}],bk_tenant_id->[{}]".format(
-                result_table, bk_data_id, bk_tenant_id
-            )
+            f"create_result_table: result_table->[{result_table}] now has relate to bk_data->[{bk_data_id}],bk_tenant_id->[{bk_tenant_id}]"
         )
 
         # 5. 创建实际结果表
@@ -733,8 +736,8 @@ class ResultTable(models.Model):
             )
         except cls.DoesNotExist:
             logger.info(
-                "table_id->[{}] of bk_tenant_id->[{}],is search as biz->[{}] result table and found nothing, "
-                "will try to all biz.".format(table_id_with_biz, bk_tenant_id, bk_biz_id)
+                f"table_id->[{table_id_with_biz}] of bk_tenant_id->[{bk_tenant_id}],is search as biz->[{bk_biz_id}] result table and found nothing, "
+                "will try to all biz."
             )
 
         # 如果不能命中，尝试使用退回到全局的结果表查询
@@ -743,9 +746,7 @@ class ResultTable(models.Model):
             return cls.objects.get(bk_biz_id=0, table_id=table_id, bk_tenant_id=bk_tenant_id, is_deleted=False)
         except cls.DoesNotExist:
             logger.info(
-                "table_id->[{}] is search as all biz failed in old style , will try to all biz in new style.".format(
-                    table_id_with_biz
-                )
+                f"table_id->[{table_id_with_biz}] is search as all biz failed in old style , will try to all biz in new style."
             )
         # 如果使用单指标单表的结果表查询会查询不到真实的结果表
         database_name, _, _ = query_table_id.rpartition(".")
@@ -870,7 +871,7 @@ class ResultTable(models.Model):
         try:
             real_storage = self.REAL_STORAGE_DICT[self.default_storage]
         except KeyError:
-            logger.error("storage->[%s] now is not supported." % storage)
+            logger.error(f"storage->[{storage}] now is not supported.")
             raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(self.default_storage))
 
         if self.default_storage == ClusterInfo.TYPE_ES:
@@ -879,9 +880,7 @@ class ResultTable(models.Model):
             table_id=self.table_id, bk_tenant_id=bk_tenant_id, is_sync_db=is_sync_db, **storage_config
         )
         logger.info(
-            "result_table->[{}] of bk_tenant_id->[{}] has create real storage on type->[{}]".format(
-                self.table_id, bk_tenant_id, storage
-            )
+            f"result_table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] has create real storage on type->[{storage}]"
         )
 
         # 3. 判断是否需要存在额外存储的配置支持
@@ -892,8 +891,8 @@ class ResultTable(models.Model):
 
                 except KeyError:
                     logger.error(
-                        "try to set storage->[{}] for table->[{}] of bk_tenant_id->[{}] "
-                        "but storage is not exists.".format(ex_storage_type, self.table_id, bk_tenant_id)
+                        f"try to set storage->[{ex_storage_type}] for table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] "
+                        "but storage is not exists."
                     )
                     raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(ex_storage_type))
 
@@ -911,8 +910,7 @@ class ResultTable(models.Model):
                 self.refresh_etl_config()
             except Exception:
                 logger.error(
-                    "table_id->[%s] of bk_tenant_id->[%s] failed to push config to consul for->[%s], wait cron task."
-                    % (self.table_id, bk_tenant_id, traceback.format_exc())
+                    f"table_id->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] failed to push config to consul for->[{traceback.format_exc()}], wait cron task."
                 )
 
         return True
@@ -1022,7 +1020,9 @@ class ResultTable(models.Model):
         # 0. 判断该操作时非强制添加，而且结果表是否可以增加字段的模式
         if not is_force_add and self.schema_type == self.SCHEMA_TYPE_FIXED:
             logger.error(
-                "result_table->[%s] of bk_tenant_id->[%s] schema type is set, no field can be added." % self.table_id,
+                "result_table->[{}] of bk_tenant_id->[{}] schema type is set, no field can be added.".format(
+                    *self.table_id
+                ),
                 bk_tenant_id,
             )
             raise ValueError(_("结果表[%s]字段不可变更") % self.table_id)
@@ -1047,8 +1047,7 @@ class ResultTable(models.Model):
                 is_reserved_check=is_reserved_check,
             )
             logger.info(
-                "new field->[%s] type->[%s] for result_table->[%s] of bk_tenant_id->[%s]now is create."
-                % (field_name, field_type, self.table_id, bk_tenant_id)
+                f"new field->[{field_name}] type->[{field_type}] for result_table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}]now is create."
             )
 
             # 3. 遍历所有的实际存储，操作增加字段操作
@@ -1056,17 +1055,15 @@ class ResultTable(models.Model):
             for real_storage in self.real_storage_list:
                 real_storage.add_field(new_field)
                 logger.info(
-                    "result_table->[{}] storage->[{}] has added field success.".format(
-                        self.table_id, real_storage.STORAGE_TYPE
-                    )
+                    f"result_table->[{self.table_id}] storage->[{real_storage.STORAGE_TYPE}] has added field success."
                 )
 
         # 4. 更新ETL配置
         if is_etl_refresh:
             self.refresh_etl_config()
             logger.info(
-                "result_table->[%s] of bk_tenant_id->[%s] now is finish add field->[%s] and refresh consul config "
-                "success." % (self.table_id, bk_tenant_id, new_field)
+                f"result_table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] now is finish add field->[{new_field}] and refresh consul config "
+                "success."
             )
         return True
 
@@ -1347,9 +1344,7 @@ class ResultTable(models.Model):
             self.is_enable = is_enable
             self.save()  # 这里需要保存下，下面的es索引创建逻辑会依赖is_enable的判断
             logger.info(
-                "table_id->[{}] of bk_tenant_id->[{}] is change to is_enable->[{}]".format(
-                    self.table_id, self.bk_tenant_id, self.is_enable
-                )
+                f"table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] is change to is_enable->[{self.is_enable}]"
             )
 
             # 如果启用结果表，需要创建结果表的实际存储依赖
@@ -1372,9 +1367,7 @@ class ResultTable(models.Model):
                         es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
 
                     logger.info(
-                        "table_id->[{}] of bk_tenant_id->[{}] is change to is_enable {} and es index is created".format(
-                            self.table_id, self.bk_tenant_id, self.is_enable
-                        )
+                        f"table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] is change to is_enable {self.is_enable} and es index is created"
                     )
 
         if bk_biz_id_alias is not None:
@@ -1425,9 +1418,7 @@ class ResultTable(models.Model):
         try:
             api.bkdata.notify_log_data_id_changed(data_id=data_id)
             logger.info(
-                "notify_log_data_id_changed table_id->{},data_id ->{},notify es config changed success.".format(
-                    self.table_id, data_id
-                )
+                f"notify_log_data_id_changed table_id->{self.table_id},data_id ->{data_id},notify es config changed success."
             )
             return True  # 成功时返回
         except Exception as e:
@@ -1457,9 +1448,7 @@ class ResultTable(models.Model):
         # 1. 判断结果表是否已经是全业务
         if self.bk_biz_id == 0 or self.is_deleted:
             logger.error(
-                "user->[{}] result_table->[{}] is already deleted or all business table, nothing will do.".format(
-                    operator, self.table_id
-                )
+                f"user->[{operator}] result_table->[{self.table_id}] is already deleted or all business table, nothing will do."
             )
             raise ValueError(_("结果表不可操作，请确认后重试"))
 
@@ -1481,9 +1470,7 @@ class ResultTable(models.Model):
             table_id=new_table_id
         )
         logger.info(
-            "result_table->[{}] of bk_tenant_id->[{}] all fields is set to result_table->[{}]".format(
-                self.table_id, self.bk_tenant_id, new_table_id
-            )
+            f"result_table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] all fields is set to result_table->[{new_table_id}]"
         )
 
         # 3.2 新建存储记录
@@ -1502,9 +1489,7 @@ class ResultTable(models.Model):
             new_storage.bk_tenant_id = self.bk_tenant_id
             new_storage.save()
             logger.info(
-                "result_table->[{}] storage->[{}] now is give to new_result_table->[{}]".format(
-                    self.table_id, storage_str, new_table_id
-                )
+                f"result_table->[{self.table_id}] storage->[{storage_str}] now is give to new_result_table->[{new_table_id}]"
             )
 
         # 3.3 DataID与结果表关系迁移
@@ -1512,9 +1497,7 @@ class ResultTable(models.Model):
             table_id=new_table_id
         )
         logger.info(
-            "result_table->[{}] all data_source config to give to new_table_table->[{}]".format(
-                self.table_id, new_table_id
-            )
+            f"result_table->[{self.table_id}] all data_source config to give to new_table_table->[{new_table_id}]"
         )
 
         # 3.4 复制自身数据到新结果表
@@ -1540,8 +1523,8 @@ class ResultTable(models.Model):
 
         except DataSourceResultTable.DoesNotExist:
             logger.error(
-                "failed to get table->[{}] of bk_tenant_id->[{}] datasource as it is not exists, maybe something go "
-                "wrong?".format(self.table_id, self.bk_tenant_id)
+                f"failed to get table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] datasource as it is not exists, maybe something go "
+                "wrong?"
             )
             raise ValueError(_("结果表[{}]不存在关联数据源").format(self.table_id))
 
@@ -1556,8 +1539,8 @@ class ResultTable(models.Model):
         ):
             # 如果已经存在类似的拆分任务，直接退出
             logger.info(
-                "table->[{}] of bk_tenant_id->[{}] for cmdb_level->[{}] already exists, "
-                "no new table will create.".format(self.table_id, self.bk_tenant_id, cmdb_level)
+                f"table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] for cmdb_level->[{cmdb_level}] already exists, "
+                "no new table will create."
             )
             return CMDBLevelRecord.objects.get(
                 source_table_id=self.table_id, cmdb_level=cmdb_level, bk_tenant_id=self.bk_tenant_id
@@ -1566,8 +1549,8 @@ class ResultTable(models.Model):
         # 如果结果表已经是一个拆分结果的内容，不必再进行拆分
         if CMDBLevelRecord.objects.filter(target_table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).exists():
             logger.error(
-                "table_id->[{}] of bk_tenant_id->[{}] is already cmdb_level targe table, nothing will be split any "
-                "more.".format(self.table_id, self.bk_tenant_id)
+                f"table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] is already cmdb_level targe table, nothing will be split any "
+                "more."
             )
             raise ValueError(_("不可对拆分结果表再次拆分"))
 
@@ -1591,17 +1574,15 @@ class ResultTable(models.Model):
                 type_label=self.data_source.type_label,
             )
             logger.info(
-                "new data_id->[{}] is create for table->[{}] of bk_tenant_id->[{}] for cmdb_level.".format(
-                    data_source.bk_data_id, self.table_id, self.bk_tenant_id
-                )
+                f"new data_id->[{data_source.bk_data_id}] is create for table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] for cmdb_level."
             )
 
             # 判断RT是否已经存在Kafka输出，如果有，则将上述的data_source指向这个kafka
             if KafkaStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).exists():
                 storage = KafkaStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).first()
                 logger.info(
-                    "result_table->[{}] of bk_tenant_id->[{}] already has kafka storage will set topic->[{}] "
-                    "partition->[{}]".format(self.table_id, self.bk_tenant_id, storage.topic, storage.partition)
+                    f"result_table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] already has kafka storage will set topic->[{storage.topic}] "
+                    f"partition->[{storage.partition}]"
                 )
 
             # 否则创建一个新的kafka结果表
@@ -1622,9 +1603,7 @@ class ResultTable(models.Model):
             bk_tenant_id=self.bk_tenant_id,
         )
         logger.info(
-            "table->[{}] of bk_tenant_id->[{}] cmdb_level->[{}] create/reuse table->[{}]".format(
-                self.table_id, self.bk_tenant_id, cmdb_level, record.target_table_id
-            )
+            f"table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] cmdb_level->[{cmdb_level}] create/reuse table->[{record.target_table_id}]"
         )
 
         return record
@@ -1642,9 +1621,7 @@ class ResultTable(models.Model):
             source_table_id=self.table_id, cmdb_level=cmdb_level, bk_tenant_id=self.bk_tenant_id
         ).exists():
             logger.error(
-                "try to delete cmdb_level->[{}] for table->[{}] of bk_tenant_id->[{}] but is not exist.".format(
-                    cmdb_level, self.table_id, self.bk_tenant_id
-                )
+                f"try to delete cmdb_level->[{cmdb_level}] for table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] but is not exist."
             )
             raise ValueError(_("结果表不存在该字段拆分记录"))
 
@@ -1654,9 +1631,7 @@ class ResultTable(models.Model):
         )
         record.delete()
         logger.info(
-            "cmdb level->[{}] for table->[{}] of bk_tenant_id->[{}]now is deleted.".format(
-                cmdb_level, self.table_id, self.bk_tenant_id
-            )
+            f"cmdb level->[{cmdb_level}] for table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}]now is deleted."
         )
 
         # 3. 重新覆盖option的记录
@@ -1666,9 +1641,7 @@ class ResultTable(models.Model):
             table_id=record.target_table_id, operator=operator, bk_tenant_id=self.bk_tenant_id
         )
         logger.info(
-            "update table_id->[{}] of bk_tenant_id->[{}] result_table cmdb_level option success.".format(
-                self.table_id, self.bk_tenant_id
-            )
+            f"update table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] result_table cmdb_level option success."
         )
 
         return True
@@ -2131,7 +2104,7 @@ class ResultTableField(models.Model):
             creator="system",
         )
 
-        logger.info("all default field is created for table->[%s]." % table_id)
+        logger.info(f"all default field is created for table->[{table_id}].")
 
     @classmethod
     def make_cmdb_default_fields(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -2240,7 +2213,7 @@ class ResultTableField(models.Model):
 
     @classmethod
     def bulk_create_fields(
-        cls, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id: DEFAULT_TENANT_ID
+        cls, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id=DEFAULT_TENANT_ID
     ) -> bool:
         """批量创建 fields
 
@@ -2326,16 +2299,13 @@ class ResultTableField(models.Model):
         if is_reserved_check:
             if field_name.upper() in config.RT_RESERVED_WORD_EXACT:
                 logger.error(
-                    "user->[%s] try to create field->[%s] which is reserved field, nothing will added."
-                    % (operator, field_name)
+                    f"user->[{operator}] try to create field->[{field_name}] which is reserved field, nothing will added."
                 )
                 raise ValueError(_("字段[%s]为保留字段，不可创建") % field_name)
 
         if cls.objects.filter(table_id=table_id, field_name=field_name, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "field->[{}] is exists under table->[{}] in bk_tenant_id->[{}], nothing will be added.".format(
-                    field_name, table_id, bk_tenant_id
-                )
+                f"field->[{field_name}] is exists under table->[{table_id}] in bk_tenant_id->[{bk_tenant_id}], nothing will be added."
             )
             raise ValueError(_("字段[{}]已在租户[{}]-表[{}]中存在，请确认").format(field_name, bk_tenant_id, table_id))
 
@@ -2354,17 +2324,13 @@ class ResultTableField(models.Model):
             is_disabled=is_disabled,
         )
         logger.info(
-            "new field->[{}] type->[{}] is create for table->[{}],bk_tenant_id->[{}]".format(
-                field_name, field_type, table_id, bk_tenant_id
-            )
+            f"new field->[{field_name}] type->[{field_type}] is create for table->[{table_id}],bk_tenant_id->[{bk_tenant_id}]"
         )
 
         # 如果不存在option配置，直接返回
         if option is None:
             logger.info(
-                "new field->[{}]  of table_id->[{}],bk_tenant_id->[{}],got no option config, jump it.".format(
-                    field_name, table_id, bk_tenant_id
-                )
+                f"new field->[{field_name}]  of table_id->[{table_id}],bk_tenant_id->[{bk_tenant_id}],got no option config, jump it."
             )
             return True
 
@@ -2378,9 +2344,7 @@ class ResultTableField(models.Model):
                 bk_tenant_id=bk_tenant_id,
             )
             logger.info(
-                "field->[{}] in table->[{}] of bk_tenant_id->[{}],now has option->[{}] with value->[{}]".format(
-                    field_name, table_id, bk_tenant_id, option_name, option_value
-                )
+                f"field->[{field_name}] in table->[{table_id}] of bk_tenant_id->[{bk_tenant_id}],now has option->[{option_name}] with value->[{option_value}]"
             )
 
         return True
@@ -2544,8 +2508,8 @@ class ResultTableRecordFormat(models.Model):
 
         if real_fields_count != len(fields_list):
             logger.error(
-                "try to set metric->[%s] dimension_list->[%s] for table->[%s] of bk_tenant_id->[%s] but some fields "
-                "are missing." % (metric, dimension_list, bk_tenant_id, table_id)
+                f"try to set metric->[{metric}] dimension_list->[{dimension_list}] for table->[{bk_tenant_id}] of bk_tenant_id->[{table_id}] but some fields "
+                "are missing."
             )
             raise ValueError(_("部分维度或者指标字段不存在，请确认"))
 
@@ -2558,8 +2522,7 @@ class ResultTableRecordFormat(models.Model):
             is_available=False,
         )
         logger.info(
-            "new format for table->[%s] of bk_tenant_id->[%s] metric->[%s] dimension->[%s] is now create."
-            % (table_id, bk_tenant_id, metric, dimension_list)
+            f"new format for table->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] metric->[{metric}] dimension->[{dimension_list}] is now create."
         )
 
         # 3. 按需激活该配置
@@ -2577,14 +2540,13 @@ class ResultTableRecordFormat(models.Model):
         # 1. 将已有的所有dimension配置改为不可用
         all_table_formats = self.__class__.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         all_table_formats.update(is_available=False)
-        logger.info("all format for table->[%s] now is disabled." % self.table_id)
+        logger.info(f"all format for table->[{self.table_id}] now is disabled.")
 
         # 2. 将自己改为可用
         self.is_available = True
         self.save()
         logger.info(
-            "format for metric->[%s] dimension->[%s] table->[%s] of bk_tenant_id->[%s] now is available."
-            % (self.metric, self.dimension_list, self.table_id, self.bk_tenant_id)
+            f"format for metric->[{self.metric}] dimension->[{self.dimension_list}] table->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] now is available."
         )
         return True
 
@@ -2672,15 +2634,11 @@ class CMDBLevelRecord(models.Model):
             ]
 
             logger.debug(
-                "result_table->[{}] of bk_tenant_id->[{}] going to create with field_list->[{}]".format(
-                    target_table_id, bk_tenant_id, field_dict_list
-                )
+                f"result_table->[{target_table_id}] of bk_tenant_id->[{bk_tenant_id}] going to create with field_list->[{field_dict_list}]"
             )
 
             logger.info(
-                "result_table->[{}] of bk_tenant_id->[{}] is going to create field count->[{}]".format(
-                    target_table_id, bk_tenant_id, len(field_dict_list)
-                )
+                f"result_table->[{target_table_id}] of bk_tenant_id->[{bk_tenant_id}] is going to create field count->[{len(field_dict_list)}]"
             )
 
             # 创建结果表
@@ -2701,9 +2659,7 @@ class CMDBLevelRecord(models.Model):
                 include_cmdb_level=True,
             )
             logger.info(
-                "result_table->[{}] of bk_tenant_id->[{}] datasource->[{}] for cmdb split is create".format(
-                    target_table_id, bk_tenant_id, bk_data_id
-                )
+                f"result_table->[{target_table_id}] of bk_tenant_id->[{bk_tenant_id}] datasource->[{bk_data_id}] for cmdb split is create"
             )
 
         # 3. 增加CMDB拆分记录
@@ -2718,14 +2674,12 @@ class CMDBLevelRecord(models.Model):
         # 2. 增加一个新的结果表option配置
         ResultTableOption.sync_cmdb_level_option(table_id=target_table_id, operator=operator, bk_tenant_id=bk_tenant_id)
         logger.info(
-            "target_table_id->[{}] of bk_tenant_id->[{}] cmdb_level option added success.".format(
-                target_table_id, bk_tenant_id
-            )
+            f"target_table_id->[{target_table_id}] of bk_tenant_id->[{bk_tenant_id}] cmdb_level option added success."
         )
 
         logger.info(
-            "source_rt->[{}] of bk_tenant_id->[{}] target_rt->[{}] for cmdb_level->[{}] via data_id->[{}] is  create "
-            "new record".format(source_table_id, bk_tenant_id, target_table_id, cmdb_level, bk_data_id)
+            f"source_rt->[{source_table_id}] of bk_tenant_id->[{bk_tenant_id}] target_rt->[{target_table_id}] for cmdb_level->[{cmdb_level}] via data_id->[{bk_data_id}] is  create "
+            "new record"
         )
 
         return record
@@ -2753,9 +2707,7 @@ class CMDBLevelRecord(models.Model):
         """
         if self.is_disable:
             logger.warning(
-                "source_table_id->[{}] table_table->[{}] cmdb_level->[{}] is disable, nothing will get".format(
-                    self.source_table_id, self.target_table_id, self.cmdb_level
-                )
+                f"source_table_id->[{self.source_table_id}] table_table->[{self.target_table_id}] cmdb_level->[{self.cmdb_level}] is disable, nothing will get"
             )
             raise ValueError(_("结果表配置已失效，请确认后重试"))
 
@@ -2856,9 +2808,7 @@ class ResultTableOption(OptionBase):
         record.save()
 
         logger.info(
-            "result_table->[{}] of bk_tenant_id->[{}] cmdb_level option->[{}] is updated to->[{}]".format(
-                table_id, bk_tenant_id, record.id, value
-            )
+            f"result_table->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] cmdb_level option->[{record.id}] is updated to->[{value}]"
         )
 
         return True
@@ -2876,9 +2826,7 @@ class ResultTableOption(OptionBase):
         """
         if cls.objects.filter(table_id=table_id, name=name, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "table_id->[{}] of bk_tenant_id->[{}] already has option->[{}], maybe something go wrong?".format(
-                    table_id, bk_tenant_id, name
-                )
+                f"table_id->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] already has option->[{name}], maybe something go wrong?"
             )
             raise ValueError(_("结果表已存在[{}]选项").format(name))
 
@@ -2997,8 +2945,8 @@ class ResultTableFieldOption(OptionBase):
         """
         if cls.objects.filter(table_id=table_id, field_name=field_name, name=name, bk_tenant_id=bk_tenant_id).exists():
             logger.error(
-                "table_id->[{}] in bk_tenant_id->[{}],field_name->[{}] already has option->[{}], maybe something go "
-                "wrong?".format(table_id, bk_tenant_id, field_name, name)
+                f"table_id->[{table_id}] in bk_tenant_id->[{bk_tenant_id}],field_name->[{field_name}] already has option->[{name}], maybe something go "
+                "wrong?"
             )
             raise ValueError(_("结果表字段[{}]已存在[{}]选项").format(field_name, name))
 

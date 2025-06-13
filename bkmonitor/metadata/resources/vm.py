@@ -17,6 +17,8 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.space.constants import SpaceTypes
@@ -136,8 +138,17 @@ class SwitchKafkaCluster(Resource):
             return data
 
     def perform_request(self, validated_request_data: OrderedDict) -> None:
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("SwitchKafkaCluster: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         try:
-            obj = models.KafkaStorage.objects.get(table_id=validated_request_data["table_id"])
+            obj = models.KafkaStorage.objects.get(
+                table_id=validated_request_data["table_id"], bk_tenant_id=bk_tenant_id
+            )
         except models.KafkaStorage.DoesNotExist:
             raise ValidationError(f"not found kafka storage by table_id: {validated_request_data['table_id']}")
 
@@ -151,7 +162,7 @@ class SwitchKafkaCluster(Resource):
         # 获取数据源
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(
-                table_id=validated_request_data["table_id"]
+                table_id=validated_request_data["table_id"], bk_tenant_id=bk_tenant_id
             ).bk_data_id
         except models.DataSourceResultTable.DoesNotExist:
             raise ValidationError(f"not found data source by table_id: {validated_request_data['table_id']}")
