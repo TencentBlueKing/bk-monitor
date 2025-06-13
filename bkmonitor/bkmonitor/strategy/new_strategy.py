@@ -909,6 +909,7 @@ class ActionRelation(BaseActionRelation):
     class Serializer(BaseActionRelation.Serializer):
         class OptionsSerializer(serializers.Serializer):
             converge_config = ConvergeConfigSlz()
+            enable_delay = serializers.IntegerField(required=False, default=0)
 
             def validate_converge_config(self, data):
                 # 默认防御维度
@@ -916,8 +917,6 @@ class ActionRelation(BaseActionRelation):
                     {"dimension": "action_info", "value": ["self"]},
                 ]
                 return data
-
-            enable_delay = serializers.IntegerField(required=False, default=0)
 
         options = OptionsSerializer()
 
