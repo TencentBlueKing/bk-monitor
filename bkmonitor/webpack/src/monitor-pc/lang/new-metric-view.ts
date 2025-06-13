@@ -120,5 +120,11 @@ export default {
   编辑范围: 'Edit Range',
   全量: 'Full',
   '新增 "{0}" 维度': 'Added "{0}" dimension',
+  '维度（组合）': 'Dimension (Combination)',
+  '1天前': '1 day ago',
+  '7天前': '7 days ago',
+  '30天前': '30 days ago',
+  Time: 'Time',
+  type: 'Type',
   视图管理: 'View Management',
 };

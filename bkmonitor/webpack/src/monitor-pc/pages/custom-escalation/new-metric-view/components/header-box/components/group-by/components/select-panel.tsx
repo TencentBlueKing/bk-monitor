@@ -198,7 +198,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           distance: 10,
           arrow: false,
           hideOnClick: true,
-          zIndex: 999,
+          zIndex: 1002,
           onShow: this.handlePopoverShow,
           onHidden: this.handlePopoverhide,
         }}

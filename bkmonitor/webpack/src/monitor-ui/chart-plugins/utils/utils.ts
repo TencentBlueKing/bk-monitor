@@ -671,7 +671,8 @@ export const createMenuList = (
   menuList: { id: string; name: string }[],
   position: { x: number; y: number },
   clickHandler: (id: string) => void,
-  instance: any
+  instance: any,
+  className?: string
 ) => {
   const id = 'contextmenu-list-pop-wrapper';
   const removeEl = () => {
@@ -693,7 +694,7 @@ export const createMenuList = (
   };
   removeEl();
   const el = document.createElement('div');
-  el.className = id;
+  el.className = `${id} ${className || ''}`;
   el.id = id;
   el.style.left = `${(() => {
     const { clientWidth } = document.body;

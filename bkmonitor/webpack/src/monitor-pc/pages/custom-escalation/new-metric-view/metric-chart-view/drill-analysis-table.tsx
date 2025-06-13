@@ -32,7 +32,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { generateTimeStrings, handleGetMinPrecision, formatTipsContent } from './utils';
+import { generateTimeStrings, handleGetMinPrecision, formatTipsContent, typeEnums } from './utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -64,12 +64,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   @Prop({ type: Object, default: () => {} }) filterConfig: IFilterConfig;
   @InjectReactive('timeRange') timeRange: TimeRangeType;
 
-  typeEnums = {
-    '1h': this.$t('1小时前'),
-    '1d': this.$t('1天前'),
-    '7d': this.$t('7天前'),
-    '30d': this.$t('30天前'),
-  };
   /** 维度是否支持多选 */
   isMultiple = false;
   /** 选中的维度 */
@@ -401,7 +395,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           ...compareColumn,
           ...[
             {
-              label: this.typeEnums[val] || timeOffsetDateFormat(val),
+              label: typeEnums[val] || timeOffsetDateFormat(val),
               prop: `${val}_value`,
               sortable: true,
               renderFn: row => this.renderValue(row, `${val}_value`),
@@ -434,6 +428,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             },
           }}
           label={this.$t(item.label)}
+          prop={item.prop}
           renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
           sortable={item.sortable}
         />
@@ -508,9 +503,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       </div>
     );
   }
-  handleSort({ column, order }) {
-    const sortColumn = this.sortColumn.find(item => item.label === column?.label);
-    this.sortProp = sortColumn?.prop || '';
+  handleSort({ order, prop }) {
+    this.sortProp = prop;
     this.sortOrder = order;
   }
   /** 维度表格 end */

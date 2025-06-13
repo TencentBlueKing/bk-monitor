@@ -64,6 +64,10 @@ interface IResult {
 
 interface IProps {
   dimenstionParams?: Record<string, any>;
+  isShowExpand?: boolean;
+  exclude?: string[];
+  splitable?: boolean;
+  offsetSingle?: boolean;
 }
 
 interface IEmit {
@@ -88,7 +92,10 @@ export const createDefaultParams = (): IResult => ({
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
-
+  @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
+  @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
+  @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
+  @Prop({ type: Boolean, default: false }) readonly offsetSingle: IProps['offsetSingle'];
   @Ref('rootRef') rootRef: HTMLElement;
 
   isExpaned = true;
@@ -189,7 +196,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             />
             <div class='mult-item-box'>
               <GroupBy
-                splitable={true}
+                splitable={this.splitable}
                 value={this.params.group_by}
                 onChange={this.handleGroupByChange}
               />
@@ -200,6 +207,8 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
                 />
               )}
               <CompareType
+                exclude={this.exclude}
+                offsetSingle={this.offsetSingle}
                 value={this.params.compare}
                 onChange={this.handleComparTypeChange}
               />
@@ -207,15 +216,17 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             </div>
           </div>
         </bk-transition>
-        <div
-          class={{
-            'toggle-btn': true,
-            'is-expaned': this.isExpaned,
-          }}
-          onClick={this.handleToogleExpand}
-        >
-          <i class='bk-icon icon-angle-left' />
-        </div>
+        {this.isShowExpand && (
+          <div
+            class={{
+              'toggle-btn': true,
+              'is-expaned': this.isExpaned,
+            }}
+            onClick={this.handleToogleExpand}
+          >
+            <i class='bk-icon icon-angle-left' />
+          </div>
+        )}
       </div>
     );
   }

@@ -39,6 +39,7 @@
     "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "sortablejs": "^1.15.6",
+    "tdesign-vue": "1.11.2-naruto",
     "throttle-debounce": "^5.0.2",
     "vue": "v2-latest",
     "vue-class-component": "^7.2.6",
@@ -53,7 +54,10 @@
     "vuex-module-decorators": "^1.2.0",
     "xlsx": "^0.18.5"
   },
-  "keywords": ["monitor", "pc"],
+  "keywords": [
+    "monitor",
+    "pc"
+  ],
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
