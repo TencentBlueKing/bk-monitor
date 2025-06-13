@@ -697,6 +697,21 @@ export default defineComponent({
       }
     }
 
+    function handleSetCommonWhereToFavoriteCache(whereP: IWhereItem[]) {
+      if (currentFavorite.value) {
+        currentFavorite.value = {
+          ...currentFavorite.value,
+          config: {
+            ...(currentFavorite.value?.config || {}),
+            componentData: {
+              ...(currentFavorite.value?.config?.componentData || {}),
+              commonWhere: whereP,
+            },
+          },
+        };
+      }
+    }
+
     return {
       t,
       traceExploreLayoutRef,
@@ -749,6 +764,7 @@ export default defineComponent({
       handleCreateApp,
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
+      handleSetCommonWhereToFavoriteCache,
     };
   },
   render() {
@@ -806,6 +822,7 @@ export default defineComponent({
                 onQueryStringChange={this.handleQueryStringChange}
                 onQueryStringInputChange={this.handleQueryStringInputChange}
                 onSearch={this.handleFilterSearch}
+                onSetFavoriteCache={this.handleSetCommonWhereToFavoriteCache}
                 onShowResidentBtnChange={this.handleShowResidentBtnChange}
                 onWhereChange={this.handleWhereChange}
               />

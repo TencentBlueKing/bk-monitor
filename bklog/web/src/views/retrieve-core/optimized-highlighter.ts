@@ -207,7 +207,7 @@ export default class OptimizedHighlighter {
   }
 
   private prepareSections(): void {
-    const children = Array.from(this.rootElement.children) as HTMLElement[];
+    const children = Array.from(this.rootElement?.children || []) as HTMLElement[];
     children.forEach(el => {
       if (!this.sections.includes(el)) {
         this.sections.push(el);

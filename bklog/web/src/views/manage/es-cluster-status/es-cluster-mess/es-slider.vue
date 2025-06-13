@@ -36,6 +36,7 @@
       :title="isEdit ? $t('编辑集群') : $t('新建集群')"
       :width="640"
       transfer
+      zIndex="3000"
       @animation-end="updateIsShow"
     >
       <template #content>
@@ -256,7 +257,7 @@
                   v-model="bkBizLabelsList"
                   v-show="isBizAttr"
                   :data="bizParentList"
-                  :popover-zindex="2500"
+                  :popover-zindex="3007"
                   :remote-method="handleRemoteMethod"
                   :show-condition="false"
                   :show-popover-tag-change="false"
@@ -1591,4 +1592,8 @@
 
 <style lang="scss">
   @import '@/scss/space-tag-option';
+
+  .bk-search-list {
+    margin: 0
+  }
 </style>

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import re
@@ -20,6 +20,7 @@ from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache, StrategyModel
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, resource
@@ -40,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 
 def query_metric_info(metric_name_set):
+    bk_tenant_id = get_request_tenant_id()
     bkmonitor_metric_queryset = MetricListCache.objects.annotate(
         bkmonitor_metric_fullname=Concat("result_table_id", Value("."), "metric_field")
-    ).filter(bkmonitor_metric_fullname__in=metric_name_set)
+    ).filter(bkmonitor_metric_fullname__in=metric_name_set, bk_tenant_id=bk_tenant_id)
 
     return bkmonitor_metric_queryset
 
@@ -85,7 +87,7 @@ class HostIntelligenAnomalyResource(Resource):
             for anomaly_item in anomaly_sort:
                 metric_name = anomaly_item[0].replace("__", ".")
                 anomaly_info_item = {
-                    "metric_id": f'{DataSourceLabel.BK_MONITOR_COLLECTOR}.{metric_name}',
+                    "metric_id": f"{DataSourceLabel.BK_MONITOR_COLLECTOR}.{metric_name}",
                     "value": anomaly_item[1],
                     "score": anomaly_item[2],
                     "ip": point["ip"],
@@ -124,15 +126,15 @@ class HostIntelligenAnomalyResource(Resource):
 class HostIntelligenAnomalyRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         TIME_PATTERNS = {
-            'seconds': r'(?P<seconds>\d+(\.\d+)?)\s*(?:s|sec|secs?|second|seconds?)',
-            'minutes': r'(?P<minutes>\d+(\.\d+)?)\s*(?:m|min|mins?|minute|minutes?)',
-            'hours': r'(?P<hours>\d+(\.\d+)?)\s*(?:h|hr|hrs?|hour|hours?)',
+            "seconds": r"(?P<seconds>\d+(\.\d+)?)\s*(?:s|sec|secs?|second|seconds?)",
+            "minutes": r"(?P<minutes>\d+(\.\d+)?)\s*(?:m|min|mins?|minute|minutes?)",
+            "hours": r"(?P<hours>\d+(\.\d+)?)\s*(?:h|hr|hrs?|hour|hours?)",
         }
 
         TIME_UNITS_IN_SECONDS = {
-            'seconds': 1,
-            'minutes': 60,
-            'hours': 60 * 60,
+            "seconds": 1,
+            "minutes": 60,
+            "hours": 60 * 60,
         }
 
         bk_biz_id = serializers.IntegerField()
@@ -158,17 +160,17 @@ class HostIntelligenAnomalyRangeResource(Resource):
             raise ValidationError(f"Invalid time format: {attr}")
 
         def validate(self, attrs):
-            start_time = attrs.get('start_time')
-            end_time = attrs.get('end_time')
-            interval = attrs.get('interval')
+            start_time = attrs.get("start_time")
+            end_time = attrs.get("end_time")
+            interval = attrs.get("interval")
 
             start_time, end_time = build_start_time_and_end_time(start_time, end_time)
             interval = build_interval(start_time, end_time, interval)
 
             # 把验证后的值放回attrs中，这样它们就可以在以后被序列化器的其他部分使用。
-            attrs['start_time'] = start_time
-            attrs['end_time'] = end_time
-            attrs['interval'] = interval
+            attrs["start_time"] = start_time
+            attrs["end_time"] = end_time
+            attrs["interval"] = interval
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -244,7 +246,7 @@ class HostIntelligenAnomalyBaseResource(Resource):
         biz_ai_setting = AiSetting(bk_biz_id=bk_biz_id)
 
         if not biz_ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-            logger.error("bk_biz_id({}) host scene not access aiops".format(bk_biz_id))
+            logger.error(f"bk_biz_id({bk_biz_id}) host scene not access aiops")
             return []
 
         # 如果有配置的策略ID，则从策略中获取需要查询的结果表ID
@@ -313,6 +315,6 @@ class HostIntelligenAnomalyBaseResource(Resource):
             start_time=query_config["start_time"] * 1000, end_time=query_config["end_time"] * 1000
         )
 
-        points = [point for point in points if f'{point["ip"]}|{point["bk_cloud_id"]}' not in exclude_hosts]
+        points = [point for point in points if f"{point['ip']}|{point['bk_cloud_id']}" not in exclude_hosts]
 
         return points
