@@ -41,7 +41,7 @@ def get_alert_dict():
             "data_type": "event",
             "tags": [],
             "target_type": "HOST",
-            "target": "9.134.74.226|0",
+            "target": "127.0.0.1|0",
             "status": "ABNORMAL",
             "metric": ["bk_monitor.oom-gse"],
             "category": "os",
@@ -53,7 +53,7 @@ def get_alert_dict():
             "bk_clean_time": 1745120417,
             "create_time": 1745120417,
             "bk_biz_id": 2,
-            "ip": "9.134.74.226",
+            "ip": "127.0.0.1",
             "bk_cloud_id": 0,
             "bk_host_id": 3,
             "ipv6": "",
@@ -64,7 +64,7 @@ def get_alert_dict():
         "alert_name": "OOM异常告警",
         "strategy_id": 10,
         "dimensions": [
-            {"display_value": "9.134.74.226", "display_key": "目标IP", "value": "9.134.74.226", "key": "ip"},
+            {"display_value": "127.0.0.1", "display_key": "目标IP", "value": "127.0.0.1", "key": "ip"},
             {"display_value": 0, "display_key": "云区域ID", "value": 0, "key": "bk_cloud_id"},
         ],
         "extra_info": {
@@ -75,7 +75,7 @@ def get_alert_dict():
                     "value": "",
                     "values": {"time": 1745120413, "value": ""},
                     "dimensions": {
-                        "bk_target_ip": "9.134.74.226",
+                        "bk_target_ip": "127.0.0.1",
                         "bk_target_cloud_id": 0,
                         "bk_host_id": 3,
                         "bk_topo_node": ["biz|2", "module|3", "set|2"],
