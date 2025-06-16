@@ -26,18 +26,19 @@
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BkUserSelectorOrigin from '@blueking/bk-user-selector/vue2';
+import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-selector/vue2';
 
-import { getUserComponentConfig } from '../../common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE } from '../../common/user-display-name';
 
 import type { IUserGroup } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
+import './user-selector.scss';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
 interface IBkUserSelectorProps {
   apiBaseUrl?: string;
-  modelValue?: string[];
+  modelValue?: string | string[];
   multiple?: boolean;
   draggable?: boolean;
   tenantId?: string;
@@ -45,7 +46,10 @@ interface IBkUserSelectorProps {
   enableMultiTenantMode?: boolean;
   placeholder?: string;
   emptyText?: string;
+  renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
+  renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
   onChange?: (value: string[]) => void;
+  [key: string]: any;
 }
 
 const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelectorOrigin as any as (
@@ -57,7 +61,7 @@ const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelec
 })
 export default class UserSelector extends tsc<
   {
-    userIds: string[];
+    userIds: string | string[];
     userGroupList?: IUserGroup[];
     userGroup?: string[];
     multiple?: boolean;
@@ -73,7 +77,7 @@ export default class UserSelector extends tsc<
   @Prop({ type: Boolean, default: false }) readonly draggable: boolean;
   @Prop({ type: String }) readonly placeholder: string;
   @Prop({ type: String }) readonly emptyText: string;
-  @Model('change', { type: Array, default: () => [] }) userIds: string[];
+  @Model('change', { type: [Array, String], default: () => [] }) userIds: string | string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
     return window.enable_multi_tenant_mode ?? false;
@@ -84,10 +88,57 @@ export default class UserSelector extends tsc<
   onChange(value: string[]) {
     this.$emit('change', value);
   }
+
+  /**
+   * @description 区分人员/用户组前置icon渲染
+   *
+   */
+  getPrefixIcon(h, userInfo) {
+    let prefixIcon = h('span', { class: 'icon-monitor icon-mc-user-one no-img' });
+    if (userInfo?.logo) {
+      prefixIcon = h('img', {
+        alt: userInfo.name,
+        src: userInfo.logo,
+      });
+    } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
+      prefixIcon = h('span', { class: 'icon-monitor icon-mc-user-group no-img' });
+    }
+    return prefixIcon;
+  }
+
+  /**
+   * @description 人员选择器下拉框列表项渲染
+   *
+   */
+  listItemRender = (h, userInfo) => {
+    const prefixIcon = this.getPrefixIcon(h, userInfo);
+    return h('div', { class: 'user-selector-list-item' }, [
+      h('div', { class: 'user-selector-list-prefix' }, prefixIcon),
+      h('div', { class: 'user-selector-list-main' }, [
+        h('span', { class: 'user-selector-list-item-name' }, userInfo.name),
+      ]),
+    ]);
+  };
+
+  /**
+   * @description 人员选择器已选项 tag 渲染
+   *
+   */
+  tagItemRender = (h, userInfo) => {
+    const prefixIcon = this.getPrefixIcon(h, userInfo);
+    return h('div', { class: 'user-selector-tag-item' }, [
+      h('div', { class: 'user-selector-tag-prefix' }, prefixIcon),
+      h('div', { class: 'user-selector-tag-main' }, [
+        h('span', { class: 'user-selector-tag-item-name' }, userInfo.name),
+      ]),
+    ]);
+  };
+
   render() {
     if (!this.componentConfig.apiBaseUrl) return undefined;
     return (
       <BkUserSelector
+        class='monitor-user-selector-v2'
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
         emptyText={this.emptyText}
@@ -95,6 +146,8 @@ export default class UserSelector extends tsc<
         modelValue={this.userIds}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        renderListItem={this.listItemRender}
+        renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.onChange}

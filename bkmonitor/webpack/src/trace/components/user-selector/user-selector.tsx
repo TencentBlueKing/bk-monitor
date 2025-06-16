@@ -26,11 +26,12 @@
 import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
-import { getUserComponentConfig } from 'monitor-pc/common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
 
-import type { IUserGroup } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
+import type { IUserGroup } from 'monitor-pc/components/user-selector/user-group';
 
+import './user-selector.scss';
 import '@blueking/bk-user-selector/vue3/vue3.css';
 
 export default defineComponent({
@@ -40,7 +41,7 @@ export default defineComponent({
      * 选中的用户ID列表
      */
     modelValue: {
-      type: Array as PropType<string[]>,
+      type: [Array, String] as PropType<string | string[]>,
       default: () => [],
     },
     /**
@@ -95,10 +96,63 @@ export default defineComponent({
       emit('update:modelValue', value);
     };
 
+    /**
+     * @description 区分人员/用户组前置icon渲染
+     *
+     */
+    const getPrefixIcon = userInfo => {
+      let prefixIcon = <span class='icon-monitor icon-mc-user-one no-img' />;
+      if (userInfo?.logo) {
+        prefixIcon = (
+          <img
+            alt={userInfo.name}
+            src={userInfo.logo}
+          />
+        );
+      } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
+        prefixIcon = <span class='icon-monitor icon-mc-user-group no-img' />;
+      }
+      return prefixIcon;
+    };
+
+    /**
+     * @description 人员选择器下拉框列表项渲染
+     *
+     */
+    const listItemRender = (_, userInfo) => {
+      const prefixIcon = getPrefixIcon(userInfo);
+      return (
+        <div class='user-selector-list-item'>
+          <div class='user-selector-list-prefix'>{prefixIcon}</div>
+          <div class='user-selector-list-main'>
+            <span class='user-selector-list-item-name'>{userInfo.name}</span>
+          </div>
+        </div>
+      );
+    };
+
+    /**
+     * @description 人员选择器已选项 tag 渲染
+     *
+     */
+    const tagItemRender = (_, userInfo) => {
+      const prefixIcon = getPrefixIcon(userInfo);
+      return (
+        <div class='user-selector-tag-item'>
+          <div class='user-selector-tag-prefix'>{prefixIcon}</div>
+          <div class='user-selector-tag-main'>
+            <span class='user-selector-tag-item-name'>{userInfo.name}</span>
+          </div>
+        </div>
+      );
+    };
+
     return {
       enableMultiTenantMode,
       componentConfig,
       handleUpdateModuleValue,
+      listItemRender,
+      tagItemRender,
     };
   },
   render() {
@@ -107,6 +161,7 @@ export default defineComponent({
     }
     return (
       <BkUserSelector
+        class='monitor-user-selector-v3'
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
         emptyText={this.emptyText}
@@ -114,6 +169,8 @@ export default defineComponent({
         modelValue={this.modelValue}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        renderListItem={this.listItemRender}
+        renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onUpdate:modelValue={this.handleUpdateModuleValue}
