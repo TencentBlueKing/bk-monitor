@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
@@ -353,7 +352,7 @@ const store = new Vuex.Store({
             state.indexItem[key].splice(
               0,
               state.indexItem[key].length,
-              ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+              ...(payload?.[key] ?? []).filter(v => v !== '' && v !== null && v !== undefined),
             );
           } else {
             if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
@@ -1099,7 +1098,6 @@ const store = new Vuex.Store({
     requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
