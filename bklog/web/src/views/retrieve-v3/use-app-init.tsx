@@ -32,7 +32,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import useResizeObserve from '../../hooks/use-resize-observe';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
-import { BK_LOG_STORAGE, RouteParams } from '../../store/store.type';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
 import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
@@ -58,7 +58,7 @@ export default () => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
@@ -275,11 +275,33 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch('requestIndexSetFieldInfo').then(() => {
+          store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-            store.dispatch('requestIndexSetQuery').then(() => {
-              RetrieveHelper.setSearchingValue(false);
-            });
+
+            if (
+              route.query.tab === 'origin' ||
+              route.query.tab === undefined ||
+              route.query.tab === null ||
+              route.query.tab === ''
+            ) {
+              if (resp?.data?.fields?.length) {
+                store.dispatch('requestIndexSetQuery').then(() => {
+                  RetrieveHelper.setSearchingValue(false);
+                });
+              }
+
+              if (!resp?.data?.fields?.length) {
+                store.commit('updateIndexSetQueryResult', {
+                  is_error: true,
+                  exception_msg: 'index-set-field-not-found',
+                });
+                RetrieveHelper.setSearchingValue(false);
+              }
+
+              return;
+            }
+
+            RetrieveHelper.setSearchingValue(false);
           });
         }
 
@@ -327,7 +349,13 @@ export default () => {
   beforeMounted();
 
   const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
+    store.commit('resetIndexsetItemParams', {
+      start_time,
+      end_time,
+      timezone,
+      datePickerValue,
+    });
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);

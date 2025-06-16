@@ -54,8 +54,9 @@
             </div>
           </bk-select>
           <bk-select
-            style="width: 75px"
+            style="width: 77px"
             v-model="sorts[1]"
+            :placeholder="$t('请选择')"
           >
             <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
@@ -79,13 +80,13 @@
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px">添加排序字段</span></span
+      ><span style="margin-left: 4px; font-size: 12px">{{ $t('添加排序字段') }}</span></span
     >
   </div>
 </template>
 <script setup lang="ts">
   import { computed, ref, defineExpose, watch } from 'vue';
-
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
 
@@ -101,6 +102,7 @@
       default: false,
     },
   });
+  const { $t } = useLocale();
   const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const dragOptions = {
@@ -110,8 +112,8 @@
     'ghost-class': 'sortable-ghost-class',
   };
   const orderList = [
-    { id: 'desc', name: '降序' },
-    { id: 'asc', name: '升序' },
+    { id: 'desc', name: $t('降序') },
+    { id: 'asc', name: $t('升序') },
   ];
   const store = useStore();
 
@@ -144,9 +146,10 @@
   };
   watch(
     () => [props.initData, props.shouldRefresh],
-    () => {
-      if (props.shouldRefresh && props.initData.length) {
-        sortList.value = deepClone(props.initData).map(sorts => ({ key: random(8), sorts }));
+    ([newInitData, newShouldRefresh]) => {
+      // 当有初始数据时，直接更新
+      if (Array.isArray(newInitData) && newInitData.length) {
+        sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
       } else {
         sortList.value = [];
       }

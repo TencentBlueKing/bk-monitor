@@ -99,7 +99,7 @@ export default {
     text: '',
     show: false,
   },
-  color: COLOR_LIST,
+  // color: COLOR_LIST,
   legend: {
     show: true,
     bottom: 0,
@@ -245,10 +245,10 @@ export const getSeriesData = ({ data, name, color }) => ({
   name,
   type: 'bar',
   stack: 'total',
-  barMinHeight: 0,
   z: 4,
   markLine: {},
   markArea: {},
+  color: [],
   zlevel: 0,
   coordinateSystem: 'cartesian2d',
   legendHoverLink: true,
@@ -259,6 +259,7 @@ export const getSeriesData = ({ data, name, color }) => ({
   itemStyle: {
     color,
   },
+
   colorBy: 'data',
   emphasis: {
     label: {},

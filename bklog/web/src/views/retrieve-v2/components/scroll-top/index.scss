@@ -1,0 +1,26 @@
+.bklog-v3-btn-scroll-top {
+  position: fixed;
+  right: 30px;
+  bottom: 50px;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #e9ecf1;
+  border-radius: 50%;
+  box-shadow: 0 3px 10px 0 #0000001f;
+  transition: 0.3s;
+
+  &.show-box {
+    display: flex;
+  }
+
+  i {
+    font-size: 24px;
+    color: #3a84ff;
+  }
+}

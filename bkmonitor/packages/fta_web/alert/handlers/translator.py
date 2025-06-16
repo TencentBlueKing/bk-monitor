@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,16 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import threading
 from functools import reduce
-from typing import Dict, List
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import EventPluginV2, MetricListCache, StrategyModel
 from bkmonitor.strategy.new_strategy import get_metric_id, parse_metric_id
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.action import ActionPluginType, ActionSignal
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -30,13 +30,13 @@ class AbstractTranslator:
         # 翻译名称格式，可选占位符：{id}, {name}
         self.name_format = name_format
 
-    def translate(self, values: List) -> Dict:
+    def translate(self, values: list) -> dict:
         """
         给出值的列表，返回每个值对应的翻译字典
         """
         raise NotImplementedError
 
-    def translate_from_dict(self, records: List[Dict], input_field: str, output_field: str):
+    def translate_from_dict(self, records: list[dict], input_field: str, output_field: str):
         """
         从字典中获取待翻译字段，并输出到同一个字典的指定字段
         :param records: 数据列表
@@ -67,12 +67,12 @@ class AbstractTranslator:
 
 
 class MetricTranslator(AbstractTranslator):
-    def __init__(self, bk_biz_ids: List[int] = None, *args, **kwargs):
+    def __init__(self, bk_biz_ids: list[int] | None = None, *args, **kwargs):
         self.bk_biz_ids = list(set(bk_biz_ids or []) & {0})
-        super(MetricTranslator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-    def translate(self, values: List[str]) -> Dict:
-        metrics = MetricListCache.objects.all()
+    def translate(self, values: list[str]) -> dict:
+        metrics = MetricListCache.objects.filter(bk_tenant_id=get_request_tenant_id())
         queries = []
         for metric_id in values:
             try:
@@ -119,7 +119,7 @@ class MetricTranslator(AbstractTranslator):
 
 
 class StrategyTranslator(AbstractTranslator):
-    def translate(self, values: List[int]) -> Dict:
+    def translate(self, values: list[int]) -> dict:
         strategies = StrategyModel.objects.filter(id__in=values).values("id", "name")
         strategy_translations = {s["id"]: s["name"] for s in strategies}
         return {value: strategy_translations.get(int(value), value) for value in values}
@@ -135,13 +135,13 @@ class BizTranslator(AbstractTranslator):
                 self.__class__.biz_map_cache = resource.space.get_space_map()
         return self.__class__.biz_map_cache
 
-    def translate(self, values: List[int]) -> Dict:
+    def translate(self, values: list[int]) -> dict:
         biz_map = self.biz_map()
         return {value: biz_map[value]["display_name"] if value in biz_map else str(value) for value in values}
 
 
 class CategoryTranslator(AbstractTranslator):
-    def translate(self, values: List[str]) -> Dict:
+    def translate(self, values: list[str]) -> dict:
         labels = resource.commons.get_label()
         label_translations = {}
         for outer in labels:
@@ -151,17 +151,17 @@ class CategoryTranslator(AbstractTranslator):
 
 
 class ActionSignalTranslator(AbstractTranslator):
-    def translate(self, values: List) -> Dict:
+    def translate(self, values: list) -> dict:
         return {value: ActionSignal.ACTION_SIGNAL_DICT.get(value, "--") for value in values}
 
 
 class ActionPluginTypeTranslator(AbstractTranslator):
-    def translate(self, values: List) -> Dict:
+    def translate(self, values: list) -> dict:
         return {value: ActionPluginType.PLUGIN_TYPE_DICT.get(value, "--") for value in values}
 
 
 class PluginTranslator(AbstractTranslator):
-    def translate(self, values: List[str]) -> Dict:
+    def translate(self, values: list[str]) -> dict:
         plugins = {
             p.plugin_id: p.plugin_display_name
             for p in EventPluginV2.objects.filter(is_latest=True).only("plugin_id", "plugin_display_name")

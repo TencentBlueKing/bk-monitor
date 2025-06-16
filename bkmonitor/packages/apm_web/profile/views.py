@@ -211,7 +211,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         data_type: str = None,
         sample_type: str = None,
         order: str = None,
-        agg_method: str = None,
+        agg_method: str | None = None,
         agg_interval: int = 60,
         converter: ConverterType | None = None,
     ) -> DorisProfileConverter | TreeConverter | dict:

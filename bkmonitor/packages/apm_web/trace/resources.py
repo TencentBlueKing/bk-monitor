@@ -51,6 +51,7 @@ from constants.apm import (
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
+    OperatorGroupRelation,
 )
 from core.drf_resource import Resource, api
 from core.drf_resource.exceptions import CustomException
@@ -1382,6 +1383,10 @@ class TraceGenerateQueryStringResource(Resource):
         generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
         for f in data["filters"]:
             generator.add_filter(
-                f["key"], f["operator"], f["value"], f["options"]["is_wildcard"], f["options"]["group_relation"]
+                f["key"],
+                f["operator"],
+                f["value"],
+                f.get("options", {}).get("is_wildcard", False),
+                f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
         return generator.to_query_string()

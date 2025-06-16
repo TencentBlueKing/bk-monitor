@@ -29,24 +29,18 @@ import {
   parseTableRowData,
   formatDateNanos,
   formatDate,
-  copyMessage,
   setDefaultTableWidth,
   TABLE_LOG_FIELDS_SORT_REGULAR,
 } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
-import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
-import { bkMessage } from 'bk-magic-vue';
-import { useRoute, useRouter } from 'vue-router/composables';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
-import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
   LOG_SOURCE_F,
@@ -60,7 +54,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollTop from './scroll-top';
+import ScrollTop from '../../components/scroll-top/index';
 import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
@@ -68,6 +62,7 @@ import useHeaderRender from './use-render-header';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import LogResultException from './log-result-exception';
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import useTextAction from '../../hooks/use-text-action';
 
 import './log-rows.scss';
 
@@ -90,8 +85,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { $t } = useLocale();
-    const router = useRouter();
-    const route = useRoute();
 
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
@@ -143,8 +136,6 @@ export default defineComponent({
 
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
-
-    const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -463,7 +454,7 @@ export default defineComponent({
       }
       // 处理纳秒精度的UTC时间格式
       if (field_type === 'date_nanos') {
-        return formatDateNanos(data, true, true);
+        return formatDateNanos(data);
       }
       return data;
     };
@@ -472,108 +463,23 @@ export default defineComponent({
       return formatDateValue(data, timeFieldType.value);
     };
 
-    const setRouteParams = () => {
-      const query = { ...route.query };
+    const { handleOperation } = useTextAction(emit, 'origin');
 
-      const resolver = new RetrieveUrlResolver({
-        keyword: store.getters.retrieveParams.keyword,
-        addition: store.getters.retrieveParams.addition,
-      });
-
-      Object.assign(query, resolver.resolveParamsToUrl());
-
-      router.replace({
-        query,
-      });
-    };
-
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
-      store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
-        .then(([newSearchList, searchMode, isNewSearchPage]) => {
-          setRouteParams();
-          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-          if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
-            window.open(openUrl, '_blank');
-          }
-        });
-    };
-
-    const handleTraceIdClick = traceId => {
-      if (apmRelation.value?.is_active) {
-        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
-        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
-        const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
-        window.open(url, '_blank');
-      } else {
-        bkMessage({
-          theme: 'warning',
-          message: $t('未找到相关的应用，请确认是否有Trace数据的接入。'),
-        });
-      }
-    };
-
+    // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
-      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
-      value = String(value)
-        .replace(/<mark>/g, '')
-        .replace(/<\/mark>/g, '');
-
-      if (type === 'highlight') {
-        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
-          event: 'mark',
-          value: formatDateValue(value ?? content, field.field_type),
-        });
-        return;
-      }
-
-      if (type === 'trace-view') {
-        handleTraceIdClick(value);
-        return;
-      }
-
-      if (type === 'search') {
-        // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
-        return;
-      }
-
-      if (type === 'copy') {
-        // 复制单元格内容
-        copyMessage(value);
-        return;
-      }
-      // 根据当前显示字段决定传参
-      if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        const { getQueryAlias } = useFieldNameHook({ store });
-        handleAddCondition(getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
-        return;
-      }
+      handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
+    // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink) => {
-      switch (option.operation) {
-        case 'is':
-        case 'is not':
-        case 'not':
-        case 'new-search-page-is':
-          const { fieldName, operation, value, depth } = option;
-          const operator = operation === 'not' ? 'is not' : operation;
-          handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink, depth);
-          break;
-        case 'copy':
-          copyMessage(option.value);
-          break;
-        case 'highlight':
-          RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value: option.value });
-          break;
-        case 'display':
-          emit('fields-updated', option.displayFieldNames, undefined, false);
-          break;
-        default:
-          break;
-      }
+      handleOperation(option.operation, {
+        value: option.value,
+        fieldName: option.fieldName,
+        operation: option.operation,
+        isLink,
+        depth: option.depth,
+        displayFieldNames: option.displayFieldNames,
+      });
     };
 
     const { renderHead } = useHeaderRender();
@@ -743,14 +649,6 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        // hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
-        // setRenderList(null);
-        // debounceSetLoading();
-        // updateTableRowConfig(oldVal?.[0] ?? 0);
-
-        // if (tableDataSize.value <= 50) {
-        //   nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        // }
         resetRowListState(oldVal?.[0]);
       },
       {
@@ -997,7 +895,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       setRowboxTransform();
     };
 
@@ -1068,6 +966,10 @@ export default defineComponent({
 
         if (/^index-set-not-found/.test(exceptionMsg.value)) {
           return 'index-set-not-found';
+        }
+
+        if (/^index-set-field-not-found/.test(exceptionMsg.value)) {
+          return 'index-set-field-not-found';
         }
 
         return exceptionMsg.value.length ? 'error' : 'empty';

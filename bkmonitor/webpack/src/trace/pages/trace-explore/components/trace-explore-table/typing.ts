@@ -107,3 +107,25 @@ export interface CustomDisplayColumnFieldsConfig {
   displayFields: string[];
   fieldsWidth: { [colKey: string]: number };
 }
+
+/** 表格条件菜单项 */
+export interface ExploreConditionMenuItem {
+  /** 菜单 id */
+  id: string;
+  /** 菜单名称 */
+  name: string;
+  /** 菜单图标 */
+  icon: string;
+  /** 菜单点击回调 */
+  onClick: (event: MouseEvent) => void;
+  /** 菜单后缀icon渲染 */
+  suffixRender?: () => SlotReturnValue;
+}
+
+/** 激活的条件菜单目标 */
+export interface ActiveConditionMenuTarget {
+  rowId: string;
+  colId: string;
+  conditionValue: string;
+  customMenuList?: ExploreConditionMenuItem[];
+}

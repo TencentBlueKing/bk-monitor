@@ -41,7 +41,7 @@ import {
   type IGetValueFnParams,
 } from '../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
-import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
+import { APIType, getEventViewConfig, RetrievalFilterCandidateValue } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
 import EventRetrievalLayout from './components/event-retrieval-layout';
@@ -168,6 +168,7 @@ export default class EventExplore extends tsc<
   /** 事件源popover实例 */
   eventSourcePopoverInstance = null;
   localEventSourceType = [];
+  retrievalFilterCandidateValue: RetrievalFilterCandidateValue = null;
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -324,6 +325,7 @@ export default class EventExplore extends tsc<
   }
 
   mounted() {
+    this.retrievalFilterCandidateValue = new RetrievalFilterCandidateValue();
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     this.getViewConfig();
     this.updateQueryConfig();
@@ -378,7 +380,7 @@ export default class EventExplore extends tsc<
   }
 
   async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
-    return getEventTopK(
+    return this.retrievalFilterCandidateValue.getFieldsOptionValuesProxy(
       {
         limit: params?.limit || 5,
         query_configs: [
@@ -397,26 +399,10 @@ export default class EventExplore extends tsc<
         fields: params?.fields || [],
         start_time: this.formatTimeRange[0],
         end_time: this.formatTimeRange[1],
+        isInit__: params?.isInit__,
       },
       this.source
-    )
-      .then(res => {
-        const data = res?.[0] || {};
-        return {
-          count: +data?.distinct_count || 0,
-          list:
-            data?.list?.map(item => ({
-              id: item.value,
-              name: item.alias,
-            })) || [],
-        };
-      })
-      .catch(() => {
-        return {
-          count: 0,
-          list: [],
-        };
-      });
+    );
   }
 
   /** 条件变化触发 */

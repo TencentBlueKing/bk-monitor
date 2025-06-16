@@ -39,7 +39,7 @@
       </div>
     </div>
     <div class="form-item">
-      <label class="item-label required">{{ $t('进程匹配') }}</label>
+      <label class="item-label required line-height-20">{{ $t('进程匹配') }}</label>
       <div class="item-content">
         <bk-radio-group
           class="process-match"
@@ -63,9 +63,9 @@
             position="right"
           >
             <bk-input
-              class="mt10 small-input"
+              class="mt10 small-input required"
               v-model="params.match_pattern"
-              :placeholder="$t('进程关键字')"
+              :placeholder="`${$t('直接字符串匹配，不支持正则')}，${$t('举例')}：/data/home/user00/world`"
             >
               <template slot="prepend">
                 <div class="group-text">
@@ -77,7 +77,7 @@
           <bk-input
             class="mt10 small-input"
             v-model="params.exclude_pattern"
-            :placeholder="$t('进程排除正则')"
+            :placeholder="`${$t('排除匹配到的进程，支持正则')}，${$t('举例')}：/data/home/user00/wold[\d].+`"
           >
             <template slot="prepend">
               <div class="group-text">
@@ -88,7 +88,7 @@
           <bk-input
             class="mt10 small-input"
             v-model="params.extract_pattern"
-            :placeholder="$t('维度提取')"
+            :placeholder="`${$t('举例')}：--type=(?P<type>[^&\s]+)`"
           >
             <template slot="prepend">
               <div class="group-text">
@@ -113,12 +113,30 @@
         </template>
       </div>
     </div>
-    <div class="form-item">
-      <label class="item-label">{{ $t('进程名') }}</label>
+    <div class="form-item process-name">
+      <label class="item-label required">{{ $t('进程名提取') }}</label>
       <div class="item-content">
+        <bk-radio-group
+          class="process-extract"
+          v-model="processExtractMode"
+        >
+          <bk-radio
+            v-for="(item, index) in processExtractModeList"
+            ext-cls="process-extract-item"
+            v-bk-tooltips="{
+              content: item.hoverText,
+              width: 240,
+            }"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.label }}
+          </bk-radio>
+        </bk-radio-group>
         <bk-input
+          class="process-input"
           v-model="params.process_name"
-          :placeholder="$t('留空默认以二进制名称，可以手动指定或者取值')"
+          v-show="showInput"
         />
       </div>
     </div>
@@ -126,13 +144,13 @@
       v-if="params.match_type === 'command'"
       class="form-item"
     >
-      <label class="item-label">{{ $t('调试') }}</label>
+      <label class="item-label line-height-20">{{ $t('调试') }}</label>
       <div class="item-content debug-content">
         <bk-input
           ext-cls="debug-control"
           v-model="debugProcesses"
-          :maxlength="100"
           :placeholder="$t('输入示例文本查看匹配结果')"
+          :rows="5"
           type="textarea"
         />
         <bk-button
@@ -144,13 +162,25 @@
           {{ $t('调试') }}
         </bk-button>
         <div
-          v-if="debugResult.length"
+          v-if="debugFlag"
           class="debug-result"
         >
           <div class="result">
             <span>{{ $t('调试结果') }}: </span>
           </div>
+          <div
+            v-if="!debugResult.length"
+            class="result-empty"
+          >
+            <div class="result-empty-img">
+              <img src="../../../../static/images/png/empty.png" />
+            </div>
+            <div class="result-empty-text">
+              {{ $t('暂无匹配结果') }}
+            </div>
+          </div>
           <bk-table
+            v-else
             ext-cls="debug-result-table"
             :data="debugResult"
             :header-border="false"
@@ -239,7 +269,57 @@ export default {
       debugProcesses: '',
       /** 调试结果 */
       debugResult: [],
+      /** 调试开关 */
+      debugFlag: false,
+      /** 进程提取模式 */
+      processExtractMode: 'default',
+      /** 进程提取模式列表 */
+      processExtractModeList: [
+        {
+          label: window.i18n.t('默认规则'),
+          value: 'default',
+          hoverText: `
+            ${window.i18n.t('默认取')} /proc/\$\{PID\}/exe ${window.i18n.t('对应的二进制名称')}
+            <br />
+            ${window.i18n.t('举例')}：/proc/1207/exe -> /usr/sbin/rsyslogd， ${window.i18n.t('则匹配结果为')}：rsyslogd
+          `,
+        },
+        {
+          label: window.i18n.t('自定义'),
+          value: 'custom',
+          hoverText: `
+            1. ${window.i18n.t('通过正则提取值作为进程名')}
+            <br />
+            ${window.i18n.t('举例')}: ${window.i18n.t('通过正则提取值作为进程名')}
+            <br />
+            nginx: master process /usr/sbin/nginx
+            <br />
+            nginx: worker process
+            <br />
+            ${window.i18n.t('如果想区分是worker还是master进程')}
+            ${window.i18n.t('此时应该填写正则')}:\s*(\w+)，${window.i18n.t('则进程名为（从cmdline提取）')}:
+            <br />
+            master
+            <br />
+            worker
+            <br />
+            2. ${window.i18n.t('直接填写名称')}
+            <br />
+            ${window.i18n.t('举例')}: ${window.i18n.t('通过正则提取值作为进程名')}
+            <br />
+            /usr/bin/python2 -Es
+            <br />
+            ${window.i18n.t('此时默认进程名为')}python2.7，${window.i18n.t('可以直接填写')}：es ${window.i18n.t('作为进程名')}
+          `,
+        },
+      ],
     };
+  },
+  computed: {
+    /** 是否展示进程提取自定义输入框 */
+    showInput() {
+      return this.processExtractMode !== 'default';
+    },
   },
   watch: {
     params: {
@@ -247,6 +327,19 @@ export default {
       handler(newValue, oldValue) {
         this.$emit('change', newValue, oldValue);
       },
+    },
+    processParams: {
+      deep: true,
+      once: true, // 只监听一次
+      immediate: true,
+      handler(newValue) {
+        this.processExtractMode = newValue.process_name ? 'custom' : 'default';
+      },
+    },
+    processExtractMode(newValue) {
+      if (newValue === 'default') {
+        this.params.process_name = '';
+      }
     },
   },
   methods: {
@@ -272,6 +365,7 @@ export default {
           dimensions: this.params.extract_pattern,
           process_name: this.params.process_name,
         });
+        this.debugFlag = true;
         if (!data) {
           this.debugResult = [];
           return;
@@ -286,7 +380,7 @@ export default {
 </script>
 <style lang="scss" scoped>
 .small-input {
-  width: 320px;
+  width: 500px;
 
   &.validate-icon {
     :deep(.tooltips-icon) {
@@ -294,11 +388,24 @@ export default {
       right: 5px;
     }
   }
+  &.required {
+    &::after {
+      position: absolute;
+      right: -9px;
+      font-size: 12px;
+      color: #f00;
+      content: '*';
+    }
+  }
 }
 
 .form-item {
   display: flex;
   margin-bottom: 20px;
+
+  &.process-name {
+    margin-bottom: 30px;
+  }
 
   .item-label {
     position: relative;
@@ -317,6 +424,10 @@ export default {
         content: '*';
       }
     }
+
+    &.line-height-20 {
+      line-height: 20px;
+    }
   }
 
   .item-content {
@@ -324,6 +435,24 @@ export default {
 
     :deep(.bk-radio-text) {
       font-size: 12px;
+    }
+
+    .process-extract {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      .process-extract-item {
+        margin-right: 24px;
+        :deep(.bk-radio-text) {
+          color: #63656e;
+          border-bottom: 1px dotted #c4c6cc;
+          margin-left: 6px;
+        }
+      }
+    }
+
+    .process-input {
+      margin-top: 13px;
     }
 
     &.debug-content {
@@ -348,6 +477,28 @@ export default {
           font-size: 12px;
           color: #63656e;
           margin-bottom: 8px;
+        }
+        .result-empty {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f5f7fa;
+          border-radius: 2px;
+          flex-direction: column;
+          padding: 8px 0 12px;
+          .result-empty-img {
+            width: 220px;
+            height: 100px;
+            img {
+              width: 100%;
+              height: 100%;
+            }
+          }
+          .result-empty-text {
+            font-size: 12px;
+            color: #63656e;
+            line-height: 20px;
+          }
         }
         .debug-result-table {
           .bk-table-body-wrapper {

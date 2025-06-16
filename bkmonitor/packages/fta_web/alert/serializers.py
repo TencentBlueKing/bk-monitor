@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -30,13 +29,13 @@ class SearchFavoriteSerializer(serializers.ModelSerializer):
 class SearchConditionSerializer(serializers.Serializer):
     key = serializers.CharField(label="匹配字段")
     value = serializers.ListField(label="匹配值")
-    method = serializers.ChoiceField(label="匹配方法", choices=["eq", "neq"], default="eq")
+    method = serializers.ChoiceField(label="匹配方法", choices=["eq", "neq", "include", "exclude"], default="eq")
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
 
 
 class AlertIDField(serializers.CharField):
     def run_validation(self, *args, **kwargs):
-        value = super(AlertIDField, self).run_validation(*args, **kwargs)
+        value = super().run_validation(*args, **kwargs)
         try:
             AlertDocument.parse_timestamp_by_id(value)
         except Exception:
@@ -46,7 +45,7 @@ class AlertIDField(serializers.CharField):
 
 class ActionIDField(serializers.CharField):
     def run_validation(self, *args, **kwargs):
-        value = super(ActionIDField, self).run_validation(*args, **kwargs)
+        value = super().run_validation(*args, **kwargs)
         try:
             ActionInstanceDocument.parse_timestamp_by_id(value)
         except Exception:
@@ -58,11 +57,11 @@ class AllowedBizIdsField(serializers.ListField):
     child = serializers.IntegerField()
 
     def __init__(self, iam_action, *args, **kwargs):
-        super(AllowedBizIdsField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.iam_action = iam_action
 
     def run_validation(self, *args, **kwargs):
-        value = super(AllowedBizIdsField, self).run_validation(*args, **kwargs)
+        value = super().run_validation(*args, **kwargs)
         req = get_request(peaceful=True)
         if not req:
             # 如果上下文没有请求对象，可能是shell调试状态，就不做校验了
