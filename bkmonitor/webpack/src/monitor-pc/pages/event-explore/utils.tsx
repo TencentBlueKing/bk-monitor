@@ -134,13 +134,10 @@ export class ExploreSubject {
 }
 
 export class ExploreObserver {
-  constructor(
-    private $vm,
-    private fn
-  ) {}
+  constructor(private fn) {}
 
   notify(...args): void {
-    this.fn.call(this.$vm, ...args);
+    this.fn(...args);
   }
 }
 
