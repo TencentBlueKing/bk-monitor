@@ -115,7 +115,7 @@ export default defineComponent({
         // 主题样式
         EditorView.theme({
           '&': {
-            fontSize: '14px',
+            fontSize: '12px',
             height: initialHeight,
             maxHeight: maxHeightForLines,
           },
@@ -148,7 +148,7 @@ export default defineComponent({
             color: '#999',
             fontStyle: 'italic',
             fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
-            fontSize: '14px',
+            fontSize: '12px',
           },
           // 自定义滚动条样式
           '.cm-scroller::-webkit-scrollbar': {

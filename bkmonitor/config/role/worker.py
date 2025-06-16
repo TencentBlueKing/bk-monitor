@@ -57,6 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
+    "ai_agents",
 )
 
 # 系统名称
