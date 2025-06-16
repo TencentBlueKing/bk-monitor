@@ -40,7 +40,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useTraceExploreStore } from '@/store/modules/explore';
 import {
-  MonitorRetrieve as Log,
+  MonitorTraceLog as Log,
   initMonitorState,
   initGlobalComponents,
   Vue2,
@@ -61,7 +61,7 @@ window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorTraceLog',
-  setup(props, { emit }) {
+  setup() {
     const { t } = useI18n();
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const traceStore = useTraceExploreStore();
@@ -86,7 +86,11 @@ export default defineComponent({
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
 
-    let unPropsWatch = null;
+    let logInstance = null;
+    const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
+      logInstance?.$forceUpdate?.();
+    });
+
     async function init() {
       empty.value = true;
       loading.value = true;
@@ -144,12 +148,10 @@ export default defineComponent({
         app.$route = fakeRoute;
         app._$route = fakeRoute;
         app.$t = (...args) => i18n.t(...args);
-        unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
-          app.$forceUpdate();
-        });
         await nextTick();
         app.$mount(mainRef.value);
-        window.traceLogComponent = app;
+        logInstance = app;
+        window.mainComponent = app;
       } else {
         empty.value = true;
       }
@@ -209,8 +211,7 @@ export default defineComponent({
     onUnmounted(() => {
       if (!empty.value) {
         logStore.commit('resetState');
-        window.traceLogComponent.$destroy();
-        window.traceLogComponent = null;
+        window.mainComponent.$destroy();
         unPropsWatch?.();
       }
     });

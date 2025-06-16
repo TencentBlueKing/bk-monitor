@@ -49,6 +49,7 @@
                   {{ item.query_string }}
                 </div>
                 <BookmarkPop
+                v-if="!isMonitorComponent"
                 :sql="item.query_string"
                 :addition="item.params.addition"
                 searchMode='sql'
@@ -71,7 +72,11 @@
 </template>
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  // #else
+  // #code const BookmarkPop = () => null;
+  // #endif
   import dayjs from 'dayjs';
   export default {
     data() {
@@ -81,11 +86,15 @@
         popoverInstance: null,
         historyRecords: [],
         searchInput: "",
-        bookmarkPopRefsShow: false
+        bookmarkPopRefsShow: false,
+        isMonitorComponent: false
       };
     },
     components:{
       BookmarkPop
+    },
+    mounted(){
+      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     computed: {
       isUnionSearch() {

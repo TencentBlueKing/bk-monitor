@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import collections
 import os
 import traceback
@@ -19,6 +19,7 @@ from django.utils.translation import gettext as _
 from bkmonitor.documents.tasks import rollover_indices
 from bkmonitor.models import EventPluginInstance, EventPluginV2
 from constants.action import GLOBAL_BIZ_ID
+from constants.common import DEFAULT_TENANT_ID
 from fta_web.event_plugin.handler import PackageHandler
 from fta_web.event_plugin.resources import (
     CreateEventPluginInstanceResource,
@@ -41,7 +42,7 @@ def register_builtin_plugins(sender, **kwargs):
     except Exception:
         # 首次部署，表未就绪
         return
-    with open(initial_file, "r", encoding="utf-8") as f:
+    with open(initial_file, encoding="utf-8") as f:
         plugins = json.loads(f.read())
         for plugin in plugins:
             instance, created = ActionPlugin.origin_objects.update_or_create(
@@ -61,7 +62,7 @@ def register_builtin_action_configs(sender, **kwargs):
     print("start to register_builtin_action_configs")
     initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_config_initial.json")
 
-    with open(initial_file, "r", encoding="utf-8") as f:
+    with open(initial_file, encoding="utf-8") as f:
         action_configs = json.loads(f.read())
         for action_config in action_configs:
             instance, created = ActionConfig.origin_objects.update_or_create(
@@ -382,9 +383,9 @@ def migrate_event_plugin():
 
     # step 3最后一步，同步自愈指标
     try:
-        BkFtaAlertCacheManager(0).run()
+        BkFtaAlertCacheManager(DEFAULT_TENANT_ID, 0).run()
     except Exception as e:
-        print("[event plugin initial] BkFtaAlertCacheManager error:{}".format(e))
+        print(f"[event plugin initial] BkFtaAlertCacheManager error:{e}")
 
 
 def register_event_plugin(config_params=None, all_alarm_types=None):
@@ -401,7 +402,7 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
         :return: True: 不存在 False: 存在
         """
         if EventPluginV2.objects.filter(plugin_id=plugin_id, version=version).exists():
-            print("[event plugin initial]  plugin({}) already existed".format(file_path))
+            print(f"[event plugin initial]  plugin({file_path}) already existed")
             return True
         return False
 
@@ -413,15 +414,15 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
             # 判断是否存在，同时从文件名称拆分id与version
             pure_plugin_file_name = plugin_file.rsplit(".tar.gz")[0]
             if not pure_plugin_file_name:
-                print("[event plugin initial] none plugin: {}".format(file_path))
+                print(f"[event plugin initial] none plugin: {file_path}")
                 continue
-            plugin_version_info = pure_plugin_file_name.rsplit('__', 1)
+            plugin_version_info = pure_plugin_file_name.rsplit("__", 1)
             plugin_id = plugin_version_info[0]
             version = plugin_version_info[1] if len(plugin_version_info) == 2 else "1.0.0"  # 命名没有默认1.0.0
 
             if is_exist_plugin(plugin_id=plugin_id, version=version):
                 continue
-            print("[event plugin initial] package to import: {}".format(file_path))
+            print(f"[event plugin initial] package to import: {file_path}")
             with open(file_path, "rb") as tar_obj:
                 file_data = SimpleUploadedFile("plugin.tar.gz", tar_obj.read())
                 handler = PackageHandler.from_tar_file(file_data)
@@ -458,7 +459,7 @@ def register_event_plugin(config_params=None, all_alarm_types=None):
                 )
             )
         except BaseException as error:
-            print("[register] create plugin error, plugin_file({}), error info{}".format(plugin_file, str(error)))
+            print(f"[register] create plugin error, plugin_file({plugin_file}), error info{str(error)}")
     return plugins
 
 
@@ -494,12 +495,12 @@ def migrate_fta_strategy(sender, **kwargs):
     """
     故障自愈的套餐迁移
     """
-    print("[fta migrate] start to migrate fta from sender(%s)" % sender)
+    print(f"[fta migrate] start to migrate fta from sender({sender})")
     try:
         migrate_event_plugin()
         migrate_actions_and_strategies(**kwargs)
     except BaseException:
-        print("[fta migrate] migrate error, %s" % traceback.format_exc())
+        print(f"[fta migrate] migrate error, {traceback.format_exc()}")
 
 
 def migrate_actions_and_strategies(**kwargs):
@@ -525,16 +526,16 @@ def migrate_actions_and_strategies(**kwargs):
             skipped_bizs.append(bk_biz_id)
             continue
 
-        print("[fta migrate] start to migrate strategies for biz(%s)" % bk_biz_id)
+        print(f"[fta migrate] start to migrate strategies for biz({bk_biz_id})")
         try:
             MigrateFTAStrategy(bk_biz_id).migrate_fta_strategy()
         except BaseException as error:
-            print("[fta migrate] failed to migrate strategies for biz({}), error({})".format(bk_biz_id, str(error)))
+            print(f"[fta migrate] failed to migrate strategies for biz({bk_biz_id}), error({str(error)})")
             failed_bizs.append(bk_biz_id)
             continue
         migreate_bizs.append(bk_biz_id)
         success_bizs.append(bk_biz_id)
-        print("[fta migrate] end to migrate strategies for biz(%s)" % bk_biz_id)
+        print(f"[fta migrate] end to migrate strategies for biz({bk_biz_id})")
 
     settings.FTA_MIGRATE_BIZS = migreate_bizs
 
@@ -544,11 +545,9 @@ def migrate_actions_and_strategies(**kwargs):
         .values_list("id", flat=True)
     )
     if alarm_def_ids:
-        print("[fta migrate] close old fta alarm defs(%s) " % alarm_def_ids)
+        print(f"[fta migrate] close old fta alarm defs({alarm_def_ids}) ")
         AlarmDef.objects.using("fta").filter(id__in=alarm_def_ids).update(is_enabled=False)
 
     print(
-        "[fta migrate] result success({}), failed({}), skipped({}) ".format(
-            len(success_bizs), len(failed_bizs), len(skipped_bizs)
-        )
+        f"[fta migrate] result success({len(success_bizs)}), failed({len(failed_bizs)}), skipped({len(skipped_bizs)}) "
     )

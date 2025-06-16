@@ -436,7 +436,21 @@ const store = new Vuex.Store({
     },
 
     updateIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, payload ?? {});
+      Object.keys(payload ?? {}).forEach(key => {
+        if (Array.isArray(payload[key]) && Array.isArray(state.indexSetQueryResult[key])) {
+          if (Object.isFrozen(state.indexSetQueryResult[key])) {
+            state.indexSetQueryResult[key] = undefined;
+            set(state.indexSetQueryResult, key, []);
+          } else {
+            state.indexSetQueryResult[key].length = 0;
+            state.indexSetQueryResult[key] = [];
+          }
+
+          state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
+        } else {
+          set(state.indexSetQueryResult, key, payload[key]);
+        }
+      });
     },
 
     updateIndexItemParams(state, payload) {
