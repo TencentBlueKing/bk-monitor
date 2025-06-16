@@ -28,11 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-selector/vue2';
 
-import { getUserComponentConfig } from '../../common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE } from '../../common/user-display-name';
 
 import type { IUserGroup } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
+import './user-selector.scss';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
 interface IBkUserSelectorProps {
@@ -48,6 +49,7 @@ interface IBkUserSelectorProps {
   renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
   renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
   onChange?: (value: string[]) => void;
+  [key: string]: any;
 }
 
 const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelectorOrigin as any as (
@@ -87,10 +89,56 @@ export default class UserSelector extends tsc<
     this.$emit('change', value);
   }
 
+  /**
+   * @description 区分人员/用户组前置icon渲染
+   *
+   */
+  getPrefixIcon(h, userInfo) {
+    let prefixIcon = h('span', { class: 'icon-monitor icon-mc-user-one no-img' });
+    if (userInfo?.logo) {
+      prefixIcon = h('img', {
+        alt: userInfo.name,
+        src: userInfo.logo,
+      });
+    } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
+      prefixIcon = h('span', { class: 'icon-monitor icon-mc-user-group no-img' });
+    }
+    return prefixIcon;
+  }
+
+  /**
+   * @description 人员选择器下拉框列表项渲染
+   *
+   */
+  listItemRender = (h, userInfo) => {
+    const prefixIcon = this.getPrefixIcon(h, userInfo);
+    return h('div', { class: 'user-selector-list-item' }, [
+      h('div', { class: 'user-selector-list-prefix' }, prefixIcon),
+      h('div', { class: 'user-selector-list-main' }, [
+        h('span', { class: 'user-selector-list-item-name' }, userInfo.name),
+      ]),
+    ]);
+  };
+
+  /**
+   * @description 人员选择器已选项 tag 渲染
+   *
+   */
+  tagItemRender = (h, userInfo) => {
+    const prefixIcon = this.getPrefixIcon(h, userInfo);
+    return h('div', { class: 'user-selector-tag-item' }, [
+      h('div', { class: 'user-selector-tag-prefix' }, prefixIcon),
+      h('div', { class: 'user-selector-tag-main' }, [
+        h('span', { class: 'user-selector-tag-item-name' }, userInfo.name),
+      ]),
+    ]);
+  };
+
   render() {
     if (!this.componentConfig.apiBaseUrl) return undefined;
     return (
       <BkUserSelector
+        class='monitor-user-selector-v2'
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
         emptyText={this.emptyText}
@@ -98,6 +146,8 @@ export default class UserSelector extends tsc<
         modelValue={this.userIds}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        renderListItem={this.listItemRender}
+        renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.onChange}

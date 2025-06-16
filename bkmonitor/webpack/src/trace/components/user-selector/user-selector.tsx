@@ -28,8 +28,8 @@ import { type PropType, computed, defineComponent, onMounted, shallowRef } from 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
 import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
 
-import type { IUserGroup } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
+import type { IUserGroup } from 'monitor-pc/components/user-selector/user-group';
 
 import './user-selector.scss';
 import '@blueking/bk-user-selector/vue3/vue3.css';
@@ -97,10 +97,10 @@ export default defineComponent({
     };
 
     /**
-     * @description 人员选择器下拉框列表项渲染
+     * @description 区分人员/用户组前置icon渲染
      *
      */
-    const listItemRender = (_, userInfo) => {
+    const getPrefixIcon = userInfo => {
       let prefixIcon = <span class='icon-monitor icon-mc-user-one no-img' />;
       if (userInfo?.logo) {
         prefixIcon = (
@@ -112,6 +112,15 @@ export default defineComponent({
       } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
         prefixIcon = <span class='icon-monitor icon-mc-user-group no-img' />;
       }
+      return prefixIcon;
+    };
+
+    /**
+     * @description 人员选择器下拉框列表项渲染
+     *
+     */
+    const listItemRender = (_, userInfo) => {
+      const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-list-item'>
           <div class='user-selector-list-prefix'>{prefixIcon}</div>
@@ -127,17 +136,7 @@ export default defineComponent({
      *
      */
     const tagItemRender = (_, userInfo) => {
-      let prefixIcon = <span class='icon-monitor icon-mc-user-one no-img' />;
-      if (userInfo?.logo) {
-        prefixIcon = (
-          <img
-            alt={userInfo.name}
-            src={userInfo.logo}
-          />
-        );
-      } else if (USER_GROUP_TYPE.has(userInfo?.type)) {
-        prefixIcon = <span class='icon-monitor icon-mc-user-group no-img' />;
-      }
+      const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-tag-item'>
           <div class='user-selector-tag-prefix'>{prefixIcon}</div>
@@ -162,7 +161,7 @@ export default defineComponent({
     }
     return (
       <BkUserSelector
-        class='monitor-user-selector'
+        class='monitor-user-selector-v3'
         apiBaseUrl={this.componentConfig.apiBaseUrl}
         draggable={this.draggable}
         emptyText={this.emptyText}
