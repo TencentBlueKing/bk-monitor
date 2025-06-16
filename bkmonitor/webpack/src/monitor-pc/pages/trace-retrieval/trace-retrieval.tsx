@@ -60,7 +60,7 @@ export default class TraceRetrieval extends tsc<object> {
       class TraceExploreElement extends HTMLElement {
         async connectedCallback() {
           if (!this.shadowRoot) {
-            this.attachShadow({ delegatesFocus: true, mode: 'open' });
+            this.attachShadow({ delegatesFocus: false, mode: 'open' });
           }
         }
       }
