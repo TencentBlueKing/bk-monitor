@@ -26,7 +26,7 @@
 import { type Ref, computed, defineComponent, ref, nextTick, onMounted, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Collapse } from 'bkui-vue';
+import { Collapse, Exception } from 'bkui-vue';
 
 import './trouble-shooting.scss';
 
@@ -95,7 +95,9 @@ export default defineComponent({
     const dimensionalTitleSlot = item => (
       <span class='dimensional-title'>
         {item.name}
-        <span class='red-font'>异常程度 {item.percentage}</span>
+        <span class='red-font'>
+          {t('异常程度')} {item.percentage}
+        </span>
       </span>
     );
     const dimensionalContentSlot = item => (
@@ -125,17 +127,18 @@ export default defineComponent({
 
     const renderDisposal = () => (
       <div>
-        基于历史故障知识库的处置建议
+        {renderEmpty()}
+        {/* 基于历史故障知识库的处置建议
         <div>该故障内您共有 3 个未恢复告警待处理。分别的建议处置建议：</div>
         <div>1. XXXXXXXXXXXXXXXXXX 前往处理 </div>
         <div>2. XXXXXXXXXXXXXXXXXX </div>
-        <div>3. XXXXXXXXXXXXXXXXXX </div>
+        <div>3. XXXXXXXXXXXXXXXXXX </div> */}
       </div>
     );
 
     const renderDimensional = () => (
       <div>
-        <span>故障关联的告警，统计出最异常的维度（组合）：</span>
+        <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
         <Collapse
           class='dimensional-collapse'
           v-model={childActiveIndex.value}
@@ -146,6 +149,16 @@ export default defineComponent({
           list={dimensional.value}
         />
       </div>
+    );
+
+    const renderEmpty = () => (
+      <Exception
+        class='exception-wrap-item'
+        description='我是详细说明文案的占位'
+        scene='part'
+        title='超时错误'
+        type='500'
+      />
     );
     const list = shallowRef([
       {

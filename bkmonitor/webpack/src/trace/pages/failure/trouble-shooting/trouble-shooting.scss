@@ -45,6 +45,7 @@
     overflow: auto;
     .blue-txt {
       color: #3a84ff;
+      cursor: pointer;
     }
     .ai-card {
       width: 100%;
@@ -52,6 +53,7 @@
       box-shadow: 0 2px 4px 0 #1919290d;
       margin-bottom: 10px;
       position: relative;
+      background: #f3f6ff;
       &::before {
         content: '';
         position: absolute;
@@ -214,6 +216,22 @@
         .bk-collapse-content {
           padding: 0;
         }
+      }
+    }
+    .exception-wrap-item {
+      margin-top: -24px;
+      margin-bottom: 6px;
+      .bk-exception-img {
+        height: 120px;
+      }
+      .bk-exception-title {
+        font-size: 12px;
+        margin-top: 0;
+        color: #313238;
+      }
+      .bk-exception-description {
+        margin-top: 4px;
+        color: #979ba5;
       }
     }
   }
