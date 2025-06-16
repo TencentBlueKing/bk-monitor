@@ -348,14 +348,11 @@ const store = new Vuex.Store({
     updateIndexItem(state, payload) {
       Object.keys(payload ?? {}).forEach(key => {
         if (['ids', 'items', 'catchUnionBeginList'].includes(key)) {
-          if (key === 'ids' && payload[key].includes('')) {
-            return;
-          }
           if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
             state.indexItem[key].splice(
               0,
               state.indexItem[key].length,
-              ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+              ...(payload?.[key] ?? []).filter(v => v !== '' && v !== null && v !== undefined),
             );
           } else {
             if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
