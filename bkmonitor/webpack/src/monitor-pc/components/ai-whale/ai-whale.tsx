@@ -31,11 +31,11 @@ import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
+import aiWhaleStore from '../../store/modules/ai-whale';
 import { getEventPaths } from '../../utils';
 import AiBlueking from './ai-blueking';
 
 import './ai-whale.scss';
-import '@blueking/ai-blueking/dist/vue2/style.css';
 
 /* 最近n天 枚举 1h, 3h, 6h, 12h,1d */
 const fetchRangeOfStr = {
@@ -151,7 +151,6 @@ export default class AiWhale extends tsc<{
   // prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
   // background = '#f5f7fa';
   // headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
-  showAIBlueking = false;
 
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
@@ -423,7 +422,7 @@ export default class AiWhale extends tsc<{
     window.open(url);
   }
   handleToggleAiBlueking() {
-    this.showAIBlueking = !this.showAIBlueking;
+    aiWhaleStore.setShowAIBlueking(!aiWhaleStore.showAIBlueking);
   }
   createAIContent() {
     const countSpan = count => {
@@ -666,7 +665,7 @@ export default class AiWhale extends tsc<{
         onClick={this.handleToggleAiBlueking}
       >
         <span class='ai-icon' />
-        {this.showAIBlueking ? this.$t('关闭 AI 小鲸会话') : this.$t('打开 AI 小鲸会话')}
+        {aiWhaleStore.showAIBlueking ? this.$t('关闭 AI 小鲸会话') : this.$t('打开 AI 小鲸会话')}
       </div>
     );
   }
@@ -697,7 +696,7 @@ export default class AiWhale extends tsc<{
             </div>
           )}
         </div>
-        {this.enableAiAssistant && <AiBlueking showDialog={this.showAIBlueking} />}
+        {this.enableAiAssistant && <AiBlueking />}
       </div>
     );
   }

@@ -28,10 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
+import aiWhaleStore from '../../store/modules/ai-whale';
+
 import '@blueking/ai-blueking/dist/vue2/style.css';
-console.info('AIBlueking', AIBlueking);
 export interface IAiBluekingWrapperProps {
-  showDialog?: boolean;
   message?: string;
   apiUrl?: string;
 }
@@ -39,11 +39,14 @@ export interface IAiBluekingWrapperProps {
 export default class AiBluekingWrapper extends tsc<IAiBluekingWrapperProps> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
 
-  @Prop({ default: false }) showDialog: boolean;
-  @Prop({ default: '' }) message: string;
   @Prop({ default: '' })
   apiUrl: string;
-
+  get showDialog() {
+    return aiWhaleStore.showAIBlueking;
+  }
+  get message() {
+    return aiWhaleStore.message;
+  }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
     if (newVal) {
@@ -64,6 +67,12 @@ export default class AiBluekingWrapper extends tsc<IAiBluekingWrapperProps> {
           ref='aiBlueking'
           hideNimbus={true}
           url={this.apiUrl}
+          onClose={() => {
+            aiWhaleStore.setShowAIBlueking(false);
+          }}
+          onShow={() => {
+            aiWhaleStore.setShowAIBlueking(true);
+          }}
         />
       </div>
     );
