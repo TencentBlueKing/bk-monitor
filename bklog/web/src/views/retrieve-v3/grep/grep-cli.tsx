@@ -2,13 +2,16 @@ import { defineComponent, ref, computed } from 'vue';
 import GrepCliEditor from './grep-cli-editor';
 import useStore from '../../../hooks/use-store';
 import { useRoute } from 'vue-router/composables';
+import BklogPopover from '@/components/bklog-popover';
 
 import './grep-cli.scss';
+import useLocale from '@/hooks/use-locale';
 
 export default defineComponent({
   name: 'GrepCli',
   components: {
     GrepCliEditor,
+    BklogPopover,
   },
   props: {
     searchCount: {
@@ -27,6 +30,7 @@ export default defineComponent({
   emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   setup(props, { emit }) {
     const route = useRoute();
+    const { t } = useLocale();
     const grepValue = ref((route.query.grep_query as string) ?? '');
 
     const isCaseSensitive = ref(false);
@@ -162,7 +166,7 @@ export default defineComponent({
       <div class='grep-cli-container grep-cli-flex'>
         <div class='grep-cli-left'>
           <div style={{ display: 'flex', width: '128px' }}>
-            <span class='grep-cli-label'>字段:</span>
+            <span class='grep-cli-label'>{t('字段')}:</span>
             <bk-select
               class='grep-cli-select'
               value={props.fieldValue}
@@ -183,7 +187,7 @@ export default defineComponent({
           <div class='grep-cli-editor'>
             <GrepCliEditor
               value={grepValue.value}
-              placeholder='-- INSERT, Ctrl + Enter提交查询 --'
+              placeholder={`'-- INSERT, Ctrl + Enter ${t('提交查询')} --'`}
               autoHeight={true}
               minHeight='34px'
               maxHeight='160px'
@@ -198,27 +202,44 @@ export default defineComponent({
           <div class='grep-cli-search-section'>
             <bk-input
               class='grep-cli-search-input'
-              placeholder='搜索'
+              placeholder={t('搜索')}
               value={props.searchValue}
               on-enter={handleSearchInput}
               size='small'
             />
             <div class='grep-cli-tools'>
-              <span
-                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-daxiaoxie', { active: isCaseSensitive.value }]}
-                title='大小写匹配'
-                onClick={toggleCaseSensitive}
-              />
-              <span
-                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
-                title='精准匹配'
-                onClick={toggleWordMatch}
-              />
-              <span
-                class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isRegexMode.value }]}
-                title='通正则匹配'
-                onClick={toggleRegexMode}
-              />
+              <BklogPopover
+                trigger='hover'
+                content={t('大小写匹配')}
+                options={{ placement: 'top', theme: 'dark' } as any}
+              >
+                <span
+                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-daxiaoxie', { active: isCaseSensitive.value }]}
+                  onClick={toggleCaseSensitive}
+                />
+              </BklogPopover>
+
+              <BklogPopover
+                trigger='hover'
+                content={t('精确匹配')}
+                options={{ placement: 'top', theme: 'dark' } as any}
+              >
+                <span
+                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
+                  onClick={toggleWordMatch}
+                />
+              </BklogPopover>
+
+              <BklogPopover
+                trigger='hover'
+                content={t('正则匹配')}
+                options={{ placement: 'top', theme: 'dark' } as any}
+              >
+                <span
+                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isRegexMode.value }]}
+                  onClick={toggleRegexMode}
+                />
+              </BklogPopover>
             </div>
           </div>
 
