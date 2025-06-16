@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import copy
 import operator
 from functools import reduce
 from typing import Any
@@ -40,7 +39,13 @@ from monitor_web.data_explorer.event.utils import (
 
 
 def cicd_cond_handler(cond: dict[str, Any]) -> Q:
-    return Q(**{**cond, "event_name": CicdEventName.PIPELINE_STATUS_INFO.value})
+    return Q(
+        **{
+            "pipelineId": cond.get("pipeline_id"),
+            "projectId": cond.get("project_id"),
+            "event_name": CicdEventName.PIPELINE_STATUS_INFO.value,
+        }
+    )
 
 
 def default_cond_handler(cond: dict[str, Any]) -> Q:
@@ -201,16 +206,6 @@ def process_query_config(
                 )
                 queryset = queryset.add_query(q)
 
-            continue
-        # 处理 CICD 事件,转换成蓝盾事件数据对应的参数格式
-        if relation["table"] == EventCategory.CICD_EVENT.value:
-            # event_relation 使用了缓存，为了防止修改原始对象，这里拷贝了一份 relation
-            processed_relation = copy.deepcopy(relation)
-            for cond in processed_relation["relations"]:
-                cond.update(pipelineId=cond.pop("pipeline_id", None), projectId=cond.pop("project_id", None))
-                if "pipeline_name" in cond:
-                    del cond["pipeline_name"]
-            queryset = queryset.add_query(filter_by_relation(base_q, processed_relation, data_labels_map))
             continue
 
         queryset = queryset.add_query(filter_by_relation(base_q, relation, data_labels_map))
