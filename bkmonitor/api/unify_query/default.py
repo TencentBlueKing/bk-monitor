@@ -19,7 +19,8 @@ from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
@@ -49,7 +50,7 @@ def get_unify_query_url(space_uid: str):
         for key, value in match_keys.items():
             match_values = routing_rule.get(key)
             if match_values:
-                if isinstance(match_values, (int, str)):
+                if isinstance(match_values, int | str):
                     # 匹配条件是数字或者字符串，转换成列表
                     match_values = [str(match_values)]
                 elif not isinstance(match_values, list):
@@ -103,6 +104,14 @@ class UnifyQueryAPIResource(Resource):
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE
         elif space_uid:
             requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
+
+        # 设置租户ID
+        if space_uid:
+            bk_tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        else:
+            bk_tenant_id = get_request_tenant_id(peaceful=True)
+        if bk_tenant_id:
+            requests_params["headers"]["X-Bk-Tenant-Id"] = bk_tenant_id
 
         if self.method in ["PUT", "POST", "PATCH"]:
             requests_params["json"] = params

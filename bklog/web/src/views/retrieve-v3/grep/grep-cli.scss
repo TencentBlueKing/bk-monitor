@@ -24,8 +24,9 @@
   border-radius: 2px;
   min-height: 40px;
   height: 100%;
-  margin-right: 4px;
+  // margin-right: 4px;
   position: relative;
+  background-color: rgba(255, 232, 195, 0.4);
 
   &::after {
     position: absolute;
@@ -40,7 +41,7 @@
 
   .grep-cli-label {
     min-width: 42px;
-    margin-right: 8px;
+    // margin-right: 8px;
     font-size: 12px;
     color: #979ba5;
     padding-top: 12px;
@@ -54,6 +55,7 @@
     width: 100%;
     min-height: 40px;
     height: 100%;
+    background-color: #fff;
   }
 }
 
@@ -69,9 +71,10 @@
 .grep-cli-right {
   width: 366px;
   border-radius: 2px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   flex-direction: row;
   align-items: center;
+  margin-left: 4px;
   justify-content: space-between;
   gap: 12px;
   height: 100%;
@@ -79,8 +82,12 @@
 }
 
 .grep-cli-select {
-  margin-right: 16px;
+  margin-right: 4px;
   margin-top: 8px;
+
+  .bk-select-name {
+    padding-left: 0;
+  }
   &.is-focus {
     box-shadow: none;
   }
@@ -100,7 +107,6 @@
   height: 28px;
   background: #f0f1f5;
   border-radius: 2px;
-  padding: 0 8px;
 
   .grep-cli-search-input {
     flex: 1;
@@ -108,17 +114,11 @@
     .bk-input-text {
       input {
         background-color: transparent;
-        border: none;
-        border-radius: 0;
+        border-color: #f0f1f5;
+        border-radius: 2px;
         font-size: 12px;
-        height: 20px;
-        line-height: 20px;
-
-        &:focus {
-          border: none;
-          outline: none;
-          box-shadow: none;
-        }
+        height: 26px;
+        line-height: 26px;
       }
     }
   }
@@ -127,6 +127,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    padding-right: 4px;
   }
 
   .grep-cli-tool-icon {

@@ -5,6 +5,7 @@ description = "bkmonitor"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
+    "aidev-agent==1.0.0b1",
     "apigw-manager==4.0.4",
     "arrow==0.6.0",
     "babel==2.14.0",
@@ -47,7 +48,7 @@ dependencies = [
     "humanize==4.6.0",
     "influxdb==5.3.2",
     "ipython==7.34.0",
-    "jinja2==3.1.5",
+    "jinja2==3.1.6",
     "jmespath==1.0.1",
     "kafka-python==1.4.6",
     "kubernetes==18.20.0",
@@ -80,7 +81,6 @@ dependencies = [
     "python-consul==1.1.0",
     "python-dotenv==0.21.1",
     "python-magic==0.4.27",
-    "pytz==2024.2",
     "pyyaml==6.0.1",
     "redis==4.6.0",
     "requests==2.31.0",
@@ -102,12 +102,12 @@ default-groups = ["aidev"]
 [dependency-groups]
 aidev = [
     "attrdictionary==1.0.0",
-    "langchain==0.2.17",
-    "langchain-community==0.2.19",
-    "langchain-core==0.2.43",
-    "langchain-experimental==0.0.65",
-    "langchain-openai==0.1.20",
-    "langchain-text-splitters==0.2.4",
+    "langchain<0.4.0",
+    "langchain-community",
+    "langchain-core",
+    "langchain-experimental",
+    "langchain-openai",
+    "langchain-text-splitters",
     "pyro4==4.82",
     "retry==0.9.2",
     "stackprinter==0.2.12",

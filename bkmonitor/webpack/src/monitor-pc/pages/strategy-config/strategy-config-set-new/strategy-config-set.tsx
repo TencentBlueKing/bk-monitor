@@ -1335,6 +1335,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             ...item.options.converge_config,
             timedelta: item.options.converge_config.timedelta / 60,
           },
+          enable_delay: item.options?.enable_delay / 60,
         },
       }));
     } else {
@@ -1864,6 +1865,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                     timedelta: item.options.converge_config.timedelta * 60,
                   }
                 : { is_enabled: false },
+            enable_delay: item.signal.includes('abnormal') ? item.options.enable_delay * 60 : 0, // 没有告警触发场景传0
           },
         })),
         // 通知设置
