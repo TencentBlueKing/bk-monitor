@@ -434,6 +434,9 @@ importers:
       sortablejs:
         specifier: ^1.15.6
         version: 1.15.6
+      tdesign-vue:
+        specifier: 1.11.2-naruto
+        version: 1.11.2-naruto(vue@2.7.16)
       throttle-debounce:
         specifier: ^5.0.2
         version: 5.0.2
@@ -2300,6 +2303,10 @@ packages:
   '@types/bonjour@3.5.13':
     resolution: {integrity: sha512-z9fJ5Im06zvUL548KvYNecEVlA7cVDkGUi6kZusb04mpyEFKCIZJvloCcmpmLaIahDpOQGHaHmG6imtPMmPXGQ==}
 
+  '@types/clipboard@2.0.10':
+    resolution: {integrity: sha512-6CIsNdBfOTN92GHhQ0BaGY9KoV4DPH7ynCk5eggSDy3HW7OHLKWJUskL72uoVxl2kZ/XCq28TEgI0HKxLbRxyQ==}
+    deprecated: This is a stub types definition. clipboard provides its own type definitions, so you do not need this installed.
+
   '@types/connect-history-api-fallback@1.5.4':
     resolution: {integrity: sha512-n6Cr2xS1h4uAulPRdlw6Jl6s1oG8KrVilPN2yUITEs+K48EzMJJ3W1xy8K5eWuFvjp3R74AOIGSmp2UfBJ8HFw==}
 
@@ -2479,6 +2486,9 @@ packages:
 
   '@types/qs@6.9.17':
     resolution: {integrity: sha512-rX4/bPcfmvxHDv0XjfJELTTr+iB+tn032nPILqHm5wbthUUUuVtNGGqzhya9XUxjTP8Fpr0qYgSZZKxGY++svQ==}
+
+  '@types/raf@3.4.3':
+    resolution: {integrity: sha512-c4YAvMedbPZ5tEyxzQdMoOhhJ4RD3rngZIdwC2/qDN3d7JpEhB6fiBRKVY1lg5B7Wk+uPBjn5f39j1/2MY1oOw==}
 
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
@@ -3337,6 +3347,9 @@ packages:
   class-utils@0.3.6:
     resolution: {integrity: sha512-qOhPa/Fj7s6TY8H8esGu5QNpMMQxz79h+urzrNYN6mn+9BnxlDGf5QZ+XeCDsxSjPqsSR56XOZOJmpeurnLMeg==}
     engines: {node: '>=0.10.0'}
+
+  classnames@2.5.1:
+    resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
 
   clean-css@5.3.3:
     resolution: {integrity: sha512-D5J+kHaVb/wKSFcyyV75uCn8fiY4sV38XJoe4CUyGQ+mOU/fMVYUdH1hJC+CJQ5uY3EnW27SbJYS4X8BiLrAFg==}
@@ -6297,6 +6310,9 @@ packages:
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
+  performance-now@2.1.0:
+    resolution: {integrity: sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==}
+
   picocolors@0.2.1:
     resolution: {integrity: sha512-cMlDqaLEqfSaW8Z7N5Jw+lyIW869EzT73/F5lhtY9cLGoVxSXznfgfXMO0Z5K0o0Q2TkTXq+0KFsdnSe3jDViA==}
 
@@ -7017,6 +7033,9 @@ packages:
   quick-lru@4.0.1:
     resolution: {integrity: sha512-ARhCpm70fzdcvNQfPoy49IaanKkTlRWF2JMzqhcJbhSFRZv7nPTvZJdcY7301IPmvW+/p0RgIWnQDLJxifsQ7g==}
     engines: {node: '>=8'}
+
+  raf@3.4.1:
+    resolution: {integrity: sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==}
 
   randombytes@2.1.0:
     resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
@@ -7780,11 +7799,21 @@ packages:
     peerDependencies:
       vue: ^3.0.0
 
+  tdesign-icons-vue@0.3.5:
+    resolution: {integrity: sha512-qimpzLAquKh3P9v1wW/uVseZUONN126A75iJjgUh7oDCJ7pAmDaM8v2qoZPn1KzE2yQHzRZfvfkK5hBeBKQDWg==}
+    peerDependencies:
+      vue: ^2.6.12
+
   tdesign-vue-next@1.12.0:
     resolution: {integrity: sha512-ll2QVZDpDFcx4IZlfPaJVyUHsH9nq1ooda6nn+tgK7DObzXL8ejYBqwzJXNJBG1NS0rR3H572fODuDRqLWXtow==}
     engines: {node: '>= 18'}
     peerDependencies:
       vue: '>=3.1.0'
+
+  tdesign-vue@1.11.2-naruto:
+    resolution: {integrity: sha512-uUZtBbRvhT/j/s81HUbI+AXzAh+jkTai4dEJfhuQiREqL3Z/hhYUlkXSt3c9mOLJljx8vew4mDq5Oh1ZwbTWuA==}
+    peerDependencies:
+      vue: ~2.7.14
 
   terser-webpack-plugin@5.3.14:
     resolution: {integrity: sha512-vkZjpUjb6OMS7dhV+tILUW6BhpDR7P2L/aQSAv+Uwk+m8KATX9EccViHTJR2qDtACKPIYndLGCyl3FMo+r2LMw==}
@@ -10628,6 +10657,10 @@ snapshots:
     dependencies:
       '@types/node': 22.9.0
 
+  '@types/clipboard@2.0.10':
+    dependencies:
+      clipboard: 2.0.11
+
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 5.0.1
@@ -10842,6 +10875,8 @@ snapshots:
   '@types/parse-json@4.0.2': {}
 
   '@types/qs@6.9.17': {}
+
+  '@types/raf@3.4.3': {}
 
   '@types/range-parser@1.2.7': {}
 
@@ -12036,6 +12071,8 @@ snapshots:
       define-property: 0.2.5
       isobject: 3.0.1
       static-extend: 0.1.2
+
+  classnames@2.5.1: {}
 
   clean-css@5.3.3:
     dependencies:
@@ -14995,6 +15032,8 @@ snapshots:
 
   pathe@2.0.3: {}
 
+  performance-now@2.1.0: {}
+
   picocolors@0.2.1: {}
 
   picocolors@1.1.1: {}
@@ -15752,6 +15791,10 @@ snapshots:
   queue-microtask@1.2.3: {}
 
   quick-lru@4.0.1: {}
+
+  raf@3.4.1:
+    dependencies:
+      performance-now: 2.1.0
 
   randombytes@2.1.0:
     dependencies:
@@ -16794,6 +16837,12 @@ snapshots:
       '@babel/runtime': 7.27.0
       vue: 3.5.15(typescript@5.8.3)
 
+  tdesign-icons-vue@0.3.5(vue@2.7.16):
+    dependencies:
+      '@babel/runtime': 7.27.0
+      classnames: 2.5.1
+      vue: 2.7.16
+
   tdesign-vue-next@1.12.0(vue@3.5.15(typescript@5.8.3)):
     dependencies:
       '@babel/runtime': 7.27.0
@@ -16810,6 +16859,26 @@ snapshots:
       tinycolor2: 1.6.0
       validator: 13.15.0
       vue: 3.5.15(typescript@5.8.3)
+
+  tdesign-vue@1.11.2-naruto(vue@2.7.16):
+    dependencies:
+      '@babel/runtime': 7.27.0
+      '@popperjs/core': 2.11.8
+      '@types/clipboard': 2.0.10
+      '@types/raf': 3.4.3
+      '@types/sortablejs': 1.15.8
+      '@types/tinycolor2': 1.4.6
+      '@types/validator': 13.15.0
+      clipboard: 2.0.11
+      dayjs: 1.11.10
+      lodash-es: 4.17.21
+      mitt: 3.0.1
+      raf: 3.4.1
+      sortablejs: 1.15.6
+      tdesign-icons-vue: 0.3.5(vue@2.7.16)
+      tinycolor2: 1.6.0
+      validator: 13.15.0
+      vue: 2.7.16
 
   terser-webpack-plugin@5.3.14(webpack@5.99.7):
     dependencies:
