@@ -39,7 +39,7 @@ from apps.log_databus.constants import (
     DAEMONSET_NAME,
     DAEMONSET_POD_LABELS,
     CollectStatus,
-    BK_LOG_COLLECTOR_NAMESPACE,
+    BKAPP_COLLECTOR_NAMESPACE,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -75,7 +75,7 @@ class BkunifylogbeatChecker(Checker):
         self.target_server: dict[str, Any] = {}
         # 初始化bcs_client
         self.k8s_client: Bcs = Bcs(cluster_id=collector_config.bcs_cluster_id)
-        self.namespace: str = BK_LOG_COLLECTOR_NAMESPACE
+        self.namespace: str = BKAPP_COLLECTOR_NAMESPACE
         self.crd_name: str = CRD_NAME
         self.configmap_name: str = CONFIGMAP_NAME
         self.daemonset_name: str = DAEMONSET_NAME
@@ -297,7 +297,7 @@ class BkunifylogbeatChecker(Checker):
         for pod in self.pod_list:
             pod_name = pod.name if hasattr(pod, "name") else ""
             if not pod_name:
-                print("Pod对象的name属性为空，无法继续处理该Pod")
+                self.append_error_info(_("Pod对象的name属性为空，无法继续处理该Pod"))
                 continue
             if not pod.sub_config_list:
                 self.append_error_info(_("Pod[{pod_name}]中没有匹配到配置文件").format(pod_name=pod.name))
