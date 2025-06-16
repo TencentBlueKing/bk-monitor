@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
@@ -64,7 +63,7 @@ import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
-import { BK_LOG_STORAGE } from './store.type.ts';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
@@ -242,10 +241,11 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
-        search_mode,
         sort_list,
         format,
       } = state.indexItem;
+
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -352,7 +352,7 @@ const store = new Vuex.Store({
             state.indexItem[key].splice(
               0,
               state.indexItem[key].length,
-              ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+              ...(payload?.[key] ?? []).filter(v => v !== '' && v !== null && v !== undefined),
             );
           } else {
             if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
@@ -1098,7 +1098,6 @@ const store = new Vuex.Store({
     requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
@@ -1538,7 +1537,7 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode = state.indexItem.search_mode;
+      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';

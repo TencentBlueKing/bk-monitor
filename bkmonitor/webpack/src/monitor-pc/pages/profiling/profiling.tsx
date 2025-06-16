@@ -60,7 +60,7 @@ export default class Profiling extends tsc<object> {
       class ProfilingExploreElement extends HTMLElement {
         async connectedCallback() {
           if (!this.shadowRoot) {
-            this.attachShadow({ delegatesFocus: true, mode: 'open' });
+            this.attachShadow({ delegatesFocus: false, mode: 'open' });
           }
         }
       }
