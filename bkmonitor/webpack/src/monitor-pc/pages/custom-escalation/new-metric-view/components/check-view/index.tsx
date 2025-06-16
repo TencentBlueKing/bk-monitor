@@ -83,7 +83,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   resizeObserver = null;
   showStatisticalValue = true;
   /* 拖拽数据 */
-  drag = { height: 400, minHeight: 300, maxHeight: 550 };
+  drag = { height: 300, minHeight: 240, maxHeight: 400 };
   /* 原始数据 */
   tableData = [];
   legendData: ILegendItem[] = [];
@@ -91,7 +91,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   isHasCompare = false;
   isHasDimensions = false;
   compare: string[] = [];
-  hoverPoint: { index?: number; value?: number[] } = {};
+  hoverPoint: { value?: number } = {};
   get titleName() {
     return this.panel?.config?.title || '';
   }
@@ -236,7 +236,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     this.$emit('contextMenuClick', this.panelData);
   }
 
-  handleZrMouseover(data: { index: number; value: number[] }) {
+  handleZrMouseover(data: { value: number }) {
     this.hoverPoint = data;
   }
 
@@ -300,9 +300,9 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
               extCls='check-view-main-layout'
               slot='aside'
               border={false}
-              initial-divide={'50%'}
-              max={680}
-              min={340}
+              initial-divide={'70%'}
+              max={400}
+              min={240}
               placement='top'
               onResizing={this.handleResizing}
             >
@@ -321,6 +321,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   chartHeight={this.drag.height}
                   currentMethod={this.currentMethod}
                   isNeedMenu={true}
+                  isNeedUpdateAxisPointer={true}
                   isShowLegend={false}
                   isToolIconShow={false}
                   panel={this.panelData}
