@@ -32,10 +32,10 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
 import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
-import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
-export default (indexSetApi) => {
+export default indexSetApi => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -74,7 +74,7 @@ export default (indexSetApi) => {
     };
   });
 
-    /**
+  /**
    * 解析地址栏参数
    * 在其他模块跳转过来时，这里需要解析路由参数
    * 更新相关参数到store
@@ -84,7 +84,7 @@ export default (indexSetApi) => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
@@ -145,7 +145,7 @@ export default (indexSetApi) => {
     return getApmIndexSetList().then(resp => {
       isPreApiLoaded.value = true;
 
-      if (!resp?.length) return
+      if (!resp?.length) return;
 
       // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
@@ -218,13 +218,12 @@ export default (indexSetApi) => {
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
   };
 
-  reoverRouteParams()
+  reoverRouteParams();
   const beforeMounted = () => {
     getIndexSetList();
   };
 
   beforeMounted();
-
 
   // 顶部二级导航高度，这个高度是固定的
   const subBarHeight = ref(64);
@@ -269,13 +268,17 @@ export default (indexSetApi) => {
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
-  watch(() => isPreApiLoaded.value, (val) => {
-    if(val) {
-      nextTick(() => {
-        RetrieveHelper.onMounted();
-      });
-    }  
-  }, { immediate: true })
+  watch(
+    () => isPreApiLoaded.value,
+    val => {
+      if (val) {
+        nextTick(() => {
+          RetrieveHelper.onMounted();
+        });
+      }
+    },
+    { immediate: true },
+  );
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
@@ -287,6 +290,6 @@ export default (indexSetApi) => {
     stickyStyle,
     isPreApiLoaded,
     getIndexSetList,
-    setDefaultRouteUrl
+    setDefaultRouteUrl,
   };
 };
