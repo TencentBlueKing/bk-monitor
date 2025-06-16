@@ -348,6 +348,9 @@ const store = new Vuex.Store({
     updateIndexItem(state, payload) {
       Object.keys(payload ?? {}).forEach(key => {
         if (['ids', 'items', 'catchUnionBeginList'].includes(key)) {
+          if (key === 'ids' && payload[key].includes('')) {
+            return;
+          }
           if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
             state.indexItem[key].splice(
               0,
@@ -1098,14 +1101,13 @@ const store = new Vuex.Store({
     requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
       commit('updateIndexSetFieldConfig', {});
       commit('updateVisibleFields', []);
 
-      if (!ids.length || ids.includes('')) {
+      if (!ids.length) {
         return;
       }
       commit('resetIndexFieldInfo', { is_loading: true });
