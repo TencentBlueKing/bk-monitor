@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -15,7 +14,7 @@ from django.core.exceptions import ValidationError
 
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
 
@@ -43,7 +42,7 @@ class BusinessListByActions(Resource):
 
     def perform_request(self, validated_request_data):
         biz_dict = {}
-        perm_client = Permission(validated_request_data["username"])
+        perm_client = Permission(validated_request_data["username"], bk_tenant_id=get_request_tenant_id())
         perm_client.skip_check = False
         for action_id in validated_request_data["action_ids"]:
             # 根据权限中心的【业务访问】权限，对业务列表进行过滤

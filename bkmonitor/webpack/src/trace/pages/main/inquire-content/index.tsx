@@ -60,7 +60,7 @@ export default defineComponent({
       type: Array as PropType<IPanelModel[]>,
       default: () => [],
     },
-    traceListTabelLoading: {
+    traceListTableLoading: {
       type: Boolean,
       default: false,
     },
@@ -94,7 +94,7 @@ export default defineComponent({
     'traceListScrollBottom',
     'traceListStatusChange',
     'traceListSortChange',
-    'traceListColumuFilter',
+    'traceListColumnFilter',
     'listTypeChange',
     'traceListColumnSortChange',
     'traceTypeChange',
@@ -134,7 +134,7 @@ export default defineComponent({
     }
 
     function handleColumnFilterChange(val: Record<string, string[]>) {
-      emit('traceListColumuFilter', val);
+      emit('traceListColumnFilter', val);
     }
 
     function handleSortChange(sortKey: string) {
@@ -186,13 +186,14 @@ export default defineComponent({
       handleInterfaceStatisticsChange,
       handleServiceStatisticsChange,
       handleTraceTypeChange,
+      t,
     };
   },
   render() {
     const {
       queryType,
       emptyApp,
-      traceListTabelLoading,
+      traceListTableLoading,
       isAlreadyAccurateQuery,
       isAlreadyScopeQuery,
       appList,
@@ -224,7 +225,7 @@ export default defineComponent({
           <TraceList
             appList={appList}
             appName={this.appName}
-            tableLoading={traceListTabelLoading}
+            tableLoading={traceListTableLoading}
             traceColumnFilters={traceColumnFilters}
             onColumnFilterChange={val => this.handleColumnFilterChange(val)}
             onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}
@@ -249,19 +250,19 @@ export default defineComponent({
           <div class='search-empty-page'>
             <EmptyStatus type='search-empty'>
               <div class='search-empty-content'>
-                <div class='tips'>{this.$t('你可以按照以下方式优化检索结果')}</div>
-                <div class='description'>1.{this.$t('检查应用选择是否正确')}</div>
+                <div class='tips'>{this.t('你可以按照以下方式优化检索结果')}</div>
+                <div class='description'>1.{this.t('检查应用选择是否正确')}</div>
                 <div class='description'>
-                  2.{this.$t('检查')}
+                  2.{this.t('检查')}
                   <span
                     class='link'
                     onClick={() => this.handleSourceData()}
                   >
-                    {this.$t('数据源配置')}
+                    {this.t('数据源配置')}
                   </span>
-                  {this.$t('情况')}
+                  {this.t('情况')}
                 </div>
-                <div class='description'>3.{this.$t('是否启用了采样，采样不保证全量数据')}</div>
+                <div class='description'>3.{this.t('是否启用了采样，采样不保证全量数据')}</div>
               </div>
             </EmptyStatus>
           </div>
@@ -277,10 +278,10 @@ export default defineComponent({
           class='intro-card'
           onClick={() => this.$emit('changeQuery', 'accurate')}
         >
-          <h5 class='title'>{this.$t('有明确的 ID')}</h5>
+          <h5 class='title'>{this.t('有明确的 ID')}</h5>
           <p class='desc'>
             <i18n-t keypath='直接进行{0}，定位到 Trace 详情'>
-              <span class='query-type'>{this.$t('精准查询')}</span>
+              <span class='query-type'>{this.t('精准查询')}</span>
             </i18n-t>
           </p>
           <img
@@ -292,10 +293,10 @@ export default defineComponent({
           class='intro-card'
           onClick={() => this.$emit('changeQuery', 'scope')}
         >
-          <h5 class='title'>{this.$t('无明确的 ID')}</h5>
+          <h5 class='title'>{this.t('无明确的 ID')}</h5>
           <p class='desc'>
             <i18n-t keypath='可以切换到{0}，根据条件筛选 Trace'>
-              <span class='query-type'>{this.$t('范围查询')}</span>
+              <span class='query-type'>{this.t('范围查询')}</span>
             </i18n-t>
           </p>
           <img
@@ -316,7 +317,7 @@ export default defineComponent({
             >
               <p class='subTitle'>
                 <i18n-t keypath='无法查询调用链，请先 {0}'>
-                  <span onClick={() => this.handleCreateApp()}>{this.$t('创建应用')}</span>
+                  <span onClick={() => this.handleCreateApp()}>{this.t('创建应用')}</span>
                 </i18n-t>
               </p>
             </EmptyStatus>

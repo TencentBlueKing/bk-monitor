@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import functools
 import itertools
@@ -15,7 +15,8 @@ import json
 import operator
 import re
 from multiprocessing.pool import ApplyResult
-from typing import Any, Dict, List
+from typing import Any
+from datetime import timedelta
 
 import arrow
 from django.utils.translation import gettext as _
@@ -44,14 +45,21 @@ from apm_web.models import (
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
+from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
+    PipelineOverviewRequestSerializer,
+    ListPipelineRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
@@ -76,7 +84,7 @@ class ServiceInfoResource(Resource):
         end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
 
     @classmethod
-    def fill_operate_record(cls, service_info: Dict[str, Any], relation_infos: List[Dict[str, Any]]):
+    def fill_operate_record(cls, service_info: dict[str, Any], relation_infos: list[dict[str, Any]]):
         """获取操作记录"""
         default_username = "system"
 
@@ -147,7 +155,7 @@ class ServiceInfoResource(Resource):
         return list(query.order_by("rank").values("id", "uri", "rank", "updated_at", "updated_by"))
 
     @classmethod
-    def get_event_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> List[Dict[str, Any]]:
+    def get_event_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return list(
             EventServiceRelation.objects.filter(
                 bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
@@ -472,21 +480,21 @@ class ServiceConfigResource(Resource):
 
     @classmethod
     def update_event_relations(
-        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: List[Dict[str, Any]]
+        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: list[dict[str, Any]]
     ):
         if not event_relations:
             return
 
-        table_relation_map: Dict[str, Dict[str, Any]] = {
+        table_relation_map: dict[str, dict[str, Any]] = {
             relation["table"]: relation
             for relation in ServiceInfoResource.get_event_relation_info(bk_biz_id, app_name, service_name)
         }
 
         username: str = get_request_username()
-        to_be_created_relations: List[EventServiceRelation] = []
-        to_be_updated_relations: List[EventServiceRelation] = []
+        to_be_created_relations: list[EventServiceRelation] = []
+        to_be_updated_relations: list[EventServiceRelation] = []
         for relation in event_relations:
-            exists_relation: Dict[str, Any] | None = table_relation_map.get(relation["table"])
+            exists_relation: dict[str, Any] | None = table_relation_map.get(relation["table"])
             if exists_relation:
                 to_be_updated_relations.append(
                     EventServiceRelation(
@@ -571,8 +579,6 @@ class UriregularVerifyResource(Resource):
 
 
 class ServiceUrlListResource(Resource):
-    TIME_DELTA = 1
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
@@ -584,7 +590,8 @@ class ServiceUrlListResource(Resource):
             raise ValueError(_("应用不存在"))
 
         end_time = datetime.datetime.now()
-        start_time = end_time - datetime.timedelta(days=self.TIME_DELTA)
+        # 页面有刷新按钮，这里限制一个比较可控的时间范围，避免查询超时。
+        start_time = end_time - datetime.timedelta(hours=2)
 
         return SpanHandler.get_span_uris(app, start_time, end_time, service_name=data["service_name"])
 
@@ -602,3 +609,102 @@ class AppQueryByIndexSetResource(Resource):
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
 
         return res
+
+
+class PipelineOverviewResource(Resource):
+    RequestSerializer = PipelineOverviewRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        if validated_request_data["is_mock"]:
+            return API_PIPELINE_OVERVIEW_RESPONSE
+
+        bk_biz_id = self._validate_bk_biz_id(validated_request_data["bk_biz_id"])
+        business = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        if not business:
+            return []
+
+        # 获取业务关联的蓝盾项目
+        devops_projects = api.devops.list_app_project({"productIds": business[0].bk_product_id})
+        pipeline_overview = []
+        thread_list = []
+        for devops_project in devops_projects:
+            params = {
+                "app_name": validated_request_data["app_name"],
+                "bk_biz_id": bk_biz_id,
+                "project_id": devops_project["projectCode"],
+                "project_name": devops_project["projectName"],
+                "page": validated_request_data["page"],
+                "page_size": validated_request_data["page_size"],
+                "keyword": validated_request_data.get("keyword"),
+            }
+            thread_list.append(
+                InheritParentThread(target=self.list_pipeline, args=(params, pipeline_overview)),
+            )
+        run_threads(thread_list)
+
+        return sorted(pipeline_overview, key=lambda project: project["project_id"])
+
+    @classmethod
+    @lru_cache_with_ttl(ttl=int(timedelta(minutes=10).total_seconds()))
+    def _validate_bk_biz_id(cls, bk_biz_id: int) -> int:
+        """将负数项目空间 ID，转为关联业务 ID"""
+        try:
+            return validate_bk_biz_id(bk_biz_id)
+        except NoRelatedResourceError:
+            return bk_biz_id
+
+    @classmethod
+    def list_pipeline(cls, params: dict[str, Any], pipeline_overview: list[dict[str, Any]]):
+        pipeline_overview.append(cls.query_pipelines(**params))
+
+    @classmethod
+    def query_pipelines(cls, bk_biz_id, app_name, project_id, project_name, keyword, page, page_size) -> dict[str, Any]:
+        """
+        查询项目下的流水线
+        """
+        return {
+            "project_id": project_id,
+            "project_name": project_name,
+            **ListPipelineResource().perform_request(
+                {
+                    "app_name": app_name,
+                    "bk_biz_id": bk_biz_id,
+                    "project_id": project_id,
+                    "page": page,
+                    "page_size": page_size,
+                    "keyword": keyword,
+                }
+            ),
+        }
+
+
+class ListPipelineResource(Resource):
+    RequestSerializer = ListPipelineRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        if validated_request_data.get("is_mock", False):
+            return API_LIST_PIPELINE_RESPONSE
+
+        params = {
+            "project_id": validated_request_data["project_id"],
+            "page": validated_request_data["page"],
+            "pageSize": validated_request_data["page_size"],
+            "viewId": "allPipeline",
+            "showDelete": False,
+            "sortType": "LAST_EXEC_TIME",
+        }
+
+        if validated_request_data.get("keyword"):
+            params["filterByPipelineName"] = validated_request_data["keyword"]
+
+        # 查询流水线
+        pipelines = api.devops.list_pipeline(params)
+        processed_pipelines = [
+            {
+                "project_id": pipeline["projectId"],
+                "pipeline_id": pipeline["pipelineId"],
+                "pipeline_name": pipeline["pipelineName"],
+            }
+            for pipeline in pipelines["records"]
+        ]
+        return {"count": pipelines["count"], "items": processed_pipelines}

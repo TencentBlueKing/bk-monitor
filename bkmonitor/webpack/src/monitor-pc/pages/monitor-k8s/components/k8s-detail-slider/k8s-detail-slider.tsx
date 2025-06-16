@@ -92,6 +92,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     if (this.resourceDetail.ingress) return K8sTableColumnKeysEnum.INGRESS;
     if (this.resourceDetail.service) return K8sTableColumnKeysEnum.SERVICE;
     if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
+    if (this.resourceDetail.node) return K8sTableColumnKeysEnum.NODE;
     if (this.resourceDetail?.externalParam?.isCluster) {
       return K8sTableColumnKeysEnum.CLUSTER;
     }
@@ -155,7 +156,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
 
   /** 更新 详情接口 配置 */
   updateDetailPanel() {
-    const [workload_type, workload_name] = this.resourceDetail.workload?.split(':') || [];
+    const [workload_kind, workload_name] = this.resourceDetail.workload?.split(':') || [];
     this.panel = new PanelModel({
       targets: [
         {
@@ -168,11 +169,12 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
               namespace: this.resourceDetail?.namespace,
               resource_type: this.groupByField,
               workload_name: workload_name,
-              workload_type: workload_type,
+              workload_type: workload_kind,
               pod_name: this.resourceDetail?.pod,
               container_name: this.resourceDetail?.container,
               service_name: this.resourceDetail?.service,
               ingress_name: this.resourceDetail?.ingress,
+              node_name: this.resourceDetail?.node,
             }).filter(([, v]) => !!v)
           ),
         },

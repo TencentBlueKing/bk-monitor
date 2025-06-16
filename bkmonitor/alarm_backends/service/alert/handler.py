@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import signal
 import threading
 import time
 from collections import defaultdict
-from typing import Dict
 
 from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
@@ -60,13 +59,13 @@ class AlertHandler(base.BaseHandler):
     _kafka_queues = {}
 
     def __init__(self, service, *args, **kwargs):
-        super(AlertHandler, self).__init__()
+        super().__init__()
         self.service = service
         self.run_once = True
         self._stop_signal = False
         self.topic_data_id = {}
         self.max_event_number = getattr(settings, "MAX_BUILD_EVENT_NUMBER", 0) or self.MAX_EVENT_NUMBER
-        self.consumers: Dict[str, KafkaConsumer] = {}
+        self.consumers: dict[str, KafkaConsumer] = {}
         self.ip = get_host_addr()
         self.redis_client = ALERT_DATA_POLLER_LEADER_KEY.client
         self.data_id_cache_key = ALERT_HOST_DATA_ID_KEY.get_key()
@@ -180,7 +179,7 @@ class AlertHandler(base.BaseHandler):
                                 data_id_info = api.metadata.get_data_id(bk_data_id=data_id)
                                 kafka_config = data_id_info["result_table_list"][0]["shipper_list"][0]
                                 cluster_config = kafka_config["cluster_config"]
-                                bootstrap_server = f'{cluster_config["domain_name"]}:{cluster_config["port"]}'
+                                bootstrap_server = f"{cluster_config['domain_name']}:{cluster_config['port']}"
                                 topic = kafka_config["storage_config"]["topic"]
                         else:
                             # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
@@ -336,7 +335,7 @@ class AlertHandler(base.BaseHandler):
                 self.consumers = new_consumers
                 self.consumers_lock.release()
             else:
-                logger.info("[run_consumer_manager] comsumers have not changed, %s", len(list(self.consumers.values())))
+                logger.info("[run_consumer_manager] consumers have not changed, %s", len(list(self.consumers.values())))
             if self._stop_signal:
                 self.consumers_lock.acquire()
                 logger.info("[run_consumer_manager] got stop signal")
@@ -375,10 +374,10 @@ class AlertHandler(base.BaseHandler):
 
                 for records in list(data.values()):
                     events.extend(records)
-                self.push_handle_task(consumer.config['bootstrap_servers'], events)
+                self.push_handle_task(consumer.config["bootstrap_servers"], events)
                 logger.info(
                     "[run_poller]  alert event poller poll %s: count(%s)",
-                    consumer.config['bootstrap_servers'],
+                    consumer.config["bootstrap_servers"],
                     len(events),
                 )
             self.consumers_lock.release()
@@ -431,7 +430,7 @@ class AlertHandler(base.BaseHandler):
 
 class AlertCeleryHandler(AlertHandler):
     def __init__(self, service, *args, **kwargs):
-        super(AlertCeleryHandler, self).__init__(service, *args, **kwargs)
+        super().__init__(service, *args, **kwargs)
         self.run_once = False
 
     def send_handler_task(self, event_kwargs):

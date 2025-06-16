@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import json
 import time
@@ -21,7 +21,7 @@ from alarm_backends.core.cache import key as cache_key
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
 from alarm_backends.core.cache.key import ALERT_HOST_DATA_ID_KEY
 from alarm_backends.core.cache.strategy import StrategyCacheManager
-from alarm_backends.core.storage.kafka import KafkaOffsetManager, KafkaQueue
+from alarm_backends.core.storage.kafka import KafkaQueue
 from alarm_backends.core.storage.redis import Cache
 from alarm_backends.management.story.base import (
     BaseStory,
@@ -74,26 +74,23 @@ class PollEventDelayCheck(CheckStep):
     name = "check AccessGseEventProcess delay"
 
     def check(self):
-        topic_info = api.metadata.get_data_id(bk_data_id=settings.GSE_BASE_ALARM_DATAID, with_rt_info=False)
-        topic = topic_info["mq_config"]["storage_config"]["topic"]
-        kafka_queue = KafkaQueue.get_common_kafka_queue()
-        data_id = topic_info["data_id"]
-        # 获取本机GSE EVENT 对应topic消费组对应的最新的offset， 再和本地offset对比。
-        kafka_queue.set_topic(topic, group_prefix=f"access.event.{data_id}")
-        offset_manager = KafkaOffsetManager(kafka_queue.get_consumer())
-        last_remote_offset = max(offset_manager.consumer.offsets.values())
-        local_offset = offset_manager.get_offset()
-        problem = None
-        if local_offset + 10000 <= last_remote_offset:
-            # 处理不过来了
-            problem = Kafka1000Delay(
-                f"GSE EVENT拉取存在处理瓶颈，topic[{topic}]已堵塞" f"{last_remote_offset - local_offset}条消息",
-                self.story,
-                topic=topic,
-            )
-        else:
-            self.story.info(f"OK!: topic[{topic}] local offset({local_offset}) > remote({last_remote_offset})。")
-        return problem
+        threshold = 100000
+        from alarm_backends.service.access.event.event_poller import EventPoller
+        from kafka.structs import TopicPartition
+
+        ep = EventPoller()
+        consumer = ep.get_consumer()
+        for topic, data_id in ep.topics_map.items():
+            partitions = consumer.partitions_for_topic(topic) or {0}
+            topic_partitions = [TopicPartition(topic=topic, partition=partition) for partition in partitions]
+            end_offsets = consumer.end_offsets(topic_partitions)
+            committed_offsets = {}
+            for tp in topic_partitions:
+                committed_offsets[tp] = consumer.committed(tp)
+                if committed_offsets[tp] and (end_offsets[tp] - committed_offsets[tp]) > threshold:
+                    self.story.warning(
+                        f"{consumer.config['bootstrap_servers']} {topic} congestion occurs, {end_offsets[tp] - committed_offsets[tp]}"
+                    )
 
 
 @register_step(KernelStory)
@@ -217,7 +214,7 @@ class CacheCronJobCheck(CheckStep):
                 p = StrategyCacheCronError("策略相关缓存任务未正常运行", self.story)
                 p_list.append(p)
         else:
-            self.story.info("strategy cron job executed {}s ago!".format(StrategyCacheManager.CACHE_TIMEOUT - ttl))
+            self.story.info(f"strategy cron job executed {StrategyCacheManager.CACHE_TIMEOUT - ttl}s ago!")
 
         return p_list
 
@@ -277,7 +274,8 @@ class DurationSpace(CheckStep):
             if not result:
                 # 无数据
                 return KafkaNoData(
-                    "Kafka[{}] topic[{}] 中未找到基础性能数据上报 ".format("{domain}:{port}".format(**kfk_conf), topic), self.story
+                    "Kafka[{}] topic[{}] 中未找到基础性能数据上报 ".format("{domain}:{port}".format(**kfk_conf), topic),
+                    self.story,
                 )
         except Exception as e:
             return KafkaConnectionError(
@@ -291,7 +289,9 @@ class DurationSpace(CheckStep):
         offset = time.time() - d.timestamp()
         if offset > 10 * 60:
             return KafkaDataDelay(
-                "Kafka[{}] topic[{}] 中最新数据与当前时间相差 {}秒".format("{domain}:{port}".format(**kfk_conf), topic, offset),
+                "Kafka[{}] topic[{}] 中最新数据与当前时间相差 {}秒".format(
+                    "{domain}:{port}".format(**kfk_conf), topic, offset
+                ),
                 self.story,
             )
 
@@ -307,7 +307,9 @@ class FtaActionServiceQueueCheck(CheckStep):
             key = cache_key.FTA_ACTION_LIST_KEY.get_key(action_type=action_type)
             signal_len = client.llen(key)
             if signal_len > 100:
-                p = FtaActionSignalPending(f"[{action_type}] 动作执行等待队列已堵塞(当前堆积: {signal_len})", self.story)
+                p = FtaActionSignalPending(
+                    f"[{action_type}] 动作执行等待队列已堵塞(当前堆积: {signal_len})", self.story
+                )
                 return p
             self.story.info(f"[{action_type}] fta action signal queue length is {signal_len}")
         return None
@@ -339,7 +341,8 @@ class Kafka1000Delay(ResolvedProblem):
 
 class AlertPollerDelay(ResolvedProblem):
     solution = (
-        "执行：grep 'alert.poller' kernel.log 观察是否存在error日志。" "如果存在 'consul error' 日志，需要重启 alert-service 或 alarm-alert模块"
+        "执行：grep 'alert.poller' kernel.log 观察是否存在error日志。"
+        "如果存在 'consul error' 日志，需要重启 alert-service 或 alarm-alert模块"
     )
 
 

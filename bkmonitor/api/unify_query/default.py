@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -19,7 +19,8 @@ from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
@@ -49,7 +50,7 @@ def get_unify_query_url(space_uid: str):
         for key, value in match_keys.items():
             match_values = routing_rule.get(key)
             if match_values:
-                if isinstance(match_values, (int, str)):
+                if isinstance(match_values, int | str):
                     # 匹配条件是数字或者字符串，转换成列表
                     match_values = [str(match_values)]
                 elif not isinstance(match_values, list):
@@ -103,6 +104,14 @@ class UnifyQueryAPIResource(Resource):
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE
         elif space_uid:
             requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
+
+        # 设置租户ID
+        if space_uid:
+            bk_tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        else:
+            bk_tenant_id = get_request_tenant_id(peaceful=True)
+        if bk_tenant_id:
+            requests_params["headers"]["X-Bk-Tenant-Id"] = bk_tenant_id
 
         if self.method in ["PUT", "POST", "PATCH"]:
             requests_params["json"] = params
@@ -292,8 +301,8 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
         match = serializers.ListField(child=serializers.CharField())
         label = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
-        start_time = serializers.CharField(required=False)
-        end_time = serializers.CharField(required=False)
+        start = serializers.CharField(required=False)
+        end = serializers.CharField(required=False)
 
         def validate(self, attrs):
             attrs["match[]"] = attrs.pop("match")
@@ -366,7 +375,7 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
         source_info_list = serializers.ListField(child=serializers.DictField(), required=True)
 
     def validate_request_data(self, request_data):
-        request_data = super(GetKubernetesRelationResource, self).validate_request_data(request_data)
+        request_data = super().validate_request_data(request_data)
         query_list = []
         for source_info in request_data.pop("source_info_list", []):
             data_timestamp = source_info.pop("data_timestamp", int(time.time()))

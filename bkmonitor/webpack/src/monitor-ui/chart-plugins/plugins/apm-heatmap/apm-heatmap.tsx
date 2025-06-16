@@ -57,7 +57,7 @@ class ApmHeatmap extends CommonSimpleChart {
   initialized = false;
   options = {};
   empty = true;
-  emptyText = window.i18n.tc('暂无数据');
+  emptyText = window.i18n.t('暂无数据');
   cancelTokens = [];
   collectIntervalDisplay = '1m';
 
@@ -76,7 +76,7 @@ class ApmHeatmap extends CommonSimpleChart {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.initialized) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const interval = reviewInterval(this.viewOptions.interval, startTime - endTime, this.panel.collect_interval);
     const variablesService = new VariablesService({
@@ -327,7 +327,7 @@ class ApmHeatmap extends CommonSimpleChart {
       this.empty = false;
     } else {
       this.initialized = this.metrics.length > 0;
-      this.emptyText = window.i18n.tc('暂无数据');
+      this.emptyText = window.i18n.t('暂无数据');
       this.empty = true;
     }
     this.cancelTokens = [];

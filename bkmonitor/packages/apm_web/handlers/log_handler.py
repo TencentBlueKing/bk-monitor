@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
 import itertools
 import time
 from collections import defaultdict
@@ -32,8 +31,8 @@ from core.drf_resource import api
 
 
 @using_cache(CacheType.APM(FIVE_MIN_SECONDS))
-def get_biz_index_sets_with_cache(_bk_biz_id):
-    return api.log_search.search_index_set(bk_biz_id=_bk_biz_id)
+def get_biz_index_sets_with_cache(bk_biz_id):
+    return api.log_search.search_index_set(bk_biz_id=bk_biz_id)
 
 
 class ServiceLogHandler:
@@ -92,12 +91,10 @@ class ServiceLogHandler:
                     "query": {
                         "range": {
                             "time": {
-                                "gte": datetime.datetime.fromtimestamp(
-                                    start_time, tz=timezone.get_current_timezone()
-                                ).isoformat(),
-                                "lte": datetime.datetime.fromtimestamp(
-                                    end_time, tz=timezone.get_current_timezone()
-                                ).isoformat(),
+                                "format": "epoch_second",
+                                "time_zone": str(timezone.get_current_timezone()),
+                                "gte": start_time,
+                                "lte": end_time,
                             }
                         }
                     },

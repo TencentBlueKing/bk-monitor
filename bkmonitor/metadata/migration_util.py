@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,9 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import uuid
-from typing import Dict, List
 
-from django.db.models import Q
+from django.db.models import Q, Model
 from django.db.models.base import ModelBase
 
 from metadata import config
@@ -59,7 +57,7 @@ def add_datasource(models, data_id, data_name, etl_config, source_label, type_la
     # 获取这个数据源对应的配置记录model，并创建一个新的配置记录
     mq_config = models["KafkaTopicInfo"].objects.create(
         bk_data_id=data_object.bk_data_id,
-        topic="{}{}0".format(config.KAFKA_TOPIC_PREFIX, data_object.bk_data_id),
+        topic=f"{config.KAFKA_TOPIC_PREFIX}{data_object.bk_data_id}0",
         partition=1,
     )
     data_object.mq_config_id = mq_config.id
@@ -182,7 +180,7 @@ def add_resulttablefieldoption(items):
         )
 
 
-def filter_apm_log_table_ids(data_source_model: ModelBase, ds_rt_model: ModelBase) -> Dict[str, List]:
+def filter_apm_log_table_ids(data_source_model: ModelBase, ds_rt_model: ModelBase) -> dict[str, list]:
     """过滤 apm 和 log 对应的结果表"""
     data_ids = data_source_model.objects.filter(etl_config="bk_flat_batch").values_list("bk_data_id", flat=True)
     qs = ds_rt_model.objects.filter(bk_data_id__in=data_ids)
@@ -201,8 +199,8 @@ def filter_apm_log_table_ids(data_source_model: ModelBase, ds_rt_model: ModelBas
 
 
 def filter_table_id_es_versions(
-    es_storage_model: ModelBase, cluster_info_model: ModelBase, table_id_list: List
-) -> Dict[str, str]:
+    es_storage_model: ModelBase, cluster_info_model: ModelBase, table_id_list: list
+) -> dict[str, str]:
     """根据结果表过滤使用的 ES 的版本"""
     qs = es_storage_model.objects.filter(table_id__in=table_id_list)
     table_id_storage_id_map = {obj.table_id: obj.storage_cluster_id for obj in qs}
@@ -223,7 +221,7 @@ def filter_table_id_es_versions(
 
 def get_log_field_options(
     rt_field_model: ModelBase, rt_field_option_model: ModelBase, table_id: str, es_version: str, creator: str
-) -> List:
+) -> list:
     """获取日志字段选项配置"""
     field_options = [
         {
@@ -249,3 +247,34 @@ def get_log_field_options(
         )
 
     return field_options
+
+
+def parse_value(value):
+    if type(value) in (bool, list, dict):
+        val = json.dumps(value)
+        if isinstance(value, bool):
+            val_type = "bool"
+        elif isinstance(value, list):
+            val_type = "list"
+        else:
+            val_type = "dict"
+
+    elif type(value) in (int,):
+        val = json.dumps(value)
+        val_type = "int"
+
+    else:
+        val, val_type = value, "string"
+    return val, val_type
+
+
+def sync_index_set_to_es_storages(es_storage_model: type[Model], table_ids: list[str]):
+    # Step-1: ESStorage 指定索引集。
+    to_be_updated_storages = []
+    for es_storage_obj in es_storage_model.objects.filter(table_id__in=table_ids):
+        es_storage_obj.index_set = es_storage_obj.table_id.replace(".", "_")
+        to_be_updated_storages.append(es_storage_obj)
+
+    if to_be_updated_storages:
+        es_storage_model.objects.bulk_update(to_be_updated_storages, fields=["index_set"])
+    logger.info("[migration_util] sync index_set to ESStorage: %s", len(to_be_updated_storages))

@@ -9,13 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
+import logging
 
 from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
-from gunicorn_config import logger
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.service.space_redis import (
@@ -24,6 +24,8 @@ from metadata.service.space_redis import (
     push_and_publish_es_table_id,
     push_and_publish_doris_table_id_detail,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ParamsSerializer(serializers.Serializer):
@@ -83,7 +85,7 @@ class CreateEsRouter(BaseLogRouter):
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=True, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
@@ -110,7 +112,7 @@ class CreateEsRouter(BaseLogRouter):
             models.ESStorage.create_table(
                 data["table_id"],
                 is_sync_db=False,
-                cluster_id=data["cluster_id"],
+                cluster_id=data.get("cluster_id"),
                 enable_create_index=False,
                 source_type=data.get("source_type") or "",
                 index_set=data.get("index_set") or "",
@@ -120,14 +122,6 @@ class CreateEsRouter(BaseLogRouter):
         push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
         # 推送别名到结果表数据
         push_and_publish_es_aliases(data_label=data["data_label"])
-        # 推送结果表ID详情数据
-        push_and_publish_es_table_id(
-            table_id=data["table_id"],
-            index_set=data.get("index_set"),
-            source_type=data.get("source_type"),
-            cluster_id=data["cluster_id"],
-            options=data.get("options"),
-        )
 
 
 class CreateDorisRouter(BaseLogRouter):
@@ -139,7 +133,7 @@ class CreateDorisRouter(BaseLogRouter):
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
@@ -193,7 +187,7 @@ class UpdateEsRouter(BaseLogRouter):
     class RequestSerializer(ParamsSerializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, label="索引集规则")
         source_type = serializers.CharField(required=False, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
@@ -257,7 +251,7 @@ class UpdateDorisRouter(BaseLogRouter):
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, label="集群ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 

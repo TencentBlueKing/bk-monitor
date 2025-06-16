@@ -79,6 +79,8 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
+    BaseSearchIndexSetException,
+    DataIDNotExistException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -1333,6 +1335,46 @@ class IndexSetHandler(APIModel):
             index_set_data = index_set_data[: int(limit)]
         return index_set_data
 
+    @staticmethod
+    def get_space_info(index_set_id):
+        """
+        根据索引集ID获取空间信息
+        """
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+        space = SpaceApi.get_space_detail(space_uid=index_set_obj.space_uid)
+
+        return {
+            "id": space.id,
+            "space_type_id": space.space_type_id,
+            "space_id": space.space_id,
+            "space_name": space.space_name,
+            "space_uid": space.space_uid,
+            "space_code": space.space_code,
+            "bk_biz_id": space.bk_biz_id,
+            "time_zone": space.extend.get("time_zone") or "Asia/Shanghai",
+            "bk_tenant_id": space.bk_tenant_id,
+        }
+
+    @classmethod
+    def query_by_bk_data_id(cls, bk_data_id):
+        collector_config = CollectorConfig.objects.filter(bk_data_id=bk_data_id).first()
+        if not collector_config:
+            raise DataIDNotExistException(DataIDNotExistException.MESSAGE.format(bk_data_id=bk_data_id))
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=collector_config.index_set_id).first()
+        if not index_set_obj:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
+        return {
+            "index_set_id": index_set_obj.index_set_id,
+            "index_set_name": index_set_obj.index_set_name,
+            "space_uid": index_set_obj.space_uid,
+            "collector_config_id": collector_config.collector_config_id,
+            "collector_config_name": collector_config.collector_config_name,
+        }
+
 
 class BaseIndexSetHandler:
     scenario_id = None
@@ -1477,9 +1519,7 @@ class BaseIndexSetHandler:
             sort_fields=self.sort_fields,
         )
         logger.info(
-            "[create_index_set][{}]index_set_name => {}, indexes => {}".format(
-                self.index_set_obj.index_set_id, self.index_set_name, len(self.indexes)
-            )
+            f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
         )
 
         # 创建索引集的同时添加索引
@@ -1518,7 +1558,7 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_es_router(
+            TransferApi.create_or_update_log_router(
                 {
                     "cluster_id": index_set.storage_cluster_id,
                     "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),

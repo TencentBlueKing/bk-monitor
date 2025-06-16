@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import logging
-import posixpath
 from collections import defaultdict
 
 import arrow
@@ -84,17 +83,7 @@ def operation_data_custom_report_v2():
 
     # 数据上报
     report_tool.send_data_by_http(all_data, DataSource.objects.get(bk_data_id=bk_data_id).token)
-    logger.info(
-        """
-        [new_operation_data_report] success, dataid:%d, data_len: %d;
-        gsecmdline: %s;
-        ipc: %s;
-        """,
-        bk_data_id,
-        len(all_data),
-        posixpath.join(settings.LINUX_GSE_AGENT_PATH, "plugins", "bin", "gsecmdline"),
-        settings.LINUX_GSE_AGENT_IPC_PATH,
-    )
+    logger.info("[operation_data_custom_report_v2] success, dataid: %d, data_len: %d", bk_data_id, len(all_data))
 
 
 def report_mail_detect():
@@ -160,7 +149,7 @@ def report_mail_detect():
                 item.save()
                 # 发送邮件
                 logger.info("[mail_report] start process and render mails on run time(%s)...", run_time)
-                ReportHandler(item.id).process_and_render_mails()
+                ReportHandler(bk_tenant_id=item.bk_tenant_id, item_id=item.id).process_and_render_mails()
                 logger.info("[mail_report] end process and render mails...")
                 # 满足一次条件直接终止
                 break
@@ -168,7 +157,12 @@ def report_mail_detect():
 
 @app.task(ignore_result=True, queue="celery_report_cron")
 def render_mails(
-    mail_handler, report_item, report_item_contents, receivers, is_superuser, channel_name=ReportItems.Channel.USER
+    mail_handler,
+    report_item: ReportItems,
+    report_item_contents,
+    receivers,
+    is_superuser,
+    channel_name=ReportItems.Channel.USER,
 ):
     """
     渲染并发送邮件
@@ -185,6 +179,7 @@ def render_mails(
         return
     logger.info(f"[mail_report] report_item({report_item.id}) start...")
     status = {
+        "bk_tenant_id": report_item.bk_tenant_id,
         "report_item": mail_handler.item_id,
         "mail_title": report_item.mail_title,
         "create_time": datetime.datetime.now(tz=datetime.timezone.utc),
@@ -204,7 +199,7 @@ def render_mails(
         # 只有通知渠道是用户的情况下，才考虑获取权限信息
         try:
             # 获取订阅者的业务列表
-            perm_client = Permission(receivers[0])
+            perm_client = Permission(username=receivers[0], bk_tenant_id=report_item.bk_tenant_id)
             perm_client.skip_check = False
             spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
             bk_biz_ids = [s["bk_biz_id"] for s in spaces]

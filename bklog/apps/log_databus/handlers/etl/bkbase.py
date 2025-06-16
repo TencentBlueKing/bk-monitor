@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,16 +18,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
-from typing import Union
 
 from django.conf import settings
 
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
-from apps.log_databus.handlers.collector import build_result_table_id
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -47,7 +46,10 @@ class BKBaseEtlHandler(EtlHandler):
         """停止清洗任务"""
 
         BkDataDatabusApi.delete_tasks(
-            params={"result_table_id": bkdata_result_table_id, "bk_username": get_request_username()}
+            params={
+                "result_table_id": bkdata_result_table_id,
+                "bk_username": get_request_username(),
+            }
         )
 
     @staticmethod
@@ -73,7 +75,7 @@ class BKBaseEtlHandler(EtlHandler):
         BKBaseEtlHandler.stop_bkdata_clean(bkdata_result_table_id)
         BKBaseEtlHandler.start_bkdata_clean(bkdata_result_table_id)
 
-    def update_or_create(self, instance: Union[CollectorConfig, CollectorPlugin], params=None, **kwargs):
+    def update_or_create(self, instance: CollectorConfig | CollectorPlugin, params=None, **kwargs):
         """
         创建或更新清洗入库
         """
@@ -165,16 +167,18 @@ class BKBaseEtlHandler(EtlHandler):
 
         # 合流入库
         if not params.get("is_allow_alone_storage", True):
-            timestamp_format = "{%s}" % params.get("rt_timestamp_format", "yyyyMMdd")
+            timestamp_format = "{{{}}}".format(params.get("rt_timestamp_format", "yyyyMMdd"))
             if isinstance(instance, CollectorConfig) and instance.collector_plugin_id:
                 collector_plugin = CollectorPlugin.objects.get(collector_plugin_id=instance.collector_plugin_id)
                 table_name = collector_plugin.get_en_name()
             else:
                 table_name = instance.get_en_name()
-            table_id = build_result_table_id(instance.get_bk_biz_id(), table_name)
+            table_id = CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_name)
             storage_params["physical_table_name"] = f"write_{timestamp_format}_{table_id}"
 
-        has_storage = BkDataDatabusApi.get_config_db_list({"raw_data_id": instance.bk_data_id})
+        has_storage = BkDataDatabusApi.get_config_db_list(
+            {"raw_data_id": instance.bk_data_id, "bk_biz_id": instance.bk_biz_id}
+        )
         # 创建入库
         if not has_storage:
             BkDataDatabusApi.databus_data_storages_post(storage_params)

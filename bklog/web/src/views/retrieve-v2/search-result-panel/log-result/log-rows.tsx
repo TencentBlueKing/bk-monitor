@@ -23,30 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
 import {
   parseTableRowData,
   formatDateNanos,
   formatDate,
-  copyMessage,
   setDefaultTableWidth,
   TABLE_LOG_FIELDS_SORT_REGULAR,
 } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
-import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
-import { bkMessage } from 'bk-magic-vue';
-import { useRoute, useRouter } from 'vue-router/composables';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
-import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
   LOG_SOURCE_F,
@@ -60,12 +54,15 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollTop from './scroll-top';
+import ScrollTop from '../../components/scroll-top/index';
 import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import LogResultException from './log-result-exception';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import useTextAction from '../../hooks/use-text-action';
 
 import './log-rows.scss';
 
@@ -88,8 +85,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { $t } = useLocale();
-    const router = useRouter();
-    const route = useRoute();
 
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
@@ -109,8 +104,7 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    let localSort = [];
- 
+
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
@@ -120,9 +114,9 @@ export default defineComponent({
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.storage.tableJsonFormat);
-    const tableShowRowIndex = computed(() => store.state.storage.tableShowRowIndex);
-    const tableLineIsWrap = computed(() => store.state.storage.tableLineIsWrap);
+    const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+    const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const tableLineIsWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
@@ -142,8 +136,6 @@ export default defineComponent({
 
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
-
-    const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -285,10 +277,10 @@ export default defineComponent({
                 }
                 return item;
               });
-              localSort = sortList
+              store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: sortList });
-              store.dispatch('requestIndexSetQuery',{ localSort: sortList });
+              store.dispatch('requestIndexSetQuery');
             }
           });
         },
@@ -462,7 +454,7 @@ export default defineComponent({
       }
       // 处理纳秒精度的UTC时间格式
       if (field_type === 'date_nanos') {
-        return formatDateNanos(data, true, true);
+        return formatDateNanos(data);
       }
       return data;
     };
@@ -471,108 +463,23 @@ export default defineComponent({
       return formatDateValue(data, timeFieldType.value);
     };
 
-    const setRouteParams = () => {
-      const query = { ...route.query };
+    const { handleOperation } = useTextAction(emit, 'origin');
 
-      const resolver = new RetrieveUrlResolver({
-        keyword: store.getters.retrieveParams.keyword,
-        addition: store.getters.retrieveParams.addition,
-      });
-
-      Object.assign(query, resolver.resolveParamsToUrl());
-
-      router.replace({
-        query,
-      });
-    };
-
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
-      store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
-        .then(([newSearchList, searchMode, isNewSearchPage]) => {
-          setRouteParams();
-          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-          if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
-            window.open(openUrl, '_blank');
-          }
-        });
-    };
-
-    const handleTraceIdClick = traceId => {
-      if (apmRelation.value?.is_active) {
-        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
-        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
-        const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
-        window.open(url, '_blank');
-      } else {
-        bkMessage({
-          theme: 'warning',
-          message: $t('未找到相关的应用，请确认是否有Trace数据的接入。'),
-        });
-      }
-    };
-
+    // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
-      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
-      value = String(value)
-        .replace(/<mark>/g, '')
-        .replace(/<\/mark>/g, '');
-
-      if (type === 'highlight') {
-        RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
-          event: 'mark',
-          value: formatDateValue(value ?? content, field.field_type),
-        });
-        return;
-      }
-
-      if (type === 'trace-view') {
-        handleTraceIdClick(value);
-        return;
-      }
-
-      if (type === 'search') {
-        // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
-        return;
-      }
-
-      if (type === 'copy') {
-        // 复制单元格内容
-        copyMessage(value);
-        return;
-      }
-      // 根据当前显示字段决定传参
-      if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        const { getQueryAlias } = useFieldNameHook({ store });
-        handleAddCondition(getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
-        return;
-      }
+      handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
+    // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink) => {
-      switch (option.operation) {
-        case 'is':
-        case 'is not':
-        case 'not':
-        case 'new-search-page-is':
-          const { fieldName, operation, value, depth } = option;
-          const operator = operation === 'not' ? 'is not' : operation;
-          handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink, depth);
-          break;
-        case 'copy':
-          copyMessage(option.value);
-          break;
-        case 'highlight':
-          RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, { event: 'mark', value: option.value });
-          break;
-        case 'display':
-          emit('fields-updated', option.displayFieldNames, undefined, false);
-          break;
-        default:
-          break;
-      }
+      handleOperation(option.operation, {
+        value: option.value,
+        fieldName: option.fieldName,
+        operation: option.operation,
+        isLink,
+        depth: option.depth,
+        displayFieldNames: option.displayFieldNames,
+      });
     };
 
     const { renderHead } = useHeaderRender();
@@ -612,27 +519,38 @@ export default defineComponent({
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
-      for (let index = nextIdx; index < tableDataSize.value; index++) {
-        const nextRow = tableList.value[index];
-        if (!tableRowConfig.has(nextRow)) {
-          const rowKey = `${ROW_KEY}_${index}`;
-          tableRowConfig.set(
-            nextRow,
-            ref({
-              [ROW_KEY]: rowKey,
-              [ROW_INDEX]: index,
-              [ROW_F_JSON]: formatJson.value,
-              ...getRowConfigWithCache(),
-            }),
-          );
+      if (nextIdx >= 0) {
+        for (let index = nextIdx; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          if (!tableRowConfig.has(nextRow)) {
+            const rowKey = `${ROW_KEY}_${index}`;
+            tableRowConfig.set(
+              nextRow,
+              ref({
+                [ROW_KEY]: rowKey,
+                [ROW_INDEX]: index,
+                [ROW_F_JSON]: formatJson.value,
+                ...getRowConfigWithCache(),
+              }),
+            );
+          }
+        }
+      }
+
+      if (nextIdx === -1) {
+        for (let index = 0; index < tableDataSize.value; index++) {
+          const nextRow = tableList.value[index];
+          tableRowConfig.delete(nextRow);
         }
       }
     };
 
     const isRequesting = ref(false);
+    let requestingTimer = null;
 
     const debounceSetLoading = (delay = 120) => {
-      setTimeout(() => {
+      requestingTimer && clearTimeout(requestingTimer);
+      requestingTimer = setTimeout(() => {
         isRequesting.value = false;
       }, delay);
     };
@@ -652,6 +570,17 @@ export default defineComponent({
           ></ExpandView>
         );
       },
+    };
+
+    const resetRowListState = (oldValSize?) => {
+      hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
+      setRenderList(null);
+      debounceSetLoading();
+      updateTableRowConfig(oldValSize ?? 0);
+
+      if (tableDataSize.value <= 50) {
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+      }
     };
 
     watch(
@@ -700,6 +629,8 @@ export default defineComponent({
       () => isLoading.value,
       () => {
         if (!isRequesting.value) {
+          isRequesting.value = true;
+
           if (isLoading.value) {
             scrollToTop(0);
             renderList = [];
@@ -708,20 +639,17 @@ export default defineComponent({
 
           setRenderList();
         }
+
+        if (!isLoading.value) {
+          debounceSetLoading();
+        }
       },
     );
 
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
-        setRenderList(null);
-        debounceSetLoading();
-        updateTableRowConfig(oldVal?.[0] ?? 0);
-
-        if (tableDataSize.value <= 50) {
-          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        }
+        resetRowListState(oldVal?.[0]);
       },
       {
         immediate: true,
@@ -788,7 +716,7 @@ export default defineComponent({
       if (hasMoreList.value) {
         isRequesting.value = true;
         return store
-          .dispatch('requestIndexSetQuery', { isPagination: true, localSort })
+          .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
             if (resp?.size === 50) {
               pageIndex.value++;
@@ -967,7 +895,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft;
+      scrollXOffsetLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       setRowboxTransform();
     };
 
@@ -981,19 +909,6 @@ export default defineComponent({
         ></ScrollXBar>
       );
     };
-
-    const isFieldSettingShow = computed(() => {
-      return !store.getters.isUnionSearch && !isExternal.value;
-    });
-
-    const hasCollectorConfigId = computed(() => {
-      const indexSetList = store.state.retrieve.indexSetList;
-      const indexSetId = route.params?.indexId;
-      const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
-      return currentIndexSet?.collector_config_id;
-    });
-
-    const isExternal = computed(() => store.state.isExternal);
 
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
@@ -1039,94 +954,37 @@ export default defineComponent({
       );
     });
 
-    const getExceptionRender = () => {
+    const exceptionType = computed(() => {
       if (tableDataSize.value === 0) {
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
-          return (
-            <bk-exception
-              style='margin-top: 100px;'
-              class='exception-wrap-item exception-part'
-              scene='part'
-              type='search-empty'
-            >
-              {$t('检索中')}...
-            </bk-exception>
-          );
-        }
-        if ($t('检索结果为空') === exceptionMsg.value) {
-          return (
-            <div class='bklog-empty-data'>
-              <h1>{$t('检索无数据')}</h1>
-              <div class='sub-title'>您可按照以下顺序调整检索方式</div>
-              <div class='empty-validate-steps'>
-                <div class='validate-step1'>
-                  <h3>1. 优化查询语句</h3>
-                  <div class='step1-content'>
-                    <span class='step1-content-label'>查询范围：</span>
-                    <span class='step1-content-value'>
-                      log: bklog*
-                      <br />
-                      包含bklog
-                      <br />= bklog 使用通配符 (*)
-                    </span>
-                  </div>
-                  <div class='step1-content'>
-                    <span class='step1-content-label'>精准匹配：</span>
-                    <span class='step1-content-value'>log: "bklog"</span>
-                  </div>
-                </div>
-                <div class='validate-step2'>
-                  <h3>2. 检查是否为分词问题</h3>
-                  <div>
-                    当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。
-                    <br />
-                    <br />
-                    若目标内容为整段蓝色，或中间存在字符粘连的情况。
-                    <br />
-                    可能是因为分词导致的问题；
-                    <br />
-                    <span
-                      class='segment-span-tag'
-                      onClick={openConfiguration}
-                    >
-                      点击设置自定义分词
-                    </span>
-                    <br />
-                    <br />
-                    将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。
-                  </div>
-                </div>
-                <div class='validate-step3'>
-                  <h3>3. 一键反馈</h3>
-                  <div>
-                    若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。 <br></br>
-                    {/* <span class='segment-span-tag'>问题反馈</span> */}
-                    <a
-                      class='segment-span-tag'
-                      href={`wxwork://message/?username=BK助手`}
-                    >
-                      问题反馈
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
+          return 'loading';
         }
 
-        return (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {exceptionMsg.value}
-          </bk-exception>
-        );
+        if ($t('检索结果为空') === exceptionMsg.value) {
+          return 'search-empty';
+        }
+
+        if (/^index-set-not-found/.test(exceptionMsg.value)) {
+          return 'index-set-not-found';
+        }
+
+        if (/^index-set-field-not-found/.test(exceptionMsg.value)) {
+          return 'index-set-field-not-found';
+        }
+
+        return exceptionMsg.value.length ? 'error' : 'empty';
       }
 
-      return null;
+      return 'hidden';
+    });
+
+    const getExceptionRender = () => {
+      return (
+        <LogResultException
+          type={exceptionType.value}
+          message={exceptionMsg.value}
+        ></LogResultException>
+      );
     };
 
     const onRootClick = (e: MouseEvent) => {
@@ -1160,18 +1018,9 @@ export default defineComponent({
       }
     };
 
-    const openConfiguration = () => {
-      if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
-        RetrieveHelper.setIndexConfigOpen(true);
-      } else {
-        bkMessage({
-          theme: 'primary',
-          message: '第三方ES、计算平台索引集类型不支持自定义分词',
-        });
-      }
-    };
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
+      resetRowListState(-1);
     });
 
     return {

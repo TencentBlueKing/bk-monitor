@@ -157,7 +157,7 @@ export class LineChart
   refreshIntervalInstance = null;
   metrics: IExtendMetricData[];
   empty = true;
-  emptyText = window.i18n.tc('暂无数据');
+  emptyText = window.i18n.t('暂无数据');
   hasSetEvent = false;
   cancelTokens: (() => void)[] = [];
   minBase = 0;
@@ -337,7 +337,7 @@ export class LineChart
     const hasMatch = timeMatch && timeMatch.length > 2;
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-      : val.replace('current', window.i18n.tc('当前'));
+      : val.replace('current', window.i18n.t('当前'));
   }
   // 图表tooltip 可用于继承组件重写该方法
   handleSetTooltip() {
@@ -371,7 +371,7 @@ export class LineChart
       return;
     }
     this.handleBeforeRequestLoadingChange();
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
     }
@@ -639,13 +639,13 @@ export class LineChart
         }, 100);
       } else {
         this.initialized = this.metrics.length > 0;
-        this.emptyText = window.i18n.tc('暂无数据');
+        this.emptyText = window.i18n.t('暂无数据');
         this.empty = true;
       }
       this.$emit('optionsLoaded');
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     // 初始化刷新定时器

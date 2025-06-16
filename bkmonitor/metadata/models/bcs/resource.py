@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 import datetime
 import json
 import logging
@@ -21,6 +18,11 @@ from .replace import ReplaceConfig
 from .utils import ensure_data_id_resource, is_equal_config
 
 logger = logging.getLogger("metadata")
+
+
+# ------------------------------------------------- #
+# ------- 集群ID全租户唯一，无需额外补充租户信息--------- #
+# ------------------------------------------------- #
 
 
 class BCSResource(models.Model):
@@ -159,7 +161,7 @@ class BCSResource(models.Model):
         for resource in resource_list["items"]:
             namespace = resource["metadata"]["namespace"]
             name = resource["metadata"]["name"]
-            resource_name_list.append("{}_{}".format(namespace, name))
+            resource_name_list.append(f"{namespace}_{name}")
 
             # 2. 判断是否已经注册
             if cls.objects.filter(
@@ -192,8 +194,7 @@ class BCSResource(models.Model):
                 )
             )
             logger.info(
-                "cluster->[%s] now create resource->[%s] name->[%s] under namespace->[%s] with data_id->[%s]"
-                " success.",
+                "cluster->[%s] now create resource->[%s] name->[%s] under namespace->[%s] with data_id->[%s] success.",
                 cluster_id,
                 cls.PLURAL,
                 name,
@@ -368,7 +369,7 @@ class BCSResource(models.Model):
         """
         try:
             if not BCSClusterInfo.objects.filter(cluster_id=self.cluster_id).exists():
-                logger.error("filter data_id:{}, cluster_id:{} failed".format(self.bk_data_id, self.cluster_id))
+                logger.error(f"filter data_id:{self.bk_data_id}, cluster_id:{self.cluster_id} failed")
                 return
             cluster_infos = BCSClusterInfo.objects.filter(cluster_id=self.cluster_id)
             path = "{}/project_id/{}/cluster_id/{}".format(
@@ -390,7 +391,7 @@ class BCSResource(models.Model):
             hash_consul.put(path, vals)
 
         except Exception as e:
-            logger.error("loads key:{}, value:{} failed:{}".format(path, val, e))
+            logger.error(f"loads key:{path}, value:{val} failed:{e}")
 
     @classmethod
     def refresh_all_to_consul(cls):
@@ -424,7 +425,7 @@ class BCSResource(models.Model):
             for path, vals in info_dict.items():
                 hash_consul.put(path, vals)
         except Exception as e:
-            logger.error("refresh all info into consul failed:{}".format(e))
+            logger.error(f"refresh all info into consul failed:{e}")
 
     @classmethod
     def clean_all_bcs_info(cls):
@@ -489,7 +490,7 @@ class LogCollectorInfo(BCSResource):
         for resource in resource_list["items"]:
             namespace = resource["metadata"]["namespace"]
             name = resource["metadata"]["name"]
-            resource_name.append("{}_{}".format(namespace, name))
+            resource_name.append(f"{namespace}_{name}")
             data_id = resource["spec"]["data_id"]
 
             # 2. 判断是否已经注册
@@ -521,8 +522,7 @@ class LogCollectorInfo(BCSResource):
                 resource_create_time=datetime.datetime.now(),
             )
             logger.info(
-                "cluster->[%s] now create resource->[%s] name->[%s] under namespace->[%s] with data_id->[%s]"
-                " success.",
+                "cluster->[%s] now create resource->[%s] name->[%s] under namespace->[%s] with data_id->[%s] success.",
                 cluster_id,
                 cls.PLURAL,
                 name,
@@ -532,7 +532,7 @@ class LogCollectorInfo(BCSResource):
 
         # 删除已经不存在的resource映射
         for item in cls.objects.filter(cluster_id=cluster_id):
-            key = "{}_{}".format(item.namespace, item.name)
+            key = f"{item.namespace}_{item.name}"
             if key not in resource_name:
                 item.delete()
                 logger.info(

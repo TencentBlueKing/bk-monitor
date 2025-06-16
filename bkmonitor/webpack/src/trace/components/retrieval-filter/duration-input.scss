@@ -1,0 +1,75 @@
+.duration-input-component {
+  display: flex;
+  align-items: center;
+
+  &.default {
+    .duration-slider {
+      width: 68px;
+      margin: 0 8px;
+
+      .t-slider__container {
+        .t-slider__button {
+          width: 6px;
+          height: 6px;
+          border-width: 1px;
+        }
+      }
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 48px;
+      height: 24px;
+
+      .t-input__wrap {
+        .t-input {
+          background: #F0F1F5;
+          border: 1px solid #F0F1F5;
+        }
+  
+        .t-input--focused {
+          background: #fff;
+          border: 1px solid #3a84ff;
+          box-shadow: 0px 0px 3px 0px #a3c5fd;
+        }
+      }
+    }
+  }
+
+  &.form {
+    flex: 1;
+
+    .duration-slider {
+      flex: 1;
+      margin: 0 8px;
+
+      .t-slider__container {
+        .t-slider__button {
+          width: 6px;
+          height: 6px;
+          border-width: 1px;
+        }
+      }
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 76px;
+      height: 32px;
+
+      .t-input__wrap {
+        .t-input--focused {
+          background: #fff;
+          border: 1px solid #3a84ff;
+          box-shadow: 0px 0px 3px 0px #a3c5fd;
+        }
+      }
+
+      .t-input--auto-width {
+        min-width: 76px;
+      }
+    }
+  }
+}

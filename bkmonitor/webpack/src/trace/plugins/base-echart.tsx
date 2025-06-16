@@ -35,6 +35,7 @@ import {
   shallowRef,
   watch,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
@@ -60,13 +61,12 @@ export const BaseChartProps = {
   // 视图高度
   height: {
     type: Number,
-    required: true,
   },
   // 视图宽度 默认撑满父级
   width: Number,
   // echart 配置
   options: {
-    type: Object as () => PropType<MonitorEchartOptions>,
+    type: Object as PropType<MonitorEchartOptions>,
     required: true,
   },
   // echarts图表实例分组id
@@ -94,12 +94,17 @@ export const BaseChartProps = {
     type: Boolean,
     default: true,
   },
+  customTooltips: {
+    type: Function as PropType<(params: any) => string>,
+    default: null,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
   props: BaseChartProps,
   emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store', 'loaded'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
     const curChartOption: ShallowRef<MonitorEchartOptions | null> = shallowRef(null);
@@ -226,10 +231,16 @@ export default defineComponent({
       }
       let liHtmlList = [];
       let ulStyle = '';
-      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      let pointTime = '';
+      try {
+        pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      } catch {}
       if (params[0]?.data?.tooltips) {
         liHtmlList.push(params[0].data.tooltips);
       } else {
+        if (typeof props.customTooltips === 'function') {
+          return props.customTooltips(params);
+        }
         const data = params
           .map((item: { color: any; seriesName: any; value: any[] }) => ({
             color: item.color,
@@ -456,6 +467,7 @@ export default defineComponent({
       handleMouseleave,
       handleDataZoom,
       handleClickRestore,
+      t,
     };
   },
   render() {
@@ -475,7 +487,7 @@ export default defineComponent({
             class='chart-restore'
             onClick={this.handleClickRestore}
           >
-            {this.$t('复位')}
+            {this.t('复位')}
           </span>
         )}
       </div>

@@ -60,6 +60,7 @@ interface IProps {
   minWidth?: number;
   stickyList?: string[];
   isShowCommon?: boolean;
+  canSetDefaultSpace?: boolean;
 }
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
@@ -84,6 +85,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     validator: (val: string) => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
+  /** 可设置默认空间 */
+  @Prop({ default: true, type: Boolean }) canSetDefaultSpace: boolean;
   @Ref() menuSearchInput: any;
   @Ref() popoverRef: any;
   @Ref('typeList') typeListRef: HTMLDivElement;
@@ -113,11 +116,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     limit: number;
     data: IListItem[];
   } = {
-      current: 1,
-      count: 0,
-      limit: 20,
-      data: [],
-    };
+    current: 1,
+    count: 0,
+    limit: 20,
+    data: [],
+  };
 
   /* type栏左右切换数据 */
   typeWrapInfo = {
@@ -168,7 +171,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       ?.toLocaleUpperCase();
   }
   /* 当前业务的ID */
-  get curentBizId() {
+  get currentBizId() {
     return this.curentBizItem?.space_type_id === ETagsType.BKCC
       ? `#${this.curentBizItem?.id}`
       : this.curentBizItem?.space_id || this.curentBizItem?.space_code || '';
@@ -557,7 +560,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   v-bk-overflow-tips
                 >
                   {this.bizName}
-                  <span class='biz-name-text-id'>({this.curentBizId})</span>
+                  {this.currentBizId ? (
+                    <span class='biz-name-text-id'>({this.currentBizId})</span>
+                  ) : (
+                    <span class='biz-name-text-id'>{this.$t('无业务')}</span>
+                  )}
                 </span>
                 <i
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
@@ -626,6 +633,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
+                  canSetDefaultSpace={this.canSetDefaultSpace}
                   checked={this.localValue}
                   list={this.bizListFilter}
                   theme={this.theme}

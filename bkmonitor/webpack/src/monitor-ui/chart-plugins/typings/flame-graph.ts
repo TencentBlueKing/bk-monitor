@@ -130,17 +130,17 @@ export interface IBaseTraceInfo {
 export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'copy',
-    name: window.i18n.tc('复制函数名称'),
+    name: window.i18n.t('复制函数名称'),
     icon: 'icon-mc-copy',
   },
   {
     id: 'reset',
-    name: window.i18n.tc('重置图表'),
+    name: window.i18n.t('重置图表'),
     icon: 'icon-zhongzhi1',
   },
   {
     id: 'highlight',
-    name: window.i18n.tc('高亮相似 Node'),
+    name: window.i18n.t('高亮相似 Node'),
     icon: 'icon-beauty',
   },
 ];

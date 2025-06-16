@@ -194,7 +194,9 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         if (searchReg.test(metricGroupItem.name)) {
           result.push(metricGroupItem);
         } else {
-          const metricList = metricGroupItem.metrics.filter(metricItem => searchReg.test(metricItem.alias));
+          const metricList = metricGroupItem.metrics.filter(
+            metricItem => searchReg.test(metricItem.alias) || searchReg.test(metricItem.metric_name)
+          );
           if (metricList.length > 0) {
             result.push({
               ...metricGroupItem,
@@ -205,7 +207,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         return result;
       }, []);
       this.renderMetricGroupList = Object.freeze(filterResult);
-    }, 300);
+    }, 100);
   }
 
   render() {

@@ -66,9 +66,9 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   typeEnums = {
     '1h': this.$t('1小时前'),
-    '1d': this.$t('昨天'),
-    '7d': this.$t('上周'),
-    '30d': this.$t('1 月前'),
+    '1d': this.$t('1天前'),
+    '7d': this.$t('7天前'),
+    '30d': this.$t('30天前'),
   };
   /** 维度是否支持多选 */
   isMultiple = false;
@@ -485,6 +485,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     this.drillList = this.drillList.filter(drill => item.key !== drill.key);
     this.$emit('chooseDrill', this.drillList, this.activeList);
   }
+
   createOption(dimensions: Record<string, string>) {
     return (
       <div class='options-wrapper'>

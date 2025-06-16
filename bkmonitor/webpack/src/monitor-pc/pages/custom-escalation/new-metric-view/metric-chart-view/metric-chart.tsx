@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
+import { Component, Prop, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -42,7 +42,7 @@ import {
 } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
-import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
+import { COLOR_LIST_METRIC, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
@@ -66,6 +66,9 @@ import type {
 import './metric-chart.scss';
 const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 
+// 最小展示tooltips高度
+const MIN_SHOW_TOOLTIPS_HEIGHT = 200;
+
 interface INewMetricChartProps {
   chartHeight?: number;
   isToolIconShow?: boolean;
@@ -86,6 +89,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: false }) isShowLegend: boolean;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
+  /** groupId */
+  @Prop({ default: '' }) groupId: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -94,6 +99,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
+  @Ref('baseChart') readonly baseChart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
@@ -155,6 +162,11 @@ class NewMetricChart extends CommonSimpleChart {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get viewWidth() {
+    const viewColumn = Number(this.$route.query?.viewColumn) || 2;
+    return this.width / (viewColumn + 1) - 40;
+  }
+
   /** 操作的icon列表 */
   get handleIconList() {
     return [
@@ -165,6 +177,15 @@ class NewMetricChart extends CommonSimpleChart {
   // /** 更多里的操作列表 */
   get menuList() {
     return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
+  }
+  /** hover展示多个tooltips */
+  get hoverAllTooltips() {
+    // 根据图表是否在可视区域内来判断是否展示多个tooltips
+    const { top = MIN_SHOW_TOOLTIPS_HEIGHT } = this.$refs.baseChart?.$el?.getBoundingClientRect() || {};
+    return (
+      (this.panel.options?.time_series?.hoverAllTooltips && top >= this.containerScrollTop) ||
+      top >= MIN_SHOW_TOOLTIPS_HEIGHT
+    );
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -211,7 +232,7 @@ class NewMetricChart extends CommonSimpleChart {
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
     const transformSeries = series.map((item, index) => {
-      const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
+      const colorList = COLOR_LIST_METRIC;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
@@ -544,24 +565,23 @@ class NewMetricChart extends CommonSimpleChart {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
-            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
+            color: COLOR_LIST_METRIC,
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
-                      if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
-                      }
-                      return v;
+                    if (seriesList[0].unit !== 'none') {
+                      const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                      return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                     }
+                    return v;
+                  }
                   : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
@@ -629,7 +649,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (customSave) return dataUrl;
         downFile(dataUrl, `${title}.png`);
       })
-      .catch(() => {});
+      .catch(() => { });
   }
   dataZoom(startTime: string, endTime: string) {
     this.showRestore = !!startTime;
@@ -849,7 +869,7 @@ class NewMetricChart extends CommonSimpleChart {
         >
           <span class='status-tab-view'>
             <StatusTab
-              maxWidth={this.width - 300}
+              maxWidth={this.viewWidth}
               statusList={this.methodList}
               value={this.method}
               onChange={this.handleMethodChange}
@@ -875,7 +895,8 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
-                  groupId={this.panel.dashboardId}
+                  groupId={this.panel.groupId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}

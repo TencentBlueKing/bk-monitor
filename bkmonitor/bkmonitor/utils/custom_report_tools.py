@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import json
+
 import logging
 import os
-import posixpath
 
 import requests
 from django.conf import settings
@@ -47,53 +45,6 @@ class custom_report_tool:
             data.extend(future.get())
         return data
 
-    def send_data(self, all_data):
-        """
-        上报数据
-        :param all_data: list, 待发送数据
-        如：
-        [{
-            # 指标，必需项
-            "metrics": {
-                f"{stat['namespace']}_{metric.metric_name}": metric.metric_value
-            },
-            # 来源标识
-            "target": settings.BK_PAAS_INNER_HOST,
-            # 数据时间，精确到毫秒，非必需项
-            "timestamp": arrow.now().timestamp * 1000
-        }]
-        """
-
-        send_list = [[]]
-        chunk_index = 0
-        cmds = []
-        # 避免每次发送的数据太长，分批进行上报
-        for data in all_data:
-            send_list[chunk_index].append(data)
-            if len(send_list[chunk_index]) > 20:
-                chunk_index += 1
-                send_list.append([])
-        send_data = {"data_id": self.dataid, "data": []}
-        for data in send_list:
-            send_data["data"] = data
-
-            # gsecmdline
-            cmds.append(
-                f"{posixpath.join(settings.LINUX_GSE_AGENT_PATH, 'plugins', 'bin', 'gsecmdline')} -d {self.dataid} -J "
-                f"'{json.dumps(send_data)}' -S {settings.LINUX_GSE_AGENT_IPC_PATH}"
-            )
-
-            # bkmonitorbeat
-            # cmds.append(
-            #     f"{posixpath.join(settings.LINUX_GSE_AGENT_PATH, 'plugins', 'bin', 'bkmonitorbeat')} "
-            #     f"-report -report.bk_data_id {self.dataid} -report.message.body "
-            #     f"'{json.dumps(send_data)}' -report.agent.address {settings.LINUX_GSE_AGENT_IPC_PATH} "
-            #     f"-c {posixpath.join(settings.LINUX_GSE_AGENT_PATH, 'plugins', 'etc', 'bkmonitorbeat.conf')} "
-            #     f"-report.message.kind timeseries -report.type agent"
-            # )
-
-        self.batch_cmd(cmds)
-
     def send_data_by_http(self, all_data, access_token, parallel=True):
         """
         上报数据
@@ -113,7 +64,8 @@ class custom_report_tool:
         :param parallel: 是否并发请求
         """
         assert settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, _(
-            "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]" "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
+            "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]"
+            "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
         )
         send_list = [[]]
         chunk_index = 0

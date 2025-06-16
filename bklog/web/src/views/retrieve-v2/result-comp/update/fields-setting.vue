@@ -96,7 +96,7 @@
       <div>
         <div class="fields-tab-container">
           <div class="show-field">
-            <div class="text-type">字段显示：</div>
+            <div class="text-type">{{ $t('字段显示') }}:</div>
             <fieldSetting
               ref="fieldSettingRef"
               :init-data="shadowVisible"
@@ -106,11 +106,11 @@
             style="padding-left: 12px"
             class="table-sort"
           >
-            <div class="text-type">表格排序：</div>
+            <div class="text-type">{{ $t('表格排序') }}：</div>
             <tableSort
               ref="tableSortRef"
               style="max-height: 340px; overflow: scroll"
-              :init-data="shadowSort"
+              :init-data="cachedSortFields"
               :should-refresh="isShow"
             />
           </div>
@@ -129,7 +129,7 @@
           style="font-size: 14px"
           class="bklog-icon bklog-help"
         ></span>
-        当前设置仅对个人生效，可以
+        {{ $t('当前设置仅对个人生效，可以') }}
         <save-as-popover
           :confirm-handler="handleUpdateConfig"
           :display-fields="currentVisibleList"
@@ -168,7 +168,7 @@
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
-
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
@@ -210,6 +210,9 @@
         activeConfigTab: 'default', // 当前活跃的配置配置名
         isConfirmSubmit: false, // 是否点击保存
         isInputError: false, // 新建配置名称是否不合法
+        cachedVisibleFields: [], // 缓存显示字段
+        cachedSortFields: [], // 缓存排序字段
+        shouldRefreshSort: false, // 控制排序组件刷新
         fieldTabPanels: [
           { name: 'visible', label: this.$t('显示字段') },
           { name: 'sort', label: this.$t('排序权重') },
@@ -255,7 +258,7 @@
         });
       },
       showFieldAlias() {
-        return this.$store.state.storage.showFieldAlias;
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -277,7 +280,7 @@
             totalLength += 1;
           }
         });
-        return totalLength - this.shadowSort.length;
+        return totalLength - this.cachedSortFields.length;
       },
 
       filedSettingConfigID() {
@@ -292,7 +295,7 @@
         return this.$store.state.isEnLanguage ? '60' : '114';
       },
       currentSortList() {
-        return this.$refs?.tableSortRef?.shadowSort || this.shadowSort;
+        return this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
       },
       currentVisibleList() {
         return (
@@ -334,14 +337,20 @@
         // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
         if (!this.isTemplateConfig) {
           this.initShadowFields(this.localVisibleFields);
+          // 在数据初始化后缓存，使用深拷贝
+          this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
+          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
           return;
         }
         await this.getFiledConfigList();
         this.initShadowFields();
+        // 在数据初始化后缓存，使用深拷贝
+        this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
+        this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
       },
       /** 保存或应用 */
       async confirmModifyFields() {
-        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.shadowSort;
+        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
 
         if (currentVisibleList.length === 0) {
@@ -366,6 +375,7 @@
           }
 
           this.cancelModifyFields();
+          this.$store.commit('updateLocalSort', false);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -395,7 +405,7 @@
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
               display_fields: this.shadowVisible,
-              sort_list: this.shadowSort,
+              sort_list: this.cachedSortFields,
               config_id: configID,
             },
           })
@@ -404,6 +414,13 @@
           });
       },
       cancelModifyFields() {
+        // 取消时恢复缓存数据，使用深拷贝
+        if (!this.isTemplateConfig) {
+          // 只更新父组件的数据，子组件会通过 props 自动更新
+          this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
+          // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
+          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+        }
         this.$emit('cancel');
         this.isSortFieldChanged = false;
       },

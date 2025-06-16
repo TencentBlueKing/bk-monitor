@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { BK_LOG_STORAGE } from './store/store.type';
+
 /** 外部版根据空间授权权限显示菜单 */
-const updateExternalMenuBySpace = curSpace => {
+export const getExternalMenuListBySpace = space => {
   const list = [];
-  (curSpace.external_permission || []).forEach(permission => {
+  (space.external_permission || []).forEach(permission => {
     if (permission === 'log_search') {
       list.push('retrieve');
     } else if (permission === 'log_extract') {
@@ -40,12 +42,15 @@ const updateExternalMenuBySpace = curSpace => {
 export default ({
   http,
   store,
-  isExternal,
 }: {
   http: { request: (...args) => Promise<any> };
   store: any;
   isExternal?: boolean;
 }) => {
+  /**
+   * 获取空间列表
+   * return
+   */
   const spaceRequest = http.request('space/getMySpaceList').then(resp => {
     const spaceList = resp.data;
     spaceList.forEach(item => {
@@ -56,29 +61,43 @@ export default ({
 
     store.commit('updateMySpaceList', spaceList);
 
-    const space_uid = localStorage.getItem('space_uid');
+    const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+    let space = null;
 
-    const space = space_uid
-      ? (spaceList ?? []).find(item => item.space_uid === space_uid) ?? spaceList?.[0]
-      : spaceList?.[0];
-
-    localStorage.setItem('space_uid', space.space_uid);
-    localStorage.setItem('bk_biz_id', space.bk_biz_id);
-    store.commit('updateSpace', space_uid);
-
-    if (isExternal) {
-      const list = updateExternalMenuBySpace(space);
-      store.commit('updateExternalMenu', list);
+    if (space_uid) {
+      space = (spaceList ?? []).find(item => item.space_uid === space_uid);
     }
+
+    if (!space && bkBizId) {
+      space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
+    }
+
+    if (!space) {
+      space = spaceList?.[0];
+    }
+
+    store.commit('updateSpace', space?.space_uid);
+
+    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+        [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+      });
+    }
+
+    return space;
   });
 
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
     store.commit('updateUserMeta', resp.data);
+    return resp.data;
   });
 
-  const collectRequest = http.request('collect/globals').then(res => {
+  const globalsRequest = http.request('collect/globals').then(res => {
     store.commit('globals/setGlobalsData', res.data);
+    return res.data;
   });
 
-  return Promise.all([spaceRequest, userInfoRequest, collectRequest]);
+  return Promise.all([spaceRequest, userInfoRequest, globalsRequest]);
 };

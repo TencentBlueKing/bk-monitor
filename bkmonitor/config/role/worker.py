@@ -22,6 +22,7 @@ from ..tools.environment import (
     DJANGO_CONF_MODULE,
     IS_CONTAINER_MODE,
     NEW_ENV,
+    ENVIRONMENT,
 )
 
 # 按照环境变量中的配置，加载对应的配置文件
@@ -56,6 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
+    "ai_agents",
 )
 
 # 系统名称
@@ -117,15 +119,6 @@ DEFAULT_CRONTAB = [
     # Notice Notice Notice:
     # Use UTC's time zone to set your crontab instead of the local time zone
     # run_type: global/cluster
-    # cmdb cache
-    ("alarm_backends.core.cache.cmdb.host", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.module", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.set", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.business", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.service_instance", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.topo", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.service_template", "*/10 * * * *", "global"),
-    ("alarm_backends.core.cache.cmdb.set_template", "*/10 * * * *", "global"),
     # model cache
     # 策略全量更新频率降低
     ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
@@ -263,6 +256,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
     # 计算平台元数据一致性 Redis Watch
     ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
+    # ES集群关键配置检查,六小时检查一次
+    ("metadata.task.config_refresh.check_es_clusters_key_settings", "0 */6 * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -348,92 +343,46 @@ PYTHON_HOME = sys.executable.rsplit("/", 1)[0]  # virtualenv path
 PYTHON = PYTHON_HOME + "/python"  # python bin
 GUNICORN = PYTHON_HOME + "/gunicorn"  # gunicorn bin
 
+# 日志轮转配置
 LOG_LOGFILE_MAXSIZE = 1024 * 1024 * 200  # 200m
 LOG_LOGFILE_BACKUP_COUNT = 12
 LOG_PROCESS_CHECK_TIME = 60 * 60 * 4
 LOG_LOGFILE_BACKUP_GZIP = True
 
+
 # LOGGING
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
-LOG_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log")
-LOG_IMAGE_EXPORTER_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_image_exporter.log")
-LOG_METADATA_FILE_PATH = os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel_metadata.log")
-LOGGER_DEFAULT = {"level": LOGGER_LEVEL, "handlers": ["console", "file"]}
+if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
+    LOGGER_HANDLERS = ["console"]
+else:
+    LOGGER_HANDLERS = ["file", "console"]
 
 
-def get_logger_config(log_path, logger_level, log_file_prefix):
-    return {
-        "version": 1,
-        "loggers": {
-            "root": LOGGER_DEFAULT,
-            "core": LOGGER_DEFAULT,
-            "cron": LOGGER_DEFAULT,
-            "cache": LOGGER_DEFAULT,
-            "service": LOGGER_DEFAULT,
-            "detect": LOGGER_DEFAULT,
-            "nodata": LOGGER_DEFAULT,
-            "access": LOGGER_DEFAULT,
-            "trigger": LOGGER_DEFAULT,
-            "event": LOGGER_DEFAULT,
-            "alert": LOGGER_DEFAULT,
-            "composite": LOGGER_DEFAULT,
-            "recovery": LOGGER_DEFAULT,
-            "preparation": LOGGER_DEFAULT,
-            "fta_action": LOGGER_DEFAULT,
-            "bkmonitor": LOGGER_DEFAULT,
-            "apm_ebpf": LOGGER_DEFAULT,
-            "apm": LOGGER_DEFAULT,
-            "data_source": LOGGER_DEFAULT,
-            "alarm_backends": LOGGER_DEFAULT,
-            "self_monitor": LOGGER_DEFAULT,
-            "calendars": LOGGER_DEFAULT,
-            "celery": LOGGER_DEFAULT,
-            "kubernetes": LOGGER_DEFAULT,
-            "metadata": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["metadata"]},
-            "image_exporter": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["image_exporter"]},
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "loggers": {
+        "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": LOGGER_LEVEL, "formatter": "standard"},
+        "file": {
+            "class": "logging.handlers.WatchedFileHandler",
+            "level": LOGGER_LEVEL,
+            "formatter": "standard",
+            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log"),
+            "encoding": "utf-8",
         },
-        "handlers": {
-            "console": {"class": "logging.StreamHandler", "level": "DEBUG", "formatter": "standard"},
-            "file": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel.log"),
-                "encoding": "utf-8",
-            },
-            "image_exporter": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel_image_exporter.log"),
-                "encoding": "utf-8",
-            },
-            "metadata": {
-                "class": "logging.handlers.WatchedFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": os.path.join(log_path, f"{log_file_prefix}kernel_metadata.log"),
-                "encoding": "utf-8",
-            },
-        },
-        "formatters": {
-            "standard": {
-                "format": (
-                    "%(asctime)s %(levelname)-8s %(process)-8d%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"
-                ),
-                "datefmt": "%Y-%m-%d %H:%M:%S",
-            }
-        },
-    }
+    },
+    "formatters": {
+        "standard": {
+            "format": ("%(asctime)s %(levelname)-8s %(process)-8d%(name)-15s %(filename)20s[%(lineno)03d] %(message)s"),
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        }
+    },
+}
 
-
-LOGGING = LOGGER_CONF = get_logger_config(LOG_PATH, LOGGER_LEVEL, LOG_FILE_PREFIX)
-
-if IS_CONTAINER_MODE:
-    for logger in LOGGING["loggers"]:
-        if "null" not in LOGGING["loggers"][logger]["handlers"]:
-            LOGGING["loggers"][logger]["handlers"] = ["console"]
-            LOGGING["loggers"][logger]["propagate"] = False
 
 # Consul
 (

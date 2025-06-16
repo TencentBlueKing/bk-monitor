@@ -55,27 +55,40 @@
 
         &:hover {
           .chart-title {
+            .title-name {
+              display: initial;
+            }
             .status-tab-view,
-            .title-icon-list {
+            .title-icon-list,
+            .hover-show {
               display: block !important;
             }
 
             .strategy-icon {
               display: flex !important;
+              min-width: 24px;
+            }
+            .more-icon {
+              margin-left: 0 !important;
             }
           }
         }
 
         .chart-title {
           .title-name {
-            // display: initial;
+            min-width: 40px;
+            display: initial;
           }
 
           .title-icon-list,
           .status-tab-view,
-          .strategy-icon {
-            // display: none !important;
-            // visibility: visible;
+          .strategy-icon,
+          .hover-show {
+            display: none !important;
+          }
+
+          .more-icon {
+            margin-left: auto !important;
           }
         }
 

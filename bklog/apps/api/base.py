@@ -619,6 +619,7 @@ class DataAPI:
         params=None,
         chunk_size=settings.BULK_REQUEST_LIMIT,
         get_data=lambda x: x["list"],
+        bk_tenant_id="",
     ):
         """
         并发请求接口，用于需要切片多次请求的情况
@@ -627,6 +628,7 @@ class DataAPI:
         :param params: 请求参数
         :param chunk_size: 一次请求数量
         :param get_data: 获取数据函数
+        :param bk_tenant_id: 租户ID
         :return: 请求结果
         """
         request_params = params or {}
@@ -646,7 +648,7 @@ class DataAPI:
                 pool.apply_async(
                     self.thread_activate_request,
                     args=(deepcopy(request_params),),
-                    kwds={"request": request, "context": get_current()},
+                    kwds={"request": request, "context": get_current(), "bk_tenant_id": bk_tenant_id},
                 )
             )
         for future in futures:
@@ -660,6 +662,7 @@ class DataAPI:
         get_data=lambda x: x["info"],
         get_count=lambda x: x["count"],
         limit=settings.BULK_REQUEST_LIMIT,
+        bk_tenant_id="",
     ):
         """
         并发请求接口，用于需要分页多次请求的情况
@@ -667,6 +670,7 @@ class DataAPI:
         :param get_data: 获取数据函数
         :param get_count: 获取总数函数
         :param limit: 一次请求数量
+        :param bk_tenant_id: 租户ID
         :return: 请求结果
         """
         params = params or {}
@@ -677,7 +681,7 @@ class DataAPI:
         else:
             request_params = {"page": {"start": 0, "limit": limit}, "no_request": True}
         request_params.update(params)
-        result = self.__call__(request_params)
+        result = self.__call__(request_params, bk_tenant_id=bk_tenant_id)
         count = get_count(result)
         data = get_data(result)
         start = limit
@@ -702,7 +706,7 @@ class DataAPI:
                 pool.apply_async(
                     self.thread_activate_request,
                     args=(request_params,),
-                    kwds={"request": request, "context": get_current()},
+                    kwds={"request": request, "context": get_current(), "bk_tenant_id": bk_tenant_id},
                 )
             )
             if self.pagination_style == pagination_style:
@@ -729,6 +733,7 @@ class DataAPI:
         request_cookies=True,
         request=None,
         context=None,
+        bk_tenant_id="",
     ):
         """
         处理并发请求无法activate_request的封装
@@ -743,6 +748,7 @@ class DataAPI:
             timeout=timeout,
             raise_exception=raise_exception,
             request_cookies=request_cookies,
+            bk_tenant_id=bk_tenant_id,
         )
 
 
@@ -758,6 +764,7 @@ DRF_DATAAPI_CONFIG = [
     "output_standard",
     "request_auth",
     "cache_time",
+    "bk_tenant_id",
 ]
 
 

@@ -56,6 +56,7 @@ interface ILayoutChartTableProps {
   panel?: IPanelModel;
   config?: IMetricAnalysisConfig;
   isShowStatisticalValue?: boolean;
+  groupId?: string;
 }
 interface ILayoutChartTableEvents {
   onResize?: number;
@@ -71,6 +72,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: true }) isShowStatisticalValue: boolean;
+  /** groupId */
+  @Prop({ default: '' }) groupId: string;
   // @Prop({ default: 600 }) height: number;
   @Prop({ default: 300 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
@@ -173,6 +176,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     });
     this.currentChart = {
       ...chart,
+      groupId: null, // 去除当前的group_id
       targets: [chart.targets[ind]],
     };
   }
@@ -375,6 +379,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
         // isShowLegend={true}
+        groupId={this.groupId}
         isShowLegend={!this.isShowStatisticalValue}
         isToolIconShow={this.isToolIconShow}
         panel={this.panel}

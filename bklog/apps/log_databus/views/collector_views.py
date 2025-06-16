@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import base64
 
 from django.conf import settings
@@ -38,8 +38,10 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import Environment, EtlConfig, OTLPProxyHostConfig
+from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig, Environment
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import HostCollectorHandler
+from apps.log_databus.handlers.collector import K8sCollectorHandler
 from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
@@ -58,13 +60,8 @@ from apps.log_databus.serializers import (
     CollectorRegexDebugSerializer,
     CollectorUpdateSerializer,
     ContainerCollectorConfigToYamlSerializer,
-    CreateContainerCollectorSerializer,
     CustomCreateSerializer,
     CustomUpdateSerializer,
-    FastCollectorCreateSerializer,
-    FastCollectorUpdateSerializer,
-    FastContainerCollectorCreateSerializer,
-    FastContainerCollectorUpdateSerializer,
     GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
@@ -80,7 +77,6 @@ from apps.log_databus.serializers import (
     TaskDetailSerializer,
     TaskStatusSerializer,
     UpdateAliasSettingsSerializers,
-    UpdateContainerCollectorSerializer,
     ValidateContainerCollectorYamlSerializer,
 )
 from apps.log_search.constants import (
@@ -533,7 +529,7 @@ class CollectorViewSet(ModelViewSet):
             "index_split_rule": ""
         }
         """
-        return Response(CollectorHandler(collector_config_id=collector_config_id).retrieve())
+        return Response(CollectorHandler.get_instance(collector_config_id).retrieve())
 
     def create(self, request, *args, **kwargs):
         """
@@ -655,12 +651,9 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(CreateContainerCollectorSerializer)
-            return Response(CollectorHandler().create_container_config(data))
-
-        data = self.params_valid(CollectorCreateSerializer)
-        return Response(CollectorHandler().update_or_create(data))
+        handler = CollectorHandler.get_instance(env=request.data.get("environment"))
+        data = self.params_valid(handler.CREATE_SERIALIZER)
+        return Response(handler.update_or_create(data))
 
     def update(self, request, *args, collector_config_id=None, **kwargs):
         """
@@ -818,12 +811,9 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(UpdateContainerCollectorSerializer)
-            return Response(CollectorHandler(collector_config_id=collector_config_id).update_container_config(data))
-
-        data = self.params_valid(CollectorUpdateSerializer)
-        return Response(CollectorHandler(collector_config_id=collector_config_id).update_or_create(data))
+        handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
+        data = self.params_valid(handler.UPDATE_SERIALIZER)
+        return Response(handler.update_or_create(data))
 
     def destroy(self, request, *args, collector_config_id=None, **kwargs):
         """
@@ -840,7 +830,7 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(CollectorHandler(collector_config_id=collector_config_id).destroy())
+        return Response(CollectorHandler.get_instance(collector_config_id).destroy())
 
     @list_route(methods=["GET"], url_path="batch_subscription_status")
     def batch_subscription_status(self, request):
@@ -955,7 +945,7 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.validated_data
         task_id_list = [task_id for task_id in data.get("task_id_list", "").split(",") if task_id]
-        return Response(CollectorHandler(collector_config_id).get_task_status(task_id_list))
+        return Response(CollectorHandler.get_instance(collector_config_id).get_task_status(task_id_list))
 
     @detail_route(methods=["GET"], url_path="task_detail")
     def task_detail(self, request, collector_config_id=None):
@@ -989,7 +979,7 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.validated_data
         return Response(
-            CollectorHandler(collector_config_id).get_subscription_task_detail(
+            HostCollectorHandler(collector_config_id).get_subscription_task_detail(
                 data["instance_id"], task_id=data.get("task_id")
             )
         )
@@ -1021,7 +1011,9 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.validated_data
         return Response(
-            CollectorHandler(collector_config_id=collector_config_id).retry_instances(data["instance_id_list"])
+            CollectorHandler.get_instance(collector_config_id=collector_config_id).retry_instances(
+                data["instance_id_list"]
+            )
         )
 
     @detail_route(methods=["GET"], url_path="subscription_status")
@@ -1085,7 +1077,7 @@ class CollectorViewSet(ModelViewSet):
             "result":true
         }
         """
-        return Response(CollectorHandler(collector_config_id).get_subscription_status())
+        return Response(CollectorHandler.get_instance(collector_config_id).get_subscription_status())
 
     @detail_route(methods=["GET"], url_path="tail")
     def tail(self, request, collector_config_id=None):
@@ -1168,7 +1160,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.validated_data
-        result = CollectorHandler(collector_config_id).run(action=data.get("action"), scope=data.get("scope"))
+        result = HostCollectorHandler(collector_config_id).run(action=data.get("action"), scope=data.get("scope"))
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="start")
@@ -1187,7 +1179,7 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(CollectorHandler(collector_config_id=collector_config_id).start())
+        return Response(CollectorHandler.get_instance(collector_config_id).start())
 
     @detail_route(methods=["POST"], url_path="stop")
     def stop(self, request, collector_config_id=None):
@@ -1205,7 +1197,7 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(CollectorHandler(collector_config_id=collector_config_id).stop())
+        return Response(CollectorHandler.get_instance(collector_config_id).stop())
 
     @detail_route(methods=["POST"])
     def etl_preview(self, request, collector_config_id=None):
@@ -1554,7 +1546,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CollectorCreateSerializer)
-        return Response(CollectorHandler().only_create_or_update_model(data))
+        return Response(HostCollectorHandler().only_create_or_update_model(data))
 
     @detail_route(methods=["post"])
     def only_update(self, request, *args, collector_config_id=None, **kwargs):
@@ -1649,7 +1641,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CollectorUpdateSerializer)
-        return Response(CollectorHandler(collector_config_id=collector_config_id).only_create_or_update_model(data))
+        return Response(HostCollectorHandler(collector_config_id=collector_config_id).only_create_or_update_model(data))
 
     @detail_route(methods=["GET"], url_path="indices_info")
     def indices_info(self, request, *args, collector_config_id, **kwargs):
@@ -1711,7 +1703,7 @@ class CollectorViewSet(ModelViewSet):
         ]
         """
         data = self.params_valid(ListCollectorsByHostSerializer)
-        return Response(CollectorHandler().list_collectors_by_host(data))
+        return Response(HostCollectorHandler().list_collectors_by_host(data))
 
     @detail_route(methods=["GET"])
     def clean_stash(self, request, *args, collector_config_id=None, **kwarg):
@@ -2042,7 +2034,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CustomUpdateSerializer)
-        return Response(CollectorHandler(collector_config_id).custom_update(**data))
+        return Response(CollectorHandler.get_instance(collector_config_id).custom_update(**data))
 
     @list_route(methods=["GET"], url_path="pre_check")
     def pre_check(self, request):
@@ -2099,7 +2091,7 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(ListBCSCollectorSerializer)
         return Response(
-            CollectorHandler().list_bcs_collector(
+            K8sCollectorHandler().list_bcs_collector(
                 bcs_cluster_id=data["bcs_cluster_id"],
                 bk_biz_id=data.get("bk_biz_id"),
                 bk_app_code=auth_info["bk_app_code"],
@@ -2113,7 +2105,7 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(GetBCSCollectorStorageSerializer)
         return Response(
-            CollectorHandler().get_bcs_collector_storage(
+            K8sCollectorHandler().get_bcs_collector_storage(
                 bcs_cluster_id=data["bcs_cluster_id"],
                 bk_biz_id=data.get("bk_biz_id"),
             )
@@ -2126,7 +2118,7 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(ListBCSCollectorWithoutRuleSerializer)
         return Response(
-            CollectorHandler.list_bcs_collector_without_rule(
+            K8sCollectorHandler.list_bcs_collector_without_rule(
                 bcs_cluster_id=data["bcs_cluster_id"],
                 bk_biz_id=data.get("bk_biz_id"),
             )
@@ -2138,7 +2130,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
-        handler = CollectorHandler()
+        handler = K8sCollectorHandler()
         result = handler.create_bcs_container_config(data=data, bk_app_code=auth_info["bk_app_code"])
         handler.sync_bcs_container_bkdata_id(result)
         handler.sync_bcs_container_task(result)
@@ -2152,7 +2144,7 @@ class CollectorViewSet(ModelViewSet):
         data = self.params_valid(BCSCollectorSerializer)
         rule_id = int(collector_config_id)
         return Response(
-            CollectorHandler().update_bcs_container_config(
+            K8sCollectorHandler().update_bcs_container_config(
                 data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
             )
         )
@@ -2163,7 +2155,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         rule_id = int(collector_config_id)
-        return Response(CollectorHandler().retry_bcs_config(rule_id=rule_id))
+        return Response(K8sCollectorHandler().retry_bcs_config(rule_id=rule_id))
 
     @detail_route(methods=["DELETE"], url_path="delete_bcs_collector")
     def delete_bcs_collector(self, request, collector_config_id=None):
@@ -2171,7 +2163,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         rule_id = collector_config_id
-        return Response(CollectorHandler().delete_bcs_config(rule_id=rule_id))
+        return Response(K8sCollectorHandler().delete_bcs_config(rule_id=rule_id))
 
     @detail_route(methods=["POST"], url_path="start_bcs_collector")
     def start_bcs_collector(self, request, collector_config_id=None):
@@ -2179,7 +2171,7 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         rule_id = int(collector_config_id)
-        return Response(CollectorHandler().start_bcs_config(rule_id=rule_id))
+        return Response(K8sCollectorHandler().start_bcs_config(rule_id=rule_id))
 
     @detail_route(methods=["POST"], url_path="stop_bcs_collector")
     def stop_bcs_collector(self, request, collector_config_id=None):
@@ -2187,22 +2179,22 @@ class CollectorViewSet(ModelViewSet):
         if not auth_info:
             raise BkJwtVerifyException()
         rule_id = int(collector_config_id)
-        return Response(CollectorHandler().stop_bcs_config(rule_id=rule_id))
+        return Response(K8sCollectorHandler().stop_bcs_config(rule_id=rule_id))
 
     @list_route(methods=["GET"], url_path="list_bcs_clusters")
     def list_bcs_clusters(self, request):
         bk_biz_id = request.GET.get("bk_biz_id")
-        return Response(CollectorHandler().list_bcs_clusters(bk_biz_id=bk_biz_id))
+        return Response(K8sCollectorHandler().list_bcs_clusters(bk_biz_id=bk_biz_id))
 
     @list_route(methods=["GET"], url_path="list_workload_type")
     def list_workload_type(self, request):
-        return Response(CollectorHandler().list_workload_type())
+        return Response(K8sCollectorHandler().list_workload_type())
 
     @list_route(methods=["GET"], url_path="list_namespace")
     def list_namespace(self, request):
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
         bk_biz_id = request.GET.get("bk_biz_id")
-        return Response(CollectorHandler().list_namespace(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id))
+        return Response(K8sCollectorHandler().list_namespace(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id))
 
     @list_route(methods=["GET"], url_path="list_topo")
     def list_topo(self, request):
@@ -2211,7 +2203,7 @@ class CollectorViewSet(ModelViewSet):
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
         namespace = request.GET.get("namespace", "")
         return Response(
-            CollectorHandler().list_topo(
+            K8sCollectorHandler().list_topo(
                 topo_type=topo_type, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, namespace=namespace
             )
         )
@@ -2223,7 +2215,7 @@ class CollectorViewSet(ModelViewSet):
         namespace = request.GET.get("namespace")
         name = request.GET.get("name")
         return Response(
-            CollectorHandler().get_labels(
+            K8sCollectorHandler().get_labels(
                 topo_type=topo_type, bcs_cluster_id=bcs_cluster_id, namespace=namespace, name=name
             )
         )
@@ -2280,7 +2272,7 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(PreviewContainersSerializer)
         return Response(
-            CollectorHandler().preview_containers(
+            K8sCollectorHandler().preview_containers(
                 topo_type=data["type"],
                 bk_biz_id=data["bk_biz_id"],
                 bcs_cluster_id=data["bcs_cluster_id"],
@@ -2298,7 +2290,7 @@ class CollectorViewSet(ModelViewSet):
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
         namespace = request.GET.get("namespace")
         return Response(
-            CollectorHandler().get_workload(
+            K8sCollectorHandler().get_workload(
                 workload_type=workload_type, bcs_cluster_id=bcs_cluster_id, namespace=namespace
             )
         )
@@ -2307,7 +2299,7 @@ class CollectorViewSet(ModelViewSet):
     def validate_container_config_yaml(self, request):
         data = self.params_valid(ValidateContainerCollectorYamlSerializer)
         return Response(
-            CollectorHandler().validate_container_config_yaml(
+            K8sCollectorHandler().validate_container_config_yaml(
                 data["bk_biz_id"], data["bcs_cluster_id"], data["yaml_config"]
             )
         )
@@ -2390,12 +2382,9 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(FastContainerCollectorCreateSerializer)
-            return Response(CollectorHandler().fast_contain_create(data))
-
-        data = self.params_valid(FastCollectorCreateSerializer)
-        return Response(CollectorHandler().fast_create(data))
+        handler = CollectorHandler.get_instance(env=request.data.get("environment", Environment.LINUX))
+        data = self.params_valid(handler.FAST_CREATE_SERIALIZER)
+        return Response(handler.fast_create(data))
 
     @detail_route(methods=["POST"])
     def fast_update(self, request, collector_config_id):
@@ -2467,18 +2456,16 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        if request.data.get("environment") == Environment.CONTAINER:
-            data = self.params_valid(FastContainerCollectorUpdateSerializer)
-            return Response(CollectorHandler(collector_config_id).fast_contain_update(data))
-        data = self.params_valid(FastCollectorUpdateSerializer)
-        return Response(CollectorHandler(collector_config_id).fast_update(data))
+        handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
+        data = self.params_valid(handler.FAST_UPDATE_SERIALIZER)
+        return Response(handler.fast_update(data))
 
     @list_route(methods=["POST"], url_path="container_configs_to_yaml")
     def container_configs_to_yaml(self, request):
         data = self.params_valid(ContainerCollectorConfigToYamlSerializer)
         return Response(
             base64.b64encode(
-                CollectorHandler.container_dict_configs_to_yaml(
+                K8sCollectorHandler.container_dict_configs_to_yaml(
                     container_configs=data["configs"],
                     add_pod_label=data["add_pod_label"],
                     add_pod_annotation=data["add_pod_annotation"],
@@ -2504,7 +2491,7 @@ class CollectorViewSet(ModelViewSet):
 
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
-        return Response(CollectorHandler.search_object_attribute())
+        return Response(HostCollectorHandler.search_object_attribute())
 
     @list_route(methods=["GET"], url_path="proxy_host_info")
     def get_proxy_host_info(self, request):
@@ -2538,14 +2525,15 @@ class CollectorViewSet(ModelViewSet):
         params = self.params_valid(ProxyHostSerializer)
 
         proxy_host_info = []
-        # 云区域为 0 的地址
         report_url_list = []
+        # 云区域为 0 的地址
         conf = FeatureToggleObject.toggle(BK_CUSTOM_REPORT).feature_config
+
         for item in conf.get("otlp", {}).get("0", []):
             protocol, report_url = item.split(":", maxsplit=1)
-            report_url_list.append({"bk_cloud_id": 0, "protocol": protocol, "report_url": report_url.strip()})
+            report_url_list.append({"protocol": protocol, "report_url": report_url.strip()})
         if report_url_list:
-            proxy_host_info.append(report_url_list)
+            proxy_host_info.append({"bk_cloud_id": 0, "urls": report_url_list})
 
         space = SpaceApi.get_related_space(params.get("space_uid"), SpaceTypeEnum.BKCC.value)
         if not space or not space.bk_biz_id:
@@ -2559,19 +2547,21 @@ class CollectorViewSet(ModelViewSet):
             if bk_cloud_id == 0:
                 continue
             ip = host.get("conn_ip") or host.get("inner_ip")
-            report_url_list = [
+            proxy_host_info.append(
                 {
                     "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.GRPC,
-                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
-                },
-                {
-                    "bk_cloud_id": bk_cloud_id,
-                    "protocol": OTLPProxyHostConfig.HTTP,
-                    "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
-                },
-            ]
-            proxy_host_info.append(report_url_list)
+                    "urls": [
+                        {
+                            "protocol": OTLPProxyHostConfig.GRPC,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.GRPC_TRACE_PATH,
+                        },
+                        {
+                            "protocol": OTLPProxyHostConfig.HTTP,
+                            "report_url": OTLPProxyHostConfig.HTTP_SCHEME + ip + OTLPProxyHostConfig.HTTP_TRACE_PATH,
+                        },
+                    ],
+                }
+            )
 
         return Response(proxy_host_info)
 

@@ -622,13 +622,18 @@ class SearchHandler:
             once_size = MAX_RESULT_WINDOW
             self.size = MAX_RESULT_WINDOW
 
-        # 预查询
-        result = self._multi_search(once_size=once_size, pre_search=True)
+        # 有聚合时、预查询设置为0时, 不启用预查询
         time_difference = 0
-        if self.start_time and self.end_time:
-            # 计算时间差
-            time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
-        if len(result["hits"]["hits"]) != self.size and time_difference > settings.PRE_SEARCH_SECONDS:
+        if self.aggs or settings.PRE_SEARCH_SECONDS == 0:
+            pre_search = False
+        else:
+            pre_search = True
+            if self.start_time and self.end_time:
+                # 计算时间差
+                time_difference = (arrow.get(self.end_time) - arrow.get(self.start_time)).total_seconds()
+        # 预查询
+        result = self._multi_search(once_size=once_size, pre_search=pre_search)
+        if pre_search and len(result["hits"]["hits"]) != self.size and time_difference > settings.PRE_SEARCH_SECONDS:
             # 全量查询
             result = self._multi_search(once_size=once_size)
 
@@ -1484,7 +1489,7 @@ class SearchHandler:
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("-rank", "-created_at")
-                    .values("id", "params", "search_mode")
+                    .values("id", "params", "search_mode", "created_by", "created_at")
                 )
             else:
                 history_obj = (
@@ -1872,7 +1877,7 @@ class SearchHandler:
                 )
             self.origin_scenario_id = self.index_set.scenario_id
             # 增加判定逻辑：如果 search_dict 中的 keyword 字符串包含 "__dist_05"，也要走clustering的路由
-            if "__dist_05" in self.search_dict.get("keyword", ""):
+            if self.search_dict.get("keyword") and "__dist_05" in self.search_dict["keyword"]:
                 if clustered_rt := self._get_clustering_config_clustered_rt():
                     return clustered_rt
 
@@ -3182,3 +3187,60 @@ class UnionSearchHandler:
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
         ]
+
+    @property
+    def index_sets(self):
+        if not hasattr(self, "_index_sets"):
+            self._index_sets = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
+        return self._index_sets
+
+    def pre_get_result(self, size: int):
+        """
+        pre_get_result
+        @param size:
+        @return:
+        """
+        if not self.index_sets:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
+            )
+
+        # 构建请求参数
+        params = {
+            "ip_chooser": self.search_dict.get("ip_chooser"),
+            "bk_biz_id": self.search_dict.get("bk_biz_id"),
+            "addition": self.search_dict.get("addition"),
+            "start_time": self.search_dict.get("start_time"),
+            "end_time": self.search_dict.get("end_time"),
+            "time_range": self.search_dict.get("time_range"),
+            "keyword": self.search_dict.get("keyword"),
+            "size": size,
+            "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
+        }
+
+        multi_execute_func = MultiExecuteFunc()
+        for index_set_id in self.index_set_ids:
+            search_dict = copy.deepcopy(params)
+            search_dict["begin"] = self.search_dict.get("begin", 0)
+            search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+            search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
+            search_handler = SearchHandler(
+                index_set_id=index_set_id,
+                search_dict=search_dict,
+                export_fields=self.search_dict.get("export_fields", []),
+            )
+            if search_handler.scenario_id == Scenario.ES:
+                search_handler.scroll = SCROLL
+            multi_execute_func.append(f"union_search_{index_set_id}", search_handler.search)
+
+        # 执行线程
+        multi_result = multi_execute_func.run(return_exception=True)
+        for index_set_id in self.index_set_ids:
+            ret = multi_result.get(f"union_search_{index_set_id}")
+            if isinstance(ret, Exception):
+                # 子查询异常
+                raise UnionSearchErrorException(
+                    UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
+                )
+        return multi_result

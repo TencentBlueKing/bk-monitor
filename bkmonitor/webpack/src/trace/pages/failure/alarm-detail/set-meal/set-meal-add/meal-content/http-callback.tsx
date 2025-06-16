@@ -26,7 +26,8 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Button, Checkbox, Input, Radio, Select, Switcher, Table } from 'bkui-vue';
+import { PrimaryTable } from '@blueking/tdesign-ui';
+import { Button, Checkbox, Input, Radio, Select, Switcher } from 'bkui-vue';
 import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 
 import CommonItem from '../components/common-item';
@@ -74,13 +75,13 @@ export default defineComponent({
     const localHeaderInfo = ref<IHeaderInfo[]>([
       {
         key: 'Params',
-        name: `${window.i18n.t('参数')}`,
+        name: `${t('参数')}`,
         desc: '',
         value: [],
       },
       {
         key: 'Authorization',
-        name: `${window.i18n.t('认证')}`,
+        name: `${t('认证')}`,
         desc: '',
         type: 'none',
         bearer_token: { token: '' },
@@ -88,14 +89,14 @@ export default defineComponent({
       },
       {
         key: 'Headers',
-        name: `${window.i18n.t('头信息')}`,
+        name: `${t('头信息')}`,
         desc: '',
         hide: true,
         value: [],
       },
       {
         key: 'Body',
-        name: `${window.i18n.t('主体')}`,
+        name: `${t('主体')}`,
         desc: '',
         type: 'default',
         form_data: [],
@@ -104,7 +105,7 @@ export default defineComponent({
       },
       {
         key: 'Seting',
-        name: `${window.i18n.t('设置')}`,
+        name: `${t('设置')}`,
         desc: '',
         value: {
           timeout: 10,
@@ -118,48 +119,48 @@ export default defineComponent({
 
     const methodList = ref(['POST', 'GET']);
     const authRadioList = ref<ISelectListItem[]>([
-      { id: 'none', name: `${window.i18n.t('无需认证')}` },
+      { id: 'none', name: `${t('无需认证')}` },
       { id: 'bearer_token', name: 'Bearer Token' },
       { id: 'basic_auth', name: 'Basic Auth' },
     ]);
     const BodyRadioList = ref<ISelectListItem[]>([
-      { id: 'default', name: `${window.i18n.t('默认')}` },
+      { id: 'default', name: `${t('默认')}` },
       { id: 'form_data', name: 'form-data' },
       { id: 'x_www_form_urlencoded', name: 'x-www-form-urlencoded' },
       { id: 'raw', name: 'raw' },
     ]);
 
     const setingInputList = ref<ISelectListItem[]>([
-      { id: 'timeout', name: `${window.i18n.t('请求超时')}`, unit: 's' },
-      { id: 'retryInterval', name: `${window.i18n.t('重试间隔')}`, unit: 's' },
-      { id: 'maxRetryTimes', name: `${window.i18n.t('重试次数')}`, unit: `${window.i18n.t('次')}` },
-      { id: 'needPoll', name: `${window.i18n.t('是否周期回调')}`, unit: '' },
-      { id: 'notifyInterval', name: `${window.i18n.t('回调间隔')}`, unit: `${window.i18n.t('分钟')}` },
+      { id: 'timeout', name: `${t('请求超时')}`, unit: 's' },
+      { id: 'retryInterval', name: `${t('重试间隔')}`, unit: 's' },
+      { id: 'maxRetryTimes', name: `${t('重试次数')}`, unit: `${t('次')}` },
+      { id: 'needPoll', name: `${t('是否周期回调')}`, unit: '' },
+      { id: 'notifyInterval', name: `${t('回调间隔')}`, unit: `${t('分钟')}` },
     ]);
 
     const paramTableColumns = ref([
-      { label: '', field: 'isEnabled', prop: 'isEnabled', width: 31, minWidth: 31 },
-      { label: `${window.i18n.t('字段名')}`, prop: 'key', field: 'key' },
-      { label: `${window.i18n.t('值')}`, prop: 'value', field: 'value' },
-      { label: `${window.i18n.t('描述')}`, prop: 'desc', field: 'desc' },
-      { label: '', prop: 'handle', width: 48, minWidth: 48, field: 'handle' },
+      { title: '', field: 'isEnabled', colKey: 'isEnabled', width: 31, minWidth: 31 },
+      { title: `${t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
     const headersTableColumns = ref([
-      { label: '', prop: 'isEnabled', field: 'isEnabled', width: 31, minWidth: 31, type: 'selection' },
-      { label: `${window.i18n.t('字段名')}`, prop: 'key', field: 'key' },
-      { label: `${window.i18n.t('值')}`, prop: 'value', field: 'value' },
-      { label: `${window.i18n.t('描述')}`, prop: 'desc', field: 'desc' },
-      { label: '', prop: 'handle', width: 48, minWidth: 48, field: 'handle' },
+      { title: '', colKey: 'isEnabled', field: 'isEnabled', width: 31, minWidth: 31, type: 'selection' },
+      { title: `${t('字段名')}`, colKey: 'key', field: 'key' },
+      { title: `${t('值')}`, colKey: 'value', field: 'value' },
+      { title: `${t('描述')}`, colKey: 'desc', field: 'desc' },
+      { title: '', colKey: 'handle', width: 48, minWidth: 48, field: 'handle' },
     ]);
 
     const headerHideTips = ref({
       true: {
         placement: 'top',
-        content: `${window.i18n.t('点击展开全部')}`,
+        content: `${t('点击展开全部')}`,
       },
       false: {
         placement: 'top',
-        content: `${window.i18n.t('点击隐藏默认')}`,
+        content: `${t('点击隐藏默认')}`,
       },
     });
     /**
@@ -390,7 +391,7 @@ export default defineComponent({
       if (content && type === 'json') {
         try {
           JSON.parse(content);
-        } catch (error) {
+        } catch {
           errorMsg = t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
         }
       }
@@ -417,9 +418,8 @@ export default defineComponent({
      */
     const paramInputScopedSlots = (data, changeFn?, deleteFn?) => {
       return {
-        default: row => {
-          const { index } = row;
-          const prop = row.column.field;
+        default: (_, { rowIndex: index, col }) => {
+          const prop = col.field;
           const item = data[index];
           const isEmpty = rowIsEmpty(item);
           const handleChecked = () => {
@@ -553,11 +553,11 @@ export default defineComponent({
       const scopedSlots = paramInputScopedSlots(data, paramInput, handleDel);
       const columns = [];
       paramTableColumns.value.forEach(column => {
-        columns.push({ ...column, render: scopedSlots.default });
+        columns.push({ ...column, cell: scopedSlots.default });
       });
       return (
         <div class='header-content header-params'>
-          <Table
+          <PrimaryTable
             columns={columns}
             data={data}
           />
@@ -601,7 +601,7 @@ export default defineComponent({
               {isHide ? <span>{t('已隐藏{count}项', { count: hideCount })}</span> : <span>{t('已展开全部')}</span>}
             </div>
           ) : undefined}
-          <Table
+          <PrimaryTable
             columns={columns}
             data={temp}
           />
@@ -684,6 +684,7 @@ export default defineComponent({
                   default: () => {
                     return [
                       <Input
+                        key='content-textarea'
                         class='textarea'
                         v-model={data.content}
                         disabled={!props.isEdit}
@@ -702,7 +703,7 @@ export default defineComponent({
             </div>
           ) : undefined}
           {isTable ? (
-            <Table
+            <PrimaryTable
               class='table'
               columns={columns}
               data={data}
@@ -819,6 +820,7 @@ export default defineComponent({
       urlFocus,
       urlChange,
       methodChange,
+      t,
     };
   },
   render() {
@@ -859,7 +861,7 @@ export default defineComponent({
                       class='url-input'
                       v-model={this.httpData.url}
                       behavior='simplicity'
-                      placeholder={this.$t('输入请求 URL')}
+                      placeholder={this.t('输入请求 URL')}
                       onChange={this.urlChange}
                       onFocus={this.urlFocus}
                     />
@@ -913,14 +915,14 @@ export default defineComponent({
                 outline
                 onClick={this.handleDebug}
               >
-                {this.$t('调试')}
+                {this.t('调试')}
               </Button>
             )}
             {this.isEdit ? (
               <div class='sensitivity-failure-judgment'>
                 <CommonItem
                   class='failure'
-                  title={this.$t('失败判断')}
+                  title={this.t('失败判断')}
                 >
                   <i18n
                     class='failure-text'
@@ -942,7 +944,7 @@ export default defineComponent({
                   style={{ marginTop: '16px' }}
                   class='content-form-item'
                 >
-                  <div class='form-item-label'>{this.$t('失败处理')}</div>
+                  <div class='form-item-label'>{this.t('失败处理')}</div>
                   <div class='form-item-content'>
                     <i18n
                       class='failure-text'
