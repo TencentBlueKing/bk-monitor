@@ -116,7 +116,10 @@ export default class GuidePage extends tsc<IGuidePageProps> {
             {subTitle && <div class='guide-subtitle'>{this.$t(subTitle)}</div>}
             <ul class='guide-tips'>
               {introduce.map((item, index) => (
-                <li class='guide-tips-item'>
+                <li
+                  key={index}
+                  class='guide-tips-item'
+                >
                   {index + 1}. {this.$t(item)}
                 </li>
               ))}
@@ -125,6 +128,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
               {buttons.map(item =>
                 !(item.name === SPACE_DEMO_NAME && !this.demoBiz) ? (
                   <bk-button
+                    key={item.name}
                     theme={item.name === SPACE_DEMO_NAME ? 'default' : 'primary'}
                     onClick={() => this.handleBtnClick(item)}
                   >
@@ -138,8 +142,9 @@ export default class GuidePage extends tsc<IGuidePageProps> {
                 <div class='link-title'>{this.$t('文档链接')}</div>
                 <div class='link-list'>
                   {links.map(item =>
-                    !!item.url ? (
+                    item.url ? (
                       <span
+                        key={item.name}
                         class='link-item'
                         onClick={() => this.handleGotoLink(item)}
                       >

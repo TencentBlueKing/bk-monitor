@@ -187,7 +187,7 @@ class ClusteringMonitorHandler:
 
         labels = DEFAULT_LABEL.copy()
         labels += [f"LogClustering/Count/{label_index_set_id}"]
-        name = _("{} - 日志数量突增异常告警").format(self.index_set.index_set_name)
+        name = f"{self.index_set.index_set_name} - 日志数量突增异常告警"
         args = {
             "$alert_down": "1",
             "$sensitivity": params.get("sensitivity", 5),
@@ -354,11 +354,16 @@ class ClusteringMonitorHandler:
         labels = [f"LogClustering/Count/{label_index_set_id}"]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
-            interval = algorithms_config["config"]["args"].get("$new_class_interval", "")
-            threshold = algorithms_config["config"]["args"].get("$new_class_alert_th", "")
+            interval = ""
+            threshold = ""
+            if isinstance(algorithms_config["config"], dict):
+                interval = algorithms_config["config"].get("args", {}).get("$new_class_interval", "")
+                threshold = algorithms_config["config"].get("args", {}).get("$new_class_alert_th", "")
             data.update({"interval": interval, "threshold": threshold})
         else:
-            sensitivity = algorithms_config["config"]["args"].get("$sensitivity", "")
+            sensitivity = ""
+            if isinstance(algorithms_config["config"], dict):
+                sensitivity = algorithms_config["config"].get("args", {}).get("$sensitivity", "")
             data.update({"sensitivity": sensitivity})
         return data
 

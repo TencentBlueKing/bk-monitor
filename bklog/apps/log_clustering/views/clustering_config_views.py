@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import re
 
 from pipeline.service import task_service
@@ -30,7 +30,6 @@ from apps.generic import APIViewSet
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringDebugSerializer,
@@ -105,10 +104,6 @@ class ClusteringConfigViewSet(APIViewSet):
     @detail_route(methods=["GET"], url_path="start")
     def start(self, request, *args, index_set_id=None, **kwargs):
         return Response(ClusteringConfigHandler(index_set_id=index_set_id).online_start())
-
-    @detail_route(methods=["GET"], url_path="offline_start")
-    def offline_start(self, request, *args, index_set_id=None, **kwargs):
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).start())
 
     @list_route(methods=["GET"], url_path="pipeline/state")
     def get_pipeline_state(self, request, *args, **kwargs):
@@ -332,6 +327,8 @@ class ClusteringConfigViewSet(APIViewSet):
             ClusteringConfigHandler().debug(
                 input_data=params["input_data"],
                 predefined_varibles=params["predefined_varibles"],
+                delimeter=params["delimeter"],
+                max_log_length=params["max_log_length"],
             )
         )
 

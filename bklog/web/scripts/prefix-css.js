@@ -37,7 +37,10 @@ postcss([
           if (/^\.(tippy-|bk-tooltip-|bk-option-|bk-select-search-input|bk-select-dropdown-)/.test(selector)) {
             return selector;
           }
-          return `.monitor-trace-log ${selector}`;
+          // if (/^\.(bk-form-|bk-input-|bk-button-|bk-select-dropdown-)/.test(selector)) {
+          //   return `.monitor-trace-log ${selector}, .tippy-content ${selector}`;
+          // }
+          return `.tippy-content ${selector}, .monitor-trace-log ${selector}`;
         });
       });
     };

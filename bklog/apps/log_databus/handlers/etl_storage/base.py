@@ -454,7 +454,7 @@ class EtlStorage:
         :param alias_settings: 别名配置
         :param total_shards_per_node: 每个节点的分片总数
         """
-        from apps.log_databus.handlers.collector import build_result_table_id
+        from apps.log_databus.handlers.collector import CollectorHandler
 
         # ES 配置
         es_config = get_es_config(instance.get_bk_biz_id())
@@ -496,7 +496,7 @@ class EtlStorage:
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
-            "table_id": build_result_table_id(instance.get_bk_biz_id(), table_id),
+            "table_id": CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_id),
             "is_enable": True,
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,
@@ -839,7 +839,7 @@ class EtlStorage:
                     "label": "label60f0af",
                     "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
                     "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
-                    "default_type": "null",
+                    "default_type": "text",
                     "default_value": "",
                     "next": {
                         "type": "assign",

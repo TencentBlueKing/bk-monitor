@@ -279,7 +279,7 @@ class BaseQuery:
             key = cls._translate_field(f["key"])
             # 更新 q，叠加查询条件
             if operator == LogicSupportOperator.LOGIC:
-                cls._add_logic_filter(q, key, f["value"])
+                q = cls._add_logic_filter(q, key, f["value"])
             else:
                 q = FilterOperator.get_handler(operator)(q, operator, key, f["value"], f.get("options", {}))
         return q

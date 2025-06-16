@@ -158,6 +158,15 @@
       background: transparent;
     }
 
+    &.show-kind-icon {
+      padding-left: 8px;
+
+      .kind-icon {
+        margin-right: 5px;
+        font-size: 14px;
+      }
+    }
+
     &:focus {
       text-decoration: none;
     }
@@ -407,56 +416,33 @@
 
 .bk-popover.span-error-icon {
   padding: 0;
-  background: #333;
+  background: #000000cc;
 
   .span-row-content-popover {
-    width: 640px;
-    padding: 6px 12px 10px;
+    min-width: 102px;
+    max-width: 500px;
+    padding: 12px;
     font-size: 12px;
 
     &-title {
       margin-bottom: 8px;
       font-weight: 700;
       line-height: 16px;
-      color: #fafbfd;
+      color: #ffffff;
+
+      .icon-mc-copy {
+        margin-left: 4px;
+        color: #699df4;
+        cursor: pointer;
+      }
     }
 
     &-main {
-      .popover-main-item {
-        display: flex;
-        padding-right: 8px;
-        line-height: 24px;
-
-        &:nth-child(odd) {
-          background: #404040;
-        }
-
-        .content-item-key {
-          display: inline-block;
-          flex-shrink: 0;
-          width: 128px;
-          color: #c4c6cc;
-          text-align: right;
-          word-break: break-all;
-        }
-
-        .content-item-colon {
-          display: inline-flex;
-          flex-shrink: 0;
-          align-items: flex-start;
-          margin-right: 6px;
-          margin-left: 2px;
-          color: #c4c6cc;
-        }
-
-        .content-item-value {
-          display: inline-block;
-          flex: 1;
-          min-width: 0;
-          color: #fafbfd;
-          word-break: break-all;
-        }
-      }
+      line-height: 20px;
+      color: #f0f1f5;
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: normal;
     }
   }
 }

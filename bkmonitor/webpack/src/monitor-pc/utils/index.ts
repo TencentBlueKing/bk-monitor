@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
 import type { IOption } from '../pages/monitor-k8s/typings';
-import type { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import type { IMetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符

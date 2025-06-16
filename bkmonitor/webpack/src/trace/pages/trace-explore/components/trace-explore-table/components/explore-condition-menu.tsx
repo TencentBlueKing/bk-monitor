@@ -24,27 +24,36 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, useTemplateRef } from 'vue';
+import { defineComponent, type PropType, useTemplateRef, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { Tippy } from 'vue-tippy';
 
-import { Popover } from 'bkui-vue';
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod, EMode } from '../../../../../components/retrieval-filter/typing';
 import { safeParseJsonValueForWhere } from '../../../utils';
 
+import type { ExploreConditionMenuItem } from '../typing';
+import type { SlotReturnValue } from 'tdesign-vue-next';
+
 import './explore-condition-menu.scss';
 
 export default defineComponent({
   name: 'ExploreConditionMenu',
   props: {
+    /** 当前选中的条件key值 */
     conditionKey: {
       type: String,
     },
+    /** 当前选中的条件value值 */
     conditionValue: {
       type: String,
+    },
+    customMenuList: {
+      type: Array as PropType<ExploreConditionMenuItem[]>,
+      default: () => [],
     },
   },
   emits: ['conditionChange', 'menuClick'],
@@ -55,7 +64,7 @@ export default defineComponent({
 
     const menuRef = useTemplateRef<HTMLElement>('menuRef');
 
-    const menuList = [
+    const commonMenuList: ExploreConditionMenuItem[] = [
       {
         id: 'copy',
         name: t('复制'),
@@ -85,29 +94,40 @@ export default defineComponent({
       },
     ];
 
+    /** 实际需要渲染的下拉菜单项（开放自定义配置菜单项） */
+    const renderMenuList = computed(() => [
+      ...commonMenuList,
+      ...props.customMenuList.map(item => ({
+        ...item,
+        onClick: (e: MouseEvent) => {
+          item.onClick(e);
+          emit('menuClick');
+        },
+      })),
+    ]);
+
     /**
      * @description 弹出菜单popover 自定义后缀icon渲染
      * @param {EMethod} config.method 条件类型（eq等于 / ne不等于） 如果为空未传则走新建检索逻辑
      * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
      *
      */
-    function menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }) {
+    function menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }): () => SlotReturnValue {
       const { method, hasClick = true } = config;
-      return () => (
-        <Popover
-          arrow={true}
-          boundary={menuRef.value}
-          content={t('新开标签页')}
-          disabled={!hasClick}
-          placement='top'
-          theme='dark'
-        >
-          <i
-            class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
-            onClick={e => handleNewExplorePage(e, method)}
-          />
-        </Popover>
-      );
+      return () =>
+        (
+          <Tippy
+            content={t('新开标签页')}
+            placement='top'
+            theme='dark'
+            onShow={() => (!hasClick ? false : void 0)}
+          >
+            <i
+              class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
+              onClick={e => handleNewExplorePage(e, method)}
+            />
+          </Tippy>
+        ) as unknown as SlotReturnValue;
     }
 
     /**
@@ -189,7 +209,7 @@ export default defineComponent({
     }
 
     return {
-      menuList,
+      renderMenuList,
     };
   },
   render() {
@@ -198,7 +218,7 @@ export default defineComponent({
         ref='menuRef'
         class='explore-condition-menu'
       >
-        {this.menuList.map(item => (
+        {this.renderMenuList.map(item => (
           <li
             key={item.id}
             class='menu-item'

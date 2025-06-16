@@ -90,22 +90,33 @@ class RetrieveHelper extends RetrieveBase {
    * // 初始化 Mark.js 实例
    * @param target
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string, root?: HTMLElement) {
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
     this.markInstance = new OptimizedHighlighter({
       target: target ?? (() => document.getElementById(this.logRowsContainerId)),
       chunkStrategy: 'fixed',
     });
   }
 
-  highlightElement(target) {
-    this.markInstance.highlightElement(target);
+  destroyMarkInstance() {
+    this.markInstance?.destroy();
   }
 
-  highLightKeywords(keywords?: string[], reset = true) {
+  highlightElement(target) {
+    this.markInstance?.highlightElement(target);
+  }
+
+  /**
+   * 高亮关键词
+   * @param keywords 关键词
+   * @param reset 是否重置
+   * @param afterMarkFn 高亮后回调
+   */
+  highLightKeywords(keywords?: string[], reset = true, afterMarkFn?: () => void) {
     if (!this.markInstance) {
       return;
     }
 
+    const { caseSensitive } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
     this.markInstance.highlight(
@@ -114,7 +125,7 @@ class RetrieveHelper extends RetrieveBase {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: new RegExp(`^${keyword}$`),
+          textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
         };
       }),
       reset,
@@ -130,7 +141,7 @@ class RetrieveHelper extends RetrieveBase {
       return group.fieldValue?.includes(fieldValue) ?? false;
     }
 
-    const regExp = new RegExp(group.regExp);
+    const regExp = this.getRegExp(group.regExp);
     return regExp.test(fieldValue);
   }
 

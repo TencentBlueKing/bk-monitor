@@ -973,7 +973,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
     ) -> list[dict[str, Any]]:
         """获取事件列表"""
         q: QueryConfigBuilder = self.get_q(
-            None, category, [OtlpKey.EVENTS, OtlpKey.RESOURCE, OtlpKey.SPAN_NAME, OtlpKey.TRACE_ID]
+            filter_params, category, [OtlpKey.EVENTS, OtlpKey.RESOURCE, OtlpKey.SPAN_NAME, OtlpKey.TRACE_ID]
         ).filter(**{f"{OtlpKey.EVENTS}.name__exists": ""})
         if name:
             # 仅获取包含指定事件名的数据。

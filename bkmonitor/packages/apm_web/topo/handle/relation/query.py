@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dataclasses import dataclass
-from typing import Any, Dict, List, Set, Type
+from typing import Any
 
 from apm_web.topo.handle.relation.define import Node, Relation, Source, SourceProvider
 from core.drf_resource import api
@@ -17,7 +17,7 @@ from core.drf_resource import api
 
 @dataclass
 class Q:
-    bk_biz_ids: List[int]
+    bk_biz_ids: list[int]
     start_time: int
     end_time: int
     target_type: str
@@ -32,11 +32,11 @@ class RelationQ:
         """Relation 接口普通查询"""
 
         # 从查询参数提取业务 ID，用于数据查询鉴权
-        bk_biz_ids: Set[int] = set()
+        bk_biz_ids: set[int] = set()
         for query_config in qs:
             bk_biz_ids |= set(query_config.get("bk_biz_ids") or [])
 
-        query_params: Dict[str, Any] = {"query_list": qs}
+        query_params: dict[str, Any] = {"query_list": qs}
         if bk_biz_ids:
             query_params["bk_biz_ids"] = list(bk_biz_ids)
 
@@ -60,6 +60,9 @@ class RelationQ:
 
             for i in item.get("target_list", []):
                 for j in i.get("items", []):
+                    if not j:
+                        continue
+
                     source_instance = target_source_type.create(j)
                     if source_instance.id in node_ids:
                         continue
@@ -75,7 +78,7 @@ class RelationQ:
         cls,
         bk_biz_id,
         source_info: Source,
-        target_type: Type[Source],
+        target_type: type[Source],
         start_time,
         end_time,
         step=None,
@@ -100,8 +103,8 @@ class RelationQ:
     def generate_multi_q(
         cls,
         bk_biz_id,
-        source_infos: List[Source],
-        target_type: Type[Source],
+        source_infos: list[Source],
+        target_type: type[Source],
         start_time,
         end_time,
         step=None,

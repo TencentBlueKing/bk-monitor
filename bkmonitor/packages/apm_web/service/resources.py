@@ -16,6 +16,7 @@ import operator
 import re
 from multiprocessing.pool import ApplyResult
 from typing import Any
+from datetime import timedelta
 
 import arrow
 from django.utils.translation import gettext as _
@@ -44,14 +45,21 @@ from apm_web.models import (
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
+from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
+    PipelineOverviewRequestSerializer,
+    ListPipelineRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
@@ -601,3 +609,102 @@ class AppQueryByIndexSetResource(Resource):
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
 
         return res
+
+
+class PipelineOverviewResource(Resource):
+    RequestSerializer = PipelineOverviewRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        if validated_request_data["is_mock"]:
+            return API_PIPELINE_OVERVIEW_RESPONSE
+
+        bk_biz_id = self._validate_bk_biz_id(validated_request_data["bk_biz_id"])
+        business = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        if not business:
+            return []
+
+        # 获取业务关联的蓝盾项目
+        devops_projects = api.devops.list_app_project({"productIds": business[0].bk_product_id})
+        pipeline_overview = []
+        thread_list = []
+        for devops_project in devops_projects:
+            params = {
+                "app_name": validated_request_data["app_name"],
+                "bk_biz_id": bk_biz_id,
+                "project_id": devops_project["projectCode"],
+                "project_name": devops_project["projectName"],
+                "page": validated_request_data["page"],
+                "page_size": validated_request_data["page_size"],
+                "keyword": validated_request_data.get("keyword"),
+            }
+            thread_list.append(
+                InheritParentThread(target=self.list_pipeline, args=(params, pipeline_overview)),
+            )
+        run_threads(thread_list)
+
+        return sorted(pipeline_overview, key=lambda project: project["project_id"])
+
+    @classmethod
+    @lru_cache_with_ttl(ttl=int(timedelta(minutes=10).total_seconds()))
+    def _validate_bk_biz_id(cls, bk_biz_id: int) -> int:
+        """将负数项目空间 ID，转为关联业务 ID"""
+        try:
+            return validate_bk_biz_id(bk_biz_id)
+        except NoRelatedResourceError:
+            return bk_biz_id
+
+    @classmethod
+    def list_pipeline(cls, params: dict[str, Any], pipeline_overview: list[dict[str, Any]]):
+        pipeline_overview.append(cls.query_pipelines(**params))
+
+    @classmethod
+    def query_pipelines(cls, bk_biz_id, app_name, project_id, project_name, keyword, page, page_size) -> dict[str, Any]:
+        """
+        查询项目下的流水线
+        """
+        return {
+            "project_id": project_id,
+            "project_name": project_name,
+            **ListPipelineResource().perform_request(
+                {
+                    "app_name": app_name,
+                    "bk_biz_id": bk_biz_id,
+                    "project_id": project_id,
+                    "page": page,
+                    "page_size": page_size,
+                    "keyword": keyword,
+                }
+            ),
+        }
+
+
+class ListPipelineResource(Resource):
+    RequestSerializer = ListPipelineRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        if validated_request_data.get("is_mock", False):
+            return API_LIST_PIPELINE_RESPONSE
+
+        params = {
+            "project_id": validated_request_data["project_id"],
+            "page": validated_request_data["page"],
+            "pageSize": validated_request_data["page_size"],
+            "viewId": "allPipeline",
+            "showDelete": False,
+            "sortType": "LAST_EXEC_TIME",
+        }
+
+        if validated_request_data.get("keyword"):
+            params["filterByPipelineName"] = validated_request_data["keyword"]
+
+        # 查询流水线
+        pipelines = api.devops.list_pipeline(params)
+        processed_pipelines = [
+            {
+                "project_id": pipeline["projectId"],
+                "pipeline_id": pipeline["pipelineId"],
+                "pipeline_name": pipeline["pipelineName"],
+            }
+            for pipeline in pipelines["records"]
+        ]
+        return {"count": pipelines["count"], "items": processed_pipelines}

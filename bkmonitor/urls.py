@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import requests
 import version_log.config as config
 from blueapps.account.decorators import login_exempt
@@ -70,11 +70,12 @@ urlpatterns = [
     re_path(r"^apm/", include("apm_web.urls", namespace="apm_web")),
     re_path(r"^apm_log_forward/", include("apm_web.log_proxy.urls", namespace="log_proxy")),
     re_path(r"^trace/", include("apm_trace.urls", namespace="apm_trace")),
-    re_path(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
+    re_path(rf"^{config.ENTRANCE_URL}", include("version_log.urls")),
     re_path(r"^media/(?P<path>.*)$", wrapped_serve, {"document_root": settings.MEDIA_ROOT}),
     re_path(r"^metrics/$", metrics),
     # env: `BK_API_URL_TMPL` must be set
-    re_path(r'^notice/', include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
+    re_path(r"^notice/", include(("bk_notice_sdk.urls", "notice"), namespace="notice")),
+    re_path(r"^ai_agents/", include("ai_agents.urls")),
 ]
 
 # 添加API访问子路径

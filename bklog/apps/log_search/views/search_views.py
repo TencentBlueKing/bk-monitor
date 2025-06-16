@@ -64,7 +64,7 @@ from apps.log_search.handlers.index_set import (
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers, UnionAsyncExportHandlers
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
@@ -91,6 +91,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetOptionHistorySerializer,
     UISearchSerializer,
     UnionSearchAttrSerializer,
+    UnionSearchExportSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
     UnionSearchHistorySerializer,
@@ -101,7 +102,10 @@ from apps.log_search.serializers import (
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
-from apps.log_unifyquery.handler.async_export_handlers import UnifyQueryAsyncExportHandlers
+from apps.log_unifyquery.handler.async_export_handlers import (
+    UnifyQueryAsyncExportHandlers,
+    UnifyQueryUnionAsyncExportHandlers,
+)
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
@@ -801,6 +805,97 @@ class SearchViewSet(APIViewSet):
                 bk_biz_id=data["bk_biz_id"],
                 search_dict=data,
                 export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        return Response(
+            {
+                "task_id": task_id,
+                "prompt": _(
+                    "任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！"
+                ).format(
+                    time=math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME),
+                    notify_type_name=notify_type_name,
+                ),
+            }
+        )
+
+    @list_route(methods=["POST"], url_path="union_async_export")
+    def union_async_export(self, request, *args, **kwargs):
+        """
+        @api /search/index_set/$index_set_id/union_async_export/
+        @apiDescription 联合查询异步下载检索日志
+        @apiName union_async_export
+        @apiGroup 11_Search
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam addition [List]  搜索条件
+        @apiParam ip_chooser [Dict]  检索IP条件
+        @apiParam is_quick_export [Bool] 是否快速导出 默认为False
+        @apiParam {Array[Json]} union_configs 联合检索索引集配置
+        @apiParam {Int} union_configs.index_set_id 索引集ID
+        @apiParam {Int} union_configs.begin 索引对应的滚动条数
+        @apiParam {Bool} union_configs.is_desensitize 是否脱敏 默认为True（只针对白名单SaaS开放此参数）
+        @apiParamExample {Json} 请求参数
+        {
+        "bk_biz_id": "2",
+        "size": 12699,
+        "start_time": 1747234800000,
+        "end_time": 1747238399999,
+        "addition": [],
+        "begin": 0,
+        "ip_chooser": {},
+        "keyword": "*",
+        "union_configs": [
+            {
+                "begin": 0,
+                "index_set_id": "66"
+            },
+            {
+                "begin": 0,
+                "index_set_id": "53"
+            }
+        ],
+        "is_quick_export": true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "task_id": 1,
+                "prompt": "任务提交成功，系统处理后将通过邮件通知，请留意！"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UnionSearchExportSerializer)
+        auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+        is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
+        for info in data.get("union_configs", []):
+            if not info.get("is_desensitize") and not is_verify:
+                info["is_desensitize"] = True
+        notify_type_name = NotifyType.get_choice_label(
+            FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
+        )
+        is_quick_export = data.pop("is_quick_export")
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            task_id, size = UnifyQueryUnionAsyncExportHandlers(
+                index_set_ids=data["index_set_ids"],
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        else:
+            task_id, size = UnionAsyncExportHandlers(
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                index_set_ids=data["index_set_ids"],
                 export_file_type=data["file_type"],
             ).async_export(is_quick_export=is_quick_export)
         return Response(
@@ -1910,6 +2005,7 @@ class SearchViewSet(APIViewSet):
             end_time=params["end_time"],
             sql_param=params["sql"],
             keyword=params["keyword"],
+            alias_mappings=params["alias_mappings"],
         )
         return Response(data)
 

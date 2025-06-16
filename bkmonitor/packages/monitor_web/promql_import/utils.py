@@ -1,6 +1,7 @@
 import re
 
 from bkmonitor.models import MetricListCache
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -15,31 +16,33 @@ def check_metric_field(metric_field: str, mapping_config: dict) -> dict:
         return check_result
     if mapping_config.get("range_type") == "customTs":
         for table_id in table_ids:
-            qs = MetricListCache.objects.filter(
+            metric = MetricListCache.objects.filter(
                 data_source_label=DataSourceLabel.CUSTOM,
                 data_type_label=DataTypeLabel.TIME_SERIES,
                 result_table_id=table_id,
                 metric_field=metric_field,
-            )
-            if qs.exists():
+                bk_tenant_id=get_request_tenant_id(),
+            ).first()
+            if metric:
                 check_result["is_exist"] = True
                 check_result["table_id"] = table_id
-                check_result["data_label"] = qs.first().data_label
-                check_result["scenario"] = qs.first().result_table_label
+                check_result["data_label"] = metric.data_label
+                check_result["scenario"] = metric.result_table_label
                 return check_result
     if mapping_config.get("range_type") == "bkPull":
         for table_id in table_ids:
-            qs = MetricListCache.objects.filter(
+            metric = MetricListCache.objects.filter(
                 data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
                 data_type_label=DataTypeLabel.TIME_SERIES,
                 related_id=table_id,
                 metric_field=metric_field,
-            )
-            if qs.exists():
+                bk_tenant_id=get_request_tenant_id(),
+            ).first()
+            if metric:
                 check_result["is_exist"] = True
-                check_result["table_id"] = qs.first().result_table_id
-                check_result["data_label"] = qs.first().data_label
-                check_result["scenario"] = qs.first().result_table_label
+                check_result["table_id"] = metric.result_table_id
+                check_result["data_label"] = metric.data_label
+                check_result["scenario"] = metric.result_table_label
                 return check_result
     return check_result
 

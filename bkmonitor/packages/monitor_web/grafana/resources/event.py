@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 from django.db.models import Max, QuerySet
 from django.utils.translation import gettext as _
@@ -21,6 +21,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import BCSCluster, MetricListCache
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -33,7 +34,7 @@ class GetDataSourceConfigResource(Resource):
     获取数据源配置信息
     """
 
-    _TABLE_ALIAS_MAP: Dict[str, str] = {"gse_system_event": _("主机事件")}
+    _TABLE_ALIAS_MAP: dict[str, str] = {"gse_system_event": _("主机事件")}
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -43,7 +44,7 @@ class GetDataSourceConfigResource(Resource):
         return_dimensions = serializers.BooleanField(label="是否返回维度", default=True)
 
     @classmethod
-    def _fetch_metrics(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+    def _fetch_metrics(cls, qs: QuerySet[MetricListCache]) -> list[dict[str, Any]]:
         return list(
             qs.values(
                 "bk_biz_id",
@@ -58,7 +59,7 @@ class GetDataSourceConfigResource(Resource):
         )
 
     @classmethod
-    def _fetch_metrics_without_dimensions(cls, qs: QuerySet[MetricListCache]) -> List[Dict[str, Any]]:
+    def _fetch_metrics_without_dimensions(cls, qs: QuerySet[MetricListCache]) -> list[dict[str, Any]]:
         metric_row_ids = list(
             metric_info["max_id"] for metric_info in qs.values("result_table_id").annotate(max_id=Max("id")).order_by()
         )
@@ -80,7 +81,10 @@ class GetDataSourceConfigResource(Resource):
                 bk_biz_id = space.bk_biz_id
 
         qs = MetricListCache.objects.filter(
-            data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, bk_biz_id]
+            data_type_label=data_type_label,
+            data_source_label=data_source_label,
+            bk_biz_id__in=[0, bk_biz_id],
+            bk_tenant_id=get_request_tenant_id(),
         )
         if params.get("return_dimensions"):
             metrics = self._fetch_metrics(qs)

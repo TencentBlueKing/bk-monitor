@@ -40,7 +40,7 @@
    * @param to 结束位置：如果是指定位置插入，To可以忽略，只要指定from位置就行
    * 如果是替换，需要指定结束位置；to：设置为 Infinity 表示从from位置到结束位置全部替换
    */
-  const setEditorContext = (val, from = 0, to = undefined) => {
+  const setEditorContext = (val, from = 0, to = Infinity) => {
     editorInstance?.setValue(val, from, to);
   };
 
@@ -88,9 +88,9 @@
         if (refSqlQueryOption.value?.beforeShowndFn?.()) {
           instance.popper?.style.setProperty('width', '100%');
           refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-          requestAnimationFrame(() => {
-            editorInstance?.setFocus();
-          });
+          // requestAnimationFrame(() => {
+          //   editorInstance?.setFocus();
+          // });
           return true;
         }
 
@@ -135,102 +135,33 @@
     // 此时执行查询操作，如果有联想提示，关闭提示弹出
     if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
       hideTippyInstance();
-      debounceRetrieve(value);
-    }
-  };
-
-  const onFocusPosChange = state => {
-    editorFocusPosition.value = state.selection.main.to;
-    isSelectedText = state.selection.main.to > state.selection.main.from;
-  };
-
-  const createEditorInstance = () => {
-    editorInstance = CreateLuceneEditor({
-      value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
-      target: refEditorParent.value,
-      stopDefaultKeyboard: () => {
-        return getTippyInstance()?.state?.isShown ?? false;
-      },
-      onChange: e => onEditorContextChange(e),
-      onKeyEnter: () => {
-        debounceRetrieve();
-        return true;
-      },
-      onFocusChange: (_, isFocusing) => {
-        if (isFocusing && !(getTippyInstance()?.state?.isShown ?? false)) {
-          delayShowInstance(refEditorParent.value);
-          return;
-        }
-      },
-      onFocusPosChange,
-    });
-  };
-
-  const handleEditorClick = () => {
-    if (editorInstance === null) {
-      createEditorInstance();
     }
 
-    if (!(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
-    }
+    debounceRetrieve(value);
   };
 
-  /**
-   * @description 获取当前输入框左侧内容
-   */
-  const getFocusLeftValue = () => {
-    if (editorFocusPosition.value !== null && editorFocusPosition.value >= 0) {
-      return modelValue.value.slice(0, modelValue.focusPosition);
-    }
-
-    return modelValue.value;
-  };
-
-  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
-  const getMatchFieldLength = () => {
-    const leftValue = getFocusLeftValue();
-    const lastFragments = leftValue.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1] ?? '';
-    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
-
-    return inputField?.length ?? 0;
-  };
-
-  const getSelectionRenage = (value, replace, type) => {
-    const matchLen = type === 'field' ? getMatchFieldLength(value) : 0;
-    if (replace) {
-      return {
-        from: 0,
-        to: Infinity,
-        buffer: undefined,
-      };
-    }
-
-    return {
-      from: editorFocusPosition.value - matchLen,
-      to: editorFocusPosition.value + value.length,
-      buffer: matchLen > 0 ? matchLen : undefined,
-    };
-  };
-
-  const handleQueryChange = (value, retrieve, replace = true, type = undefined) => {
-    const { from, buffer, to } = getSelectionRenage(value, replace, type);
-    let toValue = undefined;
-
-    if (to === Infinity) {
-      toValue = to;
-    }
+  const handleQueryChange = (value, retrieve, replace = true, focusPosition) => {
     if (modelValue.value !== value) {
-      if (buffer && type === 'field') {
-        toValue = from + buffer;
+      // 确保编辑器实例存在
+      if (!editorInstance) {
+        return;
       }
-      setEditorContext(value, from, toValue);
+
+      setEditorContext(value);
+      // 更新光标位置
       nextTick(() => {
-        if (retrieve) {
-          const resolvedValue = editorInstance?.getValue();
-          closeAndRetrieve(resolvedValue);
+        if (editorInstance) {
+          if (retrieve) {
+            closeAndRetrieve(resolvedValue);
+          }
         }
+      });
+    }
+
+    if (focusPosition) {
+      setTimeout(() => {
+        editorFocusPosition.value = focusPosition;
+        editorInstance?.setFocus?.(focusPosition);
       });
     }
   };
@@ -257,6 +188,44 @@
     }
 
     hideTippyInstance();
+  };
+
+  const handleEditorClick = () => {
+    if (editorInstance === null) {
+      createEditorInstance();
+    }
+
+    if (!(getTippyInstance()?.state?.isShown ?? false)) {
+      delayShowInstance(refEditorParent.value);
+    }
+  };
+
+  const createEditorInstance = () => {
+    editorInstance = CreateLuceneEditor({
+      value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
+      target: refEditorParent.value,
+      stopDefaultKeyboard: () => {
+        return getTippyInstance()?.state?.isShown ?? false;
+      },
+      onChange: e => {
+        onEditorContextChange(e);
+      },
+      onKeyEnter: () => {
+        debounceRetrieve();
+        return true;
+      },
+      onFocusChange: (state, isFocusing) => {
+        if (isFocusing) {
+          if (!(getTippyInstance()?.state?.isShown ?? false)) {
+            delayShowInstance(refEditorParent.value);
+          }
+        }
+      },
+      onFocusPosChange: state => {
+        editorFocusPosition.value = state.selection.main.to;
+        isSelectedText = state.selection.main.to > state.selection.main.from;
+      },
+    });
   };
 
   onMounted(() => {

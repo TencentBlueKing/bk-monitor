@@ -40,8 +40,7 @@ import FavoriteManageDialog from './favorite-manage-dialog.vue';
 // import ManageGroupDialog from './manage-group-dialog';
 
 import './collect-index.scss';
-import { nextTick } from 'vue';
-import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 
 interface IProps {
   collectWidth: number;
@@ -348,7 +347,9 @@ export default class CollectIndex extends tsc<IProps> {
 
   setRouteParams(favoriteItem) {
     const getRouteQueryParams = () => {
-      const { ids, isUnionIndex, search_mode } = this.$store.state.indexItem;
+      const { ids, isUnionIndex } = this.$store.state.indexItem;
+      const search_mode = SEARCH_MODE_DIC[this.$store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+
       const unionList = this.$store.state.unionIndexList;
       const clusterParams = this.$store.state.clusterParams;
       const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
@@ -409,17 +410,29 @@ export default class CollectIndex extends tsc<IProps> {
     }
     const cloneValue = deepClone(value);
     this.activeFavorite = deepClone(value);
+
+    const isUnionIndex = cloneValue.index_set_ids.length > 0;
+    const keyword = cloneValue.params.keyword;
+    const addition = cloneValue.params.addition ?? [];
+    const getSearchMode = () => {
+      if (addition.length > 0 && keyword.length > 0) {
+        return cloneValue.search_mode;
+      }
+      if (addition.length > 0) {
+        return 'ui';
+      }
+
+      return 'sql';
+    };
+    const search_mode = getSearchMode();
+
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
     this.$store.commit('updateIsSetDefaultTableColumn', false);
     this.$store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: value.index_set_type,
-      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(value.search_mode ?? 'ui'),
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode ?? 'ui'),
     });
-
-    const isUnionIndex = cloneValue.index_set_ids.length > 0;
-    const keyword = cloneValue.params.keyword;
-    const addition = cloneValue.params.addition ?? [];
 
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
     if (isUnionIndex) {
@@ -444,7 +457,7 @@ export default class CollectIndex extends tsc<IProps> {
       ids,
       items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
-      search_mode: cloneValue.search_mode,
+      search_mode: search_mode,
     });
 
     this.setRouteParams(value);
@@ -455,7 +468,7 @@ export default class CollectIndex extends tsc<IProps> {
       list: [],
     });
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
-      RetrieveHelper.setFavoriteActive(this.activeFavorite);
+      RetrieveHelper.setFavoriteActive({ ...this.activeFavorite, search_mode });
       this.$store.dispatch('requestIndexSetQuery');
     });
   }
@@ -815,8 +828,8 @@ export default class CollectIndex extends tsc<IProps> {
   handleShowCurrentChange() {
     RetrieveHelper.setViewCurrentIndexn(this.isShowCurrentIndexList);
   }
-  closeShowManageDialog(){
-    this.isShowManageDialog = false
+  closeShowManageDialog() {
+    this.isShowManageDialog = false;
     this.getFavoriteList();
   }
   render() {
@@ -840,7 +853,7 @@ export default class CollectIndex extends tsc<IProps> {
           <div class='search-container-new'>
             <div class='search-container-new-title'>
               <div>
-                <span style={{ fontSize: '14px', color: '#313238' }}>收藏夹</span>
+                <span style={{ fontSize: '14px', color: '#313238' }}>{this.$t('收藏夹')}</span>
                 <span class='search-container-new-title-num'>{this.allFavoriteNumber}</span>
               </div>
               <div
@@ -878,7 +891,12 @@ export default class CollectIndex extends tsc<IProps> {
                       style={{ marginRight: '4px' }}
                       class={`bklog-icon ${type === 'origin' ? 'bklog-table-2' : 'bklog-chart-2'}`}
                     ></span>
-                    <span style={{ marginRight: '4px' }}>{type === 'origin' ? '原始日志' : '图表分析'}</span>
+                    <span
+                      class='search-category-text'
+                      style={{ marginRight: '4px' }}
+                    >
+                      {type === 'origin' ? this.$t('原始日志') : this.$t('图表分析')}
+                    </span>
                     <span class='search-category-num'>
                       {type === 'origin' ? this.originFavoriteCount : this.chartFavoriteCount}
                     </span>
@@ -894,7 +912,7 @@ export default class CollectIndex extends tsc<IProps> {
                   true-value={true}
                   onChange={this.handleShowCurrentChange}
                 >
-                  仅查看当前索引集
+                  {this.$t('仅查看当前索引集')}
                 </bk-checkbox>
               </span>
               <div
@@ -926,7 +944,7 @@ export default class CollectIndex extends tsc<IProps> {
                     >
                       <FormItem
                         icon-offset={34}
-                        label='分组名称'
+                        label={this.$t('分组名称')}
                         property='groupName'
                         required
                       >
@@ -1026,11 +1044,8 @@ export default class CollectIndex extends tsc<IProps> {
         /> */}
         <FavoriteManageDialog
           modelValue={this.isShowManageDialog}
-          onClose={this.closeShowManageDialog }
-
-        >
-
-        </FavoriteManageDialog>
+          onClose={this.closeShowManageDialog}
+        ></FavoriteManageDialog>
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
           activeFavoriteID={this.activeFavoriteID}

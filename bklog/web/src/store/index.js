@@ -64,7 +64,7 @@ import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
-import { BK_LOG_STORAGE } from './store.type.ts';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
@@ -253,10 +253,11 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
-        search_mode,
         sort_list,
         format,
       } = state.indexItem;
+
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -277,6 +278,18 @@ const store = new Vuex.Store({
 
           return addition;
         });
+
+      // 格式化 addition value
+      // 如果字段类型为 text & is_case_sensitive = false 则将 value 转换为小写
+      // 操作符为"=~", "&=~", "!=~", "&!=~"  四者之一
+      filterAddition.forEach(item => {
+        if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
+          const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+          if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
+            item.value = item.value.map(v => v?.toLowerCase() ?? '');
+          }
+        }
+      });
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -461,7 +474,21 @@ const store = new Vuex.Store({
     },
 
     updateIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, payload ?? {});
+      Object.keys(payload ?? {}).forEach(key => {
+        if (Array.isArray(payload[key]) && Array.isArray(state.indexSetQueryResult[key])) {
+          if (Object.isFrozen(state.indexSetQueryResult[key])) {
+            state.indexSetQueryResult[key] = undefined;
+            set(state.indexSetQueryResult, key, []);
+          } else {
+            state.indexSetQueryResult[key].length = 0;
+            state.indexSetQueryResult[key] = [];
+          }
+
+          state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
+        } else {
+          set(state.indexSetQueryResult, key, payload[key]);
+        }
+      });
     },
 
     updateIndexItemParams(state, payload) {
@@ -1549,7 +1576,7 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode = state.indexItem.search_mode;
+      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
@@ -1590,6 +1617,10 @@ const store = new Vuex.Store({
 
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
+
+        if (isVirtualObjNode && textType === 'object') {
+          mappingKey = textMappingKey;
+        }
 
         if (textType === 'text') {
           mappingKey = textMappingKey;
@@ -1667,10 +1698,10 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
             } else {
-              const mapOperator = getAdditionMappingOperator({ field, operator, value });
               newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
             }
           }

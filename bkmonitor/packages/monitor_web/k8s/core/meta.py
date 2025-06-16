@@ -230,7 +230,7 @@ class K8sResourceMeta:
         self.filter = FilterCollection(self)
         # 默认范围，业务-集群
         self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
-        self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+        # self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
         # 默认过滤 container_name!="POD"
         self.filter.add(load_resource_filter("container_exclude", ""))
 
@@ -946,7 +946,7 @@ class NameSpace(dict):
 
     @property
     def objects(self):
-        return BCSWorkload.objects.values(*self.columns)
+        return BCSPod.objects.values(*self.columns)
 
     def __getattr__(self, item):
         if item in self:

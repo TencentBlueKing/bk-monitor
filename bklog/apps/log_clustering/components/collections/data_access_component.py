@@ -25,77 +25,11 @@ from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import Service
 
 from apps.api import BkDataAuthApi
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.tasks.bkdata import create_bkdata_data_id
 from apps.utils.pipline import BaseService
-
-
-class ChangeDataStreamService(BaseService):
-    name = _("切换数据流")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-            Service.InputItem(name="topic name", key="topic_name", type="str", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        collector_config_id = data.get_one_of_inputs("collector_config_id")
-        topic_name = data.get_one_of_inputs("topic_name")
-        ClusteringConfigHandler(collector_config_id=collector_config_id).change_data_stream(topic=topic_name)
-        return True
-
-
-class ChangeDataStreamComponent(Component):
-    name = "ChangeDataStream"
-    code = "change_data_stream"
-    bound_service = ChangeDataStreamService
-
-
-class ChangeDataStream:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.change_data_stream = ServiceActivity(
-            component_code="change_data_stream", name=f"change_data_stream:{index_set_id}-{collector_config_id}"
-        )
-        self.change_data_stream.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.change_data_stream.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
-        self.change_data_stream.component.inputs.topic_name = Var(type=Var.SPLICE, value="${topic_name}")
-
-
-class CreateBkdataAccessService(BaseService):
-    name = _("创建清洗接入")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        collector_config_id = data.get_one_of_inputs("collector_config_id")
-        DataAccessHandler().create_bkdata_access(collector_config_id=collector_config_id)
-        return True
-
-
-class CreateBkdataAccessComponent(Component):
-    name = "CreateBkdataAccess"
-    code = "create_bkdata_access"
-    bound_service = CreateBkdataAccessService
-
-
-class CreateBkdataAccess:
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_bkdata_access = ServiceActivity(
-            component_code="create_bkdata_access", name=f"create_bkdata_access:{index_set_id}_{collector_config_id}"
-        )
-        self.create_bkdata_access.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_bkdata_access.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
 class SyncBkdataEtlService(BaseService):
