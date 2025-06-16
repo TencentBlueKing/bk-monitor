@@ -796,4 +796,7 @@ export default {
   我的: 'My',
   设置筛选: 'Set filter',
   未编组: 'Unorganized',
+  大小写匹配: 'Case sensitive matching',
+  精确匹配: 'Exact match',
+  Grep模式: 'Grep Mode',
 };

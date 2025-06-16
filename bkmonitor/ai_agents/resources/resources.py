@@ -50,7 +50,7 @@ class CreateChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session(json=validated_request_data)
-        return res["data"]
+        return res
 
 
 class RetrieveChatSessionResource(Resource):
@@ -70,7 +70,7 @@ class RetrieveChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
-        return res["data"]
+        return res
 
 
 class DestroyChatSessionResource(Resource):
@@ -90,7 +90,7 @@ class DestroyChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session(path_params={"session_code": session_code})
-        return res["data"]
+        return res
 
 
 # -------------------- 会话内容管理 -------------------- #
@@ -114,7 +114,7 @@ class CreateChatSessionContentResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session_content(json=validated_request_data)
-        return res["data"]
+        return res
 
 
 class GetChatSessionContentsResource(Resource):
@@ -133,7 +133,7 @@ class GetChatSessionContentsResource(Resource):
         )
         res = api_client.api.get_chat_session_contents(params={"session_code": session_code})
 
-        return res["data"]
+        return res
 
 
 class DestroyChatSessionContentResource(Resource):
@@ -150,7 +150,7 @@ class DestroyChatSessionContentResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session_content(path_params={"id": id})
-        return res["data"]
+        return res
 
 
 class UpdateChatSessionContentResource(Resource):
@@ -174,7 +174,7 @@ class UpdateChatSessionContentResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.update_chat_session_content(path_params={"id": id}, json=validated_request_data)
-        return res["data"]
+        return res
 
 
 # -------------------- Agent管理 -------------------- #
@@ -195,7 +195,7 @@ class GetAgentInfoResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
-        return res["data"]
+        return res
 
 
 # -------------------- 对话交互 -------------------- #

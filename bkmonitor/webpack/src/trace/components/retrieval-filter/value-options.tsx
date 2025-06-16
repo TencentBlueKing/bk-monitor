@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, watch, nextTick, useTemplateRef } from 'vue';
+import { defineComponent, shallowRef, computed, watch, nextTick, useTemplateRef, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useEventListener, watchDebounced } from '@vueuse/core';
 import { promiseTimeout } from '@vueuse/core';
@@ -33,7 +34,6 @@ import loadingImg from '../../static/img/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
 import { type IValue, VALUE_OPTIONS_EMITS, VALUE_OPTIONS_PROPS } from './typing';
-import { useI18n } from 'vue-i18n';
 
 import './value-options.scss';
 
@@ -72,7 +72,6 @@ export default defineComponent({
             const list = await getValueData(false, true);
             localOptions.value = localOptionsFilter(list);
             cleanup = useEventListener(window, 'keydown', handleKeydownEvent);
-            window.addEventListener('keydown', handleKeydownEvent);
           } else {
             cleanup();
           }
@@ -90,6 +89,10 @@ export default defineComponent({
       },
       { debounce: 300 }
     );
+
+    onUnmounted(() => {
+      cleanup?.();
+    });
 
     async function init() {
       if (!props.isPopover) {
