@@ -27,67 +27,57 @@ export interface IUserGroup {
   id: string;
   name: string;
   hidden?: boolean;
-  members: {
-    id: string;
-    name: string;
-  }[];
 }
-export const getDefaultUserGroupList = async (): Promise<IUserGroup[]> => {
-  return [
+/** 获取默认用户组同步用法 */
+export const getDefaultUserGroupListSync = (groupList = []): IUserGroup[] => {
+  const defaultUserGroupList = [
     {
       id: 'bk_biz_maintainer',
       display_name: '运维人员',
       logo: '',
       type: 'group',
-      members: [],
     },
     {
       id: 'bk_biz_productor',
       display_name: '产品人员',
       logo: '',
       type: 'group',
-      members: [
-        {
-          id: 'ramboyang',
-          display_name: '杨文兵',
-        },
-      ],
     },
     {
       id: 'bk_biz_tester',
       display_name: '测试人员',
       logo: '',
       type: 'group',
-      members: [],
     },
     {
       id: 'bk_biz_developer',
       display_name: '开发人员',
       logo: '',
       type: 'group',
-      members: [],
     },
     {
       id: 'operator',
       display_name: '主负责人',
       logo: '',
       type: 'group',
-      members: [],
     },
     {
       id: 'bk_bak_operator',
       display_name: '备份负责人',
       logo: '',
       type: 'group',
-      members: [],
     },
-  ].map(item => ({
+  ];
+
+  const userGroup = groupList?.length ? groupList : defaultUserGroupList;
+  return userGroup.map(item => ({
     id: item.id,
     name: item.display_name,
     hidden: false,
-    members: item.members.map(member => ({
-      id: member.id,
-      name: member.display_name,
-    })),
   }));
+};
+
+/** 获取默认用户组异步用法 */
+export const getDefaultUserGroupList = async (groupList = []): Promise<IUserGroup[]> => {
+  return getDefaultUserGroupListSync(groupList);
 };
