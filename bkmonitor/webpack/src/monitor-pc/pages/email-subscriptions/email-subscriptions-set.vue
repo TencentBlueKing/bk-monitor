@@ -332,6 +332,7 @@ import { splitGraphId } from './utils';
 import type { IContentFormData, ITableColumnItem } from './types';
 import type VueI18n from 'vue-i18n';
 import type { TranslateResult } from 'vue-i18n';
+import { getDefaultUserGroupListSync } from '../../components/user-selector/user-group';
 /** 默认的图表数据时间范围 按照发送频率 */
 const DEFAULT_TIME_RANGE = 'none';
 
@@ -588,17 +589,8 @@ export default class SubscriptionsSet extends Vue {
   get memberGroupListFilter() {
     if (this.isSuperUser) {
       const temp = deepClone(this.memberList);
-      return temp
-        .filter(item => item.id === 'group')[0]
-        ?.children?.map(item => ({
-          id: item.id,
-          name: item.display_name,
-          hidden: false,
-          members: item.members?.map(member => ({
-            id: member.id,
-            name: member.display_name,
-          })),
-        }));
+      const filterTemp = temp.filter(item => item.id === 'group');
+      return getDefaultUserGroupListSync(filterTemp[0]?.children || []);
     }
     return [];
   }
@@ -638,7 +630,7 @@ export default class SubscriptionsSet extends Vue {
     this.formData.managers = user;
   }
   handleSelectReceiver(user: string[]) {
-    this.formData.receiver = user;
+    this.formData.receivers = user;
   }
   /** 更新面包屑 */
   updateNavData(name: string | VueI18n.TranslateResult = '') {

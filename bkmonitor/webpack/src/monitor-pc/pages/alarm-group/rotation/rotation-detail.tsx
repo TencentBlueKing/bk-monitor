@@ -218,7 +218,7 @@ export default class RotationDetail extends tsc<IProps> {
                             />
                           )}
                           {this.renderUserLogo(user)}
-                          <span>{user.display_name}</span>
+                          <span>{user.display_name ? <bk-user-display-name user-id={user.display_name} /> : '--'}</span>
                         </div>
                       ))}
                     </div>
