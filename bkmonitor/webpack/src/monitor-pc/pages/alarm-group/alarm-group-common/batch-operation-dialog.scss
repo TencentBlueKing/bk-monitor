@@ -1,0 +1,17 @@
+.alarm-group-batch-operation-dialog {
+  .member-selector-wrap {
+    width: 100%;
+  }
+
+  .bk-dialog-footer {
+    font-size: 0;
+
+    .bk-button {
+      margin-right: 10px;
+
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+}

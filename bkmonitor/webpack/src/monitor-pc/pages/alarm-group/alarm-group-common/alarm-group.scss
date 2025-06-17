@@ -41,8 +41,60 @@
     .alarm-group-tool {
       display: flex;
 
-      .tool-btn {
-        margin-right: auto;
+      .batch-edit-dropdown {
+        margin: 0 auto 0 10px;
+        color: #63656e;
+
+        &-btn {
+          display: flex;
+          align-items: center;
+          height: 32px;
+          padding: 0 12px;
+          cursor: pointer;
+          background: #fff;
+          border: 1px solid #c4c6cc;
+          border-radius: 2px;
+
+          .icon-monitor {
+            margin-left: 4px;
+            font-size: 22px;
+            color: #979ba5;
+          }
+
+          &.btn-disabled {
+            color: #c4c6cc;
+            cursor: not-allowed;
+            background: #fafafa;
+
+            .icon-monitor {
+              color: #c4c6cc;
+            }
+          }
+        }
+
+        &-list {
+          display: flex;
+          flex-direction: column;
+          width: 220px;
+
+          .list-item {
+            display: flex;
+            flex: 0 0 32px;
+            align-items: center;
+            padding-left: 15px;
+
+            &:hover {
+              color: #3a84ff;
+              cursor: pointer;
+              background: #e1ecff;
+            }
+
+            &.disabled {
+              color: #c4c6cc;
+              cursor: not-allowed;
+            }
+          }
+        }
       }
 
       .tool-search {
