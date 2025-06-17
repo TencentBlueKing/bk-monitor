@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 IntelligentDetect：智能异常检测算法基于计算平台的计算结果，再基于结果表的is_anomaly{1,2,3}来进行判断。
 """
 import copy
 import json
 import logging
-from typing import Dict
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -29,7 +28,7 @@ from core.drf_resource import api
 logger = logging.getLogger("detect")
 
 
-class DetectDirect(object):
+class DetectDirect:
     CEIL = "ceil"
     FLOOR = "floor"
     ALL = "all"
@@ -43,11 +42,12 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
 
-    def generate_sdk_predict_params(self) -> Dict:
+    def generate_sdk_predict_params(self) -> dict:
         return {
             "predict_args": {
                 arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()
             },
+            "serving_config": {"service_name": self.validated_config.get("service_name") or "default"},
             "extra_data": {
                 "history_anomaly": {
                     "source": "backfill",
