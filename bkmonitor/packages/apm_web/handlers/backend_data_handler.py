@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytz
 from django.conf import settings
@@ -449,11 +449,9 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 if "timestamp" not in log_record:
                     continue
                 timestamp_s = log_record["timestamp"] / 1000
-                localized_dt = (
-                    datetime.utcfromtimestamp(timestamp_s).replace(tzinfo=pytz.utc).astimezone(target_timezone)
-                )
+                localized_dt = datetime.fromtimestamp(timestamp_s, UTC).astimezone(target_timezone)
                 # 格式化为指定的字符串格式
-                formatted_time = localized_dt.strftime('%Y-%m-%d %H:%M:%S%z')
+                formatted_time = localized_dt.strftime("%Y-%m-%d %H:%M:%S%z")
                 formatted_time_with_colon = f"{formatted_time[:-2]}:{formatted_time[-2:]}"
                 if formatted_time_with_colon:
                     break
@@ -497,7 +495,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
 
             component_id = f"{namespace}_{self.bk_vm_result_table_id}"
             grain = kwargs.get("time_grain", "1m")
-            promql = f"sum(sum_over_time(bkmonitor:record_count{{component_id=~\"^{component_id}-\"}}[{grain}]))"
+            promql = f'sum(sum_over_time(bkmonitor:record_count{{component_id=~"^{component_id}-"}}[{grain}]))'
             request_params = {
                 "bk_biz_id": metric_biz_id,
                 "query_configs": [
