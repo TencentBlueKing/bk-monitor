@@ -319,6 +319,7 @@ class UserGroupBulkUpdateResource(Resource):
                }
            ]
         """
+
         receivers = []
         for rec in resource.notice_group.get_receiver(bk_biz_id=self.bk_biz_id):
             if "children" in rec:
@@ -329,20 +330,24 @@ class UserGroupBulkUpdateResource(Resource):
         user_ids = set(self.edit_data["users"])
         result = []
 
-        for rec in receivers:
-            if rec["id"] in user_ids:
-                user = {
-                    "id": rec["id"],
-                    "logo": rec.get("logo", ""),
-                    "display_name": rec["display_name"],
-                    "type": rec["type"],
-                }
-                if "members" in rec:
-                    user["members"] = rec["members"]
-                result.append(user)
-                user_ids.remove(rec["id"])
-                if not user_ids:
-                    break
+        def build_user_info(users, is_receivers):
+            for item in users:
+                _id = item["id"] if is_receivers else item["username"]
+                if _id in user_ids:
+                    user = {
+                        "id": _id,
+                        "logo": item.get("logo", ""),
+                        "display_name": item["display_name"],
+                        "type": item["type"] if is_receivers else "user",
+                    }
+                    if "members" in item:
+                        user["members"] = item["members"]
+                    result.append(user)
+                    user_ids.remove(_id)
+                    if not user_ids:
+                        break
+
+        build_user_info(receivers, True)
 
         if not user_ids:
             return result
@@ -351,15 +356,7 @@ class UserGroupBulkUpdateResource(Resource):
         user_list = api.bk_login.get_all_user(fields="username,display_name", exact_lookups=",".join(user_ids))[
             "results"
         ]
-
-        for user in user_list:
-            if user["username"] not in user_ids:
-                continue
-            user_info = {"id": user["username"], "logo": "", "display_name": user["display_name"], "type": "user"}
-            result.append(user_info)
-            user_ids.remove(user["username"])
-            if not user_ids:
-                break
+        build_user_info(user_list, False)
 
         if not user_ids:
             return result
