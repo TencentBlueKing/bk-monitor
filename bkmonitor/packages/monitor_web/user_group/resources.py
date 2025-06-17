@@ -269,9 +269,9 @@ class UserGroupBulkUpdateResource(Resource):
         searched_user_group_ids = set()
         for arrange in arranges:
             if partial:
-                arrange.users.extend(self.get_user_by_id())
+                arrange.users.extend(self.get_users_by_id())
             else:
-                arrange.users = self.get_user_by_id()
+                arrange.users = self.get_users_by_id()
             if not arrange.duty_rule_id:
                 searched_user_group_ids.add(arrange.user_group_id)
 
@@ -292,7 +292,7 @@ class UserGroupBulkUpdateResource(Resource):
 
         DutyArrange.objects.bulk_update(arranges, ["users", "hash"])
 
-    def get_user_by_id(self) -> list[dict]:
+    def get_users_by_id(self) -> list[dict]:
         """
         :return  [ // 直接通知的用户，或者某个组
                {
@@ -352,7 +352,7 @@ class UserGroupBulkUpdateResource(Resource):
         if not user_ids:
             return result
 
-        # 获取到所有的用户列表
+        # 查询剩余的用户信息
         user_list = api.bk_login.get_all_user(fields="username,display_name", exact_lookups=",".join(user_ids))[
             "results"
         ]
