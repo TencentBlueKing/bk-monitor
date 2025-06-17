@@ -36,7 +36,12 @@ class ResultTableCacheManager(CacheManager):
 
     @classmethod
     def refresh_metadata(cls, bk_biz_ids: list[int]):
-        bk_biz_ids = [0] + bk_biz_ids
+        """
+        刷新元数据结果表缓存
+
+        Args:
+            bk_biz_ids: 业务ID列表
+        """
         for bk_biz_id in bk_biz_ids:
             # 查询元数据结果表
             try:
@@ -79,6 +84,12 @@ class ResultTableCacheManager(CacheManager):
 
     @classmethod
     def refresh_bkdata(cls, bk_biz_ids: list[int]):
+        """
+        刷新数据平台结果表缓存
+
+        Args:
+            bk_biz_ids: 业务ID列表
+        """
         for bk_biz_id in bk_biz_ids:
             # 数据平台仅支持cmdb业务
             if bk_biz_id <= 0:
@@ -226,9 +237,10 @@ class ResultTableCacheManager(CacheManager):
             pool.apply_async(cls.refresh_metadata, args=(bk_biz_id_list,))
             pool.apply_async(cls.refresh_bkdata, args=(bk_biz_id_list,))
             pool.apply_async(cls.refresh_bklog, args=(bk_biz_id_list,))
+        # 刷新系统级别的元数据结果表
+        pool.apply_async(cls.refresh_metadata, args=([0],))
         pool.close()
         pool.join()
-        pool.terminate()
 
 
 def main():
