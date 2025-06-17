@@ -456,8 +456,6 @@ class ModifyResultTableResource(Resource):
             logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
             bk_tenant_id = DEFAULT_TENANT_ID
 
-        request_data["bk_tenant_id"] = bk_tenant_id
-
         if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
             try:
                 logger.info(
@@ -2440,17 +2438,6 @@ class GetRestoreResultTableSnapshotStateResource(Resource):
         restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info(
-                "GetRestoreResultTableSnapshotStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
-            )
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         return models.EsSnapshotRestore.batch_get_state(**validated_request_data)
 
 
