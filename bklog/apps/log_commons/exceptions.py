@@ -42,3 +42,40 @@ class CCMissingBkHostIDException(BaseCommonsException):
 class IllegalMaintainerException(BaseCommonsException):
     ErrorCode = "003"
     MESSAGE = _("非法的授权人")
+
+
+class SearchLockedException(BaseCommonsException):
+    """
+    查询时间段权限异常
+    """
+
+    ErrorCode = "004"
+    MESSAGE = _("查询该时间段数据的权限校验不通过")
+
+
+class TokenValidatedException(BaseCommonsException):
+    """
+    token校验异常
+    """
+
+    ErrorCode = "005"
+    MESSAGE = _("当前分享链接不存在")
+
+
+class TokenExpiredException(BaseCommonsException):
+    """
+    token已过期
+    """
+
+    ErrorCode = "006"
+    MESSAGE = _("当前分享链接已过期")
+
+
+class TokenDeletedException(BaseCommonsException):
+    """
+    token已收回
+    """
+
+    ErrorCode = "007"
+    MESSAGE = _("当前分享链接已收回")
+

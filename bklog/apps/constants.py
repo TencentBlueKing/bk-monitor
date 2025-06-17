@@ -246,8 +246,9 @@ class ApiTokenAuthType(ChoicesEnum):
     """
 
     GRAFANA = "Grafana"
+    SEARCH = "Search"
 
-    _choices_labels = ((GRAFANA, _("Grafana")),)
+    _choices_labels = ((GRAFANA, _("Grafana")), (SEARCH, "Search"),)
 
 
 class TokenStatusEnum(ChoicesEnum):
