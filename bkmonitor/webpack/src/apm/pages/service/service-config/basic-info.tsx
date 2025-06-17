@@ -370,8 +370,8 @@ export default class BasicInfo extends tsc<object> {
 
       // 容器事件
       const k8sRelation = eventRelation.find(item => item.table === RelationEventType.K8s);
-      this.eventRelation.isAutoRelation = !!k8sRelation.options.is_auto;
-      this.eventRelation.relationK8s = (k8sRelation.relations || []).map(
+      this.eventRelation.isAutoRelation = !!k8sRelation?.options?.is_auto;
+      this.eventRelation.relationK8s = (k8sRelation?.relations || []).map(
         ({ bcs_cluster_id = '', namespace = '', kind = '', name = '' }) => {
           return `${bcs_cluster_id}/${namespace}/${kind}/${name}`.replace(/\/{2,4}/g, '/').replace(/\/$/, '');
         }
@@ -576,7 +576,7 @@ export default class BasicInfo extends tsc<object> {
       table: RelationEventType.pipeline,
       relations: relationPipeline,
       options: {},
-    }
+    };
 
     // 容器事件
     const k8sEvent = {
@@ -1054,25 +1054,27 @@ export default class BasicInfo extends tsc<object> {
       <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
         <div class='event-link-item pipeline-event'>
           <div class='title'>{this.$t('流水线事件')}</div>
-          <p class='desc'>{this.$t('关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。')}</p>
+          <p class='desc'>
+            {this.$t('关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。')}
+          </p>
           <div class='pipeline-wrap'>
-            { this.isEditing && <div class='pipeline-label'>关联流水线</div>}
+            {this.isEditing && <div class='pipeline-label'>关联流水线</div>}
             {this.isLoading ? undefined : (
-                <PipelineSelectPanel
-                  params={{bkBizId: this.params.bk_biz_id, appName: this.params.app_name}}
-                  // value={[{
-                  //   "project_id": "bkee111",
-                  //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4",
-                  //   "pipeline_name": "\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
-                  // },{
-                  //   "project_id": "bkee111",
-                  //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c422",
-                  //   "pipeline_name": "aaa\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
-                  // },]}
-                  value={this.eventRelation.relationPipeline}
-                  isEditing={this.isEditing}
-                  onChange={this.handlePipelineChange}
-                />
+              <PipelineSelectPanel
+                isEditing={this.isEditing}
+                params={{ bkBizId: this.params.bk_biz_id, appName: this.params.app_name }}
+                // value={[{
+                //   "project_id": "bkee111",
+                //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4",
+                //   "pipeline_name": "\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
+                // },{
+                //   "project_id": "bkee111",
+                //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c422",
+                //   "pipeline_name": "aaa\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
+                // },]}
+                value={this.eventRelation.relationPipeline}
+                onChange={this.handlePipelineChange}
+              />
             )}
           </div>
         </div>
