@@ -82,8 +82,8 @@
     }
 
     .bk-form-control {
-      width: calc(100% - 16px);
-      margin: 4px 8px;
+      // width: calc(100% - 16px);
+      // margin: 4px 8px;
 
       .control-icon.left-icon {
         left: 0;
@@ -97,8 +97,9 @@
     }
 
     .pipeline-workload-tree {
-      height: calc(100% - 40px);
-      padding: 0 5px;
+      // height: calc(100% - 40px);
+      // padding: 0 5px;
+      height: calc(100% - 36px);
       overflow-y: auto;
 
       .bk-big-tree-node {
@@ -109,6 +110,11 @@
         &.is-selected {
           background-color: #e1ecff;
         }
+
+        &.is-leaf, .node-folder-icon {
+          margin-left: -4px;
+        }
+
 
         .bk-tree-node {
           &.root {
@@ -127,9 +133,10 @@
             }
 
             .item-count {
+              flex-shrink: 0;
               height: 16px;
               padding: 0 8px;
-              margin-left: 4px;
+              margin-left: 12px;
               line-height: 16px;
               background: #f0f1f5;
               border-radius: 2px;
@@ -226,6 +233,16 @@
         display: none;
         color: #3a84ff;
       }
+    }
+  }
+}
+
+.pipeline-add-popover {
+  .tippy-tooltip {
+    padding: 4px 8px 0;
+
+    &.light-theme {
+      color: #4d4f56;
     }
   }
 }
