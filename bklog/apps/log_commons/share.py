@@ -54,7 +54,7 @@ class ShareHandler:
                 "data": data["data"],
             },
         }
-        token_obj = ApiAuthToken.objects.update_or_create(**create_params)
+        token_obj, _ = ApiAuthToken.objects.update_or_create(**create_params)
         return {"token": token_obj.token, "expire_time": int(token_obj.expire_time.timestamp()), **token_obj.params}
 
     @staticmethod
