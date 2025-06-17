@@ -13,12 +13,13 @@ from collections import defaultdict
 
 import arrow
 from django.utils.functional import cached_property
-from constants.common import DEFAULT_TENANT_ID
 from monitor_web.models import CustomEventGroup, CustomTSTable
 from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from core.statistics.metric import Metric, register
+from core.drf_resource import api
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,19 +57,22 @@ class BkCollectorCollector(BaseCollector):
             query_config["group_by"] = data_source.group_by
             data_sources.append(data_source)
 
-        query = UnifyQuery(
-            bk_tenant_id=DEFAULT_TENANT_ID,
-            bk_biz_id=0,
-            data_sources=data_sources,
-            expression=alias,
-            functions=[],
-        )
-        points = query.query_data(
-            start_time=(now_ts - self.DEFAULT_QUERY_PERIOD) * 1000,
-            end_time=now_ts * 1000,
-            slimit=500,
-            down_sample_range="3s",
-        )
+        points = []
+        for tenant in api.bk_login.list_tenant():
+            query = UnifyQuery(
+                bk_tenant_id=tenant["id"],
+                bk_biz_id=0,
+                data_sources=data_sources,
+                expression=alias,
+                functions=[],
+            )
+            tenant_points = query.query_data(
+                start_time=(now_ts - self.DEFAULT_QUERY_PERIOD) * 1000,
+                end_time=now_ts * 1000,
+                slimit=500,
+                down_sample_range="3s",
+            )
+            points.extend(tenant_points)
         biz_count = defaultdict(int)
 
         # 获取时间段内最大值
