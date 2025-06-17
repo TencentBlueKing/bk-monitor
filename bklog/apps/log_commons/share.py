@@ -30,15 +30,16 @@ ShareAuthMap = {
 class ShareHandler:
     @staticmethod
     def create_or_update(data):
-        # 创建唯一token，长度8位
-        exist_tokens = list(
-            ApiAuthToken.objects.all().values_list("token", flat=True).distinct()
-        )
-        token = partial(token_hex, 8)()
-        while token in exist_tokens:
+        if data.get("token"):
+            token = data["token"]
+        else:
+            # 创建唯一token，长度8位
+            exist_tokens = list(
+                ApiAuthToken.objects.all().values_list("token", flat=True).distinct()
+            )
             token = partial(token_hex, 8)()
-        # 检索类型解析处理
-        name = data["type"]
+            while token in exist_tokens:
+                token = partial(token_hex, 8)()
         create_params = {
             "space_uid": data["space_uid"],
             "type": data["type"],
@@ -53,7 +54,7 @@ class ShareHandler:
                 "data": data["data"],
             },
         }
-        token_obj = ApiAuthToken.objects.create(**create_params)
+        token_obj = ApiAuthToken.objects.update_or_create(**create_params)
         return {"token": token_obj.token, "expire_time": int(token_obj.expire_time.timestamp()), **token_obj.params}
 
     @staticmethod
