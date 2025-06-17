@@ -438,7 +438,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
   }
 
   handleBatchEditSelectChange(id: string) {
-    console.log(id);
     this.batchOperation.show = true;
     this.batchOperation.type = id;
   }

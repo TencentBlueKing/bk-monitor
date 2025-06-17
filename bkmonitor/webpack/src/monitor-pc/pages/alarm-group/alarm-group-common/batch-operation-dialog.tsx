@@ -218,8 +218,7 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
             theme='primary'
             onClick={() => this.handleClick('append')}
           >
-            {' '}
-            {this.$t('批量追加')}{' '}
+            {this.$t('批量追加')}
           </bk-button>,
           <bk-button
             key='replace'
@@ -227,8 +226,7 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
             theme='primary'
             onClick={() => this.handleClick('confirm')}
           >
-            {' '}
-            {this.$t('批量替换')}{' '}
+            {this.$t('批量替换')}
           </bk-button>,
         ];
     }
