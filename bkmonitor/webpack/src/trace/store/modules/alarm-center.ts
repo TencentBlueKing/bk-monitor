@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,25 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineStore } from 'pinia';
 
-import AlarmCenterHeader from './components/alarm-center-header';
+import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
+import { getDefaultTimezone } from '../../i18n/dayjs';
 
-import './alarm-center.scss';
-export default defineComponent({
-  name: 'AlarmCenter',
-  setup() {},
-  render() {
-    return (
-      <div class='alarm-center'>
-        <div class='alarm-center-header'>
-          <AlarmCenterHeader />
-        </div>
-        <div class='alarm-center-filters' />
-        <div class='alarm-center-content'>
-          <div class='quick-filtering' />
-        </div>
-      </div>
-    );
+import type { AlarmType } from '../../pages/alarm-center/typing';
+
+export interface IAlarmCenterState {
+  timeRange: TimeRangeType;
+  timezone: string;
+  refreshInterval: number;
+  refreshImmediate: string;
+  alarmType: AlarmType;
+}
+export const useAlarmCenterStore = defineStore('alarmCenter', {
+  state: (): IAlarmCenterState => ({
+    timeRange: DEFAULT_TIME_RANGE,
+    timezone: getDefaultTimezone(),
+    refreshInterval: -1,
+    refreshImmediate: '',
+    alarmType: 'alert',
+  }),
+  actions: {
+    updateState(data: Partial<IAlarmCenterState>) {
+      Object.keys(data).forEach(key => {
+        this[key] = data[key];
+      });
+    },
   },
 });
