@@ -48,7 +48,6 @@ import { getBkchatGroup } from 'monitor-api/modules/user_groups';
 import { deepClone, random } from 'monitor-common/utils/utils';
 
 import UserSelector from '../../../../components/user-selector/user-selector';
-
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import RotationConfig from '../../rotation/rotation-config';
@@ -103,11 +102,12 @@ Component.registerHooks(['beforeRouteEnter']);
 // 群提醒人 需要有一个默认值
 const mentListDefaultItem = {
   id: 'all',
-  display_name: window.i18n.t('内部通知人'),
+  name: window.i18n.t('内部通知人'),
   logo: '',
   type: 'group',
   members: [],
   username: 'all',
+  hidden: false,
 };
 @Component({
   components: { UserSelector },
@@ -455,32 +455,18 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     const result = [];
     const groupMap = new Map();
     for (const item of this.allRecerverData) {
-      const isGroup = item.type === 'group';
-      isGroup &&
-        item.children.forEach(chil => {
-          groupMap.set(chil.id, chil);
-        });
+      groupMap.set(item.id, item);
     }
     for (const id of this.formData.users) {
       const isGroup = groupMap.has(id);
       result.push({
-        display_name: isGroup ? groupMap.get(id)?.display_name : id,
+        display_name: isGroup ? groupMap.get(id)?.name : id,
         logo: '',
         id,
         type: isGroup ? 'group' : 'user',
         members: isGroup ? groupMap.get(id)?.members : undefined,
       });
     }
-    // this.formData.users.forEach(id => {
-    //   const isGroup = groupMap.has(id);
-    //   result.push({
-    //     display_name: isGroup ? groupMap.get(id)?.display_name : id,
-    //     logo: '',
-    //     id,
-    //     type: isGroup ? 'group' : 'user',
-    //     members: isGroup ? groupMap.get(id)?.members : undefined,
-    //   });
-    // });
     return result;
   }
 
@@ -490,14 +476,11 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   handleMentionReceiver() {
     const result = [];
     const groupMap = new Map();
-    this.allRecerverData.forEach(item => {
-      const isGroup = item.type === 'group';
-      isGroup &&
-        item.children.forEach(chil => {
-          groupMap.set(chil.id, chil);
-        });
-    });
-    this.selectedMentionList.forEach(id => {
+    for (const item of this.allRecerverData) {
+      groupMap.set(item.id, item);
+    }
+
+    for (const id of this.selectedMentionList) {
       const isGroup = groupMap.has(id);
       let type = isGroup ? 'group' : 'user';
       // 特殊处理 内部通知人 的情况
@@ -506,7 +489,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         id,
         type,
       });
-    });
+    }
     return result;
   }
 
@@ -864,6 +847,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     //   id: user.id,
     //   type: user.type,
     // });
+    this.selectedMentionList = users;
     this.formData.mention_list = users.map(user => ({
       id: user,
       type: this.mentionGroupList.some(item => item.id === user) ? 'group' : 'user',
@@ -1025,34 +1009,6 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     <div class='error-msg'>{this.errorsMsg.users}</div>
                   )}
                 </div>
-                {this.handleNoticeReceiver().map(item =>
-                  item.type === 'group' ? (
-                    <div
-                      key={item.id}
-                      class='text-msg'
-                    >
-                      {`${item.display_name}(${
-                        ['bk_bak_operator', 'operator'].includes(item.id)
-                          ? this.operatorText[item.id]
-                          : this.$t('来自配置平台')
-                      })`}
-                      {!['bk_bak_operator', 'operator'].includes(item.id) ? (
-                        item.members.length ? (
-                          <span>
-                            {'，'}
-                            {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
-                          </span>
-                        ) : (
-                          <span>
-                            {'，'}
-                            {this.$t('当前成员')}
-                            {`(${this.$t('空')})`}
-                          </span>
-                        )
-                      ) : undefined}
-                    </div>
-                  ) : undefined
-                )}
                 {/* <div class="text-tip">*/}
                 {/*  <span class="icon-monitor icon-hint"></span>*/}
                 {/*  {this.$t('电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序')}*/}

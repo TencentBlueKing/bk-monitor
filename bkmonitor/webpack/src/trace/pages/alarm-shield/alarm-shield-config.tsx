@@ -32,6 +32,7 @@ import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
 import { deepClone, random } from 'monitor-common/utils';
+import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -151,15 +152,7 @@ export default defineComponent({
     });
 
     const defaultUserGroupList = computed(() =>
-      (defaultGroupList.value?.[0]?.children || []).map(item => ({
-        id: item.id,
-        name: item.display_name,
-        hidden: false,
-        members: item.members.map(member => ({
-          id: member.id,
-          name: member.display_name,
-        })),
-      }))
+      getDefaultUserGroupListSync(defaultGroupList.value?.[0]?.children || [])
     );
     async function init() {
       loading.value = true;
