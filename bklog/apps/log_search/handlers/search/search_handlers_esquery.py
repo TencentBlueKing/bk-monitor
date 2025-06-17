@@ -256,7 +256,8 @@ class SearchHandler:
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
-        self._add_fields_search_condition()
+        self._add_all_fields_search()
+
         # 透传start
         self.start: int = search_dict.get("begin", 0)
 
@@ -351,12 +352,10 @@ class SearchHandler:
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
 
-    def _add_fields_search_condition(self):
+    def _add_all_fields_search(self):
         """
-        补充检索条件
+        补充全文检索条件
         """
-        if self.query_string:
-            self.query_string = self.query_string.replace('"', '\\"').replace("'", "\\'")
         for item in self.addition:
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
@@ -366,7 +365,7 @@ class SearchHandler:
                 new_value_list = []
                 for value in value_list:
                     if field == "*":
-                        value = '"' + value.replace('"', '\\"').replace("'", "\\'") + '"'
+                        value = '"' + value.replace('"', '\\"') + '"'
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
@@ -1242,7 +1241,7 @@ class SearchHandler:
 
         with open(file_path, "a+", encoding="utf-8") as f:
             for content in content_generator():
-                f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
+                f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
         return file_path
 
     def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
@@ -1329,7 +1328,11 @@ class SearchHandler:
             project_code = space.space_id
         url = (
             settings.BCS_WEB_CONSOLE_DOMAIN
-            + f"/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id.upper()}/?container_id={container_id}"
+            + "/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id}/?container_id={container_id}".format(
+                project_code=project_code,
+                cluster_id=cluster_id.upper(),
+                container_id=container_id,
+            )
         )
         return url
 
@@ -2365,7 +2368,7 @@ class SearchHandler:
                         if father:
                             _key = f"{father}.{key}"
                         else:
-                            _key = f"{key}"
+                            _key = "%s" % key
                     if _key:
                         self._update_result_fields(_key, _item[key])
 
@@ -2511,7 +2514,7 @@ class SearchHandler:
                         if fater:
                             _key = f"{fater}.{key}"
                         else:
-                            _key = f"{key}"
+                            _key = "%s" % key
                     if _key:
                         a_context: str = f"{_key}: {_item[key]}"
                         new_log_context_list.append(a_context)
