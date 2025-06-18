@@ -623,6 +623,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <div
                   class={['batch-edit-dropdown-btn', { 'btn-disabled': !this.selectTableList.length }]}
                   slot='dropdown-trigger'
+                  v-bk-tooltips={{
+                    content: this.$t('请先勾选告警组'),
+                    disabled: this.selectTableList.length,
+                  }}
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
                   <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
