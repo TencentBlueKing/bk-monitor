@@ -30,10 +30,14 @@ class RelationHandler:
         """
         BCS集群发现
         """
-        projects = api.bcs.get_projects(kind="k8s")
-        project_id_mapping = group_by(projects, operator.itemgetter("project_id"))
+        clusters = []
+        project_id_mapping = {}
+        for tenant in api.bk_login.list_tenant():
+            bk_tenant_id = tenant["id"]
+            projects = api.bcs.get_projects(kind="k8s", bk_tenant_id=bk_tenant_id)
+            project_id_mapping.update(group_by(projects, operator.itemgetter("project_id")))
+            clusters.extend(api.bcs_cluster_manager.get_project_k8s_non_shared_clusters(bk_tenant_id=bk_tenant_id))
 
-        clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
         cluster_mapping = group_by(clusters, operator.itemgetter("cluster_id"))
         logger.info(f"[RelationHandler] found: {len(cluster_mapping)} k8s clusters")
 

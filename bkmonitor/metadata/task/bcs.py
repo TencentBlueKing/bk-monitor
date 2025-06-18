@@ -47,9 +47,11 @@ def refresh_bcs_monitor_info():
     ).inc()
     start_time = time.time()
     fed_clusters = {}
+    fed_cluster_id_list = []
     try:
-        fed_clusters = api.bcs.get_federation_clusters()
-        fed_cluster_id_list = list(fed_clusters.keys())
+        for tenant in api.bk_login.list_tenant():
+            fed_clusters.update(api.bcs.get_federation_clusters(bk_tenant_id=tenant["id"]))
+            fed_cluster_id_list.extend(list(fed_clusters.keys()))
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error(f"get federation clusters failed: {e}")
@@ -210,7 +212,7 @@ def discover_bcs_clusters():
         # 获取所有联邦集群 ID
         fed_clusters = {}
         try:
-            fed_clusters = api.bcs.get_federation_clusters()
+            fed_clusters = api.bcs.get_federation_clusters(bk_tenant_id=bk_tenant_id)
             fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
         except Exception as e:  # pylint: disable=broad-except
             fed_cluster_id_list = []

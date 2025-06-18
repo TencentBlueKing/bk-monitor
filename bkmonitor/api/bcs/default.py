@@ -109,6 +109,7 @@ class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         # 当为`-`时，为拉取集群下所有的命名空间数据
         project_code = serializers.CharField(required=False, label="project code", default="-")
         cluster_id = serializers.CharField(label="cluster id")
@@ -141,6 +142,7 @@ class GetProjectsResource(BcsApiBaseResource):
     default_limit = 1000
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         limit = serializers.IntegerField(required=False, default=1000)
         offset = serializers.IntegerField(required=False, default=0)
         kind = serializers.CharField(required=False, allow_blank=True)
@@ -184,6 +186,7 @@ class GetFederationClustersResource(BcsApiBaseResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         fed_project_code = serializers.CharField(required=False, allow_blank=True)
         fed_cluster_id = serializers.CharField(required=False, allow_blank=True)
         sub_project_code = serializers.CharField(required=False, allow_blank=True)

@@ -13,6 +13,7 @@ import operator
 import re
 import typing
 from dataclasses import dataclass
+from typing import Any
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
@@ -24,6 +25,7 @@ from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils import group_by
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 
 
@@ -297,6 +299,7 @@ class DeepflowHandler:
         space_info = SpaceApi.get_space_detail(bk_biz_id=self.bk_biz_id)
         space_type = space_info.space_type_id
 
+        params: dict[str, Any]
         if space_type == SpaceTypeEnum.BKCC.value:
             params = {"businessID": self.bk_biz_id}
         elif space_type == SpaceTypeEnum.BCS.value:
@@ -306,7 +309,10 @@ class DeepflowHandler:
         else:
             logger.warning(f"can not obtained cluster info from bk_biz_id: {self.bk_biz_id}(type: {space_type})")
             return []
-
+        try:
+            params["bk_tenant_id"] = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        except ValueError:
+            return []
         clusters = api.bcs_cluster_manager.fetch_clusters(**params)
         logger.info(f"{len(clusters)} clusters with bk_biz_id: {self.bk_biz_id} are obtained")
 
