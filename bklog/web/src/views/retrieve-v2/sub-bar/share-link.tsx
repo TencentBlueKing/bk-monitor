@@ -25,7 +25,7 @@
  */
 
 import BklogPopover from '@/components/bklog-popover';
-import { computed, ComputedRef, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, Ref, ref } from 'vue';
 import useStore from '@/hooks/use-store';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import dayjs from 'dayjs';
@@ -60,7 +60,6 @@ export default defineComponent({
       store.getters.retrieveParams.start_time,
       store.getters.retrieveParams.end_time,
     ]);
-
     const timeValueType = ref('static');
     let isDatePickerChange = false;
 
