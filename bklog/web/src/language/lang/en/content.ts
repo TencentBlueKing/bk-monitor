@@ -775,7 +775,7 @@ export default {
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
   '容量审核中，请等待': 'Capacity review is in progress, please wait.',
-  总行数: 'Total number',
+  总行数: 'Total',
   出现行数: 'occurrence count',
   日志条数: 'Number of log entries',
   次: 'Times',
@@ -1057,7 +1057,6 @@ export default {
     'No configured responsible person, unable to automatically create alarm strategy',
   '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
   检索中: 'Searching',
-  '输入组名,30个字符': 'Enter group name, 30 characters',
   组名不规范: 'Group name is not standard',
   名称冲突: 'Name conflict',
   最大30字符: 'Up to 30 characters',
@@ -1088,4 +1087,10 @@ export default {
     'If you still cannot confirm the cause of the problem, please click the feedback button below to contact us. The platform will respond and handle it in a timely manner.',
   '检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：':
     'Top query conditions detected, automatically supplemented SQL (takes effect叠加 with existing SQL statements):',
+  '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
+  '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
+    'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
+  '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
+  '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
+    'This configuration will take effect after the cleaning field is specified, and the log page will be cleaned according to different colors, up to six fields',
 };

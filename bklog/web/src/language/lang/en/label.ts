@@ -800,4 +800,11 @@ export default {
   精确匹配: 'Exact match',
   Grep模式: 'Grep Mode',
   我的收藏: 'My favorites',
+  搜索历史: 'Search history',
+  检索时间: 'Search time',
+  语句: 'Statement',
+  颜色: 'Color',
+  字段定义: 'Field definition',
+  快速选择: 'Quick selection',
+  
 };

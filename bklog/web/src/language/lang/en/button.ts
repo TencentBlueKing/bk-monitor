@@ -214,4 +214,10 @@ export default {
   内置: 'built-in',
   添加排序字段: 'Add Sort Field',
   另存为模板: 'save as template',
+  隐藏无数据: 'Hide No Data',
+  添加自定义标签: 'Add Custom Label',
+  清空历史: 'Clear History',
+  清空收藏: 'Clear Favorites',
+  清空选择: 'Clear Selection',
+  默认配置: 'Default Configuration',
 };

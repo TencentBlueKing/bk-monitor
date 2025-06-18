@@ -95,7 +95,7 @@
                   <bk-form-item :label="$t('分组名称')" property="name" required>
                     <bk-input
                       v-model="addGroupData.name"
-                      :placeholder="$t('输入组名,30个字符')"
+                      :placeholder="$t('请输入组名')"
                     />
                   </bk-form-item>
                 </bk-form>

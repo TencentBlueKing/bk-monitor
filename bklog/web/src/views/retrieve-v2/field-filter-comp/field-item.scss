@@ -255,11 +255,14 @@
         display: flex;
         align-items: center;
 
-        .distinct-count-label,
-        .distinct-count-num {
-          font-size: 14px;
-          color: #979ba5;
+        .distinct-count-label{
+          white-space: nowrap;
+          .distinct-count-num {
+            font-size: 14px;
+            color: #979ba5;
+          }
         }
+        
 
         .col-line {
           width: 1px;
