@@ -25,8 +25,7 @@
  */
 
 import BklogPopover from '@/components/bklog-popover';
-import { computed, defineComponent, ref } from 'vue';
-import TimeRange from '@/components/time-range/time-range';
+import { computed, defineComponent, Ref, ref } from 'vue';
 import useStore from '@/hooks/use-store';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import dayjs from 'dayjs';
@@ -35,6 +34,7 @@ import useLocale from '@/hooks/use-locale';
 import { copyMessage } from '@/common/util';
 import { messageError } from '@/common/bkmagic';
 import http from '@/api/index';
+import { TimeRangeType } from '@/components/time-range/time-range';
 
 export default defineComponent({
   setup() {
@@ -52,7 +52,10 @@ export default defineComponent({
     ]);
     const link = ref('');
 
-    const formatTimeRange = ref([store.getters.retrieveParams.start_time, store.getters.retrieveParams.end_time]);
+    const formatTimeRange: Ref<TimeRangeType> = ref([
+      store.getters.retrieveParams.start_time,
+      store.getters.retrieveParams.end_time,
+    ]);
     const format = ref(store.getters.retrieveParams.format);
     const timeValueType = ref('static');
     let isDatePickerChange = false;
@@ -61,8 +64,7 @@ export default defineComponent({
       timeValueType.value = value;
 
       if (value === 'static') {
-        const result = handleTransformToTimestamp(timeRange.value, format.value);
-        formatTimeRange.value = [result[0], result[1]];
+        formatTimeRange.value = [store.getters.retrieveParams.start_time, store.getters.retrieveParams.end_time];
       }
 
       if (value === 'dynamic') {
@@ -71,24 +73,6 @@ export default defineComponent({
     };
 
     handleTimeValueTypeChange(timeValueType.value);
-
-    const handleTimeRangeChange = (value: any) => {
-      timeRange.value = value;
-      isDatePickerChange = true;
-      handleTimeValueTypeChange(timeValueType.value);
-    };
-
-    const handleTimezoneChange = (value: string) => {
-      timezone.value = value;
-      isDatePickerChange = true;
-      handleTimeValueTypeChange(timeValueType.value);
-    };
-
-    const handleFormatChange = (value: string) => {
-      format.value = value;
-      isDatePickerChange = true;
-      handleTimeValueTypeChange(timeValueType.value);
-    };
 
     const placeholder = computed(() => {
       if (timeValueType.value === 'static') {
@@ -125,7 +109,7 @@ export default defineComponent({
     };
 
     const handleShareLinkClick = () => {
-      const result = handleTransformToTimestamp(timeRange.value, format.value);
+      const result = handleTransformToTimestamp(formatTimeRange.value, format.value);
       const params = {
         route: {
           name: route.name,
@@ -136,17 +120,14 @@ export default defineComponent({
             start_time: formatTimeRange.value[0],
             end_time: formatTimeRange.value[1],
             timezone: timezone.value,
+            format: format.value,
           },
         },
         store: {
           storage: store.state.storage,
           indexItem: {
             ...store.state.indexItem,
-            start_time: result[0],
-            end_time: result[1],
-            format: format.value,
-            timezone: timezone.value,
-            datePickerValue: timeRange.value,
+            datePickerValue: formatTimeRange.value,
           },
 
           catchFieldCustomConfig: store.state.retrieve.catchFieldCustomConfig,
@@ -229,11 +210,11 @@ export default defineComponent({
     const getContentView = () => {
       return (
         <div style='width: 600px; padding: 20px; display: flex; flex-direction: column; font-size: 12px;'>
-          <div style='font-size: 20px; margin-bottom: 10px;'>
+          <div style='font-size: 20px; margin-bottom: 30px;'>
             <span class='bklog-icon bklog-share'></span>
             <span style='margin-left: 6px;'>{t('临时分享')}</span>
           </div>
-          <div style='display: flex; align-items: center; margin-bottom: 10px;'>
+          {/* <div style='display: flex; align-items: center; margin-bottom: 10px;'>
             <span>{t('时间设置')}：</span>
             <TimeRange
               timezone={timezone.value}
@@ -242,7 +223,7 @@ export default defineComponent({
               on-timezone-change={handleTimezoneChange}
               on-format-change={handleFormatChange}
             ></TimeRange>
-          </div>
+          </div> */}
           <div style='display: flex; align-items: flex-start; margin-bottom: 10px;'>
             <span style='display: inline-block; min-width: fit-content;'>{t('时间格式')}：</span>
             <div>
@@ -258,7 +239,7 @@ export default defineComponent({
                   {t('会将时间转换为时间戳，按照访问人的时间进行载入')}
                 </span>
               </div>
-              <div style='margin-bottom: 12px;'>
+              <div>
                 <bk-radio
                   checked={timeValueType.value === 'dynamic'}
                   on-change={val => val && handleTimeValueTypeChange('dynamic')}
@@ -272,7 +253,7 @@ export default defineComponent({
               </div>
             </div>
           </div>
-          <div style='margin-bottom: 12px'>
+          <div style='margin-bottom: 20px'>
             <span>{t('时间示例')}：</span>
             <span style='color: #979BA5;'>{placeholder.value}</span>
           </div>
