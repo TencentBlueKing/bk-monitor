@@ -38,9 +38,10 @@ class BCSMonitor(BCSBase):
     metric_port = models.CharField(max_length=32)
     metric_interval = models.CharField(max_length=8)
 
-    @abc.abstractmethod
     @classmethod
+    @abc.abstractmethod
     def fetch_k8s_monitor_list_by_cluster(cls, params: dict[str, tuple[str, int]]) -> list[dict]:
+        """获取指定集群的k8s监控列表"""
         raise NotImplementedError
 
     @classmethod
