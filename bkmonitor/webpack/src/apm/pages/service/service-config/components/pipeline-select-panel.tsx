@@ -265,38 +265,41 @@ export default class PipelineSelectPanel extends tsc<
 
   // 数据转换TreeNode格式
   mapTreeData(data) {
-    return data.map(root => {
-      return {
-        id: root.project_id,
-        key: `${root.project_name}${root.project_id}`,
-        name: `(${root.project_name || ''})${root.project_id || ''}`,
-        root: true,
-        count: root.count,
-        children: root.items.flatMap((pipeline, index) => {
-          const treeNode = {
-            id: pipeline.pipeline_id,
-            key: pipeline.pipeline_id,
-            name: pipeline.pipeline_name,
-            parentId: pipeline.project_id,
-          };
-          // 加载更多选项
-          if (root.items.length - 1 === index && root.count > root.items.length) {
-            return [
-              treeNode,
-              {
-                id: `${pipeline.pipeline_id}/more_${random(5)}`,
-                projectId: root.project_id,
-                key: 'more',
-                name: '加载更多',
-                loading: false,
-                page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
-              },
-            ];
-          }
-          return treeNode;
-        }),
-      };
-    });
+    // filter: 子元素没有节点的父级不展示
+    return data
+      .filter(root => root.count && root.items?.length)
+      .map(root => {
+        return {
+          id: root.project_id,
+          key: `${root.project_name}${root.project_id}`,
+          name: `(${root.project_name || ''})${root.project_id || ''}`,
+          root: true,
+          count: root.count,
+          children: root.items.flatMap((pipeline, index) => {
+            const treeNode = {
+              id: pipeline.pipeline_id,
+              key: pipeline.pipeline_id,
+              name: pipeline.pipeline_name,
+              parentId: pipeline.project_id,
+            };
+            // 加载更多选项
+            if (root.items.length - 1 === index && root.count > root.items.length) {
+              return [
+                treeNode,
+                {
+                  id: `${pipeline.pipeline_id}/more_${random(5)}`,
+                  projectId: root.project_id,
+                  key: 'more',
+                  name: '加载更多',
+                  loading: false,
+                  page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
+                },
+              ];
+            }
+            return treeNode;
+          }),
+        };
+      });
   }
 
   // 转换流水线数据格式
