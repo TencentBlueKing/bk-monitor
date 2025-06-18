@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from core.drf_resource import api
@@ -60,11 +58,7 @@ class Command(BaseCommand):
 
         self.stdout.write("check bcs project manager service start")
         try:
-            project_list = (
-                api.bcs_cc.batch_get_projects()
-                if settings.ENABLE_BCS_CC_PROJECT_API
-                else api.bcs.get_projects(kind="k8s")
-            )
+            project_list = api.bcs.get_projects(kind="k8s")
         except Exception as e:
             msg = f"request bcs project manager api error, {e}"
             self.stderr.write(msg)

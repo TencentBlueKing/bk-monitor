@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-
-
 import abc
 import json
 import logging
-from typing import List, Optional
 
 import six
 from django.conf import settings
@@ -19,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BcsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     # 注意这里的系统名字是bcs-api，查询的方法是在https://{settings.BK_PAAS_INNER_HOST}/admin/apigw/api/查询
     # 这是apigw查询系统的方式，目前由于apigw没有页面，所以只能在这里查询
-    base_url = "%s/api/apigw/bcs-api/prod/" % settings.BK_COMPONENT_API_URL
+    base_url = f"{settings.BK_COMPONENT_API_URL}/api/apigw/bcs-api/prod/"
     module_name = "bcs-api"
     # backend_cache_type = CacheType.BCS
     # BCS目前是非蓝鲸标准的返回格式，所以需要兼容
@@ -88,10 +84,10 @@ class BcsApiBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     IS_STANDARD_FORMAT = False
 
     def get_request_url(self, validated_request_data):
-        return super(BcsApiBaseResource, self).get_request_url(validated_request_data).format(**validated_request_data)
+        return super().get_request_url(validated_request_data).format(**validated_request_data)
 
     def get_headers(self):
-        headers = super(BcsApiBaseResource, self).get_headers()
+        headers = super().get_headers()
         headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
         return headers
 
@@ -119,12 +115,10 @@ class FetchSharedClusterNamespacesResource(BcsApiBaseResource):
 
     def render_response_data(self, validated_request_data, response_data):
         # 对响应数据进行额外处理
-        data = super(FetchSharedClusterNamespacesResource, self).render_response_data(
-            validated_request_data, response_data
-        )
+        data = super().render_response_data(validated_request_data, response_data)
         return self._refine_ns(data, validated_request_data["cluster_id"])
 
-    def _refine_ns(self, ns_list: List, cluster_id: str) -> List:
+    def _refine_ns(self, ns_list: list, cluster_id: str) -> list:
         """处理返回的命名空间"""
         return [
             {
@@ -153,7 +147,7 @@ class GetProjectsResource(BcsApiBaseResource):
         is_detail = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
-        projects = super(GetProjectsResource, self).perform_request(validated_request_data)
+        projects = super().perform_request(validated_request_data)
         count = projects["total"]
         project_list = projects.get("results") or []
         # 如果每页的数量大于count，则不用继续请求，否则需要继续请求
@@ -162,7 +156,7 @@ class GetProjectsResource(BcsApiBaseResource):
             start_offset = 1
             while start_offset <= max_offset:
                 validated_request_data.update({"limit": self.default_limit, "offset": start_offset})
-                resp_data = super(GetProjectsResource, self).perform_request(validated_request_data)
+                resp_data = super().perform_request(validated_request_data)
                 project_list.extend(resp_data.get("results") or [])
                 start_offset += 1
         # 因为返回数据内容太多，抽取必要的字段
@@ -200,10 +194,10 @@ class GetFederationClustersResource(BcsApiBaseResource):
 
     def perform_request(self, validated_request_data):
         data = self._get_request_data(validated_request_data)
-        resp = super(GetFederationClustersResource, self).perform_request(data)
+        resp = super().perform_request(data)
         return self._refine_cluster(resp)
 
-    def _refine_cluster(self, resp: Optional[List] = None):
+    def _refine_cluster(self, resp: list | None = None):
         """处理返回的集群信息
         格式:
         {

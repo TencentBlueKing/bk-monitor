@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 
 from django.db import models
@@ -126,7 +126,16 @@ class BCSIngress(BCSBase):
         return columns
 
     @staticmethod
-    def load_list_from_api(params):
+    def load_list_from_api(params: dict[str, tuple[str, int]]) -> list["BCSIngress"]:
+        """
+        从API获取Ingress列表
+
+        Args:
+            params: key为集群ID，value为业务ID
+
+        Returns:
+            BCSIngress列表
+        """
         bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
         api_ingress = api.kubernetes.fetch_k8s_ingress_list_by_cluster.bulk_request(
             bulk_request_params, ignore_exceptions=True

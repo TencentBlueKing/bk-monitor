@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,8 +11,9 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Set, Type
+from typing import Any
 
 from celery import shared_task
 from django.conf import settings
@@ -42,9 +42,12 @@ logger = logging.getLogger("kubernetes")
 logger.setLevel(logging.INFO)
 
 
-def from_iso_format(start_time: str) -> datetime:
+def from_iso_format(start_time: str) -> datetime | None:
     """将iso8601格式的字符串转换为当前时区的时间对象 ."""
     start_time_obj = parse_datetime(start_time)
+    if not start_time_obj:
+        return None
+
     # 转换为当前时区的时间
     current_timezone = timezone.get_current_timezone()
     start_at_current_timezone = start_time_obj.astimezone(current_timezone)
@@ -52,13 +55,13 @@ def from_iso_format(start_time: str) -> datetime:
     return start_at_current_timezone_naive
 
 
-def get_model_value(model: BCSBase, field: str, datetime_fields: Set) -> Any:
+def get_model_value(model: BCSBase, field: str, datetime_fields: set | None) -> Any:
     """获得模型的值 ."""
     value = getattr(model, field)
     if datetime_fields and value and field in datetime_fields:
         if isinstance(value, str):
             value = from_iso_format(value)
-        if isinstance(value, datetime):
+        elif isinstance(value, datetime):
             current_timezone = timezone.get_current_timezone()
             value_at_current_timezone = value.astimezone(current_timezone)
             value = timezone.make_naive(value_at_current_timezone).strftime("%Y-%m-%dT%H:%M:%S")
@@ -66,16 +69,15 @@ def get_model_value(model: BCSBase, field: str, datetime_fields: Set) -> Any:
 
 
 def bulk_save_resources(
-    resource: Type[BCSBase],
-    resource_models: List[BCSBase],
+    resource: type[BCSBase],
+    resource_models: Iterable[BCSBase],
     sync_unique_field: str,
-    sync_fields: List,
-    sync_filter: Optional[Dict] = None,
-    datetime_fields: List = None,
+    sync_fields: list,
+    sync_filter: dict | None = None,
+    datetime_fields: list | set | None = None,
 ):
     """同步指定资源 ."""
-    if datetime_fields:
-        datetime_fields = set(datetime_fields)
+    datetime_field_set = set(datetime_fields) if datetime_fields else None
 
     # 本地资源
     if not sync_filter:
@@ -107,9 +109,9 @@ def bulk_save_resources(
             old_resource_model = old_data_dict[unique_hash]
             try:
                 old_compare_data = [
-                    get_model_value(old_resource_model, field, datetime_fields) for field in sync_fields
+                    get_model_value(old_resource_model, field, datetime_field_set) for field in sync_fields
                 ]
-                new_compare_data = [get_model_value(resource_model, field, datetime_fields) for field in sync_fields]
+                new_compare_data = [get_model_value(resource_model, field, datetime_field_set) for field in sync_fields]
             except (ValueError, OSError) as exc_info:
                 # 日期格式不正确，忽略更新
                 logger.exception(exc_info)
@@ -147,14 +149,19 @@ def bulk_save_resources(
 
 
 @share_lock(identify="sync_bcs_cluster_to_db")
-def sync_bcs_cluster_to_db() -> List[BCSCluster]:
+def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     """同步cluster数据到数据库 ."""
     # 获得全部集群信息，不包含资源使用量
-    params = {}
-    cluster_models = BCSCluster.load_list_from_api(params)
+    cluster_models = []
+
+    # 查询所有租户下的集群信息
+    for tenant in api.tenant.list_tenant():
+        cluster_models.extend(BCSCluster.load_list_from_api({"bk_tenant_id": tenant["id"]}))
+
     # 同步cluster信息
     sync_unique_field = "unique_hash"
     sync_fields = [
+        "bk_tenant_id",
         "bk_biz_id",
         "bcs_cluster_id",
         "name",
@@ -265,9 +272,7 @@ def sync_bcs_ingress(bcs_cluster_id):
         if not bcs_cluster_id_list:
             continue
 
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
+        sync_filter = {"bcs_cluster_id__in": bcs_cluster_id_list}
         bulk_save_resources(BCSIngress, ingress_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
         # 同步标签
         patch_exists_resource_id(ingress_models)

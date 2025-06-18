@@ -27,6 +27,7 @@ from bkm_space.api import SpaceApi, SpaceTypeEnum
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSLabel
 from bkmonitor.utils.kubernetes import get_progress_value
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("kubernetes")
@@ -37,6 +38,7 @@ class BCSClusterManager(BCSBaseManager):
 
 
 class BCSCluster(BCSBase):
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     name = models.CharField(verbose_name="集群名称", max_length=128)
     area_name = models.CharField(verbose_name="区域", max_length=32)
     project_name = models.CharField(verbose_name="业务名", max_length=32)

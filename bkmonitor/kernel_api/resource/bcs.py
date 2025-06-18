@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
-from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.request import get_request_username
@@ -27,15 +26,9 @@ class GetBcsGrayClusterListResources(Resource):
     """
 
     def perform_request(self, params):
-        enable_bsc_gray_cluster = settings.ENABLE_BCS_GRAY_CLUSTER
-        if not enable_bsc_gray_cluster:
-            bcs_gray_cluster_id_list = []
-        else:
-            bcs_gray_cluster_id_list = settings.BCS_GRAY_CLUSTER_ID_LIST
-
         return {
-            "enable_bsc_gray_cluster": enable_bsc_gray_cluster,
-            "bcs_gray_cluster_id_list": bcs_gray_cluster_id_list,
+            "enable_bsc_gray_cluster": False,
+            "bcs_gray_cluster_id_list": [],
         }
 
 
@@ -55,10 +48,7 @@ class RegisterClusterResource(Resource):
 
     def perform_request(self, validated_request_data):
         cluster_id = validated_request_data["bcs_cluster_id"]
-        if cluster_id in settings.BCS_GRAY_CLUSTER_ID_LIST:
-            return f"[cluster]{cluster_id} already registered. do nothing"
 
-        settings.BCS_GRAY_CLUSTER_ID_LIST += [cluster_id]
         # 实时获取集群列表
         bcs_clusters = api.kubernetes.fetch_k8s_cluster_list.request.refresh()
         target_cluster = None
@@ -89,7 +79,4 @@ class RegisterClusterResource(Resource):
         except Exception as e:
             logger.exception(f"[cluster]{cluster_id} register error: {e}")
             # 失败回退灰度集群列表
-            tmp = settings.BCS_GRAY_CLUSTER_ID_LIST
-            tmp.remove(cluster_id)
-            settings.BCS_GRAY_CLUSTER_ID_LIST = tmp
             raise e
