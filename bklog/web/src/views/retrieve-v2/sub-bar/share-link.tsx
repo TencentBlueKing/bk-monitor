@@ -229,6 +229,10 @@ export default defineComponent({
     const getContentView = () => {
       return (
         <div style='width: 600px; padding: 20px; display: flex; flex-direction: column; font-size: 12px;'>
+          <div style='font-size: 20px; margin-bottom: 10px;'>
+            <span class='bklog-icon bklog-share'></span>
+            <span style='margin-left: 6px;'>{t('临时分享')}</span>
+          </div>
           <div style='display: flex; align-items: center; margin-bottom: 10px;'>
             <span>{t('时间设置')}：</span>
             <TimeRange
@@ -334,6 +338,7 @@ export default defineComponent({
           }}
         >
           <span class='bklog-icon bklog-share'></span>
+          <span style='margin-left: 6px;'>{t('分享')}</span>
         </BklogPopover>
       );
     };
