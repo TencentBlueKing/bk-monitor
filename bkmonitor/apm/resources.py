@@ -1313,9 +1313,7 @@ class QueryTraceByIdsResource(Resource):
         trace_ids = list(set(validated_request_data["trace_ids"]))
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             validated_request_data["trace_ids"] = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1372,9 +1370,7 @@ class QueryAppByTraceResource(Resource):
         trace_ids = validated_request_data["trace_ids"]
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             trace_ids = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1496,10 +1492,16 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 # 取最近一小时的关联关系
                 end_time = int(time.time())
                 start_time = end_time - one_hour_seconds
+            else:
+                # 从日志平台传过来的时间是毫秒的时间戳，需要转换一下
+                start_time = start_time // 1000
+                end_time = end_time // 1000
+
             if end_time - start_time > one_hour_seconds:
                 # 防止时间范围太大，导致接口查询过慢
                 start_time = end_time - one_hour_seconds
             response = api.unify_query.query_multi_resource_range(
+                bk_biz_ids=[data.get("bk_biz_id")],
                 query_list=[
                     {
                         "start_time": start_time,
@@ -1510,7 +1512,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                         "step": f"{end_time - start_time}s",
                         "path_resource": ["datasource", "pod", "apm_service_instance"],
                     }
-                ]
+                ],
             )
             if response:
                 for each_data in response.get("data", []):
