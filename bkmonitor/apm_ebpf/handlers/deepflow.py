@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
 import operator
 import re
@@ -21,6 +21,7 @@ from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
 from bk_dataview.provisioning import sync_data_sources
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils import group_by
 from bkmonitor.utils.bcs import BcsKubeClient
 from core.drf_resource import api
@@ -244,7 +245,13 @@ class DeepflowHandler:
         return None
 
     def _get_cluster_access_ip_by_api(self, cluster_id):
-        nodes = api.kubernetes.fetch_k8s_node_list_by_cluster({"bcs_cluster_id": cluster_id})
+        try:
+            bk_tenant_id = bk_biz_id_to_space_uid(self.bk_biz_id)
+        except ValueError:
+            return None
+        nodes = api.kubernetes.fetch_k8s_node_list_by_cluster(
+            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": cluster_id}
+        )
         for node in nodes:
             node_ip = node.get("node_ip")
             if node_ip and node.get("status") == "Ready":
@@ -254,7 +261,7 @@ class DeepflowHandler:
     def _get_cluster_access_ip(self, cluster_id):
         access_ip = None
         # 当使用 BCS Client 获取不到集群节点 IP 时，使用监控自身 API 进行兜底
-        get_cluster_access_ip_funcs: typing.List[typing.Callable[[str], typing.Optional[str]]] = [
+        get_cluster_access_ip_funcs: list[typing.Callable[[str], str | None]] = [
             self._get_cluster_access_ip_by_client,
             self._get_cluster_access_ip_by_api,
         ]
@@ -297,7 +304,7 @@ class DeepflowHandler:
         elif space_type == SpaceTypeEnum.BKCI.value and space_info.space_code:
             params = {"projectID": space_info.space_code}
         else:
-            logger.warning(f"can not obtained cluster info from " f"bk_biz_id: {self.bk_biz_id}(type: {space_type})")
+            logger.warning(f"can not obtained cluster info from bk_biz_id: {self.bk_biz_id}(type: {space_type})")
             return []
 
         clusters = api.bcs_cluster_manager.fetch_clusters(**params)

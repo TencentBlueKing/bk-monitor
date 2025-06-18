@@ -254,15 +254,19 @@ def sync_bcs_ingress(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
     ingress_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             ingress_models = BCSIngress.load_list_from_api(params)
         except Exception as exc_info:
@@ -319,15 +323,19 @@ def sync_bcs_workload(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
     workload_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             workload_models = BCSWorkload.load_list_from_api(params)
         except Exception as exc_info:
@@ -382,15 +390,19 @@ def sync_bcs_service(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
     service_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             service_models = BCSService.load_list_from_api(params)
         except Exception as exc_info:
@@ -472,12 +484,16 @@ def sync_bcs_pod(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     try:
-        bk_biz_id = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id).bk_biz_id
+        cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id)
     except BCSCluster.DoesNotExist:
         return
 
+    bk_biz_id = cluster.bk_biz_id
+    bk_tenant_id = cluster.bk_tenant_id
     try:
-        pod_models = BCSPod.load_list_from_api({"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id})
+        pod_models = BCSPod.load_list_from_api(
+            {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}
+        )
     except Exception as exc_info:
         logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
         return
@@ -488,7 +504,9 @@ def sync_bcs_pod(bcs_cluster_id):
     BCSPod.bulk_save_labels(labels)
 
     try:
-        container_models = BCSContainer.load_list_from_api({"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id})
+        container_models = BCSContainer.load_list_from_api(
+            {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}
+        )
     except Exception as exc_info:
         logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
         return
@@ -534,13 +552,17 @@ def sync_bcs_node(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     node_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             node_models = BCSNode.load_list_from_api(params)
         except Exception as exc_info:
@@ -611,15 +633,19 @@ def sync_bcs_service_monitor(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
     service_monitor_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             service_monitor_models = BCSServiceMonitor.load_list_from_api(params)
         except Exception as exc_info:
@@ -675,15 +701,19 @@ def sync_bcs_pod_monitor(bcs_cluster_id):
     datetime_fields = ["created_at"]
 
     if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
+            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
+        )
     else:
-        clusters = BCSCluster.objects.all().values("bk_biz_id", "bcs_cluster_id")
+        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
     if not clusters:
         return None
     pod_monitor_models = None
 
     for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {cluster["bcs_cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
+        params = {
+            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
         try:
             pod_monitor_models = BCSPodMonitor.load_list_from_api(params)
         except Exception as exc_info:

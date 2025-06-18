@@ -12,7 +12,7 @@ import logging
 
 from rest_framework import serializers
 
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from core.drf_resource import Resource, api
 from core.drf_resource.exceptions import CustomException
 from metadata.models import BCSClusterInfo
@@ -47,10 +47,11 @@ class RegisterClusterResource(Resource):
             return username
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         cluster_id = validated_request_data["bcs_cluster_id"]
 
         # 实时获取集群列表
-        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list.request.refresh()
+        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list.request.refresh(bk_tenant_id=bk_tenant_id)
         target_cluster = None
         for cluster in bcs_clusters:
             if cluster_id == cluster["cluster_id"]:

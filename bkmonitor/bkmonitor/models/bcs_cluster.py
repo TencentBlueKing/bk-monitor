@@ -14,6 +14,7 @@ import gzip
 import json
 import logging
 import time
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -211,11 +212,23 @@ class BCSCluster(BCSBase):
         ]
 
     @staticmethod
-    def load_list_from_api(params):
-        """按业务ID获取所有的cluster ."""
+    def load_list_from_api(params: dict[str, Any]):
+        """
+        按业务ID获取所有的cluster
+
+        Args:
+            params: 请求参数
+                bk_tenant_id: 租户ID
+                bk_biz_id: 业务ID, 可选
+
+        Returns:
+            list: 集群列表
+        """
+        bk_tenant_id = params["bk_tenant_id"]
         bk_biz_id = params.get("bk_biz_id")
         request_params = {
             "data_type": "full",
+            "bk_tenant_id": bk_tenant_id,
         }
         if bk_biz_id:
             request_params["bk_biz_id"] = bk_biz_id

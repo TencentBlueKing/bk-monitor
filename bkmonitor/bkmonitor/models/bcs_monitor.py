@@ -39,7 +39,8 @@ class BCSMonitor(BCSBase):
     metric_interval = models.CharField(max_length=8)
 
     @abc.abstractmethod
-    def fetch_k8s_monitor_list_by_cluster(self, params):
+    @classmethod
+    def fetch_k8s_monitor_list_by_cluster(cls, params: dict[str, tuple[str, int]]) -> list[dict]:
         raise NotImplementedError
 
     @classmethod
@@ -153,13 +154,21 @@ class BCSMonitor(BCSBase):
         return columns
 
     @classmethod
-    def load_list_from_api(cls, params: dict):
+    def load_list_from_api(cls, params: dict[str, tuple[str, int]]) -> list["BCSMonitor"]:
+        """
+        从API获取Monitor列表
+
+        Args:
+            params: key为集群ID，value为(租户ID, 业务ID)
+        Returns:
+            list[BCSMonitor]: 监控列表
+        """
         api_resources = cls.fetch_k8s_monitor_list_by_cluster(params)
 
         monitors = []
         for r in itertools.chain.from_iterable(item for item in api_resources if item):
             bcs_cluster_id = r.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
+            bk_biz_id = params[bcs_cluster_id][1]
             metric_path_list = list(set(r.get("metric_path")))
             metric_port_list = r.get("metric_port")
             metric_interval_list = r.get("metric_interval")
