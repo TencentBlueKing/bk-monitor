@@ -1520,6 +1520,19 @@ ENABLED_ACCESS_DATA_BATCH_PROCESS = False
 ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
 ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 
+
+# AIDEV相关配置
+# 是否开启AI Agent能力
+ENABLE_AIDEV_AGENT = False
+# 元数据工具代码列表
+AIDEV_METADATA_TOOL_CODE_LIST = ["get_meta"]
+# AIDEV LLM模型名称
+AIDEV_LLM_MODEL_NAME = "hunyuan-turbos"
+# 是否启用新版元数据智能诊断方案
+ENABLE_V2_METADATA_AI_DIAGNOSIS = True
+# AIDEV模型服务地址
+LLM_GW_ENDPOINT = os.environ.get("LLM_GW_ENDPOINT", "")
+
 # metadata请求es超时配置, 单位为秒，默认10秒
 # 格式: {default: 10, 集群域名: 20}
 METADATA_REQUEST_ES_TIMEOUT = {}

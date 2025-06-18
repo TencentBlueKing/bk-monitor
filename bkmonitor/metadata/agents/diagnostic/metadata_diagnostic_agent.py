@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,13 +11,15 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import os
-from typing import Any, Dict, Generator
+from typing import Any
+from collections.abc import Generator
 
 from langchain.agents import Tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
+from django.conf import settings
 
 logger = logging.getLogger("metadata")
 
@@ -34,9 +35,10 @@ class MetadataDiagnosisAgent:
         """
         加载提示词模版
         """
-        prompt_path = os.path.join('metadata/agents/prompts/' f'{prompt_name}.md')
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            return f.read()
+        prompt_path = os.path.join(f"metadata/agents/prompts/{prompt_name}.md")
+        with open(prompt_path, encoding="utf-8") as f:
+            prompt = f.read()
+        return prompt
 
     def get_metadata_info(self, bk_data_id: int) -> dict:
         """
@@ -48,10 +50,10 @@ class MetadataDiagnosisAgent:
         """
         构造诊断引擎提示词
         """
-        prompt_template = self._load_prompt('diagnostic')
+        prompt_template = self._load_prompt("diagnostic")
         return prompt_template.replace("{metadata_json}", json.dumps(metadata, ensure_ascii=False))
 
-    def llm_analysis_engine(self, metadata: dict) -> Dict[str, Any]:
+    def llm_analysis_engine(self, metadata: dict) -> dict[str, Any]:
         """
         LLM决策分析引擎
         """
@@ -139,6 +141,59 @@ class MetadataDiagnosisAgent:
             logger.exception("诊断流程异常")
             yield "error", {"stage": "unknown", "message": f"诊断流程异常: {str(e)}", "details": str(e)}
 
+    def _collect_complete_answer(agent):
+        """
+        请求AIDEV LLM,结构化封装返回数据
+        """
+
+        if not settings.ENABLE_AIDEV_AGENT:  # 若未开启AI Agent能力,直接返回
+            logger.info("MetadataDiagnosisAgent: AIDEV Agent is disabled")
+            return None
+
+        try:
+            from aidev_agent.services.chat import ExecuteKwargs
+        except ImportError:
+            logger.error("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+            return None
+
+        thinking_content = ""
+        answer_content = ""
+
+        for chunk in agent.execute(ExecuteKwargs(stream=True)):
+            # 跳过非数据行
+            if not chunk.startswith("data: "):
+                continue
+
+            # 跳过结束标记
+            if chunk.strip() == "data: [DONE]":
+                break
+
+            try:
+                # 解析JSON数据
+                json_str = chunk[6:].strip()  # 移除 "data: " 前缀
+                data = json.loads(json_str)
+
+                event_type = data.get("event", "")
+                content = data.get("content", "")
+
+                # 收集不同类型的内容
+                if event_type == "think":
+                    thinking_content += content
+                elif event_type == "text":
+                    answer_content += content
+
+            except json.JSONDecodeError:
+                continue
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("MetadataDiagnosisAgent: unexpected error occurs in sdk way->[%s]", e)
+                continue
+
+        return {
+            "thinking": thinking_content.strip(),
+            "answer": answer_content.strip(),
+            "full_response": answer_content.strip(),
+        }
+
     @classmethod
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def diagnose(cls, bk_data_id: int) -> dict:
@@ -157,7 +212,7 @@ class MetadataDiagnosisAgent:
                 final_report = data
             elif result_type == "error":
                 logger.error(
-                    "MetadataDiagnosisAgent: bk_data_id->[%s],Diagnosis failed->[%s]", bk_data_id, data['message']
+                    "MetadataDiagnosisAgent: bk_data_id->[%s],Diagnosis failed->[%s]", bk_data_id, data["message"]
                 )
                 raise RuntimeError(f"Diagnosis failed at stage {data['stage']}: {data['message']}")
 
@@ -165,3 +220,62 @@ class MetadataDiagnosisAgent:
             raise ValueError("Diagnosis completed but no report generated")
 
         return final_report
+
+    @classmethod
+    def diagnose_by_agent_sdk(cls, bk_data_id: int):
+        """
+        使用AIDEV SDK执行诊断流程
+        早期快速迭代中，暂不做更多的封装处理
+        @param bk_data_id: 数据源ID
+        """
+
+        # 0. 现阶段AI Agent能力选择性开启
+        if not settings.ENABLE_AIDEV_AGENT:  # 若未开启AI Agent能力,直接返回
+            logger.info("MetadataDiagnosisAgent: AIDEV Agent is disabled")
+            return None
+
+        try:
+            from aidev_agent.api.bk_aidev import BKAidevApi
+            from aidev_agent.core.extend.models.llm_gateway import ChatModel
+            from aidev_agent.services.chat import ChatCompletionAgent
+            from aidev_agent.services.pydantic_models import ChatPrompt
+        except ImportError:
+            logger.error("MetadataDiagnosisAgent: failed to import AIDEV SDK")
+            return None
+
+        # 1. 初始化LLM模型服务
+        llm_model_name = settings.AIDEV_LLM_MODEL_NAME
+        llm = ChatModel.get_setup_instance(model=llm_model_name)
+        client = BKAidevApi.get_client()
+
+        # 2. 获取工具（工具注册在AIDEV平台）
+        tool_code_list = settings.AIDEV_METADATA_TOOL_CODE_LIST
+        tools = [client.construct_tool(tool_code) for tool_code in tool_code_list]
+
+        logger.info(
+            "MetadataDiagnosisAgent: start to diagnose with bk_data_id->[%s],use model->[%s]",
+            bk_data_id,
+            llm_model_name,
+        )
+
+        # 3. 构建用户输入
+        user_question = f"Please help me check,bk_data_id->{bk_data_id}"
+
+        # 4. 构建Agent ChatHistory -- 包含系统Role Prompt （后续支持根据role-code获取）
+        prompt = cls._load_prompt()
+        chat_history = [ChatPrompt(role="system", content=prompt), ChatPrompt(role="user", content=user_question)]
+
+        # 5. 构建Agent实例
+        agent = ChatCompletionAgent(
+            chat_model=llm,
+            chat_history=chat_history,
+            tools=tools,
+        )
+
+        # 6. Agent,启动！
+        result = cls._collect_complete_answer(agent)
+
+        logger.info("MetadataDiagnosisAgent: diagnose_by_agent_sdk finished,answer->[%s]", result["answer"])
+
+        # 7. 返回分析结果
+        return result
