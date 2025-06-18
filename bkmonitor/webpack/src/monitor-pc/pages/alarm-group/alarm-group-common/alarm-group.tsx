@@ -52,7 +52,7 @@ type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
   type?: TGroupType;
   fromRouterName?: string;
-  needReflesh?: boolean;
+  needRefresh?: boolean;
 }
 
 @Component({
@@ -65,7 +65,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   @Prop({ default: 'monitor', type: String, validator: (val: TGroupType) => ['monitor', 'fta'].includes(val) })
   type: TGroupType;
   @Prop({ default: '', type: String }) fromRouterName: string;
-  @Prop({ default: false, type: Boolean }) needReflesh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
+  @Prop({ default: false, type: Boolean }) needRefresh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
 
   loading = false;
   keyword = '';
@@ -217,7 +217,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   @Watch('fromRouterName')
   fromRouterNameChange(fromName: string) {
-    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needReflesh) {
+    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needRefresh) {
       this.getNoticeGroupList();
     }
   }
