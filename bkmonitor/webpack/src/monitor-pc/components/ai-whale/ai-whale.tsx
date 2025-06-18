@@ -104,13 +104,7 @@ interface IData {
 const robotWidth = 64;
 
 const tipClassName = 'ai-small-whale-tip-content';
-// const questions = [
-//   '蓝鲸监控的告警包含哪几个级别？',
-//   '如何在仪表盘中进行指标计算？',
-//   '主机监控场景包含哪些指标？',
-//   '如何接入第三方告警源？',
-//   '智能检测目前能支持哪些场景？',
-// ];
+
 @Component
 export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
@@ -147,11 +141,6 @@ export default class AiWhale extends tsc<{
   /* 10分钟已弹出则不再主动弹出 */
   lastRecordTime = 0;
 
-  /* AI Blueking */
-  // prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
-  // background = '#f5f7fa';
-  // headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
-
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
@@ -182,14 +171,7 @@ export default class AiWhale extends tsc<{
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
   }
-  // getDefaultMessage() {
-  //   return [
-  //     {
-  //       content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>${this.$t('例如')}：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
-  //       role: RoleType.Assistant,
-  //     },
-  //   ];
-  // }
+
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
     this.height = document.querySelector('.bk-monitor').clientHeight;

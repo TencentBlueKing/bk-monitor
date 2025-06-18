@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 
+import './ai-whale-icon.scss';
+
 interface AIWhaleIconProps {
   type: 'description' | 'explanation' | 'guideline';
   content: string;
@@ -42,8 +44,8 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   @Prop({ default: '' }) tip?: string; // 提示信息
   // 是否显示AI智能助手
   get enableAiAssistant() {
-    return false; // 暂时不上线 等ai小鲸新模型调试好后
-    // return aiWhaleStore.enableAiAssistant;
+    // return false; // 暂时不上线 等ai小鲸新模型调试好后
+    return aiWhaleStore.enableAiAssistant;
   }
   /* 图标点击事件 */
   handleClick() {
@@ -73,15 +75,16 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   }
 
   render() {
+    const tips = this.enableAiAssistant && !this.tip ? this.$t('点击问AI小鲸') : this.tip;
     return (
       <i
-        class={`icon-monitor ${this.enableAiAssistant ? 'icon-AI' : 'icon-tishi'}`}
+        class={`icon-monitor ${this.enableAiAssistant ? 'icon-AI' : 'icon-tishi'} ai-whale-icon`}
         v-bk-tooltips={{
-          content: this.tip,
+          content: tips,
           placement: 'top-start',
           maxWidth: '200',
           allowHTML: false,
-          disabled: !this.tip,
+          disabled: !tips,
         }}
         onClick={this.handleClick}
       />

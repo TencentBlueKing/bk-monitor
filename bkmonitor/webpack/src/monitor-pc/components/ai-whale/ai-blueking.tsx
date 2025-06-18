@@ -31,6 +31,13 @@ import AIBlueking from '@blueking/ai-blueking/vue2';
 import aiWhaleStore from '../../store/modules/ai-whale';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
+const customPrompts = [
+  '蓝鲸监控的告警包含哪几个级别？',
+  '如何在仪表盘中进行指标计算？',
+  '主机监控场景包含哪些指标？',
+  '如何接入第三方告警源？',
+  '智能检测目前能支持哪些场景？',
+];
 export interface IAiBluekingWrapperProps {
   message?: string;
   apiUrl?: string;
@@ -57,6 +64,9 @@ export default class AiBluekingWrapper extends tsc<IAiBluekingWrapperProps> {
   }
   @Watch('message')
   handleMessageChange(newVal: string) {
+    if (!newVal) {
+      return;
+    }
     this.aiBluekingRef.handleStop();
     this.aiBluekingRef.handleSendMessage(newVal);
   }
@@ -66,6 +76,7 @@ export default class AiBluekingWrapper extends tsc<IAiBluekingWrapperProps> {
         <AIBlueking
           ref='aiBlueking'
           hideNimbus={true}
+          prompts={customPrompts}
           url={this.apiUrl}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
