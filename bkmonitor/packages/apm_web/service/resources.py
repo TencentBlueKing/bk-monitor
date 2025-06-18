@@ -623,10 +623,14 @@ class PipelineOverviewResource(Resource):
         if not business:
             return []
 
-        product_id = getattr(business[0], "bk_product_id", None)
+        # 使用 devops_product_id 作为备选字段
+        for field in ["bk_product_id", "devops_product_id"]:
+            product_id = getattr(business[0], field, None)
+            if product_id is not None:
+                break
+        # 没有产品 ID，返回空列表
         if product_id is None:
-            # 使用 devops_product_id 作为备选字段
-            product_id = getattr(business[0], "devops_product_id")
+            return []
 
         # 获取业务关联的蓝盾项目
         devops_projects = api.devops.list_app_project({"productIds": product_id})
