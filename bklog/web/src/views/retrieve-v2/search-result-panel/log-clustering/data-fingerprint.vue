@@ -648,6 +648,7 @@
         }
       },
       handleMenuBatchClick(row, isLink = true) {
+        debugger;
         const additionList = [];
         const groupBy = this.requestData.group_by;
         if (groupBy.length) {
@@ -677,7 +678,7 @@
         this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
@@ -693,8 +694,14 @@
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
-          router.replace({
-            query,
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin' },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
           });
         });
       },
