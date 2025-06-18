@@ -882,7 +882,6 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
         if not matches:
             return self.query_string
         for match in matches:
-            # 开始匹配的索引和结束的索引
             current_idx = match.start()
             # 处理文本直到当前匹配位置，检查双引号的数量以确认是否在双引号内
             for i in range(start_idx, current_idx):
