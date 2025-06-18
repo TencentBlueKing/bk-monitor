@@ -181,6 +181,10 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
       const params = this.generateParams();
       bulkUpdateUserGroup(params)
         .then(() => {
+          this.$bkMessage({
+            message: this.$t('批量编辑成功'),
+            theme: 'success',
+          });
           this.handleCancel(true);
         })
         .finally(() => {
