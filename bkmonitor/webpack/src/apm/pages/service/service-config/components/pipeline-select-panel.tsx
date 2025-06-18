@@ -398,38 +398,42 @@ export default class PipelineSelectPanel extends tsc<
               </div>
             ) : (
               <div class='pipeline-workload-tree'>
-                <bk-big-tree
-                  ref='tree'
-                  scopedSlots={{
-                    default: ({ data }) => {
-                      if (data.key === 'more') return this.renderLoadMore(data);
-                      return (
-                        <div class={['bk-tree-node', { root: data.root }]}>
-                          <span
-                            style='padding-right: 5px;'
-                            class='node-content'
-                          >
+                {!this.data.length ? (
+                  <div class='pipeline-empty'>{this.$t('暂无选项')}</div>
+                ) : (
+                  <bk-big-tree
+                    ref='tree'
+                    scopedSlots={{
+                      default: ({ data }) => {
+                        if (data.key === 'more') return this.renderLoadMore(data);
+                        return (
+                          <div class={['bk-tree-node', { root: data.root }]}>
                             <span
-                              class='item-name'
-                              v-bk-overflow-tips
+                              style='padding-right: 5px;'
+                              class='node-content'
                             >
-                              {this.getSearchNode(data.name, this.searchVal)}
+                              <span
+                                class='item-name'
+                                v-bk-overflow-tips
+                              >
+                                {this.getSearchNode(data.name, this.searchVal)}
+                              </span>
+                              {data.count ? <span class='item-count'>{data.count}</span> : undefined}
                             </span>
-                            {data.count ? <span class='item-count'>{data.count}</span> : undefined}
-                          </span>
-                        </div>
-                      );
-                    },
-                  }}
-                  check-on-click={true}
-                  check-strictly={false}
-                  data={this.data}
-                  default-checked-nodes={this.getDefaultCheckedIds()}
-                  default-expanded-nodes={this.getDefaultExpandedIds()}
-                  padding={0}
-                  show-checkbox={this.isShowCheckbox}
-                  on-check-change={this.handleCheckChange}
-                />
+                          </div>
+                        );
+                      },
+                    }}
+                    check-on-click={true}
+                    check-strictly={false}
+                    data={this.data}
+                    default-checked-nodes={this.getDefaultCheckedIds()}
+                    default-expanded-nodes={this.getDefaultExpandedIds()}
+                    padding={0}
+                    show-checkbox={this.isShowCheckbox}
+                    on-check-change={this.handleCheckChange}
+                  />
+                )}
               </div>
             )}
           </div>

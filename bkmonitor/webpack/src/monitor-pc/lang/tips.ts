@@ -359,4 +359,5 @@ export default {
   默认取: 'Default to take',
   对应的二进制名称: 'The corresponding binary name.',
   暂无匹配结果: 'No matching results',
+  暂无选项: 'No options',
 };
