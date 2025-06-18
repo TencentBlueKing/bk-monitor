@@ -319,6 +319,7 @@ export default defineComponent({
           }}
         >
           <span class='bklog-icon bklog-share'></span>
+          <span style='margin-left: 6px;'>{t('分享')}</span>
         </BklogPopover>
       );
     };
