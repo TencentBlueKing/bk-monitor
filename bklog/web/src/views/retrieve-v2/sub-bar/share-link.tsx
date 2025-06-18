@@ -25,7 +25,7 @@
  */
 
 import BklogPopover from '@/components/bklog-popover';
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, ComputedRef, defineComponent, Ref, ref } from 'vue';
 import useStore from '@/hooks/use-store';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import dayjs from 'dayjs';
@@ -42,8 +42,12 @@ export default defineComponent({
     const route = useRoute();
     const { t } = useLocale();
 
-    const timezone = ref(store.state.indexItem.timezone);
-    const timeRange = ref(store.state.indexItem.datePickerValue);
+    const timezone = computed(() => store.state.indexItem.timezone);
+    const timeRange = computed(() => store.state.indexItem.datePickerValue);
+    const format = computed(() => store.getters.retrieveParams.format);
+    const startTime = computed(() => store.getters.retrieveParams.start_time);
+    const endTime = computed(() => store.getters.retrieveParams.end_time);
+
     const expireTime = ref('1d');
     const expireTimeList = ref([
       { id: '1d', name: '1天' },
@@ -56,7 +60,7 @@ export default defineComponent({
       store.getters.retrieveParams.start_time,
       store.getters.retrieveParams.end_time,
     ]);
-    const format = ref(store.getters.retrieveParams.format);
+
     const timeValueType = ref('static');
     let isDatePickerChange = false;
 
@@ -64,7 +68,7 @@ export default defineComponent({
       timeValueType.value = value;
 
       if (value === 'static') {
-        formatTimeRange.value = [store.getters.retrieveParams.start_time, store.getters.retrieveParams.end_time];
+        formatTimeRange.value = [startTime.value, endTime.value];
       }
 
       if (value === 'dynamic') {
@@ -171,6 +175,11 @@ export default defineComponent({
       }
 
       return !(e.target as HTMLElement).closest('.bklog-v3-select-popover');
+    };
+
+    const beforeShow = () => {
+      handleTimeValueTypeChange(timeValueType.value);
+      return true;
     };
 
     /**
@@ -312,7 +321,7 @@ export default defineComponent({
         <BklogPopover
           trigger='click'
           beforeHide={beforePopoverHide}
-          options={{ hideOnClick: false } as any}
+          options={{ hideOnClick: false, onShow: beforeShow } as any}
           style='height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;'
           {...{
             scopedSlots: { content: getContentView },
