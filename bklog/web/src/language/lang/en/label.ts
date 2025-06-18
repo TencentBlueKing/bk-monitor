@@ -810,4 +810,6 @@ export default {
     "It will convert the time to a timestamp and load it according to the visitor's time",
   '会将近 xxx 这种时间保留，按照访问人的近 xxx 时间进行载入':
     'It will keep the time like "last xxx" and load it according to the visitor\'s last xxx time',
+  临时分享: 'Temporary Share',
+  分享: 'Share',
 };
