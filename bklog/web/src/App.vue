@@ -244,6 +244,9 @@
       }
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
       this.$store.commit('updateIsEnLanguage', isEnLanguage);
+      if(isEnLanguage){
+        document.body.classList.add('language-en');
+      }
       // 初始化脱敏灰度相关的代码
       this.initMaskingToggle();
 
