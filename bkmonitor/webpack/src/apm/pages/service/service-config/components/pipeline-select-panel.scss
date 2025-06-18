@@ -73,6 +73,8 @@
   }
 
   .tree-panel {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     background-color: #fff;
 
@@ -82,8 +84,7 @@
     }
 
     .bk-form-control {
-      // width: calc(100% - 16px);
-      // margin: 4px 8px;
+      flex-shrink: 0;
 
       .control-icon.left-icon {
         left: 0;
@@ -97,10 +98,18 @@
     }
 
     .pipeline-workload-tree {
-      // height: calc(100% - 40px);
-      // padding: 0 5px;
-      height: calc(100% - 36px);
+      flex: 1;
+      padding-top: 4px;
       overflow-y: auto;
+
+      .pipeline-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        font-size: 12px;
+        color: #63656e;
+      }
 
       .bk-big-tree-node {
         &:hover {

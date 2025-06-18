@@ -362,4 +362,5 @@ export default {
   编辑通知对象: 'Edit Notify Target',
   修改通知对象: 'Modify Notify Target',
   通知对象不能为空: 'Notify target cannot be empty',
+  暂无选项: 'No options',
 };
