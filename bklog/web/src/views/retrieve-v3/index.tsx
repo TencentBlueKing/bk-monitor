@@ -46,7 +46,6 @@ export default defineComponent({
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
       useAppInit();
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-    // const isEnLanguage = computed(() => store.getters.isEnLanguage)
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
