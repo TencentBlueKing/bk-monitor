@@ -875,10 +875,26 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
         return False
 
     def transform(self) -> str:
-        matches = re.findall(self.RE, self.query_string)
+        matches = re.finditer(self.RE, self.query_string)
+        start_idx = 0
+        double_quote_count = 0
+        results = []
         if not matches:
             return self.query_string
-        for original in matches:
+        for match in matches:
+            # 开始匹配的索引和结束的索引
+            current_idx = match.start()
+            # 处理文本直到当前匹配位置，检查双引号的数量以确认是否在双引号内
+            for i in range(start_idx, current_idx):
+                if self.query_string[i] == '"' and (i == 0 or self.query_string[i - 1] != "\\"):
+                    double_quote_count += 1
+
+            # 如果双引号是偶数个，说明当前位置不在双引号包围内
+            if double_quote_count % 2 == 0:
+                results.append(match.group())
+            start_idx = match.end() + 1
+
+        for original in results:
             res = original.replace('"', '\\"').replace("\\'", "'")
             target_str = '"' + res[1:-1] + '"'
             self.query_string = self.query_string.replace(original, target_str)

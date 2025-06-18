@@ -263,6 +263,14 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] log: 'abc" c\\'de\\'as' AND log: and""",
         "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] log: "abc\\" c'de'as" AND log: \"and\"""",
     },
+    {
+        "keyword": """number >=83063 or action: "(reading 'remove')" AND title: "The Right Way" AND log: and""",
+        "expect": """number: >=83063 OR action: "(reading 'remove')" AND title: "The Right Way" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 or action: 'trying remove' AND log: "(read'ing 'remove')" AND log: and""",
+        "expect": """number: >=83063 OR action: "trying remove" AND log: "(read'ing 'remove')" AND log: \"and\"""",
+    },
 ]
 
 ENHANCE_KEYWORD_INSPECT_RESULT = {
