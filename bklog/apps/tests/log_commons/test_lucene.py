@@ -271,6 +271,10 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number >=83063 or action: 'trying remove' AND log: "(read'ing 'remove')" AND log: and""",
         "expect": """number: >=83063 OR action: "trying remove" AND log: "(read'ing 'remove')" AND log: \"and\"""",
     },
+    {
+        "keyword": """number >=83063 or action: "(reading \\" 'remove')" AND log: and""",
+        "expect": """number: >=83063 OR action: "(reading \\" 'remove')" AND log: \"and\"""",
+    },
 ]
 
 ENHANCE_KEYWORD_INSPECT_RESULT = {

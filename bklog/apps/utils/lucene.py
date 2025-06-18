@@ -867,7 +867,7 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
     例如: 'abc" cde\'fgh'ijkl'mn' => "abc\" cde'fgh"ijkl"mn"
     """
 
-    RE = r"'(?:[^'\\]|\\.)*'"
+    RE = r"\"(?:\\.|[^\"\\])*\"|(?P<content>'(?:\\.|[^\'\\])*')"
 
     def match(self) -> bool:
         if re.search(self.RE, self.query_string):
@@ -876,27 +876,13 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
 
     def transform(self) -> str:
         matches = re.finditer(self.RE, self.query_string)
-        start_idx = 0
-        double_quote_count = 0
-        results = []
         if not matches:
             return self.query_string
         for match in matches:
-            current_idx = match.start()
-            # 处理文本直到当前匹配位置，检查双引号的数量以确认是否在双引号内
-            for i in range(start_idx, current_idx):
-                if self.query_string[i] == '"':
-                    double_quote_count += 1
-
-            # 如果双引号是偶数个，说明当前位置不在双引号包围内
-            if double_quote_count % 2 == 0:
-                results.append(match.group())
-            start_idx = match.end() + 1
-
-        for original in results:
-            res = original.replace('"', '\\"').replace("\\'", "'")
-            target_str = '"' + res[1:-1] + '"'
-            self.query_string = self.query_string.replace(original, target_str)
+            if original := match.group("content"):
+                res = original.replace('"', '\\"').replace("\\'", "'")
+                target_str = '"' + res[1:-1] + '"'
+                self.query_string = self.query_string.replace(original, target_str)
         return self.query_string
 
 
