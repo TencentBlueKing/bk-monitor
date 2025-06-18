@@ -23,25 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import AlarmCenterHeader from './components/alarm-center-header';
+/** 告警类型 */
+export type AlarmType = 'action' | 'alert' | 'fault';
 
-import './alarm-center.scss';
-export default defineComponent({
-  name: 'AlarmCenter',
-  setup() {},
-  render() {
-    return (
-      <div class='alarm-center'>
-        <div class='alarm-center-header'>
-          <AlarmCenterHeader />
-        </div>
-        <div class='alarm-center-filters' />
-        <div class='alarm-center-content'>
-          <div class='quick-filtering' />
-        </div>
-      </div>
-    );
+export const alarmTypeMap: { label: string; value: AlarmType }[] = [
+  {
+    label: window.i18n.t('告警'),
+    value: 'alert',
   },
-});
+  {
+    label: window.i18n.t('故障'),
+    value: 'fault',
+  },
+  {
+    label: window.i18n.t('处理记录'),
+    value: 'action',
+  },
+];
