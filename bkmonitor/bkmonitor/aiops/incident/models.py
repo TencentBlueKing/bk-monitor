@@ -341,11 +341,11 @@ class IncidentSnapshot:
         :param entity_id: 实体ID
         :return: 实体父节点
         """
-        if len(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
+        if len(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
             return None
 
         parent_entity = None
-        for parent_entity_id in self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
+        for parent_entity_id in self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
             parent_entity = self.incident_graph_entities[parent_entity_id]
             # 优先展示BcsService的有告警的父节点
             if self.incident_graph_entities[parent_entity_id].entity_type == "BcsService":
