@@ -359,4 +359,7 @@ export default {
   默认取: 'Default to take',
   对应的二进制名称: 'The corresponding binary name.',
   暂无匹配结果: 'No matching results',
+  编辑通知对象: 'Edit Notify Target',
+  修改通知对象: 'Modify Notify Target',
+  通知对象不能为空: 'Notify target cannot be empty',
 };
