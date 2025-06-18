@@ -886,7 +886,7 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
             current_idx = match.start()
             # 处理文本直到当前匹配位置，检查双引号的数量以确认是否在双引号内
             for i in range(start_idx, current_idx):
-                if self.query_string[i] == '"' and (i == 0 or self.query_string[i - 1] != "\\"):
+                if self.query_string[i] == '"':
                     double_quote_count += 1
 
             # 如果双引号是偶数个，说明当前位置不在双引号包围内
