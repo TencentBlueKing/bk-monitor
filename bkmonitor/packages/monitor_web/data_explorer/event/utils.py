@@ -163,3 +163,72 @@ def generate_time_range(timestamp):
         end_time = 0
 
     return start_time, end_time
+
+
+class DescendingStr:
+    """
+    定义降序字符串类，用于支持字符串降序排序
+    """
+
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        self.value = value
+
+    def __lt__(self, other):
+        """
+        降序，取反原来的比较顺序
+        """
+        return self.value > other.value
+
+
+def sort_by_fields(data, fields, field_path=None):
+    """
+    对字典列表按照多个字段进行排序，支持字段名前加"-"表示降序
+    支持从任意嵌套路径获取字段值
+
+    :param data: 要排序的数据列表（字典列表）
+    :param fields: 排序字段列表，如 ["time", "-event.count"]
+    :param field_path: 字段值所在的嵌套路径，如 "origin_data"
+    :return: 排序后的字典列表
+    """
+
+    def get_nested_value(item, path):
+        """从嵌套字典中获取指定路径的值"""
+        if not path or item is None:
+            return None
+
+        # 分割路径为多个部分
+        parts = path.split(".")
+        current = item
+        for part in parts:
+            current = current[part]
+        return current
+
+    def get_sort_key(item):
+        key_parts = []
+
+        for field in fields:
+            # 判断是否降序
+            is_descending = field.startswith("-")
+            field_name = field[1:] if is_descending else field
+            # 获取排序字段所在的字典
+            base_data = get_nested_value(item, field_path) if field_path else item
+            # 获取字段值
+            value = base_data.get(field_name)
+
+            # 处理降序
+            if is_descending:
+                # 处理数值类型
+                if isinstance(value, int | float):
+                    key_parts.append(-value)
+                else:
+                    # 处理字符串类型, 使用自定义类实现降序
+                    key_parts.append(DescendingStr(value))
+            else:
+                key_parts.append(value)
+
+        # 将排序的键组合成一个元组，排序时会按照元组中字段的顺序依次比较
+        return tuple(key_parts)
+
+    return sorted(data, key=get_sort_key)

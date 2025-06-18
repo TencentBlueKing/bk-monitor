@@ -52,6 +52,7 @@ from .constants import (
     K8S_EVENT_TRANSLATIONS,
     CicdEventName,
     EventSource,
+    DIMENSION_PREFIX,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -72,6 +73,7 @@ from .utils import (
     get_qs_from_req_data,
     is_dimensions,
     format_field,
+    sort_by_fields,
 )
 
 logger = logging.getLogger(__name__)
@@ -453,6 +455,9 @@ class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        if validated_request_data.get("is_mock"):
+            return API_TOTAL_RESPONSE
+
         alias: str = "a"
         # 构建查询列表
         queries = [
