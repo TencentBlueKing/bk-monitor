@@ -51,13 +51,14 @@
         <template v-if="groupList.length">
           <slot name="list-top"></slot>
           <template>
-            <List 
-              :canSetDefaultSpace="canSetDefaultSpace" 
-              :checked="localValue" 
-              :list="generalList" 
+            <List
+              :canSetDefaultSpace="canSetDefaultSpace"
+              :checked="localValue"
+              :list="generalList"
               :theme="theme"
-              @handleClickOutSide="handleClickOutSide" 
-              @handleClickMenuItem="handleClickMenuItem" />
+              @handleClickOutSide="handleClickOutSide"
+              @handleClickMenuItem="handleClickMenuItem"
+            />
           </template>
         </template>
         <li v-else class="list-empty">
@@ -85,8 +86,8 @@ import { SPACE_TYPE_MAP } from '@/store/constant';
 import { debounce } from 'throttle-debounce';
 import { mapState, mapGetters } from 'vuex';
 
-import * as authorityMap from '../../common/authority-map';
-import List from '../../global/biz-select/list';
+  import * as authorityMap from '../../common/authority-map';
+  import List from '../../global/biz-select/list';
 
 const SPACE_COLOR_LIST = [
   '#7250A9',
@@ -100,228 +101,232 @@ const SPACE_COLOR_LIST = [
   '#BC4FB3',
 ];
 
-export default {
-  components: {
-    List
-  },
-  mixins: [navMenuMixin],
-  props: {
-    isExpand: {
-      type: Boolean,
-      default: true,
+  export default {
+    components: {
+      List,
     },
-    theme: {
-      type: String,
-      default: 'dark',
-    },
-    handlePropsClick: {
-      type: Function,
-    },
-    isExternalAuth: {
-      type: Boolean,
-      default: false,
-    },
-    canSetDefaultSpace: {
-      type: Boolean,
-      default: true,
-    },
-    // localValue: {
-    //   type: Number,
-    //   default: 0,
-    // }
-  },
-  data() {
-    return {
-      bizId: '',
-      keyword: '',
-      showBizList: false,
-      storage: null,
-      BIZ_SELECTOR_COMMON_IDS: 'BIZ_SELECTOR_COMMON_IDS', // 常用的 的key
-      BIZ_SELECTOR_COMMON_MAX: 5, // 常用的的最大长度
-      spaceTypeIdList: [],
-      commonListIds: [],
-      groupList: [],
-      searchTypeId: '',
-      spaceBgColor: '#3799BA',
-      bizBoxWidth: 418,
-      exterlAuthSpaceName: '', // 用于授权外部版选择器显示
-      generalList: [],
-      localValue: 0,
-      pagination: {
-        current: 1,
-        count: 0,
-        limit: 20,
-        data: [],
+    mixins: [navMenuMixin],
+    props: {
+      isExpand: {
+        type: Boolean,
+        default: true,
       },
-    };
-  },
-  computed: {
-    ...mapState(['isExternal']),
-    ...mapGetters({
-      demoUid: 'demoUid',
-    }),
-    bizName() {
-      if (this.isExternalAuth && !!this.exterlAuthSpaceName) return this.exterlAuthSpaceName;
-      return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
+      theme: {
+        type: String,
+        default: 'dark',
+      },
+      handlePropsClick: {
+        type: Function,
+      },
+      isExternalAuth: {
+        type: Boolean,
+        default: false,
+      },
+      canSetDefaultSpace: {
+        type: Boolean,
+        default: true,
+      },
+      // localValue: {
+      //   type: Number,
+      //   default: 0,
+      // }
     },
-    bizNameIcon() {
-      return this.bizName?.[0]?.toLocaleUpperCase() ?? '';
+    data() {
+      return {
+        bizId: '',
+        keyword: '',
+        showBizList: false,
+        storage: null,
+        BIZ_SELECTOR_COMMON_IDS: 'BIZ_SELECTOR_COMMON_IDS', // 常用的 的key
+        BIZ_SELECTOR_COMMON_MAX: 5, // 常用的的最大长度
+        spaceTypeIdList: [],
+        commonListIds: [],
+        groupList: [],
+        searchTypeId: '',
+        spaceBgColor: '#3799BA',
+        bizBoxWidth: 418,
+        exterlAuthSpaceName: '', // 用于授权外部版选择器显示
+        generalList: [],
+        localValue: 0,
+        pagination: {
+          current: 1,
+          count: 0,
+          limit: 20,
+          data: [],
+        },
+      };
     },
-    showSpaceTypeIdList() {
-      // 外部版不展示空间分类
-      return !this.isExternal && this.spaceTypeIdList.length > 1;
+    computed: {
+      ...mapState(['isExternal']),
+      ...mapGetters({
+        demoUid: 'demoUid',
+      }),
+      bizName() {
+        if (this.isExternalAuth && !!this.exterlAuthSpaceName) return this.exterlAuthSpaceName;
+        return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
+      },
+      bizNameIcon() {
+        return this.bizName?.[0]?.toLocaleUpperCase() ?? '';
+      },
+      showSpaceTypeIdList() {
+        // 外部版不展示空间分类
+        return !this.isExternal && this.spaceTypeIdList.length > 1;
+      },
     },
-  },
-  watch: {
-    async showBizList(val) {
-      if (val) {
-        await this.$nextTick();
-        const el = document.querySelector('#space-type-ul');
-        this.bizBoxWidth = Math.max(394, el?.clientWidth ?? 394) + 24;
-      } else {
-        this.$refs.bizListRef.scrollTop = 0;
-      }
-    },
+    watch: {
+      async showBizList(val) {
+        if (val) {
+          await this.$nextTick();
+          const el = document.querySelector('#space-type-ul');
+          this.bizBoxWidth = Math.max(394, el?.clientWidth ?? 394) + 24;
+        } else {
+          this.$refs.bizListRef.scrollTop = 0;
+        }
+      },
 
-    // 监听路由变化，解析spaceUid并赋值给localValue
-    '$route'(to) {
-      const spaceUid = to.query.spaceUid || to.params.spaceUid;
-      if (spaceUid) {
-        this.localValue = spaceUid;
-      }
-    }
-  },
-  created() {
-    this.handleBizSearchDebounce = debounce(300, this.handleBizSearch);
-
-    const spaceTypeMap = {};
-    this.mySpaceList.forEach(item => {
-      spaceTypeMap[item.space_type_id] = 1;
-      if (item.space_type_id === 'bkci' && item.space_code) {
-        spaceTypeMap.bcs = 1;
-      }
-    });
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
-      id: key,
-      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
-    }));
-  },
-  methods: {
-    getRandomColor() {
-      const color = SPACE_COLOR_LIST[Math.floor(Math.random() * SPACE_COLOR_LIST.length)];
-      this.$store.commit('setSpaceBgColor', color);
-      return color;
+      // 监听路由变化，解析spaceUid并赋值给localValue
+      $route(to) {
+        const spaceUid = to.query.spaceUid || to.params.spaceUid;
+        if (spaceUid) {
+          this.localValue = spaceUid;
+        }
+      },
     },
-    initGroupList() {
-      this.storage = new Storage();
-      this.commonListIds = this.storage.get(this.BIZ_SELECTOR_COMMON_IDS) || [];
-      const generalList = [];
+    created() {
+      this.handleBizSearchDebounce = debounce(300, this.handleBizSearch);
+
+      const spaceTypeMap = {};
       this.mySpaceList.forEach(item => {
-        let show = false;
-        const keyword = this.keyword.trim().toLocaleLowerCase();
-        if (this.searchTypeId) {
-          show =
-            this.searchTypeId === 'bcs'
-              ? item.space_type_id === 'bkci' && !!item.space_code
-              : item.space_type_id === this.searchTypeId;
-        }
-        if ((show && keyword) || (!this.searchTypeId && !show)) {
-          show =
-            item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(keyword) > -1 ||
-            `${item.bk_biz_id}`.includes(keyword) ||
-            `${item.space_code}`.includes(keyword);
-        }
-        if (show) {
-          // 无权限 直接不显示
-          if (!item.permission[authorityMap.VIEW_BUSINESS]) return;
-          generalList.push(item);
+        spaceTypeMap[item.space_type_id] = 1;
+        if (item.space_type_id === 'bkci' && item.space_code) {
+          spaceTypeMap.bcs = 1;
         }
       });
-      this.generalList = generalList;
-      this.setPaginationData(true);
-      // 只返回一个分组，全部数据都在generalList
-      return [{
-        id: 'general',
-        name: this.$t('有权限的'),
-        children: this.pagination.data,
-      }];
+      this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+        id: key,
+        name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
+        styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
+      }));
     },
+    methods: {
+      getRandomColor() {
+        const color = SPACE_COLOR_LIST[Math.floor(Math.random() * SPACE_COLOR_LIST.length)];
+        this.$store.commit('setSpaceBgColor', color);
+        return color;
+      },
+      initGroupList() {
+        this.storage = new Storage();
+        this.commonListIds = this.storage.get(this.BIZ_SELECTOR_COMMON_IDS) || [];
+        const generalList = [];
+        this.mySpaceList.slice(0, 100).forEach(item => {
+          let show = false;
+          const keyword = this.keyword.trim().toLocaleLowerCase();
+          if (this.searchTypeId) {
+            show =
+              this.searchTypeId === 'bcs'
+                ? item.space_type_id === 'bkci' && !!item.space_code
+                : item.space_type_id === this.searchTypeId;
+          }
+          if ((show && keyword) || (!this.searchTypeId && !show)) {
+            show =
+              item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
+              item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+              item.space_uid.toLocaleLowerCase().indexOf(keyword) > -1 ||
+              `${item.bk_biz_id}`.includes(keyword) ||
+              `${item.space_code}`.includes(keyword);
+          }
+          if (show) {
+            // 无权限 直接不显示
+            if (!item.permission[authorityMap.VIEW_BUSINESS]) return;
+            generalList.push(item);
+          }
+        });
+        this.generalList = generalList;
+        this.setPaginationData(true);
+        // 只返回一个分组，全部数据都在generalList
+        return [
+          {
+            id: 'general',
+            name: this.$t('有权限的'),
+            children: this.pagination.data,
+          },
+        ];
+      },
 
-    setPaginationData(isInit) {
-      const showData = this.generalList;
-      this.pagination.count = showData.length;
-      if (isInit) {
-        this.pagination.current = 1;
-        this.pagination.data = showData.slice(0, this.pagination.limit);
-      } else {
-        if (this.pagination.current * this.pagination.limit < this.pagination.count) {
-          this.pagination.current += 1;
-          const temp = showData.slice(
-            (this.pagination.current - 1) * this.pagination.limit,
-            this.pagination.current * this.pagination.limit,
-          );
-          this.pagination.data.push(...temp);
+      setPaginationData(isInit) {
+        const showData = this.generalList;
+        this.pagination.count = showData.length;
+        if (isInit) {
+          this.pagination.current = 1;
+          this.pagination.data = showData.slice(0, this.pagination.limit);
+        } else {
+          if (this.pagination.current * this.pagination.limit < this.pagination.count) {
+            this.pagination.current += 1;
+            const temp = showData.slice(
+              (this.pagination.current - 1) * this.pagination.limit,
+              this.pagination.current * this.pagination.limit,
+            );
+            this.pagination.data.push(...temp);
+          }
         }
-      }
-    },
-    handleScroll(event) {
-      const el = event.target;
-      const { scrollHeight, scrollTop, clientHeight } = el;
-      if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
-        this.setPaginationData(false);
-        const generalData = this.groupList.find(item => item.id === 'general');
-        if (generalData?.children) {
-          generalData.children = this.pagination.data;
+      },
+      handleScroll(event) {
+        const el = event.target;
+        const { scrollHeight, scrollTop, clientHeight } = el;
+        if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
+          this.setPaginationData(false);
+          const generalData = this.groupList.find(item => item.id === 'general');
+          if (generalData?.children) {
+            generalData.children = this.pagination.data;
+          }
         }
-      }
-    },
-    handleClickBizSelect() {
-      this.showBizList = !this.showBizList;
-      if (this.showBizList) this.groupList = this.initGroupList();
-      setTimeout(() => {
-        this.$refs.menuSearchInput.focus();
-      }, 100);
-    },
-    debounceUpdateRouter() {
-      return debounce(60, space => {
-        if (`${space.bk_biz_id}` !== this.$route.query.bizId || space.space_uid !== this.$route.query.spaceUid) {
-          this.$router.push({
-            params: {
-              ...(this.$route.params ?? {}),
-              indexId: undefined,
-            },
-            query: {
-              ...(this.$route.query ?? {}),
-              bizId: space.bk_biz_id,
-              spaceUid: space.space_uid,
-            },
-          });
-        }
-      });
-    },
-    /**
-     * @desc: 点击下拉框的空间选项
-     * @param {Object} space 点击的空间
-     * @param {String} type 点的是哪个分组的空间
-     */
-    handleClickMenuItem(space, type) {
-      this.debounceUpdateRouter()(space);
+      },
+      handleClickBizSelect() {
+        console.log('01---handleClickBizSelect', new Date().getTime());
+        this.showBizList = !this.showBizList;
+        if (this.showBizList) this.groupList = this.initGroupList();
+        setTimeout(() => {
+          this.$refs.menuSearchInput.focus();
+          console.log('02---handleClickBizSelect', new Date().getTime());
+        }, 100);
+      },
+      debounceUpdateRouter() {
+        return debounce(60, space => {
+          if (`${space.bk_biz_id}` !== this.$route.query.bizId || space.space_uid !== this.$route.query.spaceUid) {
+            this.$router.push({
+              params: {
+                ...(this.$route.params ?? {}),
+                indexId: undefined,
+              },
+              query: {
+                ...(this.$route.query ?? {}),
+                bizId: space.bk_biz_id,
+                spaceUid: space.space_uid,
+              },
+            });
+          }
+        });
+      },
+      /**
+       * @desc: 点击下拉框的空间选项
+       * @param {Object} space 点击的空间
+       * @param {String} type 点的是哪个分组的空间
+       */
+      handleClickMenuItem(space, type) {
+        this.debounceUpdateRouter()(space);
 
-      try {
-        if (this.isExternalAuth) {
-          this.exterlAuthSpaceName = space.space_name;
+        try {
+          if (this.isExternalAuth) {
+            this.exterlAuthSpaceName = space.space_name;
+            this.localValue = space.space_uid;
+            this.$emit('space-change', space.space_uid);
+            return;
+          }
+          if (typeof this.handlePropsClick === 'function') return this.handlePropsClick(space); // 外部function调用
+          if (type === 'general') this.commonAssignment(space.space_uid); // 点击有权限的业务时更新常用的ul列表
+          this.checkSpaceChange(space.space_uid); // 检查是否有权限然后进行空间切换
           this.localValue = space.space_uid;
-          this.$emit('space-change', space.space_uid);
-          return;
-        }
-        if (typeof this.handlePropsClick === 'function') return this.handlePropsClick(space); // 外部function调用
-        if (type === 'general') this.commonAssignment(space.space_uid); // 点击有权限的业务时更新常用的ul列表
-        this.checkSpaceChange(space.space_uid); // 检查是否有权限然后进行空间切换
-        this.localValue = space.space_uid; 
-      } catch (error) {
+        } catch (error) {
           console.warn(error);
       } finally {
           this.showBizList = false;

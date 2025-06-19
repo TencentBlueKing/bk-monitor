@@ -1989,10 +1989,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       return this.baseConfig.name;
     }
     const exp = this.expression || LETTERS.at(0);
-    const name = exp.replace(/[a-zA-z]/g, (subStr: string) => {
+    const name = exp.replace(/\b\w+\b/g, alias => {
       const { agg_method = '', metric_field_name = '' } =
-        this.metricData.find(item => subStr?.toLocaleLowerCase() === item.alias?.toLocaleLowerCase()) || {};
-      return metric_field_name ? `${agg_method}(${metric_field_name})` : subStr;
+        this.metricData.find(item => alias?.toLocaleLowerCase() === item.alias?.toLocaleLowerCase()) || {};
+      return metric_field_name ? `${agg_method}(${metric_field_name})` : alias;
     });
     return name;
   }

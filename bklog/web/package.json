@@ -33,6 +33,8 @@
     "@blueking/notice-component-vue2": "2.0.3",
     "@blueking/platform-config": "1.0.2",
     "@blueking/user-selector": "1.0.12",
+    "@codemirror/autocomplete": "^6.18.6",
+    "@codemirror/commands": "^6.8.1",
     "@codemirror/gutter": "0.19.9",
     "@codemirror/lang-javascript": "6.2.2",
     "@codemirror/lang-json": "6.0.1",
