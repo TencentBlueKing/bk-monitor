@@ -37,6 +37,7 @@
   import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import ShareLink from './share-link.tsx';
 
   const props = defineProps({
     showFavorites: {
@@ -338,6 +339,7 @@
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
+      <ShareLink></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"
