@@ -992,7 +992,7 @@ class TimeSeriesMetric(models.Model):
     )
     # group_id来自于TimeSeriesGroup.time_series_group_id,类似于UUID用法
 
-    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID")
+    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID", db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
 
     field_id = models.AutoField(verbose_name="自定义时序字段ID", primary_key=True)
