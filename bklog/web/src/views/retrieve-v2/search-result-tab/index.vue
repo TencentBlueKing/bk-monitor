@@ -101,6 +101,8 @@
   };
 
   const handleActive = panel => {
+    if (props.value === panel) return;
+
     emit('input', panel, panel === 'origin');
   };
 
