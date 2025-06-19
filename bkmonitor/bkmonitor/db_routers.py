@@ -82,7 +82,6 @@ class TableVisitCountRouter:
         if _table_visit_count_log_time < now - 60:
             _table_visit_count_log_time = now
             logger.info(f"table_visit_count: count: {json.dumps(_table_visit_count)}, module: {BK_MONITOR_MODULE}")
-            _table_visit_count.clear()
 
         # 记录表访问次数
         _table_visit_count[model.__name__] += 1
