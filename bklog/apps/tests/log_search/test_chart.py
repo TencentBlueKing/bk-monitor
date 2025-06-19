@@ -150,7 +150,7 @@ WHERE_CLAUSE = [
         " AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
-        "LOWER(log) LIKE LOWER('%') AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\" AND log LIKE LOWER('%def%')"
+        "LOWER(log) LIKE LOWER('%') AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\" AND LOWER(log) LIKE LOWER('%def%')"
         " AND "
         "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
     ),
@@ -190,14 +190,14 @@ WHERE_CLAUSE_CASE = [
     'ID: ("abc" OR 5 AND 6 AND ("cde" AND "ddd") AND (1 OR 2))',
 ]
 WHERE_CLAUSE_RESULT = [
-    "log LIKE LOWER('%')",
-    "log LIKE LOWER('%success%')",
+    "LOWER(log) LIKE LOWER('%')",
+    "LOWER(log) LIKE LOWER('%success%')",
     'log MATCH_PHRASE ""',
-    "log MATCH_PHRASE \"002\" OR log LIKE LOWER('%error%')",
+    "log MATCH_PHRASE \"002\" OR LOWER(log) LIKE LOWER('%error%')",
     "year BETWEEN 2020 AND 2023",
     "title1 REGEXP '[Pp]ython.*'",
     "LOWER(title1) LIKE LOWER('%Pyth_n%')",
-    "(LOWER(name) LIKE LOWER('%John%') AND LOWER(name) LIKE LOWER('%6%') OR name = \"7\") AND (log LIKE LOWER('%python%') OR log MATCH_PHRASE \"django\")",
+    "(LOWER(name) LIKE LOWER('%John%') AND LOWER(name) LIKE LOWER('%6%') OR name = \"7\") AND (LOWER(log) LIKE LOWER('%python%') OR log MATCH_PHRASE \"django\")",
     "LOWER(CAST(__ext['bcs_id'] AS TEXT)) LIKE LOWER('%1%') OR CAST(__ext['bcs_id'] AS TEXT) = \"ts\"",
     'NOT log MATCH_PHRASE "ts" AND NOT a = "b"',
     "(LOWER(span_id) LIKE LOWER('%6cee80d18%') OR span_id = \"c866d58ac1\") AND (NOT log MATCH_PHRASE \"a\" OR NOT LOWER(a) LIKE LOWER('%b%'))",
@@ -212,7 +212,7 @@ WHERE_CLAUSE_RESULT = [
     "log MATCH_PHRASE \"d\") AND NOT LOWER(name) LIKE LOWER('%test%')",
     '((log MATCH_PHRASE "a" AND LOWER(log) LIKE LOWER(\'%b%\')) OR log MATCH_PHRASE "c" AND log MATCH_PHRASE "d")',
     '((log MATCH_PHRASE "b" OR log MATCH_PHRASE "c") OR log MATCH_PHRASE "a") AND '
-    "(log LIKE LOWER('%1%') OR log LIKE LOWER('%2%') AND log LIKE LOWER('%3%')) OR log MATCH_PHRASE \"f\" AND log MATCH_PHRASE \"g\"",
+    "(LOWER(log) LIKE LOWER('%1%') OR LOWER(log) LIKE LOWER('%2%') AND LOWER(log) LIKE LOWER('%3%')) OR log MATCH_PHRASE \"f\" AND log MATCH_PHRASE \"g\"",
     '(ID = "abc" AND LOWER(ID) LIKE LOWER(\'%5%\') OR LOWER(ID) LIKE LOWER(\'%6%\') AND (ID = "cde" AND ID = "ddd") AND '
     "(LOWER(ID) LIKE LOWER('%1%') AND LOWER(ID) LIKE LOWER('%2%')))",
     "(LOWER(ID) LIKE LOWER('%5%') AND LOWER(ID) LIKE LOWER('%6%') AND (ID = \"cde\" AND ID = \"ddd\") AND "

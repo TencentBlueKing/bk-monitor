@@ -225,7 +225,7 @@ class ChartHandler:
             elif isinstance(node, Word):
                 # 处理不带引号的短语
                 value = cls.to_like_syntax(node.value)
-                return f"log LIKE LOWER('{value}')"
+                return f"LOWER(log) LIKE LOWER('{value}')"
             elif isinstance(node, Not) or isinstance(node, Prohibit):
                 # 处理 NOT 操作
                 return f"NOT {build_condition(node.children[0])}"
