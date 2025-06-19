@@ -37,6 +37,7 @@
   import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import ShareLink from './share-link.tsx';
 
   const props = defineProps({
     showFavorites: {
@@ -178,9 +179,19 @@
         list: [],
       });
 
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
+      store.dispatch('requestIndexSetFieldInfo').then(resp => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-        store.dispatch('requestIndexSetQuery');
+
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+        }
+
+        if (!resp?.data?.fields?.length) {
+          store.commit('updateIndexSetQueryResult', {
+            is_error: true,
+            exception_msg: 'index-set-field-not-found',
+          });
+        }
       });
 
       setRouteParams(payload.ids, payload.isUnionIndex);
@@ -328,6 +339,7 @@
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
+      <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"
