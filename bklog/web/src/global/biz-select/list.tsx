@@ -106,7 +106,7 @@ export default defineComponent({
           console.log(e);
         });
     };
-    
+
     // 默认id处理
     const handleDefaultId = async () => {
       setDefaultBizIdLoading.value = true;
@@ -132,7 +132,7 @@ export default defineComponent({
     // 打开弹窗
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {
       e.stopPropagation();
-      emit('handleClickOutSide');  /* 关闭下拉框 */
+      emit('handleClickOutSide'); /* 关闭下拉框 */
       defaultSpace.value = null;
       setTimeout(() => {
         defaultSpace.value = data;

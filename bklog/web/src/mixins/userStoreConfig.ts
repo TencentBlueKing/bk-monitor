@@ -45,7 +45,7 @@ const partialUpdateUserConfig = async (...args: any[]) => {
 @Component
 // 设置全局通用的Loading
 export default class UserConfigMixin extends Vue {
-  // 配置存储id 
+  // 配置存储id
   storeId = '';
   // 表示当前用户是否拥有访问某个业务空间的权限（返回一个布尔值）
   // get hasBusinessAuth() {
@@ -58,7 +58,7 @@ export default class UserConfigMixin extends Vue {
    */
   public async handleGetUserConfig<T>(
     key: string,
-    config: Record<string, any> = { reject403: true }
+    config: Record<string, any> = { reject403: true },
   ): Promise<T | undefined> {
     // if (!this.hasBusinessAuth) return undefined;
     // 获取用户个性化配置项（默认bizId）
