@@ -94,7 +94,7 @@
 
   const setRouteParams = (ids, isUnionIndex) => {
     const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
-
+    const { search_mode, keyword, addition } = indexSetParams.value;
     if (isUnionIndex) {
       router.replace({
         // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -109,6 +109,9 @@
           // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
           indexId: undefined,
           // #endif
+          search_mode,
+          keyword,
+          addition: JSON.stringify(addition),
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -132,6 +135,9 @@
         // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
         indexId: ids[0],
         // #endif
+        search_mode,
+        keyword,
+        addition: JSON.stringify(addition),
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -164,10 +170,32 @@
 
   const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
+      /** 索引集默认条件 */
+      let indexSetDefaultCondition = {};
+      /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
+      console.log(123123)
+      if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
+        if (payload.items[0]?.query_string) {
+          indexSetDefaultCondition = {
+            keyword: payload.items[0].query_string,
+            search_mode: 'sql',
+            addition: []
+          }
+        } else if (payload.items[0]?.addition) {
+          indexSetDefaultCondition = {
+            addition: [...payload.items[0].addition],
+            search_mode: 'ui',
+            keyword: ''
+          }
+        }
+        if (indexSetDefaultCondition.search_mode) {
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode) });
+        }
+      }
 
+      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('updateIndexItem', payload);
+      store.commit('updateIndexItem', {...payload, ...indexSetDefaultCondition});
 
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
