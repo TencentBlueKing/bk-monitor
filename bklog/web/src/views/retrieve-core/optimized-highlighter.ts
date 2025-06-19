@@ -110,6 +110,19 @@ export default class OptimizedHighlighter {
   }
 
   /**
+   * 获取当前标记选项
+   * @description 获取当前标记选项，包括大小写敏感、正则表达式标记和精确度
+   * @returns
+   */
+  public getMarkOptions() {
+    return {
+      caseSensitive: this.caseSensitive,
+      regExpMark: this.regExpMark,
+      accuracy: this.accuracy,
+    };
+  }
+
+  /**
    * 设置是否区分大小写
    * @param caseSensitive - 是否区分大小写
    * @param caseSensitive
@@ -312,7 +325,7 @@ export default class OptimizedHighlighter {
 
   private instanceExecMark(instance: Mark, resolve?: Function): void {
     if (this.regExpMark) {
-      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword));
+      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, this.caseSensitive ? 'g' : 'gi'));
       instance.markRegExp(regList[0], {
         element: 'mark',
         exclude: ['mark'],

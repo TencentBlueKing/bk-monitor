@@ -93,17 +93,11 @@ class TimeSeriesGroup(CustomGroupBase):
         if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
             logger.info("make_table_id: enable multi-tenant mode")
             if str(bk_biz_id) != "0":
-                return "{}_{}_bkmonitor_time_series_{}.{}".format(
-                    bk_tenant_id, bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-                )
-            return "{}_bkmonitor_time_series_{}.{}".format(
-                bk_tenant_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-            )
+                return f"{bk_tenant_id}_{bk_biz_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
+            return f"{bk_tenant_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
         else:
             if str(bk_biz_id) != "0":
-                return "{}_bkmonitor_time_series_{}.{}".format(
-                    bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-                )
+                return f"{bk_biz_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
             return f"bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
@@ -612,9 +606,7 @@ class TimeSeriesGroup(CustomGroupBase):
         # 删除所有的metrics信息
         metrics_queryset = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
         logger.debug(
-            "going to delete all metrics->[{}] for {}->[{}] deletion.".format(
-                metrics_queryset.count(), self.__class__.__name__, self.time_series_group_id
-            )
+            f"going to delete all metrics->[{metrics_queryset.count()}] for {self.__class__.__name__}->[{self.time_series_group_id}] deletion."
         )
         metrics_queryset.delete()
         logger.info(f"all metrics about {self.__class__.__name__}->[{self.time_series_group_id}] is deleted.")
@@ -1000,7 +992,7 @@ class TimeSeriesMetric(models.Model):
     )
     # group_id来自于TimeSeriesGroup.time_series_group_id,类似于UUID用法
 
-    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID")
+    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID", db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
 
     field_id = models.AutoField(verbose_name="自定义时序字段ID", primary_key=True)
@@ -1009,7 +1001,7 @@ class TimeSeriesMetric(models.Model):
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
     last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)
 
-    label = models.CharField(verbose_name="指标监控对象", default="", max_length=255)
+    label = models.CharField(verbose_name="指标监控对象", default="", max_length=255, db_index=True)
 
     class Meta:
         # 同一个事件分组下，不可以存在同样的事件名称
@@ -1288,9 +1280,7 @@ class TimeSeriesMetric(models.Model):
 
             if created or last_modify_time > metric_obj.last_modify_time:
                 logger.info(
-                    "time_series_group_id->[{}],field_name->[{}] will change index from->[{}] to [{}]".format(
-                        group_id, metric_obj.field_name, metric_obj.last_index, last_modify_time
-                    )
+                    f"time_series_group_id->[{group_id}],field_name->[{metric_obj.field_name}] will change index from->[{metric_obj.last_index}] to [{last_modify_time}]"
                 )
                 # 如果指标被禁用
                 if not metric_info.get("is_active", True):
@@ -1320,9 +1310,7 @@ class TimeSeriesMetric(models.Model):
 
                 # 后续可以在此处追加其他修改内容
                 logger.info(
-                    "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
-                        group_id, metric_obj.field_name, metric_obj.tag_list
-                    )
+                    f"time_series_group_id->[{group_id}] has update field_name->[{metric_obj.field_name}] all tags->[{metric_obj.tag_list}]"
                 )
 
         if white_list_disabled_metric:

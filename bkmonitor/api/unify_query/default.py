@@ -106,10 +106,19 @@ class UnifyQueryAPIResource(Resource):
             requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
 
         # 设置租户ID
-        if space_uid:
-            bk_tenant_id = space_uid_to_bk_tenant_id(space_uid)
-        else:
+        bk_tenant_id = None
+        if params.get("bk_tenant_id"):
+            bk_tenant_id = params["bk_tenant_id"]
+        elif space_uid:
+            try:
+                bk_tenant_id = space_uid_to_bk_tenant_id(space_uid)
+            except ValueError:
+                pass
+
+        # 如果租户ID不存在，则使用请求的租户ID
+        if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id(peaceful=True)
+
         if bk_tenant_id:
             requests_params["headers"]["X-Bk-Tenant-Id"] = bk_tenant_id
 

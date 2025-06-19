@@ -322,4 +322,5 @@ export default {
   '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
   '快捷键 / ，请输入...': 'Quick key/, please enter...',
   '快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索': 'Quick key/, can directly enter Trace ID / Span ID to search',
+  'ID / 告警组名称 / 轮值规则 / 通知对象': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
 };

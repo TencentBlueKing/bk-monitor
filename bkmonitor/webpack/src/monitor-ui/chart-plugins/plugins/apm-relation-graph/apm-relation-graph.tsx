@@ -330,7 +330,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       if (this.initialized) {
         this.refreshTopoLayout = false;
@@ -339,7 +339,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         this.expanded = [];
         this.getPanelData();
       }
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('refreshImmediate')
   // 立刻刷新

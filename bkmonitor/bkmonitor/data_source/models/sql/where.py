@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.core.exceptions import EmptyResultSet
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.sql import AND
@@ -41,7 +41,7 @@ class WhereNode(tree.Node):
                     lookup_obj = self.build_lookup(child)
                     sql, params = lookup_obj.as_sql(compiler, connection)
                 else:
-                    raise Exception("Unsupported query conditions(%s)" % str(child))
+                    raise Exception(f"Unsupported query conditions({str(child)})")
             except EmptyResultSet:
                 pass
             else:
@@ -49,13 +49,13 @@ class WhereNode(tree.Node):
                     result.append(sql)
                     result_params.extend(params)
 
-        conn = " %s " % q_object.connector
+        conn = f" {q_object.connector} "
         sql_string = conn.join(result)
         if sql_string:
             if q_object.negated:
-                sql_string = "NOT (%s)" % sql_string
+                sql_string = f"NOT ({sql_string})"
             elif len(result) > 1 and multi_quota:
-                sql_string = "(%s)" % sql_string
+                sql_string = f"({sql_string})"
         return sql_string, result_params
 
     def build_lookup(self, filter_expr):
@@ -67,7 +67,7 @@ class WhereNode(tree.Node):
         elif len(lookup_splitted) == 2:
             field_name, lookup_name = lookup_splitted
         else:
-            raise Exception("Unsupported query conditions(%s)" % str(filter_expr))
+            raise Exception(f"Unsupported query conditions({str(filter_expr)})")
         field_name = escape_sql_field_name(field_name)
         return get_lookup_class(lookup_name)(field_name, value)
 
