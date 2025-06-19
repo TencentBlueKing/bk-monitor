@@ -689,13 +689,15 @@
 
           const resolver = new RetrieveUrlResolver({
             clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
           router.push({
             params: { ...route.params },
-            query: { ...query, tab: 'origin' },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
           });
 
           // 触发索引集查询
