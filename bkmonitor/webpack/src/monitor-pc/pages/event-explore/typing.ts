@@ -153,6 +153,8 @@ export interface EventExploreTableColumn {
   min_width?: number;
   /** 是否固定列 */
   fixed?: 'left' | 'right' | boolean;
+  /** 是否可排序 */
+  sortable?: boolean;
   /** 自定义列表头类型 */
   customHeaderCls?: string;
   /** 自定义列表头内容 */
