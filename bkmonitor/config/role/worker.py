@@ -241,7 +241,6 @@ DEFAULT_CRONTAB += [
     ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
     # bcs信息刷新
     ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
-    ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
     ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # BkBase信息同步,一小时一次
     ("metadata.task.bkbase.sync_bkbase_cluster_info", "0 */1 * * *", "global"),
