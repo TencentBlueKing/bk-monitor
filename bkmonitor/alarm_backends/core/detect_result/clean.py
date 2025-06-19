@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
+from alarm_backends.constants import LATEST_NO_DATA_CHECK_POINT
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.key import (
     MD5_TO_DIMENSION_CACHE_KEY,
@@ -26,7 +25,7 @@ CLEAN_EXPIRED_ARROW_REPLACE_TIME = {"hours": -5}
 logger = logging.getLogger("core.detect_result")
 
 
-class CleanResult(object):
+class CleanResult:
     @staticmethod
     def clean_expired_detect_result(strategy_range=None):
         """
@@ -86,6 +85,8 @@ class CleanResult(object):
                     if check_result_length > 0:
                         continue
                     *_, dimension_md5, level = check_result_cache_key.split(".")
+                    if dimension_md5 == LATEST_NO_DATA_CHECK_POINT:
+                        continue
                     last_checkpoints_cache_field = key.LAST_CHECKPOINTS_CACHE_KEY.get_field(
                         dimensions_md5=dimension_md5, level=level
                     )
