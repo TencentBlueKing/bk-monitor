@@ -44,6 +44,7 @@ from .constants import (
     EventCategory,
     EventDimensionTypeEnum,
     EventType,
+    DIMENSION_PREFIX,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -71,6 +72,7 @@ from .utils import (
     get_qs_from_req_data,
     is_dimensions,
     format_field,
+    sort_by_fields,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,7 +105,6 @@ class EventLogsResource(Resource):
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         if validated_request_data.get("is_mock"):
             return API_LOGS_RESPONSE
-
         # 构建统一查询集
         queryset = (
             get_qs_from_req_data(validated_request_data)
@@ -112,12 +113,21 @@ class EventLogsResource(Resource):
             .limit(validated_request_data["limit"])
             .offset(validated_request_data["offset"])
         )
+        # sort 字段补充 dimensions. 前缀
+        processed_sort_fields = self.process_sort_fields(validated_request_data["sort"])
 
-        # 添加查询到查询集中
+        # 转换成 ES 查询的 sort 格式
+        es_sort_fields = []
+        for field in processed_sort_fields:
+            if field.startswith("-"):
+                es_sort_fields.append(field[1:] + " desc")
+            else:
+                es_sort_fields.append(field)
+
         for query in [
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
-            queryset = queryset.add_query(query.order_by("time desc"))
+            queryset = queryset.add_query(query.order_by(*(es_sort_fields or ["time desc"])))
         try:
             events: list[dict[str, Any]] = list(queryset)
         except Exception as exc:
@@ -133,7 +143,37 @@ class EventLogsResource(Resource):
         for processor in processors:
             events = processor.process(events)
 
+        if processed_sort_fields:
+            return {"list": sort_by_fields(events, processed_sort_fields, "origin_data")}
+
         return {"list": sorted(events, key=lambda _e: -_e["_meta"]["_time_"])}
+
+    @classmethod
+    def process_sort_fields(cls, sort_fields):
+        """
+        预处理排序字段列表，为字段添加前缀
+
+        :param sort_fields: 原始排序字段列表，如 ['-time', 'name']
+        :return: 处理后的排序字段列表，如 ['-time', 'dimensions.name']
+        """
+        processed_fields = []
+        for field in sort_fields:
+            # 提取字段名（去掉可能的 '-' 前缀）
+            is_descending = field.startswith("-")
+            field_name = field[1:] if is_descending else field
+
+            # 是否是内置字段
+            if field_name not in INNER_FIELD_TYPE_MAPPINGS:
+                # 添加 dimensions. 前缀
+                field_name = DIMENSION_PREFIX + field_name
+
+            # 保留原始排序方向
+            if is_descending:
+                processed_fields.append(f"-{field_name}")
+            else:
+                processed_fields.append(field_name)
+
+        return processed_fields
 
 
 class EventViewConfigResource(Resource):
