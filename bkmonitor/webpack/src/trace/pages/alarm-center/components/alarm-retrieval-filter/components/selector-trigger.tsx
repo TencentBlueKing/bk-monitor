@@ -23,26 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import AlarmCenterHeader from './components/alarm-center-header';
-import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
+import { defineComponent, type PropType } from 'vue';
 
-import './alarm-center.scss';
+import './selector-trigger.scss';
+
 export default defineComponent({
-  name: 'AlarmCenter',
-  setup() {},
+  name: 'SelectorTrigger',
+  props: {
+    active: {
+      type: Boolean,
+      default: false,
+    },
+    hasRightSplit: {
+      type: Boolean,
+      default: true,
+    },
+    mouseDown: {
+      type: Function as PropType<(payload: MouseEvent) => void>,
+      default: () => {},
+    },
+    defaultWidth: {
+      type: Number,
+      default: 210,
+    },
+    tips: {
+      type: String,
+      default: '',
+    },
+  },
   render() {
     return (
-      <div class='alarm-center'>
-        <div class='alarm-center-header'>
-          <AlarmCenterHeader />
-        </div>
-        <div class='alarm-center-filters'>
-          <AlarmRetrievalFilter />
-        </div>
-        <div class='alarm-center-content'>
-          <div class='quick-filtering' />
+      <div
+        style={{
+          width: `${this.defaultWidth}px`,
+        }}
+        class={['alarm-retrieval-filter-component__selector-trigger', { 'right-split': this.hasRightSplit }]}
+        v-bk-tooltips={{
+          content: this.tips,
+          disabled: !this.tips,
+        }}
+        onMousedown={this.mouseDown}
+      >
+        <div class='trigger-top-wrap'>{this.$slots?.top?.()}</div>
+        <div class='trigger-bottom-wrap'>
+          <span class='bottom-text'>{this.$slots?.bottom?.()}</span>
+          <div class='down-btn'>
+            <span class='icon-monitor icon-mc-triangle-down' />
+          </div>
         </div>
       </div>
     );

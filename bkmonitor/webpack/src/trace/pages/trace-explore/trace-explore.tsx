@@ -60,6 +60,8 @@ import {
   SPAN_NOT_SUPPORT_ENUM_KEYS,
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
   TRACE_NOT_SUPPORT_ENUM_KEYS,
+  traceWhereChangeFormatter,
+  traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -130,6 +132,23 @@ export default defineComponent({
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
     });
+    const retrievalFields = computed(() => {
+      return (fieldList.value as any[])
+        .filter(item => item?.is_searched)
+        .map(item => ({
+          ...item,
+          isEnableOptions: notSupportEnumKeys.value.includes(item.name)
+            ? false
+            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
+          methods:
+            item?.supported_operations?.map(s => ({
+              ...s,
+              alias: s.label,
+              value: s.operator,
+              wildcardValue: s?.wildcard_operator || '',
+            })) || [],
+        }));
+    });
 
     /** 展示侧栏详情 */
     const showSlideDetail = shallowRef(null);
@@ -176,6 +195,35 @@ export default defineComponent({
       // return store.mode === 'trace'
       //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
       //   : t('快捷键 / ，可直接输入SpanID快捷检索');
+    });
+    const curFavoriteId = computed(() => currentFavorite.value?.config?.queryParams?.app_name);
+    // 当前是否采用默认常驻设置 （检索条件栏使用）
+    const isDefaultResidentSetting = computed(() => {
+      if (curFavoriteId.value === appName.value) {
+        return false;
+      }
+      return true;
+    });
+    // 当前选择的收藏项（检索条件栏使用）
+    const retrievalSelectFavorite = computed(() => {
+      if (currentFavorite.value) {
+        return {
+          commonWhere: currentFavorite.value?.config?.componentData?.commonWhere || [],
+          where: currentFavorite.value?.config?.queryParams?.filters || [],
+        };
+      }
+      return null;
+    });
+    // 收藏列表（检索条件栏使用）
+    const retrievalFavoriteList = computed(() => {
+      return allFavoriteList.value.map(item => ({
+        ...item,
+        config: {
+          queryString: item?.config?.queryParams?.query || '',
+          where: item?.config?.queryParams?.filters || [],
+          commonWhere: item?.config?.componentData?.commonWhere || [],
+        },
+      }));
     });
     useIsEnabledProfilingProvider(enableProfiling);
 
@@ -741,6 +789,10 @@ export default defineComponent({
       notSupportEnumKeys,
       showSlideDetail,
       retrievalFilterPlaceholder,
+      retrievalFields,
+      isDefaultResidentSetting,
+      retrievalSelectFavorite,
+      retrievalFavoriteList,
       handleQuery,
       handleAppNameChange,
       handleThumbtackChange,
@@ -800,21 +852,22 @@ export default defineComponent({
               <div class='skeleton-element filter-skeleton' />
             ) : (
               <RetrievalFilter
+                changeWhereFormatter={traceWhereChangeFormatter}
                 commonWhere={this.commonWhere}
-                dataId={this.appName}
                 defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
-                favoriteList={this.allFavoriteList}
-                fields={this.fieldList as any[]}
+                favoriteList={this.retrievalFavoriteList}
+                fields={this.retrievalFields as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                isDefaultResidentSetting={this.isDefaultResidentSetting}
                 isShowFavorite={true}
-                notSupportEnumKeys={this.notSupportEnumKeys}
                 placeholder={this.retrievalFilterPlaceholder}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
-                selectFavorite={this.currentFavorite}
+                selectFavorite={this.retrievalSelectFavorite}
                 where={this.where}
+                whereFormatter={traceWhereFormatter}
                 onCommonWhereChange={this.handleCommonWhereChange}
                 onCopyWhere={this.handleCopyWhereQueryString}
                 onFavorite={this.handleFavoriteSave}

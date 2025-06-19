@@ -40,18 +40,17 @@ import { useQueryStringParseErrorState } from './query-string-utils';
 import ResidentSetting from './resident-setting';
 import {
   ECondition,
-  EFieldType,
   type EMethod,
   EMode,
   type IFilterField,
   type IFilterItem,
-  type IWhereItem,
+  type INormalWhere,
   METHOD_MAP,
   RETRIEVAL_FILTER_EMITS,
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { equalWhere, getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
+import { equalWhere, getCacheUIData, setCacheUIData } from './utils';
 
 import './retrieval-filter.scss';
 
@@ -68,44 +67,22 @@ export default defineComponent({
     const uiValue = shallowRef<IFilterItem[]>([]);
     const cacheWhere = shallowRef([]);
     const qsValue = shallowRef('');
-    const cacheCommonWhere = shallowRef<IWhereItem[]>([]);
+    const cacheCommonWhere = shallowRef<INormalWhere[]>([]);
     const qsSelectorOptionsWidth = shallowRef(0);
     const clearKey = shallowRef('');
 
     const localFields = computed(() => {
-      return props.fields
-        .filter(item => item?.is_searched)
-        .map(item => ({
-          ...item,
-          isEnableOptions: props.notSupportEnumKeys.includes(item.name)
-            ? false
-            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
-          supported_operations:
-            item?.supported_operations?.map(s => ({
-              ...s,
-              alias: s.label,
-              value: s.operator,
-            })) || [],
-        })) as IFilterField[];
-    });
-    const curFavoriteId = computed(() => props.selectFavorite?.config?.queryParams?.app_name);
-    const isDefaultResidentSetting = computed(() => {
-      if (curFavoriteId.value === props.dataId) {
-        return false;
-      }
-      return true;
+      return props.fields;
     });
     const residentSettingValue = computed(() => {
-      if (isDefaultResidentSetting.value) {
-        return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+      if (props.isDefaultResidentSetting) {
+        return props.whereFormatter(props.commonWhere);
       }
       /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
-      return props.isTraceRetrieval
-        ? traceWhereFormatter(props.selectFavorite?.config?.componentData?.commonWhere || [])
-        : props.selectFavorite?.config?.componentData?.commonWhere || [];
+      return props.whereFormatter(props.selectFavorite?.commonWhere || []);
     });
     const propsCommonWhere = computed(() => {
-      return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+      return props.whereFormatter(props.commonWhere);
     });
 
     const { errorData } = useQueryStringParseErrorState();
@@ -125,8 +102,8 @@ export default defineComponent({
     watch(
       () => props.where,
       val => {
-        const traceWhere = traceWhereFormatter(val);
-        handleWatchValueFn(props.isTraceRetrieval ? traceWhere : val);
+        const traceWhere = props.whereFormatter(val);
+        handleWatchValueFn(traceWhere);
       },
       {
         immediate: true,
@@ -205,7 +182,7 @@ export default defineComponent({
       showResidentSetting.value = !showResidentSetting.value;
       if (!showResidentSetting.value && propsCommonWhere.value.some(item => item.value.length)) {
         cacheCommonWhere.value = deepClone(propsCommonWhere.value);
-        if (!isDefaultResidentSetting.value && residentSettingValue.value.length) {
+        if (!props.isDefaultResidentSetting && residentSettingValue.value.length) {
           /* 当已选择收藏的情况下添加key到设置筛选需要缓存到当前收藏下 */
           emit(
             'setFavoriteCache',
@@ -233,8 +210,7 @@ export default defineComponent({
       for (const item of cacheCommonWhere.value) {
         if (item.value?.length) {
           const field = localFields.value.find(field => field.name === item.key);
-          const methodName =
-            field.supported_operations?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
+          const methodName = field.methods?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
           uiValueAdd.push({
             key: { id: item.key, name: field?.alias || item.key },
             method: { id: item.method, name: methodName || item.method },
@@ -268,13 +244,17 @@ export default defineComponent({
      * @description 常驻设置值变化
      * @param value
      */
-    function handleCommonWhereChange(value: IWhereItem[]) {
-      const traceWhere = value.map(item => ({
-        key: item.key,
-        operator: item.method,
-        value: item.value,
-      }));
-      emit('commonWhereChange', props.isTraceRetrieval ? traceWhere : value);
+    function handleCommonWhereChange(value: INormalWhere[]) {
+      emit(
+        'commonWhereChange',
+        props.changeWhereFormatter(
+          value.map(item => ({
+            key: item.key,
+            method: item.method,
+            value: item.value,
+          })) as INormalWhere[]
+        )
+      );
     }
 
     function handleChange() {
@@ -295,18 +275,10 @@ export default defineComponent({
         }
       }
       cacheWhere.value = structuredClone(where);
-      const traceWhere = where
-        .filter(item => !!item)
-        .map(item => ({
-          key: item.key,
-          operator: item.method,
-          value: item.value,
-          options: item?.options || undefined,
-        }));
-      return props.isTraceRetrieval ? traceWhere : where;
+      return props.changeWhereFormatter(where);
     }
 
-    function handleWatchValueFn(where: IWhereItem[]) {
+    function handleWatchValueFn(where: INormalWhere[]) {
       if (equalWhere(where, cacheWhere.value)) {
         /* 避免重复渲染 */
         return;
@@ -333,7 +305,7 @@ export default defineComponent({
       }
       for (const w of where) {
         const cacheItem = uiCacheDataMap.get(w.key);
-        const methods = fieldsMap.get(w.key)?.supported_operations || [];
+        const methods = fieldsMap.get(w.key)?.methods || [];
         let methodName = methods.find(v => v.value === w.method)?.alias || METHOD_MAP[w.method];
         if (cacheItem) {
           methodName = cacheItem.method.id === w.method ? cacheItem.method.name : methodName;
@@ -458,7 +430,6 @@ export default defineComponent({
       showResidentSetting,
       clearKey,
       qsSelectorOptionsWidth,
-      isDefaultResidentSetting,
       localFields,
       queryStringError,
       isShowQueryStringError,
@@ -504,6 +475,7 @@ export default defineComponent({
               </div>,
             ])}
           </div>
+          {this.$slots?.default?.()}
           <div class={['filter-content', { 'bg-fff0f0': this.isShowQueryStringError }]}>
             {this.mode === EMode.ui ? (
               <UiSelector

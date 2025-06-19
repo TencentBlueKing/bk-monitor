@@ -69,36 +69,60 @@ export interface IValue {
 }
 
 export interface IFilterField {
+  // 字段名
   name: string;
+  // 字段别名
   alias: string;
+  // 字段类型
   type: EFieldType;
-  // is_option_enabled: boolean;
-  is_dimensions?: boolean;
-  is_searched?: boolean;
-  can_displayed?: boolean;
+  // isDimensions: boolean;
+  // 是否需要异步加载数据
   isEnableOptions?: boolean;
-  supported_operations: {
+  // 支持的操作符
+  methods: {
+    // 操作符别名
     alias: string;
+    // 操作符id
     value: EMethod;
+    // 操作符显示的placeholder TODO(待支持)
     placeholder?: string;
-    operator?: string;
-    wildcard_operator?: string;
-    label?: string;
+    // 用于进行异步搜索时的默认操作符
+    wildcardValue?: string;
+    // options用于是否展示通配符或者组件关系等其他选项字段
+    /* 通配符字段key */
+    // const WILDCARD_KEY = 'is_wildcard';
+    /* 组件关系字段key */
+    // const GROUP_RELATION_KEY = 'group_relation';
     options?: {
-      default?: boolean | string;
-      label: string;
-      name: string;
+      default?: boolean | string; // 其他选项字段默认值
+      label: string; // 其他选项字段别名
+      name: string; // 当前暂时支持WILDCARD_KEY， GROUP_RELATION_KEY
       children?: {
-        label: string;
-        value: string;
+        // 其他选项的可选项
+        label: string; // 其他选项的可选项别名
+        value: string; // 其他选项的可选项值
       }[];
     }[];
-  }[]; // 支持的操作
+  }[];
 }
 
 export enum ECondition {
   and = 'and',
 }
+//  组件内部标准格式
+export interface INormalWhere {
+  key: string;
+  condition: ECondition;
+  method: EMethod | string;
+  value: Array<number | string>;
+  options:
+    | {
+        is_wildcard?: boolean;
+        group_relation?: boolean;
+      }
+    | Record<string, any>;
+}
+// 组件外部格式
 export interface IWhereItem {
   key: string;
   condition?: ECondition;
@@ -138,39 +162,26 @@ export interface IFilterItem {
   key: { id: string; name: string };
   condition: { id: ECondition; name: string };
   method: { id: EMethod; name: string };
-  value: { id: string; name: string }[];
-  options?: {
-    is_wildcard?: boolean;
-    group_relation?: string;
-  };
+  value: { id: number | string; name: number | string }[];
+  options?:
+    | {
+        is_wildcard?: boolean;
+        group_relation?: string;
+      }
+    | Record<string, any>;
   hide?: boolean;
   isSetting?: boolean; // 是否是设置项
-}
-
-interface FavList {
-  config: any;
-  create_user: string;
-  group_id: number | object;
-  id: number;
-  name: string;
-  update_time: string;
-  update_user: string;
-  disabled?: boolean;
-  groupName?: string;
 }
 
 export interface IFavoriteListItem {
   id: string;
   name: string;
-  favorites: {
-    name: string;
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-  }[];
+  groupName: string;
+  config: {
+    queryString?: string;
+    where?: IWhereItem[];
+    commonWhere?: IWhereItem[];
+  };
 }
 
 export interface IFieldItem {
@@ -251,65 +262,82 @@ export const RETRIEVAL_FILTER_PROPS = {
         list: [],
       }),
   },
+  // ui模式数据
   where: {
     type: Array as PropType<IWhereItem[]>,
     default: () => [],
   },
+  // 常驻筛选数据
   commonWhere: {
     type: Array as PropType<IWhereItem[]>,
     default: () => [],
   },
+  // 语句模式数据
   queryString: {
     type: String,
     default: '',
   },
+  // 当前选择收藏项
   selectFavorite: {
-    type: Object as PropType<FavList>,
+    type: Object as PropType<{
+      commonWhere?: IWhereItem[];
+      where?: IWhereItem[];
+    }>,
     default: () => null,
   },
+  // 收藏列表
   favoriteList: {
     type: Array as PropType<IFavoriteListItem[]>,
     default: () => [],
   },
+  // 常驻设置唯一id
   residentSettingOnlyId: {
     type: String,
     default: '',
   },
-  dataId: {
-    type: String,
-    default: '',
+  // 是否为默认常驻设置
+  isDefaultResidentSetting: {
+    type: Boolean,
+    default: true,
   },
-  source: {
-    type: String as PropType<APIType>,
-    default: APIType.MONITOR,
-  },
+  // 当前模式
   filterMode: {
     type: String as PropType<EMode>,
     default: EMode.ui,
   },
+  // 是否包含收藏功能
   isShowFavorite: {
     type: Boolean,
     default: false,
   },
+  // 当前默认是否展示常驻设置
   defaultShowResidentBtn: {
     type: Boolean,
     default: false,
   },
-  isTraceRetrieval: {
-    type: Boolean,
-    default: true,
-  },
+  // 当前默认常驻设置展示字段
   defaultResidentSetting: {
-    type: Array as PropType<string[]>,
-    default: () => [],
-  },
-  notSupportEnumKeys: {
     type: Array as PropType<string[]>,
     default: () => [],
   },
   placeholder: {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
+  // 为了支持外部各类where条件格式可以自定义格式
+  // 将自定义格式转换为组件内支持格式
+  whereFormatter: {
+    type: Function as PropType<(where: any[]) => INormalWhere[]>,
+    default: (v: any[]) => {
+      return v;
+    },
+  },
+  // 将组件内支持格式转换为外部自定义格式
+  changeWhereFormatter: {
+    type: Function as PropType<(where: INormalWhere[]) => any[]>,
+    default: (v: INormalWhere[]) => {
+      return v;
+    },
   },
 };
 export const RETRIEVAL_FILTER_EMITS = {
@@ -629,7 +657,7 @@ export const SETTING_KV_SELECTOR_PROPS = {
     default: () => null,
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
   maxWidth: {
@@ -646,7 +674,7 @@ export const SETTING_KV_SELECTOR_PROPS = {
   },
 };
 export const SETTING_KV_SELECTOR_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;
 export const SETTING_KV_INPUT_PROPS = {
   fieldInfo: {
@@ -654,7 +682,7 @@ export const SETTING_KV_INPUT_PROPS = {
     default: () => null,
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
   maxWidth: {
@@ -663,7 +691,7 @@ export const SETTING_KV_INPUT_PROPS = {
   },
 };
 export const SETTING_KV_INPUT_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;
 export const RESIDENT_SETTING_PROPS = {
   fields: {
@@ -679,7 +707,7 @@ export const RESIDENT_SETTING_PROPS = {
       }),
   },
   value: {
-    type: Array as PropType<IWhereItem[]>,
+    type: Array as PropType<INormalWhere[]>,
     default: () => [],
   },
   residentSettingOnlyId: {
@@ -696,7 +724,7 @@ export const RESIDENT_SETTING_PROPS = {
   },
 };
 export const RESIDENT_SETTING_EMITS = {
-  change: (_v: IWhereItem[]) => true,
+  change: (_v: INormalWhere[]) => true,
 } as const;
 export const TIME_CONSUMING_PROPS = {
   fieldInfo: {

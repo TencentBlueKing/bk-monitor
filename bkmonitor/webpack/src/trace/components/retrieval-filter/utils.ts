@@ -25,7 +25,7 @@
  */
 
 import { formatDuration } from './duration-input-utils';
-import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
+import { ECondition, EMethod, type INormalWhere, type IFilterItem, type IWhereItem } from './typing';
 
 import type { ShallowRef } from 'vue';
 
@@ -181,14 +181,14 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   return result;
 }
 
-export function defaultWhereItem(params = {}): IWhereItem {
+export function defaultWhereItem(params = {}): INormalWhere {
   return {
     condition: ECondition.and,
     key: '',
     method: EMethod.eq,
     value: [],
     ...params,
-  };
+  } as any as INormalWhere;
 }
 
 export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
@@ -200,9 +200,20 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
     value: item.value,
     condition: ECondition.and,
     options: item?.options || {},
-  })) as IWhereItem[];
+  })) as INormalWhere[];
 };
-export const equalWhere = (source: IWhereItem[], target: IWhereItem[]) => {
+export const traceWhereChangeFormatter = (where: INormalWhere[]) => {
+  const traceWhere = where
+    .filter(item => !!item)
+    .map(item => ({
+      key: item.key,
+      operator: item.method,
+      value: item.value,
+      options: item?.options || undefined,
+    }));
+  return traceWhere;
+};
+export const equalWhere = (source: INormalWhere[], target: INormalWhere[]) => {
   let result = true;
   let index = -1;
   if (target.length !== source.length) {
