@@ -173,7 +173,6 @@
       /** 索引集默认条件 */
       let indexSetDefaultCondition = {};
       /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
-      console.log(123123)
       if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
         if (payload.items[0]?.query_string) {
           indexSetDefaultCondition = {
