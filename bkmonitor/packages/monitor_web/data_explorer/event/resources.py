@@ -659,17 +659,20 @@ class EventStatisticsInfoResource(Resource):
         for statistics_property, value in statistics_info.items():
             # 平均值取两位小数
             if statistics_property == "avg":
-                value = round(value, 2)
+                value = format_percent(value, precision=3, sig_fig_cnt=3, readable_precision=3)
             if statistics_property in ["max", "min", "median", "avg"]:
                 processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
             processed_statistics_info[statistics_property] = value
 
         # 计算百分比
-        processed_statistics_info["field_percent"] = (
-            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
+        processed_statistics_info["field_percent"] = format_percent(
+            (statistics_info["field_count"] / statistics_info["total_count"]) * 100
             if statistics_info["total_count"] > 0
-            else 0
+            else 0,
+            precision=3,
+            sig_fig_cnt=3,
+            readable_precision=3,
         )
         return processed_statistics_info
 
