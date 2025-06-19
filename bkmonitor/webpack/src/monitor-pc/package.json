@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/ai-blueking": "0.3.25-beta.0",
-    "@blueking/bk-weweb": "0.0.35",
+    "@blueking/bk-weweb": "0.0.35-beta.7",
     "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "2.0.0-beta.46",
     "@blueking/fork-resize-detector": "^0.0.2",
@@ -27,7 +27,7 @@
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
     "big.js": "^7.0.1",
-    "bk-magic-vue": "2.5.10-beta.3",
+    "bk-magic-vue": "2.5.10-beta.5",
     "dayjs": "^1.11.13",
     "deepmerge": "^4.3.1",
     "fta-solutions": "workspace:*",
@@ -39,6 +39,7 @@
     "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
     "sortablejs": "^1.15.6",
+    "tdesign-vue": "1.11.2-naruto",
     "throttle-debounce": "^5.0.2",
     "vue": "v2-latest",
     "vue-class-component": "^7.2.6",
@@ -53,7 +54,10 @@
     "vuex-module-decorators": "^1.2.0",
     "xlsx": "^0.18.5"
   },
-  "keywords": ["monitor", "pc"],
+  "keywords": [
+    "monitor",
+    "pc"
+  ],
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {

@@ -10,8 +10,8 @@
     "dev:apm": "nodemon --exec \"cross-env MONITOR_APP=apm bkmonitor-cli dev --log\"",
     "dev:trace": "nodemon --exec \"cross-env MONITOR_APP=trace  bkmonitor-cli dev --log\"",
     "build": "cross-env MONITOR_APP=log bkmonitor-cli build --log",
-    "build:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log",
-    "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js",
+    "build:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log && node ./scripts/update-version.js monitor-apm-retrieve",
+    "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js && node ./scripts/update-version.js monitor-trace-retrieve",
     "analyze:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log -a",
     "analyze:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log -a",
     "clean": "rimraf ../static/dist/*",
@@ -152,6 +152,5 @@
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --cache --fix"
     ]
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  }
 }

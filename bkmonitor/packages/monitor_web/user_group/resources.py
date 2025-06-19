@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -13,11 +12,13 @@ from bkmonitor.action.serializers import (
     DutyRuleDetailSlz,
     PreviewSerializer,
 )
-from bkmonitor.models import DutyRule, DutyRuleSnap
+from bkmonitor.models import DutyRule, DutyRuleSnap, DutyArrange
 from bkmonitor.utils import time_tools
 from common.log import logger
 from constants.action import BKCHAT_TRIGGER_TYPE_MAPPING
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource
+from core.drf_resource.management.root import resource, api
+from bkmonitor.utils.common_utils import count_md5
 
 
 class GetBkchatGroupResource(Resource):
@@ -34,7 +35,7 @@ class GetBkchatGroupResource(Resource):
         """
         groups = api.bkchat.get_notice_group_detail(biz_id=validated_request_data["bk_biz_id"])
         for group in groups:
-            notice_way = BKCHAT_TRIGGER_TYPE_MAPPING.get(group['trigger_type'], group['trigger_type'])
+            notice_way = BKCHAT_TRIGGER_TYPE_MAPPING.get(group["trigger_type"], group["trigger_type"])
             group["id"] = f"{notice_way}|{group['id']}"
             group["name"] = f"{group['name']}({group['trigger_name']})"
         return groups
@@ -44,7 +45,7 @@ class DutyPlanUserTranslaterResource(Resource):
     def __init__(self, context=None):
         self.all_group_users = defaultdict(dict)
         self.user_list = {}
-        super(DutyPlanUserTranslaterResource, self).__init__(context)
+        super().__init__(context)
 
     def get_all_plan_users(self, duty_plans):
         """
@@ -61,7 +62,7 @@ class DutyPlanUserTranslaterResource(Resource):
                 )["results"]
             }
         except Exception as error:
-            logger.info("query list users error %s" % str(error))
+            logger.info(f"query list users error {str(error)}")
 
         self.all_group_users = DutyPlanSlz.get_all_recievers()
 
@@ -220,3 +221,144 @@ class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
         for duty_plan in duty_plans:
             duty_plan["users"] = self.translate_user_display(duty_plan)
         return duty_plans
+
+
+class UserGroupBulkUpdateResource(Resource):
+    """
+    批量更新告警组
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ids = []
+        self.bk_biz_id = None
+        self.edit_data = None
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.ListField(child=serializers.IntegerField())
+        bk_biz_id = serializers.IntegerField()
+        edit_data = serializers.DictField()
+
+    def perform_request(self, validated_data):
+        self.ids = validated_data["ids"]
+        self.bk_biz_id = validated_data["bk_biz_id"]
+        self.edit_data = validated_data["edit_data"]
+
+        if not self.ids:
+            return []
+
+        append_keys = self.edit_data.get("append_keys", [])
+        if append_keys:
+            is_partial = True
+        else:
+            is_partial = False
+            self.edit_data.pop("append_keys", None)
+            append_keys = self.edit_data.keys()
+
+        for key in append_keys:
+            method = getattr(self, f"update_{key}", None)
+            if method:
+                method(partial=is_partial)
+        return self.ids
+
+    def update_users(self, partial):
+        """
+        批量更新直接通知人员
+        """
+        arranges = DutyArrange.objects.filter(user_group_id__in=self.ids)
+        searched_user_group_ids = set()
+        for arrange in arranges:
+            if partial:
+                arrange.users.extend(self.get_users_by_id())
+            else:
+                arrange.users = self.get_users_by_id()
+            if not arrange.duty_rule_id:
+                searched_user_group_ids.add(arrange.user_group_id)
+
+            # 从新计算hash值
+            hash_data = {
+                "duty_users": arrange.duty_users,
+                "users": arrange.users,
+                "duty_time": arrange.duty_time,
+                "group_type": arrange.group_type,
+                "group_number": arrange.group_number,
+            }
+            arrange.hash = count_md5(hash_data)
+
+        if len(searched_user_group_ids) != len(self.ids):
+            raise ValidationError(
+                f"配置了轮值的告警组不支持修改直接通知对象，告警组ID：{set(self.ids) - searched_user_group_ids}"
+            )
+
+        DutyArrange.objects.bulk_update(arranges, ["users", "hash"])
+
+    def get_users_by_id(self) -> list[dict]:
+        """
+        :return  [ // 直接通知的用户，或者某个组
+               {
+                   "display_name": "hjt@testlocal.com",
+                   "logo": "",
+                   "id": "hjt@testlocal.com",
+                   "type": "user"
+               },
+               {
+                   "display_name": "运维人员",
+                   "logo": "",
+                   "id": "bk_biz_maintainer",
+                   "type": "group",
+                   "members": [
+                       {
+                           "id": "admin",
+                           "display_name": "管理员"
+                       },
+                       {
+                           "id": "study1_ex",
+                           "display_name": "study1_ex"
+                       }
+                   ]
+               }
+           ]
+        """
+
+        receivers = []
+        for rec in resource.notice_group.get_receiver(bk_biz_id=self.bk_biz_id):
+            if "children" in rec:
+                receivers.extend(rec["children"])
+            else:
+                receivers.append(rec)
+
+        user_ids = set(self.edit_data["users"])
+        result = []
+
+        def build_user_info(users, is_receivers):
+            for item in users:
+                _id = item["id"] if is_receivers else item["username"]
+                if _id in user_ids:
+                    user = {
+                        "id": _id,
+                        "logo": item.get("logo", ""),
+                        "display_name": item["display_name"],
+                        "type": item["type"] if is_receivers else "user",
+                    }
+                    if "members" in item:
+                        user["members"] = item["members"]
+                    result.append(user)
+                    user_ids.remove(_id)
+                    if not user_ids:
+                        break
+
+        build_user_info(receivers, True)
+
+        if not user_ids:
+            return result
+
+        # 查询剩余的用户信息
+        user_list = api.bk_login.get_all_user(fields="username,display_name", exact_lookups=",".join(user_ids))[
+            "results"
+        ]
+        build_user_info(user_list, False)
+
+        if not user_ids:
+            return result
+
+        raise ValidationError(f"用户{user_ids} 不存在")

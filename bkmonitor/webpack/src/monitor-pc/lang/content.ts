@@ -329,4 +329,10 @@ export default {
   仅个人可见: 'Only visible to me',
   '生成 "{0}" Tag': 'Generate "{0}" Tag',
   取消全屏: 'Cancel full screen',
+  CP95: 'CP95',
+  故障生成时: 'Incident generated when',
+  容器事件: 'Container event',
+  '关联后，会自动获取相关的事件数据。': 'After association, relevant event data will be automatically obtained.',
+  关联项: 'Associated items',
+  事件关联: 'Event association',
 };

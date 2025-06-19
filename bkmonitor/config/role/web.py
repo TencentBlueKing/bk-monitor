@@ -74,6 +74,7 @@ INSTALLED_APPS += (
     "audit",
     "apigw_manager",
     "bk_notice_sdk",
+    "ai_agents",
 )
 
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
@@ -337,7 +338,7 @@ SIGNATURE_FONT_PATH = os.getenv("BKAPP_SIGNATURE_FONT_PATH", "/usr/share/fonts/t
 CLEAR_CACHE_ON_RESTART = False
 
 # csrf token name
-CSRF_COOKIE_NAME = "%s_monitor_csrftoken" % BKAPP_DEPLOY_PLATFORM
+CSRF_COOKIE_NAME = f"{BKAPP_DEPLOY_PLATFORM}_monitor_csrftoken"
 
 # 主机任务状态码: 1.Agent异常; 3.上次已成功; 5.等待执行; 7.正在执行;
 # 9.执行成功; 11.任务失败; 12.任务下发失败; 13.任务超时; 15.任务日志错误;

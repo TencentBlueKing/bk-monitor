@@ -4,12 +4,12 @@ import operator
 import re
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any
-from collections.abc import Callable
 
 import arrow
 import pytz
@@ -21,6 +21,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, Module, Set, TopoTree
+from bkm_ipchooser.handlers import template_handler
 from bkmonitor.action.utils import get_strategy_user_group_dict
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -47,6 +48,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
     Algorithm,
@@ -85,8 +87,6 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
-from bkmonitor.models.strategy import AlgorithmChoiceConfig
-from bkm_ipchooser.handlers import template_handler
 
 logger = logging.getLogger(__name__)
 
@@ -586,7 +586,9 @@ class GetStrategyListV2Resource(Resource):
         """
         # 过滤指标别名
         if filter_dict["metric_field_name"]:
-            metric_qs = MetricListCache.objects.filter(metric_field_name__in=filter_dict["metric_field_name"])
+            metric_qs = MetricListCache.objects.filter(
+                bk_tenant_id=get_request_tenant_id(), metric_field_name__in=filter_dict["metric_field_name"]
+            )
             if bk_biz_id is not None:
                 metric_qs = metric_qs.filter(bk_biz_id__in=[0, bk_biz_id])
             metric_fields = metric_qs.values_list("metric_field", flat=True).distinct()
@@ -1093,9 +1095,9 @@ class GetStrategyListV2Resource(Resource):
         if not queries:
             return {}
 
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).filter(
-            reduce(lambda x, y: x | y, queries)
-        )
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[bk_biz_id, 0]
+        ).filter(reduce(lambda x, y: x | y, queries))
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 
@@ -1416,6 +1418,21 @@ class GetMetricListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
+    def filter_by_double_paragaphs_metric_id(cls, metrics, filter_dict: dict) -> QuerySet:
+        """
+        处理二段式指标ID查询
+        """
+        filters: list[Q] = []
+        for metric_id in filter_dict["metric_id"]:
+            split_field_list = metric_id.split(".")
+            if len(split_field_list) == 2:
+                filters.append(Q(**{"data_label": split_field_list[0], "metric_field": split_field_list[1]}))
+
+        if filters:
+            return metrics.filter(reduce(lambda x, y: x | y, filters))
+        return metrics.none()
+
+    @classmethod
     def filter_by_conditions(cls, metrics: QuerySet, params: dict) -> QuerySet:
         """
         按查询条件过滤指标
@@ -1471,20 +1488,22 @@ class GetMetricListV2Resource(Resource):
 
         # 支持metric_id查询
         if filter_dict["metric_id"]:
-            queries = []
+            queries: list[Q] = []
             for metric_id in filter_dict["metric_id"]:
-                metric = parse_metric_id(metric_id)
+                metric: dict = parse_metric_id(metric_id)
 
                 if "index_set_id" in metric:
                     metric["related_id"] = metric["index_set_id"]
                     del metric["index_set_id"]
                 if metric:
                     queries.append(Q(**metric))
-            if queries:
-                metrics = metrics.filter(reduce(lambda x, y: x | y, queries))
-            else:
-                metrics = metrics.filter(id__in=[])
 
+            found_metric = False
+            if queries:
+                metric_filter = metrics.filter(reduce(lambda x, y: x | y, queries))
+                found_metric = metric_filter.exists()
+
+            metrics = metric_filter if found_metric else cls.filter_by_double_paragaphs_metric_id(metrics, filter_dict)
         # 模糊搜索
         if filter_dict["query"]:
             # 尝试解析指标ID格式的query字符串
@@ -1928,7 +1947,9 @@ class GetMetricListV2Resource(Resource):
 
     def perform_request(self, params):
         # 从指标选择器缓存表根据业务查询指标
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[0, params["bk_biz_id"]])
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, params["bk_biz_id"]]
+        )
 
         if get_source_app() == SourceApp.FTA:
             metrics = metrics.filter(
@@ -2959,9 +2980,7 @@ class QueryConfigToPromql(Resource):
             data_source_label = data_source_label_mapping.get(query_config["data_source_label"], data_source_label)
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             init_params = dict(query_config=query_config)
-            if data_source_label == "bkdata":
-                init_params.update({"bk_biz_id": params["bk_biz_id"]})
-
+            init_params.update({"bk_biz_id": params["bk_biz_id"]})
             data_sources.append(data_source_class.init_by_query_config(**init_params))
 
         # 构造统一查询配置
@@ -3177,14 +3196,15 @@ class PromqlToQueryConfig(Resource):
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                qs = MetricListCache.objects.filter(
+                metric = MetricListCache.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(),
                     data_label=data_label,
                     data_source_label=data_source_label,
                     data_type_label=data_type_label,
                     metric_field=query["field_name"],
-                )
-                if qs.exists():
-                    result_table_id = qs.first().result_table_id
+                ).first()
+                if metric:
+                    result_table_id = metric.result_table_id
 
             query_config = {
                 "data_source_label": data_source_label,

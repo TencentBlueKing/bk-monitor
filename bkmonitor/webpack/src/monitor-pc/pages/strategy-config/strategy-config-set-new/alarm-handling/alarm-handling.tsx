@@ -71,6 +71,7 @@ export interface IValue {
       count: number; // 执行次数，默认设置为 1
       is_enabled?: boolean; // 是否启用
     };
+    enable_delay: number; // 数据延迟秒数
   };
   signal?: string[];
 }
@@ -80,6 +81,7 @@ export interface IAllDefense {
   name: string;
   description?: string;
 }
+
 interface IAlarmHandlingNewProps {
   value?: IValue;
   allDefense?: IAllDefense[]; // 防御动作列表
@@ -88,11 +90,17 @@ interface IAlarmHandlingNewProps {
   strategyId?: number | string;
   extCls?: string;
   isSimple?: boolean; // 简洁模式(无预览，无回填)
+  list?: signalOptionsItem[];
 }
 
 interface IAlarmHandlingNewEvent {
   onChange?: IValue;
   onAddMeal?: void;
+}
+
+interface signalOptionsItem {
+  id: string;
+  name: string;
 }
 
 @Component({
@@ -111,6 +119,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           count: 1, // 执行次数，默认设置为 1
           is_enabled: true,
         },
+        enable_delay: 1, // 数据延迟秒数
       },
     }),
   })
@@ -121,6 +130,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: '', type: String }) extCls: string;
   @Prop({ default: false, type: Boolean }) isSimple: boolean;
+  @Prop({ type: Array, default: () => [] }) list: signalOptionsItem[];
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -150,9 +160,12 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         count: 1, // 执行次数，默认设置为 1
         is_enabled: true,
       },
+      enable_delay: 1, // 数据延迟秒数
     },
   };
   isShowDetail = false;
+
+  disableDelay = false; // 关闭数据延迟秒数输入
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
@@ -174,6 +187,15 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   handleClearConfigId() {
     this.data.config_id = 0;
     this.handleChange();
+  }
+
+  // 数据延迟switch
+  handleChangeDelay(isSwitchOn: boolean) {
+    this.disableDelay = !isSwitchOn;
+    if (!isSwitchOn) {
+      this.data.options.enable_delay = 0;
+      this.handleChange();
+    }
   }
 
   handleToAddSetMeal() {
@@ -339,6 +361,41 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
             </span>
           </div>
         )}
+        {this.data.options.converge_config.is_enabled && this.data.signal.includes(this.list[0].id) && (
+          <CommonItem
+            class='no-label'
+            title=''
+          >
+            <bk-switcher
+              class='converge-config-option'
+              disabled={this.readonly}
+              size='small'
+              theme='primary'
+              value
+              on-change={this.handleChangeDelay}
+            />
+            <i18n
+              class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
+              path='当首次异常时间超过{0}分钟时不执行该套餐'
+            >
+              {!this.readonly ? (
+                <bk-input
+                  class='small-input'
+                  v-model={this.data.options.enable_delay}
+                  behavior='simplicity'
+                  readonly={this.readonly || this.disableDelay}
+                  showControls={false}
+                  size='small'
+                  type='number'
+                  on-change={this.handleChange}
+                />
+              ) : (
+                <span>{this.data.options.enable_delay}</span>
+              )}
+            </i18n>
+          </CommonItem>
+        )}
+
         <SetMealDeail
           id={this.data.config_id}
           v-model={this.isShowDetail}

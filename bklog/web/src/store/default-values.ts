@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import VueRouter from 'vue-router';
+
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import VueRouter from 'vue-router';
+
+import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
-import { RouteParams, BK_LOG_STORAGE } from './store.type';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -111,13 +113,23 @@ const getUrlArgs = (_route?) => {
     const hash = window.location.hash.replace(/^#/, '');
     const route = router.resolve(hash);
     urlResolver = new RouteUrlResolver({ route: route.resolved });
-    urlResolver.setResolver('index_id', () =>
-      route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '',
-    );
+    urlResolver.setResolver('index_id', () => {
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+      return route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '';
+      // #else
+      // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
+      // #endif
+    });
     urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
-    urlResolver.setResolver('index_id', () => (_route.params.indexId ? `${_route.params.indexId}` : ''));
+    urlResolver.setResolver('index_id', () => {
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+      return _route.params.indexId ? `${_route.params.indexId}` : '';
+      // #else
+      // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
+      // #endif
+    });
     urlResolver.setResolver('search_mode', () => _route.query.search_mode);
   }
 
@@ -126,7 +138,6 @@ const getUrlArgs = (_route?) => {
   if (result.search_mode) {
     updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
   }
-
   return result;
 };
 
@@ -212,9 +223,10 @@ export const IndexFieldInfo = {
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
-
 export const IndexItem = {
-  ids: URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id],
+  ids: (URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id]).filter(
+    t => t !== '' && t !== undefined && t !== null,
+  ),
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],

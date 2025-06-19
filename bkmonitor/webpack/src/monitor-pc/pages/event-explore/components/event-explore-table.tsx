@@ -216,8 +216,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       });
       this.resizeObserver.observe(scrollWrapper);
       if (this.scrollSubject) {
-        this.scrollHeaderFixedObserver = new ExploreObserver(this, this.handleHeaderFixedScroll);
-        this.scrollEndObserver = new ExploreObserver(this, this.handleScroll);
+        this.scrollHeaderFixedObserver = new ExploreObserver(this.handleHeaderFixedScroll.bind(this));
+        this.scrollEndObserver = new ExploreObserver(this.handleScroll.bind(this));
         this.scrollSubject.addObserver(this.scrollHeaderFixedObserver);
         this.scrollSubject.addObserver(this.scrollEndObserver);
       }

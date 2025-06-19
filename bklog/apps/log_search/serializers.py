@@ -1026,7 +1026,7 @@ class ChartSerializer(serializers.Serializer):
         representation = super().to_representation(instance)
         # 根据 alias_settings 的内容创建 alias_mappings
         alias_mappings = {
-            alias["field_name"]: alias["query_alias"] for alias in representation.get("alias_settings", [])
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
         }
         # 添加 alias_mappings 字段到序列化输出中
         representation["alias_mappings"] = alias_mappings
@@ -1049,7 +1049,7 @@ class UISearchSerializer(serializers.Serializer):
         representation = super().to_representation(instance)
         # 根据 alias_settings 的内容创建 alias_mappings
         alias_mappings = {
-            alias["field_name"]: alias["query_alias"] for alias in representation.get("alias_settings", [])
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
         }
         # 添加 alias_mappings 字段到序列化输出中
         representation["alias_mappings"] = alias_mappings
@@ -1132,3 +1132,7 @@ class LogGrepQuerySerializer(serializers.Serializer):
     grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
     size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
+
+
+class QueryByDataIdSerializer(serializers.Serializer):
+    bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)

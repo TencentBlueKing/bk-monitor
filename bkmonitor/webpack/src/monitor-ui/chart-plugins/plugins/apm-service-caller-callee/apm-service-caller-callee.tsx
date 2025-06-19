@@ -112,10 +112,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSetTimeStrShow();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('refreshImmediate')
   handleRefleshImmediate() {

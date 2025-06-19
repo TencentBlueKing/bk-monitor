@@ -26,6 +26,7 @@
 import { defineComponent, ref, PropType, onMounted, onUnmounted } from 'vue';
 import PopInstanceUtil from '../../global/pop-instance-util';
 import { Props as TippyProps } from 'tippy.js';
+import './index.scss';
 
 export default defineComponent({
   props: {
@@ -48,6 +49,10 @@ export default defineComponent({
     beforeHide: {
       type: Function as PropType<(e: MouseEvent) => boolean>,
       default: () => true,
+    },
+    content: {
+      type: String,
+      default: undefined,
     },
   },
   setup(props, { slots, expose }) {
@@ -85,14 +90,14 @@ export default defineComponent({
         onShown: (...args) => {
           props.options.onShown?.(...args);
 
-          if (props.options.hideOnClick === false && !isDocumentClickBinded) {
+          if (props.options.hideOnClick === false && props.trigger === 'click' && !isDocumentClickBinded) {
             document.addEventListener('click', hanldeDocumentClick);
             isDocumentClickBinded = true;
           }
         },
         onHidden: (...args) => {
           props.options.onHidden?.(...args);
-          if (props.options.hideOnClick === false && isDocumentClickBinded) {
+          if (props.options.hideOnClick === false && props.trigger === 'click' && isDocumentClickBinded) {
             document.removeEventListener('click', hanldeDocumentClick);
             isDocumentClickBinded = false;
           }
@@ -120,9 +125,7 @@ export default defineComponent({
     };
 
     const handleRootElementMouseleave = () => {
-      if (instance.isShown()) {
-        instance.hide(300);
-      }
+      instance?.hide(120);
     };
 
     const handleContentElementMouseenter = () => {
@@ -193,7 +196,7 @@ export default defineComponent({
             ref={refContentElement}
             class={props.contentClass}
           >
-            {slots.content?.()}
+            {slots.content?.() ?? props.content}
           </div>
         </div>
       </div>
