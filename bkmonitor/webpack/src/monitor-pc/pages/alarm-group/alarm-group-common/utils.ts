@@ -23,46 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+const { i18n } = window;
+export type OperationType = 'noticeUser';
 
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
+export type IOperationTypeMap = {
+  [key in OperationType]: {
+    title: string;
+    width: number;
+  };
+};
 
-import { locale, lang } from 'bk-magic-vue';
-import jsCookie from 'js-cookie';
-
-// import en from './lang/en';
-import './dayjs';
-// import zh from './lang/zh';
-import { logEnJson } from './lang/en/index';
-
-Vue.use(VueI18n);
-
-const localLanguage = jsCookie.get('blueking_language') || 'zh-cn';
-// 等组件语言升级后删掉这代码
-if (localLanguage === 'en') {
-  locale.use(lang.enUS);
-}
-const i18n = new VueI18n({
-  // 语言标识
-  locale: localLanguage,
-  fallbackLocale: 'zh-cn',
-  // this.$i18n.locale 通过切换locale的值来实现语言切换
-  messages: {
-    // 中文语言包
-    // 'zh-cn': Object.assign(lang.zhCN, zh),
-    'zh-cn': Object.assign(
-      lang.zhCN,
-      // 通过英文包的key配置中文包内容 可省去中文包
-      Object.keys(logEnJson).reduce((pre, key) => {
-        pre[key] = key;
-        return pre;
-      }, {}),
-    ),
-    // 英文语言包
-    // en: Object.assign(lang.enUS, en),
-    en: Object.assign(lang.enUS, logEnJson),
+export const OperationTypeMap: IOperationTypeMap = {
+  noticeUser: {
+    title: i18n.t('批量编辑通知对象'),
+    width: 480,
   },
-});
-locale.i18n((key, value) => i18n.t(key, value));
-window.$t = i18n.t.bind(i18n);
-export default i18n;
+};

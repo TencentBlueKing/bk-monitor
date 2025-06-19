@@ -38,6 +38,7 @@ import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
 import TableStore from '../store';
+import BatchOperationDialog from './batch-operation-dialog';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { VNode } from 'vue';
@@ -51,7 +52,7 @@ type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
   type?: TGroupType;
   fromRouterName?: string;
-  needReflesh?: boolean;
+  needRefresh?: boolean;
 }
 
 @Component({
@@ -64,13 +65,23 @@ export default class AlarmGroup extends tsc<IGroupList> {
   @Prop({ default: 'monitor', type: String, validator: (val: TGroupType) => ['monitor', 'fta'].includes(val) })
   type: TGroupType;
   @Prop({ default: '', type: String }) fromRouterName: string;
-  @Prop({ default: false, type: Boolean }) needReflesh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
+  @Prop({ default: false, type: Boolean }) needRefresh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
 
   loading = false;
   keyword = '';
   tableInstance: any = null;
   tableData: any[] = [];
   tableSize = 'small';
+  /** 批量操作下拉菜单 */
+  dropdownShow = false;
+  dropdownList = [];
+  /** 勾选的表格数据 */
+  selectTableList = [];
+  batchOperation = {
+    show: false,
+    type: '',
+  };
+
   detail = {
     show: false,
     id: null,
@@ -198,6 +209,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.handleTableColumnsData();
     this.handleSearch = debounce(300, this.handleKeywordChange);
     this.getNoticeGroupList();
+    this.dropdownList = [{ id: 'noticeUser', name: this.$t('修改通知对象') }];
   }
   deactivated() {
     this.detail.show = false;
@@ -205,7 +217,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   @Watch('fromRouterName')
   fromRouterNameChange(fromName: string) {
-    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needReflesh) {
+    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needRefresh) {
       this.getNoticeGroupList();
     }
   }
@@ -421,6 +433,15 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.loading = false;
   }
 
+  handleSelectionChange(select) {
+    this.selectTableList = select.map(item => item.id);
+  }
+
+  handleBatchEditSelectChange(id: string) {
+    this.batchOperation.show = true;
+    this.batchOperation.type = id;
+  }
+
   /**
    * @description: 删除告警组
    * @param {number} id
@@ -559,6 +580,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
     );
   }
 
+  batchOperationDialogClose(resetRequest = false) {
+    this.batchOperation.show = false;
+    if (resetRequest) {
+      this.getNoticeGroupList();
+      this.selectTableList = [];
+    }
+  }
+
   render(): VNode {
     return (
       <div class='alarm-group-list-page'>
@@ -583,6 +612,49 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
+
+              <bk-dropdown-menu
+                class='batch-edit-dropdown'
+                disabled={!this.selectTableList.length}
+                trigger='click'
+                on-hide={() => (this.dropdownShow = false)}
+                on-show={() => (this.dropdownShow = true)}
+              >
+                <div
+                  class={['batch-edit-dropdown-btn', { 'btn-disabled': !this.selectTableList.length }]}
+                  slot='dropdown-trigger'
+                  v-bk-tooltips={{
+                    content: this.$t('请先勾选告警组'),
+                    disabled: this.selectTableList.length,
+                  }}
+                >
+                  <span class='btn-name'> {this.$t('批量操作')} </span>
+                  <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
+                </div>
+
+                <ul
+                  class='batch-edit-dropdown-list'
+                  slot='dropdown-content'
+                  v-authority={{
+                    active: !this.authority.MANAGE_AUTH,
+                  }}
+                  onClick={() =>
+                    !this.authority.MANAGE_AUTH && this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
+                  }
+                >
+                  {/* 批量操作监控目标需要选择相同类型的监控对象 */}
+                  {this.dropdownList.map((option, index) => (
+                    <li
+                      key={index}
+                      class='list-item'
+                      onClick={() => this.authority.MANAGE_AUTH && this.handleBatchEditSelectChange(option.id)}
+                    >
+                      {option.name}
+                    </li>
+                  ))}
+                </ul>
+              </bk-dropdown-menu>
+
               <SearchSelect
                 class='tool-search'
                 data={[
@@ -608,13 +680,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
               />
-              {/* <bk-input
-            class='tool-search'
-            placeholder={this.$t('ID / 告警组名称')}
-            value={this.keyword}
-            onChange={this.handleSearch}
-            right-icon='bk-icon icon-search'
-          ></bk-input> */}
             </div>
             {this.loading ? (
               <TableSkeleton class='mt-16' />
@@ -627,6 +692,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   header-border={false}
                   outer-border={false}
                   size={this.tableSize}
+                  on-selection-change={this.handleSelectionChange}
                 >
                   <div slot='empty'>
                     <EmptyStatus
@@ -634,6 +700,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
                       onOperation={this.handleOperation}
                     />
                   </div>
+                  <bk-table-column
+                    width='50'
+                    align='center'
+                    type='selection'
+                  />
                   {this.tableColumnsList
                     .filter(item => this.selectedColumn.includes(item.prop))
                     .map(item => (
@@ -686,6 +757,13 @@ export default class AlarmGroup extends tsc<IGroupList> {
         <AlarmGroupDetail
           id={this.detail.id}
           v-model={this.detail.show}
+        />
+
+        <BatchOperationDialog
+          groupIds={this.selectTableList}
+          operationType={this.batchOperation.type}
+          show={this.batchOperation.show}
+          onCloseDialog={this.batchOperationDialogClose}
         />
       </div>
     );

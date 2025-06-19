@@ -799,4 +799,5 @@ export default {
   大小写匹配: 'Case sensitive matching',
   精确匹配: 'Exact match',
   Grep模式: 'Grep Mode',
+  我的收藏: 'My favorites',
 };

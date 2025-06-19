@@ -94,6 +94,9 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: '' }) groupId: string;
   /** 是否展示图例 */
   @Prop({ default: false }) isNeedMenu: boolean;
+  /** 是否需要鼠标hover到x轴的交互*/
+  @Prop({ default: false }) isNeedUpdateAxisPointer: boolean;
+
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -896,8 +899,15 @@ class NewMetricChart extends CommonSimpleChart {
       }
     }
   }
-  handleZrMouseover(params) {
-    this.$emit('zrMouseover', { index: params.dataIndex, value: params.value });
+  /** x轴hover的相关交互 */
+  handleUpdateAxisPointer(params) {
+    if (this.isNeedUpdateAxisPointer) {
+      const { axesInfo } = params;
+      if (axesInfo.length === 0) {
+        return;
+      }
+      this.$emit('zrMouseover', { value: axesInfo[0].value });
+    }
   }
   render() {
     return (
@@ -954,8 +964,8 @@ class NewMetricChart extends CommonSimpleChart {
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
-                  onMouseover={this.handleZrMouseover}
                   onRestore={this.handleRestore}
+                  onUpdateAxisPointer={this.handleUpdateAxisPointer}
                 />
               ) : (
                 <div class='skeleton-loading-chart'>

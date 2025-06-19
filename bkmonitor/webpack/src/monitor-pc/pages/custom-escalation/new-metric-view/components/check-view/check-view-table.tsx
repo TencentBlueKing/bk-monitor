@@ -118,10 +118,10 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   @Watch('hoverPoint')
-  handleHoverPoint(val: { value: number[]; index: number }) {
-    const { value = [] } = val;
-    if (!value?.length) return;
-    const targetValue = value[0];
+  handleHoverPoint(val: { value: number }) {
+    const { value } = val;
+    if (!value) return;
+    const targetValue = value;
     const index = this.tableData.findIndex(row => row.date === targetValue);
 
     const table = this.dataTableRef;
@@ -207,7 +207,7 @@ export default class CheckViewTable extends tsc<object, object> {
   initializeTableHeight() {
     setTimeout(() => {
       if (!this.checkViewTableRef) return;
-      const height = this.checkViewTableRef.offsetHeight - 20;
+      const height = this.checkViewTableRef.offsetHeight - 2;
       this.maxHeight = height < this.defaultHeight ? this.defaultHeight : height;
     });
   }
@@ -227,7 +227,8 @@ export default class CheckViewTable extends tsc<object, object> {
       const rowTop = row.offsetTop;
       const rowHeight = row.offsetHeight;
       const tableHeight = tableBody.clientHeight;
-      const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + 32;
+      const offset = this.isShowStatistical ? 64 : 32;
+      const scrollPosition = rowTop - (tableHeight - rowHeight) / 2 + offset;
 
       tableBody.scrollTo({
         top: scrollPosition,

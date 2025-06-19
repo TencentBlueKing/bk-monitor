@@ -67,6 +67,8 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     $Message: bkUiMessage,
     $authorityStore: useAuthorityStore(),
   } as any;
+  // 微前端模式下，主动卸载当前 vue 实例
+  window.__BK_WEWEB_DATA__.setUnmountCallback(() => app.unmount());
 } else {
   Api.model
     .enhancedContext({

@@ -530,7 +530,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
       };
       // 没有选择内部通知对象的情况，不需要加入对users的校验
       if (!this.channels.includes('user')) {
-        // biome-ignore lint/performance/noDelete: need it
+        // biome-ignore lint/performance/noDelete: ignore
         newRules.users && delete newRules.users;
       }
       Object.keys(newRules).forEach(key => {
@@ -646,7 +646,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         this.$router.push({
           name: 'alarm-group',
           params: {
-            needReflesh: true,
+            needRefresh: true,
           },
         });
       },
@@ -1009,6 +1009,34 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     <div class='error-msg'>{this.errorsMsg.users}</div>
                   )}
                 </div>
+                {/* {this.handleNoticeReceiver().map(item =>
+                  item.type === 'group' ? (
+                    <div
+                      key={item.id}
+                      class='text-msg'
+                    >
+                      {`${item.display_name}(${
+                        ['bk_bak_operator', 'operator'].includes(item.id)
+                          ? this.operatorText[item.id]
+                          : this.$t('来自配置平台')
+                      })`}
+                      {!['bk_bak_operator', 'operator'].includes(item.id) ? (
+                        item.members.length ? (
+                          <span>
+                            {'，'}
+                            {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                          </span>
+                        ) : (
+                          <span>
+                            {'，'}
+                            {this.$t('当前成员')}
+                            {`(${this.$t('空')})`}
+                          </span>
+                        )
+                      ) : undefined}
+                    </div>
+                  ) : undefined
+                )} */}
                 {/* <div class="text-tip">*/}
                 {/*  <span class="icon-monitor icon-hint"></span>*/}
                 {/*  {this.$t('电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序')}*/}

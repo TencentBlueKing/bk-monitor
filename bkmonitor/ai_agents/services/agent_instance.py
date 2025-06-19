@@ -44,13 +44,13 @@ def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatP
 
     llm = ChatModel.get_setup_instance(model=config.llm_model_name, base_url=llm_base_url, auth_headers=auth_headers)
 
-    # knowledge_bases = [
-    #     api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
-    #     for _id in config.knowledgebase_ids
-    # ]
-    # knowledge_items = [
-    #     api_client.api.appspace_retrieve_knowledge(path_params={"id": _id})["data"] for _id in config.knowledge_ids
-    # ]
+    knowledge_bases = [
+        api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]
+        for _id in config.knowledgebase_ids
+    ]
+    knowledge_items = [
+        api_client.api.appspace_retrieve_knowledge(path_params={"id": _id})["data"] for _id in config.knowledge_ids
+    ]
     tools = [api_client.construct_tool(tool_code) for tool_code in config.tool_codes]
 
     agent_cls = agent_factory.get(DEFAULT_AGENT)
@@ -59,8 +59,8 @@ def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatP
         chat_model=llm,
         role_prompt=config.role_prompt,
         tools=tools,
-        # knowledge_bases=knowledge_bases,
-        # knowledge_items=knowledge_items,
+        knowledge_bases=knowledge_bases,
+        knowledge_items=knowledge_items,
         chat_history=chat_history,
         agent_cls=agent_cls,
     )

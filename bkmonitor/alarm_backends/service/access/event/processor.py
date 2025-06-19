@@ -39,6 +39,7 @@ from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
 from alarm_backends.service.access.priority import PriorityChecker
+from constants.common import DEFAULT_TENANT_ID
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 from core.errors.alarm_backends import LockError
@@ -104,7 +105,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                     # 3. 缓存数据（维度缓存）  事件数据不设置维度缓存, 没有意义
                     # check_result.update_key_to_dimension(event_record.raw_data["dimensions"])
                 except Exception as e:
-                    logger.exception("set check result cache error: %s" % e)
+                    logger.exception(f"set check result cache error: {e}")
 
         if redis_pipeline:
             # 不设置维度缓存，也没必要再设置过期
@@ -117,7 +118,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                 md5_dimension, strategy_id, item_id, level = md5_dimension_last_point_key
                 CheckResult.update_last_checkpoint_by_d_md5(strategy_id, item_id, md5_dimension, point_timestamp, level)
             except Exception as e:
-                msg = "set check result cache last_check_point error:%s" % e
+                msg = f"set check result cache last_check_point error:{e}"
                 logger.exception(msg)
             CheckResult.expire_last_checkpoint_cache(strategy_id=strategy_id, item_id=item_id)
 
@@ -209,7 +210,9 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         self.data_id = data_id
         if not topic:
             # 获取topic信息
-            topic_info = api.metadata.get_data_id(bk_data_id=self.data_id, with_rt_info=False)
+            topic_info = api.metadata.get_data_id(
+                bk_tenant_id=DEFAULT_TENANT_ID, bk_data_id=self.data_id, with_rt_info=False
+            )
             self.topic = topic_info["mq_config"]["storage_config"]["topic"]
         else:
             self.topic = topic
@@ -288,7 +291,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         record_list = []
 
         if not self.topic:
-            logger.warning("[access] dataid:(%s) no topic" % self.data_id)
+            logger.warning(f"[access] dataid:({self.data_id}) no topic")
             return
 
         # group_prefix

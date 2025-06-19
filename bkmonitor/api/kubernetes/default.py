@@ -3021,7 +3021,7 @@ class HasBkmMetricbeatEndpointUpResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(label="业务ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params: dict):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
