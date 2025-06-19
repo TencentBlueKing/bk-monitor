@@ -159,10 +159,10 @@ export default class Performance extends Vue {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.initPerformance();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('refreshImmediate')
   // 立刻刷新

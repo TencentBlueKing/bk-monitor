@@ -49,7 +49,7 @@
           display: flex;
           align-items: center;
           height: 32px;
-          padding: 0 12px;
+          padding: 0 16px;
           cursor: pointer;
           background: #fff;
           border: 1px solid #c4c6cc;
@@ -75,7 +75,7 @@
         &-list {
           display: flex;
           flex-direction: column;
-          width: 220px;
+          min-width: 108px;
 
           .list-item {
             display: flex;
