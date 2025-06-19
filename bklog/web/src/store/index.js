@@ -67,6 +67,9 @@ import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
+
+export const SET_APP_STATE = 'SET_APP_STATE';
+
 const stateTpl = {
   userMeta: {}, // /meta/mine
   pageLoading: true,
@@ -110,6 +113,10 @@ const stateTpl = {
   traceIndexId: '',
   // 业务Id
   bkBizId: URL_ARGS.bizId ?? '',
+  // 默认业务ID
+  defaultBizId: '',
+  // 默认业务ID apiId
+  defaultBizIdApiId: '',
   // 我的项目列表
   mySpaceList: [],
   currentMenu: {},
@@ -175,6 +182,8 @@ const stateTpl = {
     isAiAssistantActive: false,
   },
   localSort: false,
+  spaceUidMap: new Map(),
+  bizIdMap: new Map(),
 };
 
 const store = new Vuex.Store({
@@ -201,6 +210,8 @@ const store = new Vuex.Store({
     unionIndexItemList: state => state.unionIndexItemList,
     traceIndexId: state => state.traceIndexId,
     bkBizId: state => state.bkBizId,
+    defaultBizId: state => state.defaultBizId,
+    defaultBizIdApiId: state => state.defaultBizIdApiId,
     mySpaceList: state => state.mySpaceList,
     pageLoading: state => state.pageLoading,
     globalsData: state => state.globalsData,
@@ -317,6 +328,32 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    [SET_APP_STATE](state, data) {
+      for (const [key, value] of Object.entries(data)) {
+        // 1、如果 key 是 'bizList'，会对每个业务空间做拼音处理：生成 py_text 和 pyf_text 字段，并更新 state.bizList，同时生成两个 Map 索引（spaceUidMap 和 bizIdMap）
+        // 2、如果 key 是其他值，直接赋值到 state
+        if (key === 'bizList') {
+          state[key] = value.map(item => {
+            const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
+            const pyText = pinyinStr.replace(/,/g, '');
+            const pyfText = pinyinStr
+              .split(',')
+              .map(str => str.charAt(0))
+              .join('');
+            return {
+              ...item,
+              py_text: pyText,
+              pyf_text: pyfText,
+            };
+          });
+          state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
+          state.bizIdMap = new Map(state.bizList.map(item => [item.bk_biz_id, item]));
+          continue;
+        }
+        state[key] = value;
+      }
+    },
+
     updateStorage(state, payload) {
       Object.keys(payload).forEach(key => {
         state.storage[key] = payload[key];
