@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
+import json
+import logging
+import os
+import time
+from collections import defaultdict
 from functools import wraps
 
 from bkmonitor.utils.local import local
+
+logger = logging.getLogger(__name__)
 
 backend_db_apps = ["monitor_api", "metadata", "bkmonitor", "apm", "calendars"]
 
@@ -23,10 +28,14 @@ def is_backend(app_label):
 
 backend_router = "monitor_api"
 
+BK_MONITOR_MODULE = os.getenv("BK_MONITOR_MODULE", "default")
 
-class BackendRouter(object):
+_table_visit_count_log_time: float = 0
+_table_visit_count: dict[str, int] = defaultdict(int)
+
+
+class BackendRouter:
     def db_for_read(self, model, **hints):
-
         # 动态路由判断
         if getattr(local, "DB_FOR_READ_OVERRIDE", []):
             return local.DB_FOR_READ_OVERRIDE[-1]
@@ -38,7 +47,6 @@ class BackendRouter(object):
         return None
 
     def db_for_write(self, model, **hints):
-
         # 动态路由判断
         if getattr(local, "DB_FOR_WRITE_OVERRIDE", []):
             return local.DB_FOR_WRITE_OVERRIDE[-1]
@@ -65,7 +73,32 @@ class BackendRouter(object):
             return False
 
 
-class UsingDB(object):
+class TableVisitCountRouter:
+    def db_for_read(self, model, **hints):
+        global _table_visit_count_log_time, _table_visit_count
+
+        # 每分钟打印一次表访问次数
+        now = time.time()
+        if _table_visit_count_log_time < now - 60:
+            _table_visit_count_log_time = now
+            logger.info(f"table_visit_count: count: {json.dumps(_table_visit_count)}, module: {BK_MONITOR_MODULE}")
+            _table_visit_count.clear()
+
+        # 记录表访问次数
+        _table_visit_count[model.__name__] += 1
+        return None
+
+    def db_for_write(self, model, **hints):
+        return None
+
+    def allow_relation(self, obj1, obj2, **hints):
+        return None
+
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
+        return None
+
+
+class UsingDB:
     """A decorator and context manager to do queries on a given database.
     Usage as a context manager:
     .. code-block:: python
@@ -75,9 +108,11 @@ class UsingDB(object):
     Usage as a decorator:
     .. code-block:: python
         from my_django_app.models import Account
-        @using_db('Database_B')
+
+
+        @using_db("Database_B")
         def lowest_id_account():
-            Account.objects.order_by('-id')[0]
+            Account.objects.order_by("-id")[0]
     """
 
     def __init__(self, database):
