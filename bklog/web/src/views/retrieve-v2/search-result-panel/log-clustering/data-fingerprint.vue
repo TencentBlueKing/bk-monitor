@@ -648,7 +648,6 @@
         }
       },
       handleMenuBatchClick(row, isLink = true) {
-        debugger;
         const additionList = [];
         const groupBy = this.requestData.group_by;
         if (groupBy.length) {
