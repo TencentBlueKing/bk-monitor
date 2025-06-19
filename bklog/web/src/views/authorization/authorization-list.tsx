@@ -804,7 +804,7 @@ export default class AuthorizationList extends tsc<object> {
           <BizMenuSelect
             theme='light'
             isExternalAuth
-            onSpaceChange={this.handleSpaceChange}
+            on-space-change={this.handleSpaceChange}
           />
         </div>
 
