@@ -36,6 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
@@ -476,6 +477,7 @@ class SearchHandler:
                     "index_set_id": int(self.index_set_id),
                     "bk_data_id": int(collector_config.bk_data_id),
                     "bk_biz_id": collector_config.bk_biz_id,
+                    "related_bk_biz_id": get_non_bkcc_space_related_bkcc_biz_id(collector_config.bk_biz_id),
                 }
                 if self.start_time and self.end_time:
                     params["start_time"] = self.start_time
@@ -1241,7 +1243,7 @@ class SearchHandler:
 
         with open(file_path, "a+", encoding="utf-8") as f:
             for content in content_generator():
-                f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
+                f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
         return file_path
 
     def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
@@ -1328,11 +1330,7 @@ class SearchHandler:
             project_code = space.space_id
         url = (
             settings.BCS_WEB_CONSOLE_DOMAIN
-            + "/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id}/?container_id={container_id}".format(
-                project_code=project_code,
-                cluster_id=cluster_id.upper(),
-                container_id=container_id,
-            )
+            + f"/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id.upper()}/?container_id={container_id}"
         )
         return url
 
@@ -2368,7 +2366,7 @@ class SearchHandler:
                         if father:
                             _key = f"{father}.{key}"
                         else:
-                            _key = "%s" % key
+                            _key = f"{key}"
                     if _key:
                         self._update_result_fields(_key, _item[key])
 
@@ -2514,7 +2512,7 @@ class SearchHandler:
                         if fater:
                             _key = f"{fater}.{key}"
                         else:
-                            _key = "%s" % key
+                            _key = f"{key}"
                     if _key:
                         a_context: str = f"{_key}: {_item[key]}"
                         new_log_context_list.append(a_context)
