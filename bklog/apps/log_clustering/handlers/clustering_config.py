@@ -26,7 +26,7 @@ from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE, MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
@@ -44,6 +44,7 @@ from apps.log_clustering.exceptions import (
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
@@ -110,6 +111,13 @@ class ClusteringConfigHandler:
         ):
             # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
             raise ClusteringAccessNotSupportedException()
+
+        if log_index_set.scenario_id == Scenario.LOG:
+            use_mini_link = FeatureToggleObject.switch(
+                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
+            )
+            if use_mini_link:
+                return MiniLinkAccessHandler(index_set_id=index_set_id).access(params)
 
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes

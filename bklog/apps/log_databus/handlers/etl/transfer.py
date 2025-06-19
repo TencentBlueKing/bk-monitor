@@ -30,6 +30,7 @@ from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
+from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
@@ -99,6 +100,28 @@ class TransferEtlHandler(EtlHandler):
                         field["option"]["real_path"] = field["option"]["real_path"].replace(
                             f"{EtlStorage.separator_node_name}.", ""
                         )
+
+            if handler.data.use_mini_link:
+                fields = CollectorScenario.fields_insert_field_index(
+                    source_fields=fields,
+                    dst_fields=[
+                        {
+                            "field_name": "signature",
+                            "field_type": "string",
+                            "tag": "dimension",
+                            "alias_name": "signature",
+                            "description": "signature",
+                            "option": build_es_option_type("keyword", cluster_info["cluster_config"]["version"]),
+                            "is_built_in": True,
+                            "is_time": False,
+                            "is_analyzed": False,
+                            "is_dimension": False,
+                            "is_delete": False,
+                        }
+                    ],
+                )
+
+                # TODO: 补充 pattern 表创建逻辑
 
         # 暂时去掉这个效验逻辑，底下的逻辑都是幂等的，可以继续也必须继续往下走
         # # 判断是否已存在同result_table_id

@@ -29,7 +29,10 @@ from django.utils.translation import gettext as _
 
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import PatternEnum
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.exceptions import (
     BaseCollectorConfigException,
@@ -191,10 +194,80 @@ class CollectorScenario:
             if option:
                 params["option"] = dict(params["option"], **option)
 
+            # 聚类小型化链路配置更新
+            clustering_config = ClusteringConfig.objects.filter(use_mini_link=True, log_bk_data_id=bk_data_id).first()
+            if clustering_config:
+                if clustering_config.signature_enable:
+                    params["option"].update(
+                        {
+                            "is_log_cluster": True,
+                            "log_cluster_config": CollectorScenario.gen_clustering_datasource_options(
+                                clustering_config
+                            ),
+                        }
+                    )
+                else:
+                    params["option"].update({"is_log_cluster": False})
+
             # 更新数据源
             TransferApi.modify_data_id(params)
             logger.info(f"[update_data_id] bk_data_id=>{bk_data_id}, params=>{params}")
         return bk_data_id
+
+    @staticmethod
+    def gen_clustering_datasource_options(clustering_config: ClusteringConfig) -> dict:
+        """
+        生成聚类数据源配置
+        :param clustering_config: 聚类配置
+        :return: dict
+        """
+        feature_config = FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG).feature_config or {}
+
+        options = {
+            "log_cluster": {
+                "address": feature_config.get("predict_cluster", {}).get(
+                    clustering_config.predict_cluster
+                ),  # TODO: 需要根据集群名称转换
+                "timeout": "1m",
+                "batch_size": 2000,
+                "poll_interval": "1000-5000",
+                "retry": 1,
+                "retry_interval": "200ms",
+                "clustering_field": clustering_config.clustering_fields,
+            },
+            "log_filter": [
+                {
+                    "key": rule["field_name"],
+                    "value": rule["value"] if isinstance(rule["value"], list) else [rule["value"]],
+                    "method": rule["op"],
+                    "condition": rule.get("logic_operator", "and"),
+                }
+                for rule in clustering_config.filter_rules
+            ],
+            "backend_fields": {
+                "raw_es": {
+                    "drop_dimensions": ["pattern", "is_new"],
+                },
+                "pattern_es": {
+                    "keep_dimensions": ["pattern", "signature", "time", "dtEventTimeStamp"],
+                    "keep_metrics": [clustering_config.clustering_fields],
+                    "group_keys": ["signature"],
+                },
+            },
+            "predict_cluster": clustering_config.predict_cluster,
+            "predict_args": {
+                "min_members": clustering_config.min_members,
+                "max_dist_list": clustering_config.max_dist_list,
+                "st_list": clustering_config.st_list,
+                "predefined_varibles": clustering_config.predefined_varibles,
+                "delimeter": clustering_config.delimeter,
+                "max_log_length": clustering_config.max_log_length,
+                "is_case_sensitive": clustering_config.is_case_sensitive,
+                "depth": clustering_config.depth,
+                "max_child": clustering_config.max_child,
+            },
+        }
+        return options
 
     def update_or_create_subscription(self, collector_config: CollectorConfig, params: dict):
         """
