@@ -178,9 +178,19 @@
         list: [],
       });
 
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
+      store.dispatch('requestIndexSetFieldInfo').then(resp => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-        store.dispatch('requestIndexSetQuery');
+
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+        }
+
+        if (!resp?.data?.fields?.length) {
+          store.commit('updateIndexSetQueryResult', {
+            is_error: true,
+            exception_msg: 'index-set-field-not-found',
+          });
+        }
       });
 
       setRouteParams(payload.ids, payload.isUnionIndex);
