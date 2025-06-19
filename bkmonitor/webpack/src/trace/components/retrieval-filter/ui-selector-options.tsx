@@ -82,12 +82,12 @@ export default defineComponent({
     const isMacSystem = shallowRef(false);
 
     const wildcardItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === WILDCARD_KEY)
     );
     const groupRelationItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === GROUP_RELATION_KEY)
     );
@@ -109,17 +109,17 @@ export default defineComponent({
         alias: checkedItem.value?.alias,
         isEnableOptions: !!checkedItem.value?.isEnableOptions,
         methods:
-          checkedItem.value?.supported_operations?.map(item => ({
+          checkedItem.value?.methods?.map(item => ({
             id: item.value,
             name: item.alias,
             placeholder: item?.placeholder || '',
-            wildcardOperator: item?.wildcard_operator || '',
+            wildcardOperator: item?.wildcardValue || '',
           })) || [],
         type: checkedItem.value?.type,
       };
     });
     const placeholderStr = computed(() => {
-      return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
+      return checkedItem.value?.methods?.find(item => item.value === method.value)?.placeholder || '';
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
@@ -237,7 +237,7 @@ export default defineComponent({
           value: (value || []).map(item => item.id),
         };
       } else {
-        method.value = methodP || item?.supported_operations?.[0]?.value || '';
+        method.value = methodP || item?.methods?.[0]?.value || '';
       }
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
@@ -281,7 +281,7 @@ export default defineComponent({
         values.value.length ||
         (isDurationKey.value && timeConsumingValue.value.value.length)
       ) {
-        const methodName = checkedItem.value.supported_operations.find(item => item.value === method.value)?.alias;
+        const methodName = checkedItem.value.methods.find(item => item.value === method.value)?.alias;
         const opt = {};
         if (isWildcard.value) {
           opt[WILDCARD_KEY] = true;
@@ -581,7 +581,7 @@ export default defineComponent({
                     clearable={false}
                     onChange={this.handleMethodChange}
                   >
-                    {this.checkedItem.supported_operations.map(item => (
+                    {this.checkedItem.methods.map(item => (
                       <Select.Option
                         id={item.value}
                         key={item.value}

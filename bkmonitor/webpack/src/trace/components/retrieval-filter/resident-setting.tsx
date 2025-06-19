@@ -39,7 +39,7 @@ import {
   EMethod,
   type IFieldItem,
   type IFilterField,
-  type IWhereItem,
+  type INormalWhere,
   RESIDENT_SETTING_EMITS,
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
@@ -51,7 +51,7 @@ import 'tippy.js/dist/tippy.css';
 
 export interface IResidentSetting {
   field: IFilterField;
-  value: IWhereItem;
+  value: INormalWhere;
 }
 
 export default defineComponent({
@@ -93,7 +93,7 @@ export default defineComponent({
                   valueNameMap[key] || {
                     key: fieldNameMap.value[key]?.name,
                     value: valueNameMap[key]?.value || [],
-                    method: fieldNameMap.value[key]?.supported_operations?.[0]?.value || EMethod.eq,
+                    method: fieldNameMap.value[key]?.methods?.[0]?.value || EMethod.eq,
                   }
                 ),
               });
@@ -186,7 +186,7 @@ export default defineComponent({
           valueNameMap[item.name] || {
             key: item.name,
             value: [],
-            method: fieldNameMap.value[item.name]?.supported_operations?.[0]?.value || EMethod.eq,
+            method: fieldNameMap.value[item.name]?.methods?.[0]?.value || EMethod.eq,
           }
         ),
       }));
@@ -194,7 +194,7 @@ export default defineComponent({
       destroyPopoverInstance();
       handleSetUserConfig(JSON.stringify(fields.map(item => item.name)));
     }
-    function handleValueChange(value: IWhereItem, index: number) {
+    function handleValueChange(value: INormalWhere, index: number) {
       localValue.value[index].value = value;
       handleChange();
     }
@@ -224,7 +224,7 @@ export default defineComponent({
         alias: item.alias,
         isEnableOptions: !!item?.isEnableOptions,
         methods:
-          item?.supported_operations?.map(o => ({
+          item?.methods?.map(o => ({
             id: o.value,
             name: o.alias,
           })) || [],
@@ -238,7 +238,7 @@ export default defineComponent({
      * @returns 返回操作符字符串
      * @description 根据字段名称和搜索模式获取对应的通配符操作符:
      * - 非搜索模式下返回字段对应的 method 值或默认值 'equal'
-     * - 搜索模式下根据 supported_operations 匹配 wildcard_operator,若无匹配则返回第一个支持的操作符或默认值 'equal'
+     * - 搜索模式下根据 methods 匹配 wildcardValue,若无匹配则返回第一个支持的操作符或默认值 'equal'
      */
     function getWildcardOperator(field: string, isSearch = false) {
       let operator = '';
@@ -250,14 +250,14 @@ export default defineComponent({
         operator = tempLocalValue.value?.method || 'equal';
         return operator;
       }
-      for (const m of tempLocalValue.field?.supported_operations || []) {
+      for (const m of tempLocalValue.field?.methods || []) {
         if (tempLocalValue.value?.method === m.value) {
-          operator = m?.wildcard_operator;
+          operator = m?.wildcardValue;
           break;
         }
       }
       if (!operator) {
-        operator = tempLocalValue.field?.supported_operations?.[0]?.wildcard_operator || 'equal';
+        operator = tempLocalValue.field?.methods?.[0]?.wildcardValue || 'equal';
       }
       return operator;
     }

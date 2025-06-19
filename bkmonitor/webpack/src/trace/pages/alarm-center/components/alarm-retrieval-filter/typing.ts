@@ -23,28 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-
-import AlarmCenterHeader from './components/alarm-center-header';
-import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
-
-import './alarm-center.scss';
-export default defineComponent({
-  name: 'AlarmCenter',
-  setup() {},
-  render() {
-    return (
-      <div class='alarm-center'>
-        <div class='alarm-center-header'>
-          <AlarmCenterHeader />
-        </div>
-        <div class='alarm-center-filters'>
-          <AlarmRetrievalFilter />
-        </div>
-        <div class='alarm-center-content'>
-          <div class='quick-filtering' />
-        </div>
-      </div>
-    );
-  },
-});
