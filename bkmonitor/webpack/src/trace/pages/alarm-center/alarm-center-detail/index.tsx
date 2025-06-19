@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import { defineComponent } from 'vue';
+import { useRoute } from 'vue-router';
 
-export default [
-  {
-    path: '/alarm-center',
-    name: 'alarm-center',
-    component: () => import(/* webpackChunkName: "alarm-center" */ '../../pages/alarm-center/alarm-center'),
+import DetailCommonn from '../detail-common';
+
+export default defineComponent({
+  name: 'AlarmCenterDetail',
+  setup() {
+    const route = useRoute();
+    const id = String(route.params.id);
+
+    return () => {
+      return <DetailCommonn id={id} />;
+    };
   },
-  {
-    path: '/alarm-center/detail/:id',
-    name: 'alarm-center-detail',
-    component: () =>
-      import(/* webpackChunkName: "alarm-center-detail" */ '../../pages/alarm-center/alarm-center-detail'),
-  },
-] as RouteRecordRaw[];
+});

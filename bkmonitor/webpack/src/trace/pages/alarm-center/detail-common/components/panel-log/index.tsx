@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import { defineComponent, type PropType } from 'vue';
 
-export default [
-  {
-    path: '/alarm-center',
-    name: 'alarm-center',
-    component: () => import(/* webpackChunkName: "alarm-center" */ '../../pages/alarm-center/alarm-center'),
+export default defineComponent({
+  name: 'PanelLog',
+  props: {
+    id: String as PropType<string>,
   },
-  {
-    path: '/alarm-center/detail/:id',
-    name: 'alarm-center-detail',
-    component: () =>
-      import(/* webpackChunkName: "alarm-center-detail" */ '../../pages/alarm-center/alarm-center-detail'),
+  setup(props) {
+    console.log(props.id);
+    return () => (
+      <div class='alarm-center-detail-panel-alarm'>
+        <div>hello alarm</div>
+      </div>
+    );
   },
-] as RouteRecordRaw[];
+});
