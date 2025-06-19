@@ -786,6 +786,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -794,6 +795,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
