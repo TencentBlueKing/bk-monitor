@@ -1,26 +1,43 @@
 <script setup>
   import { ref, computed } from 'vue';
-  import { bkMessage } from 'bk-magic-vue';
 
-  import FieldSetting from '@/global/field-setting.vue';
-  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { bkMessage } from 'bk-magic-vue';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import IndexSetChoice from '../components/index-set-choice/index';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+  // #if MONITOR_APP !== 'trace'
   import QueryHistory from './query-history';
+  // #else
+  // #code const QueryHistory = () => null;
+  // #endif
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
   import WarningSetting from './warning-setting.vue';
-  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
+  // #else
+  // #code const TimeSetting = () => null;
+  // #code const FieldSetting = () => null;
+  // #code const VersionSwitch = () => null;
+  // #code const ClusterSetting = () => null;
+  // #code const BarGlobalSetting = () => null;
+  // #code const MoreSetting = () => null;
+  // #code const WarningSetting = () => null;
+  // #endif
+
   import * as authorityMap from '@/common/authority-map';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import ShareLink from './share-link.tsx';
 
   const props = defineProps({
     showFavorites: {
@@ -58,6 +75,10 @@
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
+  /** 是否是监控组件 */
+  const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
+  const isMonitorTraceComponent = window.__IS_MONITOR_TRACE__;
+
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
     const indexSetId = route.params?.indexId;
@@ -76,13 +97,18 @@
 
     if (isUnionIndex) {
       router.replace({
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
         params: {
           ...route.params,
           indexId: undefined,
         },
+        // #endif
         query: {
           ...route.query,
           ...queryTab,
+          // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+          indexId: undefined,
+          // #endif
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -94,13 +120,18 @@
     }
 
     router.replace({
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       params: {
         ...route.params,
         indexId: ids[0],
       },
+      // #endif
       query: {
         ...route.query,
         ...queryTab,
+        // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+        indexId: ids[0],
+        // #endif
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -285,22 +316,30 @@
       class="box-biz-select"
     >
       <IndexSetChoice
+        width="100%"
+        :active-tab="indexSetTab"
+        :active-type="indexSetType"
         :index-set-list="indexSetList"
         :index-set-value="indexSetValue"
-        :active-type="indexSetType"
-        :active-tab="indexSetTab"
+        :space-uid="spaceUid"
         :text-dir="textDir"
-        :spaceUid="spaceUid"
-        width="100%"
-        @value-change="handleIndexSetValueChange"
-        @type-change="handleActiveTypeChange"
         @auth-request="handleAuthRequest"
+        @type-change="handleActiveTypeChange"
+        @value-change="handleIndexSetValueChange"
       ></IndexSetChoice>
-      <QueryHistory @change="updateSearchParam"></QueryHistory>
+
+      <QueryHistory
+        v-if="!isMonitorTraceComponent"
+        @change="updateSearchParam"
+      ></QueryHistory>
     </div>
 
-    <div class="box-right-option">
+    <div
+      v-if="!isMonitorComponent"
+      class="box-right-option"
+    >
       <TimeSetting class="custom-border-right"></TimeSetting>
+      <ShareLink></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"

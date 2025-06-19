@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -114,7 +113,7 @@ class UserOperationActionEnum(ChoicesEnum):
     )
 
 
-class LuceneSyntaxEnum(object):
+class LuceneSyntaxEnum:
     """Lucene语法枚举"""
 
     UNKNOWN = "UnknownOperation"
@@ -246,8 +245,12 @@ class ApiTokenAuthType(ChoicesEnum):
     """
 
     GRAFANA = "Grafana"
+    SEARCH = "Search"
 
-    _choices_labels = ((GRAFANA, _("Grafana")),)
+    _choices_labels = (
+        (GRAFANA, _("Grafana")),
+        (SEARCH, "Search"),
+    )
 
 
 class TokenStatusEnum(ChoicesEnum):

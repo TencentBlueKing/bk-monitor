@@ -67,3 +67,20 @@ class FrontendEventSerializer(serializers.Serializer):
     event_content = serializers.CharField(label="事件内容", allow_blank=True, default="")
     target = serializers.CharField(label="事件目标", required=True)
     timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
+
+
+class CreateOrUpdateTokenSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=True, label="空间ID")
+    type = serializers.CharField(required=True, label="鉴权类型")
+    expire_time = serializers.IntegerField(required=True, label="过期时间")
+    expire_period = serializers.CharField(required=True, label="有效期")
+    token = serializers.CharField(required=False, label="鉴权令牌")
+    lock_search = serializers.BooleanField(required=False, default=False, label="是否锁定查询时间")
+    default_time_range = serializers.ListField(required=False, default=[], label="默认时间范围")
+    start_time = serializers.IntegerField(required=False, default=None, label="开始时间")
+    end_time = serializers.IntegerField(required=False, default=None, label="结束时间")
+    data = serializers.DictField(required=False, default={}, label="鉴权参数")
+
+
+class GetShareParamsSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, label="鉴权令牌")

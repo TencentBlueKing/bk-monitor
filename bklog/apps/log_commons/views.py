@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import time
 
 import requests
@@ -50,7 +50,10 @@ from apps.log_commons.serializers import (
     GetResourceByActionSLZ,
     ListExternalPermissionSLZ,
     ListMaintainersSLZ,
+    CreateOrUpdateTokenSerializer,
+    GetShareParamsSerializer,
 )
+from apps.log_commons.share import ShareHandler
 from apps.utils.drf import list_route
 
 # 用户白皮书在文档中心的根路径
@@ -342,3 +345,41 @@ class FrontendEventViewSet(APIViewSet):
         }
         r = requests.post(url, json=report_data, timeout=3)
         return Response(r.json())
+
+
+class ShareViewSet(APIViewSet):
+    @list_route(methods=["get"], url_path="get_share_params")
+    def get_share_params(self, request):
+        """
+        @api {get} /share/get_share_params/ 获取临时分享参数
+        @apiName get_share_params
+        @apiGroup share
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "authorizer_1",
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(GetShareParamsSerializer)
+        return Response(ShareHandler.get_share_params(**data))
+
+    @list_route(methods=["post"], url_path="create_or_update_token")
+    def create_or_update_token(self, request):
+        """
+        @api {get} /share/create_or_update_token/ 创建或更新临时分享令牌
+        @apiName create_or_update_token
+        @apiGroup share
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "authorizer_1",
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(CreateOrUpdateTokenSerializer)
+        return Response(ShareHandler.create_or_update(data))
