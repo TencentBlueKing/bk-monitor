@@ -70,6 +70,9 @@
       name="msapplication-square310x310logo"
       content="img/monitor-512.png"
     />
+    <% if (APP_ENV === 'pc') { %>
+     <script src="https://tam.cdn-go.cn/aegis-sdk/latest/aegis.min.js?max_age=3600"></script>
+    <% } %>
     <script template>
       document.title = '监控平台|蓝鲸智云';
     </script>

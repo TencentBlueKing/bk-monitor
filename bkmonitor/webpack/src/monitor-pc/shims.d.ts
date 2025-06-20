@@ -25,6 +25,7 @@
  */
 
 import type { IBizItem, ISpaceItem } from './types';
+import type Aegis from 'aegis-web-sdk';
 import type VueI18n from 'vue-i18n';
 import type { TranslateResult } from 'vue-i18n';
 import type * as base from 'vue-tsx-support/types/base';
@@ -152,6 +153,11 @@ declare global {
      * 灰度业务是否开启故障事件中心
      */
     enable_aiops_event_center_biz_list?: number[];
+    /*
+     * 灰度RUM 上报地址
+     */
+    rum_access_url?: string;
+    aegisInstance?: InstanceType<typeof Aegis>;
   }
   interface HTMLElement {
     ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance

@@ -383,6 +383,9 @@ importers:
       '@prometheus-io/lezer-promql':
         specifier: 0.51.2
         version: 0.51.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
+      aegis-web-sdk:
+        specifier: ^1.39.3
+        version: 1.39.3
       apm:
         specifier: workspace:*
         version: link:../apm
@@ -2917,6 +2920,9 @@ packages:
   adler-32@1.3.1:
     resolution: {integrity: sha512-ynZ4w/nUUv5rrsR8UUGoe1VC9hZj6V5hU9Qw1HlMDJGEJw5S7TfTErWTjMys6M7vr0YWcPqs3qAr4ss0nDfP+A==}
     engines: {node: '>=0.8'}
+
+  aegis-web-sdk@1.39.3:
+    resolution: {integrity: sha512-XMCVHlPyyEfXOnZfrmNr8jSCQ2pocVr9i0P6vWzZnXIvmtBBBjgbaOcoqXK+jBp1f94CdmctLwRIm0oWTkWudQ==}
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
@@ -8460,6 +8466,9 @@ packages:
   wbuf@1.7.3:
     resolution: {integrity: sha512-O84QOnr0icsbFGLS0O3bI5FswxzRr8/gHwWkDlQFskhSPryQXvrTMxjxGP4+iWYoauLoBvfDpkrOauZ+0iZpDA==}
 
+  web-vitals@3.5.2:
+    resolution: {integrity: sha512-c0rhqNcHXRkY/ogGDJQxZ9Im9D19hDihbzSQJrsioex+KnFgmMzBiy57Z1EjkhX/+OjyBpclDCzz2ITtjokFmg==}
+
   web-worker@1.3.0:
     resolution: {integrity: sha512-BSR9wyRsy/KOValMgd5kMyr3JzpdeoR9KVId8u5GVlTTAtNChlsE4yTxeY7zMdNSyOmoKBv8NH2qeRY9Tg+IaA==}
 
@@ -11653,6 +11662,10 @@ snapshots:
   acorn@8.14.0: {}
 
   adler-32@1.3.1: {}
+
+  aegis-web-sdk@1.39.3:
+    dependencies:
+      web-vitals: 3.5.2
 
   ajv-formats@2.1.1(ajv@8.17.1):
     optionalDependencies:
@@ -17724,6 +17737,8 @@ snapshots:
   wbuf@1.7.3:
     dependencies:
       minimalistic-assert: 1.0.1
+
+  web-vitals@3.5.2: {}
 
   web-worker@1.3.0: {}
 
