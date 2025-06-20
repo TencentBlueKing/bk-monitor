@@ -326,8 +326,10 @@ export default defineComponent({
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
-    onMounted(async () => {
-      debounceSyncAdditionToSQL(debounceQuery);
+    onMounted(() => {
+      if (!RetrieveHelper.isSearching) {
+        debounceSyncAdditionToSQL(debounceQuery);
+      }
     });
 
     expose({
