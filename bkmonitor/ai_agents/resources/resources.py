@@ -162,11 +162,14 @@ class BatchDeleteSessionContentResource(Resource):
         ids = serializers.ListField(label="内容ID列表", required=True)
 
     def perform_request(self, validated_request_data):
-        ids = validated_request_data.get("ids")
-        logger.info("BatchDeleteSessionContentResource: try to batch delete content with ids->[%s]", ids)
+        logger.info(
+            "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
+        )
+
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
+
         res = api_client.api.batch_delete_chat_session_content(json=validated_request_data)
         return res
 
