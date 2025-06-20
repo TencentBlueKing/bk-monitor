@@ -33,7 +33,7 @@ import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import { bkUiMessage } from './common/message';

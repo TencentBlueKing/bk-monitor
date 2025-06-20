@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 0.3.25-beta.0
-        version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: 1.1.0-beta.3
+        version: 1.1.0-beta.3(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -361,16 +361,16 @@ importers:
         version: 0.0.0-beta.4
       '@blueking/date-picker':
         specifier: 2.0.0-beta.46
-        version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)
+        version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.13)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/functional-dependency':
         specifier: 0.0.1-beta.14
-        version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
+        version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/ip-selector':
         specifier: 0.3.0-beta.44
-        version: 0.3.0-beta.44(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
+        version: 0.3.0-beta.44(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -382,7 +382,7 @@ importers:
         version: 1.0.5
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
-        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
+        version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/user-selector':
         specifier: ^1.0.14
         version: 1.0.14
@@ -499,8 +499,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.5
-        version: 2.3.5
+        specifier: 2.3.6
+        version: 2.3.6
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -626,8 +626,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.4
-        version: 2.0.4
+        specifier: 2.0.5
+        version: 2.0.5
       '@blueking/tdesign-ui':
         specifier: 0.0.1-beta.32
         version: 0.0.1-beta.32(vue@3.5.15(typescript@5.8.3))
@@ -781,6 +781,9 @@ importers:
         version: 5.0.2
 
 packages:
+
+  '@agoose77/markdown-it-mermaid@1.1.0':
+    resolution: {integrity: sha512-DIDgGazLgcT3M60xJYXaiFZQG9UzkCl55mDpU+XucjHlPuTb80fYwZJr0Cw5uAqVScY1a4shY7QlNbObnVO4VQ==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -1502,13 +1505,22 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@0.3.25-beta.0':
-    resolution: {integrity: sha512-7Gd5Rb7ORyWrqR48I2sMNIsby4HIQRkOLsOVDRZrYpPFi1LfOAgxAgV3EvDe4Is3VoDhgG4CzeQyNwWqpPHCmw==}
+  '@blueking/ai-blueking@1.1.0-beta.3':
+    resolution: {integrity: sha512-+LP3OV2WaT4lEM2VDE/YWMR0waauGRdpmVoAyFrxWs2XXjDvKkOn9Dos2Wc4wXfHCvU7SmFc3y/KEAyK6LqkqQ==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
       markdown-it-code-copy: ^0.2.1
+
+  '@blueking/ai-ui-sdk@0.0.15-beta.38':
+    resolution: {integrity: sha512-dAlwkA0DHjQyN66aRXamJYp1yL7iqg5chOc/FkZdpr2SA8GuwPZRFDrs4HB46d4uJnSxD7Esh+lzdqPQ3E8fdw==}
+    peerDependencies:
+      bkui-vue: ^2.0.1-beta.100
+      dayjs: ^1.11.13
+      quill: ^1.3.7
+      vue: ^3.5.13
+      x-mavon-editor: ^0.0.15
 
   '@blueking/aiops-topo@0.0.1-beta.6':
     resolution: {integrity: sha512-hL6hObz8U8HWOEhbSgsyH0hi3oYLPC5jIv5AMDY9cWq+DAnJaXAu9/rYS8jrBiPdh4LtmeqBWMDH2npTcdbQ2g==}
@@ -1576,8 +1588,8 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
-  '@blueking/monitor-apm-log@2.3.5':
-    resolution: {integrity: sha512-428Hcm5x9gsfK68XCRYneHa5wUq6CbQKpqTaamZ2DpwGKcF6euzPqbpa8k6TVGfCeaQhvEi85Z55iHJ5z+z8aA==}
+  '@blueking/monitor-apm-log@2.3.6':
+    resolution: {integrity: sha512-7WCl5QQGGRy1KmnMvZpaeZVhC9oRp+0wNQPjw95p/CeQCjU1IjdKdWV/dVcvvBULdx31C5cpmONlNzSddnviEg==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1585,8 +1597,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@2.0.4':
-    resolution: {integrity: sha512-VN3nl53L6C/OE+F0jMt0KGyTSVKM8wK20T2mCyMsx0Epylk4ZRG7Z4KcbBZZOrOjz3liew5rye7aYEP28zKUXg==}
+  '@blueking/monitor-trace-log@2.0.5':
+    resolution: {integrity: sha512-+VsoUUNrbi4zG97qIPZSG4fF6ivjz81JKVBe7RO6lyBnkXST6zOJCipWqt0rXZ3WE3LJRIVjknPWyWiZaMkz/A==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -4022,6 +4034,9 @@ packages:
   dagre-d3-es@7.0.10:
     resolution: {integrity: sha512-qTCQmEhcynucuaZgY5/+ti3X/rnszKZhEQH/ZdWdtP1tA/y3VoHJzcVrO9pjjJCNpigfscAtoUB5ONcd2wNn0A==}
 
+  dagre-d3-es@7.0.9:
+    resolution: {integrity: sha512-rYR4QfVmy+sR44IBDvVtcAmOReGBvRCWDpO2QjYwqgh9yijw6eSHBqaPG/LIOEy7aBsniLvtMW6pg19qJhq60w==}
+
   dagre@0.8.5:
     resolution: {integrity: sha512-/aTqmnRta7x7MCCpExk7HQL2O4owCT2h8NT//9I1OQ9vt29Pa0BzSAkR5lwFUcQ7491yVi/3CXU9jQ5o0Mn2Sw==}
 
@@ -4098,6 +4113,10 @@ packages:
   decode-uri-component@0.2.2:
     resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
     engines: {node: '>=0.10'}
+
+  deep-equal@1.1.2:
+    resolution: {integrity: sha512-5tdhKF6DbU7iIzrIOa1AOUt39ZRm13cmL1cGEh//aqR8x9+tNfbywRf0n5FD/18OKMdo7DNEtrX2t22ZAkI+eg==}
+    engines: {node: '>= 0.4'}
 
   deep-freeze@0.0.1:
     resolution: {integrity: sha512-Z+z8HiAvsGwmjqlphnHW5oz6yWlOwu6EQfFTjmeTWlDeda3FS2yv3jhq35TX/ewmsnqB+RX2IdsIOyjJCQN5tg==}
@@ -4234,6 +4253,9 @@ packages:
   domhandler@5.0.3:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
+
+  dompurify@2.4.3:
+    resolution: {integrity: sha512-q6QaLcakcRjebxjg8/+NP+h0rPfatOgOzc46Fst9VAA3jF2ApfKBNKMzdP4DYTqtUMXSCd5pRS/8Po/OmoCHZQ==}
 
   dompurify@2.4.5:
     resolution: {integrity: sha512-jggCCd+8Iqp4Tsz0nIvpcb22InKEBrGz5dw3EQJMs8HPJDsKbFIO3STYtAvCfDx26Muevn1MHVI0XxjgFfmiSA==}
@@ -4612,6 +4634,9 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
+  eventemitter3@2.0.3:
+    resolution: {integrity: sha512-jLN68Dx5kyFHaePoXWPsCGW5qdyZQtLYHkxkg02/Mz6g0kYpDx4FyP6XfArhQdlOC4b8Mv+EMxPo/8La7Tzghg==}
+
   eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
@@ -4651,6 +4676,9 @@ packages:
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+
+  fast-diff@1.1.2:
+    resolution: {integrity: sha512-KaJUt+M9t1qaIteSvjc6P3RbMdXsNhK61GRftR6SNxqmhthcd9MGIi4T+o0jD8LUSpSnSKXE20nLtJ3fOHxQig==}
 
   fast-diff@1.3.0:
     resolution: {integrity: sha512-VxPP4NqbUjj6MaAOafWeUn2cXWLcCtljklUtZf0Ind4XQ+QPtmA0b18zZy0jIQx+ExRVCR/ZQpBmik5lXshNsw==}
@@ -4817,6 +4845,20 @@ packages:
   fragment-cache@0.2.1:
     resolution: {integrity: sha512-GMBAbW9antB8iZRHLoGw0b3HANt57diZYFO/HL1JGIC1MjKrdmhxvrJbupnVvpys0zsz7yBApXdQyfepKly2kA==}
     engines: {node: '>=0.10.0'}
+
+  framer-motion@12.4.10:
+    resolution: {integrity: sha512-3Msuyjcr1Pb5hjkn4EJcRe1HumaveP0Gbv4DBMKTPKcV/1GSMkQXj+Uqgneys+9DPcZM18Hac9qY9iUEF5LZtg==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
@@ -5035,6 +5077,9 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
+  hey-listen@1.0.8:
+    resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
+
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
@@ -5245,6 +5290,10 @@ packages:
 
   is-any-array@2.0.1:
     resolution: {integrity: sha512-UtilS7hLRu++wb/WBAw9bNuP1Eg04Ivn1vERJck8zJthEvXCBEBpGR/33u/xLKWEQf95803oalHrVDptcAvFdQ==}
+
+  is-arguments@1.2.0:
+    resolution: {integrity: sha512-7bVbi0huj/wrIAOzb8U1aszg9kdi3KN/CyU19CTI7tAoZYEZoL9yCDXpbXN+uPsuWnP02cyug1gleqq+TU+YCA==}
+    engines: {node: '>= 0.4'}
 
   is-array-buffer@3.0.4:
     resolution: {integrity: sha512-wcjaerHw0ydZwfhiKbXJWLDY8A7yV7KhjQOpb83hGgGfId/aQa4TOvwyzn2PuswW2gPCYEL/nEAiSVpdOj1lXw==}
@@ -5866,6 +5915,9 @@ packages:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
 
+  mermaid@9.4.3:
+    resolution: {integrity: sha512-TLkQEtqhRSuEHSE34lh5bCa94KATCyluAXmFnNI2PRZwOpXFeqiJWwZl+d2CcemE1RS6QbbueSSq9QIg8Uxcyw==}
+
   methods@1.1.2:
     resolution: {integrity: sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==}
     engines: {node: '>= 0.6'}
@@ -5973,6 +6025,17 @@ packages:
 
   monitor-vue-grid-layout@0.0.1:
     resolution: {integrity: sha512-me5sVkmpEslbO86PcqTad7tm2eqyJd4V6WGEDz1P9iT3BbfCToDniPJOHmeRdcCXQyA+s88nWMWX/MG6Md+OMw==}
+
+  motion-dom@12.16.0:
+    resolution: {integrity: sha512-Z2nGwWrrdH4egLEtgYMCEN4V2qQt1qxlKy/uV7w691ztyA41Q5Rbn0KNGbsNVDZr9E8PD2IOQ3hSccRnB6xWzw==}
+
+  motion-utils@12.12.1:
+    resolution: {integrity: sha512-f9qiqUHm7hWSLlNW8gS9pisnsN7CRFRD58vNjptKdsqFLpkVnX00TNeD6Q0d27V9KzT7ySFyK1TZ/DShfVOv6w==}
+
+  motion-v@0.11.3:
+    resolution: {integrity: sha512-ND2pIkoyA5Or3XS9iz56oo7TCwsmTxrEO3Dvr3aQF2o7NXcCmIQX2XNiENLlWEitBOXmtGnZDhLCcDhkICrAzw==}
+    peerDependencies:
+      vue: '>=3.0.0'
 
   mrmime@2.0.0:
     resolution: {integrity: sha512-eu38+hdgojoyq63s+yTpN4XMBdt5l8HhMhc4VKLO9KM5caLIBvUm4thi7fFaxyTmCKeNnXZ5pAlBwCUnhA09uw==}
@@ -6119,6 +6182,10 @@ packages:
     resolution: {integrity: sha512-kDCGIbxkDSXE3euJZZXzc6to7fCrKHNI/hSRQnRuQ+BWjFNzZwiFF8fj/6o2t2G9/jTj8PSIYTfCLelLZEeRpA==}
     engines: {node: '>= 0.4'}
 
+  object-is@1.1.6:
+    resolution: {integrity: sha512-F8cZ+KfGlSGi09lJT7/Nd6KJZ9ygtvYC0/UYYLI9nmQKLMnydpB9yvbv9K1uSkEu7FU9vYPmVwLg328tX+ot3Q==}
+    engines: {node: '>= 0.4'}
+
   object-keys@1.1.1:
     resolution: {integrity: sha512-NuAESUOUMrlIXOfHKzD6bpPu3tYt3xvjNdRIQ+FeT0lNb4K8WR70CaDxhuNguS2XG+GjkyMwOzsN5ZktImfhLA==}
     engines: {node: '>= 0.4'}
@@ -6231,6 +6298,9 @@ packages:
 
   param-case@3.0.4:
     resolution: {integrity: sha512-RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A==}
+
+  parchment@1.1.4:
+    resolution: {integrity: sha512-J5FBQt/pM2inLzg4hEWmzQx/8h8D0CiDxaG3vyp9rKrQRSDgBlhjdP5jQGgosEajXPSQouXGHOmVdgo7QmJuOg==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -6649,9 +6719,21 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
+  postcss-nested-ancestors@3.0.0:
+    resolution: {integrity: sha512-6U/LLSSaEDWIaBfi7/1PZuRkGXXllndiit2BTFu6u5i3QxAzBjxMKbPDyLCg/DtzhON0rKnfvGQ+UEd7se2Pnw==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      postcss: ^8.0.0
+
   postcss-nested@6.2.0:
     resolution: {integrity: sha512-HQbt28KulC5AJzG+cZtj9kvKB93CFCdLvog1WFLf1D+xmMvPGlBstkpTEZfK5+AN9hfJocyBFCNiqyS48bpgzQ==}
     engines: {node: '>=12.0'}
+    peerDependencies:
+      postcss: ^8.2.14
+
+  postcss-nested@7.0.2:
+    resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
+    engines: {node: '>=18.0'}
     peerDependencies:
       postcss: ^8.2.14
 
@@ -7033,6 +7115,13 @@ packages:
   quick-lru@4.0.1:
     resolution: {integrity: sha512-ARhCpm70fzdcvNQfPoy49IaanKkTlRWF2JMzqhcJbhSFRZv7nPTvZJdcY7301IPmvW+/p0RgIWnQDLJxifsQ7g==}
     engines: {node: '>=8'}
+
+  quill-delta@3.6.3:
+    resolution: {integrity: sha512-wdIGBlcX13tCHOXGMVnnTVFtGRLoP0imqxM696fIPwIf5ODIYUHIvHbZcyvGlZFiFhK5XzDC2lpjbxRhnM05Tg==}
+    engines: {node: '>=0.10'}
+
+  quill@1.3.7:
+    resolution: {integrity: sha512-hG/DVzh/TiknWtE6QmWAF/pxoZKYxfe3J/d/+ShUWkDvvkZQVTPeVmUJVu1uE6DDooC4fWTiCLh84ul89oNz5g==}
 
   raf@3.4.1:
     resolution: {integrity: sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==}
@@ -8231,6 +8320,11 @@ packages:
       '@vue/composition-api':
         optional: true
 
+  vue-draggable-resizable@3.0.0:
+    resolution: {integrity: sha512-kABSggcXPoDB8dOTVE09ZkccxiMdNDUaLl7STTeghsFE3o+mk653iumrkmjKLfIBA/w5ZXWJmarBqoqsmWLzEg==}
+    peerDependencies:
+      vue: ^3.2.25
+
   vue-echarts@7.0.3:
     resolution: {integrity: sha512-/jSxNwOsw5+dYAUcwSfkLwKPuzTQ0Cepz1LxCOpj2QcHrrmUa/Ql0eQqMmc1rTPQVrh2JQ29n2dhq75ZcHvRDw==}
     peerDependencies:
@@ -8564,6 +8658,9 @@ packages:
       utf-8-validate:
         optional: true
 
+  x-mavon-editor@0.0.15:
+    resolution: {integrity: sha512-8fKxyCpMNJoXjfZBxSvheEWtGzqkKgsFyX6AK4tpQdulGoBqcI59m25iTUTLek7mdVYoSBUHRziVGo6dTfAp0g==}
+
   xlsx@0.18.5:
     resolution: {integrity: sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==}
     engines: {node: '>=0.8'}
@@ -8620,6 +8717,11 @@ packages:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
 
 snapshots:
+
+  '@agoose77/markdown-it-mermaid@1.1.0':
+    dependencies:
+      markdown-it: 13.0.2
+      mermaid: 9.4.3
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -9648,12 +9750,39 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
+  '@blueking/ai-blueking@1.1.0-beta.3(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
     dependencies:
+      '@agoose77/markdown-it-mermaid': 1.1.0
+      '@blueking/ai-ui-sdk': 0.0.15-beta.38(dayjs@1.11.13)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
+      '@blueking/bkui-library': 0.0.0-beta.6
       dayjs: 1.11.13
       highlight.js: 11.5.1
       markdown-it: 13.0.2
       markdown-it-code-copy: 0.2.1
+      motion-v: 0.11.3(vue@2.7.16)
+      tippy.js: 6.3.7
+      vue-draggable-resizable: 3.0.0(vue@2.7.16)
+    transitivePeerDependencies:
+      - '@emotion/is-prop-valid'
+      - '@vue/composition-api'
+      - bkui-vue
+      - postcss
+      - quill
+      - react
+      - react-dom
+      - vue
+      - x-mavon-editor
+
+  '@blueking/ai-ui-sdk@0.0.15-beta.38(dayjs@1.11.13)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
+    dependencies:
+      dayjs: 1.11.13
+      postcss-nested: 7.0.2(postcss@8.5.3)
+      postcss-nested-ancestors: 3.0.0(postcss@8.5.3)
+      quill: 1.3.7
+      vue: 2.7.16
+      x-mavon-editor: 0.0.15
+    transitivePeerDependencies:
+      - postcss
 
   '@blueking/aiops-topo@0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
@@ -9828,10 +9957,9 @@ snapshots:
     dependencies:
       '@vue/runtime-dom': 3.5.15
 
-  '@blueking/date-picker@2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)':
+  '@blueking/date-picker@2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.13)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
       dayjs: 1.11.13
       vue: 2.7.16
 
@@ -9844,22 +9972,20 @@ snapshots:
 
   '@blueking/fork-resize-detector@0.0.2': {}
 
-  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
-      bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
-      vue: 2.7.16
-
   '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3))
       vue: 3.5.15(typescript@5.8.3)
 
-  '@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      vue: 2.7.16
+
+  '@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
 
   '@blueking/functional-dependency@0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
@@ -9867,15 +9993,6 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
-
-  '@blueking/ip-selector@0.3.0-beta.44(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
-      vue-i18n: 8.14.1(vue@2.7.16)
-    transitivePeerDependencies:
-      - bkui-vue
-      - vue
 
   '@blueking/ip-selector@0.3.0-beta.44(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(vue@3.5.15(typescript@5.8.3))':
     dependencies:
@@ -9886,16 +10003,25 @@ snapshots:
       - bkui-vue
       - vue
 
+  '@blueking/ip-selector@0.3.0-beta.44(vue@2.7.16)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
+      vue-i18n: 8.14.1(vue@2.7.16)
+    transitivePeerDependencies:
+      - bkui-vue
+      - vue
+
   '@blueking/login-modal@1.0.6': {}
 
-  '@blueking/monitor-apm-log@2.3.5': {}
+  '@blueking/monitor-apm-log@2.3.6': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@2.0.4': {}
+  '@blueking/monitor-trace-log@2.0.5': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:
@@ -9905,10 +10031,9 @@ snapshots:
     dependencies:
       xss: 1.0.15
 
-  '@blueking/search-select-v3@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/search-select-v3@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
       vue: 2.7.16
 
   '@blueking/search-select-v3@0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)':
@@ -11406,6 +11531,16 @@ snapshots:
 
   '@vue/shared@3.5.17': {}
 
+  '@vueuse/core@10.11.1(vue@2.7.16)':
+    dependencies:
+      '@types/web-bluetooth': 0.0.20
+      '@vueuse/metadata': 10.11.1
+      '@vueuse/shared': 10.11.1(vue@2.7.16)
+      vue-demi: 0.14.10(vue@2.7.16)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@vueuse/core@10.11.1(vue@3.5.15(typescript@5.8.3))':
     dependencies:
       '@types/web-bluetooth': 0.0.20
@@ -11426,6 +11561,13 @@ snapshots:
   '@vueuse/metadata@10.11.1': {}
 
   '@vueuse/metadata@13.3.0': {}
+
+  '@vueuse/shared@10.11.1(vue@2.7.16)':
+    dependencies:
+      vue-demi: 0.14.10(vue@2.7.16)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
 
   '@vueuse/shared@10.11.1(vue@3.5.15(typescript@5.8.3))':
     dependencies:
@@ -12607,6 +12749,11 @@ snapshots:
       d3: 7.9.0
       lodash-es: 4.17.21
 
+  dagre-d3-es@7.0.9:
+    dependencies:
+      d3: 7.9.0
+      lodash-es: 4.17.21
+
   dagre@0.8.5:
     dependencies:
       graphlib: 2.1.8
@@ -12668,6 +12815,15 @@ snapshots:
   decamelize@1.2.0: {}
 
   decode-uri-component@0.2.2: {}
+
+  deep-equal@1.1.2:
+    dependencies:
+      is-arguments: 1.2.0
+      is-date-object: 1.0.5
+      is-regex: 1.1.4
+      object-is: 1.1.6
+      object-keys: 1.1.1
+      regexp.prototype.flags: 1.5.3
 
   deep-freeze@0.0.1: {}
 
@@ -12790,6 +12946,8 @@ snapshots:
   domhandler@5.0.3:
     dependencies:
       domelementtype: 2.3.0
+
+  dompurify@2.4.3: {}
 
   dompurify@2.4.5: {}
 
@@ -13267,6 +13425,8 @@ snapshots:
 
   etag@1.8.1: {}
 
+  eventemitter3@2.0.3: {}
+
   eventemitter3@4.0.7: {}
 
   eventemitter3@5.0.1: {}
@@ -13350,6 +13510,8 @@ snapshots:
       - supports-color
 
   fast-deep-equal@3.1.3: {}
+
+  fast-diff@1.1.2: {}
 
   fast-diff@1.3.0: {}
 
@@ -13526,6 +13688,12 @@ snapshots:
   fragment-cache@0.2.1:
     dependencies:
       map-cache: 0.2.2
+
+  framer-motion@12.4.10:
+    dependencies:
+      motion-dom: 12.16.0
+      motion-utils: 12.12.1
+      tslib: 2.8.1
 
   fresh@0.5.2: {}
 
@@ -13738,6 +13906,8 @@ snapshots:
 
   he@1.2.0: {}
 
+  hey-listen@1.0.8: {}
+
   highlight.js@10.7.3: {}
 
   highlight.js@11.5.1: {}
@@ -13940,6 +14110,11 @@ snapshots:
       is-decimal: 1.0.4
 
   is-any-array@2.0.1: {}
+
+  is-arguments@1.2.0:
+    dependencies:
+      call-bound: 1.0.4
+      has-tostringtag: 1.0.2
 
   is-array-buffer@3.0.4:
     dependencies:
@@ -14527,6 +14702,25 @@ snapshots:
 
   merge2@1.4.1: {}
 
+  mermaid@9.4.3:
+    dependencies:
+      '@braintree/sanitize-url': 6.0.4
+      cytoscape: 3.30.3
+      cytoscape-cose-bilkent: 4.1.0(cytoscape@3.30.3)
+      cytoscape-fcose: 2.2.0(cytoscape@3.30.3)
+      d3: 7.9.0
+      dagre-d3-es: 7.0.9
+      dayjs: 1.11.13
+      dompurify: 2.4.3
+      elkjs: 0.8.2
+      khroma: 2.1.0
+      lodash-es: 4.17.21
+      non-layered-tidy-tree-layout: 2.0.2
+      stylis: 4.3.4
+      ts-dedent: 2.2.0
+      uuid: 9.0.1
+      web-worker: 1.5.0
+
   methods@1.1.2: {}
 
   micromark@2.11.4:
@@ -14670,6 +14864,24 @@ snapshots:
       - '@interactjs/core'
       - '@interactjs/utils'
       - typescript
+
+  motion-dom@12.16.0:
+    dependencies:
+      motion-utils: 12.12.1
+
+  motion-utils@12.12.1: {}
+
+  motion-v@0.11.3(vue@2.7.16):
+    dependencies:
+      '@vueuse/core': 10.11.1(vue@2.7.16)
+      framer-motion: 12.4.10
+      hey-listen: 1.0.8
+      vue: 2.7.16
+    transitivePeerDependencies:
+      - '@emotion/is-prop-valid'
+      - '@vue/composition-api'
+      - react
+      - react-dom
 
   mrmime@2.0.0: {}
 
@@ -14822,6 +15034,11 @@ snapshots:
 
   object-inspect@1.13.3: {}
 
+  object-is@1.1.6:
+    dependencies:
+      call-bind: 1.0.7
+      define-properties: 1.2.1
+
   object-keys@1.1.1: {}
 
   object-visit@1.0.1:
@@ -14964,6 +15181,8 @@ snapshots:
     dependencies:
       dot-case: 3.0.4
       tslib: 2.8.1
+
+  parchment@1.1.4: {}
 
   parent-module@1.0.1:
     dependencies:
@@ -15342,10 +15561,21 @@ snapshots:
       icss-utils: 5.1.0(postcss@8.5.3)
       postcss: 8.5.3
 
+  postcss-nested-ancestors@3.0.0(postcss@8.5.3):
+    dependencies:
+      escape-string-regexp: 4.0.0
+      postcss: 8.5.3
+      postcss-resolve-nested-selector: 0.1.6
+
   postcss-nested@6.2.0(postcss@8.5.3):
     dependencies:
       postcss: 8.5.3
       postcss-selector-parser: 6.1.2
+
+  postcss-nested@7.0.2(postcss@8.5.3):
+    dependencies:
+      postcss: 8.5.3
+      postcss-selector-parser: 7.1.0
 
   postcss-nesting@13.0.1(postcss@8.5.3):
     dependencies:
@@ -15791,6 +16021,21 @@ snapshots:
   queue-microtask@1.2.3: {}
 
   quick-lru@4.0.1: {}
+
+  quill-delta@3.6.3:
+    dependencies:
+      deep-equal: 1.1.2
+      extend: 3.0.2
+      fast-diff: 1.1.2
+
+  quill@1.3.7:
+    dependencies:
+      clone: 2.1.2
+      deep-equal: 1.1.2
+      eventemitter3: 2.0.3
+      extend: 3.0.2
+      parchment: 1.1.4
+      quill-delta: 3.6.3
 
   raf@3.4.1:
     dependencies:
@@ -17285,9 +17530,17 @@ snapshots:
     dependencies:
       vue: 3.5.15(typescript@5.8.3)
 
+  vue-demi@0.14.10(vue@2.7.16):
+    dependencies:
+      vue: 2.7.16
+
   vue-demi@0.14.10(vue@3.5.15(typescript@5.8.3)):
     dependencies:
       vue: 3.5.15(typescript@5.8.3)
+
+  vue-draggable-resizable@3.0.0(vue@2.7.16):
+    dependencies:
+      vue: 2.7.16
 
   vue-echarts@7.0.3(@vue/runtime-core@3.5.17)(echarts@5.6.0)(vue@3.5.15(typescript@5.8.3)):
     dependencies:
@@ -17757,6 +18010,10 @@ snapshots:
   ws@7.5.10: {}
 
   ws@8.18.0: {}
+
+  x-mavon-editor@0.0.15:
+    dependencies:
+      xss: 1.0.15
 
   xlsx@0.18.5:
     dependencies:

@@ -287,6 +287,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-ext:before {
 	content: "\e175";
 }
+.bklog-share:before {
+	content: "\e212";
+}
 .bklog-star-line:before {
 	content: "\e194";
 }
@@ -691,4 +694,7 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-tongpeifu:before {
 	content: "\e210";
+}
+.bklog-share-link:before {
+	content: "\e211";
 }
