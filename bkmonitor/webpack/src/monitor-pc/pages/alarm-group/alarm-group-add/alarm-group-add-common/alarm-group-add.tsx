@@ -41,13 +41,15 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
+import { getReceiver } from 'monitor-api/modules/notice_group';
 
-import { getDefaultUserGroupList } from '../../../../components/user-selector/user-group';
+import { getDefaultUserGroupListSync } from '../../../../components/user-selector/user-group';
 // import { getReceiver } from 'monitor-api/modules/notice_group';
 import { getBkchatGroup } from 'monitor-api/modules/user_groups';
 import { deepClone, random } from 'monitor-common/utils/utils';
 
 import UserSelector from '../../../../components/user-selector/user-selector';
+
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import RotationConfig from '../../rotation/rotation-config';
@@ -417,15 +419,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
    */
   async getReceiverGroup() {
     this.isShowOverInput = true;
-    await getDefaultUserGroupList()
+    await getReceiver()
       .then(data => {
-        this.allRecerverData = data;
-        // const groupData = data.find(item => item.id === 'group');
-        // groupData.type = 'group';
-        // groupData.children.map(item => (item.username = item.id));
-        this.defaultGroupList = data;
+        const groupData = data.find(item => item.id === 'group')?.children || [];
+        const groupList = getDefaultUserGroupListSync(groupData);
+        this.allRecerverData = groupList;
+        this.defaultGroupList = groupList;
         // 群提醒人 需要有一个固定选项。
-        const mentionList = deepClone(data);
+        const mentionList = deepClone(groupList);
         mentionList.unshift(mentListDefaultItem);
         this.mentionGroupList.push(...mentionList);
       })
@@ -464,7 +465,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         logo: '',
         id,
         type: isGroup ? 'group' : 'user',
-        members: isGroup ? groupMap.get(id)?.members : undefined,
+        members: isGroup ? groupMap.get(id)?.members.map(e => ({ id: e.id, display_name: e.name })) : undefined,
       });
     }
     return result;
@@ -1009,7 +1010,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                     <div class='error-msg'>{this.errorsMsg.users}</div>
                   )}
                 </div>
-                {/* {this.handleNoticeReceiver().map(item =>
+                {this.handleNoticeReceiver().map(item =>
                   item.type === 'group' ? (
                     <div
                       key={item.id}
@@ -1021,10 +1022,20 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                           : this.$t('来自配置平台')
                       })`}
                       {!['bk_bak_operator', 'operator'].includes(item.id) ? (
-                        item.members.length ? (
+                        item.members?.length ? (
                           <span>
                             {'，'}
-                            {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                            {/* {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')} */}
+                            {this.$t('当前成员')}
+                            {window.enable_multi_tenant_mode
+                              ? item.members.map((e, index, arr) => [
+                                  <bk-user-display-name
+                                    key={`user-display-${e.id}`}
+                                    user-id={e.id}
+                                  />,
+                                  index !== arr.length - 1 ? <span key={`span-colon-${e.id}`}>{';'}</span> : null,
+                                ])
+                              : item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
                           </span>
                         ) : (
                           <span>
@@ -1036,7 +1047,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                       ) : undefined}
                     </div>
                   ) : undefined
-                )} */}
+                )}
                 {/* <div class="text-tip">*/}
                 {/*  <span class="icon-monitor icon-hint"></span>*/}
                 {/*  {this.$t('电话语音通知，拨打的顺序是按通知对象顺序依次拨打，用户组内无法保证顺序')}*/}

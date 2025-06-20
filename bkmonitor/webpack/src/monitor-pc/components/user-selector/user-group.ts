@@ -27,6 +27,10 @@ export interface IUserGroup {
   id: string;
   name: string;
   hidden?: boolean;
+  members: {
+    id: string;
+    name: string;
+  }[];
 }
 /** 获取默认用户组同步用法 */
 export const getDefaultUserGroupListSync = (groupList = []): IUserGroup[] => {
@@ -74,6 +78,11 @@ export const getDefaultUserGroupListSync = (groupList = []): IUserGroup[] => {
     id: item.id,
     name: item.display_name,
     hidden: false,
+    members:
+      item?.members?.map?.(member => ({
+        id: member.id,
+        name: member.display_name,
+      })) || [],
   }));
 };
 
