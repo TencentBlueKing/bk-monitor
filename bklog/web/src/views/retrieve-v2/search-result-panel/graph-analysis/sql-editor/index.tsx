@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
 
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
@@ -325,6 +325,10 @@ export default defineComponent({
       onRefereceChange,
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
+
+    onMounted(async () => {
+      debounceSyncAdditionToSQL(debounceQuery);
+    });
 
     expose({
       handleQueryBtnClick,
