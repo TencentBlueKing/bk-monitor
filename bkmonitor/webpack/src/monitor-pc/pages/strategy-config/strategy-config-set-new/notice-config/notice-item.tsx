@@ -74,7 +74,7 @@ export default class NoticeItem extends tsc<IProps> {
             <div class='subTitle'>
               <AIWhaleIcon
                 content={this.subTitle}
-                type='translate'
+                type='description'
               />
               <span v-bk-overflow-tips> {this.subTitle}</span>
             </div>

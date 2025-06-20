@@ -39,7 +39,7 @@ const registerValidSW = (swUrl: string, config?: Config): void => {
     .register(swUrl)
     .then((registration: ServiceWorkerRegistration) => {
       registration.onupdatefound = (): void => {
-        const installingWorker: ServiceWorker | null = registration.installing;
+        const installingWorker: null | ServiceWorker = registration.installing;
         if (!installingWorker) return;
         installingWorker.onstatechange = (): void => {
           if (installingWorker.state === 'installed') {

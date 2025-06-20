@@ -103,7 +103,7 @@ METRIC_PUSH_COUNT = Counter(
 SPACE_QUERY_COUNT = Counter(
     name="bkmonitor_space_query_count",
     documentation="空间查询次数",
-    labelnames=("using_cache", "space_uid", "bk_biz_id", "role"),
+    labelnames=("using_cache", "role"),
 )
 
 CRON_TASK_EXECUTE_TIME = Histogram(
