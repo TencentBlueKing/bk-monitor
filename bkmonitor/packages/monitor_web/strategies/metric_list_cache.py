@@ -961,7 +961,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
         try:
-            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(
+                bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
+            )
         except (requests.exceptions.ConnectionError, BKAPIError) as err:
             logger.exception(f"[CustomEventCacheManager] fetch bcs_clusters error: {err}")
             # bcs 未就绪，不影响自定义事件

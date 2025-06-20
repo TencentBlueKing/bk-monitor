@@ -904,7 +904,7 @@ class GetVariableValue(Resource):
                 result.append({"label": id_to_names.get(str(v), value), "value": value})
         elif dimension_field == "bcs_cluster_id":
             # 显示集群名称
-            cluster_infos = api.kubernetes.fetch_k8s_cluster_list()
+            cluster_infos = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=get_request_tenant_id())
             cluster_id_to_name = {cluster["bcs_cluster_id"]: cluster["name"] for cluster in cluster_infos}
             result = []
             for v in sorted(dimensions):

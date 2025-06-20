@@ -139,7 +139,7 @@ class BCSResource(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def refresh_resource(cls, cluster_id: int, common_data_id: int) -> bool:
+    def refresh_resource(cls, cluster_id: str, common_data_id: int) -> bool:
         """
         刷新集群资源信息，追加未发现的资源,删除已不存在的资源
         :param cluster_id: 集群ID
@@ -372,9 +372,7 @@ class BCSResource(models.Model):
                 logger.error(f"filter data_id:{self.bk_data_id}, cluster_id:{self.cluster_id} failed")
                 return
             cluster_infos = BCSClusterInfo.objects.filter(cluster_id=self.cluster_id)
-            path = "{}/project_id/{}/cluster_id/{}".format(
-                config.CONSUL_PATH, cluster_infos[0].project_id, self.cluster_id
-            )
+            path = f"{config.CONSUL_PATH}/project_id/{cluster_infos[0].project_id}/cluster_id/{self.cluster_id}"
             hash_consul = consul_tools.HashConsul()
             # 试图获取当前project_id, cluster_id下的data_id_list
             _, val = hash_consul.get(path)

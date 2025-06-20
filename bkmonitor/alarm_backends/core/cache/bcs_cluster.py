@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 bcs 集群缓存管理器
 """
 
 import json
-from typing import Dict
 
 from alarm_backends.core.cache.base import CacheManager
 from core.drf_resource import api
@@ -29,29 +28,30 @@ class BcsClusterCacheManager(CacheManager):
 
     @classmethod
     def refresh(cls):
-        try:
-            cluster_infos = api.kubernetes.fetch_k8s_cluster_list()
-        except Exception:  # noqa
-            return
+        for tenant in api.bk_login.list_tenant():
+            try:
+                cluster_infos = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=tenant["id"])
+            except Exception:  # noqa
+                return
 
-        pipeline = cls.cache.pipeline()
-        for cluster_info in cluster_infos:
-            bcs_cluster_id = cluster_info["bcs_cluster_id"]
-            name = cluster_info["name"]
+            pipeline = cls.cache.pipeline()
+            for cluster_info in cluster_infos:
+                bcs_cluster_id = cluster_info["bcs_cluster_id"]
+                name = cluster_info["name"]
 
-            data = {
-                "name": name,
-            }
-            cache_key = cls.CACHE_KEY_TEMPLATE.format(bcs_cluster_id)
-            pipeline.set(
-                cache_key,
-                json.dumps(data),
-                cls.CACHE_TIMEOUT,
-            )
-        pipeline.execute()
+                data = {
+                    "name": name,
+                }
+                cache_key = cls.CACHE_KEY_TEMPLATE.format(bcs_cluster_id)
+                pipeline.set(
+                    cache_key,
+                    json.dumps(data),
+                    cls.CACHE_TIMEOUT,
+                )
+            pipeline.execute()
 
     @classmethod
-    def get(cls, bcs_cluster_id: str) -> Dict:
+    def get(cls, bcs_cluster_id: str) -> dict | None:
         """
         获取集群信息
         """

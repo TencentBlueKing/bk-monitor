@@ -40,7 +40,6 @@ from metadata.models.space.utils import (
     create_bcs_spaces,
     create_bkcc_space_data_source,
     create_bkcc_spaces,
-    get_bkci_projects,
     get_metadata_cluster_list,
     get_project_clusters,
     get_shared_cluster_namespaces,
@@ -277,7 +276,9 @@ def sync_bcs_space():
     start_time = time.time()
 
     bcs_type_id = SpaceTypes.BKCI.value
-    projects = get_valid_bcs_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     project_id_dict = {p["project_code"]: p for p in projects}
     space_qs = Space.objects.filter(space_type_id=bcs_type_id)
     space_id_list = space_qs.values_list("space_id", flat=True)
@@ -323,7 +324,9 @@ def refresh_bcs_project_biz():
     """检测 bcs 项目绑定的业务的变化"""
     logger.info("start check and update the binded biz of bcs project task")
     # 检测所有 bcs 项目
-    projects = get_valid_bcs_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     project_id_dict = {p["project_code"]: p["bk_biz_id"] for p in projects}
     # 1. 判断项目空间是否存在，如果不存在直接跳过
     # 2. 如果项目空间存在，则判断绑定的业务是否相等
@@ -352,6 +355,7 @@ def refresh_bcs_project_biz():
         if not res:
             add_resource_list.append(
                 SpaceResource(
+                    bk_tenant_id=s.bk_tenant_id,
                     space_type_id=SpaceTypes.BKCI.value,
                     space_id=space_id,
                     resource_type=SpaceTypes.BKCC.value,
@@ -444,8 +448,10 @@ def refresh_cluster_resource():
     }
     # code 映射 id，仅过滤到有集群的项目
     space_id_code_map = {
-        s["space_id"]: s["space_code"]
-        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values("space_id", "space_code")
+        s["space_id"]: (s["space_code"], s["bk_tenant_id"])
+        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values(
+            "space_id", "space_code", "bk_tenant_id"
+        )
         if s["space_code"]
     }
     # 根据项目查询项目下资源的变化
@@ -454,8 +460,8 @@ def refresh_cluster_resource():
     # 获取存储在metadata中的集群数据
     metadata_clusters = get_metadata_cluster_list()
 
-    for s_id, s_code in space_id_code_map.items():
-        clusters = get_project_clusters(project_id=s_code)
+    for s_id, (s_code, bk_tenant_id) in space_id_code_map.items():
+        clusters = get_project_clusters(bk_tenant_id=bk_tenant_id, project_id=s_code)
         if not clusters:
             continue
         dimension_values = []
@@ -470,7 +476,9 @@ def refresh_cluster_resource():
             if c["is_shared"]:
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=cluster_id, project_code=s_id)
+                    for ns in get_shared_cluster_namespaces(
+                        bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, project_code=s_id
+                    )
                     if cluster_id == ns["cluster_id"]
                 ]
                 dimension_values.append({"cluster_id": cluster_id, "namespace": ns_list, "cluster_type": "shared"})
@@ -551,7 +559,9 @@ def refresh_cluster_resource():
 @share_lock(identify="metadata_refresh_bkci_project")
 def refresh_bkci_space_name():
     """刷新 bkci 空间名称"""
-    projects = get_bkci_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     # 如果查询项目为空，则直接返回
     if not projects:
         return

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -32,8 +31,20 @@ class BCSServiceMonitor(BCSMonitor):
         index_together = ["bk_biz_id", "bcs_cluster_id"]
 
     @classmethod
-    def fetch_k8s_monitor_list_by_cluster(cls, params):
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
+    def fetch_k8s_monitor_list_by_cluster(cls, params: dict[str, tuple[str, int]]) -> list[dict]:
+        """
+        根据集群ID列表批量获取ServiceMonitor列表
+
+        Args:
+            params: key为集群ID，value为(租户ID, 业务ID)
+
+        Returns:
+            api_resources: 批量获取的ServiceMonitor列表
+        """
+        bulk_request_params = [
+            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
+            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
+        ]
         api_resources = api.kubernetes.fetch_k8s_service_monitor_list_by_cluster.bulk_request(
             bulk_request_params, ignore_exceptions=True
         )
