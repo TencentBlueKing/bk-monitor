@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
 from collections import defaultdict
 
@@ -28,6 +28,7 @@ from bkmonitor.models.strategy import (
     StrategyModel,
     UserGroup,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import TargetFieldType
 from core.drf_resource import api
@@ -40,9 +41,7 @@ target_biz_list = list(
             i.strip()
             for i in """
 # add biz list here
-""".split(
-                "\n"
-            )
+""".split("\n")
             if i
         ],
     )
@@ -51,7 +50,7 @@ target_biz_list = list(
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        super(Command, self).add_arguments(parser)
+        super().add_arguments(parser)
 
     def handle(self, *args, **options):
         print(parse_strategy.__doc__)
@@ -103,7 +102,7 @@ def parse_uptime_check():
         interval=300,
         group_by=["bk_biz_id"],
     )
-    query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+    query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
     http_records = query.query_data(
         start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
     )
@@ -114,7 +113,7 @@ def parse_uptime_check():
         interval=300,
         group_by=["bk_biz_id"],
     )
-    query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+    query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
     udp_records = query.query_data(
         start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
     )
@@ -125,7 +124,7 @@ def parse_uptime_check():
         interval=300,
         group_by=["bk_biz_id"],
     )
-    query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+    query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
     tcp_records = query.query_data(
         start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
     )
@@ -136,7 +135,7 @@ def parse_uptime_check():
         interval=300,
         group_by=["bk_biz_id"],
     )
-    query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+    query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
     icmp_records = query.query_data(
         start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
     )
@@ -182,7 +181,7 @@ def parse_dataflow():
         flow_info[flow_id].append(bk_biz_id)
 
     for flow_id, flow_name in child_flow:
-        ret = re.search(r'^#场景应用节点<(\d+)_\d+>实例', flow_name, re.I | re.S)
+        ret = re.search(r"^#场景应用节点<(\d+)_\d+>实例", flow_name, re.I | re.S)
         if ret:
             parent_flow_id = ret.group(1)
             flow_info[flow_id].append(flow_info.get(parent_flow_id, ["", ""])[1])
@@ -298,15 +297,15 @@ def clean_flow_name(flow_name, strategy_info):
                 deleted_plugin[search_table_name] = flow_name
             print(f"{search_table_name} -> no plugin found")
 
-    ret = re.search(r'^(\d+)\s多指标异常检测 主机场景', flow_name, re.I | re.S)
+    ret = re.search(r"^(\d+)\s多指标异常检测 主机场景", flow_name, re.I | re.S)
     if ret:
         return ret.group(1)
-    ret = re.search(r'^(\d+)\s(场景服务|模型应用) .*', flow_name, re.I | re.S)
+    ret = re.search(r"^(\d+)\s(场景服务|模型应用) .*", flow_name, re.I | re.S)
     if ret:
         strategy_id = ret.group(1)
         return str(strategy_info.get(int(strategy_id), ""))
 
-    ret = re.search(r'^(\d+)\s指标推荐', flow_name, re.I | re.S)
+    ret = re.search(r"^(\d+)\s指标推荐", flow_name, re.I | re.S)
     if ret:
         return ret.group(1)
 
@@ -409,7 +408,7 @@ def parse_usergroup_not_under_business(preview: bool = True):
     # 获取到所有的策略
     strategies_map = {
         strategy_id: (strategy_name, bk_biz_id)
-        for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id')
+        for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list("id", "name", "bk_biz_id")
     }
 
     strategy_relations_map = {}

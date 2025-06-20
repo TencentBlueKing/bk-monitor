@@ -141,6 +141,13 @@
   }
 
   .uri-info {
+    width: 800px;
+    margin-left: 44px;
+
+    &.is-editing {
+      margin-left: 138px;
+    }
+
     .icon-mc-tuozhuai {
       margin-right: 8px;
       font-size: 14px;
@@ -149,7 +156,7 @@
     }
 
     .uri-item {
-      padding-left: 66px;
+      // padding-left: 66px;
 
       .label {
         width: auto;
@@ -160,12 +167,12 @@
 
   .uri-set-label {
     display: inline-block;
-    margin: 0 0 12px 66px;
+    margin: 0 0 12px 0;
   }
 
   .empty-uri-info {
     padding-bottom: 8px;
-    margin-left: 60px;
+    // margin-left: 60px;
     background: #f0f1f5;
     border-radius: 0 0 2px 2px;
 
@@ -224,8 +231,14 @@
   }
 
   .uri-source-content {
-    padding-left: 66px;
-    margin-bottom: 24px;
+    width: 800px;
+    // padding-left: 66px;
+    // margin-bottom: 24px;
+    margin: 0 0 24px 44px;
+
+    &.is-editing {
+      margin-left: 138px;
+    }
 
     .header-tool {
       margin-bottom: 4px;
@@ -276,7 +289,7 @@
   }
 
   .debugging-content {
-    padding-left: 66px;
+    // padding-left: 66px;
 
     .debugge-tool {
       @include flex-align;
@@ -364,6 +377,12 @@
 
   .event-link {
     padding-left: 44px;
+    
+    &.is-editing {
+      .event-link-item .tips {
+        margin-left: 94px;
+      }
+    }
 
     .event-link-item {
       .title {
@@ -381,9 +400,11 @@
       }
 
       .tips {
+        width: 800px;
         height: 32px;
         padding: 0 10px;
-        margin-left: 94px;
+        // margin-left: 94px;
+        margin-left: 0;
         font-size: 12px;
         line-height: 32px;
         background: #f0f1f5;
@@ -410,7 +431,7 @@
         display: flex;
 
         .label {
-          margin-right: 8px;
+          margin-right: 16px;
           font-size: 12px;
           line-height: 20px;
           color: #4d4f56;
@@ -429,6 +450,24 @@
           }
         }
       }
+    }
+
+    .pipeline-event {
+      .pipeline-wrap {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+      }
+
+      .pipeline-label {
+        margin-right: 34px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4D4F56;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+      
     }
   }
 

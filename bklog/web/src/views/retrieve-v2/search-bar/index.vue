@@ -25,7 +25,7 @@
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 
   const props = defineProps({
     // activeFavorite: {
@@ -77,7 +77,7 @@
 
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
-  const searchMode = computed(() => indexItem.value.search_mode);
+  const searchMode = computed(() => SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui');
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 

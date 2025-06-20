@@ -129,7 +129,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   mounted() {
     if (this.scrollSubject) {
-      this.scrollPopoverHideObserver = new ExploreObserver(this, this.handlePopoverHide);
+      this.scrollPopoverHideObserver = new ExploreObserver(this.handlePopoverHide.bind(this));
       this.scrollSubject.addObserver(this.scrollPopoverHideObserver);
     }
   }

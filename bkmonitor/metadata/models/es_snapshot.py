@@ -555,6 +555,7 @@ class EsSnapshotRestore(models.Model):
                 "total_doc_count": restore.total_doc_count,
                 "complete_doc_count": restore.get_complete_doc_count(),
                 "duration": restore.duration,
+                "bk_tenant_id": restore.bk_tenant_id,
             }
             for restore in restores
         ]

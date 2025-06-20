@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 
@@ -29,6 +27,8 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.ops = DatabaseOperations(self)
 
     def execute(self, rt_id, params):
-        logger.info("FTA Event QUERY: rt_id is {}, query body is {}".format(rt_id, params))
+        logger.info(f"FTA Event QUERY: rt_id is {rt_id}, query body is {params}")
+        # todo: 告警后台需要支持bk_tenant_id
+        params.pop("bk_tenant_id", None)
         result = EventDocument.search(all_indices=True).update_from_dict(params).execute()
         return result.to_dict()

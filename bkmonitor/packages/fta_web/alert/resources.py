@@ -1571,7 +1571,7 @@ class SearchEventResource(ApiAuthResource):
         show_raw = serializers.BooleanField(label="是否展示原始事件", default=False)
 
     @staticmethod
-    def get_dedupe_md5_set(alert, start_time, end_time, interval):
+    def get_dedupe_md5_set(alert: AlertDocument, start_time: int, end_time: int, interval: int):
         dedupe_md5_set = set()
         for query_config in alert.strategy["items"][0]["query_configs"]:
             query_config["agg_dimension"] = ["dedupe_md5"]

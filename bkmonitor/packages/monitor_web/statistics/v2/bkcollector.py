@@ -7,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
-from typing import List, Optional, Tuple, Union
 
 import arrow
 from django.utils.functional import cached_property
@@ -18,6 +18,8 @@ from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from core.statistics.metric import Metric, register
+from core.drf_resource import api
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class BkCollectorCollector(BaseCollector):
 
     DEFAULT_QUERY_PERIOD = 600
 
-    def _query(self, table: str, group_by: Optional[List[str]] = None) -> dict:
+    def _query(self, table: str, group_by: list[str] | None = None) -> dict:
         group_by = group_by or ["bk_biz_id", "bk_cloud_id", "bk_host_innerip"]
 
         alias = "a"
@@ -55,18 +57,22 @@ class BkCollectorCollector(BaseCollector):
             query_config["group_by"] = data_source.group_by
             data_sources.append(data_source)
 
-        query = UnifyQuery(
-            bk_biz_id=0,
-            data_sources=data_sources,
-            expression=alias,
-            functions=[],
-        )
-        points = query.query_data(
-            start_time=(now_ts - self.DEFAULT_QUERY_PERIOD) * 1000,
-            end_time=now_ts * 1000,
-            slimit=500,
-            down_sample_range="3s",
-        )
+        points = []
+        for tenant in api.bk_login.list_tenant():
+            query = UnifyQuery(
+                bk_tenant_id=tenant["id"],
+                bk_biz_id=0,
+                data_sources=data_sources,
+                expression=alias,
+                functions=[],
+            )
+            tenant_points = query.query_data(
+                start_time=(now_ts - self.DEFAULT_QUERY_PERIOD) * 1000,
+                end_time=now_ts * 1000,
+                slimit=500,
+                down_sample_range="3s",
+            )
+            points.extend(tenant_points)
         biz_count = defaultdict(int)
 
         # 获取时间段内最大值
@@ -93,7 +99,7 @@ class BkCollectorCollector(BaseCollector):
 
         return data_id_name_map
 
-    def get_data_names(self, data_id: Union[str, int]) -> Tuple[str, str]:
+    def get_data_names(self, data_id: str | int) -> tuple[str, str]:
         return self.custom_report_data_id_map.get(int(data_id), (str(data_id), str(data_id)))
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "bk_cloud_id", "bk_host_innerip"))

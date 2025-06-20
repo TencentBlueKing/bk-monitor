@@ -7,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 from urllib.parse import urljoin
 
 import yaml
@@ -112,7 +113,7 @@ class K8sInstaller(BaseInstaller):
     4. dataid资源可以对应namespace下的所有servicemonitor
     """
 
-    def _get_default_cluster(self) -> Tuple[str, str]:
+    def _get_default_cluster(self) -> tuple[str, str]:
         """
         获取默认集群信息
         """
@@ -139,7 +140,7 @@ class K8sInstaller(BaseInstaller):
         return config
 
     @staticmethod
-    def _compare_md5(current_config: Dict[str, Any], exists_config: Dict[str, Any]) -> Tuple[bool, str]:
+    def _compare_md5(current_config: dict[str, Any], exists_config: dict[str, Any]) -> tuple[bool, str]:
         """
         比较两个配置的MD5值是否相等
         """
@@ -155,8 +156,8 @@ class K8sInstaller(BaseInstaller):
     def _create_or_update_dynamic_resource(
         cls,
         dynamic_client: k8s_dynamic.DynamicClient,
-        yaml_template: Union[str, Dict[str, Any]],
-        context: Dict[str, Any],
+        yaml_template: str | dict[str, Any],
+        context: dict[str, Any],
     ):
         """
         创建或更新动态资源配置
@@ -164,7 +165,7 @@ class K8sInstaller(BaseInstaller):
         # 渲染yaml配置
         if isinstance(yaml_template, str):
             yaml_str: str = jinja_render(yaml_template, context)
-            config: Dict[str, Any] = yaml.load(yaml_str, Loader=yaml.FullLoader)
+            config: dict[str, Any] = yaml.load(yaml_str, Loader=yaml.FullLoader)
         else:
             config = yaml_template
 
@@ -199,7 +200,7 @@ class K8sInstaller(BaseInstaller):
             if e.status != 409:
                 raise e
 
-    def _create_plugin_public_resource(self, context: Dict[str, Any]):
+    def _create_plugin_public_resource(self, context: dict[str, Any]):
         """
         创建公共资源配置
         """
@@ -228,7 +229,7 @@ class K8sInstaller(BaseInstaller):
             # 创建servicemonitor资源
             self._create_or_update_dynamic_resource(dynamic_client, SERVICE_MONITOR_TEMPLATE, context)
 
-    def _render_yaml(self, target_version: DeploymentConfigVersion, context: Dict[str, Any]) -> str:
+    def _render_yaml(self, target_version: DeploymentConfigVersion, context: dict[str, Any]) -> str:
         """
         渲染yaml配置
         """
@@ -249,7 +250,7 @@ class K8sInstaller(BaseInstaller):
         # 创建namespace和dataid资源
         self._create_plugin_public_resource(context)
 
-        resources: Set[Tuple[str, str, str]] = set()
+        resources: set[tuple[str, str, str]] = set()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
@@ -276,7 +277,7 @@ class K8sInstaller(BaseInstaller):
                     if e.status != 404:
                         raise e
 
-    def _undeploy(self, target_version: Optional[DeploymentConfigVersion] = None):
+    def _undeploy(self, target_version: DeploymentConfigVersion | None = None):
         """
         卸载k8s资源配置
         """
@@ -302,21 +303,21 @@ class K8sInstaller(BaseInstaller):
                     if e.status != 404:
                         raise e
 
-    def _get_context(self, target_version: DeploymentConfigVersion) -> Dict[str, Any]:
+    def _get_context(self, target_version: DeploymentConfigVersion) -> dict[str, Any]:
         """
         获取上下文配置
         """
         plugin_version: PluginVersionHistory = target_version.plugin_version
-        collector_json: Dict[str, Any] = plugin_version.config.collector_json
+        collector_json: dict[str, Any] = plugin_version.config.collector_json
 
-        collect_params: Dict[str, Any] = target_version.params
+        collect_params: dict[str, Any] = target_version.params
 
         # 获取插件默认配置
-        values: Dict[str, Any] = collector_json.get("values") or {}
+        values: dict[str, Any] = collector_json.get("values") or {}
 
         # 将采集配置参数合并到values中
         for key, value in collect_params.get("plugin", {}).items():
-            keys: List[str] = key.split(".")
+            keys: list[str] = key.split(".")
 
             sub_value = values
             for index, sub_key in enumerate(keys):
@@ -364,7 +365,7 @@ class K8sInstaller(BaseInstaller):
             },
         }
 
-    def install(self, install_config: Dict, operation: Optional[str] = None) -> Dict:
+    def install(self, install_config: dict, operation: str | None = None) -> dict:
         """
         安装采集配置
         """
@@ -406,13 +407,14 @@ class K8sInstaller(BaseInstaller):
             "can_rollback": bool(new_version.parent_id),
         }
 
-    def upgrade(self, params: Dict):
+    def upgrade(self, params: dict):
         """
         升级采集配置
         """
         current_version = self.collect_config.deployment_config
 
         params["collector"]["period"] = current_version.params.get("collector", {}).get("period", 60)
+        params["collector"]["period"] = current_version.params.get("collector", {}).get("timeout", 60)
 
         # 创建新的部署记录
         deployment_config_params = {
@@ -453,7 +455,7 @@ class K8sInstaller(BaseInstaller):
         DeploymentConfigVersion.objects.filter(config_meta_id=self.collect_config.id).delete()
         self.collect_config.delete()
 
-    def rollback(self, target_version: Union[int, DeploymentConfigVersion, None] = None):
+    def rollback(self, target_version: int | DeploymentConfigVersion | None = None):
         """
         回滚采集配置
         """
@@ -518,13 +520,13 @@ class K8sInstaller(BaseInstaller):
             self.collect_config.operation_result = OperationResult.FAILED
             self.collect_config.save()
 
-    def run(self, action: str = None, scope: Dict[str, Any] = None):
+    def run(self, action: str = None, scope: dict[str, Any] = None):
         """
         主动执行采集配置
         """
         self._deploy(self.collect_config.deployment_config)
 
-    def retry(self, instance_ids: List[str] = None):
+    def retry(self, instance_ids: list[str] = None):
         """
         重试采集配置
         """
@@ -538,7 +540,7 @@ class K8sInstaller(BaseInstaller):
             self.collect_config.operation_result = OperationResult.FAILED
             self.collect_config.save()
 
-    def revoke(self, instance_ids: List[int] = None):
+    def revoke(self, instance_ids: list[int] = None):
         """
         撤销采集配置（该类型不需要实现）
         """

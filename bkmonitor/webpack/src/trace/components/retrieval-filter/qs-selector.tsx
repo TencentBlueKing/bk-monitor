@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch } from 'vue';
+import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { watchDebounced, useEventListener } from '@vueuse/core';
@@ -90,6 +90,10 @@ export default defineComponent({
         handleClear();
       }
     );
+
+    onUnmounted(() => {
+      cleanup?.();
+    });
 
     function init() {
       nextTick(() => {

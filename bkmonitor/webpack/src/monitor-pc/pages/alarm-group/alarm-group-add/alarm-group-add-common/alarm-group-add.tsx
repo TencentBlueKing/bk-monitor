@@ -534,6 +534,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
       };
       // 没有选择内部通知对象的情况，不需要加入对users的校验
       if (!this.channels.includes('user')) {
+        // biome-ignore lint/performance/noDelete: ignore
         newRules.users && delete newRules.users;
       }
       Object.keys(newRules).forEach(key => {
@@ -649,7 +650,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         this.$router.push({
           name: 'alarm-group',
           params: {
-            needReflesh: true,
+            needRefresh: true,
           },
         });
       },
@@ -870,7 +871,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
       <div
         class='alarm-group-add-wrap'
         v-bkloading={{ isLoading: this.loading }}
-        title={!!this.groupId ? this.pageTitle : ''}
+        title={this.groupId ? this.pageTitle : ''}
       >
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>
           <bk-form-item label={this.$t('所属')}>
@@ -1003,7 +1004,10 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 </div>
                 {this.handleNoticeReceiver().map(item =>
                   item.type === 'group' ? (
-                    <div class='text-msg'>
+                    <div
+                      key={item.id}
+                      class='text-msg'
+                    >
                       {`${item.display_name}(${
                         ['bk_bak_operator', 'operator'].includes(item.id)
                           ? this.operatorText[item.id]

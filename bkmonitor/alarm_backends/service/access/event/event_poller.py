@@ -24,6 +24,7 @@ from alarm_backends.core.cache import key
 from alarm_backends.service.access.tasks import run_access_event_handler_v2
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.thread_backend import InheritParentThread
+from constants.common import DEFAULT_TENANT_ID
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 
@@ -198,5 +199,7 @@ class EventPoller:
             settings.GSE_PROCESS_REPORT_DATAID,
         } - disabled_data_ids
         for data_id in data_ids:
-            topic_info = api.metadata.get_data_id(bk_data_id=data_id, with_rt_info=False)
+            topic_info = api.metadata.get_data_id(
+                bk_tenant_id=DEFAULT_TENANT_ID, bk_data_id=data_id, with_rt_info=False
+            )
             self.topics_map[topic_info["mq_config"]["storage_config"]["topic"]] = data_id
