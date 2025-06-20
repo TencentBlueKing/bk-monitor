@@ -81,6 +81,7 @@ interface IListItem {
   isGroupKey?: boolean; // 是否为二级选项
   alias?: string; // 别名， 标签和维度的key 需要有别名
   show?: boolean;
+  isCustomSearch?: boolean; // 是否自定义搜索
 }
 
 enum TypeEnum {
@@ -567,6 +568,12 @@ export default class CommonCondition extends tsc<IProps> {
   @Debounce(300)
   handleSecondSearchChange(v) {
     this.secondSearch = v;
+    if (this.curGroupKey === 'dimensions') {
+      this.keyListSecond[0]?.isCustomSearch && this.keyListSecond.shift();
+      if (v.length) {
+        !this.keyListSecond.some(item => item.id === v) && this.keyListSecond.unshift({ id: v, name: v, isCustomSearch: true });
+      }
+    }
   }
   /* 删除此条件 */
   handleDelKey() {
