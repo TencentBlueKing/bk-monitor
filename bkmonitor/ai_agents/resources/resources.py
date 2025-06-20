@@ -153,6 +153,24 @@ class DestroyChatSessionContentResource(Resource):
         return res
 
 
+class BatchDeleteSessionContentResource(Resource):
+    """
+    批量删除对话(根据id列表)
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.ListField(label="内容ID列表", required=True)
+
+    def perform_request(self, validated_request_data):
+        ids = validated_request_data.get("ids")
+        logger.info("BatchDeleteSessionContentResource: try to batch delete content with ids->[%s]", ids)
+        api_client = AidevApiClientBuilder.get_client(
+            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+        )
+        res = api_client.api.batch_delete_chat_session_content(json=validated_request_data)
+        return res
+
+
 class UpdateChatSessionContentResource(Resource):
     """
     更新单条会话内容(根据id)
@@ -240,7 +258,6 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
     return StreamingResponseWrapper(streaming_generator())
 
 
-# POST /app/ai_agents/chat/chat_completion
 class CreateChatCompletionResource(Resource):
     """
     创建模型对话 流式
