@@ -568,7 +568,7 @@ export default class CommonCondition extends tsc<IProps> {
   @Debounce(300)
   handleSecondSearchChange(v) {
     this.secondSearch = v;
-    if (v.length && this.curGroupKey === 'dimensions') {
+    if (this.curGroupKey === 'dimensions') {
       this.handleSelectCustomDimension(v)
     }
   }
@@ -576,12 +576,38 @@ export default class CommonCondition extends tsc<IProps> {
   /* 可选择自定义输入的维度信息 */
   handleSelectCustomDimension(v) {
     this.keyListSecond[0]?.isCustomSearch && this.keyListSecond.shift();
+    if (!v.length) return;
     // 已有匹配规则包含了手动输入的维度信息，不添加自定义维度
     if (this.tagList.some(item => item.condition?.field === v && item.tags[1].alias.includes('维度'))) return;
     // 接口获取的维度列表包含了手动输入的维度信息，不添加自定义维度
     if (this.keyListSecond.some(item => item.id === v)) return;
     this.keyListSecond.unshift({ id: v, name: v, isCustomSearch: true });
   }
+
+  // 高亮列表内的搜索内容
+  getSearchNode = (str: string, search: string) => {
+    if (!str || !search) return str;
+    let keyword = search.trim();
+    const len = keyword.length;
+    if (!keyword?.trim().length || !str.toLocaleLowerCase().includes(keyword.toLocaleLowerCase())) return str;
+    const list = [];
+    let lastIndex = -1;
+    keyword = keyword.replace(/([.*/]{1})/gim, '\\$1');
+    str.replace(new RegExp(`${keyword}`, 'igm'), (key, index) => {
+      if (list.length === 0 && index !== 0) {
+        list.push(str.slice(0, index));
+      } else if (lastIndex >= 0) {
+        list.push(str.slice(lastIndex + key.length, index));
+      }
+      list.push(<span class='highlight'>{key}</span>);
+      lastIndex = index;
+      return key;
+    });
+    if (lastIndex >= 0) {
+      list.push(str.slice(lastIndex + len));
+    }
+    return list.length ? list : str;
+  };
 
   /* 删除此条件 */
   handleDelKey() {
@@ -1712,7 +1738,12 @@ export default class CommonCondition extends tsc<IProps> {
                       }}
                       onMousedown={() => this.handleClickSecondKey(item)}
                     >
-                      <span>{item.name}</span>
+                      {item.isCustomSearch ? (
+                        <span>
+                          {window.i18n.t('直接输入')}"<span class='highlight'>{item.name}</span>"
+                        </span>
+                      ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
+
                     </div>
                   ))}
               </div>

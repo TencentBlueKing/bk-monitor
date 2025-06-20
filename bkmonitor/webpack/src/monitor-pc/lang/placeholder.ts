@@ -95,6 +95,7 @@ export default {
   输入正整数: 'Enter a positive integer',
   输入关键字搜索: 'Enter keyword search',
   搜索或直接输入: 'Search or enter directly',
+  直接输入: 'Enter directly',
   输入: 'Enter',
   输入整数: 'Enter integer',
   输入数字: 'Enter a number',
