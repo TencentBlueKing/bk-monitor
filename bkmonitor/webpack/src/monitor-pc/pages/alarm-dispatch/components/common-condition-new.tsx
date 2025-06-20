@@ -1740,7 +1740,7 @@ export default class CommonCondition extends tsc<IProps> {
                     >
                       {item.isCustomSearch ? (
                         <span>
-                          {window.i18n.t('直接输入')}"<span class='highlight'>{item.name}</span>"
+                          {window.i18n.t('直接输入')} "<span class='highlight'>{item.name}</span>"
                         </span>
                       ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
 
