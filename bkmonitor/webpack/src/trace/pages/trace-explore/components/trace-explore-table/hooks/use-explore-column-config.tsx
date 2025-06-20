@@ -49,18 +49,20 @@ import {
 } from '../typing';
 
 import type { IDimensionField } from '../../../typing';
-import type { SortInfo } from '@blueking/tdesign-ui';
+import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
-import type { MaybeRef } from 'vue';
+import type { MaybeRef, DeepReadonly } from 'vue';
 
 interface UseExploreTableColumnConfig {
   props: Record<string, any>;
   isSpanVisual: MaybeRef<boolean>;
   rowKeyField: MaybeRef<string>;
+  sortContainer: DeepReadonly<SortInfo>;
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
   tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
+  handleSortChange: (sortEvent: TableSort) => void;
 }
 
 /**
@@ -71,10 +73,12 @@ export function useExploreColumnConfig({
   props,
   isSpanVisual,
   rowKeyField,
+  sortContainer,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
   handleSliderShowChange,
+  handleSortChange,
 }: UseExploreTableColumnConfig) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
@@ -88,14 +92,6 @@ export function useExploreColumnConfig({
     displayFields: [],
     /** 列宽度集合 */
     fieldsWidth: {},
-  });
-
-  /** 表格列排序配置 */
-  const sortContainer = reactive<SortInfo>({
-    /** 排序字段 */
-    sortBy: '',
-    /** 排序顺序 */
-    descending: null,
   });
 
   /** 过滤出 can_displayed 为 true 的 fieldList 及 kv 映射集合 */
@@ -189,17 +185,20 @@ export function useExploreColumnConfig({
                     !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                     e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                   ) {
-                    if (sortContainer.sortBy === column.colKey) {
+                    let sortBy = sortContainer.sortBy;
+                    let descending = sortContainer.descending;
+                    if (sortBy === column.colKey) {
                       const sortDescValueList = [true, false, null];
-                      const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
-                      sortContainer.descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
-                      if (sortContainer.descending === null) {
-                        sortContainer.sortBy = '';
+                      const sortIndex = sortDescValueList.findIndex(v => descending === v);
+                      descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
+                      if (descending === null) {
+                        sortBy = '';
                       }
-                      return;
+                    } else {
+                      sortBy = column.colKey;
+                      descending = true;
                     }
-                    sortContainer.sortBy = column.colKey;
-                    sortContainer.descending = true;
+                    handleSortChange({ sortBy, descending });
                   }
                 },
               }
@@ -579,7 +578,6 @@ export function useExploreColumnConfig({
     tableColumns,
     displayColumnFields,
     tableDisplayColumns,
-    sortContainer,
     getCustomDisplayColumnFields,
     handleDisplayColumnFieldsChange,
     handleDisplayColumnResize,

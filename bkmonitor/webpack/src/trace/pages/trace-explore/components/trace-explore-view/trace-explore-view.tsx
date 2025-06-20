@@ -75,6 +75,7 @@ export default defineComponent({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     conditionChange: (val: ConditionChangeEvent) => true,
     clearRetrievalFilter: () => true,
+    setUrlParams: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -169,12 +170,17 @@ export default defineComponent({
       emit('clearRetrievalFilter');
     }
 
+    function setUrlParams() {
+      emit('setUrlParams');
+    }
+
     return {
       mode,
       appName,
       timeRange,
       refreshImmediate,
       traceExploreTable,
+      setUrlParams,
       filtersCheckBoxGroupRender,
       handleScrollToTop,
       handleConditionChange,
@@ -207,6 +213,7 @@ export default defineComponent({
             onBackTop={this.handleScrollToTop}
             onClearRetrievalFilter={this.handleClearRetrievalFilter}
             onConditionChange={this.handleConditionChange}
+            onSetUrlParams={this.setUrlParams}
           />
         </div>
         <BackTop
