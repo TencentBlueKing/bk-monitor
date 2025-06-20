@@ -339,7 +339,7 @@
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
-      <ShareLink></ShareLink>
+      <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"

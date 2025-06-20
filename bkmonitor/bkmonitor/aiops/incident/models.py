@@ -12,6 +12,7 @@ import copy
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 
+
 from bkmonitor.documents.incident import IncidentDocument
 from constants.incident import (
     IncidentGraphComponentType,
@@ -335,23 +336,24 @@ class IncidentSnapshot:
             if item["entity_id"] == entity_id
         ]
 
-    def get_entity_alert_parent(self, entity_id: str) -> IncidentGraphEntity:
+    def get_entity_alert_parent(self, entity_id: str, types: list) -> list[IncidentGraphEntity]:
         """获取实体父节点
 
         :param entity_id: 实体ID
+        :param types: 按照指定的类型列表过滤
         :return: 实体父节点
         """
         if len(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
-            return None
+            return []
 
-        parent_entity = None
+        parent_entities = []
         for parent_entity_id in self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
             parent_entity = self.incident_graph_entities[parent_entity_id]
-            # 优先展示BcsService的有告警的父节点
-            if self.incident_graph_entities[parent_entity_id].entity_type == "BcsService":
-                break
+            if parent_entity.entity_type not in types:
+                continue
+            parent_entities.append(parent_entity)
 
-        return parent_entity
+        return parent_entities
 
     def generate_entity_sub_graph(self, entity_id: str) -> "IncidentSnapshot":
         """生成资源子图
