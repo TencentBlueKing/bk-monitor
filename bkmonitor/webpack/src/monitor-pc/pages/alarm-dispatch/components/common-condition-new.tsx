@@ -1691,7 +1691,7 @@ export default class CommonCondition extends tsc<IProps> {
               <bk-input
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
-                placeholder={window.i18n.t('输入关键字搜索')}
+                placeholder={window.i18n.t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               />
