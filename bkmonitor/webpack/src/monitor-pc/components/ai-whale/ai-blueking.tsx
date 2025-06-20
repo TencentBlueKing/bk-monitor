@@ -43,7 +43,7 @@ const customPrompts = [
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
   get apiUrl() {
-    return window.ai_xiao_jing_base_url;
+    return window.ai_xiao_jing_base_url?.replace('https:', location.protocol);
   }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;
