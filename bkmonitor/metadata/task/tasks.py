@@ -881,6 +881,11 @@ def bulk_create_fed_data_link(sub_clusters):
 def sync_bkbase_v4_metadata(key):
     """
     同步计算平台元数据信息至Metadata
+    Redis中的数据格式
+    redis_key
+        kafka: {}
+        vm: {rt1:{},rt2:{},rt3:{}}
+        es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
@@ -909,8 +914,7 @@ def sync_bkbase_v4_metadata(key):
     bkbase_metadata_dict = {
         key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
     }
-    bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
-    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
+    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata_dict)
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
@@ -927,7 +931,7 @@ def sync_bkbase_v4_metadata(key):
         return
 
     # 处理 Kafka 信息
-    kafka_info = bkbase_metadata.get("kafka")
+    kafka_info = bkbase_metadata_dict.get("kafka")
     if kafka_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -939,7 +943,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get("es")
+    es_info = bkbase_metadata_dict.get("es")
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -949,7 +953,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
-    vm_info = bkbase_metadata.get("vm")
+    vm_info = bkbase_metadata_dict.get("vm")
     if vm_info:
         with transaction.atomic():  # 单独事务
             logger.info(
