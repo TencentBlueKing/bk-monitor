@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
@@ -38,16 +38,13 @@ const customPrompts = [
   '如何接入第三方告警源？',
   '智能检测目前能支持哪些场景？',
 ];
-export interface IAiBluekingWrapperProps {
-  message?: string;
-  apiUrl?: string;
-}
-@Component
-export default class AiBluekingWrapper extends tsc<IAiBluekingWrapperProps> {
-  @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
 
-  @Prop({ default: '' })
-  apiUrl: string;
+@Component
+export default class AiBluekingWrapper extends tsc<object> {
+  @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  get apiUrl() {
+    return window.ai_xiao_jing_base_url?.replace('https:', location.protocol);
+  }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;
   }
