@@ -254,8 +254,11 @@ class ChartHandler:
         :param alias_mappings: 别名映射
         """
         alias_mappings = alias_mappings or {}
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
+
+        # 根据 bkbase 的规范，thedate 固定按东八区转换
+        start_date = arrow.get(start_time).to("Asia/Shanghai").format("YYYYMMDD")
+        end_date = arrow.get(end_time).to("Asia/Shanghai").format("YYYYMMDD")
+
         additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"

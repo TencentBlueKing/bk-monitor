@@ -78,7 +78,7 @@ SQL_RESULT = [
 
 WHERE_CLAUSE = [
     (
-        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "WHERE thedate >= 20241122 AND thedate <= 20241129 "
         "AND "
         "dtEventTimeStamp >= 1732220441 "
         "AND "
@@ -89,7 +89,7 @@ WHERE_CLAUSE = [
         "(bk_host_id = '1' OR bk_host_id = '2')"
     ),
     (
-        "WHERE thedate >= 20241121 AND thedate <= 20241128 "
+        "WHERE thedate >= 20241122 AND thedate <= 20241129 "
         "AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
@@ -146,7 +146,7 @@ WHERE_CLAUSE = [
         "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
     ),
     (
-        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        "WHERE thedate >= 20241122 AND thedate <= 20241129"
         " AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
@@ -155,7 +155,7 @@ WHERE_CLAUSE = [
         "(bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE"
     ),
     (
-        "WHERE thedate >= 20241121 AND thedate <= 20241128"
+        "WHERE thedate >= 20241122 AND thedate <= 20241129"
         " AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
