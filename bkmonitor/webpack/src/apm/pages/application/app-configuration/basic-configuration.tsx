@@ -1197,11 +1197,17 @@ export default class BasicInfo extends tsc<IProps> {
                 class='item-row'
               >
                 <EditableFormItem
-                  formType='input'
+                  formType='custom'
                   label={this.$t('创建人')}
                   showEditable={false}
                   value={this.appInfo.create_user}
-                />
+                >
+                  <template slot='custom'>
+                    <span class='text-content'>
+                      {this.appInfo.create_user ? <bk-user-display-name user-id={this.appInfo.create_user} /> : '--'}
+                    </span>
+                  </template>
+                </EditableFormItem>
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}

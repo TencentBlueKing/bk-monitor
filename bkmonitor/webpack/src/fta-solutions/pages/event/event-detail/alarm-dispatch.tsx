@@ -26,9 +26,9 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BkUserSelector from '@blueking/user-selector';
 import { assignAlert } from 'monitor-api/modules/action';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
 import './alarm-dispatch.scss';
 
@@ -68,6 +68,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
   @Watch('show')
   async handleShow(v: boolean) {
     if (v) {
+      this.users = [];
       this.loading = true;
       this.handleFocus();
       await this.getNoticeWayList();
@@ -130,6 +131,10 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
     };
   }
 
+  handleSelectUser(users: string[]) {
+    this.users = users;
+  }
+
   validator() {
     if (!this.users.length) {
       this.errorMsg.users = this.$t('输入分派人员') as string;
@@ -161,6 +166,7 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
         extCls={'alarm-dispatch-component-dialog'}
         header-position='left'
         mask-close={true}
+        render-directive='if'
         title={this.$t('告警分派')}
         value={this.show}
         on-cancel={() => this.$emit('show', false)}
@@ -179,12 +185,12 @@ export default class AlarmDispatch extends tsc<IProps, IEvents> {
               class='content'
               onClick={this.handleFocus}
             >
-              <BkUserSelector
+              <UserSelector
                 class='content-user-selector'
-                v-model={this.users}
-                api={this.bkUrl}
-                empty-text={this.$t('搜索结果为空')}
-                placeholder={this.$t('输入用户')}
+                emptyText={this.$t('搜索结果为空') as string}
+                placeholder={this.$t('输入用户') as string}
+                userIds={this.users}
+                onChange={this.handleSelectUser}
               />
             </div>
             {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}

@@ -38,6 +38,7 @@ import RotationDetail from './rotation-detail';
 import RotationPreview from './rotation-preview';
 import { getCalendarOfNum, setPreviewDataOfServer } from './utils';
 
+import type { IUserGroup } from '../../../components/user-selector/user-group';
 import type { IGroupListItem } from '../duty-arranges/user-selector';
 import type { IDutyItem, IDutyListItem } from './typing';
 
@@ -61,7 +62,7 @@ interface IProps {
 
 @Component
 export default class RotationConfig extends tsc<IProps> {
-  @Prop({ default: () => [], type: Array }) defaultGroupList: IGroupListItem[];
+  @Prop({ default: () => [], type: Array }) defaultGroupList: IUserGroup[];
   /* 轮值规则 */
   @Prop({ default: () => [], type: Array }) dutyArranges: (number | string)[];
   /* 值班通知设置数据 */
@@ -121,15 +122,11 @@ export default class RotationConfig extends tsc<IProps> {
     id: string;
     members: { display_name: string; id: string }[];
   }[] {
-    const userGroupData = [];
-    this.defaultGroupList.forEach(item => {
-      if (item.type === 'group') {
-        item.children.forEach(child => {
-          userGroupData.push(child);
-        });
-      }
-    });
-    return userGroupData;
+    return this.defaultGroupList.map(e => ({
+      id: e.id,
+      display_name: e.name,
+      members: e?.members?.map?.(member => ({ id: member.id, display_name: member.name })),
+    }));
   }
 
   get showNoData() {
@@ -602,11 +599,20 @@ export default class RotationConfig extends tsc<IProps> {
                     })`}
                     {(() => {
                       if (!['bk_bak_operator', 'operator'].includes(item.id)) {
-                        if (item.members.length) {
+                        if (item.members?.length) {
                           return (
                             <span>
                               {'，'}
-                              {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                              {this.$t('当前成员')}{' '}
+                              {window.enable_multi_tenant_mode
+                                ? item.members.map((e, index, arr) => [
+                                    <bk-user-display-name
+                                      key={`user-display-${e.id}`}
+                                      user-id={e.id}
+                                    />,
+                                    index !== arr.length - 1 ? <span key={`span-colon-${e.id}`}>{';'}</span> : null,
+                                  ])
+                                : item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
                             </span>
                           );
                         }

@@ -194,7 +194,10 @@ export default defineComponent({
                             />
                           )} */}
                           <i class='icon-monitor icon-mc-user-one' />
-                          <span style='margin-left: 5px;'>{item.id}</span>
+                          <bk-user-display-name
+                            style='margin-left: 5px;'
+                            user-id={item.id}
+                          />
                         </div>
                       );
                     })}

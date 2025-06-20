@@ -30,6 +30,7 @@ import 'vue/jsx.d.ts';
 import type i18n from './i18n/i18n';
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';
+import type { HTMLAttributes, ReservedProps } from 'vue/dist/vue.d.ts';
 
 declare global {
   interface Window {
@@ -66,5 +67,18 @@ declare global {
     AJAX_URL_PREFIX: string;
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+    // 多租户用户中心是否开启
+    enable_multi_tenant_mode?: boolean;
+  }
+}
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'bk-user-display-name': {
+        'user-id': string;
+      } & ReservedProps &
+        HTMLAttributes;
+    }
   }
 }

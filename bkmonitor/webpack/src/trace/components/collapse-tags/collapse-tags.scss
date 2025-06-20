@@ -3,12 +3,16 @@
   align-items: center;
   width: 100%;
   height: 100%;
+  column-gap: var(--tag-col-gap);
+  position: relative;
 
   .item-tags {
-    display: inline-block;
-    margin-right: 5px;
+    display: inline-flex;
+    // margin-right: 5px;
     overflow: hidden;
-    overflow: hidden;
+    row-gap: 4px;
+    column-gap: var(--tag-col-gap);
+    flex-wrap: wrap;
   }
 
   .top-bar-tag {
@@ -21,5 +25,10 @@
     color: #63656e;
     background: #fafbfd;
     border-radius: 2px;
+  }
+  .top-bar-tag-fill {
+    position: absolute;
+    visibility: hidden;
+    top: -9999px;
   }
 }

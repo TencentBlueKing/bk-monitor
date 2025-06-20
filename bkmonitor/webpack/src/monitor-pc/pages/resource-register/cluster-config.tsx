@@ -30,11 +30,11 @@ import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'mo
 import { random } from 'monitor-common/utils';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
+import UserSelector from '../../components/user-selector/user-selector';
 import ClusterMoreConfig from './cluster-config/cluster-more-config';
 import FormItem from './cluster-config/components/form-item';
 // import InfluxdbGroup from './cluster-config/influxdb-group';
 import MoreConfig from './cluster-config/components/more-config';
-import UserSelector from './cluster-config/components/user-selector';
 import EsBasicInfo from './cluster-config/es-basic-info';
 import InfluxdbBasicInfo from './cluster-config/influxdb-basic-info';
 import KafkaBasicInfo from './cluster-config/kafka-basic-info';
@@ -628,7 +628,8 @@ export default class ClusterConfig extends tsc<object> {
             >
               <UserSelector
                 kye={this.userSelectorKey}
-                value={this.formData.operator}
+                multiple={false}
+                userIds={this.formData.operator}
                 onChange={v => this.handleUserSelectChange(v)}
               />
             </FormItem>

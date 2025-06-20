@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, ref, shallowRef } from 'vue';
+import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -32,15 +32,16 @@ import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
 import { deepClone, random } from 'monitor-common/utils';
+import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
+import UserSelector from '../../components/user-selector/user-selector';
 import { useAppStore } from '../../store/modules/app';
 import AlarmShieldConfigDimension, { dimensionPropData } from './alarm-shield-config-dimension';
 import AlarmShieldConfigScope, { scopeData as scopeDataParams } from './alarm-shield-config-scope';
 import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-config-strategy';
 import FormItem from './components/form-item';
-import MemberSelector from './components/member-selector';
 import ScopeDateConfig from './components/scope-date-config';
 import {
   EShieldCycle,
@@ -149,6 +150,10 @@ export default defineComponent({
       noticeMember: '',
       notificationMethod: '',
     });
+
+    const defaultUserGroupList = computed(() =>
+      getDefaultUserGroupListSync(defaultGroupList.value?.[0]?.children || [])
+    );
     async function init() {
       loading.value = true;
       const ways = await getNoticeWay({ bk_biz_id: formData.bizId }).catch(() => []);
@@ -469,6 +474,7 @@ export default defineComponent({
       t,
       formData,
       defaultGroupList,
+      defaultUserGroupList,
       noticeDate,
       shieldData,
       scopeData,
@@ -634,12 +640,11 @@ export default defineComponent({
                     label={this.t('通知对象')}
                     require={true}
                   >
-                    <MemberSelector
+                    <UserSelector
                       class='width-940'
-                      api={this.userApi}
-                      userGroups={this.defaultGroupList}
-                      value={this.formData.noticeMember}
-                      onChange={this.handleUserChange}
+                      modelValue={this.formData.noticeMember}
+                      userGroupList={this.defaultUserGroupList}
+                      onUpdate:modelValue={this.handleUserChange}
                     />
                   </FormItem>
                   <FormItem
