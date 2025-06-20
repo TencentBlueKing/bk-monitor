@@ -569,12 +569,12 @@ export default class CommonCondition extends tsc<IProps> {
   handleSecondSearchChange(v) {
     this.secondSearch = v;
     if (v.length && this.curGroupKey === 'dimensions') {
-      this.handleSelectCustomDimension()
+      this.handleSelectCustomDimension(v)
     }
   }
 
   /* 可选择自定义输入的维度信息 */
-  handleSelectCustomDimension() {
+  handleSelectCustomDimension(v) {
     this.keyListSecond[0]?.isCustomSearch && this.keyListSecond.shift();
     // 已有匹配规则包含了手动输入的维度信息，不添加自定义维度
     if (this.tagList.some(item => item.condition?.field === v && item.tags[1].alias.includes('维度'))) return;
