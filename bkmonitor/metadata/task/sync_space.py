@@ -285,55 +285,53 @@ def sync_bcs_space():
     space_id_list = space_qs.values_list("space_id", flat=True)
     space_objs = {space.space_id: space for space in space_qs}
 
-    update_projects = []
+    redis_space_id_list = []
     # 判断需要更新的项目
     for project_code, project_info in project_id_dict.items():
         if not project_info["project_id"]:
             logger.warning(
-                "bcs project_id is empty, project_code: %s, project_name: %s",
+                "[sync_bcs_space] bcs project_id is empty, project_code: %s, project_name: %s",
                 project_code,
                 project_info["name"],
             )
         if project_code in space_objs:
             current_space = space_objs[project_code]
             new_space_code = project_info["project_id"]
-            # 检查是否需要更新space_code（包括当前为空或值不一致）
-            if current_space.space_code != new_space_code:
-                update_projects.append(project_code)
+            # 修复条件判断：当space_code不一致或space_name不一致时更新
+            if current_space.space_code != new_space_code or current_space.space_name != project_info["name"]:
                 logger.info(
-                    "detected space_code inconsistency, space_id: %s, current: '%s', expected: '%s'",
+                    "[sync_bcs_space] detected space inconsistency, space_id: %s, current_code: '%s', new_code: '%s', current_name: '%s', new_name: '%s'",
                     project_code,
                     current_space.space_code,
                     new_space_code,
+                    current_space.space_name,
+                    project_info["name"],
                 )
+                # 更新已有项目的space_code和名称
+                Space.objects.filter(space_type_id=bcs_type_id, space_id=project_code).update(
+                    space_code=new_space_code,
+                    space_name=project_info["name"],
+                    is_bcs_valid=True,
+                )
+                logger.info(
+                    "[sync_bcs_space] updated bcs project, space_id: %s, code: '%s'→'%s', name: '%s'→'%s'",
+                    project_code,
+                    current_space.space_code,
+                    new_space_code,
+                    current_space.space_name,
+                    project_info["name"],
+                )
+                redis_space_id_list.append(f"{bcs_type_id}__{project_code}")
 
     # 判断需要新增的项目（在项目字典中存在但不在已有空间列表中）
     diff = set(project_id_dict.keys()) - set(space_id_list)
 
     # 如果没有需要更新或新增的项目，直接返回
-    if not (diff or update_projects):
-        logger.info("bcs space not need add or update!")
+    if not diff:
+        logger.info("[sync_bcs_space] bcs space not need add!")
         return
 
-    diff_project_list, redis_space_id_list = [], []
-    # 更新已有项目的space_code和名称
-    for project_code in update_projects:
-        new_space_code = project_id_dict[project_code]["project_id"]
-        current_space_code = space_objs[project_code].space_code
-        Space.objects.filter(space_type_id=bcs_type_id, space_id=project_code).update(
-            space_code=new_space_code,
-            is_bcs_valid=True,
-            space_name=project_id_dict[project_code]["name"],
-        )
-        logger.info(
-            "updated bcs project space_code, space_id: %s, from: '%s' to: '%s'",
-            project_code,
-            current_space_code,
-            new_space_code,
-        )
-
-        redis_space_id_list.append(f"{bcs_type_id}__{project_code}")
-
+    diff_project_list = []
     # 准备新增项目列表
     for project_code in diff:
         diff_project_list.append(project_id_dict[project_code])
@@ -343,7 +341,7 @@ def sync_bcs_space():
     try:
         create_bcs_spaces(diff_project_list)
     except Exception:
-        logger.exception("create bcs project space error")
+        logger.exception("[sync_bcs_space] create bcs project space error")
 
     cost_time = time.time() - start_time
 
@@ -353,8 +351,9 @@ def sync_bcs_space():
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bcs_space", process_target=None).observe(cost_time)
     metrics.report_all()
-    logger.info("create bcs space successfully, space: %s,cost: %s", json.dumps(diff_project_list), cost_time)
-    return diff_project_list
+    logger.info(
+        "[sync_bcs_space] create bcs space successfully, space: %s,cost: %s", json.dumps(diff_project_list), cost_time
+    )
 
 
 @share_lock(identify="metadata_refresh_bcs_project_biz")
