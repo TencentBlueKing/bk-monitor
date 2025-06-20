@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import operator
 import time
+from datetime import datetime, timezone
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
@@ -23,6 +24,7 @@ from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
+from bkmonitor.models.fta.action import ActionConfig
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
@@ -134,6 +136,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("ack_duration", _lazy("确认时间")),
         QueryField("data_type", _lazy("数据类型"), es_field="event.data_type"),
         QueryField("action_id", _lazy("处理记录ID"), es_field="id"),
+        QueryField("action_name", _lazy("处理套餐名称"), es_field="id"),
         QueryField("converge_id", _lazy("收敛记录ID"), es_field="id"),
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
         QueryField("plugin_id", _lazy("告警来源"), es_field="event.plugin_id", is_char=True),
@@ -153,6 +156,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 self._process_action_id,
                 self._process_converge_id,
                 self._process_event_ipv6,
+                self._process_action_name,
                 self._process_module_id,
                 self._process_set_id,
             ]
@@ -260,6 +264,37 @@ class AlertQueryTransformer(BaseQueryTransformer):
             node.value = f'"{ip}"'
             return node, context
         return None, None
+
+    def _process_action_name(self, node: Word, context: dict) -> tuple:
+        """处理动作名称"""
+        search_field_name = context.get("search_field_name")
+
+        if search_field_name == "id" and context.get("search_field_origin_name") in [
+            "action_name",
+            _("处理套餐名称"),
+        ]:
+            action_config_ids = ActionConfig.objects.filter(
+                name=node.value, bk_biz_id__in=context.get("bk_biz_ids", [])
+            ).values_list("id", flat=True)
+
+            # 获取开始时间,没有则取7天前的时间
+            if context.get("start_time"):
+                start_time = context.get("start_time")
+            else:
+                start_time = int(time.time()) - 7 * 24 * 60 * 60
+
+            start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+            alert_id_ids = ActionInstance.objects.filter(
+                action_config_id__in=action_config_ids, create_time__gte=start_time
+            ).values_list("alerts", flat=True)
+            alert_ids = set(chain.from_iterable(alert_id_ids))
+            node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
+            context = {"ignore_search_field": True, "ignore_word": True}
+            return node, context
+
+        return None, None
+
 
     def _process_module_id(self, node: Word, context: dict) -> tuple:
         """处理模块ID"""
@@ -988,6 +1023,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 去掉无用字段
         cleaned_data.pop("action_id", None)
+        cleaned_data.pop("action_name", None)
         cleaned_data.pop("module_id", None)
         cleaned_data.pop("set_id", None)
 
