@@ -57,6 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
+    "ai_agents",
 )
 
 # 系统名称
@@ -179,7 +180,6 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
         # bcs资源数据状态同步
-        # TODO: 调整好后再开启
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_workload_resource", "*/15 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_service_resource", "*/15 * * * *", "global"),
@@ -240,8 +240,8 @@ DEFAULT_CRONTAB += [
     # 上报自采集指标--每分钟一次
     ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
     # bcs信息刷新
-    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
+    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # BkBase信息同步,一小时一次
     ("metadata.task.bkbase.sync_bkbase_cluster_info", "0 */1 * * *", "global"),

@@ -75,7 +75,6 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
         name: 'grafana-home',
       });
     } else {
-      // console.info(item.url, '+++++++++++++++++');
       // 新版首页最近使用埋点
       await addAccessRecord({
         function: 'dashboard',

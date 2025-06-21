@@ -119,20 +119,31 @@ class IncidentBaseResource(Resource):
         :return: 拓扑图节点列表
         """
         nodes = []
+        sub_combo_types = ("BcsWorkload", "BcsService")
 
         for entity in entities:
-            if entity.entity_type in ("BcsWorkload", "BcsService"):
+            if entity.entity_type in sub_combo_types:
                 continue
 
-            dependency_parent = snapshot.get_entity_alert_parent(entity.entity_id)
-            dependency_content = (
-                self.generate_entity_node_info(incident, snapshot, dependency_parent) if dependency_parent else {}
-            )
-            # 如果一个从属父节点没有告警，也不是告警都恢复的状态，则不展示
-            if dependency_content and (
-                not dependency_content["is_on_alert"] and not dependency_content["alert_all_recorved"]
-            ):
-                dependency_parent = None
+            dependency_parents = snapshot.get_entity_alert_parent(entity.entity_id, types=list(sub_combo_types))
+            dependency_content = {}
+            dependency_parent = None
+            if dependency_parents:
+                for _dependency_parent in dependency_parents:
+                    _dependency_content = (
+                        self.generate_entity_node_info(incident, snapshot, _dependency_parent)
+                        if _dependency_parent
+                        else {}
+                    )
+                    # 如果一个从属父节点有告警，或者告警都恢复，展示这sub_combo
+                    if _dependency_content and (
+                        _dependency_content["is_on_alert"] or _dependency_content["alert_all_recorved"]
+                    ):
+                        dependency_content = _dependency_content
+                        dependency_parent = _dependency_parent
+                        # 优先展示BcsService的有告警的父节点, 否则就是轮询关系的最后一个
+                        if dependency_parent and dependency_parent.entity_type == "BcsService":
+                            break
             nodes.append(
                 {
                     "id": entity.entity_id,

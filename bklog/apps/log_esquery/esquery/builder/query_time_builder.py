@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,7 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import datetime
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -34,7 +33,7 @@ from apps.utils.cache import cache_ten_minute
 from apps.utils.log import logger
 
 
-class QueryTimeBuilder(object):
+class QueryTimeBuilder:
     TIME_FIELD_UNIT_RATE_MAP = {
         TimeFieldUnitEnum.SECOND.value: 1,
         TimeFieldUnitEnum.MILLISECOND.value: 1000,
@@ -59,14 +58,14 @@ class QueryTimeBuilder(object):
         scenario_id: str = "",
     ):
         self.time_field: str = time_field
-        self.start_time: Union[int, datetime]
-        self.end_time: Union[int, datetime]
+        self.start_time: int | datetime
+        self.end_time: int | datetime
         self.time_field_type = time_field_type
         self.time_field_unit = time_field_unit
         self.indices = indices
         self.scenario_id = scenario_id
 
-        self._time_range_dict: Dict = {}
+        self._time_range_dict: dict = {}
 
         self.start_time, self.end_time = self.time_serilizer(start_time, end_time)
 
@@ -102,7 +101,7 @@ class QueryTimeBuilder(object):
 
         raise SearchUnKnowTimeFieldType()
 
-    def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
+    def time_serilizer(self, start_time: Any, end_time: Any) -> tuple[Any | int, Any | int]:
         if settings.DEAL_RETENTION_TIME:
             start_time, end_time = self._deal_time(start_time, end_time)
         # 序列化接口能够识别的时间格式
@@ -121,8 +120,12 @@ class QueryTimeBuilder(object):
     @cache_ten_minute("retention_time_{indices}_{scenario_id}", need_md5=True)
     def get_storage_retention_time(self, indices, scenario_id):
         # 仅自有采集类型索引支持获取结果表，非自有采集类型不做处理
+        # 一个索引集包含有多个结果表的情况，不处理
         if scenario_id == Scenario.LOG:
             try:
+                if "," in indices:
+                    return None
+
                 storage = TransferApi.get_result_table_storage(
                     params={"result_table_list": indices, "storage_type": "elasticsearch"}
                 )[indices]

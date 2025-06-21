@@ -11,8 +11,8 @@
   &.is-trace {
     .search-bar-container {
       border: 1px solid #DCDEE5;
-      box-shadow: none;
       border-radius: 2px;
+      box-shadow: none;
 
       &::before {
         background: #fff;
@@ -69,9 +69,8 @@
 
   &.is-sticky-top .search-result-panel.flex .field-list-sticky.is-show {
     position: sticky;
-
-    /* stylelint-disable-next-line declaration-no-important */
-    top: 48px !important;
+    top: calc(var(--top-searchbar-height)) !important;
+    left: 0 !important;
   }
 }
 

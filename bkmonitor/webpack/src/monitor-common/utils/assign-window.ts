@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const asignWindowField = (data: Record<string, any>, isLowerCase = true) => {
+export const assignWindowField = (data: Record<string, any>, isLowerCase = true) => {
   Object.assign(
     window,
     ...Object.entries(data).map(([key, value]) => ({ [isLowerCase ? key.toLowerCase() : key]: value }))

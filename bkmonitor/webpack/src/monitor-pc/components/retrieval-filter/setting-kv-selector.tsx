@@ -28,7 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, onClickOutside, OPPOSE_METHODS, type IWhereItem } from './utils';
+import { getTitleAndSubtitle, METHOD_MAP, onClickOutside, OPPOSE_METHODS, type IWhereItem } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -78,6 +78,8 @@ export default class SettingKvSelector extends tsc<IProps> {
   resizeObserver = null;
   optionsWidth = 0;
 
+  keyWrapMinWidth = 0;
+
   clickOutsideFn = () => {};
 
   get localValueSet() {
@@ -88,6 +90,11 @@ export default class SettingKvSelector extends tsc<IProps> {
     return !!this.inputValue || this.showSelector || this.expand;
   }
 
+  get fieldAlias() {
+    const { title } = getTitleAndSubtitle(this.fieldInfo?.alias || '');
+    return title || this.value?.key || '';
+  }
+
   created() {
     this.methodMap = JSON.parse(JSON.stringify(METHOD_MAP));
     for (const item of this.fieldInfo?.methods || []) {
@@ -95,6 +102,7 @@ export default class SettingKvSelector extends tsc<IProps> {
     }
   }
   mounted() {
+    this.keyWrapMinWidth = this.getTextWidth(this.fieldAlias);
     this.overviewCount();
     this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
@@ -184,7 +192,7 @@ export default class SettingKvSelector extends tsc<IProps> {
       interactive: true,
       boundary: 'window',
       distance: 15,
-      zIndex: 998,
+      zIndex: 1002,
       animation: 'slide-toggle',
       followCursor: false,
       sticky: true,
@@ -324,6 +332,19 @@ export default class SettingKvSelector extends tsc<IProps> {
     }
   }
 
+  getTextWidth(text: string) {
+    const span = document.createElement('span');
+    span.style.visibility = 'hidden';
+    span.style.position = 'absolute';
+    span.style.whiteSpace = 'nowrap';
+    span.style.fontSize = '12px';
+    document.body.appendChild(span);
+    span.textContent = text;
+    const width = span.offsetWidth;
+    document.body.removeChild(span);
+    return width;
+  }
+
   render() {
     return (
       <div class={['resident-setting__setting-kv-selector-component', { active: this.isHighLight }]}>
@@ -333,13 +354,17 @@ export default class SettingKvSelector extends tsc<IProps> {
           onMouseleave={this.handleMouseleave}
         >
           <span
+            style={{
+              minWidth: `${this.keyWrapMinWidth < 120 ? this.keyWrapMinWidth : 120}px`,
+            }}
             class='key-wrap'
-            v-bk-overflow-tips={{
-              content: this.fieldInfo?.alias || this.value?.key,
+            v-bk-tooltips={{
+              content: this.value?.key,
               placement: 'top',
+              duration: [300, 0],
             }}
           >
-            {this.fieldInfo?.alias || this.value?.key}
+            {this.fieldAlias}
           </span>
           <span class='method-wrap'>
             <bk-dropdown-menu

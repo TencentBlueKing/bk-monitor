@@ -36,6 +36,7 @@
       :title="isEdit ? $t('编辑集群') : $t('新建集群')"
       :width="640"
       transfer
+      @shown="handleShowSlider"
       @animation-end="updateIsShow"
     >
       <template #content>
@@ -256,7 +257,7 @@
                   v-model="bkBizLabelsList"
                   v-show="isBizAttr"
                   :data="bizParentList"
-                  :popover-zindex="3007"
+                  :popover-zindex="selectZIndex"
                   :remote-method="handleRemoteMethod"
                   :show-condition="false"
                   :show-popover-tag-change="false"
@@ -726,6 +727,7 @@
         bizSelectID: '', // 选中的当前按照业务属性选择
         bizInputStr: '', // 按照业务属性选择输入值
         isFirstShow: true, // 是否是第一次渲染
+        selectZIndex: 3007,
       };
     },
     computed: {
@@ -873,6 +875,9 @@
       },
     },
     methods: {
+      handleShowSlider() {
+        this.selectZIndex = window.__bk_zIndex_manager.nextZIndex();
+      },
       updateIsShow() {
         this.$emit('hidden');
         this.$emit('update:show-slider', false);
@@ -1591,7 +1596,8 @@
 
 <style lang="scss">
   @import '@/scss/space-tag-option';
+
   .bk-search-list {
-    margin: 0
+    margin: 0;
   }
 </style>
