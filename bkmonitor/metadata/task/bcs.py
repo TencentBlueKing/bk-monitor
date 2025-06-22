@@ -47,9 +47,11 @@ def refresh_bcs_monitor_info():
     ).inc()
     start_time = time.time()
     fed_clusters = {}
+    fed_cluster_id_list = []
     try:
-        fed_clusters = api.bcs.get_federation_clusters()
-        fed_cluster_id_list = list(fed_clusters.keys())
+        for tenant in api.bk_login.list_tenant():
+            fed_clusters.update(api.bcs.get_federation_clusters(bk_tenant_id=tenant["id"]))
+            fed_cluster_id_list.extend(list(fed_clusters.keys()))
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error(f"get federation clusters failed: {e}")
@@ -187,120 +189,123 @@ def discover_bcs_clusters():
     # BCS 接口仅返回非 DELETED 状态的集群信息
     start_time = time.time()
     logger.info("discover_bcs_clusters: start to discover bcs clusters")
-    try:
-        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error(f"discover_bcs_clusters: get bcs clusters failed, error:{e}")
-        return
-    cluster_list = []
-    # 获取所有联邦集群 ID
-    fed_clusters = {}
-    try:
-        fed_clusters = api.bcs.get_federation_clusters()
-        fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
-    except Exception as e:  # pylint: disable=broad-except
-        fed_cluster_id_list = []
-        logger.warning(f"discover_bcs_clusters: get federation clusters failed, error:{e}")
-
-    # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
-    bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
-
-    # bcs 集群中的正常状态
-    for bcs_cluster in bcs_clusters:
-        logger.info("discover_bcs_clusters: get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
-        project_id = bcs_cluster["project_id"]
-        bk_biz_id = bcs_cluster["bk_biz_id"]
-        cluster_id = bcs_cluster["cluster_id"]
-        cluster_raw_status = bcs_cluster["status"]
-        cluster_list.append(cluster_id)
-        is_fed_cluster = cluster_id in fed_cluster_id_list
-
-        # todo 同一个集群在切换业务时不能重复接入
-        cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
-        if cluster:
-            # 更新集群信息，兼容集群迁移场景
-            # 场景1:集群迁移业务，项目ID不变，只会变业务ID
-            # 场景2:集群迁移项目，项目ID和业务ID都可能变化
-            update_fields = []
-            # NOTE: 现阶段完全以 BCS 的集群状态为准，
-            if cluster_raw_status != cluster.status:
-                cluster.status = cluster_raw_status
-                update_fields.append("status")
-            # 如果 BCS Token 变了需要刷新
-            if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
-                cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
-                update_fields.append("api_key_content")
-
-            if int(bk_biz_id) != cluster.bk_biz_id:
-                # 记录旧业务ID，更新新业务ID
-                old_bk_biz_id = cluster.bk_biz_id
-                cluster.bk_biz_id = int(bk_biz_id)
-                update_fields.append("bk_biz_id")
-
-                # 若业务ID变更，其RT对应的业务ID也应一并变更
-                logger.info(
-                    f"discover_bcs_clusters: cluster_id:{cluster_id},project_id:{project_id} change bk_biz_id to {int(bk_biz_id)}"
-                )
-
-                # 变更对应的路由元信息
-                change_cluster_router(
-                    cluster=cluster,
-                    old_bk_biz_id=old_bk_biz_id,
-                    new_bk_biz_id=int(bk_biz_id),
-                    is_fed_cluster=is_fed_cluster,
-                )
-
-            # 如果project_id改动，需要更新集群信息
-            if project_id != cluster.project_id:
-                cluster.project_id = project_id
-                update_fields.append("project_id")
-
-            if update_fields:
-                update_fields.append("last_modify_time")
-                cluster.save(update_fields=update_fields)
-
-            if cluster.bk_cloud_id is None:
-                # 更新云区域ID
-                update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
-
-            if is_fed_cluster:
-                # 创建联邦集群记录
-                try:
-                    sync_federation_clusters(fed_clusters)
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.warning(f"discover_bcs_clusters: sync_federation_clusters failed, error:{e}")
-
-            logger.info(f"cluster_id:{cluster_id},project_id:{project_id} already exists,skip create it")
-            continue
-
-        cluster = BCSClusterInfo.register_cluster(
-            bk_biz_id=bk_biz_id,
-            cluster_id=cluster_id,
-            project_id=project_id,
-            creator="admin",
-            is_fed_cluster=is_fed_cluster,
-        )
-        logger.info(
-            f"discover_bcs_clusters: cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} registered"
-        )
-
+    cluster_list: list[str] = []
+    for tenant in api.bk_login.list_tenant():
+        bk_tenant_id = tenant["id"]
         try:
-            logger.info(
-                f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} start to init resource"
-            )
-            cluster.init_resource(is_fed_cluster=is_fed_cluster)
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=bk_tenant_id)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{e}"
+            logger.error(f"discover_bcs_clusters: get bcs clusters failed, error:{e}")
+            return
+        # 获取所有联邦集群 ID
+        fed_clusters = {}
+        try:
+            fed_clusters = api.bcs.get_federation_clusters(bk_tenant_id=bk_tenant_id)
+            fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
+        except Exception as e:  # pylint: disable=broad-except
+            fed_cluster_id_list = []
+            logger.warning(f"discover_bcs_clusters: get federation clusters failed, error:{e}")
+
+        # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
+        bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
+
+        # bcs 集群中的正常状态
+        for bcs_cluster in bcs_clusters:
+            logger.info("discover_bcs_clusters: get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
+            project_id = bcs_cluster["project_id"]
+            bk_biz_id = bcs_cluster["bk_biz_id"]
+            cluster_id = bcs_cluster["cluster_id"]
+            cluster_raw_status = bcs_cluster["status"]
+            cluster_list.append(cluster_id)
+            is_fed_cluster = cluster_id in fed_cluster_id_list
+
+            # todo 同一个集群在切换业务时不能重复接入
+            cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
+            if cluster:
+                # 更新集群信息，兼容集群迁移场景
+                # 场景1:集群迁移业务，项目ID不变，只会变业务ID
+                # 场景2:集群迁移项目，项目ID和业务ID都可能变化
+                update_fields = []
+                # NOTE: 现阶段完全以 BCS 的集群状态为准，
+                if cluster_raw_status != cluster.status:
+                    cluster.status = cluster_raw_status
+                    update_fields.append("status")
+                # 如果 BCS Token 变了需要刷新
+                if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
+                    cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
+                    update_fields.append("api_key_content")
+
+                if int(bk_biz_id) != cluster.bk_biz_id:
+                    # 记录旧业务ID，更新新业务ID
+                    old_bk_biz_id = cluster.bk_biz_id
+                    cluster.bk_biz_id = int(bk_biz_id)
+                    update_fields.append("bk_biz_id")
+
+                    # 若业务ID变更，其RT对应的业务ID也应一并变更
+                    logger.info(
+                        f"discover_bcs_clusters: cluster_id:{cluster_id},project_id:{project_id} change bk_biz_id to {int(bk_biz_id)}"
+                    )
+
+                    # 变更对应的路由元信息
+                    change_cluster_router(
+                        cluster=cluster,
+                        old_bk_biz_id=old_bk_biz_id,
+                        new_bk_biz_id=int(bk_biz_id),
+                        is_fed_cluster=is_fed_cluster,
+                    )
+
+                # 如果project_id改动，需要更新集群信息
+                if project_id != cluster.project_id:
+                    cluster.project_id = project_id
+                    update_fields.append("project_id")
+
+                if update_fields:
+                    update_fields.append("last_modify_time")
+                    cluster.save(update_fields=update_fields)
+
+                if cluster.bk_cloud_id is None:
+                    # 更新云区域ID
+                    update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
+
+                if is_fed_cluster:
+                    # 创建联邦集群记录
+                    try:
+                        sync_federation_clusters(fed_clusters)
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.warning(f"discover_bcs_clusters: sync_federation_clusters failed, error:{e}")
+
+                logger.info(f"cluster_id:{cluster_id},project_id:{project_id} already exists,skip create it")
+                continue
+
+            cluster = BCSClusterInfo.register_cluster(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                cluster_id=cluster_id,
+                project_id=project_id,
+                creator="admin",
+                is_fed_cluster=is_fed_cluster,
             )
-            continue
+            logger.info(
+                f"discover_bcs_clusters: cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} registered"
+            )
 
-        # 更新云区域ID
-        update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
+            try:
+                logger.info(
+                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} start to init resource"
+                )
+                cluster.init_resource(is_fed_cluster=is_fed_cluster)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{e}"
+                )
+                continue
 
-        logger.info(
-            f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource finished"
-        )
+            # 更新云区域ID
+            update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
+
+            logger.info(
+                f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource finished"
+            )
 
     # 如果是不存在的集群列表则更新当前状态为删除，加上>0的判断防止误删
     if cluster_list:
@@ -340,12 +345,17 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
             "bk_cloud_id__isnull": True,
         }
     )
-    clusters = BCSClusterInfo.objects.filter(**filter_kwargs).values("bk_biz_id", "cluster_id")
+    clusters = BCSClusterInfo.objects.filter(**filter_kwargs).values("bk_tenant_id", "bk_biz_id", "cluster_id")
     for start in range(0, len(clusters), BCS_SYNC_SYNC_CONCURRENCY):
         cluster_chunk = clusters[start : start + BCS_SYNC_SYNC_CONCURRENCY]
         # 从BCS获取集群的节点IP
-        params = {cluster["cluster_id"]: cluster["bk_biz_id"] for cluster in cluster_chunk}
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
+        params: dict[str, tuple[str, int]] = {
+            cluster["cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
+        }
+        bulk_request_params = [
+            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
+            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
+        ]
         try:
             api_nodes = api.kubernetes.fetch_k8s_node_list_by_cluster.bulk_request(
                 bulk_request_params, ignore_exceptions=True
@@ -356,9 +366,9 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
         node_ip_map = {}
         for node in itertools.chain.from_iterable(item for item in api_nodes if item):
             bcs_cluster_id = node["bcs_cluster_id"]
-            bk_biz_id = params.get(bcs_cluster_id)
-            if not bk_biz_id:
+            if not params.get(bcs_cluster_id):
                 continue
+            bk_biz_id = params[bcs_cluster_id][1]
             node_ip = node["node_ip"]
             if not node_ip:
                 continue
