@@ -314,18 +314,15 @@ class BCSCluster(BCSBase):
             if new_unique_hash_map[unique_hash] == old_unique_hash_map[unique_hash]:
                 continue
             update_kwargs = new_unique_hash_map[unique_hash]
-            cpu_usage_ratio = update_kwargs[0]
-            memory_usage_ratio = update_kwargs[1]
-            disk_usage_ratio = update_kwargs[2]
-            monitor_status = update_kwargs[3]
-            cls.objects.filter(unique_hash=unique_hash).update(
-                **{
-                    "cpu_usage_ratio": cpu_usage_ratio,
-                    "memory_usage_ratio": memory_usage_ratio,
-                    "disk_usage_ratio": disk_usage_ratio,
-                    "monitor_status": monitor_status,
-                }
-            )
+            update_params = {}
+            for index, key in enumerate(
+                ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio", "monitor_status"]
+            ):
+                if not update_kwargs[index]:
+                    continue
+                update_params[key] = update_kwargs[index]
+            if update_params:
+                cls.objects.filter(unique_hash=unique_hash).update(**update_params)
 
     @classmethod
     def fetch_usage_ratio(cls, bk_biz_id, bcs_cluster_id):

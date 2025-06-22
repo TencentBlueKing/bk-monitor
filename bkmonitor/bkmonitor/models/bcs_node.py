@@ -419,7 +419,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         node_models = cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
         old_unique_hash_map = {(bk_biz_id, bcs_cluster_id, item.ip): item.monitor_status for item in node_models}
         # 更新资源使用量
-        new_unique_hash_map = {(bk_biz_id, bcs_cluster_id, key[0]): value for key, value in monitor_status_map.items()}
+        new_unique_hash_map = {(bk_biz_id, bcs_cluster_id, key): value for key, value in monitor_status_map.items()}
         unique_hash_set_for_update = set(old_unique_hash_map.keys()) & set(new_unique_hash_map.keys())
         for unique_hash in unique_hash_set_for_update:
             monitor_status = new_unique_hash_map[unique_hash]
