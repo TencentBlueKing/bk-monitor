@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
-from typing import List
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -34,6 +33,7 @@ class AlertDocument(BaseDocument):
     REINDEX_ENABLED = True
     REINDEX_QUERY = Search().filter("term", status=EventStatus.ABNORMAL).to_dict()
 
+    bk_tenant_id = field.Keyword()
     id = field.Keyword(required=True)
     seq_id = field.Long()
 
@@ -145,14 +145,14 @@ class AlertDocument(BaseDocument):
         try:
             ts = cls.parse_timestamp_by_id(id)
         except Exception:
-            raise ValueError("invalid alert_id: {}".format(id))
+            raise ValueError(f"invalid alert_id: {id}")
         hits = cls.search(start_time=ts, end_time=ts).filter("term", id=id).execute().hits
         if not hits:
             raise AlertNotFoundError({"alert_id": id})
         return cls(**hits[0].to_dict())
 
     @classmethod
-    def mget(cls, ids, fields: List = None) -> List["AlertDocument"]:
+    def mget(cls, ids, fields: list = None) -> list["AlertDocument"]:
         """
         获取多条告警
         """
