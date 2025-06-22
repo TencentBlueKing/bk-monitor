@@ -155,7 +155,7 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     cluster_models = []
 
     # 查询所有租户下的集群信息
-    for tenant in api.tenant.list_tenant():
+    for tenant in api.bk_login.list_tenant():
         cluster_models.extend(BCSCluster.load_list_from_api({"bk_tenant_id": tenant["id"]}))
 
     # 同步cluster信息

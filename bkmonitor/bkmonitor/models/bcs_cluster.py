@@ -236,7 +236,7 @@ class BCSCluster(BCSBase):
         api_clusters = api.kubernetes.fetch_k8s_cluster_list(request_params)
         clusters = []
         # 获得启用了BCS的蓝盾空间
-        all_space_list = SpaceApi.list_spaces_dict()
+        all_space_list = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
         bk_ci_spaces_list = (
             space
             for space in all_space_list

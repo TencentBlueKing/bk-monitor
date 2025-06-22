@@ -89,7 +89,7 @@ def params_to_conditions(params):
 
 class KubernetesResource(ApiAuthResource, abc.ABC):
     data = []
-    model_class: BCSBase = None
+    model_class: type[BCSBase]
     model_label_class = None
     query_set_list = []
 
@@ -869,7 +869,7 @@ class GetKubernetesPod(ApiAuthResource):
 
 
 class GetKubernetesPodList(KubernetesResource):
-    model_class = BCSPod
+    model_class: type[BCSPod] = BCSPod
     model_label_class = BCSPodLabels
     RequestSerializer = KubernetesListRequestSerializer
 
@@ -1044,7 +1044,7 @@ class GetKubernetesContainer(ApiAuthResource):
 
 
 class GetKubernetesContainerList(KubernetesResource):
-    model_class = BCSContainer
+    model_class: type[BCSContainer] = BCSContainer
     model_label_class = BCSContainerLabels
     RequestSerializer = KubernetesListRequestSerializer
 
