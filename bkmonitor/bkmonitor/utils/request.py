@@ -23,20 +23,11 @@ from constants.common import DEFAULT_TENANT_ID, SourceApp
 logger = logging.getLogger(__name__)
 
 
-def _is_in_celery_task() -> bool:
-    """
-    判断当前逻辑是否处于Celery任务中
-    """
-    return current_task is not None and current_task.request is not None and current_task.name is not None
-
-
 def _get_current_celery_task_name() -> str | None:
     """
     获取当前Celery任务名（如果有）
     """
-    if _is_in_celery_task():
-        return current_task.name
-    return None
+    return current_task.name if current_task and current_task.name else None
 
 
 def get_request_tenant_id(peaceful=False) -> str | None:

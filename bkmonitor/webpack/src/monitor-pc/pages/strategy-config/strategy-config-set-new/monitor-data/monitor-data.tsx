@@ -558,7 +558,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             <AIWhaleIcon
               class='ai-whale-icon'
               content={this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series'].toString()}
-              type='translate'
+              type='description'
             />
             {this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series']}
             <a

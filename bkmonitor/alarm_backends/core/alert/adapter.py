@@ -121,6 +121,8 @@ class MonitorEventAdapter:
 
             tags.append({"key": k, "value": v})
 
+        metric = [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])]
+        metric += [item["name"] for item in self.strategy["items"]]
         event = {
             "event_id": self.record["anomaly"][str(severity)]["anomaly_id"],
             "plugin_id": settings.MONITOR_EVENT_PLUGIN_ID,  # 来源固定为监控
@@ -132,7 +134,7 @@ class MonitorEventAdapter:
             "target_type": target_type,
             "target": target,
             "status": status or EventStatus.ABNORMAL,
-            "metric": [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])],
+            "metric": list(dict.fromkeys(metric)),
             "category": self.strategy["scenario"],
             "data_type": self.strategy["items"][0]["query_configs"][0]["data_type_label"],
             "dedupe_keys": [f"tags.{key}" for key in data_dimensions.keys()],

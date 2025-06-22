@@ -14,6 +14,7 @@ import gzip
 import json
 import logging
 import time
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -27,6 +28,7 @@ from bkm_space.api import SpaceApi, SpaceTypeEnum
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSLabel
 from bkmonitor.utils.kubernetes import get_progress_value
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("kubernetes")
@@ -37,6 +39,7 @@ class BCSClusterManager(BCSBaseManager):
 
 
 class BCSCluster(BCSBase):
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     name = models.CharField(verbose_name="集群名称", max_length=128)
     area_name = models.CharField(verbose_name="区域", max_length=32)
     project_name = models.CharField(verbose_name="业务名", max_length=32)
@@ -209,11 +212,23 @@ class BCSCluster(BCSBase):
         ]
 
     @staticmethod
-    def load_list_from_api(params):
-        """按业务ID获取所有的cluster ."""
+    def load_list_from_api(params: dict[str, Any]):
+        """
+        按业务ID获取所有的cluster
+
+        Args:
+            params: 请求参数
+                bk_tenant_id: 租户ID
+                bk_biz_id: 业务ID, 可选
+
+        Returns:
+            list: 集群列表
+        """
+        bk_tenant_id = params["bk_tenant_id"]
         bk_biz_id = params.get("bk_biz_id")
         request_params = {
             "data_type": "full",
+            "bk_tenant_id": bk_tenant_id,
         }
         if bk_biz_id:
             request_params["bk_biz_id"] = bk_biz_id
@@ -221,7 +236,7 @@ class BCSCluster(BCSBase):
         api_clusters = api.kubernetes.fetch_k8s_cluster_list(request_params)
         clusters = []
         # 获得启用了BCS的蓝盾空间
-        all_space_list = SpaceApi.list_spaces_dict()
+        all_space_list = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
         bk_ci_spaces_list = (
             space
             for space in all_space_list
@@ -299,18 +314,15 @@ class BCSCluster(BCSBase):
             if new_unique_hash_map[unique_hash] == old_unique_hash_map[unique_hash]:
                 continue
             update_kwargs = new_unique_hash_map[unique_hash]
-            cpu_usage_ratio = update_kwargs[0]
-            memory_usage_ratio = update_kwargs[1]
-            disk_usage_ratio = update_kwargs[2]
-            monitor_status = update_kwargs[3]
-            cls.objects.filter(unique_hash=unique_hash).update(
-                **{
-                    "cpu_usage_ratio": cpu_usage_ratio,
-                    "memory_usage_ratio": memory_usage_ratio,
-                    "disk_usage_ratio": disk_usage_ratio,
-                    "monitor_status": monitor_status,
-                }
-            )
+            update_params = {}
+            for index, key in enumerate(
+                ["cpu_usage_ratio", "memory_usage_ratio", "disk_usage_ratio", "monitor_status"]
+            ):
+                if not update_kwargs[index]:
+                    continue
+                update_params[key] = update_kwargs[index]
+            if update_params:
+                cls.objects.filter(unique_hash=unique_hash).update(**update_params)
 
     @classmethod
     def fetch_usage_ratio(cls, bk_biz_id, bcs_cluster_id):

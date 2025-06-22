@@ -243,6 +243,16 @@ const requestGrepResult = {
   method: 'post',
 };
 
+const createOrUpdateToken = {
+  url: '/share/create_or_update_token/',
+  method: 'post',
+};
+
+const getShareParams = {
+  url: 'share/get_share_params/',
+  method: 'get',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -292,4 +302,6 @@ export {
   getProxyHost,
   requestGrepResult,
   unionExportAsync,
+  createOrUpdateToken,
+  getShareParams,
 };

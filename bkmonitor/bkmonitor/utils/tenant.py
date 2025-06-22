@@ -26,6 +26,15 @@ def get_local_tenant_id() -> str | None:
 def space_uid_to_bk_tenant_id(space_uid: str) -> str:
     """
     空间 转换为 租户ID
+
+    Args:
+        space_uid: 空间UID
+
+    Returns:
+        str: 租户ID
+
+    Raises:
+        ValueError: convert space_uid to bk_tenant_id failed
     """
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return DEFAULT_TENANT_ID
@@ -40,6 +49,15 @@ def space_uid_to_bk_tenant_id(space_uid: str) -> str:
 def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     """
     业务ID 转换为 租户ID
+
+    Args:
+        bk_biz_id: 业务ID
+
+    Returns:
+        str: 租户ID
+
+    Raises:
+        ValueError: convert bk_biz_id to bk_tenant_id failed
     """
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return DEFAULT_TENANT_ID

@@ -7,6 +7,13 @@
   }
   .common-form-item {
     min-height: 28px;
+
+    &.no-label {
+      padding-left: 63px!important;
+    }
+    .converge-config-option {
+      margin-right: 8px;
+    }
   }
   .select-warp {
     flex: 1;

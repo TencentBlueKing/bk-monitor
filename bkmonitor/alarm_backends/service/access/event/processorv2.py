@@ -39,6 +39,7 @@ from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
 from alarm_backends.service.access.priority import PriorityChecker
+from constants.common import DEFAULT_TENANT_ID
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -208,7 +209,9 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         self.data_id = data_id
         if not topic:
             # 获取topic信息
-            topic_info = api.metadata.get_data_id(bk_data_id=self.data_id, with_rt_info=False)
+            topic_info = api.metadata.get_data_id(
+                bk_tenant_id=DEFAULT_TENANT_ID, bk_data_id=self.data_id, with_rt_info=False
+            )
             self.topic = topic_info["mq_config"]["storage_config"]["topic"]
         else:
             self.topic = topic

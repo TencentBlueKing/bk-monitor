@@ -148,7 +148,11 @@ class StrategyCacheManager(CacheManager):
         """
         检测指标是否失效
         """
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
+        try:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
+        except ValueError:
+            logger.warning(f"strategy({strategy['id']}) bk_biz_id({strategy['bk_biz_id']}) not found")
+            return
 
         data_type_map = {
             DataTypeLabel.TIME_SERIES: StrategyModel.InvalidType.INVALID_METRIC,

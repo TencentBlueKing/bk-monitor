@@ -32,14 +32,13 @@ async function fetchTranslate(tempUrl, text) {
             // writeStream.destroy();
           });
 
-          writeStream.on('error', e => {
-            console.info(e);
+          writeStream.on('error', () => {
             resolve({});
           });
         }
       )
       .on('error', e => {
-        console.info(e, '+++++++++++');
+        console.error(e);
       });
   });
 }

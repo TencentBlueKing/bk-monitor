@@ -1944,4 +1944,5 @@ export default {
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',
+  添加方式: 'Add method',
 };

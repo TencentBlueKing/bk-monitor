@@ -72,7 +72,7 @@ export default defineComponent({
       if (!isAnimating) {
         isAnimating = true;
         requestAnimationFrame(() => {
-          emit('scroll-change', event);
+          emit('scroll-change', { ...event, target: event.target || refSrollRoot.value });
           isAnimating = false;
         });
       }

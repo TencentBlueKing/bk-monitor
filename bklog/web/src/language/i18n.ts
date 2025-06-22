@@ -64,5 +64,5 @@ const i18n = new VueI18n({
   },
 });
 locale.i18n((key, value) => i18n.t(key, value));
-
+window.$t = i18n.t.bind(i18n);
 export default i18n;

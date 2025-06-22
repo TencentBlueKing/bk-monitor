@@ -56,5 +56,4 @@ const i18n = createI18n({
   },
 });
 window.i18n = i18n.global;
-window.$t = i18n.global.t;
 export default i18n;
