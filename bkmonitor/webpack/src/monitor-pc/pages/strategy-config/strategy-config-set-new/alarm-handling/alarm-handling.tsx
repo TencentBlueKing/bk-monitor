@@ -95,7 +95,7 @@ interface IAlarmHandlingNewProps {
 
 interface IAlarmHandlingNewEvent {
   onChange?: IValue;
-  onAddMeal?: void;
+  onAddMeal?: () => void;
 }
 
 interface signalOptionsItem {
@@ -352,7 +352,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 this.allDefense[0]?.description ||
                 ''
               }
-              type='translate'
+              type='explanation'
             />{' '}
             <span class='tip-text'>
               {this.defenseTips[this.data.options.converge_config.converge_func] ||
