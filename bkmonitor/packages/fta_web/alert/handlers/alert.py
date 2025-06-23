@@ -164,7 +164,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 alert_id_ids = ActionInstance.objects.filter(action_config_id__in=action_config_ids).values_list(
                     "alerts", flat=True
                 )
-                alert_ids = list(chain.from_iterable(alert_id_ids))
+                alert_ids = set(chain.from_iterable(alert_id_ids))
                 node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
                 context = {"ignore_search_field": True, "ignore_word": True}
 
