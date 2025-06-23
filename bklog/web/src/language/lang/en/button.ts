@@ -197,7 +197,7 @@ export default {
   按annotation选择: 'According To Annotation',
   单独授权: 'Separate authorization',
   批量授权: 'Batch authorization',
-  新增告警组: 'Add New Alarm Group',
+  新增告警组: 'Add New Alert Group',
   字段配置模板: 'Field Configuration Template',
   管理配置: 'Management Configuration',
   模板: 'Template',
