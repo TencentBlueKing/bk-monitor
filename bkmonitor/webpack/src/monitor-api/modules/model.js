@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { request } from '../base';
 
 export const countBaseAlarm = request('GET', 'rest/v1/base_alarm/count/');
@@ -27,13 +52,19 @@ export const listAlarmType = request('GET', 'rest/v1/alarm_type/');
 export const countUptimeCheckNode = request('GET', 'rest/v2/uptime_check/uptime_check_node/count/');
 export const createUptimeCheckNode = request('POST', 'rest/v2/uptime_check/uptime_check_node/');
 export const destroyUptimeCheckNode = request('DELETE', 'rest/v2/uptime_check/uptime_check_node/{pk}/');
-export const fixNameConflictUptimeCheckNode = request('GET', 'rest/v2/uptime_check/uptime_check_node/fix_name_conflict/');
+export const fixNameConflictUptimeCheckNode = request(
+  'GET',
+  'rest/v2/uptime_check/uptime_check_node/fix_name_conflict/'
+);
 export const isExistUptimeCheckNode = request('GET', 'rest/v2/uptime_check/uptime_check_node/is_exist/');
 export const listUptimeCheckNode = request('GET', 'rest/v2/uptime_check/uptime_check_node/');
 export const partialUpdateUptimeCheckNode = request('PATCH', 'rest/v2/uptime_check/uptime_check_node/{pk}/');
 export const retrieveUptimeCheckNode = request('GET', 'rest/v2/uptime_check/uptime_check_node/{pk}/');
 export const updateUptimeCheckNode = request('PUT', 'rest/v2/uptime_check/uptime_check_node/{pk}/');
-export const changeStatusUptimeCheckTask = request('POST', 'rest/v2/uptime_check/uptime_check_task/{pk}/change_status/');
+export const changeStatusUptimeCheckTask = request(
+  'POST',
+  'rest/v2/uptime_check/uptime_check_task/{pk}/change_status/'
+);
 export const cloneUptimeCheckTask = request('POST', 'rest/v2/uptime_check/uptime_check_task/{pk}/clone/');
 export const countUptimeCheckTask = request('GET', 'rest/v2/uptime_check/uptime_check_task/count/');
 export const createUptimeCheckTask = request('POST', 'rest/v2/uptime_check/uptime_check_task/');
@@ -42,7 +73,10 @@ export const destroyUptimeCheckTask = request('DELETE', 'rest/v2/uptime_check/up
 export const listUptimeCheckTask = request('GET', 'rest/v2/uptime_check/uptime_check_task/');
 export const partialUpdateUptimeCheckTask = request('PATCH', 'rest/v2/uptime_check/uptime_check_task/{pk}/');
 export const retrieveUptimeCheckTask = request('GET', 'rest/v2/uptime_check/uptime_check_task/{pk}/');
-export const runningStatusUptimeCheckTask = request('GET', 'rest/v2/uptime_check/uptime_check_task/{pk}/running_status/');
+export const runningStatusUptimeCheckTask = request(
+  'GET',
+  'rest/v2/uptime_check/uptime_check_task/{pk}/running_status/'
+);
 export const testUptimeCheckTask = request('POST', 'rest/v2/uptime_check/uptime_check_task/test/');
 export const updateUptimeCheckTask = request('PUT', 'rest/v2/uptime_check/uptime_check_task/{pk}/');
 export const addTaskUptimeCheckGroup = request('POST', 'rest/v2/uptime_check/uptime_check_group/{pk}/add_task/');
@@ -63,7 +97,10 @@ export const importPluginCollectorPlugin = request('POST', 'rest/v2/collector_pl
 export const listCollectorPlugin = request('GET', 'rest/v2/collector_plugin/');
 export const operatorSystemCollectorPlugin = request('GET', 'rest/v2/collector_plugin/operator_system/');
 export const partialUpdateCollectorPlugin = request('PATCH', 'rest/v2/collector_plugin/{pk}/');
-export const pluginImportWithoutFrontendCollectorPlugin = request('POST', 'rest/v2/collector_plugin/plugin_import_without_frontend/');
+export const pluginImportWithoutFrontendCollectorPlugin = request(
+  'POST',
+  'rest/v2/collector_plugin/plugin_import_without_frontend/'
+);
 export const releaseCollectorPlugin = request('POST', 'rest/v2/collector_plugin/{pk}/release/');
 export const replacePluginCollectorPlugin = request('POST', 'rest/v2/collector_plugin/replace_plugin/');
 export const retrieveCollectorPlugin = request('GET', 'rest/v2/collector_plugin/{pk}/');
@@ -79,21 +116,36 @@ export const updateConfigIpChooserConfig = request('POST', 'rest/v2/commons/ip_c
 export const checkIpChooserHost = request('POST', 'rest/v2/commons/ip_chooser_host/check/');
 export const detailsIpChooserHost = request('POST', 'rest/v2/commons/ip_chooser_host/details/');
 export const detailsIpChooserServiceInstance = request('POST', 'rest/v2/commons/ip_chooser_service_instance/details/');
-export const agentStatisticsIpChooserTemplate = request('POST', 'rest/v2/commons/ip_chooser_template/agent_statistics/');
+export const agentStatisticsIpChooserTemplate = request(
+  'POST',
+  'rest/v2/commons/ip_chooser_template/agent_statistics/'
+);
 export const hostsIpChooserTemplate = request('POST', 'rest/v2/commons/ip_chooser_template/hosts/');
 export const nodesIpChooserTemplate = request('POST', 'rest/v2/commons/ip_chooser_template/nodes/');
-export const serviceInstanceCountIpChooserTemplate = request('POST', 'rest/v2/commons/ip_chooser_template/service_instance_count/');
+export const serviceInstanceCountIpChooserTemplate = request(
+  'POST',
+  'rest/v2/commons/ip_chooser_template/service_instance_count/'
+);
 export const templatesIpChooserTemplate = request('POST', 'rest/v2/commons/ip_chooser_template/templates/');
 export const agentStatisticsIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/agent_statistics/');
 export const queryHostIdInfosIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_host_id_infos/');
 export const queryHostsIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_hosts/');
 export const queryPathIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_path/');
-export const queryServiceInstancesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_service_instances/');
-export const serviceInstanceCountIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/service_instance_count/');
+export const queryServiceInstancesIpChooserTopo = request(
+  'POST',
+  'rest/v2/commons/ip_chooser_topo/query_service_instances/'
+);
+export const serviceInstanceCountIpChooserTopo = request(
+  'POST',
+  'rest/v2/commons/ip_chooser_topo/service_instance_count/'
+);
 export const treesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/trees/');
 export const groupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
 export const executeIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
-export const agentStatisticsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/agent_statistics/');
+export const agentStatisticsIpChooserDynamicGroup = request(
+  'POST',
+  'rest/v2/commons/ip_chooser_dynamic_group/agent_statistics/'
+);
 export const enhancedContext = request('GET', 'rest/v2/commons/context/enhanced/');
 export const listUsersUser = request('GET', 'rest/v2/commons/user/list_users/');
 export const createFavoriteGroup = request('POST', 'rest/v2/favorite_group/');
@@ -125,6 +177,7 @@ export const listUserGroup = request('GET', 'rest/v2/user_groups/');
 export const partialUpdateUserGroup = request('PATCH', 'rest/v2/user_groups/{pk}/');
 export const retrieveUserGroup = request('GET', 'rest/v2/user_groups/{pk}/');
 export const updateUserGroup = request('PUT', 'rest/v2/user_groups/{pk}/');
+export const bulkUpdateUserGroup = request('POST', 'rest/v2/user_groups/bulk_update/');
 export const createDutyRule = request('POST', 'rest/v2/duty_rules/');
 export const destroyDutyRule = request('DELETE', 'rest/v2/duty_rules/{pk}/');
 export const listDutyRule = request('GET', 'rest/v2/duty_rules/');
@@ -291,6 +344,7 @@ export default {
   partialUpdateUserGroup,
   retrieveUserGroup,
   updateUserGroup,
+  bulkUpdateUserGroup,
   createDutyRule,
   destroyDutyRule,
   listDutyRule,

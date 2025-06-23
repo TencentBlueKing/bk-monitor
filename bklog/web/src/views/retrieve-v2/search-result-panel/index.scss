@@ -13,7 +13,7 @@
         top: var(--offset-search-bar);
         z-index: 3;
         align-self: start;
-        height: calc(100vh - var(--offset-search-bar) - 150px);
+        height: calc(100vh - var(--offset-search-bar) - var(--header-height) - 100px);
       }
     }
 

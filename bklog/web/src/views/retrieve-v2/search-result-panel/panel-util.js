@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { monitorLink } from '../../retrieve-v2/monitor/utils';
-export function getConditionRouterParams(searchList, searchMode, isNewLink) {
+export function getConditionRouterParams(searchList, searchMode, isNewLink, append = {}) {
   const indexItem = window.mainComponent.$store.state.indexItem;
   const getIPChooserStr = ipChooser => {
     if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
@@ -70,7 +70,7 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink) {
     });
   }
 
-  Object.assign(filterQuery, newQueryObj);
+  Object.assign(filterQuery, newQueryObj, append ?? {});
   const routeData = {
     name: 'retrieve',
     params,

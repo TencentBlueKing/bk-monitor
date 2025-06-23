@@ -100,6 +100,12 @@ METRIC_PUSH_COUNT = Counter(
     labelnames=("deployment",),
 )
 
+SPACE_QUERY_COUNT = Counter(
+    name="bkmonitor_space_query_count",
+    documentation="空间查询次数",
+    labelnames=("using_cache", "role"),
+)
+
 CRON_TASK_EXECUTE_TIME = Histogram(
     name="bkmonitor_cron_task_execute_time",
     documentation="周期任务执行时间",

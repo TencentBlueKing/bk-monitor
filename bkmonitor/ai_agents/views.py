@@ -19,6 +19,7 @@ from ai_agents.resources.resources import (
     GetChatSessionContentsResource,
     DestroyChatSessionContentResource,
     CreateChatCompletionResource,
+    BatchDeleteSessionContentResource,
 )
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -50,6 +51,7 @@ class SessionContentViewSet(ResourceViewSet):
         ResourceRoute("GET", GetChatSessionContentsResource),
         ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="session_code"),
         ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
+        ResourceRoute("POST", BatchDeleteSessionContentResource, endpoint="batch_delete"),
     ]
 
 

@@ -14,7 +14,6 @@ from collections import defaultdict
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
-from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
@@ -196,8 +195,7 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
         interval=60,
         metrics=[{"field": "proc_exists", "method": "AVG", "alias": "A"}],
         table="system.proc_port",
-        group_by=(["bk_host_id"] if is_ipv6_biz(bk_biz_id) else ["bk_target_ip", "bk_target_cloud_id"])
-        + ["display_name"],
+        group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     now = int(time.time()) * 1000
