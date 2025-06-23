@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from collections import defaultdict
 from functools import reduce
-from typing import Dict, List, Optional, Set, Tuple, Union
 
 from django.db import IntegrityError
 from django.db.models import Q
@@ -79,7 +78,7 @@ def get_or_create_user(username: str) -> dict:
     return _USER_CACHE[username]
 
 
-def get_org_by_name(org_name: str) -> Optional[dict]:
+def get_org_by_name(org_name: str) -> dict | None:
     """
     获取组织
     """
@@ -97,7 +96,7 @@ def get_org_by_name(org_name: str) -> Optional[dict]:
     return _ORG_CACHE[org_name]
 
 
-def get_org_by_id(org_id: int) -> Optional[dict]:
+def get_org_by_id(org_id: int) -> dict | None:
     """
     获取组织
     """
@@ -161,7 +160,7 @@ def get_or_create_org(org_name: str) -> dict:
 
 def get_dashboard_tree(
     org_id: int, user_id: int = None, with_dashboard_data: bool = False, ignore_empty_folder: bool = False
-) -> List[dict]:
+) -> list[dict]:
     """
     获取仪表盘树
     """
@@ -265,7 +264,7 @@ def sync_user_role(org_id: int, user_id: int, role: str):
 
 
 def sync_dashboard_permission(
-    org_id: int, user_id: int, role: Union[str, GrafanaRole], dashboard_permissions: Dict[str, GrafanaPermission]
+    org_id: int, user_id: int, role: str | GrafanaRole, dashboard_permissions: dict[str, GrafanaPermission]
 ):
     """
     同步用户权限
@@ -356,7 +355,7 @@ def sync_dashboard_permission(
         Permission.objects.filter(reduce(lambda x, y: x | y, need_delete_query)).delete()
 
 
-def _get_user_dashboard_actions(org_id: int, user_id: int, ignore_org_role: False) -> Tuple[Dict[str, Set[str]], bool]:
+def _get_user_dashboard_actions(org_id: int, user_id: int, ignore_org_role: False) -> tuple[dict[str, set[str]], bool]:
     """
     获取用户仪表盘/文件夹权限
     1. 基于用户的组织角色权限获取仪表盘权限
@@ -409,7 +408,7 @@ def _get_user_dashboard_actions(org_id: int, user_id: int, ignore_org_role: Fals
     return dashboard_permissions, False
 
 
-def get_grafana_panel_query(bk_biz_id: int, dasboard_uid: str, panel_id: int, ref_id: str) -> Dict:
+def get_grafana_panel_query(bk_biz_id: int, dasboard_uid: str, panel_id: int, ref_id: str) -> dict:
     """
     获取grafana的panel中的数据源配置
     """
