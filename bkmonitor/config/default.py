@@ -781,6 +781,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -789,6 +790,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -1356,6 +1358,8 @@ AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
 AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
 AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
 AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
+# AIAgent内容生成关键字
+AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True

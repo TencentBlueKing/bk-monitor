@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, Optional
 
 import requests
 from django.http import Http404, HttpRequest, HttpResponse
@@ -56,8 +55,8 @@ class ProxyBaseView(View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.user: Optional[dict] = None
-        self.org: Optional[dict] = None
+        self.user: dict | None = None
+        self.org: dict | None = None
 
     def get_username(self, request):
         if self.user:
@@ -95,7 +94,7 @@ class ProxyBaseView(View):
     def sync_permissions(self, request):
         """权限校验"""
         user_role = GrafanaRole.Anonymous
-        dashboard_permissions: Dict[str, GrafanaPermission] = {}
+        dashboard_permissions: dict[str, GrafanaPermission] = {}
 
         if not self.permission_classes:
             return
@@ -154,7 +153,7 @@ class ProxyBaseView(View):
         for key, value in request.META.items():
             if key.startswith("HTTP_") and key != "HTTP_HOST":
                 headers[key[5:].replace("_", "-")] = value
-            elif key in ("CONTENT_TYPE", "CONTENT_LENGTH"):
+            elif key in ("CONTENT_TYPE", "CONTENT_LENGTH") and value:
                 headers[key.replace("_", "-")] = str(value)
 
         headers.update(

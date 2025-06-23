@@ -401,6 +401,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
+        ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
         (
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
