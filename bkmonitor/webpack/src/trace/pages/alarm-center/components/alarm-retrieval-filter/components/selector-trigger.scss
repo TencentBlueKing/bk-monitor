@@ -3,17 +3,14 @@
   height: 100%;
   padding: 3px 4px 0 8px;
   cursor: pointer;
+  border: 1px solid #00000000;
 
   &.right-split {
-    &::after {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 1px;
-      height: 100%;
-      content: '';
-      background: #DCDEE5;
-    }
+    border-right: 1px solid #DCDEE5;
+  }
+
+  &.is-error {
+    border: 1px solid #ff5656;
   }
 
   .trigger-top-wrap {

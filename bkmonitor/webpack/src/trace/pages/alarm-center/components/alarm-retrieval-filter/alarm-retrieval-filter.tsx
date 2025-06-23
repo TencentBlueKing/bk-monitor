@@ -33,6 +33,7 @@ import { random } from 'monitor-common/utils/utils';
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
 import SpaceSelector from '../../../../components/space-select/space-selector';
 import { useAppStore } from '../../../../store/modules/app';
+import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
@@ -109,48 +110,52 @@ export default defineComponent({
       <RetrievalFilter class='alarm-center__alarm-retrieval-filter-component'>
         {{
           default: () => (
-            <SpaceSelector
-              currentSpace={this.bizId}
-              hasAuthApply={true}
-              isCommonStyle={false}
-              needIncidentOption={this.isIncident}
-              spaceList={this.bizList}
-              value={this.bizIds}
-              onApplyAuth={this.handleCheckAllowedByIds}
-              onChange={this.handleBizIdsChange}
-            >
-              {{
-                trigger: (options: ITriggerSlotOptions) => (
-                  <SelectorTrigger
-                    tips={options.valueStrList
-                      .map(
-                        (item, index) =>
-                          `${index !== 0 ? `   , ${item.name}` : item.name}${item.id ? `(${item.id})` : ''}`
-                      )
-                      .join('')}
-                    active={options.active}
-                    hasRightSplit={true}
-                  >
-                    {{
-                      top: () => <span>{this.t('空间')}</span>,
-                      bottom: () => (
-                        <span class='selected-text'>
-                          {options.valueStrList.map((item, index) => (
-                            <span
-                              key={item.id}
-                              class='selected-text-item'
-                            >
-                              {index !== 0 ? `   , ${item.name}` : item.name}
-                              {!!item.id && <span class='selected-text-id'>({item.id})</span>}
-                            </span>
-                          ))}
-                        </span>
-                      ),
-                    }}
-                  </SelectorTrigger>
-                ),
-              }}
-            </SpaceSelector>
+            <>
+              <SpaceSelector
+                currentSpace={this.bizId}
+                hasAuthApply={true}
+                isCommonStyle={false}
+                needIncidentOption={this.isIncident}
+                spaceList={this.bizList}
+                value={this.bizIds}
+                onApplyAuth={this.handleCheckAllowedByIds}
+                onChange={this.handleBizIdsChange}
+              >
+                {{
+                  trigger: (options: ITriggerSlotOptions) => (
+                    <SelectorTrigger
+                      tips={options.valueStrList
+                        .map(
+                          (item, index) =>
+                            `${index !== 0 ? `   , ${item.name}` : item.name}${item.id ? `(${item.id})` : ''}`
+                        )
+                        .join('')}
+                      active={options.active}
+                      hasRightSplit={true}
+                      isError={options.error}
+                    >
+                      {{
+                        top: () => <span>{this.t('空间')}</span>,
+                        bottom: () => (
+                          <span class='selected-text'>
+                            {options.valueStrList.map((item, index) => (
+                              <span
+                                key={item.id}
+                                class='selected-text-item'
+                              >
+                                {index !== 0 ? `   , ${item.name}` : item.name}
+                                {!!item.id && <span class='selected-text-id'>({item.id})</span>}
+                              </span>
+                            ))}
+                          </span>
+                        ),
+                      }}
+                    </SelectorTrigger>
+                  ),
+                }}
+              </SpaceSelector>
+              <AlarmModuleSelector />
+            </>
           ),
         }}
       </RetrievalFilter>
