@@ -283,14 +283,14 @@ class K8sCollectorHandler(CollectorHandler):
             data["configs"] = validate_result["parse_result"]["configs"]
 
         # 效验共享集群命名空间是否在允许的范围
-        # for config in data.get("configs", []):
-        #     if config.get("namespaces"):
-        #         self.check_cluster_config(
-        #             bk_biz_id=bk_biz_id,
-        #             collector_type=config["collector_type"],
-        #             bcs_cluster_id=data.get("bcs_cluster_id"),
-        #             namespace_list=config["namespaces"],
-        #         )
+        for config in data.get("configs", []):
+            if config.get("namespaces"):
+                self.check_cluster_config(
+                    bk_biz_id=bk_biz_id,
+                    collector_type=config["collector_type"],
+                    bcs_cluster_id=data.get("bcs_cluster_id"),
+                    namespace_list=config["namespaces"],
+                )
 
         _collector_config_name = self.data.collector_config_name
         for key, value in collector_config_update.items():
