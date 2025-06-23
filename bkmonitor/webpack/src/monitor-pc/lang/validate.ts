@@ -283,4 +283,5 @@ export default {
   配置名称不能为空: 'Configuration name cannot be empty',
   必填: 'Required',
   当前未配置URI信息: 'Currently unconfigured URI information',
+  添加方式必填: 'Addition method is required',
 };

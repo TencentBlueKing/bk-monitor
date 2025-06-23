@@ -153,7 +153,7 @@ class ChartHandler:
                     ):
                         return f"{field_name} {value}"
                     value = cls.to_like_syntax(expr.value)
-                    return f"{field_name} LIKE '{value}'"
+                    return f"LOWER({field_name}) LIKE LOWER('{value}')"
                 elif isinstance(expr, AndOperation):
                     # 处理 AND 操作
                     conditions = []
@@ -225,7 +225,7 @@ class ChartHandler:
             elif isinstance(node, Word):
                 # 处理不带引号的短语
                 value = cls.to_like_syntax(node.value)
-                return f"log LIKE '{value}'"
+                return f"LOWER(log) LIKE LOWER('{value}')"
             elif isinstance(node, Not) or isinstance(node, Prohibit):
                 # 处理 NOT 操作
                 return f"NOT {build_condition(node.children[0])}"
@@ -254,8 +254,11 @@ class ChartHandler:
         :param alias_mappings: 别名映射
         """
         alias_mappings = alias_mappings or {}
-        start_date = arrow.get(start_time).format("YYYYMMDD")
-        end_date = arrow.get(end_time).format("YYYYMMDD")
+
+        # 根据 bkbase 的规范，thedate 固定按东八区转换
+        start_date = arrow.get(start_time).to("Asia/Shanghai").format("YYYYMMDD")
+        end_date = arrow.get(end_time).to("Asia/Shanghai").format("YYYYMMDD")
+
         additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
@@ -305,6 +308,8 @@ class ChartHandler:
             if operator in ["&=~", "&!=~", "all contains match phrase", "all not contains match phrase"]:
                 condition_type = "AND"
 
+            if "LIKE" in sql_operator:
+                field_name = f"LOWER({field_name})"
             tmp_sql = ""
             for index, value in enumerate(values):
                 if operator in ["=~", "&=~", "!=~", "&!=~"]:
@@ -319,6 +324,8 @@ class ChartHandler:
                 if isinstance(value, str):
                     value = value.replace("'", "''")
                     value = f"'{value}'"
+                if "LIKE" in sql_operator:
+                    value = f"LOWER({value})"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号

@@ -677,7 +677,7 @@
         this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
@@ -689,12 +689,20 @@
 
           const resolver = new RetrieveUrlResolver({
             clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
-          router.replace({
-            query,
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
           });
         });
       },

@@ -36,6 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
@@ -256,7 +257,8 @@ class SearchHandler:
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
-        self._add_fields_search_condition()
+        self._add_all_fields_search()
+
         # 透传start
         self.start: int = search_dict.get("begin", 0)
 
@@ -351,12 +353,10 @@ class SearchHandler:
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
 
-    def _add_fields_search_condition(self):
+    def _add_all_fields_search(self):
         """
-        补充检索条件
+        补充全文检索条件
         """
-        if self.query_string:
-            self.query_string = self.query_string.replace('"', '\\"').replace("'", "\\'")
         for item in self.addition:
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
@@ -366,7 +366,7 @@ class SearchHandler:
                 new_value_list = []
                 for value in value_list:
                     if field == "*":
-                        value = '"' + value.replace('"', '\\"').replace("'", "\\'") + '"'
+                        value = '"' + value.replace('"', '\\"') + '"'
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
@@ -477,6 +477,7 @@ class SearchHandler:
                     "index_set_id": int(self.index_set_id),
                     "bk_data_id": int(collector_config.bk_data_id),
                     "bk_biz_id": collector_config.bk_biz_id,
+                    "related_bk_biz_id": get_non_bkcc_space_related_bkcc_biz_id(collector_config.bk_biz_id),
                 }
                 if self.start_time and self.end_time:
                     params["start_time"] = self.start_time

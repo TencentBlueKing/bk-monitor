@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 
 from django.db import models
@@ -126,8 +126,20 @@ class BCSIngress(BCSBase):
         return columns
 
     @staticmethod
-    def load_list_from_api(params):
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
+    def load_list_from_api(params: dict[str, tuple[str, int]]) -> list["BCSIngress"]:
+        """
+        从API获取Ingress列表
+
+        Args:
+            params: key为BCS集群ID，value为(租户ID, 业务ID)
+
+        Returns:
+            BCSIngress列表
+        """
+        bulk_request_params = [
+            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
+            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
+        ]
         api_ingress = api.kubernetes.fetch_k8s_ingress_list_by_cluster.bulk_request(
             bulk_request_params, ignore_exceptions=True
         )
@@ -135,7 +147,7 @@ class BCSIngress(BCSBase):
         ingress_list = []
         for ingress in itertools.chain.from_iterable(item for item in api_ingress if item):
             bcs_cluster_id = ingress.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
+            bk_biz_id = params[bcs_cluster_id][1]
             bcs_ingress = BCSIngress()
             bcs_ingress.bk_biz_id = bk_biz_id
             bcs_ingress.bcs_cluster_id = bcs_cluster_id

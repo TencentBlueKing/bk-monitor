@@ -3,7 +3,6 @@ import copy
 from django.test import TestCase
 
 from apps.log_search.handlers.search.favorite_handlers import FavoriteHandler
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.serializers import (
     GenerateQuerySerializer,
     GetSearchFieldsSerializer,
@@ -264,6 +263,18 @@ ENHANCE_KEYWORD_TEST_CASES = [
         "keyword": """number >=83063 and log:\"go to some\" and lineno:[1 to 10] log: 'abc" c\\'de\\'as' AND log: and""",
         "expect": """number: >=83063 AND log:\"go to some\" AND lineno:[1 TO 10] log: "abc\\" c'de'as" AND log: \"and\"""",
     },
+    {
+        "keyword": """number >=83063 or action: "(reading 'remove')" AND title: "The Right Way" AND log: and""",
+        "expect": """number: >=83063 OR action: "(reading 'remove')" AND title: "The Right Way" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 or action: 'trying remove' AND log: "(read'ing 'remove')" AND log: and""",
+        "expect": """number: >=83063 OR action: "trying remove" AND log: "(read'ing 'remove')" AND log: \"and\"""",
+    },
+    {
+        "keyword": """number >=83063 or action: "(reading \\" 'remove')" AND log: and""",
+        "expect": """number: >=83063 OR action: "(reading \\" 'remove')" AND log: \"and\"""",
+    },
 ]
 
 ENHANCE_KEYWORD_INSPECT_RESULT = {
@@ -500,8 +511,6 @@ FULL_CHECK_TEST_CASES = [
     },
 ]
 
-FIELD_SEARCH_RESULT = """msg: \\"(reading \\"remove\\")\\" AND ("(reading \\'remove\\')")"""
-
 
 class TestLucene(TestCase):
     def setUp(self) -> None:  # pylint: disable=invalid-name
@@ -684,14 +693,3 @@ class TestLuceneChecker(TestCase):
             checker = LuceneChecker(case["keyword"], case.get("fields", []))
             result = checker.resolve()
             self.assertDictEqual(result, case["check_result"])
-
-    def test_add_fields_search_condition(self):
-        search = SearchHandler.__new__(SearchHandler)
-
-        # 设置测试需要用的属性
-        search.query_string = "msg: \"(reading 'remove')\""
-        search.addition = [{"field": "*", "operator": "contains match phrase", "value": ["(reading 'remove')"]}]
-        search._enhance()
-        search._add_fields_search_condition()
-        # 验证结果
-        self.assertEqual(search.query_string, FIELD_SEARCH_RESULT)
