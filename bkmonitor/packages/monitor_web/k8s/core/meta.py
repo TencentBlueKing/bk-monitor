@@ -25,7 +25,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.utils.kubernetes import BcsClusterType
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import resource, api
+from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from packages.monitor_web.scene_view.resources.kubernetes import GetKubernetesNamespaces
 
@@ -250,11 +250,12 @@ class K8sResourceMeta:
         判断是否是共享集群
         """
         space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
-        cluster_info = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
+        cluster_info: dict[str, dict] = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
+        cluster = cluster_info.get(self.bcs_cluster_id, {})
 
-        if cluster_info.get("namespace_list"):
+        if cluster.get("namespace_list"):
             return True
-        if cluster_info.get("cluster_type") == BcsClusterType.SHARED:
+        if cluster.get("cluster_type") == BcsClusterType.SHARED:
             return True
 
         return False
