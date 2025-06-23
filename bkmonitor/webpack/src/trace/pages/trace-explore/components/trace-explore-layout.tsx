@@ -32,15 +32,27 @@ import './trace-explore-layout.scss';
 
 export default defineComponent({
   name: 'TraceExploreLayout',
-  setup() {
+  props: {
+    minWidth: {
+      type: Number,
+      default: 200,
+    },
+    maxWidth: {
+      type: Number,
+      default: 400,
+    },
+    initialDivide: {
+      type: Number,
+      default: 200,
+    },
+  },
+  setup(props) {
     const { t } = useI18n();
     const isShow = shallowRef(true);
-    const maxWidth = shallowRef(400);
-    const minWidth = shallowRef(120);
-    const width = shallowRef(200);
+    const width = shallowRef(props.initialDivide);
 
     const handleDragChange = (w: number) => {
-      if (w < minWidth.value) {
+      if (w < props.minWidth) {
         handleClickShrink(false);
       } else {
         width.value = w;
@@ -54,8 +66,6 @@ export default defineComponent({
 
     return {
       isShow,
-      maxWidth,
-      minWidth,
       width,
       handleDragChange,
       handleClickShrink,

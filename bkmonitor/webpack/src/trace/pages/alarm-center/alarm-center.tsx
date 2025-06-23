@@ -24,25 +24,40 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
+import { shallowRef } from 'vue';
 
+import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
 
 import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
-  setup() {},
+  setup() {
+    const isCollapsed = shallowRef(false);
+    return {
+      isCollapsed,
+    };
+  },
   render() {
     return (
       <div class='alarm-center'>
-        <div class='alarm-center-header'>
-          <AlarmCenterHeader />
-        </div>
-        <div class='alarm-center-filters'>
-          <AlarmRetrievalFilter />
-        </div>
+        <AlarmCenterHeader class='alarm-center-header' />
+        <AlarmRetrievalFilter class='alarm-center-filters' />
         <div class='alarm-center-content'>
-          <div class='quick-filtering' />
+          <TraceExploreLayout
+            v-slots={{
+              aside: () => {
+                return <div class='quick-filtering'>filter</div>;
+              },
+              default: () => {
+                return <div class='filter-content'>content </div>;
+              },
+            }}
+            initialDivide={208}
+            maxWidth={800}
+            minWidth={160}
+          />
         </div>
       </div>
     );

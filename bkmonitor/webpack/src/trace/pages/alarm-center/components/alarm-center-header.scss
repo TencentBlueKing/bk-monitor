@@ -1,4 +1,6 @@
 .alarm-center-header-comp {
+  width: 100%;
+
   .alarm-type-nav-bar {
     display: flex;
     height: 100%;
@@ -11,8 +13,8 @@
 
       &.active {
         .bar-name {
-          color: #3A84FF;
-          border-bottom: 2px solid #3A84FF;
+          color: #3a84ff;
+          border-bottom: 2px solid #3a84ff;
         }
       }
 
