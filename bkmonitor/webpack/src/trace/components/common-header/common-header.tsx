@@ -120,33 +120,29 @@ export default defineComponent({
         <div class='header-center'>{this.$slots.center?.()}</div>
         <div class='header-tools'>
           {!this.hideFeature.includes('timeRange') && (
-            <span class='header-append-item'>
-              <TimeRange
-                modelValue={this.timeRange}
-                timezone={this.timezone}
-                onUpdate:modelValue={this.handleTimeRangeChange}
-                onUpdate:timezone={this.handleTimezoneChange}
-              />
-            </span>
+            <TimeRange
+              modelValue={this.timeRange}
+              timezone={this.timezone}
+              onUpdate:modelValue={this.handleTimeRangeChange}
+              onUpdate:timezone={this.handleTimezoneChange}
+            />
           )}
 
-          <span class='header-append-item'>
-            {!this.hideFeature.includes('refresh') && (
-              <RefreshRate
-                value={this.refreshInterval}
-                onImmediate={this.handleImmediateRefresh}
-                onSelect={this.handleRefreshChange}
-              />
-            )}
-            {!!this.menuList.length && (
-              <SelectMenu
-                list={this.menuList}
-                onSelect={this.handleMenuSelectChange}
-              >
-                <i class='icon-monitor icon-mc-more-tool' />
-              </SelectMenu>
-            )}
-          </span>
+          {!this.hideFeature.includes('refresh') && (
+            <RefreshRate
+              value={this.refreshInterval}
+              onImmediate={this.handleImmediateRefresh}
+              onSelect={this.handleRefreshChange}
+            />
+          )}
+          {!!this.menuList.length && (
+            <SelectMenu
+              list={this.menuList}
+              onSelect={this.handleMenuSelectChange}
+            >
+              <i class='icon-monitor icon-mc-more-tool' />
+            </SelectMenu>
+          )}
         </div>
         {!this.hideFeature.includes('gotoOld') && (
           <div class='goto-old'>
@@ -162,7 +158,7 @@ export default defineComponent({
               <div class='icon'>
                 <i class='icon-monitor icon-zhuanhuan' />
               </div>
-              {this.$slots.default || (
+              {this.$slots.gotoOld?.() || (
                 <Badge
                   count='!'
                   theme='warning'
