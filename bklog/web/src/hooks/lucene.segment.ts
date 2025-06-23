@@ -30,8 +30,8 @@ export default class LuceneSegment {
    * @param MAX_TOKENS 最大拆分的 token 数量
    * @returns 拆分后的字符串数组
    */
-  static split(input: string, MAX_TOKENS: number): { text: string; isMark: boolean }[] {
-    const result: { text: string; isMark: boolean }[] = [];
+  static split(input: string, MAX_TOKENS: number): { text: string; isMark: boolean; isCursorText: boolean }[] {
+    const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
     const markRegStr = '<mark>(.*?)</mark>';
     const markRegex = new RegExp(markRegStr, 'g');
     let lastIndex = 0;
@@ -43,6 +43,7 @@ export default class LuceneSegment {
         result.push({
           text: markedText,
           isMark: true,
+          isCursorText: true,
         });
         lastIndex = offset + match.length;
         return match;
@@ -51,13 +52,14 @@ export default class LuceneSegment {
       // 添加 <mark> 之前的普通文本
       if (offset > lastIndex) {
         const plainText = input.slice(lastIndex, offset);
-        result.push(...LuceneSegment.processBuffer(plainText));
+        result.push(...LuceneSegment.processBuffer(plainText, MAX_TOKENS, result.length));
       }
 
       // 添加 <mark> 内的文本
       result.push({
         text: markedText,
         isMark: true,
+        isCursorText: true,
       });
 
       lastIndex = offset + match.length;
@@ -72,11 +74,12 @@ export default class LuceneSegment {
           result.push({
             text: markedText,
             isMark: true,
+            isCursorText: true,
           });
           return match;
         });
       } else {
-        result.push(...LuceneSegment.processBuffer(remainingText));
+        result.push(...LuceneSegment.processBuffer(remainingText, MAX_TOKENS, result.length));
       }
     }
 
@@ -86,10 +89,16 @@ export default class LuceneSegment {
   /**
    * 处理普通文本的拆分逻辑
    * @param buffer 当前缓冲区内容
+   * @param MAX_TOKENS 最大拆分的 token 数量
+   * @param currentTokenCount 当前已拆分的 token 数量
    * @returns 拆分后的结果数组
    */
-  private static processBuffer(buffer: string): { text: string; isMark: boolean }[] {
-    const result: { text: string; isMark: boolean }[] = [];
+  private static processBuffer(
+    buffer: string,
+    MAX_TOKENS: number,
+    currentTokenCount: number,
+  ): { text: string; isMark: boolean; isCursorText: boolean }[] {
+    const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
     let segment = '';
 
     for (let i = 0; i < buffer.length; i++) {
@@ -98,7 +107,13 @@ export default class LuceneSegment {
 
       // 判断是否需要触发拆分
       if (LuceneSegment.shouldSplit(segment, char, nextChar)) {
-        result.push({ text: segment, isMark: false });
+        // 如果当前 token 数量超出 MAX_TOKENS，停止拆分并保留完整分词
+        if (result.length + currentTokenCount >= MAX_TOKENS) {
+          segment += buffer.slice(i); // 将剩余字符加入到最后一个分词中
+          break;
+        }
+
+        result.push({ text: segment, isMark: false, isCursorText: true });
         segment = char; // 当前字符作为新段的起始
       } else {
         segment += char; // 当前字符加入缓冲区
@@ -107,7 +122,7 @@ export default class LuceneSegment {
 
     // 将最后的缓冲区内容加入结果
     if (segment) {
-      result.push({ text: segment, isMark: false });
+      result.push({ text: segment, isMark: false, isCursorText: true });
     }
 
     return result;
