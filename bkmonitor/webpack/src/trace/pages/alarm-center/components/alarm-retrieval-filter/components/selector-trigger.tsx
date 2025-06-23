@@ -43,6 +43,10 @@ export default defineComponent({
       type: Function as PropType<(payload: MouseEvent) => void>,
       default: () => {},
     },
+    click: {
+      type: Function as PropType<(payload: MouseEvent) => void>,
+      default: () => {},
+    },
     defaultWidth: {
       type: Number,
       default: 210,
@@ -51,6 +55,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    isError: {
+      type: Boolean,
+      default: false,
+    },
   },
   render() {
     return (
@@ -58,11 +66,17 @@ export default defineComponent({
         style={{
           width: `${this.defaultWidth}px`,
         }}
-        class={['alarm-retrieval-filter-component__selector-trigger', { 'right-split': this.hasRightSplit }]}
+        class={[
+          'alarm-retrieval-filter-component__selector-trigger',
+          { 'right-split': this.hasRightSplit },
+          { 'is-error': this.isError },
+        ]}
         v-bk-tooltips={{
           content: this.tips,
           disabled: !this.tips,
+          delay: 500,
         }}
+        onClick={this.click}
         onMousedown={this.mouseDown}
       >
         <div class='trigger-top-wrap'>{this.$slots?.top?.()}</div>

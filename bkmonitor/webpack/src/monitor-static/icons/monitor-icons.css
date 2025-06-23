@@ -1,9 +1,9 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1749037040681') format('woff2'),
-    url('monitor-icons.woff?t=1749037040681') format('woff'),
-    url('monitor-icons.ttf?t=1749037040681') format('truetype');
+    url('monitor-icons.woff2?t=1750669950027') format('woff2'),
+    url('monitor-icons.woff?t=1750669950027') format('woff'),
+    url('monitor-icons.ttf?t=1750669950027') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +12,22 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-All:before {
+  content: '\e836';
+}
+
+.icon-Home:before {
+  content: '\e834';
+}
+
+.icon-File-Close:before {
+  content: '\e835';
+}
+
+.icon-File-Open:before {
+  content: '\e833';
 }
 
 .icon-chakan:before {

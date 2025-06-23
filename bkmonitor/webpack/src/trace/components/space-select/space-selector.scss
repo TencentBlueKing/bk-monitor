@@ -125,8 +125,10 @@
 
   .search-input {
     padding: 0 8px;
-    // margin-bottom: 4px;
-    .icon-search {
+
+    .icon-mc-search {
+    font-size: 16px;
+      line-height: 32px;
       color: #979ba5;
     }
 
