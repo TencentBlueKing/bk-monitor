@@ -27,8 +27,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import BkUserSelector from '@blueking/user-selector';
 import { createChatGroup } from 'monitor-api/modules/action';
+import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
 import './chat-group.scss';
 
@@ -88,6 +88,10 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
     }
   }
 
+  handleSelectUser(users: string[]) {
+    this.localValue = users;
+  }
+
   handleConfirm() {
     const params = {
       bk_biz_id: this.$store.getters.bizId,
@@ -116,6 +120,7 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
         ext-cls='chat-group-dialog-wrap'
         header-position='left'
         mask-close={true}
+        render-directive='if'
         title={this.$t('一键拉群')}
         value={this.show}
         on-value-change={this.handleShowChange}
@@ -138,10 +143,10 @@ export default class ChatGroup extends tsc<IChatGroupProps, IChatGroupEvent> {
             </bk-checkbox>
             {/* <bk-checkbox value={this.isHandler}>{this.$t('告警处理人')}</bk-checkbox> */}
           </div>
-          <BkUserSelector
+          <UserSelector
             class='bk-user-selector'
-            v-model={this.localValue}
-            api={this.bkUrl}
+            userIds={this.localValue}
+            onChange={this.handleSelectUser}
           />
           <div class='checkbox-group'>
             <bk-checkbox-group v-model={this.contentType}>

@@ -466,6 +466,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
               />
               <bk-table-column
                 align='left'
+                formatter={row => (row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--')}
                 label={this.$t('最近更新人')}
                 prop='update_user'
               />

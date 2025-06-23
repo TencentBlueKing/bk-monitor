@@ -60,11 +60,24 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
   tableColumnsMap: ITableColumnItem[] = [
     { label: window.i18n.t('发送时间'), key: 'createTime' },
     { label: window.i18n.t('发送标题'), key: 'mailTitle' },
-    { label: window.i18n.t('发送者'), key: 'username' },
+    {
+      label: window.i18n.t('发送者'),
+      key: 'username',
+      formatter: row => (row?.username ? <bk-user-display-name user-id={row.username} /> : '--'),
+    },
     {
       label: window.i18n.t('接收者'),
       key: 'receivers',
-      formatter: row => (row?.details?.receivers?.length ? row.receivers.join(', ') : '--'),
+      formatter: row =>
+        row?.details?.receivers?.length
+          ? row.receivers.map((v, index, arr) => [
+              <bk-user-display-name
+                key={v}
+                user-id={v}
+              />,
+              index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
+            ])
+          : '--',
     },
     { label: window.i18n.t('发送状态'), key: 'isSuccess' },
   ];

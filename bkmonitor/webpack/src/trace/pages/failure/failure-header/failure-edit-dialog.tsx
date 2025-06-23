@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
+import { type Ref, defineComponent, inject, nextTick, onMounted, ref as deepRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
 import { editIncident } from 'monitor-api/modules/incident';
 import { strategyLabelList } from 'monitor-api/modules/strategies';
 
-import MemberSelector from '../../alarm-shield/components/member-selector';
+import UserSelector from '../../../components/user-selector/user-selector';
 
 import type { IIncident } from '../types';
 
@@ -52,11 +52,11 @@ export default defineComponent({
   setup(props, { emit }) {
     const userApi = `${location.origin}${location.pathname || '/'}rest/v2/commons/user/list_users/`;
     const { t } = useI18n();
-    const btnLoading = ref<boolean>(false);
+    const btnLoading = deepRef<boolean>(false);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
-    const customLabelsList = ref([]);
-    const editDialogRef = ref(null);
-    const incidentDetailData = ref({});
+    const customLabelsList = deepRef([]);
+    const editDialogRef = deepRef(null);
+    const incidentDetailData = deepRef<Partial<IIncident>>({});
 
     function valueChange(v) {
       emit('update:isShow', v);
@@ -191,11 +191,10 @@ export default defineComponent({
                 label={this.t('故障负责人')}
                 property='assignees'
               >
-                <MemberSelector
+                <UserSelector
                   class='width-940'
-                  api={this.userApi}
-                  value={this.incidentDetailData.assignees}
-                  onChange={this.handleUserChange}
+                  modelValue={this.incidentDetailData.assignees}
+                  onUpdate:modelValue={this.handleUserChange}
                 />
               </Form.FormItem>
               <Form.FormItem label={this.t('故障标签')}>
@@ -218,6 +217,7 @@ export default defineComponent({
         }}
         dialog-type='operation'
         is-show={this.$props.visible}
+        render-directive='if'
         title={this.t('编辑故障属性')}
         onUpdate:isShow={this.valueChange}
       />

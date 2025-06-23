@@ -619,7 +619,7 @@ export default defineComponent({
                                 return <span class='icon-monitor icon-mc-user-one no-img' />;
                               }
                             })()}
-                            <span>{item.display_name}</span>
+                            <bk-user-display-name user-id={item.display_name} />
                           </div>
                         ))}
                       </span>

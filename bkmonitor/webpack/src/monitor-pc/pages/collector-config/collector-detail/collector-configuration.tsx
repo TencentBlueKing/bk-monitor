@@ -409,6 +409,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       <span key={wordIndex}>{`${word.name}=${word.pattern}`}</span>
                     ));
                   }
+                  if (key === 'update_user') {
+                    return this.basicInfo?.[key] ? <bk-user-display-name user-id={this.basicInfo?.[key]} /> : '--';
+                  }
                   if (this.basicInfo?.collect_type === 'Process' && key === 'match') {
                     return (
                       <span class='detail-item-val process'>
