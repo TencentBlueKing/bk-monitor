@@ -13,6 +13,7 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import (
     BCSCluster,
     BCSContainer,
@@ -22,9 +23,11 @@ from bkmonitor.models import (
     BCSService,
     BCSWorkload,
 )
+from bkmonitor.utils.kubernetes import BcsClusterType
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import resource
+from core.drf_resource import resource, api
 from monitor_web.k8s.core.filters import load_resource_filter
+from packages.monitor_web.scene_view.resources.kubernetes import GetKubernetesNamespaces
 
 
 class FilterCollection:
@@ -230,9 +233,31 @@ class K8sResourceMeta:
         self.filter = FilterCollection(self)
         # 默认范围，业务-集群
         self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
-        # self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+
+        if self.is_shared_cluster() and not isinstance(self, K8sNodeMeta, K8sClusterMeta, K8sNamespaceMeta):
+            namespace_list = GetKubernetesNamespaces()(
+                {"bk_biz_id": self.bk_biz_id, "bcs_cluster_id": self.bcs_cluster_id}
+            )
+            namespaces = [ns["name"] for ns in namespace_list]
+            self.filter.add(load_resource_filter("namespace", namespaces))
+        else:
+            self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
         # 默认过滤 container_name!="POD"
         self.filter.add(load_resource_filter("container_exclude", ""))
+
+    def is_shared_cluster(self) -> bool:
+        """
+        判断是否是共享集群
+        """
+        space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        cluster_info = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
+
+        if cluster_info.get("namespace_list"):
+            return True
+        if cluster_info.get("cluster_type") == BcsClusterType.SHARED:
+            return True
+
+        return False
 
     def get_from_meta(self):
         """
