@@ -250,7 +250,7 @@ class K8sCollectorHandler(CollectorHandler):
         return self.create_container_config(params)
 
     def update_container_config(self, data):
-        bk_biz_id = data.get("bk_biz_id") or self.data.bk_biz_id
+        bk_biz_id = self.data.bk_biz_id
         collector_config_update = {
             "collector_config_name": data["collector_config_name"],
             "description": data["description"] or data["collector_config_name"],
