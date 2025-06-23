@@ -55,6 +55,7 @@ from bkmonitor.utils.kubernetes import (
     KubernetesServiceJsonParser,
     get_progress_value,
 )
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.event import EventTypeNormal, EventTypeWarning
@@ -88,7 +89,7 @@ def params_to_conditions(params):
 
 class KubernetesResource(ApiAuthResource, abc.ABC):
     data = []
-    model_class: BCSBase = None
+    model_class: type[BCSBase]
     model_label_class = None
     query_set_list = []
 
@@ -868,7 +869,7 @@ class GetKubernetesPod(ApiAuthResource):
 
 
 class GetKubernetesPodList(KubernetesResource):
-    model_class = BCSPod
+    model_class: type[BCSPod] = BCSPod
     model_label_class = BCSPodLabels
     RequestSerializer = KubernetesListRequestSerializer
 
@@ -1043,7 +1044,7 @@ class GetKubernetesContainer(ApiAuthResource):
 
 
 class GetKubernetesContainerList(KubernetesResource):
-    model_class = BCSContainer
+    model_class: type[BCSContainer] = BCSContainer
     model_label_class = BCSContainerLabels
     RequestSerializer = KubernetesListRequestSerializer
 
@@ -1529,11 +1530,12 @@ class GetKubernetesNamespaces(Resource):
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster = params.get("bcs_cluster_id", "")
 
         data = []
-        namespaces = api.kubernetes.fetch_k8s_namespace_list(params)
+        namespaces = api.kubernetes.fetch_k8s_namespace_list(bk_tenant_id=bk_tenant_id, **params)
         cluster_id_set = set()
         for namespace in namespaces:
             bcs_cluster_id = namespace["bcs_cluster_id"]
@@ -2430,9 +2432,12 @@ class GetKubernetesWorkloadCountByNamespace(ApiAuthResource):
         ]
 
     def get_data(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster(params)
+        workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        )
         shard_cluster = api.kubernetes.get_cluster_info_from_bcs_space({"bk_biz_id": bk_biz_id, "shard_only": True})
         filter_ns = shard_cluster.get(bcs_cluster_id, {}).get("namespace_list")
         namespace_counter = {}
@@ -4538,6 +4543,7 @@ class GetKubernetesConsistencyCheck(Resource):
         name = serializers.CharField(required=False, allow_null=True)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params.get("bk_biz_id")
         bcs_cluster_id = params.get("bcs_cluster_id")
         check_type = params.get("check_type")
@@ -4545,7 +4551,13 @@ class GetKubernetesConsistencyCheck(Resource):
         name = params.get("name")
 
         data = {}
-        params = {"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id, "data_type": data_type, "name": name}
+        params = {
+            "bk_tenant_id": bk_tenant_id,
+            "bk_biz_id": bk_biz_id,
+            "bcs_cluster_id": bcs_cluster_id,
+            "data_type": data_type,
+            "name": name,
+        }
         if check_type == "workload":
             data = api.kubernetes.fetch_kubernetes_workload_consistency_check(params)
         elif check_type == "pod":

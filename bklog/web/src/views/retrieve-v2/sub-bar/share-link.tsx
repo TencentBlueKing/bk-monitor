@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import BklogPopover from '@/components/bklog-popover';
 import { computed, defineComponent, Ref, ref } from 'vue';
-import useStore from '@/hooks/use-store';
+
+import http from '@/api/index';
+import { messageError } from '@/common/bkmagic';
+import { copyMessage } from '@/common/util';
+import BklogPopover from '@/components/bklog-popover';
+import { TimeRangeType } from '@/components/time-range/time-range';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { useRoute } from 'vue-router/composables';
-import useLocale from '@/hooks/use-locale';
-import { copyMessage } from '@/common/util';
-import { messageError } from '@/common/bkmagic';
-import http from '@/api/index';
-import { TimeRangeType } from '@/components/time-range/time-range';
 
 export default defineComponent({
   setup() {
@@ -130,6 +131,7 @@ export default defineComponent({
           storage: store.state.storage,
           indexItem: {
             ...store.state.indexItem,
+            items: [],
             datePickerValue: formatTimeRange.value,
           },
 
@@ -237,9 +239,9 @@ export default defineComponent({
             <div>
               <div style='margin-bottom: 6px;'>
                 <bk-radio
+                  style='font-size: 12px;'
                   checked={timeValueType.value === 'static'}
                   on-change={val => val && handleTimeValueTypeChange('static')}
-                  style='font-size: 12px;'
                 >
                   {t('静态时间')}
                 </bk-radio>
@@ -249,9 +251,9 @@ export default defineComponent({
               </div>
               <div>
                 <bk-radio
+                  style='font-size: 12px;'
                   checked={timeValueType.value === 'dynamic'}
                   on-change={val => val && handleTimeValueTypeChange('dynamic')}
-                  style='font-size: 12px;'
                 >
                   {t('动态时间')}
                 </bk-radio>
@@ -276,8 +278,8 @@ export default defineComponent({
             >
               {expireTimeList.value.map(item => (
                 <bk-option
-                  key={item.id}
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 >
                   {item.name}
@@ -285,8 +287,8 @@ export default defineComponent({
               ))}
 
               <div
-                class='bklog-v3-select-popover'
                 style='display: flex; align-items: center; padding: 10px;'
+                class='bklog-v3-select-popover'
               >
                 <span style='display: inline-block; min-width: fit-content;'>{t('自定义')}:</span>
                 <bk-input
@@ -300,13 +302,13 @@ export default defineComponent({
 
           <div style='display: flex; width: 100%; margin-top: 12px;'>
             <bk-input
-              readonly={true}
               placeholder={`{SITE_URL}/share/{LINK_ID}`}
+              readonly={true}
               value={link.value}
             ></bk-input>
             <bk-button
-              theme='primary'
               style='margin-left: -2px; border-radius: 0 2px 2px 0; min-width: fit-content;'
+              theme='primary'
               on-click={handleShareLinkClick}
             >
               {t('生成并复制链接')}
@@ -318,10 +320,10 @@ export default defineComponent({
     return () => {
       return (
         <BklogPopover
-          trigger='click'
+          style='height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;'
           beforeHide={beforePopoverHide}
           options={{ hideOnClick: false, onShow: beforeShow } as any}
-          style='height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;'
+          trigger='click'
           {...{
             scopedSlots: { content: getContentView },
           }}

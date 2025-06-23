@@ -2723,7 +2723,7 @@ class QueryExceptionTypeGraphResource(Resource):
             .end_time(validated_data["end_time"])
         )
         return resource.grafana.graph_unify_query(
-            **{**qs.config, "time_alignment": False, "query_method": "query_reference"}
+            **{**qs.config, "time_alignment": False, "null_as_zero": True, "query_method": "query_reference"}
         )
 
 
