@@ -91,6 +91,7 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     def validate(self, attrs):
         time_alignment: bool = attrs.get("time_alignment", False)
         attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        attrs["null_as_zero"] = not time_alignment
 
         # interval 自适应
         for query_config in attrs["query_configs"]:

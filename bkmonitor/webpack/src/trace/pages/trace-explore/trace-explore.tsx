@@ -355,8 +355,8 @@ export default defineComponent({
       getUrlParams();
       await getAllUserConfig();
       await getApplicationList();
-      handleQuery();
       await getViewConfig();
+      handleQuery();
     });
 
     onUnmounted(() => {
@@ -382,6 +382,8 @@ export default defineComponent({
         /** 兼容一下老版本的listType和query参数 */
         listType,
         query,
+        sortBy,
+        descending,
       } = route.query;
       try {
         store.init({
@@ -391,6 +393,10 @@ export default defineComponent({
           appName: app_name as string,
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
+          tableSortContainer: {
+            sortBy: (sortBy as string) || '',
+            descending: descending === 'false' ? false : descending === 'true' ? true : null,
+          },
         });
         where.value = tryURLDecodeParse(queryWhere as string, []);
         commonWhere.value = tryURLDecodeParse(queryCommonWhere as string, []);
@@ -427,6 +433,8 @@ export default defineComponent({
         showResidentBtn: String(showResidentBtn.value),
         filterMode: filterMode.value,
         selectedType: JSON.stringify(checkboxFilters.value),
+        sortBy: store.tableSortContainer?.sortBy || '',
+        descending: String(store.tableSortContainer?.descending),
       };
 
       const targetRoute = router.resolve({
@@ -741,6 +749,7 @@ export default defineComponent({
       notSupportEnumKeys,
       showSlideDetail,
       retrievalFilterPlaceholder,
+      setUrlParams,
       handleQuery,
       handleAppNameChange,
       handleThumbtackChange,
@@ -868,6 +877,7 @@ export default defineComponent({
                         onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
                         onClearRetrievalFilter={this.handleClearRetrievalFilter}
                         onConditionChange={this.handleConditionChange}
+                        onSetUrlParams={this.setUrlParams}
                       />
                     </div>
                   ),

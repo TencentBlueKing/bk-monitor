@@ -28,5 +28,7 @@ class DatabaseConnection(BaseDatabaseConnection):
 
     def execute(self, rt_id, params):
         logger.info(f"FTA Event QUERY: rt_id is {rt_id}, query body is {params}")
+        # todo: 告警后台需要支持bk_tenant_id
+        params.pop("bk_tenant_id", None)
         result = EventDocument.search(all_indices=True).update_from_dict(params).execute()
         return result.to_dict()

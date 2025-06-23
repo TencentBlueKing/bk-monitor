@@ -153,6 +153,27 @@ class DestroyChatSessionContentResource(Resource):
         return res
 
 
+class BatchDeleteSessionContentResource(Resource):
+    """
+    批量删除对话(根据id列表)
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.ListField(label="内容ID列表", required=True)
+
+    def perform_request(self, validated_request_data):
+        logger.info(
+            "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
+        )
+
+        api_client = AidevApiClientBuilder.get_client(
+            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+        )
+
+        res = api_client.api.batch_delete_chat_session_content(json=validated_request_data)
+        return res
+
+
 class UpdateChatSessionContentResource(Resource):
     """
     更新单条会话内容(根据id)
@@ -223,24 +244,23 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
     # 检查 ExecuteKwargs 解析是否正确
     try:
         validated_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
-        logger.info(f"Validated execute_kwargs: {validated_kwargs}")
+        logger.info(f"CreateChatCompletionResource: Validated execute_kwargs: {validated_kwargs}")
     except Exception as e:
-        logger.error(f"ExecuteKwargs validation failed: {e}")
+        logger.error(f"CreateChatCompletionResource: ExecuteKwargs validation failed: {e}")
         raise
 
     def streaming_generator():
         try:
             for chunk in agent_instance.execute(validated_kwargs):
-                logger.info(f"Yielding chunk: {chunk}")
+                logger.info(f"CreateChatCompletionResource: Yielding chunk: {chunk}")
                 yield chunk
-        except Exception as e:
-            logger.error(f"Error in streaming generator: {e}")
+        except Exception as error:
+            logger.error(f"CreateChatCompletionResource: Error in streaming generator: {error}")
             raise
 
     return StreamingResponseWrapper(streaming_generator())
 
 
-# POST /app/ai_agents/chat/chat_completion
 class CreateChatCompletionResource(Resource):
     """
     创建模型对话 流式
@@ -255,6 +275,11 @@ class CreateChatCompletionResource(Resource):
         session_code = validated_request_data.get("session_code")
         execute_kwargs = validated_request_data["execute_kwargs"]
         agent_code = validated_request_data.get("agent_code")
+        logger.info(
+            "CreateChatCompletionResource: try to create chat completion with session_code->[%s], agent_code->[%s]",
+            session_code,
+            agent_code,
+        )
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
@@ -266,6 +291,9 @@ class CreateChatCompletionResource(Resource):
 
         # 根据流式配置执行
         if execute_kwargs.get("stream", False):
+            logger.info(
+                "CreateChatCompletionResource: stream is true, start streaming,session_code->[%s]", session_code
+            )
             streaming_wrapper = _handle_streaming_response(agent_instance, execute_kwargs)
             return streaming_wrapper.as_streaming_response()
         return None

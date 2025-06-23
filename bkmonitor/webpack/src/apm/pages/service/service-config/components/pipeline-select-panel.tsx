@@ -46,6 +46,9 @@ interface TreeNode {
   // 一级项目id
   projectId?: string;
   loading?: boolean;
+  data?: {
+    key: string;
+  };
   state: {
     checked: boolean;
   };
@@ -144,6 +147,12 @@ export default class PipelineSelectPanel extends tsc<
     this.getPipelineData();
   }
 
+  // 隐藏流水线选择框
+  handleHidePopover() {
+    this.searchVal = '';
+    this.data = [];
+  }
+
   // 删除流水线
   handleDelete(id: string) {
     this.localValue = this.localValue.filter(item => item.id !== id);
@@ -198,6 +207,7 @@ export default class PipelineSelectPanel extends tsc<
 
   // 节点勾选切换
   async handleCheckChange(ids: string[], node: TreeNode) {
+    if (!node.parent || node.data.key === 'more') return;
     if (node.state.checked) {
       this.localValue.push({
         id: node.id,
@@ -255,38 +265,41 @@ export default class PipelineSelectPanel extends tsc<
 
   // 数据转换TreeNode格式
   mapTreeData(data) {
-    return data.map(root => {
-      return {
-        id: root.project_id,
-        key: `${root.project_name}${root.project_id}`,
-        name: `(${root.project_name || ''})${root.project_id || ''}`,
-        root: true,
-        // count: root.count,
-        children: root.items.flatMap((pipeline, index) => {
-          const treeNode = {
-            id: pipeline.pipeline_id,
-            key: pipeline.pipeline_id,
-            name: pipeline.pipeline_name,
-            parentId: pipeline.project_id,
-          };
-          // 加载更多选项
-          if (root.items.length - 1 === index && root.count > root.items.length) {
-            return [
-              treeNode,
-              {
-                id: `${pipeline.pipeline_id}/more_${random(5)}`,
-                projectId: root.project_id,
-                key: 'more',
-                name: '加载更多',
-                loading: false,
-                page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
-              },
-            ];
-          }
-          return treeNode;
-        }),
-      };
-    });
+    // filter: 子元素没有节点的父级不展示
+    return data
+      .filter(root => root.count && root.items?.length)
+      .map(root => {
+        return {
+          id: root.project_id,
+          key: `${root.project_name}${root.project_id}`,
+          name: `(${root.project_name || ''})${root.project_id || ''}`,
+          root: true,
+          count: root.count,
+          children: root.items.flatMap((pipeline, index) => {
+            const treeNode = {
+              id: pipeline.pipeline_id,
+              key: pipeline.pipeline_id,
+              name: pipeline.pipeline_name,
+              parentId: pipeline.project_id,
+            };
+            // 加载更多选项
+            if (root.items.length - 1 === index && root.count > root.items.length) {
+              return [
+                treeNode,
+                {
+                  id: `${pipeline.pipeline_id}/more_${random(5)}`,
+                  projectId: root.project_id,
+                  key: 'more',
+                  name: '加载更多',
+                  loading: false,
+                  page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
+                },
+              ];
+            }
+            return treeNode;
+          }),
+        };
+      });
   }
 
   // 转换流水线数据格式
@@ -352,9 +365,12 @@ export default class PipelineSelectPanel extends tsc<
       <bk-popover
         width='360'
         height='236'
+        ext-cls='pipeline-add-popover'
         component-event-delay='300'
         placement='bottom-start'
         theme='light'
+        tippy-options={{ trigger: 'click', arrow: false, distance: 0 }}
+        on-hide={this.handleHidePopover}
         on-show={this.getPipelineData}
       >
         <div class='add-pipeline'>
@@ -365,57 +381,62 @@ export default class PipelineSelectPanel extends tsc<
           class='pipeline-select-panel-comp'
           slot='content'
         >
-          {this.loading ? (
-            <div class='skeleton-wrap'>
-              <div class='skeleton-element' />
-              <div class='skeleton-element' />
-              <div class='skeleton-element' />
-              <div class='skeleton-element' />
-              <div class='skeleton-element' />
-            </div>
-          ) : (
-            <div class='tree-panel'>
-              <bk-input
-                clearable={true}
-                left-icon='bk-icon icon-search'
-                placeholder={this.$t('请输入关键字')}
-                value={this.searchVal}
-                onChange={this.handleSearch}
-              />
-              <div class='pipeline-workload-tree'>
-                <bk-big-tree
-                  ref='tree'
-                  scopedSlots={{
-                    default: ({ data }) => {
-                      if (data.key === 'more') return this.renderLoadMore(data);
-                      return (
-                        <div class={['bk-tree-node', { root: data.root }]}>
-                          <span
-                            style='padding-right: 5px;'
-                            class='node-content'
-                          >
-                            <span
-                              class='item-name'
-                              v-bk-overflow-tips
-                            >
-                              {this.getSearchNode(data.name, this.searchVal)}
-                            </span>
-                          </span>
-                        </div>
-                      );
-                    },
-                  }}
-                  check-strictly={false}
-                  data={this.data}
-                  default-checked-nodes={this.getDefaultCheckedIds()}
-                  default-expanded-nodes={this.getDefaultExpandedIds()}
-                  selectable={true}
-                  show-checkbox={this.isShowCheckbox}
-                  on-check-change={this.handleCheckChange}
-                />
+          <div class='tree-panel'>
+            <bk-input
+              clearable={true}
+              left-icon='bk-icon icon-search'
+              placeholder={this.$t('请输入关键字')}
+              value={this.searchVal}
+              onChange={this.handleSearch}
+            />
+            {this.loading ? (
+              <div class='skeleton-wrap'>
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
               </div>
-            </div>
-          )}
+            ) : (
+              <div class='pipeline-workload-tree'>
+                {!this.data.length ? (
+                  <div class='pipeline-empty'>{this.$t('暂无选项')}</div>
+                ) : (
+                  <bk-big-tree
+                    ref='tree'
+                    scopedSlots={{
+                      default: ({ data }) => {
+                        if (data.key === 'more') return this.renderLoadMore(data);
+                        return (
+                          <div class={['bk-tree-node', { root: data.root }]}>
+                            <span
+                              style='padding-right: 5px;'
+                              class='node-content'
+                            >
+                              <span
+                                class='item-name'
+                                v-bk-overflow-tips
+                              >
+                                {this.getSearchNode(data.name, this.searchVal)}
+                              </span>
+                              {data.count ? <span class='item-count'>{data.count}</span> : undefined}
+                            </span>
+                          </div>
+                        );
+                      },
+                    }}
+                    check-on-click={true}
+                    check-strictly={false}
+                    data={this.data}
+                    default-checked-nodes={this.getDefaultCheckedIds()}
+                    default-expanded-nodes={this.getDefaultExpandedIds()}
+                    padding={0}
+                    show-checkbox={this.isShowCheckbox}
+                    on-check-change={this.handleCheckChange}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </bk-popover>
     );

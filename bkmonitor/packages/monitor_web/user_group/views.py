@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -45,7 +45,7 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         增加对轮值规则的过滤
         """
-        queryset = super(UserGroupViewSet, self).get_queryset()
+        queryset = super().get_queryset()
         if self.request.query_params.get("duty_rules"):
             queryset = queryset.filter(duty_rules__contains=self.request.query_params["duty_rules"])
         return queryset
@@ -60,6 +60,12 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
             request = get_request(peaceful=True)
             setattr(request, "notice_user_detail", True)
         return self.serializer_class
+
+    @action(detail=False, methods=["post"])
+    def bulk_update(self, request, *args, **kwargs):
+        params = request.data
+        data = resource.user_group.user_group_bulk_update(params)
+        return Response(data)
 
 
 class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
@@ -86,12 +92,12 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         增加对轮值标签的过滤
         """
-        queryset = super(DutyRuleViewSet, self).get_queryset()
+        queryset = super().get_queryset()
         if self.request.query_params.get("labels"):
             queryset = queryset.filter(labels__contains=self.request.query_params["labels"])
         return queryset
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=["post"])
     def switch(self, request):
         """
         启停开关
