@@ -64,6 +64,7 @@ interface IEventExploreViewEvents {
   onSearch: () => void;
   onConditionChange(e: ConditionChangeEvent): void;
   onShowEventSourcePopover(event: Event): void;
+  onSetRouteParams(otherQuery: Record<string, any>): void;
 }
 
 @Component
@@ -153,6 +154,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Emit('search')
   filterSearch() {
     return;
+  }
+
+  @Emit('setRouteParams')
+  setRouteParams(otherQuery = {}) {
+    return otherQuery;
   }
 
   created() {
@@ -359,6 +365,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
             onSearch={this.filterSearch}
+            onSetRouteParams={this.setRouteParams}
             onShowEventSourcePopover={this.handleShowEventSourcePopover}
           />
         </div>

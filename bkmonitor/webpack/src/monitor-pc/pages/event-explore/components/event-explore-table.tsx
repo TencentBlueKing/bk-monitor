@@ -81,6 +81,7 @@ interface EventExploreTableEvents {
   onSearch: () => void;
   onClearSearch: () => void;
   onShowEventSourcePopover: (event: Event) => void;
+  onSetRouteParams: (otherQuery: Record<string, any>) => void;
 }
 
 /** 检索表格loading类型枚举 */
@@ -201,8 +202,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     const nQueryConfig = nVal?.query_configs?.[0];
     const oQueryConfig = oVal?.query_configs?.[0];
     if (
-      nQueryConfig?.table !== oQueryConfig?.table ||
-      nQueryConfig?.data_source_label !== oQueryConfig?.data_source_label
+      !!oQueryConfig &&
+      (nQueryConfig?.table !== oQueryConfig?.table ||
+        nQueryConfig?.data_source_label !== oQueryConfig?.data_source_label)
     ) {
       this.handleSortChange();
       this.tableRef?.clearSort?.();
@@ -228,6 +230,21 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Emit('search')
   filterSearch() {
     return;
+  }
+
+  @Emit('setRouteParams')
+  setRouteParams(otherQuery = {}) {
+    return otherQuery;
+  }
+
+  beforeMount() {
+    const { query } = this.$route;
+    if (!query?.prop || !query?.order) {
+      this.setRouteParams({ prop: '', order: null });
+      return;
+    }
+    this.sortContainer.prop = query?.prop as string;
+    this.sortContainer.order = query?.order as 'ascending' | 'descending';
   }
 
   mounted() {
@@ -608,6 +625,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     }
     this.sortContainer.prop = prop;
     this.sortContainer.order = order;
+    this.setRouteParams({
+      prop: prop || '',
+      order: order,
+    });
     this.getEventLogs();
   }
 
@@ -792,6 +813,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           }}
           border={false}
           data={this.tableData}
+          default-sort={this.sortContainer}
           outer-border={false}
           row-key={row => row._meta.__index + row._meta.__doc_id}
           on-row-click={this.handleTableRowClick}

@@ -99,7 +99,7 @@ export default class ApmEventExplore extends tsc<object> {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(otherQuery = {}) {
     const where = [...this.where];
     if (!this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) {
       where.push({ key: 'source', method: 'eq', condition: ECondition.and, value: this.eventSourceType });
@@ -126,6 +126,7 @@ export default class ApmEventExplore extends tsc<object> {
       filterMode: this.filterMode,
       commonWhere: JSON.stringify(this.commonWhere),
       showResidentBtn: String(this.showResidentBtn),
+      ...otherQuery,
     };
 
     const targetRoute = this.$router.resolve({
@@ -191,6 +192,7 @@ export default class ApmEventExplore extends tsc<object> {
         onEventSourceTypeChange={this.handleEventSourceTypeChange}
         onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
+        onSetRouteParams={this.setRouteParams}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />
