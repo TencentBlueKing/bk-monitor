@@ -560,7 +560,17 @@ class IndexSetHandler(APIModel):
         index_set.is_active = True
         index_set.save()
 
-    def add_index(self, bk_biz_id, time_filed, result_table_id, result_table_name=None):
+    def add_index(
+        self,
+        bk_biz_id,
+        time_filed,
+        result_table_id,
+        scenario_id,
+        storage_cluster_id,
+        result_table_name=None,
+        time_field_type=None,
+        time_field_unit=None,
+    ):
         """
         添加索引到索引集内
         """
@@ -579,7 +589,10 @@ class IndexSetHandler(APIModel):
             bk_biz_id,
             time_filed,
             result_table_id,
-            storage_cluster_id=self.storage_cluster_id,
+            storage_cluster_id=storage_cluster_id,
+            scenario_id=scenario_id,
+            time_field_type=time_field_type,
+            time_field_unit=time_field_unit,
             result_table_name=result_table_name,
             bk_username=get_request_username(),
         ).add_index()
@@ -1422,29 +1435,37 @@ class BaseIndexSetHandler:
         self.is_editable = is_editable
 
         # time_field
-        self.time_field = time_field
-        self.time_field_type = time_field_type
-        self.time_field_unit = time_field_unit
-        if self.scenario_id == Scenario.BKDATA:
-            self.time_field = DEFAULT_TIME_FIELD
-            self.time_field_type = TimeFieldTypeEnum.DATE.value
-            self.time_field_unit = TimeFieldUnitEnum.MILLISECOND.value
-        elif self.scenario_id == Scenario.LOG:
-            self.time_field = DEFAULT_TIME_FIELD
-            self.time_field_type = TimeFieldTypeEnum.DATE.value
-            self.time_field_unit = TimeFieldUnitEnum.MILLISECOND.value
-        elif self.scenario_id == Scenario.ES and action != "delete":
-            if not self.time_field:
-                raise SearchUnKnowTimeField()
-            elif self.time_field_type in [TimeFieldTypeEnum.LONG.value]:
-                if not self.time_field_unit:
-                    raise SearchUnKnowTimeField()
+        self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
+            self.scenario_id,
+            time_field,
+            time_field_type,
+            time_field_unit,
+            action,
+        )
 
         # 上下文、实时日志定位字段 排序字段
         self.target_fields = target_fields if target_fields else []
         self.sort_fields = sort_fields if sort_fields else []
         self.target_fields_raw = target_fields
         self.sort_fields_raw = sort_fields
+
+    @staticmethod
+    def init_time_field(scenario_id, time_field, time_field_type, time_field_unit, action=None):
+        if scenario_id == Scenario.BKDATA:
+            time_field = DEFAULT_TIME_FIELD
+            time_field_type = TimeFieldTypeEnum.DATE.value
+            time_field_unit = TimeFieldUnitEnum.MILLISECOND.value
+        elif scenario_id == Scenario.LOG:
+            time_field = DEFAULT_TIME_FIELD
+            time_field_type = TimeFieldTypeEnum.DATE.value
+            time_field_unit = TimeFieldUnitEnum.MILLISECOND.value
+        elif scenario_id == Scenario.ES and action != "delete":
+            if not time_field:
+                raise SearchUnKnowTimeField()
+            if time_field_type in [TimeFieldTypeEnum.LONG.value]:
+                if not time_field_unit:
+                    raise SearchUnKnowTimeField()
+        return time_field, time_field_type, time_field_unit
 
     def create_index_set(self):
         """
@@ -1524,10 +1545,20 @@ class BaseIndexSetHandler:
 
         # 创建索引集的同时添加索引
         for index in self.indexes:
+            _, time_field_type, time_field_unit = self.init_time_field(
+                index["scenario_id"],
+                index.get("time_field"),
+                index.get("time_field_type"),
+                index.get("time_field_unit"),
+            )
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_index(
                 bk_biz_id=index["bk_biz_id"],
                 time_filed=index.get("time_field"),
                 result_table_id=index["result_table_id"],
+                scenario_id=index["scenario_id"],
+                storage_cluster_id=index["storage_cluster_id"],
+                time_field_type=time_field_type,
+                time_field_unit=time_field_unit,
             )
 
         # 更新字段快照
@@ -1558,38 +1589,44 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            TransferApi.create_or_update_log_router(
-                {
-                    "cluster_id": index_set.storage_cluster_id,
-                    "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
-                    "source_type": index_set.scenario_id,
-                    "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-                    "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "need_create_index": True if index_set.collector_config_id else False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set.time_field,
-                                    "type": index_set.time_field_type,
-                                    "unit": index_set.time_field_unit
-                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                        },
-                    ],
-                }
-            )
+            request_params = {
+                "cluster_id": index_set.storage_cluster_id,
+                "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
+                "data_label": f"bklog_index_set_{index_set.index_set_id}",
+                "space_id": index_set.space_uid.split("__")[-1],
+                "space_type": index_set.space_uid.split("__")[0],
+                "need_create_index": True if index_set.collector_config_id else False,
+                "options": [
+                    {
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
+                            {
+                                "name": index_set.time_field,
+                                "type": index_set.time_field_type,
+                                "unit": index_set.time_field_unit
+                                if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
+                            }
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": json.dumps(index_set.scenario_id != Scenario.ES),
+                    },
+                ],
+            }
+            objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
+            for obj in objs:
+                request_params.update(
+                    {
+                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{obj.result_table_id.replace('.', '_')}.__default__",
+                        "source_type": obj.scenario_id,
+                        "storage_cluster_id": obj.storage_cluster_id,
+                    }
+                )
+                TransferApi.create_or_update_log_router(request_params)
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True
@@ -1653,10 +1690,20 @@ class BaseIndexSetHandler:
             if index["result_table_id"] not in [index["result_table_id"] for index in self.index_set_obj.indexes]
         ]
         for index in to_append_indexes:
+            _, time_field_type, time_field_unit = self.init_time_field(
+                index["scenario_id"],
+                index.get("time_field"),
+                index.get("time_field_type"),
+                index.get("time_field_unit"),
+            )
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_index(
                 index["bk_biz_id"],
                 index.get("time_field"),
                 index["result_table_id"],
+                index["scenario_id"],
+                index["result_table_id"],
+                time_field_type,
+                time_field_unit,
             )
 
         # 更新字段快照
@@ -1778,6 +1825,9 @@ class LogIndexSetDataHandler:
         result_table_id,
         result_table_name=None,
         storage_cluster_id=None,
+        scenario_id=None,
+        time_field_type=None,
+        time_field_unit=None,
         apply_status=LogIndexSetData.Status.NORMAL,
         bk_username=None,
     ):
@@ -1787,6 +1837,9 @@ class LogIndexSetDataHandler:
         self.result_table_id = result_table_id
         self.result_table_name = result_table_name
         self.storage_cluster_id = storage_cluster_id
+        self.scenario_id = scenario_id
+        self.time_field_type = time_field_type
+        self.time_field_unit = time_field_unit
         self.apply_status = apply_status
         self.bk_username = get_request_username() or bk_username
 
@@ -1799,6 +1852,10 @@ class LogIndexSetDataHandler:
                 "time_field": self.time_field,
                 "result_table_name": self.result_table_name,
                 "apply_status": self.apply_status,
+                "scenario_id": self.scenario_id,
+                "storage_cluster_id": self.storage_cluster_id,
+                "time_field_type": self.time_field_type,
+                "time_field_unit": self.time_field_unit,
             },
             index_set_id=self.index_set_data.index_set_id,
             bk_biz_id=self.bk_biz_id or None,
