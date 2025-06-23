@@ -49,7 +49,7 @@ class AgentInstanceBuilder:
             )
             # TODO: 如果最后一条消息是assistant，且content里有"生成中"三个字，则去掉
             content = session_context_data[-1]["content"]
-            if settings.AIDEV_AGENT_AI_THINKING_KEYWORD in content:  # 只要 content 里有"生成中"三个字即可
+            if settings.AIDEV_AGENT_AI_GENERATING_KEYWORD in content:  # 只要 content 里有"生成中"三个字即可
                 session_context_data.pop()
 
         chat_history = [ChatPrompt.model_validate(each) for each in session_context_data]
