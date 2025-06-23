@@ -293,6 +293,12 @@ const MonitorTraceLog = () =>
   );
 // #endif
 
+const ShareLink = () =>
+  import(
+    /* webpackChunkName: 'share-link' */
+    '@/views/share.tsx'
+  );
+
 const getRoutes = (spaceId, bkBizId, externalMenu) => {
   const getDefRouteName = () => {
     if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
@@ -1084,6 +1090,15 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
       path: '/playground',
       name: 'playground',
       component: playground,
+    },
+    {
+      path: '/share/:linkId?',
+      name: 'share',
+      component: ShareLink,
+      meta: {
+        title: '分享链接',
+        navId: 'share',
+      },
     },
     // #if MONITOR_APP === 'apm'
     {

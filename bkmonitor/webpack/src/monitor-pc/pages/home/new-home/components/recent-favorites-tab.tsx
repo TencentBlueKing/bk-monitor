@@ -230,11 +230,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     }
     event.preventDefault();
     // 打开小鲸聊天框
-    aiWhaleStore.setShowAIBlueking(true);
-    console.info('send content: ', event.target.innerText);
-    aiWhaleStore.handleAiBluekingSend({
-      content: event.target.innerText,
-    });
+    aiWhaleStore.sendMessage(event.target.innerText);
     event.target.innerText = '';
   }
 

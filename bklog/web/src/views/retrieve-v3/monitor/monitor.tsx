@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, watch } from 'vue';
+import { computed, defineComponent, provide, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
@@ -68,10 +68,10 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore();
+    provide('handleChartDataZoom', props.handleChartDataZoom);
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, isPreApiLoaded, getIndexSetList,setDefaultRouteUrl } =
       useMonitorAppInit(props.indexSetApi);
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-
     const init = () => {
       const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
       store.commit('updateIndexItem', {

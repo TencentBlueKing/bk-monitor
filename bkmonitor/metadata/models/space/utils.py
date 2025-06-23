@@ -297,6 +297,7 @@ def get_dimension_values(space_type_id: str, space_id: str, resource_type: str |
     return dimension_list
 
 
+# TODO: 多租户改造联调验证
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_space(
     creator: str,
@@ -305,6 +306,7 @@ def create_space(
     space_name: str,
     resources: list | None = None,
     space_code: str | None = "",
+    bk_tenant_id: str = DEFAULT_TENANT_ID,
 ) -> dict:
     """创建空间
 
@@ -316,6 +318,7 @@ def create_space(
     :param space_name: 空间中文名称
     :param resources: 绑定的资源信息，如[{"resource_type": "xxx", "resource_id": "xxx"}]
     :param space_code: 空间 Code，用于标识 BCS 的项目 ID
+    :param bk_tenant_id: 租户 ID
     :return: 空间的详情
     """
     # 创建空间实例
@@ -326,6 +329,7 @@ def create_space(
         "space_code": space_code,
         "space_name": space_name,
         "status": SpaceStatus.NORMAL.value,
+        "bk_tenant_id": bk_tenant_id,
     }
     # NOTE: 针对空间 code 不为空时，认为开启容器服务功能
     if space_code:
@@ -759,43 +763,25 @@ def get_data_id_by_cluster(cluster_id: str | None = None, desire_all_data: bool 
     return cluster_data_id_dict
 
 
-def get_shared_cluster_namespaces(cluster_id: str, project_code: str) -> list:
+def get_shared_cluster_namespaces(bk_tenant_id: str, cluster_id: str, project_code: str) -> list:
     """获取共享集群的命名空间信息"""
     # 通过 project manager api 项目使用获取共享集群的命名空间
     try:
-        return api.bcs.fetch_shared_cluster_namespaces(cluster_id=cluster_id, project_code=project_code)
+        return api.bcs.fetch_shared_cluster_namespaces(
+            bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, project_code=project_code
+        )
     except Exception as e:
         logging.error("request shared cluster namespace error, err: %s", e)
         return []
 
 
-def get_project_clusters(project_id: str) -> list:
+def get_project_clusters(bk_tenant_id: str, project_id: str) -> list:
     """获取项目下的集群列表"""
     try:
-        return api.bcs_cluster_manager.get_project_clusters(project_id=project_id)
+        return api.bcs_cluster_manager.get_project_clusters(bk_tenant_id=bk_tenant_id, project_id=project_id)
     except Exception as e:
         logger.error("request project cluster list error, err: %s", e)
         return []
-
-
-def get_space_shared_namespaces(space_id: str):
-    """获取共享命名空间信息"""
-    shared_clusters = api.bcs_cluster_manager.get_shared_clusters()
-    shared_cluster_namespaces = []
-    for cluster in shared_clusters:
-        shared_cluster_namespaces.extend(
-            get_shared_cluster_namespaces(cluster_id=cluster["cluster_id"], project_code=space_id)
-        )
-
-    cluster_namespace_dict = {}
-    for d in shared_cluster_namespaces:
-        cluster_id, ns = d["cluster_id"], d["namespace"]
-        if cluster_id in cluster_namespace_dict:
-            cluster_namespace_dict[cluster_id].append(ns)
-        else:
-            cluster_namespace_dict[cluster_id] = [ns]
-
-    return cluster_namespace_dict
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
@@ -877,6 +863,7 @@ def add_cluster_data_id_list(space_type_id: str, space_id: str, cluster_data_id_
 
 
 def compose_bcs_space_data_source(
+    bk_tenant_id: str,
     space_type_id: str,
     space_id: str,
     data_id_list: list,
@@ -929,13 +916,14 @@ def compose_bcs_space_data_source(
 def create_bcs_spaces(project_list: list) -> bool:
     """创建容器对应的空间信息，需要检查业务下的 ID 及关联资源(业务和集群及命名空间)
 
-    :param project_list: 项目相关信息，包含项目 ID、项目名称、项目 Code
+    :param project_list: 项目相关信息，包含租户ID、项目ID、项目名称、项目 Code
     :return: 返回 True 或异常
     """
     space_data, space_data_id_list, space_resource_list = [], [], []
     for p in project_list:
         space_data.append(
             Space(
+                bk_tenant_id=p["bk_tenant_id"],
                 creator=SYSTEM_USERNAME,
                 updater=SYSTEM_USERNAME,
                 space_type_id=SpaceTypes.BKCI.value,
@@ -948,6 +936,7 @@ def create_bcs_spaces(project_list: list) -> bool:
         # 获取业务下的 data id, 然后授权给项目使用
         data_id_list = list(
             SpaceDataSource.objects.filter(
+                bk_tenant_id=p["bk_tenant_id"],
                 space_type_id=SpaceTypes.BKCC.value,
                 space_id=str(p["bk_biz_id"]),
                 from_authorization=False,
@@ -959,10 +948,13 @@ def create_bcs_spaces(project_list: list) -> bool:
         shared_cluster_data_id_list, project_cluster_data_id_list = [], []
         # 组装空间对应的资源
         # 查询项目下集群，防止出现查询所有集群超时问题
-        cluster_list = api.bcs_cluster_manager.get_project_clusters(project_id=p["project_id"])
+        cluster_list = api.bcs_cluster_manager.get_project_clusters(
+            bk_tenant_id=p["bk_tenant_id"], project_id=p["project_id"]
+        )
         # 添加项目关联的业务资源
         space_resource_list.append(
             SpaceResource(
+                bk_tenant_id=p["bk_tenant_id"],
                 creator=SYSTEM_USERNAME,
                 updater=SYSTEM_USERNAME,
                 space_type_id=SpaceTypes.BKCI.value,
@@ -987,7 +979,9 @@ def create_bcs_spaces(project_list: list) -> bool:
                 shared_cluster_data_id_list.extend(cluster_data_id_list)
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=c["cluster_id"], project_code=p["project_code"])
+                    for ns in get_shared_cluster_namespaces(
+                        bk_tenant_id=p["bk_tenant_id"], cluster_id=c["cluster_id"], project_code=p["project_code"]
+                    )
                 ]
                 project_cluster_ns_list.append(
                     {"cluster_id": c["cluster_id"], "namespace": ns_list, "cluster_type": "shared"}
@@ -999,6 +993,7 @@ def create_bcs_spaces(project_list: list) -> bool:
                 )
         space_data_id_list.extend(
             compose_bcs_space_data_source(
+                p["bk_tenant_id"],
                 SpaceTypes.BKCI.value,
                 p["project_code"],
                 data_id_list,
@@ -1008,6 +1003,7 @@ def create_bcs_spaces(project_list: list) -> bool:
         )
         space_resource_list.append(
             SpaceResource(
+                bk_tenant_id=p["bk_tenant_id"],
                 creator=SYSTEM_USERNAME,
                 updater=SYSTEM_USERNAME,
                 space_type_id=SpaceTypes.BKCI.value,
@@ -1038,18 +1034,17 @@ def get_metadata_cluster_list() -> list:
     return list(BCSClusterInfo.objects.filter(status="running").values_list("cluster_id", flat=True))
 
 
-def get_valid_bcs_projects() -> list:
+def get_valid_bcs_projects(bk_tenant_id: str) -> list:
     """获取可用的 BKCI(BCS) 项目空间"""
-    projects = (
-        api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
-    )
+    projects = api.bcs.get_projects(kind="k8s", bk_tenant_id=bk_tenant_id)
     # 排除业务ID为 0 的记录，或者绑定的 BKCC 业务 ID 不存在的信息
-    bk_biz_id_list = [b.bk_biz_id for b in api.cmdb.get_business()]
+    bk_biz_id_list = [b.bk_biz_id for b in api.cmdb.get_business(bk_tenant_id=bk_tenant_id)]
     # 返回有效的项目记录
     valid_project_list = []
     for p in projects:
         if p["bk_biz_id"] == "0" or int(p["bk_biz_id"]) not in bk_biz_id_list:
             continue
+        p["bk_tenant_id"] = bk_tenant_id
         valid_project_list.append(p)
 
     return valid_project_list
@@ -1125,20 +1120,6 @@ def cached_cluster_data_id_list() -> list:
         cluster_data_id_list.append(data_id["CustomMetricDataID"])
     cache.set(key, cluster_data_id_list, 60 * 60)
     return cluster_data_id_list
-
-
-def get_bkci_projects() -> list:
-    """获取 bkci 的项目信息"""
-    try:
-        # 查询项目信息
-        return (
-            api.bcs_cc.batch_get_projects(filter_k8s_kind=False)
-            if settings.ENABLE_BCS_CC_PROJECT_API
-            else api.bcs.get_projects()
-        )
-    except Exception as e:
-        logger.error("query project error, %s", e)
-        return []
 
 
 def cached_cluster_k8s_data_id() -> list:

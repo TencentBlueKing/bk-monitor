@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -37,14 +37,14 @@ class K8sEventProcessor(BaseEventProcessor):
         self.bcs_cluster_context = bcs_cluster_context
 
     @classmethod
-    def _need_process(cls, origin_event: Dict[str, Any]) -> bool:
+    def _need_process(cls, origin_event: dict[str, Any]) -> bool:
         return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
             EventDomain.K8S.value,
             EventSource.BCS.value,
         )
 
-    def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        processed_events: List[Dict[str, Any]] = []
+    def process(self, origin_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        processed_events: list[dict[str, Any]] = []
         for origin_event in origin_events:
             if not self._need_process(origin_event):
                 processed_events.append(origin_event)
@@ -55,11 +55,11 @@ class K8sEventProcessor(BaseEventProcessor):
 
         return processed_events
 
-    def set_fields(self, processed_event: Dict[str, Any]) -> None:
+    def set_fields(self, processed_event: dict[str, Any]) -> None:
         start_time, end_time = generate_time_range(processed_event["time"]["value"])
         k8s_info = create_k8s_info(
             processed_event["origin_data"],
-            ["bk_biz_id", "event_name", "target", "bcs_cluster_id", "namespace", "name", "kind"],
+            ["bk_biz_id", "event_name", "target", "bcs_cluster_id", "namespace", "name", "kind", "host"],
         )
         # 设置详情字段
         self.set_detail_fields(processed_event, k8s_info, start_time, end_time)
@@ -105,12 +105,12 @@ class K8sEventProcessor(BaseEventProcessor):
 
     def set_detail_fields(
         self,
-        processed_event: Dict[str, Any],
+        processed_event: dict[str, Any],
         k8s_info,
         start_time: int,
         end_time: int,
     ) -> None:
-        def create_detail_field(field: str, alias: str, url: str) -> Dict[str, str]:
+        def create_detail_field(field: str, alias: str, url: str) -> dict[str, str]:
             field_value = k8s_info[field]["value"]
             if not field_value:
                 return {}
@@ -129,6 +129,7 @@ class K8sEventProcessor(BaseEventProcessor):
         bk_biz_id = k8s_info["bk_biz_id"]["value"]
         namespace = k8s_info["namespace"]["value"]
         name = k8s_info["name"]["value"]
+        host = k8s_info["host"]["value"]
         kind = k8s_info["kind"]["value"]
         if bcs_cluster_id:
             detail["bcs_cluster_id"] = create_detail_field(
@@ -151,13 +152,23 @@ class K8sEventProcessor(BaseEventProcessor):
                 # 统一使用 kind 表示不同监控指标的名称所在层级
                 self.generate_url("kind", k8s_info, start_time, end_time),
             )
+        # 如果有 host 字段，补充容器监控容量界面的 url 到 detail 内
+        if host:
+            detail["host"] = create_detail_field(
+                "host",
+                host,
+                self._generate_capacity_url(k8s_info, start_time, end_time, host),
+            )
 
     @classmethod
-    def generate_url(cls, level: str, k8s_info: Dict[str, Any], start_time: int, end_time: int) -> str:
+    def generate_url(cls, level: str, k8s_info: dict[str, Any], start_time: int, end_time: int) -> str:
         kind: str = k8s_info["kind"]["value"]
         name: str = k8s_info["name"]["value"]
         namespace = k8s_info["namespace"]["value"]
-        # TODO(yamltdg): 等后续容器监控支持存储、容量等新功能再完善对应的跳转。
+        # TODO(yamltdg): 等后续容器监控支持存储等新功能再完善对应的跳转。
+        # Node 跳转容器监控容量界面
+        if kind == "Node":
+            return cls._generate_capacity_url(k8s_info, start_time, end_time, name)
         if kind in ["Service", "Endpoints", "Ingress"]:
             return cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
         # 先默认走容器监控性能页面
@@ -166,12 +177,12 @@ class K8sEventProcessor(BaseEventProcessor):
     @classmethod
     def _generate_url(
         cls,
-        k8s_info: Dict[str, Any],
+        k8s_info: dict[str, Any],
         start_time,
         end_time,
-        filter_by: Dict[str, Any],
-        group_by: List[str],
-        tab_info: Dict[str, str],
+        filter_by: dict[str, Any],
+        group_by: list[str],
+        tab_info: dict[str, str],
     ) -> str:
         params = {
             "from": start_time,
@@ -188,8 +199,11 @@ class K8sEventProcessor(BaseEventProcessor):
 
     @classmethod
     def _generate_performance_url(
-        cls, level: str, k8s_info: Dict[str, Any], start_time, end_time, namespace, name, kind
+        cls, level: str, k8s_info: dict[str, Any], start_time, end_time, namespace, name, kind
     ) -> str:
+        """
+        生成容器监控性能界面url
+        """
         filter_by = {"namespace": [], "workload": [], "pod": [], "container": []}
         tab_info = {
             "scene": ContainerMonitorMetricsType.PERFORMANCE.value,
@@ -241,23 +255,20 @@ class K8sEventProcessor(BaseEventProcessor):
                 k8s_info, start_time, end_time, filter_by, ["namespace", "workload", "pod", "container"], tab_info
             )
 
-        if kind == "Node":
-            return cls._generate_legacy_host_url(k8s_info, name, start_time, end_time)
-
         return ""
 
     @classmethod
     def _generate_network_url(
-        cls, level: str, k8s_info: Dict[str, Any], start_time, end_time, namespace, name, kind
+        cls, level: str, k8s_info: dict[str, Any], start_time, end_time, namespace, name, kind
     ) -> str:
         """ "
         生成容器监控网络界面url
         """
-        tab_info: Dict[str, str] = {
+        tab_info: dict[str, str] = {
             "scene": ContainerMonitorMetricsType.NETWORK.value,
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
-        filter_by: Dict[str, List[str]] = {"namespace": [], "ingress": [], "service": [], "pod": []}
+        filter_by: dict[str, list[str]] = {"namespace": [], "ingress": [], "service": [], "pod": []}
         group_by = ["namespace", "pod"]
         if level == "cluster":
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, ["namespace"], tab_info)
@@ -280,16 +291,12 @@ class K8sEventProcessor(BaseEventProcessor):
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
 
     @classmethod
-    def _generate_legacy_host_url(cls, k8s_info, host: str, start_time, end_time) -> str:
-        params = {
-            "from": start_time,
-            "to": end_time or "now",
-            "sceneId": "kubernetes",
-            "dashboardId": "node",
-            "sceneType": "detail",
-            "queryData": json.dumps(
-                {"selectorSearch": [{"bcs_cluster_id": k8s_info["bcs_cluster_id"]["value"]}, {"name": host}]}
-            ),
+    def _generate_capacity_url(cls, k8s_info: dict[str, Any], start_time, end_time, name) -> str:
+        """
+        生成容器监控容量界面url
+        """
+        tab_info: dict[str, str] = {
+            "scene": ContainerMonitorMetricsType.CAPACITY.value,
+            "activeTab": ContainerMonitorTabType.LIST.value,
         }
-        bk_biz_id = k8s_info["bk_biz_id"]["value"]
-        return f"{settings.BK_MONITOR_HOST}?bizId={bk_biz_id}#/k8s?{urlencode(params)}"
+        return cls._generate_url(k8s_info, start_time, end_time, {"node": [name]}, ["node"], tab_info)

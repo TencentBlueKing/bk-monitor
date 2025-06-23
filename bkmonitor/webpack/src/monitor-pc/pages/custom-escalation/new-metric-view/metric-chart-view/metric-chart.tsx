@@ -47,6 +47,7 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
+import { createMenuList } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -91,6 +92,11 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: '' }) currentMethod: string;
   /** groupId */
   @Prop({ default: '' }) groupId: string;
+  /** 是否展示图例 */
+  @Prop({ default: false }) isNeedMenu: boolean;
+  /** 是否需要鼠标hover到x轴的交互*/
+  @Prop({ default: false }) isNeedUpdateAxisPointer: boolean;
+
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
@@ -101,10 +107,16 @@ class NewMetricChart extends CommonSimpleChart {
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
   @Ref('baseChart') readonly baseChart: HTMLElement;
+  @Ref('chart') readonly chart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
   }));
+  contextmenuInfo = {
+    options: [{ id: 'drill', name: window.i18n.tc('维度下钻') }],
+    sliceStartTime: 0, // 当前切片起始时间
+    sliceEndTime: 0,
+  };
   customScopedVars: Record<string, any> = {};
   width = 300;
   initialized = false;
@@ -149,10 +161,13 @@ class NewMetricChart extends CommonSimpleChart {
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
-  legendSorts: { name: string; timeShift: string; tipsName: string }[] = [];
+  legendSorts: { name: string; timeShift: string; tipsName: string; target: string }[] = [];
   // 切换图例时使用
   seriesList = null;
   minBase = 0;
+  enableContextmenu = true;
+  // 自动粒度降采样
+  downSampleRange = 'auto';
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -319,7 +334,7 @@ class NewMetricChart extends CommonSimpleChart {
           if (['min', 'max', 'avg', 'total', 'latest'].includes(key)) {
             const val = legendItem[key];
             legendItem[`${key}Source`] = val;
-            const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : precision);
+            const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : 2);
             legendItem[key] = set.text + (set.suffix || '');
           }
         }
@@ -348,7 +363,7 @@ class NewMetricChart extends CommonSimpleChart {
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);
       if (lItem) {
-        result.push({ ...lItem, ...{ tipsName: item.tipsName } });
+        result.push({ ...lItem, ...{ tipsName: item.tipsName, target: item.target } });
       }
     }
     this.legendData = result;
@@ -400,6 +415,20 @@ class NewMetricChart extends CommonSimpleChart {
       return [startTime, endTime];
     }
     return [startTime, endTime];
+  }
+  /* 粒度计算 */
+  downSampleRangeComputed(downSampleRange: string, timeRange: number[]) {
+    if (downSampleRange === 'auto') {
+      let width = 1;
+      if (this.$refs.chart) {
+        width = this.$refs.chart.clientWidth;
+      } else {
+        width = this.$refs.chart!.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
+      }
+      const size = ((timeRange[1] - timeRange[0]) / width) * 1.5;
+      return size > 0 ? `${Math.ceil(size)}s` : undefined;
+    }
+    return downSampleRange;
   }
   /**
    * @description: 获取图表数据
@@ -459,6 +488,7 @@ class NewMetricChart extends CommonSimpleChart {
           unify_query_param: {
             ...newParams.unify_query_param,
           },
+          down_sample_range: this.downSampleRangeComputed(this.downSampleRange, [startTime, endTime]),
         });
         return graphUnifyQuery(...paramsArr, {
           cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -476,6 +506,7 @@ class NewMetricChart extends CommonSimpleChart {
                     name,
                     tipsName,
                     timeShift: set.time_offset || '',
+                    target: set.target,
                   });
                   return {
                     ...set,
@@ -576,12 +607,12 @@ class NewMetricChart extends CommonSimpleChart {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
-                    if (seriesList[0].unit !== 'none') {
-                      const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                      return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                      if (seriesList[0].unit !== 'none') {
+                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                        return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                      }
+                      return v;
                     }
-                    return v;
-                  }
                   : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
@@ -649,7 +680,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (customSave) return dataUrl;
         downFile(dataUrl, `${title}.png`);
       })
-      .catch(() => { });
+      .catch(() => {});
   }
   dataZoom(startTime: string, endTime: string) {
     this.showRestore = !!startTime;
@@ -688,6 +719,7 @@ class NewMetricChart extends CommonSimpleChart {
         dashboardId: this.generateRandomDashboardId(),
         subTitle: this.panel.sub_title,
         type: 'graph',
+        groupId: null,
         id: this.panel.sub_title,
         end_time: endTime,
         start_time: startTime,
@@ -848,6 +880,35 @@ class NewMetricChart extends CommonSimpleChart {
       );
     });
   }
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    if (this.isNeedMenu) {
+      event.preventDefault();
+      if (this.enableContextmenu) {
+        const { pageX, pageY } = event;
+        const instance = (this.$refs.baseChart as any).instance;
+        createMenuList(
+          this.contextmenuInfo.options,
+          { x: pageX, y: pageY },
+          (id: string) => {
+            this.$emit('contextmenuClick', id, instance);
+          },
+          instance,
+          'drill-down-chart-tab'
+        );
+      }
+    }
+  }
+  /** x轴hover的相关交互 */
+  handleUpdateAxisPointer(params) {
+    if (this.isNeedUpdateAxisPointer) {
+      const { axesInfo } = params;
+      if (axesInfo.length === 0) {
+        return;
+      }
+      this.$emit('zrMouseover', { value: axesInfo[0].value });
+    }
+  }
   render() {
     return (
       <div class='new-metric-chart'>
@@ -860,7 +921,7 @@ class NewMetricChart extends CommonSimpleChart {
           metrics={this.metrics}
           needMoreMenu={true}
           showMore={true}
-          subtitle={this.panel.sub_title || ''}
+          subtitle={this.panel?.sub_title || ''}
           title={this.panel.title}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleIconClick}
@@ -885,7 +946,10 @@ class NewMetricChart extends CommonSimpleChart {
           )}
         </ChartHeader>
         {!this.empty ? (
-          <div class='new-metric-chart-content'>
+          <div
+            class='new-metric-chart-content'
+            onContextmenu={this.handleChartContextmenu}
+          >
             <div
               ref='chart'
               class='chart-instance'
@@ -901,6 +965,7 @@ class NewMetricChart extends CommonSimpleChart {
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
+                  onUpdateAxisPointer={this.handleUpdateAxisPointer}
                 />
               ) : (
                 <div class='skeleton-loading-chart'>

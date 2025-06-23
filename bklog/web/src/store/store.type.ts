@@ -84,6 +84,8 @@ enum BK_LOG_STORAGE {
 
 export { BK_LOG_STORAGE };
 
+export const SEARCH_MODE_DIC = ['ui', 'sql'];
+
 export type ConsitionItem = {
   field: string;
   operator: string;

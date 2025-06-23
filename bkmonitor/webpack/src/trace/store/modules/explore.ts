@@ -30,6 +30,7 @@ import { getDefaultTimezone } from '../../i18n/dayjs';
 
 import type { IApplicationItem } from '../../pages/trace-explore/typing';
 import type { ISpanListItem, ITraceListItem } from '../../typings';
+import type { SortInfo } from '@blueking/tdesign-ui';
 
 export interface ITraceExploreState {
   timeRange: TimeRangeType;
@@ -42,6 +43,7 @@ export interface ITraceExploreState {
   tableList: ISpanListItem[] | ITraceListItem[];
   tableLoading: boolean;
   filterTableList: ISpanListItem[] | ITraceListItem[];
+  tableSortContainer: SortInfo;
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
@@ -55,6 +57,12 @@ export const useTraceExploreStore = defineStore('explore', {
     tableList: [],
     tableLoading: false,
     filterTableList: [],
+    tableSortContainer: {
+      /** 排序字段 */
+      sortBy: '',
+      /** 排序顺序 */
+      descending: null,
+    },
   }),
   getters: {
     currentApp: state => state.appList.find(app => app.app_name === state.appName),
@@ -90,6 +98,16 @@ export const useTraceExploreStore = defineStore('explore', {
     updateFilterTableList(filterTableList: ISpanListItem[] | ITraceListItem[]) {
       this.filterTableList = filterTableList;
     },
+    updateTableSortContainer(sortEvent: SortInfo) {
+      let sortBy = sortEvent?.sortBy;
+      let descending = sortEvent?.descending;
+      if (!sortBy) {
+        sortBy = '';
+        descending = null;
+      }
+      this.tableSortContainer.sortBy = sortBy;
+      this.tableSortContainer.descending = descending;
+    },
     init(data: Partial<ITraceExploreState>) {
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;
       this.timezone = data.timezone || getDefaultTimezone();
@@ -97,6 +115,8 @@ export const useTraceExploreStore = defineStore('explore', {
       this.appName = data.appName || '';
       this.refreshInterval = data.refreshInterval || -1;
       this.refreshImmediate = data.refreshImmediate;
+      this.tableSortContainer.sortBy = data.tableSortContainer?.sortBy || '';
+      this.tableSortContainer.descending = data.tableSortContainer?.descending || null;
     },
   },
 });

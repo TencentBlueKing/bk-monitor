@@ -43,6 +43,7 @@ import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { MSearchResultTab } from '../type';
 import Grep from '../grep';
+import useStore from '@/hooks/use-store';
 
 import './index.scss';
 
@@ -51,6 +52,7 @@ export default defineComponent({
   setup() {
     const router = useRouter();
     const route = useRoute();
+    const store = useStore();
 
     const debounceUpdateTabValue = debounce(value => {
       const isClustering = value === 'clustering';
@@ -70,6 +72,7 @@ export default defineComponent({
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
+        store.dispatch('requestIndexSetQuery');
         setTimeout(() => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         }, 300);

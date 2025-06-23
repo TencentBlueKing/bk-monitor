@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, watch, useTemplateRef, nextTick } from 'vue';
+import { defineComponent, shallowRef, computed, watch, useTemplateRef, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useEventListener, useDebounceFn, promiseTimeout } from '@vueuse/core';
@@ -191,6 +191,10 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    onUnmounted(() => {
+      cleanup?.();
+    });
 
     function init() {
       isMacSystem.value = detectOperatingSystem() === 'macOS';
