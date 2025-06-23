@@ -296,13 +296,13 @@ const MonitorTraceLog = () =>
 const ShareLink = () =>
   import(
     /* webpackChunkName: 'share-link' */
-    '@/views/share/index'
+    '@/views/share/index.tsx'
   );
 
 const DataIdUrl = () =>
   import(
     /* webpackChunkName: 'data-id-url' */
-    '@/views/data-id-url/index'
+    '@/views/data-id-url/index.tsx'
   );
 
 const getRoutes = (spaceId, bkBizId, externalMenu) => {
