@@ -29,8 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 
+import './ai-whale-icon.scss';
+
 interface AIWhaleIconProps {
-  type: 'explanation' | 'guideline' | 'translate';
+  type: 'description' | 'explanation' | 'guideline';
   content: string;
   tip?: string;
 }
@@ -42,37 +44,47 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   @Prop({ default: '' }) tip?: string; // 提示信息
   // 是否显示AI智能助手
   get enableAiAssistant() {
-    return false; // 暂时不上线 等ai小鲸新模型调试好后
-    // return aiWhaleStore.enableAiAssistant;
+    // return false; // 暂时不上线 等ai小鲸新模型调试好后
+    return aiWhaleStore.enableAiAssistant;
   }
   /* 图标点击事件 */
   handleClick() {
     if (!this.enableAiAssistant) return;
     aiWhaleStore.setShowAIBlueking(true);
     if (this.type === 'guideline') {
-      // 提问
-      aiWhaleStore.handleAiBluekingSend({
-        content: this.content,
-      });
-    } else {
-      // 解释、翻译
-      aiWhaleStore.setAIQuickActionData({
-        type: this.type,
-        content: this.content,
-      });
+      // 操作指引
+      aiWhaleStore.sendMessage(`操作指引文案：“${this.content}”
+当前场景：“策略配置”
+请问为什么会触发当前的操作指引文案，后续可能出现什么情况，分别应该做什么操作`);
+      return;
+    }
+    if (this.type === 'explanation') {
+      // 名词解释
+      aiWhaleStore.sendMessage(`名称解释文案：“${this.content}”
+当前场景：“策略配置”
+请提供该名词在当前场景下的详细解释，如果需要可参考知识库内容`);
+      return;
+    }
+    if (this.type === 'description') {
+      // 功能说明
+      aiWhaleStore.sendMessage(`功能说明文案：“${this.content}”
+当前场景：“策略配置”
+请结合知识库内容和当前场景，详细介绍功能说明文案中的内容`);
+      return;
     }
   }
 
   render() {
+    const tips = this.enableAiAssistant && !this.tip ? this.$t('点击问AI小鲸') : this.tip;
     return (
       <i
-        class={`icon-monitor ${this.enableAiAssistant ? 'icon-AI' : 'icon-tishi'}`}
+        class={`icon-monitor ${this.enableAiAssistant ? 'icon-AI' : 'icon-tishi'} ai-whale-icon`}
         v-bk-tooltips={{
-          content: this.tip,
+          content: tips,
           placement: 'top-start',
           maxWidth: '200',
           allowHTML: false,
-          disabled: !this.tip,
+          disabled: !tips,
         }}
         onClick={this.handleClick}
       />

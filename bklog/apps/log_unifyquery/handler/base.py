@@ -16,6 +16,7 @@ import arrow
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
@@ -618,7 +619,7 @@ class UnifyQueryHandler:
                         if father:
                             _key = f"{father}.{key}"
                         else:
-                            _key = "%s" % key
+                            _key = f"{key}"
                     if _key:
                         self._update_result_fields(_key, _item[key])
 
@@ -1208,6 +1209,7 @@ class UnifyQueryHandler:
                     "index_set_id": int(index_set_id),
                     "bk_data_id": int(collector_config.bk_data_id),
                     "bk_biz_id": collector_config.bk_biz_id,
+                    "related_bk_biz_id": get_non_bkcc_space_related_bkcc_biz_id(collector_config.bk_biz_id),
                 }
                 if self.start_time and self.end_time:
                     params["start_time"] = self.start_time

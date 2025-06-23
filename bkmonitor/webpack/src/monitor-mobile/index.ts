@@ -29,7 +29,7 @@ import './public-path.ts';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import { register, unregister } from 'monitor-common/service-worker/service-wroker';
+import { register, unregister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam } from 'monitor-common/utils/utils';
 import Notify from 'vant/lib/notify';
 

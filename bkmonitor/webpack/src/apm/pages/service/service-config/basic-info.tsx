@@ -51,6 +51,7 @@ import {
   RelationEventType,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
+import PipelineSelectPanel from './components/pipeline-select-panel';
 import RelationSelectPanel from './components/relation-select-panel';
 import DebuggerDialog from './debugger-dialog';
 import { languageIconBase64 } from './utils';
@@ -199,6 +200,7 @@ export default class BasicInfo extends tsc<object> {
     isAutoRelation: true,
     cacheRelationK8s: [],
     cacheIsAutoRelation: true,
+    relationPipeline: [],
   };
 
   get bizSelectList() {
@@ -320,7 +322,7 @@ export default class BasicInfo extends tsc<object> {
       relation,
       labels,
     });
-    this.setRelationInfo();
+    await this.setRelationInfo();
     this.isLoading = false;
   }
   /**
@@ -362,9 +364,14 @@ export default class BasicInfo extends tsc<object> {
     this.localRelationInfo.apdex = apdexRelation?.apdex_value;
     // 事件关联
     if (eventRelation?.length) {
+      // 流水线事件 (cache已在组件内处理)
+      const pipelineRelation = eventRelation.find(item => item.table === RelationEventType.pipeline);
+      this.eventRelation.relationPipeline = pipelineRelation?.relations || [];
+
+      // 容器事件
       const k8sRelation = eventRelation.find(item => item.table === RelationEventType.K8s);
-      this.eventRelation.isAutoRelation = !!k8sRelation.options.is_auto;
-      this.eventRelation.relationK8s = (k8sRelation.relations || []).map(
+      this.eventRelation.isAutoRelation = !!k8sRelation?.options?.is_auto;
+      this.eventRelation.relationK8s = (k8sRelation?.relations || []).map(
         ({ bcs_cluster_id = '', namespace = '', kind = '', name = '' }) => {
           return `${bcs_cluster_id}/${namespace}/${kind}/${name}`.replace(/\/{2,4}/g, '/').replace(/\/$/, '');
         }
@@ -562,7 +569,15 @@ export default class BasicInfo extends tsc<object> {
       };
     }
     // 事件关联
-    const { isAutoRelation, relationK8s } = this.eventRelation;
+    const { isAutoRelation, relationK8s, relationPipeline } = this.eventRelation;
+
+    // 流水线事件
+    const pipelineEvent = {
+      table: RelationEventType.pipeline,
+      relations: relationPipeline,
+      options: {},
+    };
+
     // 容器事件
     const k8sEvent = {
       table: RelationEventType.K8s,
@@ -581,8 +596,9 @@ export default class BasicInfo extends tsc<object> {
         is_auto: !!isAutoRelation,
       },
     };
+
     // todo: 系统事件关联
-    params.event_relation = [k8sEvent];
+    params.event_relation = [k8sEvent, pipelineEvent];
 
     // uri 信息
     if (this.uriList.length) {
@@ -622,6 +638,11 @@ export default class BasicInfo extends tsc<object> {
   handleRelationWorkloadChange(workloads: string[]) {
     this.eventRelation.relationK8s = workloads || [];
   }
+
+  handlePipelineChange(pipelineList: string[]) {
+    this.eventRelation.relationPipeline = pipelineList || [];
+  }
+
   /** 渲染基础信息 */
   renderBaseInfo() {
     const renderText = () => {
@@ -1031,6 +1052,23 @@ export default class BasicInfo extends tsc<object> {
         ?.name || this.localRelationInfo.bizId;
     return (
       <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
+        <div class='event-link-item pipeline-event'>
+          <div class='title'>{this.$t('流水线事件')}</div>
+          <p class='desc'>
+            {this.$t('关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。')}
+          </p>
+          <div class='pipeline-wrap'>
+            {this.isEditing && <div class='pipeline-label'>关联流水线</div>}
+            {this.isLoading ? undefined : (
+              <PipelineSelectPanel
+                isEditing={this.isEditing}
+                params={{ bkBizId: this.params.bk_biz_id, appName: this.params.app_name }}
+                value={this.eventRelation.relationPipeline}
+                onChange={this.handlePipelineChange}
+              />
+            )}
+          </div>
+        </div>
         <div class='event-link-item container-event'>
           <div class='title'>{this.$t('容器事件')}</div>
           <p class='desc'>{this.$t('关联后，会自动获取相关的事件数据。')}</p>
@@ -1064,6 +1102,7 @@ export default class BasicInfo extends tsc<object> {
       </div>
     );
   }
+
   renderEventDetail() {
     if (!this.isEditing) {
       return [
@@ -1213,7 +1252,7 @@ export default class BasicInfo extends tsc<object> {
       </div>,
       <div
         key='uri-source-content'
-        class='uri-source-content'
+        class={['uri-source-content', { 'is-editing': this.isEditing }]}
         v-bkloading={{ isLoading: this.urlListLoading }}
       >
         <div class='header-tool'>
@@ -1240,7 +1279,7 @@ export default class BasicInfo extends tsc<object> {
       </div>,
       <div
         key='uri-info'
-        class='uri-info'
+        class={['uri-info', { 'is-editing': this.isEditing }]}
       >
         <span class='uri-set-label'>{this.$t('URI配置')}</span>
         <transition-group

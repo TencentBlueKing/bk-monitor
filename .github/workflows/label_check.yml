@@ -18,14 +18,14 @@ jobs:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
         with:
-          any_of: project/monitor,project/apm,project/log,project/public
+          any_of: project/monitor,project/apm,project/log,project/aiops,project/public
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
         if : ${{ failure() }}
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
-            请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`
+            请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`、`project/aiops`
   check_type_label:
     name: 检查类型标签
     # runs-on: ubuntu-latest

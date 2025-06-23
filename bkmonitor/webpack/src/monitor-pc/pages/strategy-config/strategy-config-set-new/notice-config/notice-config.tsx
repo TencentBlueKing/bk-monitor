@@ -364,10 +364,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         reject();
       }
       const templateValidate = this.data.config.template.some(template => {
-        if (!Boolean(template.title_tmpl)) {
+        if (!template.title_tmpl) {
           this.handleChangeTemplate(template.signal);
         }
-        return !Boolean(template.title_tmpl);
+        return !template.title_tmpl;
       });
       if (templateValidate) {
         this.errMsg.template = window.i18n.tc('必填项');
@@ -810,11 +810,22 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 >
                   {this.readonly
                     ? [
-                        <span class='bold'>{intervalModeNames[this.data.config.interval_notify_mode]}</span>,
-                        <span class='bold'>{this.data.config.notify_interval}</span>,
+                        <span
+                          key={'intervalModeNames'}
+                          class='bold'
+                        >
+                          {intervalModeNames[this.data.config.interval_notify_mode]}
+                        </span>,
+                        <span
+                          key={'notify_interval'}
+                          class='bold'
+                        >
+                          {this.data.config.notify_interval}
+                        </span>,
                       ]
                     : [
                         <bk-select
+                          key={'interval_notify_mode'}
                           v-en-style='width: 100px'
                           class='select select-inline'
                           v-model={this.data.config.interval_notify_mode}
@@ -832,6 +843,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           ))}
                         </bk-select>,
                         <bk-input
+                          key={'notify_interval'}
                           class='input-inline input-center'
                           v-model={this.data.config.notify_interval}
                           behavior='simplicity'
@@ -846,7 +858,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                   content={this.$t('通知间隔').toString()}
                   tip={intervalModeTips[this.data.config.interval_notify_mode]}
-                  type='translate'
+                  type='description'
                 />
               </span>
             </VerifyItem>
@@ -865,7 +877,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               />
               <AIWhaleIcon
                 content={this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。').toString()}
-                type='translate'
+                type='description'
               />
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}

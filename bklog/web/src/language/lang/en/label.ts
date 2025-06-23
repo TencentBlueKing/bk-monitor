@@ -796,4 +796,20 @@ export default {
   我的: 'My',
   设置筛选: 'Set filter',
   未编组: 'Unorganized',
+  大小写匹配: 'Case sensitive matching',
+  精确匹配: 'Exact match',
+  Grep模式: 'Grep Mode',
+  我的收藏: 'My favorites',
+  时间设置: 'Time Settings',
+  静态时间: 'Static Time',
+  动态时间: 'Dynamic Time',
+  时间示例: 'Time Example',
+  链接有效期: 'Link Validity Period',
+  生成并复制链接: 'Generate And Copy Link',
+  '会将时间转换为时间戳，按照访问人的时间进行载入':
+    "It will convert the time to a timestamp and load it according to the visitor's time",
+  '会将近 xxx 这种时间保留，按照访问人的近 xxx 时间进行载入':
+    'It will keep the time like "last xxx" and load it according to the visitor\'s last xxx time',
+  临时分享: 'Temporary Share',
+  分享: 'Share',
 };
