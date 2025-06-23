@@ -1547,7 +1547,7 @@ export default class CommonCondition extends tsc<IProps> {
                 <bk-input
                   behavior={'simplicity'}
                   left-icon='bk-icon icon-search'
-                  placeholder={window.i18n.t('输入关键字搜索')}
+                  placeholder={this.$t('输入关键字搜索')}
                   value={this.searchValue}
                   onChange={this.handleSearchChange}
                 />
@@ -1717,7 +1717,7 @@ export default class CommonCondition extends tsc<IProps> {
               <bk-input
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
-                placeholder={window.i18n.t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
+                placeholder={this.$t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               />
@@ -1740,7 +1740,7 @@ export default class CommonCondition extends tsc<IProps> {
                     >
                       {item.isCustomSearch ? (
                         <span>
-                          {window.i18n.t('直接输入')} "<span class='highlight'>{item.name}</span>"
+                          {this.$t('直接输入')} "<span class='highlight'>{item.name}</span>"
                         </span>
                       ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
 
@@ -1748,8 +1748,8 @@ export default class CommonCondition extends tsc<IProps> {
                   ))}
               </div>
             ) : (
-              <div class='wrap-list no-data'>
-                <div class='list-item'>{window.i18n.t('无选项')}</div>
+              <div class='wrap-list'>
+                <div class='list-item no-data'>{this.$t('无选项')}</div>
               </div>
             )}
           </div>
@@ -1763,7 +1763,7 @@ export default class CommonCondition extends tsc<IProps> {
             <div class='top'>
               <span class='icon-monitor icon-remind' />
               <i18n path='变更当前值将会使 {0}，是否确定变更？'>
-                <span class='blod'>{window.i18n.t('统一设置条件失效')}</span>
+                <span class='blod'>{this.$t('统一设置条件失效')}</span>
               </i18n>
             </div>
             <div class='bottom'>
@@ -1771,13 +1771,13 @@ export default class CommonCondition extends tsc<IProps> {
                 class='btn mr14'
                 onClick={this.handleSettingsPopConfirm}
               >
-                {window.i18n.t('变更')}
+                {this.$t('变更')}
               </span>
               <span
                 class='btn'
                 onClick={this.handleSettingsPopCancel}
               >
-                {window.i18n.t('取消')}
+                {this.$t('取消')}
               </span>
             </div>
           </div>
