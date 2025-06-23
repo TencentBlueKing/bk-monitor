@@ -578,7 +578,7 @@ export default class CommonCondition extends tsc<IProps> {
     this.keyListSecond[0]?.isCustomSearch && this.keyListSecond.shift();
     if (!v.length) return;
     // 已有匹配规则包含了手动输入的维度信息，不添加自定义维度
-    if (this.tagList.some(item => item.condition?.field === v && item.tags[1].alias.includes('维度'))) return;
+    if (this.tagList.some(item => item.condition?.field === v && item.tags[1]?.alias?.includes('维度'))) return;
     // 接口获取的维度列表包含了手动输入的维度信息，不添加自定义维度
     if (this.keyListSecond.some(item => item.id === v)) return;
     this.keyListSecond.unshift({ id: v, name: v, isCustomSearch: true });
