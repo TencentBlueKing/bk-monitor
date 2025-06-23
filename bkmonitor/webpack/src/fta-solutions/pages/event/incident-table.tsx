@@ -173,6 +173,19 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             fixed: 'left',
           },
         },
+        this.bizIds.length > 1 || [-1, -2].includes(this.bizIds?.[0])
+          ? {
+              id: 'bk_biz_name',
+              name: this.$t('空间名'),
+              disabled: true,
+              checked: true,
+              props: {
+                width: 100,
+                fixed: 'left',
+                resizable: true,
+              },
+            }
+          : undefined,
         {
           id: 'incident_name',
           name: this.$t('故障名称'),

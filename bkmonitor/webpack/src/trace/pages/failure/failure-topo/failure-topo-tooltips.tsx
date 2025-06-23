@@ -259,6 +259,47 @@ export default defineComponent({
     };
     /** 不同类型的路由跳转逻辑处理 */
     const typeToLinkHandle = {
+      BcsService: {
+        title: 'pod详情页',
+        path: () => '/k8s-new',
+        beforeJumpVerify: () => true,
+        query: node => {
+          const { namespace, cluster_id, service_name, pod_name } = node.entity?.dimensions || {};
+          const filterBy = {
+            service: service_name ? [service_name] : [],
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            groupBy: JSON.stringify(['namespace', 'service']),
+            scene: 'network',
+            sceneId: 'kubernetes',
+            activeTab: 'detail',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
+      },
+      BcsWorkload: {
+        title: 'pod详情页',
+        path: () => '/k8s-new',
+        beforeJumpVerify: () => true,
+        query: node => {
+          const { namespace, pod_name, cluster_id, workload_name, workload_type } = node.entity?.dimensions || {};
+          const filterBy = {
+            workload: workload_name ? [`${workload_type}:${workload_name}`] : [],
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            sceneId: 'kubernetes',
+            groupBy: JSON.stringify(['namespace', 'workload']),
+            activeTab: 'detail',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
+      },
       BcsPod: {
         title: 'pod详情页',
         path: () => '/k8s-new',
@@ -357,7 +398,6 @@ export default defineComponent({
     const goDetailTab = node => {
       emit('toDetailTab', node);
     };
-
     return {
       popover,
       typeToLinkHandle,
