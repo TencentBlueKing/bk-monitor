@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -81,7 +79,7 @@ class AdvancedRingRatioSerializer(AdvancedYearRoundSerializer):
 
     def validate(self, attrs):
         try:
-            return super(AdvancedRingRatioSerializer, self).validate(attrs)
+            return super().validate(attrs)
         except InvalidAdvancedYearRoundConfig:
             raise InvalidAdvancedRingRatioConfig(config=attrs)
 
@@ -119,7 +117,7 @@ class SimpleYearRoundSerializer(SimpleRingRatioSerializer):
 
     def validate(self, attrs):
         try:
-            return super(SimpleYearRoundSerializer, self).validate(attrs)
+            return super().validate(attrs)
         except InvalidSimpleRingRatioConfig:
             raise InvalidSimpleYearRoundConfig(config=attrs)
 
@@ -149,6 +147,7 @@ class IntelligentDetectSerializer(serializers.Serializer):
     visual_type = serializers.ChoiceField(
         default=VisualType.NONE, choices=[VisualType.NONE, VisualType.SCORE, VisualType.BOUNDARY]
     )
+    service_name = serializers.CharField(label="service环境选择", required=False, default="default")
 
 
 class TimeSeriesForecastingSerializer(serializers.Serializer):
@@ -285,7 +284,7 @@ class BkLogSearchTimeSeriesSerializer(TimeSeriesQueryConfigSerializer):
     result_table_id = serializers.CharField(label="索引", allow_blank=True)
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
 
-    def validate(self, attrs: Dict) -> Dict:
+    def validate(self, attrs: dict) -> dict:
         if not attrs.get("time_field"):
             attrs["time_field"] = "dtEventTimeStamp"
         return attrs
@@ -303,7 +302,7 @@ class BkLogSearchLogSerializer(QueryConfigSerializer):
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
 
-    def validate(self, attrs: Dict) -> Dict:
+    def validate(self, attrs: dict) -> dict:
         if not attrs.get("time_field"):
             attrs["time_field"] = "dtEventTimeStamp"
         return attrs
@@ -336,7 +335,7 @@ class BkDataTimeSeriesSerializer(QueryConfigSerializer):
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
     extend_fields = serializers.DictField(label="拓展字段", required=False)
 
-    def validate(self, attrs: Dict) -> Dict:
+    def validate(self, attrs: dict) -> dict:
         if not attrs.get("time_field"):
             attrs["time_field"] = "dtEventTimeStamp"
         return attrs
@@ -395,7 +394,9 @@ class GrafanaTimeSeriesSerializer(QueryConfigSerializer):
 class NoticeGroupSerializer(serializers.Serializer):
     class NoticeReceiverSerializer(serializers.Serializer):
         id = serializers.CharField(required=True, label="通知对象ID")
-        type = serializers.ChoiceField(required=True, choices=(("user", _("用户")), ("group", _("用户组"))), label="通知对象类别")
+        type = serializers.ChoiceField(
+            required=True, choices=(("user", _("用户")), ("group", _("用户组"))), label="通知对象类别"
+        )
 
     bk_biz_id = serializers.IntegerField(required=False, default=0, label="业务ID")
     name = serializers.CharField(required=True, max_length=128, label="通知组名称")

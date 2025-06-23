@@ -678,6 +678,7 @@ class ContainerMonitorMetricsType(Enum):
 
     PERFORMANCE: str = "performance"
     NETWORK: str = "network"
+    CAPACITY: str = "capacity"
 
 
 class ContainerMonitorTabType(Enum):

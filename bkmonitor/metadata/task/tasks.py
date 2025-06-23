@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
@@ -82,9 +83,9 @@ def create_statistics_data_flow(table_id, agg_interval):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_full_cmdb_level_data_flow(table_id):
+def create_full_cmdb_level_data_flow(table_id, bk_tenant_id=DEFAULT_TENANT_ID):
     try:
-        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id)
+        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except models.BkDataStorage.DoesNotExist:
         raise Exception(_("数据({})未接入到计算平台，请先接入后再试").format(table_id))
 
@@ -119,8 +120,10 @@ def create_es_storage_index(table_id):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name):
-    models.ESStorage.objects.get(table_id=table_id).delete_all_snapshot(target_snapshot_repository_name)
+def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).delete_all_snapshot(
+        target_snapshot_repository_name
+    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -396,9 +399,7 @@ def _manage_es_storage(es_storage):
         logger.info(f"manage_es_storage:es_storage->[{es_storage.table_id}] cron task success")
     except RetryError as e:
         logger.error(
-            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
-                es_storage.table_id, e.__cause__
-            )
+            f"manage_es_storage:es_storage index lifecycle failed,table_id->{es_storage.table_id},error->{e.__cause__}"
         )
         logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Optional, Tuple
+
+from typing import Any
 
 from django.db.models import Q
 
@@ -23,7 +23,7 @@ class IterMixin:
         """
         Retrieves an item or slice from the set of results.
         """
-        if not isinstance(k, (slice, int)):
+        if not isinstance(k, slice | int):
             raise TypeError
 
         if self._result_cache is not None:
@@ -92,8 +92,7 @@ class IterMixin:
     def iterator(self):
         compiler = self.query.get_compiler(using=self.using)
         results = compiler.execute_sql()
-        for row in results:
-            yield row
+        yield from results
 
     @property
     def original_data(self):
@@ -101,7 +100,7 @@ class IterMixin:
         original_sql, params = compiler.as_sql()
         return compiler.connection.execute(original_sql, params)
 
-    def first(self) -> Optional[Dict[str, Any]]:
+    def first(self) -> dict[str, Any] | None:
         clone = self._clone().limit(1)
         if len(clone):
             return clone[0]
@@ -148,7 +147,7 @@ class QueryMixin:
         clone.query.add_ordering(*fields)
         return clone
 
-    def distinct(self, field: Optional[str]):
+    def distinct(self, field: str | None):
         clone = self._clone()
         if field:
             clone.query.distinct = field
@@ -158,13 +157,13 @@ class QueryMixin:
 class DslMixin:
     """ES DSL 相关"""
 
-    def use_full_index_names(self, use_full_index_names: Optional[bool]):
+    def use_full_index_names(self, use_full_index_names: bool | None):
         clone = self._clone()
         if use_full_index_names is not None:
             clone.query.use_full_index_names = use_full_index_names
         return clone
 
-    def dsl_raw_query_string(self, query_string: str, nested_paths: Optional[Dict[str, str]] = None):
+    def dsl_raw_query_string(self, query_string: str, nested_paths: dict[str, str] | None = None):
         clone = self._clone()
         clone.query.raw_query_string = query_string
         if nested_paths:
@@ -181,7 +180,7 @@ class DslMixin:
         clone.query.group_hits_size = size
         return clone
 
-    def dsl_search_after(self, search_after_key: Optional[Dict[str, Any]]):
+    def dsl_search_after(self, search_after_key: dict[str, Any] | None):
         clone = self._clone()
         if search_after_key is not None:
             clone.query.search_after_key = search_after_key
@@ -194,14 +193,13 @@ class DslMixin:
 
 
 class BaseDataQuery:
-
     TYPE = "base"
     QUERY_CLASS = sql.Query
 
-    def __init__(self, using: Tuple[str, str], query=None):
-        self.using: Tuple[str, str] = using
+    def __init__(self, using: tuple[str, str], query=None):
+        self.using: tuple[str, str] = using
         self.query = query or self.QUERY_CLASS(self.using)
-        self._result_cache: Optional[List[Any]] = None
+        self._result_cache: list[Any] | None = None
 
     def _clone(self):
         query = self.query.clone()
@@ -215,10 +213,15 @@ class DataQuery(BaseDataQuery, IterMixin, QueryMixin, DslMixin):
         clone.query.set_target_type(target_type)
         return clone
 
+    def bk_tenant_id(self, bk_tenant_id: int):
+        clone = self._clone()
+        clone.query.set_bk_tenant_id(bk_tenant_id)
+        return clone
+
     def raw(self, raw_query, params=None):
         return sql.RawQuery(raw_query, using=self.using, params=params).execute_query()
 
-    def metrics(self, metrics: List[Dict]):
+    def metrics(self, metrics: list[dict]):
         clone = self._clone()
         for metric in metrics:
             alias = metric.get("alias")

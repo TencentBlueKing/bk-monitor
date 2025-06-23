@@ -248,10 +248,10 @@ export default class MonitorMobileEcharts extends Vue {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (!this.getSeriesData || v <= 0) return;
+    if (!this.getSeriesData || !v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('height')
   onHeightChange() {

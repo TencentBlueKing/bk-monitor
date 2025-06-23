@@ -946,7 +946,7 @@ class NameSpace(dict):
 
     @property
     def objects(self):
-        return BCSWorkload.objects.values(*self.columns)
+        return BCSPod.objects.values(*self.columns)
 
     def __getattr__(self, item):
         if item in self:

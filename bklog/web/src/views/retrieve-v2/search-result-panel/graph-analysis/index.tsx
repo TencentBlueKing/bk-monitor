@@ -39,6 +39,7 @@ import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
 
 import './index.scss';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type.ts';
 
 interface IProps {
   data: any;
@@ -246,7 +247,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return {
       favorite_type: 'chart',
       chart_params: this.storedChartParams,
-      search_mode: this.$store.state.indexItem.search_mode,
+      search_mode: SEARCH_MODE_DIC[this.$store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     };
   }
 

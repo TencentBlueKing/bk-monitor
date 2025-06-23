@@ -116,6 +116,7 @@ class RetrieveHelper extends RetrieveBase {
       return;
     }
 
+    const { caseSensitive } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
     this.markInstance.highlight(
@@ -124,7 +125,7 @@ class RetrieveHelper extends RetrieveBase {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: new RegExp(`^${keyword}$`),
+          textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
         };
       }),
       reset,

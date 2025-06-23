@@ -29,11 +29,11 @@ import {
   ref,
   computed,
   type Ref,
-  onUnmounted,
   onMounted,
   nextTick,
   watch,
   type ComputedRef,
+  onBeforeUnmount,
 } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -76,6 +76,7 @@ export default defineComponent({
     const spanId = inject<Ref<string>>('spanId', ref(''));
 
     const mainRef = ref<HTMLDivElement>();
+    let logAppInstance: any;
     const customTimeProvider = inject<ComputedRef<string[]>>(
       'customTimeProvider',
       computed(() => traceStore.timeRange)
@@ -86,7 +87,11 @@ export default defineComponent({
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
 
-    let unPropsWatch = null;
+    const logInstance = null;
+    const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
+      logInstance?.$forceUpdate?.();
+    });
+
     async function init() {
       empty.value = true;
       loading.value = true;
@@ -125,7 +130,7 @@ export default defineComponent({
         };
         Vue2.prototype.$router = fakeRouter;
         Vue2.prototype.$route = fakeRoute;
-        const app: any = new Vue2({
+        logAppInstance = new Vue2({
           store: logStore,
           i18n,
           render: h => {
@@ -140,16 +145,13 @@ export default defineComponent({
             });
           },
         });
-        app.$router = fakeRouter;
-        app.$route = fakeRoute;
-        app._$route = fakeRoute;
-        app.$t = (...args) => i18n.t(...args);
-        unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
-          app.$forceUpdate();
-        });
+        logAppInstance.$router = fakeRouter;
+        logAppInstance.$route = fakeRoute;
+        logAppInstance._$route = fakeRoute;
+        logAppInstance.$t = (...args) => i18n.t(...args);
         await nextTick();
-        app.$mount(mainRef.value);
-        window.mainComponent = app;
+        logAppInstance.$mount(mainRef.value);
+        window.mainComponent = logAppInstance;
       } else {
         empty.value = true;
       }
@@ -157,6 +159,9 @@ export default defineComponent({
 
     async function indexSetApi() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      if (!startTime || !endTime) {
+        return [];
+      }
       const data = await serviceRelationList({
         app_name: appName.value,
         service_name: serviceName.value,
@@ -169,6 +174,9 @@ export default defineComponent({
 
     async function getServiceLogInfo() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      if (!startTime || !endTime) {
+        return [];
+      }
       const data = await serviceLogInfo({
         app_name: appName.value,
         service_name: serviceName.value,
@@ -206,12 +214,13 @@ export default defineComponent({
       init();
     });
 
-    onUnmounted(() => {
+    onBeforeUnmount(() => {
       if (!empty.value) {
         logStore.commit('resetState');
         window.mainComponent.$destroy();
         unPropsWatch?.();
       }
+      logAppInstance = null;
     });
 
     return {
