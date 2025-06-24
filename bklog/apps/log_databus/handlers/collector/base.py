@@ -123,6 +123,11 @@ COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 class CollectorHandler:
     data: CollectorConfig
 
+    FAST_CREATE_SERIALIZER = None
+    FAST_UPDATE_SERIALIZER = None
+    CREATE_SERIALIZER = None
+    UPDATE_SERIALIZER = None
+
     def __init__(self, collector_config_id=None, data=None):
         self.collector_config_id = collector_config_id
         self.data = data if data else None
@@ -134,7 +139,7 @@ class CollectorHandler:
                 raise CollectorConfigNotExistException()
 
     @classmethod
-    def get_instance(cls, collector_config_id=None, env=None):
+    def get_instance(cls, collector_config_id=None, env=None) -> "CollectorHandler":
         if env and not collector_config_id:
             if env == Environment.CONTAINER:
                 collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
@@ -476,6 +481,18 @@ class CollectorHandler:
         }
         user_operation_record.delay(operation_record)
         return True
+
+    @abc.abstractmethod
+    def update_or_create(self, params: dict) -> dict:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def fast_create(self, params: dict) -> dict:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def fast_update(self, params: dict) -> dict:
+        raise NotImplementedError
 
     def retrieve(self, use_request=True):
         """
