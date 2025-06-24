@@ -296,7 +296,13 @@ const MonitorTraceLog = () =>
 const ShareLink = () =>
   import(
     /* webpackChunkName: 'share-link' */
-    '@/views/share.tsx'
+    '@/views/share/index.tsx'
+  );
+
+const DataIdUrl = () =>
+  import(
+    /* webpackChunkName: 'data-id-url' */
+    '@/views/data-id-url/index.tsx'
   );
 
 const getRoutes = (spaceId, bkBizId, externalMenu) => {
@@ -1098,6 +1104,15 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
       meta: {
         title: '分享链接',
         navId: 'share',
+      },
+    },
+    {
+      path: '/data_id/:id?',
+      name: 'data_id',
+      component: DataIdUrl,
+      meta: {
+        title: '根据 bk_data_id 获取采集项和索引集信息',
+        navId: 'data_id',
       },
     },
     // #if MONITOR_APP === 'apm'

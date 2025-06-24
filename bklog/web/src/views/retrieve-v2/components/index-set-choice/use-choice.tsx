@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref } from 'vue';
+import { computed, ref, set } from 'vue';
 import $http from '../../../../api';
 import { messageError, messageSuccess } from '@/common/bkmagic';
 export type IndexSetType = 'single' | 'union';
@@ -238,6 +238,19 @@ export default (props, { emit }) => {
   };
 
   /**
+   *  单选收藏状态设置
+   * @param id  索引集ID
+   * @param is_favorite   是否收藏
+   * @description 该方法用于在单选情况下设置索引集的收藏状态
+   */
+  const setSingleFavorite = (id: string, is_favorite = false) => {
+    const target = props.list.find(item => item.index_set_id === id);
+    if (target) {
+      set(target, 'is_favorite', is_favorite);
+    }
+  };
+
+  /**
    * 单选取消收藏
    * @param favorite
    * @returns
@@ -277,14 +290,11 @@ export default (props, { emit }) => {
         .then(resp => {
           if (resp.result) {
             if (from === 'single') {
-              favorite.is_favorite = false;
+              setSingleFavorite(favorite.index_set_id, false);
             }
 
             if (from === 'favorite') {
-              const target = singleFavoriteList.value.find(f => f.index_set_id === favorite.index_set_id);
-              if (target) {
-                target.is_favorite = false;
-              }
+              setSingleFavorite(favorite.index_set_id, false);
             }
             return;
           }
@@ -349,7 +359,7 @@ export default (props, { emit }) => {
         },
       })
       .then(() => {
-        item.is_favorite = true;
+        setSingleFavorite(item.index_set_id, true);
       });
   };
 

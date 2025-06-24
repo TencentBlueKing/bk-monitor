@@ -156,7 +156,7 @@ class GetDataIdResource(MetaDataAPIGWResource):
     获取监控数据源具体信息
     """
 
-    backend_cache_type = CacheType.METADATA
+    backend_cache_type = CacheType.DB_CACHE
 
     action = "/app/metadata/get_data_id/"
     method = "GET"
