@@ -302,7 +302,7 @@
           const newFilterRules = filterRules.map(item => ({
             ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
             ...item,
-            value: [item.value],
+            value: [...item.value],
           }));
           this.defaultVaribles = predefined_varibles;
           const assignObj = {
@@ -430,7 +430,7 @@
             fields_name: item.fields_name,
             logic_operator: item.logic_operator,
             op: item.op,
-            value: item.value[0],
+            value: item.value,
           }));
         this.$http
           .request('retrieve/updateClusteringConfig', {
