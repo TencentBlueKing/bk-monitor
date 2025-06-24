@@ -232,7 +232,7 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell(tableRowKeyField);
+    const { tableCellRender } = useTableCell({ rowKeyField: tableRowKeyField });
     const {
       tableColumns,
       displayColumnFields,

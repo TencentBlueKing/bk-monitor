@@ -33,11 +33,20 @@ import {
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
   TABLE_DEFAULT_CONFIG,
 } from '../constants';
-import { type ExploreTableColumn, ExploreTableColumnTypeEnum, type GetTableCellRenderValue } from '../typing';
+import {
+  type BaseTableColumn,
+  type ExploreTableColumn,
+  ExploreTableColumnTypeEnum,
+  type GetTableCellRenderValue,
+} from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-export function useTableCell(rowKeyField: MaybeRef<string>) {
+export interface UseTableCellOptions {
+  rowKeyField: MaybeRef<string>;
+  cellEllipsisClass?: string;
+}
+export function useTableCell({ rowKeyField, cellEllipsisClass }: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
 
@@ -47,6 +56,18 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
    */
   function getRowId(row: Record<string, any>) {
     return row?.[get(rowKeyField)] || '';
+  }
+
+  /**
+   * @description 是否启用单元格溢出省略弹出 popover
+   * @returns {string} 开启单元格溢出省略弹出 popover 的类
+   *
+   */
+  function isEnabledCellEllipsis(column: BaseTableColumn) {
+    if (column?.cellEllipsis === false) {
+      return '';
+    }
+    return cellEllipsisClass || ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME;
   }
 
   /**
@@ -91,7 +112,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = getTableCellRenderValue(row, column);
     return (
       <div class={'explore-col explore-click-col'}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
             onClick={event => column?.clickCallback?.(row, column, event)}
@@ -128,7 +149,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
             prefixIcon(row, column)
           )
         ) : null}
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -152,7 +173,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = formatTraceTableDate(timestamp);
     return (
       <div class={'explore-col explore-time-col'}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -176,7 +197,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = formatDuration(+timestamp);
     return (
       <div class={'explore-col explore-duration-col '}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -213,7 +234,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
           rel='noreferrer'
           target='_blank'
         >
-          <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <div class={`explore-link-text ${isEnabledCellEllipsis(column)}`}>
             <span>{item.alias}</span>
           </div>
           <i class='icon-monitor icon-mc-goto' />
@@ -256,7 +277,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = getTableCellRenderValue(row, column);
     return (
       <div class={'explore-col explore-text-col '}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
