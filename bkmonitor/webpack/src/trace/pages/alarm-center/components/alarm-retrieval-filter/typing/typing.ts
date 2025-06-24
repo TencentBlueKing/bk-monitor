@@ -24,8 +24,31 @@
  * IN THE SOFTWARE.
  */
 
+/**
+ * @description alarm-module-selector.tsx
+ */
+export interface ICascadeItem {
+  id: string;
+  name: string;
+}
 export interface IModuleListItem {
   id: string;
   name: string;
   children?: IModuleListItem[];
+  cascade?: ICascadeItem[];
 }
+
+/**
+ * @description module-cascade-selector.tsx
+ */
+type TVal = number | string;
+export interface ICascadeValue {
+  key: string;
+  value: TVal[];
+}
+export type ICascadeData = ICascadeItem & {
+  value: TVal[];
+  loading: boolean;
+  scrollLoading: boolean;
+  options: { id: TVal; name: TVal }[];
+};

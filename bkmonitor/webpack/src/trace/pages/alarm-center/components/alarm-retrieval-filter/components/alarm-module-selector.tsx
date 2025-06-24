@@ -33,6 +33,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
 
 import { useModuleSelect } from '../hooks/use-module-select';
+import ModuleCascadeSelector from './module-cascade-selector';
 import SelectorTrigger from './selector-trigger';
 
 import type { IModuleListItem } from '../typing/typing';
@@ -155,6 +156,7 @@ export default defineComponent({
             </div>
           </div>
         </div>
+        <ModuleCascadeSelector cascades={this.curOption?.cascade || []} />
       </>
     );
   },

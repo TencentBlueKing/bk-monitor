@@ -37,18 +37,58 @@ export function useModuleSelect() {
         {
           id: '调用分析',
           name: '调用分析',
+          cascade: [
+            {
+              id: '应用',
+              name: '应用',
+            },
+            {
+              id: '服务',
+              name: '服务',
+            },
+          ],
         },
         {
           id: '日志',
           name: '日志',
+          cascade: [
+            {
+              id: '应用',
+              name: '应用',
+            },
+            {
+              id: '服务',
+              name: '服务',
+            },
+          ],
         },
         {
           id: '事件',
           name: '事件',
+          cascade: [
+            {
+              id: '应用',
+              name: '应用',
+            },
+            {
+              id: '服务',
+              name: '服务',
+            },
+          ],
         },
         {
           id: '自定义指标',
           name: '自定义指标',
+          cascade: [
+            {
+              id: '应用',
+              name: '应用',
+            },
+            {
+              id: '服务',
+              name: '服务',
+            },
+          ],
         },
       ],
     },
@@ -59,18 +99,42 @@ export function useModuleSelect() {
         {
           id: 'http',
           name: 'http',
+          cascade: [
+            {
+              id: '拨测任务',
+              name: '拨测任务',
+            },
+          ],
         },
         {
           id: 'http1',
           name: 'http1',
+          cascade: [
+            {
+              id: '拨测任务',
+              name: '拨测任务',
+            },
+          ],
         },
         {
           id: 'http2',
           name: 'http2',
+          cascade: [
+            {
+              id: '拨测任务',
+              name: '拨测任务',
+            },
+          ],
         },
         {
           id: 'http3',
           name: 'http3',
+          cascade: [
+            {
+              id: '拨测任务',
+              name: '拨测任务',
+            },
+          ],
         },
       ],
     },
