@@ -640,6 +640,13 @@ class ListK8SResources(Resource):
             }
         """
         for resource_type, values in filter_dict.items():
+            # 如果 filter_dict 有传入 namespace, 则删除实例化时添加的 namespace_filter
+            # 并以传入的为主
+            if resource_type == "namespace":
+                for filter_obj in meta.filter.filters.values():
+                    if filter_obj.resource_type == "namespace":
+                        meta.filter.remove(filter_obj)
+
             meta.filter.add(load_resource_filter(resource_type, values))
 
 
