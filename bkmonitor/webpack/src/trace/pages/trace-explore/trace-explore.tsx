@@ -96,11 +96,11 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
-    const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
+    const isCollapsed = shallowRef(false);
     const allFavoriteList = computed(() => {
       return favoriteBox.value?.getFavoriteList() || [];
     });
@@ -294,8 +294,8 @@ export default defineComponent({
     }
 
     /** 关闭维度列表 */
-    function handleCloseDimensionPanel() {
-      traceExploreLayoutRef.value.handleClickShrink(false);
+    function updateIsCollapsed(v: boolean) {
+      isCollapsed.value = v;
     }
 
     function handleConditionChange(item: ConditionChangeEvent) {
@@ -770,7 +770,7 @@ export default defineComponent({
 
     return {
       t,
-      traceExploreLayoutRef,
+      isCollapsed,
       defaultApplication,
       applicationLoading,
       applicationList,
@@ -807,7 +807,7 @@ export default defineComponent({
       handleThumbtackChange,
       handelSceneChange,
       handleFavoriteShowChange,
-      handleCloseDimensionPanel,
+      updateIsCollapsed,
       handleConditionChange,
       getRetrievalFilterValueData,
       handleCommonWhereChange,
@@ -905,8 +905,9 @@ export default defineComponent({
             )}
             {!this.applicationLoading && !!this.applicationList.length && (
               <TraceExploreLayout
-                ref='traceExploreLayoutRef'
                 class='content-container'
+                isCollapsed={this.isCollapsed}
+                onUpdate:isCollapsed={this.updateIsCollapsed}
               >
                 {{
                   aside: () => (
@@ -915,7 +916,7 @@ export default defineComponent({
                         list={this.fieldList}
                         listLoading={this.loading}
                         params={this.commonParams}
-                        onClose={this.handleCloseDimensionPanel}
+                        onClose={() => this.updateIsCollapsed(true)}
                         onConditionChange={this.handleConditionChange}
                       />
                     </div>

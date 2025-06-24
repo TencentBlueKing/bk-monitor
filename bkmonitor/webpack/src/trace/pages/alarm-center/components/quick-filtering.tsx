@@ -76,7 +76,7 @@ export default defineComponent({
     );
 
     const handleClose = () => {
-      emit('close');
+      emit('close', true);
     };
 
     const handleNodeChecked = (groupId: string, itemId: TreeNodeValue[]) => {

@@ -42,36 +42,29 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
-    const { alarmType, timeRange, timezone, refreshImmediate, refreshInterval } = storeToRefs(store);
+    const { alarmType, timeRange, timezone, refreshImmediate, refreshInterval, conditions, queryString } =
+      storeToRefs(store);
 
     function handleAlarmTypeChange(value: AlarmType) {
-      store.updateState({
-        alarmType: value,
-      });
+      alarmType.value = value;
+      conditions.value = [];
+      queryString.value = '';
     }
 
     function handleImmediateRefreshChange(value: string) {
-      store.updateState({
-        refreshImmediate: value,
-      });
+      store.refreshImmediate = value;
     }
 
     function handleRefreshIntervalChange(value: number) {
-      store.updateState({
-        refreshInterval: value,
-      });
+      store.refreshInterval = value;
     }
 
     function handleTimeRangeChange(value: TimeRangeType) {
-      store.updateState({
-        timeRange: value,
-      });
+      store.timeRange = value;
     }
 
     function handleTimezoneChange(value: string) {
-      store.updateState({
-        timezone: value,
-      });
+      store.timezone = value;
     }
 
     function handleGotoOld() {}

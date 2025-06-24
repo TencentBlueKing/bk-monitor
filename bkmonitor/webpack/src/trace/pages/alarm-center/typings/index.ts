@@ -23,25 +23,4 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-/** 告警类型 */
-export enum AlarmType {
-  ACTION = 'action',
-  ALERT = 'alert',
-  INCIDENT = 'incident',
-}
-
-export const alarmTypeMap = [
-  {
-    label: window.i18n.t('告警'),
-    value: 'alert',
-  },
-  {
-    label: window.i18n.t('故障'),
-    value: 'incident',
-  },
-  {
-    label: window.i18n.t('处理记录'),
-    value: 'action',
-  },
-] as const;
+export * from './services';

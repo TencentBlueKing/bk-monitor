@@ -50,7 +50,7 @@
     "monitor-pc": "workspace:*",
     "monitor-static": "workspace:*",
     "monitor-ui": "workspace:*",
-    "pinia": "2.1.7",
+    "pinia": "3.0.3",
     "reselect": "^4.1.8",
     "throttle-debounce": "^5.0.2",
     "tiny-pinyin": "^1.3.2",

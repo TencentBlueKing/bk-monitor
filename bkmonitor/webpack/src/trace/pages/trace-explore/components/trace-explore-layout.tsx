@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import MonitorDrag from '../../../components/monitor-drag/monitor-drag';
@@ -45,30 +45,40 @@ export default defineComponent({
       type: Number,
       default: 200,
     },
+    isCollapsed: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup(props) {
+  emits: ['update:isCollapsed'],
+  setup(props, { emit }) {
     const { t } = useI18n();
-    const isShow = shallowRef(true);
     const width = shallowRef(props.initialDivide);
-
+    watch(
+      () => props.isCollapsed,
+      v => {
+        width.value = v ? 0 : props.initialDivide;
+      },
+      {
+        immediate: true,
+      }
+    );
     const handleDragChange = (w: number) => {
       if (w < props.minWidth) {
-        handleClickShrink(false);
+        updateIsCollapsed(true);
       } else {
         width.value = w;
       }
     };
 
-    const handleClickShrink = (val?: boolean) => {
-      isShow.value = val ?? !isShow.value;
-      width.value = isShow.value ? 200 : 0;
+    const updateIsCollapsed = (collapsed?: boolean) => {
+      emit('update:isCollapsed', collapsed);
     };
 
     return {
-      isShow,
       width,
       handleDragChange,
-      handleClickShrink,
+      updateIsCollapsed,
       t,
     };
   },
@@ -83,9 +93,9 @@ export default defineComponent({
             {this.$slots.aside?.()}
           </div>
 
-          {this.isShow ? (
+          {!this.isCollapsed ? (
             <MonitorDrag
-              isShow={this.isShow}
+              isShow={!this.isCollapsed}
               lineText=''
               maxWidth={this.maxWidth}
               minWidth={this.minWidth}
@@ -97,7 +107,7 @@ export default defineComponent({
             <div
               class='expand-trigger'
               v-bk-tooltips={{ content: this.t('展开') }}
-              onClick={() => this.handleClickShrink(true)}
+              onClick={() => this.updateIsCollapsed(false)}
             >
               <i class='icon-monitor icon-gongneng-shouqi' />
             </div>

@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, useTemplateRef } from 'vue';
+import { defineComponent } from 'vue';
 import { shallowRef } from 'vue';
+
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmAnalysis from './components/alarm-analysis';
@@ -36,42 +38,16 @@ import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
+    const alarmStore = useAlarmCenterStore();
     const isCollapsed = shallowRef(false);
-    const layoutRef = useTemplateRef<InstanceType<typeof TraceExploreLayout>>('layoutRef');
-    const groupList = shallowRef([
-      {
-        id: 'test',
-        name: '测试',
-        type: 'icon',
-        children: [
-          {
-            id: 'test1',
-            name: '测试1',
-            icon: 'icon-gaojingfenpai',
-            count: 10,
-            children: [
-              { id: 'test2', name: '测试2' },
-              { id: 'test4', name: '测试4' },
-            ],
-          },
-          { id: 'test3', name: '测试3', count: 5 },
-        ],
-      },
-      {
-        id: 'aa',
-        name: 'aa',
-        type: 'rect',
-        children: [{ id: 'bb', name: 'bb', color: '#E71818', count: 8 }],
-      },
-    ]);
 
-    const handleCloseFilter = () => {
-      layoutRef.value?.handleClickShrink(false);
+    const handleCloseFilter = (v: boolean) => {
+      isCollapsed.value = v;
     };
 
     return {
+      alarmStore,
       isCollapsed,
-      groupList,
       handleCloseFilter,
     };
   },
@@ -82,13 +58,12 @@ export default defineComponent({
         <AlarmRetrievalFilter class='alarm-center-filters' />
         <div class='alarm-center-content'>
           <TraceExploreLayout
-            ref='layoutRef'
             v-slots={{
               aside: () => {
                 return (
                   <div class='quick-filtering'>
                     <QuickFiltering
-                      groupList={this.groupList}
+                      groupList={this.alarmStore.quickFilterList}
                       onClose={this.handleCloseFilter}
                     />
                   </div>
@@ -105,8 +80,10 @@ export default defineComponent({
               },
             }}
             initialDivide={208}
+            isCollapsed={this.isCollapsed}
             maxWidth={800}
             minWidth={160}
+            onUpdate:isCollapsed={this.handleCloseFilter}
           />
         </div>
       </div>

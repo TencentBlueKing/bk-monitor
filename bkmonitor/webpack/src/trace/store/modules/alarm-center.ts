@@ -23,33 +23,141 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { computed, ref as deepRef, shallowRef, watch, watchEffect } from 'vue';
+import { onScopeDispose } from 'vue';
+
+import { AlarmServiceFactory, type AlarmService } from '@page/alarm-center/services/alarm-services';
 import { defineStore } from 'pinia';
 
-import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
+import { AlarmType } from '../../pages/alarm-center/typing';
 
-import type { AlarmType } from '../../pages/alarm-center/typing';
+import type {
+  CommonCondition,
+  QuickFilterItem,
+  FilterTableResponse,
+  ActionTableItem,
+  AlertTableItem,
+  IncidentTableItem,
+} from '@/pages/alarm-center/typings';
 
 export interface IAlarmCenterState {
-  timeRange: TimeRangeType;
-  timezone: string;
-  refreshInterval: number;
-  refreshImmediate: string;
-  alarmType: AlarmType;
+  timeRange: TimeRangeType; // 时间范围
+  timezone: string; // 时区
+  refreshInterval: number; // 刷新间隔
+  refreshImmediate: string; // 是否立即刷新
+  alarmType: AlarmType; // 告警类型
+  bizIds: number[]; // 业务ID
+  conditions: CommonCondition[]; // 条件
+  queryString: string; // 查询字符串
 }
-export const useAlarmCenterStore = defineStore('alarmCenter', {
-  state: (): IAlarmCenterState => ({
-    timeRange: DEFAULT_TIME_RANGE,
-    timezone: getDefaultTimezone(),
-    refreshInterval: -1,
-    refreshImmediate: '',
-    alarmType: 'alert',
-  }),
-  actions: {
-    updateState(data: Partial<IAlarmCenterState>) {
-      Object.keys(data).forEach(key => {
-        this[key] = data[key];
+
+export const useAlarmCenterStore = defineStore('alarmCenter', () => {
+  const timeRange = deepRef(DEFAULT_TIME_RANGE);
+  const timezone = shallowRef(getDefaultTimezone());
+  const refreshInterval = shallowRef(-1);
+  const refreshImmediate = shallowRef('');
+  const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
+  const bizIds = deepRef([-1]);
+
+  const conditions = deepRef<CommonCondition[]>([]);
+  const queryString = shallowRef('');
+
+  const cacheMap = shallowRef<
+    Map<
+      AlarmType,
+      {
+        conditions?: CommonCondition[];
+        queryString?: string;
+      }
+    >
+  >(new Map());
+
+  const alarmService = shallowRef<AlarmService<AlarmType>>();
+
+  const quickFilterList = shallowRef<QuickFilterItem[]>([]);
+  const filterTableList = shallowRef<FilterTableResponse<ActionTableItem | AlertTableItem | IncidentTableItem>>({
+    total: 0,
+    data: [],
+  });
+  const analysisDimensionFields = shallowRef<Omit<QuickFilterItem, 'children'>[]>([]);
+
+  const timeRangeTimestamp = computed(() => {
+    const [start, end] = handleTransformToTimestamp(timeRange.value);
+    return {
+      start_time: start,
+      end_time: end,
+    };
+  });
+  const commonFilterParams = computed(() => {
+    return {
+      bk_biz_ids: bizIds.value,
+      conditions: conditions.value,
+      query_string: queryString.value,
+      ...timeRangeTimestamp.value,
+    };
+  });
+
+  watch(
+    alarmType,
+    () => {
+      cacheMap.value.set(alarmType.value, {
+        conditions: JSON.parse(JSON.stringify(conditions.value)),
+        queryString: JSON.parse(JSON.stringify(queryString.value)),
       });
+      alarmService.value = AlarmServiceFactory(alarmType.value);
+      const cache = cacheMap.value.get(alarmType.value);
+      if (cache) {
+        conditions.value = cache.conditions;
+        queryString.value = cache.queryString;
+      }
     },
-  },
+    {
+      immediate: true,
+    }
+  );
+  watchEffect(async () => {
+    const [quickFilter, filterTable, analysisDimension] = await Promise.all([
+      alarmService.value.getQuickFilterList(commonFilterParams.value),
+      alarmService.value.getFilterTableList(commonFilterParams.value),
+      alarmService.value.getAnalysisDimensionFields(commonFilterParams.value),
+    ]);
+    quickFilterList.value = quickFilter;
+    filterTableList.value = filterTable;
+    analysisDimensionFields.value = analysisDimension;
+  });
+  onScopeDispose(() => {
+    quickFilterList.value = [];
+    filterTableList.value = {
+      total: 0,
+      data: [],
+    };
+    analysisDimensionFields.value = [];
+    alarmService.value = undefined;
+    bizIds.value = [+window.bk_biz_id];
+    conditions.value = [];
+    queryString.value = '';
+    timeRange.value = DEFAULT_TIME_RANGE;
+    timezone.value = getDefaultTimezone();
+    refreshInterval.value = -1;
+    refreshImmediate.value = '';
+  });
+  return {
+    timeRange,
+    timezone,
+    refreshInterval,
+    refreshImmediate,
+    alarmType,
+    bizIds,
+    conditions,
+    queryString,
+    commonFilterParams,
+    timeRangeTimestamp,
+    alarmService,
+    quickFilterList,
+    filterTableList,
+    analysisDimensionFields,
+  };
 });
