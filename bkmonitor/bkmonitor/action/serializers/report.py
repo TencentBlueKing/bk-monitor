@@ -16,7 +16,7 @@ class ReceiverSerializer(StaffSerializer):
 
 class ReportContentSerializer(serializers.Serializer):
     content_title = serializers.CharField(required=True, max_length=512, label="子内容标题")
-    content_details = serializers.CharField(required=True, max_length=512, label="字内容说明", allow_blank=True)
+    content_details = serializers.CharField(required=True, max_length=512, label="内容说明", allow_blank=True)
     row_pictures_num = serializers.IntegerField(required=True, label="一行几幅图")
     width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度")
     height = serializers.IntegerField(required=False, max_value=2000, label="单图高度")
