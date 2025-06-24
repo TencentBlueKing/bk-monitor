@@ -2933,7 +2933,24 @@ class FetchK8sEventLogResource(CacheResource):
 
 
 class GetClusterInfoFromBcsSpaceResource(CacheResource):
-    """根据业务id在bcs空间下获取集群信息 ."""
+    """
+    根据业务id在bcs空间下获取集群信息
+
+    ```python
+    retrun {
+        # 共享集群
+        bcs_cluster_id: {
+            "namespace_list": [...],
+            "clsuter_type": BcsClusterType.SHARED
+        },
+        # 单例集群
+        bcs_cluster_id: {
+            "namespace_list": [],
+            "clsuter_type": BcsClusterType.SINGLE
+        }
+    }
+    ```
+    """
 
     cache_type = CacheType.BCS
 
