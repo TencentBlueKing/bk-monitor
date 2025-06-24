@@ -82,6 +82,7 @@ export default defineComponent({
       validator: (val: string) => ['dark', 'light'].includes(val),
     },
   },
+  emits: ['handleClickOutSide', 'handleClickMenuItem'],
   setup(props, { emit }) {
     // console.log('props.checked', props.checked);
     const store = useStore();
@@ -237,8 +238,8 @@ export default defineComponent({
           </div>
           <div class='confirm-dialog__ft'>
             {isSetBizIdDefault.value
-              ? '设为默认后，每次进入监控平台将会默认选中该业务'
-              : '取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务'}
+              ? '设为默认后，每次进入日志平台将会默认选中该业务'
+              : '取消默认业务后，每次进入日志平台将会默认选中最近使用的业务而非当前默认业务'}
           </div>
           <div slot='footer'>
             <bk-button

@@ -26,19 +26,25 @@
 
 <template>
   <div v-bk-clickoutside="handleClickOutSide" :class="['biz-menu-select', { 'light-theme': theme === 'light' }]">
+    <!-- 图标+业务名称 -->
     <div class="menu-select">
+      <!-- 图标 -->
       <span :style="`backgroundColor: ${spaceBgColor}`" class="menu-title">{{ bizNameIcon }}</span>
+      <!-- 图标旁边的字 -->
       <span v-if="isExpand" class="menu-select-name" tabindex="{0}" @mousedown="handleClickBizSelect">
         {{ bizName }}
         <i :style="{ transform: `rotate(${!showBizList ? '0deg' : '-180deg'})` }"
           class="bk-select-angle bk-icon icon-angle-up-fill select-icon" />
       </span>
     </div>
+    <!-- 下拉框内容 -->
     <div v-if="isExpand" :style="{ display: showBizList ? 'flex' : 'none' }" class="menu-select-list">
+      <!-- 业务搜索框 -->
       <bk-input ref="menuSearchInput" class="menu-select-search" :clearable="false" :placeholder="$t('搜索')"
         :value="keyword" left-icon="bk-icon icon-search" @change="handleBizSearchDebounce"
         @clear="handleBizSearchDebounce">
       </bk-input>
+      <!-- space空间选择栏 -->
       <ul v-if="showSpaceTypeIdList" id="space-type-ul" class="space-type-list">
         <li v-for="item in spaceTypeIdList" :style="{
           ...item.styles,
@@ -47,6 +53,7 @@
           {{ item.name }}
         </li>
       </ul>
+      <!-- 业务列表 -->
       <div ref="bizListRef" :style="`width: ${bizBoxWidth}px`" class="biz-list" @scroll="handleScroll">
         <template v-if="groupList.length">
           <slot name="list-top"></slot>
@@ -65,6 +72,7 @@
           {{ $t('无匹配的数据') }}
         </li>
       </div>
+      <!-- 体验demo按钮 -->
       <div class="menu-select-extension">
         <!-- <div class="menu-select-extension-item">
           <span class="icon bk-icon icon-plus-circle"></span>
@@ -86,8 +94,8 @@ import { SPACE_TYPE_MAP } from '@/store/constant';
 import { debounce } from 'throttle-debounce';
 import { mapState, mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../common/authority-map';
-  import List from '../../global/biz-select/list';
+import * as authorityMap from '../../common/authority-map';
+import List from '../../global/biz-select/list';
 
 const SPACE_COLOR_LIST = [
   '#7250A9',

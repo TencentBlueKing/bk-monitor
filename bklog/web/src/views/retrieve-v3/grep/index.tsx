@@ -13,7 +13,7 @@ import { GrepRequestResult } from './types';
 
 export default defineComponent({
   name: 'GrepView',
-  components: {
+  components: { 
     GrepCli,
     GrepCliResult,
   },

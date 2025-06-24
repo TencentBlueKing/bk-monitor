@@ -259,7 +259,8 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
-  import BizMenuSelect from '@/components/biz-menu';
+  // import BizMenuSelect from '@/components/biz-menu'; 
+  import BizMenuSelect from '@/global/bk-space-choice/index'
 
   export default {
     name: 'HeaderNav',

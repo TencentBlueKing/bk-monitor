@@ -244,3 +244,37 @@
     border-radius: 2px;
   }
 }
+
+// 虚拟滚动容器样式
+.virtual-scroller {
+  overflow-y: auto;
+  position: relative;
+  width: 100%;
+  
+  // 主题适配
+  &.dark {
+    background: #2e2e2e;
+  }
+  
+  &.light {
+    background: #ffffff;
+  }
+  
+  .list-group {
+    box-sizing: border-box;
+    padding: 4px 0;
+    
+    .list-item {
+      transition: none; // 禁用动画提升性能
+      position: relative; // 确保位置正确
+    }
+  }
+}
+
+// 确保无数据提示居中
+.no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
