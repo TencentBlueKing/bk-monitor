@@ -105,6 +105,16 @@
     </template>
     <template v-else>
       <span
+        class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html' }"
+      >
+        <span
+          :class="`icon bklog-icon bklog-shangxiawen`"
+          @click.stop="handleCheckClick('contextLog', true)"
+        >
+        </span>
+      </span>
+      <span
         class="handle-card union-icon"
         v-bk-tooltips="
           $t('{0}日志来源', {

@@ -180,7 +180,8 @@
           const contextFields = config.contextAndRealtime.extra?.context_fields;
           const timeField = this.$store.state.indexFieldInfo.time_field;
           const dialogNewParams = {};
-          const { targetFields, sortFields } = config.indexSetValue;
+          const { targetFields = [], sortFields = [] } = config.indexSetValue;
+
           const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
 

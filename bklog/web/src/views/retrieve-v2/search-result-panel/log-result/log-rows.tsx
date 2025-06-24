@@ -419,7 +419,7 @@ export default defineComponent({
                     handleRowAIClcik(event, row);
                     return;
                   }
-
+                  console.log(indexSetOperatorConfig.value);
                   props.handleClickTools(
                     type,
                     row,
