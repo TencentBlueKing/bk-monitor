@@ -1647,18 +1647,16 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
 
 
 class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50, required=False)
     description = serializers.CharField(label=_("备注说明"), max_length=100, required=False, allow_blank=True)
     collector_scenario_id = serializers.ChoiceField(
         label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
     )
     configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer(), required=False)
-    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=False)
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), required=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), required=False)
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
-    yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
+    yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), required=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), allow_blank=True, required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)

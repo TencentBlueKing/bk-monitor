@@ -114,6 +114,16 @@ class K8sCollectorHandler(CollectorHandler):
     FAST_UPDATE_SERIALIZER = FastContainerCollectorUpdateSerializer
     CREATE_SERIALIZER = CreateContainerCollectorSerializer
     UPDATE_SERIALIZER = UpdateContainerCollectorSerializer
+    CONTAINER_CONFIG_FIELDS = [
+        "collector_config_name",
+        "description",
+        "collector_scenario_id",
+        "add_pod_label",
+        "add_pod_annotation",
+        "extra_labels",
+        "yaml_config_enabled",
+        "yaml_config",
+    ]
 
     def _pre_start(self):
         # 如果是容器环境 则创建容器采集配置
@@ -250,34 +260,18 @@ class K8sCollectorHandler(CollectorHandler):
         return self.create_container_config(params)
 
     def update_container_config(self, data):
-        bk_biz_id = data.get("bk_biz_id") or self.data.bk_biz_id
+        bk_biz_id = self.data.bk_biz_id
+        bcs_cluster_id = self.data.bcs_cluster_id
         collector_config_update = {
             "environment": Environment.CONTAINER,
         }
-        if "collector_config_name" in data:
-            collector_config_update.update({"collector_config_name": data.get("collector_config_name")})
-        if "description" in data:
-            collector_config_update.update({"description": data.get("description", "")})
-        if "collector_scenario_id" in data:
-            collector_config_update.update({"collector_scenario_id": data.get("collector_scenario_id")})
-        if "bcs_cluster_id" in data:
-            collector_config_update.update({"bcs_cluster_id": data.get("bcs_cluster_id")})
-        if "add_pod_label" in data:
-            collector_config_update.update({"add_pod_label": data.get("add_pod_label")})
-        if "add_pod_annotation" in data:
-            collector_config_update.update({"add_pod_annotation": data.get("add_pod_annotation")})
-        if "extra_labels" in data:
-            collector_config_update.update({"extra_labels": data.get("extra_labels")})
-        if "yaml_config_enabled" in data:
-            collector_config_update.update({"yaml_config_enabled": data.get("yaml_config_enabled")})
-        if "yaml_config" in data:
-            collector_config_update.update({"yaml_config": data.get("yaml_config")})
+        for container_config_field in self.CONTAINER_CONFIG_FIELDS:
+            if container_config_field in data:
+                collector_config_update.update({container_config_field: data[container_config_field]})
 
-        if data["yaml_config_enabled"]:
+        if data.get("yaml_config_enabled") and data.get("yaml_config") is not None:
             # yaml 模式，先反序列化解出来，覆盖到config字段上面
-            validate_result = self.validate_container_config_yaml(
-                bk_biz_id, data.get("bcs_cluster_id"), data.get("yaml_config")
-            )
+            validate_result = self.validate_container_config_yaml(bk_biz_id, bcs_cluster_id, data["yaml_config"])
             if not validate_result["parse_status"]:
                 raise ContainerCollectConfigValidateYamlException()
             data["configs"] = validate_result["parse_result"]["configs"]
@@ -288,7 +282,7 @@ class K8sCollectorHandler(CollectorHandler):
                 self.check_cluster_config(
                     bk_biz_id=bk_biz_id,
                     collector_type=config["collector_type"],
-                    bcs_cluster_id=data.get("bcs_cluster_id"),
+                    bcs_cluster_id=bcs_cluster_id,
                     namespace_list=config["namespaces"],
                 )
 
