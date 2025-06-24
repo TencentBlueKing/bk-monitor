@@ -50,7 +50,6 @@ def test_complete_info_query(mocker, mock_data_source):
     assert "rt_infos" in result_data
     assert "es_storage_infos" in result_data
     assert "bkbase_infos" in result_data
-    # 验证不包含的信息
     assert "etl_infos" in result_data
     assert "authorized_space_uids" in result_data
     assert "expired_metrics" in result_data
