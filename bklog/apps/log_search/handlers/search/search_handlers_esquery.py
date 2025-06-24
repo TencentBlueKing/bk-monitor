@@ -2720,6 +2720,7 @@ class UnionSearchHandler:
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
                 search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
+                search_dict["custom_indices"] = union_config.get("custom_indices", "")
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 
