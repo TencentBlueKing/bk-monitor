@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.3
-        version: 1.1.0-beta.3(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
+        specifier: 1.1.0-beta.6
+        version: 1.1.0-beta.6(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
       '@blueking/bk-weweb':
         specifier: 0.0.35-beta.7
         version: 0.0.35-beta.7
@@ -1493,13 +1493,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.3':
-    resolution: {integrity: sha512-+LP3OV2WaT4lEM2VDE/YWMR0waauGRdpmVoAyFrxWs2XXjDvKkOn9Dos2Wc4wXfHCvU7SmFc3y/KEAyK6LqkqQ==}
+  '@blueking/ai-blueking@1.1.0-beta.6':
+    resolution: {integrity: sha512-HpsOFpkXPjBwu5lDgRCdaqQW0k7ON/0nUVTSjo4ZpIK0hsWuDLhviDC83flUk3kelMVXB1PPf4HxK8ikFrrXFw==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
-      markdown-it-code-copy: ^0.2.1
 
   '@blueking/ai-ui-sdk@0.0.15-beta.38':
     resolution: {integrity: sha512-dAlwkA0DHjQyN66aRXamJYp1yL7iqg5chOc/FkZdpr2SA8GuwPZRFDrs4HB46d4uJnSxD7Esh+lzdqPQ3E8fdw==}
@@ -5805,8 +5804,10 @@ packages:
     resolution: {integrity: sha512-4y7uGv8bd2WdM9vpQsiQNo41Ln1NvhvDRuVt0k2JZQ+ezN2uaQes7lZeZ+QQUHOLQAtDaBJ+7wCbi+ab/KFs+w==}
     engines: {node: '>=0.10.0'}
 
-  markdown-it-code-copy@0.2.1:
-    resolution: {integrity: sha512-WuMKSdhYDwTXM78LYHDj4ZFd2RFmodzyfDoJGEW7YLVwVPpaSAm2Jhcxgr3LWFygfvjTUeQu+TH+JZ/IF0u7yg==}
+  markdown-it-copy-code@0.1.3:
+    resolution: {integrity: sha512-8ZgbAtEtXzBw06fPbqYaZ6JswDDRQyXSi2YQ1ghnW1mw2ajpc6KTC8OkpyhBFhKfGzRgUUqATXYo7TT10vsG6w==}
+    peerDependencies:
+      markdown-it: '>= 13.0.0'
 
   markdown-it@13.0.2:
     resolution: {integrity: sha512-FtwnEuuK+2yVU7goGn/MJ0WBZMM9ZPgU9spqlFs7/A/pDIUNSOQZhUgOqYCficIuR2QaFnrt8LHqBWsbTAoI5w==}
@@ -7947,6 +7948,9 @@ packages:
     resolution: {integrity: sha512-tX5e7OM1HnYr2+a2C/4V0htOcSQcoSTH9KgJnVvNm5zm/cyEWKJ7j7YutsH9CxMdtOkkLFy2AHrMci9IM8IPZQ==}
     engines: {node: '>=12.0.0'}
 
+  tippy.js@6.3.6:
+    resolution: {integrity: sha512-59OpvnA4jxYxSTCNu7mb3gUaCrnuyi34FbWxAf9gG4ApJKn4NrJdHO2exB/5TOWf9zl6v03hluRVtZFVYrm/bQ==}
+
   tippy.js@6.3.7:
     resolution: {integrity: sha512-E1d3oP2emgJ9dRQZdf3Kkn0qJgI6ZLpyS5z6ZkY1DF3kaQaBsGZsndEpHwx+eC+tYM41HaSNvNtLx8tU57FzTQ==}
 
@@ -9726,7 +9730,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.3(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
+  '@blueking/ai-blueking@1.1.0-beta.6(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.0.15-beta.38(dayjs@1.11.13)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
@@ -9734,9 +9738,9 @@ snapshots:
       dayjs: 1.11.13
       highlight.js: 11.5.1
       markdown-it: 13.0.2
-      markdown-it-code-copy: 0.2.1
+      markdown-it-copy-code: 0.1.3(markdown-it@13.0.2)
       motion-v: 0.11.3(vue@2.7.16)
-      tippy.js: 6.3.7
+      tippy.js: 6.3.6
       vue-draggable-resizable: 3.0.0(vue@2.7.16)
     transitivePeerDependencies:
       - '@emotion/is-prop-valid'
@@ -14563,10 +14567,9 @@ snapshots:
     dependencies:
       object-visit: 1.0.1
 
-  markdown-it-code-copy@0.2.1:
+  markdown-it-copy-code@0.1.3(markdown-it@13.0.2):
     dependencies:
-      clipboard: 2.0.11
-      lodash: 4.17.21
+      markdown-it: 13.0.2
 
   markdown-it@13.0.2:
     dependencies:
@@ -17142,6 +17145,10 @@ snapshots:
     dependencies:
       fdir: 6.4.4(picomatch@4.0.2)
       picomatch: 4.0.2
+
+  tippy.js@6.3.6:
+    dependencies:
+      '@popperjs/core': 2.11.8
 
   tippy.js@6.3.7:
     dependencies:

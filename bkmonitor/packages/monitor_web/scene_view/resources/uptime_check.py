@@ -189,7 +189,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                     "data_label": f"uptimecheck_{task.protocol.lower()}",
                     "table": "",
                     "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
-                    "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
+                    "group_by": ["bk_host_id", "ip", "bk_cloud_id"],
                 }
             ],
             "bk_biz_id": task.bk_biz_id,
@@ -201,7 +201,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         result = resource.grafana.graph_unify_query(query_params)
         series_list = []
         for series in result["series"]:
-            if is_ipv6_biz(params["bk_biz_id"]):
+            if series["dimensions"].get("bk_host_id"):
                 host_key = int(series["dimensions"]["bk_host_id"])
                 host_key_name = ["bk_host_id", str(host_key)]
             else:
