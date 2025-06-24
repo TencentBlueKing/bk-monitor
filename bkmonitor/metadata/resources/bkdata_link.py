@@ -143,7 +143,7 @@ class QueryDataLinkInfoResource(Resource):
                     }
                 )
 
-                return json.dumps(res, ensure_ascii=False)
+            return json.dumps(res, ensure_ascii=False)
         except Exception as e:
             logger.error(
                 "[QueryDataLinkInfoResource] 查询数据链路信息失败, bk_data_id: %s, error: %s", bk_data_id, str(e)
