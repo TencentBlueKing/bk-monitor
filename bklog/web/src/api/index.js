@@ -34,7 +34,7 @@ import Vue from 'vue';
 
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
-import { makeMessage } from '@/common/util';
+import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
@@ -104,7 +104,9 @@ axiosInstance.interceptors.response.use(
     };
     if (response.data instanceof Blob) {
       if (response.status !== 200) {
-        return responsePromise({ code: response.status, message: response.statusText }, { globalError: true });
+        return readBlobRespToJson(response.data).then(resp => {
+          return responsePromise(resp, { globalError: true });
+        });
       }
 
       return response;
@@ -113,6 +115,18 @@ axiosInstance.interceptors.response.use(
     return responsePromise();
   },
   error => {
+    if (error?.response?.data instanceof Blob) {
+      return readBlobRespToJson(error.response.data).then(resp => {
+        return handleReject(
+          {
+            ...(error ?? {}),
+            response: resp,
+          },
+          { globalError: true, catchIsShowMessage: true, ...error.config },
+        );
+      });
+    }
+
     return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config });
   },
 );
