@@ -274,7 +274,7 @@ export default defineComponent({
             groupBy: JSON.stringify(['namespace', 'service']),
             scene: 'network',
             sceneId: 'kubernetes',
-            activeTab: 'detail',
+            activeTab: 'list',
             cluster: cluster_id ?? '',
             filterBy: JSON.stringify(filterBy),
           };
@@ -294,7 +294,7 @@ export default defineComponent({
           return {
             sceneId: 'kubernetes',
             groupBy: JSON.stringify(['namespace', 'workload']),
-            activeTab: 'detail',
+            activeTab: 'list',
             cluster: cluster_id ?? '',
             filterBy: JSON.stringify(filterBy),
           };
