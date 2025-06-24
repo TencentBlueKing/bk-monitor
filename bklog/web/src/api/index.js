@@ -86,24 +86,30 @@ axiosInstance.interceptors.request.use(
  */
 axiosInstance.interceptors.response.use(
   async response => {
-    const responsePromise = () => {
+    const responsePromise = (respData = undefined, cfg = undefined) => {
       const config = response.config;
       return new Promise(async (resolve, reject) => {
         try {
-          handleResponse({ config, response: response.data, resolve, reject, status: response.status });
+          handleResponse({
+            config: { ...config, ...(cfg ?? {}) },
+            response: respData ?? response.data,
+            resolve,
+            reject,
+            status: response.status,
+          });
         } catch (error) {
-          handleReject(error, config, reject);
+          handleReject(error, { ...config, ...(cfg ?? {}) }, reject);
         }
       });
-    }
+    };
     if (response.data instanceof Blob) {
       if (response.status !== 200) {
-        return responsePromise();
+        return responsePromise({ code: response.status, message: response.statusText }, { globalError: true });
       }
 
       return response;
     }
-    
+
     return responsePromise();
   },
   error => Promise.reject(error),
