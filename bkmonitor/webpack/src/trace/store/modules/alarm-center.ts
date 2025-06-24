@@ -32,7 +32,7 @@ import { defineStore } from 'pinia';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import { AlarmType } from '../../pages/alarm-center/typing';
+import { AlarmType } from '../../pages/alarm-center/typings';
 
 import type {
   CommonCondition,
@@ -64,6 +64,15 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   const conditions = deepRef<CommonCondition[]>([]);
   const queryString = shallowRef('');
+  const loading = deepRef<{
+    quickFilter: boolean;
+    filterTable: boolean;
+    analysisDimension: boolean;
+  }>({
+    quickFilter: false,
+    filterTable: false,
+    analysisDimension: false,
+  });
 
   const cacheMap = shallowRef<
     Map<
@@ -119,10 +128,19 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     }
   );
   watchEffect(async () => {
+    loading.value.quickFilter = true;
+    loading.value.filterTable = true;
+    loading.value.analysisDimension = true;
     const [quickFilter, filterTable, analysisDimension] = await Promise.all([
-      alarmService.value.getQuickFilterList(commonFilterParams.value),
-      alarmService.value.getFilterTableList(commonFilterParams.value),
-      alarmService.value.getAnalysisDimensionFields(commonFilterParams.value),
+      alarmService.value.getQuickFilterList(commonFilterParams.value).finally(() => {
+        loading.value.quickFilter = false;
+      }),
+      alarmService.value.getFilterTableList(commonFilterParams.value).finally(() => {
+        loading.value.filterTable = false;
+      }),
+      alarmService.value.getAnalysisDimensionFields(commonFilterParams.value).finally(() => {
+        loading.value.analysisDimension = false;
+      }),
     ]);
     quickFilterList.value = quickFilter;
     filterTableList.value = filterTable;
@@ -143,8 +161,15 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';
+    cacheMap.value.clear();
+    loading.value = {
+      quickFilter: false,
+      filterTable: false,
+      analysisDimension: false,
+    };
   });
   return {
+    loading,
     timeRange,
     timezone,
     refreshInterval,

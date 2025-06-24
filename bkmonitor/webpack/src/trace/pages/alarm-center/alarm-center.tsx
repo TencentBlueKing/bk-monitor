@@ -41,14 +41,14 @@ export default defineComponent({
     const alarmStore = useAlarmCenterStore();
     const isCollapsed = shallowRef(false);
 
-    const handleCloseFilter = (v: boolean) => {
+    const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
 
     return {
       alarmStore,
       isCollapsed,
-      handleCloseFilter,
+      updateIsCollapsed,
     };
   },
   render() {
@@ -64,7 +64,7 @@ export default defineComponent({
                   <div class='quick-filtering'>
                     <QuickFiltering
                       groupList={this.alarmStore.quickFilterList}
-                      onClose={this.handleCloseFilter}
+                      onClose={this.updateIsCollapsed}
                     />
                   </div>
                 );
@@ -81,9 +81,9 @@ export default defineComponent({
             }}
             initialDivide={208}
             isCollapsed={this.isCollapsed}
-            maxWidth={800}
+            maxWidth={500}
             minWidth={160}
-            onUpdate:isCollapsed={this.handleCloseFilter}
+            onUpdate:isCollapsed={this.updateIsCollapsed}
           />
         </div>
       </div>

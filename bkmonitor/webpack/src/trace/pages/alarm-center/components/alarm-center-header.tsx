@@ -31,7 +31,7 @@ import { storeToRefs } from 'pinia';
 
 import CommonHeader from '../../../components/common-header/common-header';
 import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
-import { alarmTypeMap, type AlarmType } from '../typing';
+import { alarmTypeMap, type AlarmType } from '../typings';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 

@@ -27,7 +27,7 @@
 import { searchAlert, searchAction, listAlertTags, alertTopN, actionTopN } from 'monitor-api/modules/alert';
 import { incidentList, incidentOverview, incidentTopN } from 'monitor-api/modules/incident';
 
-import { AlarmType } from '../typing';
+import { AlarmType } from '../typings';
 
 import type {
   CommonFilterParams,
