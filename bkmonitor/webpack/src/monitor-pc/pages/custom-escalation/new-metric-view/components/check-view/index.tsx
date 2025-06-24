@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Ref, Prop, ProvideReactive, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random, deepClone } from 'monitor-common/utils';
@@ -66,7 +66,6 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   @Ref('viewRef') viewRef: HTMLElement;
   @Ref('viewMain') viewMainRef: HTMLDivElement;
   @Ref('metricChart') metricChartRef: HTMLDivElement;
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   dimensionParams: Record<string, any> = {};
   /* 主动刷新图表 */
   chartKey = random(8);
@@ -92,6 +91,24 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   isHasDimensions = false;
   compare: string[] = [];
   hoverPoint: { value?: number } = {};
+  cacheTimeRange = [];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
+
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   get titleName() {
     return this.panel?.config?.title || '';
   }
@@ -156,6 +173,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   }
   /** 修改时间间隔 */
   handleTimeRangeChange(val: TimeRangeType) {
+    this.showRestore = false;
     this.timeRange = [...val];
     this.loading = true;
   }
