@@ -23,25 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, ref, nextTick, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, type Ref, inject, onMounted, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Collapse, Exception } from 'bkui-vue';
+import { Collapse, Exception, Loading } from 'bkui-vue';
+import { incidentDiagnosis } from 'monitor-api/modules/incident';
+
+import type { IIncident } from '../types';
 
 import './trouble-shooting.scss';
 
 export default defineComponent({
   name: 'TroubleShooting',
   props: {
-    steps: {
-      type: Array,
-      default: () => [],
+    panelConfig: {
+      type: Object,
+      default: () => ({}),
     },
   },
   emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const isAllCollapsed = shallowRef(true);
+    const contentList = shallowRef({});
+    const loadingList = shallowRef({});
     const data = [
       {
         key: 'name',
@@ -163,11 +169,13 @@ export default defineComponent({
     const list = shallowRef([
       {
         name: t('处置建议'),
+        key: 'suggestion',
         icon: 'icon-chulijilu',
         render: renderDisposal,
       },
       {
         name: t('告警异常维度分析'),
+        key: 'dimension_analysis',
         icon: 'icon-dimension-line',
         render: renderDimensional,
       },
@@ -177,12 +185,47 @@ export default defineComponent({
       activeIndex.value = isAllCollapsed.value ? list.value.map((_, ind) => ind) : [];
     };
 
+    const getIncidentDiagnosis = sub_panel => {
+      loadingList.value[sub_panel] = true;
+      incidentDiagnosis({
+        id: incidentDetail.value?.incident_id,
+        sub_panel,
+      })
+        .then(res => {
+          contentList.value[sub_panel] = res.contents;
+          console.log(res, contentList.value);
+        })
+        .finally(() => {
+          loadingList.value[sub_panel] = false;
+        });
+    };
+    watch(
+      () => props.panelConfig,
+      val => {
+        const { status, sub_panels } = val;
+        if (status === 'running') {
+          const keys = Object.keys(sub_panels).filter(key => sub_panels[key].status === 'finished');
+          list.value.map(item =>
+            Object.assign(item, {
+              status: sub_panels[item.key].status,
+              loading: sub_panels[item.key].status === 'running',
+            })
+          );
+          keys.map(key => {
+            !contentList.value[key] && getIncidentDiagnosis(key);
+          });
+        }
+      },
+      { deep: true }
+    );
+
     return {
       t,
       activeIndex,
       list,
       isAllCollapsed,
       handleToggleAll,
+      contentList,
     };
   },
   render() {
@@ -192,7 +235,7 @@ export default defineComponent({
         <span class='field-name'>{item.name}</span>
       </span>
     );
-    const contentSlot = item => item.render();
+    const contentSlot = item => <Loading loading={item.loading}>{item.render()}</Loading>;
     return (
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
@@ -214,7 +257,8 @@ export default defineComponent({
               {this.t('故障总结')}
             </div>
             <div class='ai-card-main'>
-              根因节点和影响范围（结合图谱的实体回答：服务、模块），触发的告警情况、影响面积分析文本占位文本占位。查看详情
+              {this.contentList?.summary || this.t('暂无故障总结')}
+              {/* 根因节点和影响范围（结合图谱的实体回答：服务、模块），触发的告警情况、影响面积分析文本占位文本占位。查看详情 */}
             </div>
           </div>
           <Collapse

@@ -23,14 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, provide, ref, nextTick } from 'vue';
+import { computed, defineComponent, onMounted, provide, nextTick, shallowRef, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
-import { incidentDetail, incidentOperationTypes, incidentOperations } from 'monitor-api/modules/incident';
+import {
+  incidentDetail,
+  incidentOperationTypes,
+  incidentOperations,
+  incidentResults,
+} from 'monitor-api/modules/incident';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
 import FailureContent from './failure-content/failure-content';
@@ -40,9 +45,9 @@ import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
 import { useIncidentProvider } from './utils';
 
-import type { AnlyzeField, ICommonItem } from '../../../../fta-solutions/typings/event';
 import type { IFilterSearch, IIncident } from './types';
 import type { ITagInfoType } from './types';
+import type { AnlyzeField, ICommonItem } from 'fta-solutions/pages/event/typings/event';
 
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 import './failure.scss';
@@ -88,24 +93,27 @@ export default defineComponent({
     useIncidentProvider(computed(() => props.id));
     const route = useRoute();
     const router = useRouter();
-    const operations = ref([]);
-    const bkzIds = ref([]);
+    const operations = shallowRef([]);
+    const bkzIds = shallowRef([]);
     const { t } = useI18n();
-    const incidentDetailData = ref<IIncident>({});
-    const valueMap = ref<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
-    const analyzeTagList = ref([]);
-    const tagInfo = ref<ITagInfoType>({});
-    const currentNode = ref([] as string[]);
-    const filterSearch = ref<IFilterSearch>({});
-    const alertAggregateData = ref([]);
-    const operationsLoading = ref(false);
-    const scrollTopNum = ref(0);
-    const operationTypeMap = ref({});
-    const playLoading = ref(false);
-    const operationTypes = ref([]);
-    const refContent = ref<InstanceType<typeof FailureContent>>();
-    const failureNavRef = ref<InstanceType<typeof FailureNav>>();
-    const topoNodeId = ref<string>();
+    const incidentDetailData = shallowRef<IIncident>({});
+    const valueMap = shallowRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
+    const analyzeTagList = shallowRef([]);
+    const tagInfo = shallowRef<ITagInfoType>({});
+    const currentNode = shallowRef([] as string[]);
+    const filterSearch = shallowRef<IFilterSearch>({});
+    const alertAggregateData = shallowRef([]);
+    const operationsLoading = shallowRef(false);
+    const scrollTopNum = shallowRef(0);
+    const operationTypeMap = shallowRef({});
+    const playLoading = shallowRef(false);
+    const operationTypes = shallowRef([]);
+    const refContent = shallowRef<InstanceType<typeof FailureContent>>();
+    const failureNavRef = shallowRef<InstanceType<typeof FailureNav>>();
+    const topoNodeId = shallowRef<string>();
+    const incidentResultList = shallowRef({});
+    const incidentResultStatus = shallowRef('');
+    const timer = shallowRef();
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -113,6 +121,7 @@ export default defineComponent({
     provide('operationsList', operations);
     provide('operationsLoading', operationsLoading);
     provide('operationTypeMap', operationTypeMap);
+    provide('incidentResults', incidentResultList);
     /**
      * @description: 获取告警分析TopN数据
      * @param {*}
@@ -141,7 +150,7 @@ export default defineComponent({
       const setTopnDataFn = async (fieldList, count) => {
         valueMap.value = {};
         const list = [];
-        (fieldList || []).forEach(item => {
+        (fieldList || []).map(item => {
           valueMap.value[item.field] =
             item.buckets.map(set => {
               if (tagList.some(tag => tag.id === item.field)) {
@@ -231,10 +240,10 @@ export default defineComponent({
         incident_id: incidentDetailData.value?.incident_id,
       })
         .then(res => {
-          res.forEach(item => {
+          res.map(item => {
             item.id = item.operation_class;
             item.name = item.operation_class_alias;
-            item.operation_types.forEach(type => {
+            item.operation_types.map(type => {
               type.id = type.operation_type;
               type.name = type.operation_type_alias;
               operationTypeMap.value[type.id] = type.name;
@@ -256,7 +265,7 @@ export default defineComponent({
         incident_id: incidentDetailData.value?.incident_id,
       })
         .then(res => {
-          res.forEach(item => {
+          res.map(item => {
             const { operation_type, extra_info } = item;
             item.str = replaceStr(typeTextMap[operation_type], extra_info);
           });
@@ -301,8 +310,33 @@ export default defineComponent({
     const treeDataList = computed(() => {
       return alertAggregateData.value;
     });
+
+    /** 故障分析状态获取接口 */
+    const getIncidentResults = () => {
+      incidentResults({ id: props.id }).then(res => {
+        incidentResultStatus.value = res.status;
+        incidentResultList.value = res.panels;
+      });
+    };
+    watch(
+      () => incidentResultStatus.value,
+      val => {
+        if (val === 'running') {
+          timer.value = setInterval(() => {
+            getIncidentResults();
+          }, 3000);
+        } else {
+          clearInterval(timer.value);
+        }
+      }
+    );
+
     onMounted(() => {
+      getIncidentResults();
       getIncidentDetail();
+    });
+    onBeforeUnmount(() => {
+      timer.value && clearInterval(timer.value);
     });
     const nodeClick = item => {
       currentNode.value = [];

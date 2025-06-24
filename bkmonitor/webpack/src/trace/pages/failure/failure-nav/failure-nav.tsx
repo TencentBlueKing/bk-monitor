@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, defineComponent, inject, ref } from 'vue';
+import { computed, KeepAlive, type PropType, type Ref, defineComponent, inject, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -54,26 +54,43 @@ export default defineComponent({
     /** 左侧头部菜单 */
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const alertAggregateParams = ref({});
-    const refNav = ref(null);
+    const incidentResults = inject<Ref<object>>('incidentResults');
+    const alertAggregateParams = shallowRef({});
+    const refNav = shallowRef(null);
     const tabList = [
       {
         name: 'FailureHandle',
         label: t('故障处理'),
         component: FailureHandle,
+        key: 'incident_handlers',
       },
       {
         name: 'FailureProcess',
         label: t('故障流转'),
         component: FailureProcess,
+        key: 'incident_operations',
       },
       {
         name: 'TroubleShooting',
         label: t('故障诊断'),
         component: TroubleShooting,
+        key: 'incident_diagnosis',
       },
     ];
-    const active = ref('TroubleShooting');
+    const active = shallowRef('TroubleShooting');
+    const showKeys = computed(() => {
+      const keys = Object.keys(incidentResults.value).filter(key => incidentResults.value[key].enabled);
+      return keys;
+    });
+    const showTabList = computed(() => {
+      return tabList.filter(item => showKeys.value.includes(item.key)) || [];
+    });
+
+    const currentTabConfig = computed(() => {
+      const key = tabList.find(item => item.name === active.value).key;
+      return incidentResults.value[key];
+    });
+
     const handleChange = (name: string) => {
       if (active.value !== name) {
         active.value = name;
@@ -150,9 +167,13 @@ export default defineComponent({
       refNav,
       handleRefNavRefresh,
       changeTab,
+      showTabList,
+      showKeys,
+      currentTabConfig,
     };
   },
   render() {
+    // console.log(this.currentTabConfig, 'currentTabConfig');
     const Component = this.tabList.find(item => item.name === this.active).component;
     return (
       <div class='failure-nav'>
@@ -160,7 +181,7 @@ export default defineComponent({
         <FailureMenu
           width={'500px'}
           active={this.active}
-          tabList={this.tabList}
+          tabList={this.showTabList}
           top={-16}
           onChange={this.handleChange}
         />
@@ -168,6 +189,7 @@ export default defineComponent({
           <KeepAlive>
             <Component
               ref='refNav'
+              panelConfig={this.currentTabConfig}
               tagInfo={this.$props.tagInfo}
               topoNodeId={this.$props.topoNodeId}
               onChangeSpace={this.handleSpace}
