@@ -274,7 +274,7 @@ def create_application_async(application_id, storage_config, options):
         EventReportHelper.report(f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，错误详情：{e}")
 
     # 异步分派预计算任务
-    bmw_task_cron.delay(countdown=60)
+    bmw_task_cron.apply_async(countdown=60)
 
 
 @app.task(ignore_result=True, queue="celery_cron")
