@@ -49,7 +49,7 @@ export default defineComponent({
     const startTime = computed(() => store.getters.retrieveParams.start_time);
     const endTime = computed(() => store.getters.retrieveParams.end_time);
 
-    const expireTime = ref('1d');
+    const expireTime = ref('1m');
     const expireTimeList = ref([
       { id: '1d', name: '1天' },
       { id: '1w', name: '1周' },
