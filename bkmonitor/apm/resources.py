@@ -1444,7 +1444,10 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         # bk_data_id，bk_biz_id，start_time，end_time 等参数用来限定自动关联范围
         # 索引集对应采集ID, 不一定有，这里只做尽可能的关联
         bk_data_id = serializers.IntegerField(required=False, label=_("索引集对应采集ID"), default=None)
-        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID", default=0, allow_null=True)
+        related_bk_biz_id = serializers.IntegerField(
+            required=False, label="关联 CC 的业务ID", default=0, allow_null=True
+        )
         start_time = serializers.IntegerField(required=False, label="关联开始时间", default=None, allow_null=True)
         end_time = serializers.IntegerField(required=False, label="关联结束时间", default=None, allow_null=True)
 
@@ -1500,8 +1503,11 @@ class QueryLogRelationByIndexSetIdResource(Resource):
             if end_time - start_time > one_hour_seconds:
                 # 防止时间范围太大，导致接口查询过慢
                 start_time = end_time - one_hour_seconds
+
+            bk_data_id_bk_biz_id = data.get("bk_biz_id")
+            related_bk_biz_id = data.get("related_bk_biz_id")
             response = api.unify_query.query_multi_resource_range(
-                bk_biz_ids=[data.get("bk_biz_id")],
+                bk_biz_ids=[related_bk_biz_id or bk_data_id_bk_biz_id],
                 query_list=[
                     {
                         "start_time": start_time,
@@ -1518,7 +1524,12 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 for each_data in response.get("data", []):
                     for target in each_data.get("target_list", []):
                         for item in target.get("items", []):
-                            return {"bk_biz_id": data.get("bk_biz_id"), "app_name": item["apm_application_name"]}
+                            app_name = item["apm_application_name"]
+                            app = ApmApplication.objects.filter(
+                                app_name=app_name, bk_biz_id__in=[bk_data_id_bk_biz_id, related_bk_biz_id]
+                            ).first()
+                            if app:
+                                return {"bk_biz_id": app.bk_biz_id, "app_name": app_name}
 
         return {}
 
@@ -2153,6 +2164,7 @@ class QueryFieldStatisticsGraphResource(Resource):
                 {
                     "query_method": validated_data["query_method"],
                     "time_alignment": validated_data["time_alignment"],
+                    "null_as_zero": not validated_data["time_alignment"],
                     "start_time": config["start_time"] // 1000,
                     "end_time": config["end_time"] // 1000,
                 }

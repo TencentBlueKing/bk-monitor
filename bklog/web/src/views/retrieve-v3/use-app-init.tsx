@@ -23,17 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../hooks/use-resize-observe';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
+import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
-import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
   const store = useStore();
@@ -277,6 +277,7 @@ export default () => {
 
           store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+            RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
             if (
               route.query.tab === 'origin' ||

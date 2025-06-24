@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import abc
 import copy
 import logging
@@ -39,7 +38,7 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return url
 
     def get_headers(self):
-        headers = super(BcsStorageBaseResource, self).get_headers()
+        headers = super().get_headers()
         headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
         return headers
 
@@ -62,6 +61,7 @@ class FetchPageResource(BcsStorageBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         cluster_id = serializers.CharField(label="集群ID")
         type = serializers.CharField(label="资源类型")
         field = serializers.CharField(label="字段选择器", required=False, allow_null=True)
@@ -79,46 +79,49 @@ class FetchResource(BcsStorageBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         cluster_id = serializers.CharField(label="集群ID")
         type = serializers.CharField(label="资源类型")
         field = serializers.CharField(label="字段选择器", required=False, allow_null=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
         data = []
         offset = 0
         limit = settings.BCS_STORAGE_PAGE_SIZE
         while True:
-            validated_request_data = copy.deepcopy(validated_request_data)
-            validated_request_data["offset"] = offset
-            validated_request_data["limit"] = limit
-            data_per_page = super().perform_request(validated_request_data)
+            params = copy.deepcopy(params)
+            params["offset"] = offset
+            params["limit"] = limit
+            data_per_page = super().perform_request(params)
             data.extend(data_per_page)
             data_len = len(data_per_page)
             # 通过判断返回结果的数据判断是否需要获取下一页的数据
             if data_len == limit:
                 offset += limit
-                validated_request_data["offset"] = offset
+                params["offset"] = offset
                 continue
             break
 
         return data
 
 
-def fetch_iterator(cluster_id, resource_type, field=None):
+def fetch_iterator(bk_tenant_id: str, cluster_id: str, resource_type: str, field: str | None = None):
     """
     获取bcs资源的迭代器
     """
     offset = 0
     limit = settings.BCS_STORAGE_PAGE_SIZE
     while True:
-        validated_request_data = {
-            "cluster_id": cluster_id,
-            "type": resource_type,
-            "offset": offset,
-            "limit": limit,
-            "field": field,
-        }
-        data_per_page = FetchPageResource().perform_request(validated_request_data)
+        data_per_page = FetchPageResource().perform_request(
+            {
+                "bk_tenant_id": bk_tenant_id,
+                "cluster_id": cluster_id,
+                "type": resource_type,
+                "offset": offset,
+                "limit": limit,
+                "field": field,
+            }
+        )
         yield from data_per_page
 
         data_len = len(data_per_page)

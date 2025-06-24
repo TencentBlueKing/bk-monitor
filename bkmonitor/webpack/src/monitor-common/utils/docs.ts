@@ -125,7 +125,6 @@ export function linkJump(type: DocLinkType, path: string) {
       url = concatMonitorDocsUrl(path);
       break;
   }
-  console.info(url, '=========');
   window.open(url, '_blank');
 }
 

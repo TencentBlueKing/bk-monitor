@@ -152,6 +152,8 @@ declare global {
      * 灰度业务是否开启故障事件中心
      */
     enable_aiops_event_center_biz_list?: number[];
+    // ai小鲸鱼 api base url
+    ai_xiao_jing_base_url?: string;
   }
   interface HTMLElement {
     ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
