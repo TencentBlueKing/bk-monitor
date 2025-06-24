@@ -302,7 +302,7 @@
           const newFilterRules = filterRules.map(item => ({
             ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
             ...item,
-            value: [...item.value],
+            value: Array.isArray(item.value) ? [...item.value] : [item.value],
           }));
           this.defaultVaribles = predefined_varibles;
           const assignObj = {
