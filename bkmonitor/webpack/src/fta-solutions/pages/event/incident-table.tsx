@@ -192,8 +192,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           checked: true,
           disabled: true,
           props: {
-            // width: 180,
+            width: 260,
             minWidth: 180,
+            fixed: 'left',
             // sortable: 'curstom',
             showOverflowTooltip: true,
           },
