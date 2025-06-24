@@ -269,7 +269,10 @@ class K8sCollectorHandler(CollectorHandler):
             if container_config_field in data:
                 collector_config_update.update({container_config_field: data[container_config_field]})
 
-        if data.get("yaml_config_enabled") and data.get("yaml_config") is not None:
+        yaml_config_enabled = (
+            data["yaml_config_enabled"] if "yaml_config_enabled" in data else self.data.yaml_config_enabled
+        )
+        if yaml_config_enabled and "yaml_config" in data:
             # yaml 模式，先反序列化解出来，覆盖到config字段上面
             validate_result = self.validate_container_config_yaml(bk_biz_id, bcs_cluster_id, data["yaml_config"])
             if not validate_result["parse_status"]:
