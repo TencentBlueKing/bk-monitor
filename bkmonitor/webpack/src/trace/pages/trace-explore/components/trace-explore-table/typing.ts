@@ -29,6 +29,16 @@ import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-n
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
 
+/** 表格单元格渲染类型 */
+/**
+ * 通用表格单元格渲染类型
+ * column 允许为 BaseTableColumn 或 ExploreTableColumn，row 为 any
+ */
+export type TableCellRender<T extends BaseTableColumn = BaseTableColumn<any, any>> = (
+  column: T,
+  row: any
+) => SlotReturnValue;
+
 /** trace检索 表格列配置类型 */
 export interface BaseTableColumn<K extends string = string, U extends Record<string, any> = Record<string, any>>
   extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
@@ -39,14 +49,15 @@ export interface BaseTableColumn<K extends string = string, U extends Record<str
   /** 单元格是否开启溢出省略弹出 popover 功能 */
   cellEllipsis?: boolean;
   /** 单元格后置插槽（tag类型列暂未支持） */
-  suffixSlot?: (row, column: BaseTableColumn) => SlotReturnValue;
+  suffixSlot?: (row, column: BaseTableColumn<any, any>) => SlotReturnValue;
   /** 需要自定义定义 渲染值 时可用 */
-  getRenderValue?: (row, column: BaseTableColumn<K>) => GetTableCellRenderValue<K, U>;
+  getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-  clickCallback?: (row, column: BaseTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
+  clickCallback?: (row, column: BaseTableColumn<any, any>, event: MouseEvent) => void;
 }
 
-export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum> = BaseTableColumn<T>;
+export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = ExploreTableColumnTypeEnum> =
+  BaseTableColumn<T, BaseTableCellRenderValueType>;
 
 /**
  * @description 获取 table表格列 渲染值类型 (默认为字符串)

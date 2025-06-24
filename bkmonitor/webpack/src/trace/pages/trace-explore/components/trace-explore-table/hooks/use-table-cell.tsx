@@ -38,6 +38,7 @@ import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
   type GetTableCellRenderValue,
+  type TableCellRender,
 } from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -45,10 +46,33 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 export interface UseTableCellOptions {
   rowKeyField: MaybeRef<string>;
   cellEllipsisClass?: string;
+  customCellRenderMap?: Record<string, TableCellRender>;
 }
-export function useTableCell({ rowKeyField, cellEllipsisClass }: UseTableCellOptions) {
+export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderMap }: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
+  /** 不同类型单元格渲染策略对象集合 */
+  let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRender> = {};
+
+  /**
+   * @description 初始化单元格渲染策略
+   *
+   */
+  function initCellRenderHandleMap() {
+    const defaultCellRenderHandleMap: Record<ExploreTableColumnTypeEnum, TableCellRender> = {
+      [ExploreTableColumnTypeEnum.TAGS]: tagsColumnFormatter,
+      [ExploreTableColumnTypeEnum.CLICK]: clickColumnFormatter,
+      [ExploreTableColumnTypeEnum.PREFIX_ICON]: iconColumnFormatter,
+      [ExploreTableColumnTypeEnum.TIME]: timeColumnFormatter,
+      [ExploreTableColumnTypeEnum.DURATION]: durationColumnFormatter,
+      [ExploreTableColumnTypeEnum.LINK]: linkColumnFormatter,
+      [ExploreTableColumnTypeEnum.TEXT]: textColumnFormatter,
+    };
+    cellRenderHandleMap = {
+      ...defaultCellRenderHandleMap,
+      ...(customCellRenderMap || {}),
+    };
+  }
 
   /**
    * @description 获取当前行的唯一 rowId
@@ -63,7 +87,7 @@ export function useTableCell({ rowKeyField, cellEllipsisClass }: UseTableCellOpt
    * @returns {string} 开启单元格溢出省略弹出 popover 的类
    *
    */
-  function isEnabledCellEllipsis(column: BaseTableColumn) {
+  function isEnabledCellEllipsis(column: BaseTableColumn<any, any>) {
     if (column?.cellEllipsis === false) {
       return '';
     }
@@ -95,11 +119,9 @@ export function useTableCell({ rowKeyField, cellEllipsisClass }: UseTableCellOpt
    * @description 表格单元格后置插槽渲染
    *
    */
-  function columnCellSuffixRender(column, row) {
+  function columnCellSuffixRender(column: BaseTableColumn<any, any>, row) {
     const suffixSlot = column?.suffixSlot;
-    if (!suffixSlot) {
-      return null;
-    }
+    if (!suffixSlot) return null;
     return suffixSlot(row, column);
   }
 
@@ -296,26 +318,17 @@ export function useTableCell({ rowKeyField, cellEllipsisClass }: UseTableCellOpt
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function handleSetFormatter(column: ExploreTableColumn, row: Record<string, any>) {
-    switch (column.renderType) {
-      case ExploreTableColumnTypeEnum.CLICK:
-        return clickColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row);
-      case ExploreTableColumnTypeEnum.PREFIX_ICON:
-        return iconColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>, row);
-      case ExploreTableColumnTypeEnum.TIME:
-        return timeColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row);
-      case ExploreTableColumnTypeEnum.DURATION:
-        return durationColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row);
-      case ExploreTableColumnTypeEnum.LINK:
-        return linkColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>, row);
-      case ExploreTableColumnTypeEnum.TAGS:
-        return tagsColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>, row);
-      default:
-        return textColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-    }
+  function tableCellRender(
+    column: BaseTableColumn<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, any>,
+    row
+  ) {
+    const renderType = column.renderType || ExploreTableColumnTypeEnum.TEXT;
+    const renderMethod = cellRenderHandleMap[renderType];
+    return renderMethod ? renderMethod(column, row) : null;
   }
 
+  initCellRenderHandleMap();
   return {
-    tableCellRender: handleSetFormatter,
+    tableCellRender,
   };
 }
