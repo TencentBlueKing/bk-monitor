@@ -56,10 +56,10 @@ from apps.log_search.exceptions import (
     IndexSetDorisQueryException,
     SQLQueryException,
 )
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, UserIndexSetFieldsConfig
 from apps.log_search.utils import add_highlight_mark
 from apps.utils.grep_syntax_parse import grep_parser
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code, get_request_username, get_request_external_username
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
 
@@ -382,6 +382,22 @@ class ChartHandler:
         # 返回所有组合条件
         return " AND ".join(conditions)
 
+    def add_sort_info(self, sql: str, sort_list: list, scope="default") -> str:
+        # 检查是否有排序信息
+        if not sort_list:
+            config_obj = UserIndexSetFieldsConfig.get_config(
+                index_set_id=self.index_set_id,
+                username=get_request_external_username() or get_request_username(),
+                scope=scope,
+            )
+            if config_obj:
+                sort_list = config_obj.sort_list
+            else:
+                return sql
+        # 构建 ORDER BY 子句
+        order_by_clause = ", ".join(f"{field} {direction.upper()}" for field, direction in sort_list)
+        return f"{sql} ORDER BY {order_by_clause}"
+
 
 class UIChartHandler(ChartHandler):
     def get_chart_data(self, params: dict) -> dict:
@@ -557,7 +573,9 @@ class SQLChartHandler(ChartHandler):
 
         # 加上分页条件
         where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
-        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
+        sql = self.add_sort_info(
+            sql=f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}", sort_list=params.get("sort_list")
+        )
         # 执行doris查询
         result = self.fetch_query_data(sql)
         # 添加高亮标记
