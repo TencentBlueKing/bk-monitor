@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from rest_framework import serializers
 
 from constants.report import GROUPS, StaffChoice
@@ -19,7 +18,23 @@ class ReportContentSerializer(serializers.Serializer):
     content_title = serializers.CharField(required=True, max_length=512, label="子内容标题")
     content_details = serializers.CharField(required=True, max_length=512, label="字内容说明", allow_blank=True)
     row_pictures_num = serializers.IntegerField(required=True, label="一行几幅图")
+    width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度")
+    height = serializers.IntegerField(required=False, max_value=2000, label="单图高度")
     graphs = serializers.ListField(required=True, label="图表")
+
+    def validate(self, attrs):
+        """
+        根据 row_pictures_num 的值设置 width 和 height 的默认值。
+        """
+        size_mapping = {1: (800, 270), 2: (620, 300)}
+
+        row_pictures_num = attrs.get("row_pictures_num")
+        if row_pictures_num in size_mapping:
+            width, height = size_mapping[row_pictures_num]
+            attrs["width"] = attrs.get("width", width)
+            attrs["height"] = attrs.get("height", height)
+
+        return super().validate(attrs)
 
 
 class FrequencySerializer(serializers.Serializer):
@@ -38,7 +53,7 @@ class FrequencySerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if not data.get("hour"):
             data["hour"] = 0.5
-        data = super(FrequencySerializer, self).to_internal_value(data)
+        data = super().to_internal_value(data)
         return data
 
 
@@ -59,7 +74,7 @@ class ReportChannelSerializer(serializers.Serializer):
     subscriber_serializers = {"email": EmailSubscriberSerializer}
 
     def to_internal_value(self, data):
-        channel = super(ReportChannelSerializer, self).to_internal_value(data)
+        channel = super().to_internal_value(data)
         subscriber_slz_class = SubscriberSerializer
         if channel["channel_name"] in self.subscriber_serializers:
             subscriber_slz_class = self.subscriber_serializers[channel["channel_name"]]

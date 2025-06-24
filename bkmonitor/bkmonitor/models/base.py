@@ -575,7 +575,7 @@ class Event(Model):
             else:
                 message = self.origin_alarm["anomaly"][str(self.level)]["anomaly_message"]
         except KeyError:
-            return "anomaly_message not found in %s" % self.origin_alarm["anomaly"]
+            return "anomaly_message not found in {}".format(self.origin_alarm["anomaly"])
         return message
 
     @cached_property
@@ -1088,6 +1088,19 @@ class ReportContents(Model):
     content_details = models.TextField(verbose_name="内容说明", max_length=512)
     row_pictures_num = models.IntegerField(verbose_name="一行几幅图", default=0)
     graphs = models.JSONField(verbose_name="图表Panels信息", default=dict)
+    width = models.IntegerField(verbose_name="单图宽度", null=True, blank=True)
+    height = models.IntegerField(verbose_name="单图高度", null=True, blank=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # 根据 row_pictures_num 动态设置 width 和 height 默认值
+        if self.row_pictures_num == 1:
+            self.width = self.width or 800
+            self.height = self.height or 270
+        elif self.row_pictures_num == 2:
+            self.width = self.width or 620
+            self.height = self.height or 300
 
 
 class ReportStatus(Model):
