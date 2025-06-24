@@ -365,6 +365,9 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   loading={this.loading}
                   title={this.panelData?.title}
                   onHeadClick={this.handleRowClick}
+                  onToggle={status => {
+                    this.showStatisticalValue = status;
+                  }}
                 />
               </div>
             </bk-resize-layout>
