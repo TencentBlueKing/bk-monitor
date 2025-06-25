@@ -1,7 +1,14 @@
 @use './theme/trace-table.scss' as traceTable;
 
 .trace-explore-table {
-  @include traceTable.trace-table-theme();
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .explore-table {
+    @include traceTable.trace-table-theme();
+  }
 
   .t-table__header {
     .explore-header-col {

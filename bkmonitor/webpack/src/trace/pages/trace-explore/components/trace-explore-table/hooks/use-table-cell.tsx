@@ -44,8 +44,11 @@ import {
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 export interface UseTableCellOptions {
+  /** 表格行数据唯一key字段名 */
   rowKeyField: MaybeRef<string>;
+  /** 是否启用单元格文本省略号 */
   cellEllipsisClass?: string;
+  /** 自定义单元格渲染策略对象集合 */
   customCellRenderMap?: Record<string, TableCellRender>;
 }
 export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderMap }: UseTableCellOptions) {

@@ -731,7 +731,7 @@ export default defineComponent({
       >
         <PrimaryTable
           ref='tableRef'
-          class={this.tableSkeletonConfig?.tableClass}
+          class={`explore-table ${this.tableSkeletonConfig?.tableClass}`}
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
