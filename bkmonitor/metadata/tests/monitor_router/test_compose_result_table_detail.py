@@ -9,9 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 from metadata import models
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def create_or_delete_records(mocker):
     models.ESFieldQueryAliasOption.objects.filter(table_id="1001_bklog.stdout").delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_es_table_detail(create_or_delete_records):
     """
     测试生成ES结果表详情路由

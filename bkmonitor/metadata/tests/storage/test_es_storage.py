@@ -121,7 +121,7 @@ def create_or_delete_records(mocker):
     # field1.delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_create_and_modify_result_table_resource_for_es_storage(
     create_or_delete_records, mock_consul, mock_es_client, mocker
 ):
@@ -484,7 +484,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=11)) == 1
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_create_and_modify_result_table_resource_with_bk_biz_id_alias(
     create_or_delete_records, mock_consul, mock_es_client, mocker
 ):

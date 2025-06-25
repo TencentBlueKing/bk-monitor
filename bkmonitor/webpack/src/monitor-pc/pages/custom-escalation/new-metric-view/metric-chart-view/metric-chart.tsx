@@ -274,7 +274,7 @@ class NewMetricChart extends CommonSimpleChart {
       let hasValueLength = 0;
       let latestVal = 0;
       let latestInd = 0;
-      const data = item.data.map((seriesItem: any, seriesIndex: number) => {
+      const data = (item.data || []).map((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           // 当前点数据
           const pre = item.data[seriesIndex - 1] as [number, number];
@@ -320,7 +320,9 @@ class NewMetricChart extends CommonSimpleChart {
 
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
-      legendItem.latest = item.data[latestInd][1];
+      if (item.data.length > 0) {
+        legendItem.latest = item.data[latestInd][1];
+      }
       legendItem.latestTime = latestVal;
 
       // 获取y轴上可设置的最小的精确度
@@ -423,7 +425,7 @@ class NewMetricChart extends CommonSimpleChart {
       if (this.$refs.chart) {
         width = this.$refs.chart.clientWidth;
       } else {
-        width = this.$refs.chart!.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
+        width = this.$el.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
       }
       const size = ((timeRange[1] - timeRange[0]) / width) * 1.5;
       return size > 0 ? `${Math.ceil(size)}s` : undefined;
@@ -525,7 +527,9 @@ class NewMetricChart extends CommonSimpleChart {
       promiseList.push(...list);
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
-      if (series.length) {
+      const length = series.length;
+      const dataLen = series.filter(item => item.datapoints?.length).length;
+      if (length && dataLen) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
@@ -961,8 +965,11 @@ class NewMetricChart extends CommonSimpleChart {
                   height={this.chartHeight}
                   groupId={this.panel.groupId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  isContextmenuPreventDefault={true}
+                  needTooltips={true}
                   options={this.options}
                   showRestore={this.showRestore}
+                  sortTooltipsValue={false}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onUpdateAxisPointer={this.handleUpdateAxisPointer}

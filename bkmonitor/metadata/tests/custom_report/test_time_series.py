@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 
 import pytest
 
 from metadata import models
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DEFAULT_GROUP_ID = 1
 DEFAULT_TABLE_ID = "test_demo.__default__"
@@ -33,37 +33,37 @@ def create_and_delete_records():
         [
             models.TimeSeriesMetric(
                 **{
-                    'group_id': DEFAULT_GROUP_ID,
-                    'table_id': "test_demo.disk_usage",
-                    'field_id': 1,
-                    'field_name': 'disk_usage',
-                    'tag_list': [
-                        'disk_name',
-                        'bk_target_ip',
+                    "group_id": DEFAULT_GROUP_ID,
+                    "table_id": "test_demo.disk_usage",
+                    "field_id": 1,
+                    "field_name": "disk_usage",
+                    "tag_list": [
+                        "disk_name",
+                        "bk_target_ip",
                     ],
                 }
             ),
             models.TimeSeriesMetric(
                 **{
-                    'group_id': DEFAULT_GROUP_ID,
-                    'table_id': "test_demo.disk_usage1",
-                    'field_id': 2,
-                    'field_name': 'disk_usage1',
-                    'tag_list': [
-                        'disk_name',
-                        'bk_target_ip',
+                    "group_id": DEFAULT_GROUP_ID,
+                    "table_id": "test_demo.disk_usage1",
+                    "field_id": 2,
+                    "field_name": "disk_usage1",
+                    "tag_list": [
+                        "disk_name",
+                        "bk_target_ip",
                     ],
                 }
             ),
             models.TimeSeriesMetric(
                 **{
-                    'group_id': DEFAULT_GROUP_ID,
-                    'table_id': "test_demo.disk_usage2",
-                    'field_id': 3,
-                    'field_name': 'disk_usage2',
-                    'tag_list': [
-                        'disk_name',
-                        'bk_target_ip',
+                    "group_id": DEFAULT_GROUP_ID,
+                    "table_id": "test_demo.disk_usage2",
+                    "field_id": 3,
+                    "field_name": "disk_usage2",
+                    "tag_list": [
+                        "disk_name",
+                        "bk_target_ip",
                     ],
                 }
             ),
@@ -76,7 +76,7 @@ def create_and_delete_records():
     ).delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_create_ts_metrics(create_and_delete_records):
     metric_info_list = [
         {
@@ -97,7 +97,7 @@ def test_create_ts_metrics(create_and_delete_records):
     assert objs.get().last_modify_time.strftime("%Y-%m-%d") == datetime.datetime.now().strftime("%Y-%m-%d")
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_update_ts_metrics(create_and_delete_records):
     dt = datetime.datetime.now() + datetime.timedelta(days=2)
     curr_time = int(dt.timestamp())
@@ -124,7 +124,7 @@ def test_update_ts_metrics(create_and_delete_records):
     assert objs.get().last_modify_time.strftime("%Y-%m-%d") == dt.strftime("%Y-%m-%d")
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_disable_ts_metrics(create_and_delete_records):
     dt = datetime.datetime.now() + datetime.timedelta(days=2)
     curr_time = int(dt.timestamp())
@@ -152,7 +152,7 @@ def test_disable_ts_metrics(create_and_delete_records):
     assert objs.get().last_modify_time.strftime("%Y") == "1969"
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_delete_ts_metrics(create_and_delete_records):
     dt = datetime.datetime.now() + datetime.timedelta(days=2)
     curr_time = int(dt.timestamp())
