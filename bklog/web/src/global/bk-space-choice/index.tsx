@@ -28,11 +28,11 @@ import useLocale from '@/hooks/use-locale';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import useStore from '../../hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
-import { useNavMenu } from '@/hooks/use-nav-menu';
+import { useNavMenu } from './use-nav-menu';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import * as authorityMap from '../../common/authority-map';
 import { debounce } from 'throttle-debounce';
-import List from '../biz-select/list';
+import List from './list';
 import './index.scss';
 
 const userConfigMixin = new UserConfigMixin();
@@ -46,7 +46,7 @@ export default defineComponent({
     theme: { type: String, default: 'dark' },
     handlePropsClick: { type: Function },
     isExternalAuth: { type: Boolean, default: false },
-    canSetDefaultSpace: { type: Boolean, default: true },
+    canSetDefaultSpace: { type: Boolean, default: false },
   },
   setup(props, { emit }) {
     const store = useStore();
@@ -186,7 +186,7 @@ export default defineComponent({
       })
     }
 
-    // 设置或取消默认业务
+    // 设置/取消默认业务
     const handleDefaultId = async () => {
       setDefaultBizIdLoading.value = true;
       // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'

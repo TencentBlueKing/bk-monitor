@@ -132,7 +132,7 @@
 </template>
 
 <script>
-  import BizMenuSelect from '@/components/biz-menu';
+  import BizMenuSelect from '@/global/bk-space-choice'
   import AuthContainerPage from '@/components/common/auth-container-page';
   import AuthDialog from '@/components/common/auth-dialog';
   import WelcomePage from '@/components/common/welcome-page';
