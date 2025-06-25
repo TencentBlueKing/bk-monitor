@@ -44,7 +44,7 @@ def test_data_source_not_exist(mocker):
     resource = QueryDataLinkInfoResource()
     with pytest.raises(Exception) as exc_info:
         resource.perform_request({"bk_data_id": 9999})
-    assert "数据源ID 9999 不存在" in str(exc_info.value)
+    assert "bk_data_id 9999 does not exist" in str(exc_info.value)
 
 
 @pytest.mark.django_db(databases=["monitor_api"])
@@ -97,6 +97,7 @@ def test_query_with_exception(mocker, mock_data_source):
     mocker.patch("metadata.models.DataSource.objects.get", side_effect=Exception("Test exception"))
 
     with pytest.raises(Exception) as exc_info:
-        resource.perform_request({"bk_data_id": mock_data_source.bk_data_id})
+        res = resource.perform_request({"bk_data_id": mock_data_source.bk_data_id})
     # 验证错误信息格式是否匹配实际抛出的格式
-    assert "查询数据链路信息失败" in str(exc_info.value)
+    assert "Test exception" in str(exc_info.value)
+    assert "error_info" in res

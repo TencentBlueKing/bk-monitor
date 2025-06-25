@@ -87,7 +87,7 @@ class QueryDataLinkInfoResource(Resource):
             try:
                 ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
             except models.DataSource.DoesNotExist:
-                raise ValidationError(f"[QueryDataLinkInfoResource] 数据源ID {bk_data_id} 不存在")
+                raise ValidationError(f"QueryDataLinkInfoResource: bk_data_id {bk_data_id} does not exist")
             ds_infos = self._get_data_id_details(ds=ds)
 
             # 清洗配置信息（Kafka）
@@ -146,9 +146,12 @@ class QueryDataLinkInfoResource(Resource):
             return json.dumps(res, ensure_ascii=False)
         except Exception as e:
             logger.error(
-                "[QueryDataLinkInfoResource] 查询数据链路信息失败, bk_data_id: %s, error: %s", bk_data_id, str(e)
+                "QueryDataLinkInfoResource: Failed to query data_link information, bk_data_id: %s, error: %s",
+                bk_data_id,
+                str(e),
             )
-            raise ValidationError(f"查询数据链路信息失败: {str(e)}")
+            res = {"error_info": f"Error occurs->{str(e)}"}
+            return json.dumps(res, ensure_ascii=False)
 
     def _get_data_id_details(self, ds):
         """
