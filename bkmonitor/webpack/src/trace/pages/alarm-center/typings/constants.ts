@@ -31,17 +31,17 @@ export enum AlarmType {
   INCIDENT = 'incident',
 }
 
-export const alarmTypeMap = [
+export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),
-    value: 'alert',
+    value: AlarmType.ALERT,
   },
   {
     label: window.i18n.t('故障'),
-    value: 'incident',
+    value: AlarmType.INCIDENT,
   },
   {
     label: window.i18n.t('处理记录'),
-    value: 'action',
+    value: AlarmType.ACTION,
   },
 ] as const;

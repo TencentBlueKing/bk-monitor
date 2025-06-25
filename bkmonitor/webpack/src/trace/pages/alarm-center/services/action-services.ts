@@ -140,6 +140,16 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
   get analysisFields(): string[] {
     return ['action_name', 'action_plugin_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
   }
+  get analysisFieldsMap(): Record<string, string> {
+    return {
+      action_name: window.i18n.t('套餐名称'),
+      strategy_name: window.i18n.t('策略名称'),
+      operator: window.i18n.t('负责人'),
+      duration: window.i18n.t('处理时长'),
+      action_plugin_type: window.i18n.t('套餐类型'),
+      operate_target_string: window.i18n.t('执行对象'),
+    };
+  }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
     isAll = false

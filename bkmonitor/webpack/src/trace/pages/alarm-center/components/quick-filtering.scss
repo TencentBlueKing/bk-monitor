@@ -1,14 +1,13 @@
 .quick-filtering-comp {
   width: 100%;
   height: 100%;
-  padding: 8px 12px 0;
   background: #f3f6fa;
   border-radius: 2px 0 0 2px;
 
   .quick-filtering-header {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
+    padding: 8px 12px 12px;
     line-height: 20px;
 
     .title {
@@ -25,9 +24,13 @@
     }
   }
 
-  .group-list {
-    .group-item {
-      .group-header {
+  .filter-list {
+    height: calc(100% - 40px);
+    padding: 0 12px;
+    overflow-y: auto;
+
+    .filter-item {
+      .filter-group-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -56,7 +59,7 @@
         }
       }
 
-      .group-children {
+      .filter-group-children {
         padding: 2px 0 5px 8px;
 
         .t-tree {
@@ -72,7 +75,7 @@
             &.t-tree__item--open {
               .t-tree__icon {
                 .icon-monitor {
-                  transform: rotateZ(90deg)
+                  transform: rotateZ(90deg);
                 }
               }
             }
@@ -130,6 +133,32 @@
               color: #a3b1cc;
             }
           }
+        }
+      }
+    }
+  }
+
+  .skeleton-wrap {
+    padding: 0 12px;
+
+    .skeleton-group {
+      & + .skeleton-group {
+        margin-top: 12px;
+      }
+
+      .skeleton-element {
+        & + .skeleton-element {
+          margin-top: 9px;
+        }
+
+        &.title {
+          height: 24px;
+        }
+
+        &.item {
+          width: calc(100% - 16px);
+          height: 17px;
+          margin-left: 8px;
         }
       }
     }

@@ -24,79 +24,124 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref as deepRef, watch, type PropType } from 'vue';
+import { defineComponent, ref as deepRef, watch, type PropType, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useDebounceFn } from '@vueuse/core';
 import { Tree, type TreeNodeValue } from 'tdesign-vue-next';
 
-import './quick-filtering.scss';
-export interface QuickFilteringGroupItem {
-  id: number | string;
-  name: string;
-  icon?: string;
-  color?: string;
-  children?: QuickFilteringGroupItem[];
-}
+import type { CommonCondition, QuickFilterItem } from '../typings';
 
-export interface QuickFilteringGroup {
-  id: string;
-  name: string;
-  type: 'icon' | 'rect' | 'text';
-  color?: string;
-  children: QuickFilteringGroupItem[];
-}
+import './quick-filtering.scss';
 
 export default defineComponent({
   name: 'QuickFiltering',
   props: {
-    groupList: {
-      type: Array as PropType<QuickFilteringGroup[]>,
+    filterList: {
+      type: Array as PropType<QuickFilterItem[]>,
       default: () => [],
     },
-    value: {
-      type: Object as PropType<Record<string, string[]>>,
-      default: () => ({}),
+    filterValue: {
+      type: Array as PropType<CommonCondition[]>,
+      default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 是否过滤空项 */
+    isFilterEmptyItem: {
+      type: Boolean,
+      default: true,
     },
   },
-  emits: ['close'],
+  emits: ['close', 'update:filterValue'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    const localValue = deepRef({});
+    /** 缓存数据 */
+    const localValue = deepRef<Record<string, TreeNodeValue[]>>({});
 
     watch(
-      () => props.value,
-      val => {
-        if (!val) {
-          localValue.value = {};
+      () => props.filterValue,
+      value => {
+        if (value?.length) {
+          localValue.value = value.reduce((acc, cur) => {
+            acc[cur.key] = cur.value;
+            return acc;
+          }, {});
         } else {
-          localValue.value = { ...val };
+          localValue.value = {};
         }
       }
     );
 
-    const handleClose = () => {
-      emit('close', true);
+    const showFilterList = computed(() => {
+      return props.isFilterEmptyItem ? filterEmptyItem(props.filterList) : props.filterList;
+    });
+
+    /** 过滤空选项 */
+    const filterEmptyItem = (items: QuickFilterItem[]) => {
+      if (!Array.isArray(items)) return [];
+      return items.filter(item => {
+        // 递归处理子项
+        if (item.children?.length) {
+          item.children = filterEmptyItem(item.children);
+        }
+
+        // 判断是否保留当前项：
+        // 1. 如果当前项count为0 -> 移除
+        // 2. 如果当前项有子项但全部被清空 -> 移除
+        // 3. 其他情况保留（有有效count或非空子项）
+        const hasChildren = item.children?.length > 0;
+        const hasContent = item.count > 0 || hasChildren;
+
+        return hasContent;
+      });
     };
 
-    const handleNodeChecked = (groupId: string, itemId: TreeNodeValue[]) => {
-      console.log(groupId, itemId);
-      localValue.value[groupId] = itemId;
+    const handleNodeChecked = (filterGroupId: string, ids: TreeNodeValue[]) => {
+      localValue.value[filterGroupId] = ids;
+      emitFilterValue();
     };
 
-    const renderFilterTree = (group: QuickFilteringGroup) => {
+    /** 选择条件增加防抖，优化交互体验 */
+    const emitFilterValue = useDebounceFn(() => {
+      const list = Object.entries(localValue.value).reduce((pre, cur, index) => {
+        const [key, value] = cur;
+        if (value?.length) {
+          if (index > 0) {
+            pre.push({
+              key,
+              value,
+              condition: 'and',
+            });
+          } else {
+            pre.push({
+              key,
+              value,
+            });
+          }
+        }
+        return pre;
+      }, []);
+
+      emit('update:filterValue', list);
+    }, 300);
+
+    const renderFilterTree = (filterGroup: QuickFilterItem) => {
       return (
         <Tree
-          class={{ 'no-multi-level': !group.children.some(child => child.children?.length) }}
+          class={{ 'no-multi-level': !filterGroup.children.some(child => child.children?.length) }}
           checkable={true}
-          data={group.children}
+          data={filterGroup.children}
           expandAll={true}
           expandOnClickNode={true}
           hover={false}
           keys={{ value: 'id', label: 'name', children: 'children' }}
           transition={false}
-          value={localValue.value[group.id]}
-          onChange={id => handleNodeChecked(group.id, id)}
+          value={localValue.value[filterGroup.id] || []}
+          onChange={id => handleNodeChecked(filterGroup.id, id)}
         >
           {{
             icon: ({ node }) => {
@@ -104,20 +149,22 @@ export default defineComponent({
             },
             label: ({ node }) => (
               <div class='condition-tree-item'>
-                {group.type === 'icon' && (
+                {filterGroup.type === 'icon' && (
                   <i
-                    style={{ color: node.data.color || group.color || '#8E9BB3' }}
+                    style={{ color: node.data.color || filterGroup.color || '#8E9BB3' }}
                     class={['icon-monitor', 'item-icon', node.data.icon]}
                   />
                 )}
-                {group.type === 'rect' && (
+                {filterGroup.type === 'rect' && (
                   <div
-                    style={{ backgroundColor: node.data.color || group.color || '#8E9BB3' }}
+                    style={{ backgroundColor: node.data.color || filterGroup.color || '#8E9BB3' }}
                     class='item-rect'
                   />
                 )}
                 <span
-                  style={{ color: (group.type === 'rect' ? node.data.color || group.color : '') || '#313238' }}
+                  style={{
+                    color: (filterGroup.type === 'rect' ? node.data.color || filterGroup.color : '') || '#313238',
+                  }}
                   class='item-name'
                   v-overflow-tips
                 >
@@ -131,10 +178,15 @@ export default defineComponent({
       );
     };
 
+    const handleClose = () => {
+      emit('close', true);
+    };
+
     return {
       t,
       handleClose,
       renderFilterTree,
+      showFilterList,
     };
   },
   render() {
@@ -148,20 +200,36 @@ export default defineComponent({
           />
           <div class='title'>{this.t('快捷筛选')}</div>
         </div>
-        <div class='group-list'>
-          {this.groupList.map(group => (
-            <div
-              key={group.id}
-              class='group-item'
-            >
-              <div class='group-header'>
-                <div class='group-title'>{group.name}</div>
-                <i class='icon-monitor icon-a-Clearqingkong' />
+        {this.loading ? (
+          <div class='skeleton-wrap'>
+            {new Array(5).fill(0).map(index => (
+              <div
+                key={index}
+                class='skeleton-group'
+              >
+                <div class='skeleton-element title' />
+                <div class='skeleton-element item' />
+                <div class='skeleton-element item' />
+                <div class='skeleton-element item' />
               </div>
-              <div class='group-children'>{this.renderFilterTree(group)}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div class='filter-list'>
+            {this.showFilterList.map(item => (
+              <div
+                key={item.id}
+                class='filter-item'
+              >
+                <div class='filter-group-header'>
+                  <div class='filter-group-title'>{item.name}</div>
+                  <i class='icon-monitor icon-a-Clearqingkong' />
+                </div>
+                <div class='filter-group-children'>{this.renderFilterTree(item)}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   },

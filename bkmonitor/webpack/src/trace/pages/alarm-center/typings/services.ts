@@ -416,6 +416,10 @@ export type AnalysisFieldAggItem = {
   buckets: AnalysisBucket[]; // 分桶明细
 };
 
+export type AnalysisListItemBucket = { percent: number } & AnalysisBucket;
+
+export type AnalysisListItem = { name: string; buckets: AnalysisListItemBucket[] } & AnalysisFieldAggItem;
+
 // 表格列字段
 export type TableColumnItem<T = any> = TableCol<T> & {
   is_default?: boolean; // 是否为默认列
