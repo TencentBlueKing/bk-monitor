@@ -332,12 +332,14 @@ class CreateOrUpdateLogRouter(Resource):
             field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
             query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
 
-        query_alias_settings = QueryAliasSettingSerializer(required=False, label="查询别名设置", default=[], many=True)
+        query_alias_settings = QueryAliasSettingSerializer(
+            required=False, label="查询别名设置", default=list, many=True
+        )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> None:
         # 根据结果表判断是创建或更新
-        table_id = validated_request_data["table_id"]
-        tableObj = self.get_table_id(table_id)
+        table_id: str = validated_request_data["table_id"]
+        tableObj: models.ResultTable | None = self.get_table_id(table_id)
         logger.info(
             "CreateOrUpdateLogRouter: try to create or update log router for table id->[%s],with storage_type->[%s]",
             table_id,
