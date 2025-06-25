@@ -962,7 +962,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
             )
-            sync_vm_metadata(vm_info, table_id)
+            sync_vm_metadata(vm_info)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
 
     cost_time = time.time() - start_time

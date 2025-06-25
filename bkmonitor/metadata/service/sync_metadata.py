@@ -313,7 +313,7 @@ def sync_vm_metadata(vm_info):
                 vm_cluster = models.ClusterInfo.objects.create(
                     cluster_name=detail["name"],
                     domain_name=detail["insert_host"],
-                    port=detail["insertPort"],
+                    port=detail["insert_port"],
                     cluster_type=models.ClusterInfo.TYPE_VM,
                     is_default_cluster=False,
                 )
