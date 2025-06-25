@@ -31,6 +31,7 @@ import TraceExploreLayout from '../trace-explore/components/trace-explore-layout
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
+import AlarmTable from './components/alarm-table/alarm-table';
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
@@ -93,6 +94,12 @@ export default defineComponent({
                   <div class='filter-content'>
                     <div class='alarm-analysis'>
                       <AlarmAnalysis />
+                    </div>
+                    <div class='alarm-center-table'>
+                      <AlarmTable
+                        columns={this.tableColumns}
+                        data={this.data}
+                      />
                     </div>
                   </div>
                 );

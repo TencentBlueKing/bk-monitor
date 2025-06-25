@@ -29,8 +29,11 @@ import { computed } from 'vue';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
 
-import type { TableColumnItem } from '../typings';
+import { MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID, type TableColumnItem } from '../typings';
 
+import type { BkUiSettings } from '@blueking/tdesign-ui';
+/** 业务名称/空间名称 字段 */
+const BK_BIZ_NAME_FIELD = 'bk_biz_name';
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
   const defaultTableFields = computed(() => {
@@ -39,15 +42,31 @@ export function useAlarmTableColumns() {
   const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, [...defaultTableFields.value]);
 
   const tableColumns = computed<TableColumnItem[]>(() => {
-    return storageColumns.value.map(item => {
-      const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === item);
-      return {
-        ...column,
-      };
-    });
+    return storageColumns.value
+      .map(field => {
+        if (
+          field === BK_BIZ_NAME_FIELD &&
+          alarmStore.bizIds.length < 2 &&
+          ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(alarmStore.bizIds[0])
+        ) {
+          return undefined;
+        }
+        const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === field);
+        return {
+          ...column,
+        };
+      })
+      .filter(Boolean);
+  });
+  const allTableFields = computed<BkUiSettings['fields']>(() => {
+    return alarmStore.alarmService.allTableColumns.map(item => ({
+      label: item.title.toString(),
+      field: item.colKey,
+    }));
   });
   return {
     storageColumns,
     tableColumns,
+    allTableFields,
   };
 }

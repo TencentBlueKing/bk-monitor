@@ -23,49 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef, watchEffect, onScopeDispose } from 'vue';
 
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import type { TableCol } from '@blueking/tdesign-ui';
 
-import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
-
-export function useAlarmTable() {
-  const alarmStore = useAlarmCenterStore();
-  // 分页参数
-  const pageSize = shallowRef(10);
-  // 当前页
-  const page = shallowRef(1);
-  // 总条数
-  const total = shallowRef(0);
-  // 数据
-  const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem)[]>([]);
-  // 是否加载中
-  const loading = shallowRef(false);
-
-  const effectFunc = async () => {
-    loading.value = true;
-    const res = await alarmStore.alarmService.getFilterTableList({
-      ...alarmStore.commonFilterParams,
-      page_size: pageSize.value,
-      page: page.value,
-    });
-    total.value = res.total;
-    data.value = res.data;
-    loading.value = false;
-  };
-  watchEffect(effectFunc);
-  onScopeDispose(() => {
-    pageSize.value = 10;
-    page.value = 1;
-    total.value = 0;
-    data.value = [];
-    loading.value = false;
-  });
-  return {
-    pageSize,
-    page,
-    total,
-    data,
-    loading,
-  };
+export interface PageInfo {
+  current: number;
+  previous: number;
+  pageSize: number;
 }
+// 表格列字段
+export type TableColumnItem<T = any> = TableCol<T> & {
+  is_default?: boolean; // 是否为默认列
+  renderType?: 'array' | 'boolean' | 'date' | 'number' | 'string'; // 渲染类型
+};

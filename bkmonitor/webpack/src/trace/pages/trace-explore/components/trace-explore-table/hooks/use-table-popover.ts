@@ -222,7 +222,7 @@ export const useTablePopover = (
  */
 export const useTableEllipsis = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
+  options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}` },
@@ -242,7 +242,7 @@ export const useTableEllipsis = (
  */
 export const useTableHeaderDescription = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
+  options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}` },

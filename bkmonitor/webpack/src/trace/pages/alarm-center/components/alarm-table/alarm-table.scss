@@ -1,0 +1,7 @@
+@use '../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
+
+.alarm-table-wrapper {
+  .alarm-table {
+    @include tableCommonTheme.table-theme();
+  }
+}

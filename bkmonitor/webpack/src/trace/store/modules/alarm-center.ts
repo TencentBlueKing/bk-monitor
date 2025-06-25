@@ -38,6 +38,7 @@ import { AlarmType } from '../../pages/alarm-center/typings';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
 import type { CommonCondition } from '@/pages/alarm-center/typings';
+const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export interface IAlarmCenterState {
   timeRange: TimeRangeType; // 时间范围
@@ -67,15 +68,13 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   const refreshId = shallowRef(random(4));
 
-  const cacheMap = shallowRef<
-    Map<
-      AlarmType,
-      {
-        conditions?: CommonCondition[];
-        queryString?: string;
-      }
-    >
-  >(new Map());
+  const cacheMap: Map<
+    AlarmType,
+    {
+      conditions?: CommonCondition[];
+      queryString?: string;
+    }
+  > = new Map();
 
   const alarmService = shallowRef<AlarmService<AlarmType>>();
 
@@ -97,14 +96,17 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
         statusQuickFilter.push(...filter.value);
       }
     }
-    return {
+    const params = {
       bk_biz_ids: bizIds.value,
       conditions: [...conditions.value, ...otherQuickFilter],
       query_string: queryString.value,
       status: statusQuickFilter,
       ...timeRangeTimestamp.value,
-      refreshId: refreshId.value,
+      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
+    // 用于主动触发 依赖副作用 更新
+    delete params[REFRESH_EFFECT_KEY];
+    return params;
   });
   const refreshInterval = customRef((track, trigger) => {
     let timer: ReturnType<typeof setInterval>;
@@ -133,12 +135,12 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   watch(
     alarmType,
     () => {
-      cacheMap.value.set(alarmType.value, {
+      cacheMap.set(alarmType.value, {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
         queryString: JSON.parse(JSON.stringify(queryString.value)),
       });
       alarmService.value = AlarmServiceFactory(alarmType.value);
-      const cache = cacheMap.value.get(alarmType.value);
+      const cache = cacheMap.get(alarmType.value);
       if (cache) {
         conditions.value = cache.conditions;
         queryString.value = cache.queryString;
@@ -166,7 +168,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshInterval.value = -1;
     refreshImmediate.value = '';
     quickFilterValue.value = [];
-    cacheMap.value.clear();
+    cacheMap.clear();
   });
   return {
     timeRange,

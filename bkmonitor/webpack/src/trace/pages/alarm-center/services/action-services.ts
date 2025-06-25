@@ -38,104 +38,107 @@ import type {
   QuickFilterItem,
   TableColumnItem,
 } from '../typings';
+import type { IFilterField } from '@/components/retrieval-filter/typing';
+const ACTION_TABLE_COLUMNS = [
+  {
+    colKey: 'id',
+    title: window.i18n.t('ID'),
+    is_default: true,
+    align: 'left',
+    width: 160,
+  },
+  {
+    colKey: 'create_time',
+    title: window.i18n.t('开始时间'),
+    is_default: true,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'action_name',
+    title: window.i18n.t('套餐名称'),
+    is_default: true,
+    align: 'left',
+    width: 180,
+    sorter: true,
+    ellipsis: true,
+  },
+  {
+    colKey: 'action_plugin_type_display',
+    title: window.i18n.t('套餐类型'),
+    is_default: false,
+    align: 'left',
+    width: 100,
+    sorter: true,
+  },
+  {
+    colKey: 'operate_target_string',
+    title: window.i18n.t('执行对象'),
+    is_default: false,
+    align: 'left',
+    width: 120,
+    ellipsis: true,
+  },
+  {
+    colKey: 'operator',
+    title: window.i18n.t('负责人'),
+    is_default: true,
+    align: 'left',
+    width: 220,
+  },
+  {
+    colKey: 'alert_count',
+    title: window.i18n.t('触发告警数'),
+    is_default: true,
+    align: 'left',
+    width: 120,
+  },
+  {
+    colKey: 'converge_count',
+    title: window.i18n.t('防御告警数'),
+    is_default: true,
+    align: 'left',
+    width: 120,
+  },
+  {
+    colKey: 'end_time',
+    title: window.i18n.t('结束时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'duration',
+    title: window.i18n.t('处理时长'),
+    is_default: false,
+    align: 'left',
+    width: 80,
+    sorter: true,
+  },
+  {
+    colKey: 'status',
+    title: window.i18n.t('执行状态'),
+    is_default: true,
+    align: 'left',
+    width: 100,
+    sorter: true,
+  },
+  {
+    colKey: 'content',
+    title: window.i18n.t('具体内容'),
+    is_default: true,
+    align: 'left',
+    ellipsis: true,
+  },
+] as const;
 
+export const ACTION_FILTER_FIELDS: IFilterField[] = [];
 export class ActionService extends AlarmService<AlarmType.ACTION> {
   readonly storageKey = '__ACTION_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
-    return [
-      {
-        colKey: 'id',
-        title: window.i18n.t('ID'),
-        is_default: true,
-        align: 'left',
-        width: 160,
-      },
-      {
-        colKey: 'create_time',
-        title: window.i18n.t('开始时间'),
-        is_default: true,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'action_name',
-        title: window.i18n.t('套餐名称'),
-        is_default: true,
-        align: 'left',
-        width: 180,
-        sorter: true,
-        ellipsis: true,
-      },
-      {
-        colKey: 'action_plugin_type_display',
-        title: window.i18n.t('套餐类型'),
-        is_default: false,
-        align: 'left',
-        width: 100,
-        sorter: true,
-      },
-      {
-        colKey: 'operate_target_string',
-        title: window.i18n.t('执行对象'),
-        is_default: false,
-        align: 'left',
-        width: 120,
-        ellipsis: true,
-      },
-      {
-        colKey: 'operator',
-        title: window.i18n.t('负责人'),
-        is_default: true,
-        align: 'left',
-        width: 220,
-      },
-      {
-        colKey: 'alert_count',
-        title: window.i18n.t('触发告警数'),
-        is_default: true,
-        align: 'left',
-        width: 120,
-      },
-      {
-        colKey: 'converge_count',
-        title: window.i18n.t('防御告警数'),
-        is_default: true,
-        align: 'left',
-        width: 120,
-      },
-      {
-        colKey: 'end_time',
-        title: window.i18n.t('结束时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'duration',
-        title: window.i18n.t('处理时长'),
-        is_default: false,
-        align: 'left',
-        width: 80,
-        sorter: true,
-      },
-      {
-        colKey: 'status',
-        title: window.i18n.t('执行状态'),
-        is_default: true,
-        align: 'left',
-        width: 100,
-        sorter: true,
-      },
-      {
-        colKey: 'content',
-        title: window.i18n.t('具体内容'),
-        is_default: true,
-        align: 'left',
-        ellipsis: true,
-      },
-    ];
+    return [...ACTION_TABLE_COLUMNS];
   }
   get analysisFields(): string[] {
     return ['action_name', 'action_plugin_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
@@ -149,6 +152,10 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       action_plugin_type: window.i18n.t('套餐类型'),
       operate_target_string: window.i18n.t('执行对象'),
     };
+  }
+
+  get filterFields(): IFilterField[] {
+    return [...ACTION_FILTER_FIELDS];
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,

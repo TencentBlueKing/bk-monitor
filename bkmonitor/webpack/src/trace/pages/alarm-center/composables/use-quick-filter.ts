@@ -34,7 +34,7 @@ export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
   const quickFilterLoading = shallowRef(false);
-  const effectFunc = async () => {
+  const effectFunc = () => {
     quickFilterLoading.value = true;
     alarmStore.alarmService
       .getQuickFilterList(alarmStore.commonFilterParams)

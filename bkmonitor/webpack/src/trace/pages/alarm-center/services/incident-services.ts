@@ -38,80 +38,84 @@ import type {
   QuickFilterItem,
   TableColumnItem,
 } from '../typings';
+import type { IFilterField } from '@/components/retrieval-filter/typing';
+const INCIDENT_TABLE_COLUMNS = [
+  {
+    colKey: 'id',
+    title: window.i18n.t('故障ID'),
+    is_default: false,
+    align: 'left',
+    width: 160,
+    fixed: 'left',
+  },
+  {
+    colKey: 'incident_name',
+    title: window.i18n.t('故障名称'),
+    is_default: true,
+    align: 'left',
+    width: 180,
+    ellipsis: true,
+  },
+  {
+    colKey: 'status',
+    title: window.i18n.t('故障状态'),
+    is_default: true,
+    align: 'left',
+    width: 110,
+  },
+  {
+    colKey: 'alert_count',
+    title: window.i18n.t('告警数量'),
+    is_default: true,
+    align: 'left',
+    width: 100,
+    sorter: true,
+  },
+  {
+    colKey: 'labels',
+    title: window.i18n.t('标签'),
+    is_default: true,
+    align: 'left',
+    width: 120,
+    ellipsis: true,
+  },
+  {
+    colKey: 'end_time',
+    title: window.i18n.t('开始时间 / 结束时间'),
+    is_default: true,
+    align: 'left',
+    width: 174,
+  },
+  {
+    colKey: 'incident_duration',
+    title: window.i18n.t('持续时间'),
+    is_default: false,
+    align: 'left',
+    width: 100,
+  },
+  {
+    colKey: 'assignee',
+    title: window.i18n.t('负责人'),
+    is_default: true,
+    align: 'left',
+    width: 150,
+  },
+  {
+    colKey: 'incident_reason',
+    title: window.i18n.t('故障原因'),
+    is_default: true,
+    align: 'left',
+    width: 240,
+    ellipsis: true,
+  },
+] as const;
+
+export const INCIDENT_FILTER_FIELDS: IFilterField[] = [];
 
 export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   readonly storageKey = '__INCIDENT_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
-    return [
-      {
-        colKey: 'id',
-        title: window.i18n.t('故障ID'),
-        is_default: false,
-        align: 'left',
-        width: 160,
-        fixed: 'left',
-      },
-      {
-        colKey: 'incident_name',
-        title: window.i18n.t('故障名称'),
-        is_default: true,
-        align: 'left',
-        width: 180,
-        ellipsis: true,
-      },
-      {
-        colKey: 'status',
-        title: window.i18n.t('故障状态'),
-        is_default: true,
-        align: 'left',
-        width: 110,
-      },
-      {
-        colKey: 'alert_count',
-        title: window.i18n.t('告警数量'),
-        is_default: true,
-        align: 'left',
-        width: 100,
-        sorter: true,
-      },
-      {
-        colKey: 'labels',
-        title: window.i18n.t('标签'),
-        is_default: true,
-        align: 'left',
-        width: 120,
-        ellipsis: true,
-      },
-      {
-        colKey: 'end_time',
-        title: window.i18n.t('开始时间 / 结束时间'),
-        is_default: true,
-        align: 'left',
-        width: 174,
-      },
-      {
-        colKey: 'incident_duration',
-        title: window.i18n.t('持续时间'),
-        is_default: false,
-        align: 'left',
-        width: 100,
-      },
-      {
-        colKey: 'assignee',
-        title: window.i18n.t('负责人'),
-        is_default: true,
-        align: 'left',
-        width: 150,
-      },
-      {
-        colKey: 'incident_reason',
-        title: window.i18n.t('故障原因'),
-        is_default: true,
-        align: 'left',
-        width: 240,
-        ellipsis: true,
-      },
-    ];
+    return [...INCIDENT_TABLE_COLUMNS];
   }
   get analysisFields(): string[] {
     return ['incident_name', 'incident_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
@@ -125,6 +129,9 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
       strategy_name: window.i18n.t('策略名称'),
       operate_target_string: window.i18n.t('执行对象'),
     };
+  }
+  get filterFields(): IFilterField[] {
+    return [...INCIDENT_FILTER_FIELDS];
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,

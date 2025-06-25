@@ -48,7 +48,7 @@ export function useAlarmAnalysis() {
   // 告警、故障、处理记录 字段名称映射
   const analysisFieldsMap = computed(() => alarmStore.alarmService.analysisFieldsMap);
 
-  const effectFunc = async () => {
+  const effectFunc = () => {
     analysisDimensionLoading.value = true;
     analysisTopNLoading.value = true;
     alarmStore.alarmService
