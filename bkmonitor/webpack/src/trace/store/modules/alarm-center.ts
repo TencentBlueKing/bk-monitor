@@ -64,10 +64,15 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const refreshImmediate = shallowRef('');
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   const bizIds = deepRef([-1]);
-
+  // 上层搜索条件
   const conditions = deepRef<CommonCondition[]>([]);
+  // 快速过滤条件
+  const quickFilterValue = deepRef<CommonCondition[]>([]);
+
   const queryString = shallowRef('');
+  // 快速过滤条件loading
   const quickFilterLoading = shallowRef(false);
+  // 维度分析loading
   const analysisDimensionLoading = shallowRef(false);
 
   const cacheMap = shallowRef<
@@ -81,7 +86,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   >(new Map());
 
   const alarmService = shallowRef<AlarmService<AlarmType>>();
-
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
   const filterTableList = shallowRef<FilterTableResponse<ActionTableItem | AlertTableItem | IncidentTableItem>>({
     total: 0,
@@ -99,7 +103,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const commonFilterParams = computed(() => {
     return {
       bk_biz_ids: bizIds.value,
-      conditions: conditions.value,
+      conditions: [...conditions.value, ...quickFilterValue.value],
       query_string: queryString.value,
       ...timeRangeTimestamp.value,
     };
@@ -149,7 +153,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       },
     };
   });
-
   watch(
     alarmType,
     () => {
@@ -201,6 +204,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshImmediate.value = '';
     quickFilterLoading.value = false;
     analysisDimensionLoading.value = false;
+    quickFilterValue.value = [];
     cacheMap.value.clear();
   });
   return {
@@ -225,5 +229,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     total,
     data,
     tableLoading,
+    quickFilterValue,
   };
 });

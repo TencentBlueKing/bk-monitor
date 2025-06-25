@@ -27,12 +27,14 @@
 import { defineComponent, computed, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { random } from 'monitor-common/utils/utils';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
 import SpaceSelector from '../../../../components/space-select/space-selector';
 import { useAppStore } from '../../../../store/modules/app';
+import { AlarmType } from '../../typings';
 import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
 
@@ -51,17 +53,18 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const appStore = useAppStore();
+    const alarmStore = useAlarmCenterStore();
     const bizId = computed(() => {
       return appStore.bizId;
     });
     const isIncident = computed(() => {
-      return props.searchType === 'incident';
+      return props.searchType === AlarmType.INCIDENT;
     });
     const bizList = computed(() => {
       return appStore.bizList;
     });
 
-    const bizIds = shallowRef([]);
+    const localBizIds = shallowRef(alarmStore.bizIds);
     const allowedBizList = shallowRef([]);
 
     /**
@@ -69,12 +72,12 @@ export default defineComponent({
      * @param {string} bizIds 业务id
      * @return {*}
      */
-    async function handleCheckAllowedByIds(bizIds?: (number | string)[]) {
-      let bizList = bizIds;
-      if (!bizIds?.length) {
-        bizList = allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
+    async function handleCheckAllowedByIds(values?: (number | string)[]) {
+      let allowedBizIdList = [];
+      if (!values?.length) {
+        allowedBizIdList = allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
       }
-      if (!bizList?.length) return;
+      if (!allowedBizIdList?.length) return;
       const applyObj = await checkAllowed({
         action_ids: [
           'view_business_v2',
@@ -84,7 +87,7 @@ export default defineComponent({
           'view_host_v2',
           'view_rule_v2',
         ],
-        resources: bizList.map(id => ({ id, type: 'space' })),
+        resources: allowedBizIdList.map(id => ({ id, type: 'space' })),
       });
       if (applyObj?.apply_url) {
         window.open(applyObj?.apply_url, random(10));
@@ -92,13 +95,14 @@ export default defineComponent({
     }
 
     function handleBizIdsChange(v: number[]) {
-      bizIds.value = v;
+      localBizIds.value = v;
+      alarmStore.bizIds = v;
     }
 
     return {
       bizId,
       isIncident,
-      bizIds,
+      localBizIds,
       bizList,
       t,
       handleCheckAllowedByIds,
@@ -117,7 +121,7 @@ export default defineComponent({
                 isCommonStyle={false}
                 needIncidentOption={this.isIncident}
                 spaceList={this.bizList}
-                value={this.bizIds}
+                value={this.localBizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               >

@@ -27,7 +27,7 @@ export type CommonCondition = {
   key: string;
   value: string[];
   condition?: string;
-  method: string;
+  method?: string;
 };
 export type CommonFilterParams = {
   bk_biz_ids: number[];
@@ -47,6 +47,7 @@ export type QuickFilterItem = {
   id: string;
   name: string;
   count?: number;
+  icon?: string;
   children?: QuickFilterItem[];
 };
 

@@ -303,7 +303,7 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
 // export function AlarmServiceFactory(type: AlarmType.ALERT): AlertService;
 // export function AlarmServiceFactory(type: AlarmType.INCIDENT): IncidentService;
 // export function AlarmServiceFactory(type: AlarmType.ACTION): ActionService;
-export function AlarmServiceFactory(type: AlarmType): ActionService | AlertService | IncidentService {
+export function AlarmServiceFactory(type: AlarmType) {
   if (type === AlarmType.ACTION) {
     return new ActionService(AlarmType.ACTION);
   }
