@@ -15,6 +15,22 @@
     background-color: $bg-dark;
   }
 
+  .list-scroller {
+    height: 240px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+      background: #38455f;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 20px;
+      box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
+    }
+  }
+
   .no-data {
     padding-bottom: 24px;
   }
@@ -64,7 +80,8 @@
     position: relative;
     display: flex;
     align-items: center;
-    height: 32px;
+    height: 32px !important;
+    overflow: hidden;
     padding: 0 9px 0 12px;
     line-height: 32px;
     color: #63656e;
@@ -243,4 +260,38 @@
     background: #f5f6fa;
     border-radius: 2px;
   }
+}
+
+// 虚拟滚动容器样式
+.virtual-scroller {
+  overflow-y: auto;
+  position: relative;
+  width: 100%;
+  
+  // 主题适配
+  &.dark {
+    background: #2e2e2e;
+  }
+  
+  &.light {
+    background: #ffffff;
+  }
+  
+  .list-group {
+    box-sizing: border-box;
+    padding: 4px 0;
+    
+    .list-item {
+      transition: none; // 禁用动画提升性能
+      position: relative; // 确保位置正确
+    }
+  }
+}
+
+// 确保无数据提示居中
+.no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
 }

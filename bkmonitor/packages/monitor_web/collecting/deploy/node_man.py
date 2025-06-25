@@ -393,6 +393,7 @@ class NodeManInstaller(BaseInstaller):
 
         # 创建新的部署记录
         params["collector"]["period"] = current_version.params["collector"]["period"]
+        params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
 
         release_version = self.plugin.packaged_release_version
         self._release_package(release_version)

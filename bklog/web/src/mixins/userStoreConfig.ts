@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+// import * as authorityMap from '../common/authority-map';
 
 // import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 // 1、函数作用：创建一组新的个性化配置项（增）
@@ -51,6 +52,8 @@ export default class UserConfigMixin extends Vue {
   // get hasBusinessAuth() {
   //   return window.space_list.some(item => +item.id === +window.cc_biz_id);
   // }
+  // if (!space.permission?.[authorityMap.VIEW_BUSINESS]) return;
+  
   /**1
    * @description: 获取用户个性化配置
    * @param {string} key key

@@ -25,69 +25,36 @@
 -->
 
 <template>
-  <div
-    v-bk-clickoutside="handleClickOutSide"
-    :class="['biz-menu-select', { 'light-theme': theme === 'light' }]"
-  >
+  <div v-bk-clickoutside="handleClickOutSide" :class="['biz-menu-select', { 'light-theme': theme === 'light' }]">
+    <!-- 图标+业务名称 -->
     <div class="menu-select">
-      <span
-        :style="`backgroundColor: ${spaceBgColor}`"
-        class="menu-title"
-        >{{ bizNameIcon }}</span
-      >
-      <span
-        v-if="isExpand"
-        class="menu-select-name"
-        tabindex="{0}"
-        @mousedown="handleClickBizSelect"
-      >
+      <!-- 图标 -->
+      <span :style="`backgroundColor: ${spaceBgColor}`" class="menu-title">{{ bizNameIcon }}</span>
+      <!-- 图标旁边的字 -->
+      <span v-if="isExpand" class="menu-select-name" tabindex="{0}" @mousedown="handleClickBizSelect">
         {{ bizName }}
-        <i
-          :style="{ transform: `rotate(${!showBizList ? '0deg' : '-180deg'})` }"
-          class="bk-select-angle bk-icon icon-angle-up-fill select-icon"
-        />
+        <i :style="{ transform: `rotate(${!showBizList ? '0deg' : '-180deg'})` }"
+          class="bk-select-angle bk-icon icon-angle-up-fill select-icon" />
       </span>
     </div>
-    <div
-      v-if="isExpand"
-      :style="{ display: showBizList ? 'flex' : 'none' }"
-      class="menu-select-list"
-    >
-      <bk-input
-        ref="menuSearchInput"
-        class="menu-select-search"
-        :clearable="false"
-        :placeholder="$t('搜索')"
-        :value="keyword"
-        left-icon="bk-icon icon-search"
-        @change="handleBizSearchDebounce"
-        @clear="handleBizSearchDebounce"
-      >
+    <!-- 下拉框内容 -->
+    <div v-if="isExpand" :style="{ display: showBizList ? 'flex' : 'none' }" class="menu-select-list">
+      <!-- 业务搜索框 -->
+      <bk-input ref="menuSearchInput" class="menu-select-search" :clearable="false" :placeholder="$t('搜索')"
+        :value="keyword" left-icon="bk-icon icon-search" @change="handleBizSearchDebounce"
+        @clear="handleBizSearchDebounce">
       </bk-input>
-      <ul
-        v-if="showSpaceTypeIdList"
-        id="space-type-ul"
-        class="space-type-list"
-      >
-        <li
-          v-for="item in spaceTypeIdList"
-          :style="{
-            ...item.styles,
-            borderColor: item.id === searchTypeId ? item.styles.color : 'transparent',
-          }"
-          class="space-type-item"
-          :key="item.id"
-          @click="handleSearchType(item.id)"
-        >
+      <!-- space空间选择栏 -->
+      <ul v-if="showSpaceTypeIdList" id="space-type-ul" class="space-type-list">
+        <li v-for="item in spaceTypeIdList" :style="{
+          ...item.styles,
+          borderColor: item.id === searchTypeId ? item.styles.color : 'transparent',
+        }" class="space-type-item" :key="item.id" @click="handleSearchType(item.id)">
           {{ item.name }}
         </li>
       </ul>
-      <div
-        ref="bizListRef"
-        :style="`width: ${bizBoxWidth}px`"
-        class="biz-list"
-        @scroll="handleScroll"
-      >
+      <!-- 业务列表 -->
+      <div ref="bizListRef" :style="`width: ${bizBoxWidth}px`" class="biz-list" @scroll="handleScroll">
         <template v-if="groupList.length">
           <slot name="list-top"></slot>
           <template>
@@ -101,23 +68,17 @@
             />
           </template>
         </template>
-        <li
-          v-else
-          class="list-empty"
-        >
+        <li v-else class="list-empty">
           {{ $t('无匹配的数据') }}
         </li>
       </div>
+      <!-- 体验demo按钮 -->
       <div class="menu-select-extension">
         <!-- <div class="menu-select-extension-item">
           <span class="icon bk-icon icon-plus-circle"></span>
           {{ $t('申请业务权限') }}
         </div> -->
-        <div
-          v-if="!isExternal && demoUid"
-          class="menu-select-extension-item"
-          @mousedown.stop="experienceDemo"
-        >
+        <div v-if="!isExternal && demoUid" class="menu-select-extension-item" @mousedown.stop="experienceDemo">
           <span class="icon bklog-icon bklog-app-store"></span>
           {{ $t('体验DEMO') }}
         </div>
@@ -127,26 +88,26 @@
 </template>
 
 <script>
-  import { Storage } from '@/common/util';
-  import navMenuMixin from '@/mixins/nav-menu-mixin';
-  import { SPACE_TYPE_MAP } from '@/store/constant';
-  import { debounce } from 'throttle-debounce';
-  import { mapState, mapGetters } from 'vuex';
+import { Storage } from '@/common/util';
+import navMenuMixin from '@/mixins/nav-menu-mixin';
+import { SPACE_TYPE_MAP } from '@/store/constant';
+import { debounce } from 'throttle-debounce';
+import { mapState, mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../common/authority-map';
-  import List from '../../global/biz-select/list';
+import * as authorityMap from '../../common/authority-map';
+import List from '../../global/biz-select/list';
 
-  const SPACE_COLOR_LIST = [
-    '#7250A9',
-    '#3563BE',
-    '#3799BA',
-    '#4FB17F',
-    '#86AF4A',
-    '#E9AE1D',
-    '#EB9258',
-    '#D36C68',
-    '#BC4FB3',
-  ];
+const SPACE_COLOR_LIST = [
+  '#7250A9',
+  '#3563BE',
+  '#3799BA',
+  '#4FB17F',
+  '#86AF4A',
+  '#E9AE1D',
+  '#EB9258',
+  '#D36C68',
+  '#BC4FB3',
+];
 
   export default {
     components: {
@@ -375,422 +336,422 @@
           this.localValue = space.space_uid;
         } catch (error) {
           console.warn(error);
-        } finally {
+      } finally {
           this.showBizList = false;
-        }
-      },
-      /**
-       * @desc: 常用的分配
-       * @param {Number} id 点击的space_uid
-       * @param {Array} filterList 基于哪个数组进行过滤
-       */
-      commonAssignment(id = null) {
-        const leng = this.commonListIds.length;
-        if (!!id) {
-          const isExist = this.commonListIds.includes(id);
-          let newIds = [...this.commonListIds];
-          if (isExist) newIds = newIds.filter(item => item !== id);
-          newIds.unshift(id);
-          this.commonListIds = newIds;
-        }
-        leng >= this.BIZ_SELECTOR_COMMON_MAX && (this.commonListIds.length = this.BIZ_SELECTOR_COMMON_MAX);
-        this.storage.set(this.BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
-      },
-      handleClickOutSide() {
-        this.showBizList = false;
-      },
-      handleBizSearch(v) {
-        this.keyword = v;
-        this.groupList = this.initGroupList();
-      },
-      experienceDemo() {
-        this.checkSpaceChange(this.demoUid);
-      },
-      handleSearchType(typeId) {
-        this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
-        this.groupList = this.initGroupList();
-      },
+      }
     },
-  };
+    /**
+     * @desc: 常用的分配
+     * @param {Number} id 点击的space_uid
+     * @param {Array} filterList 基于哪个数组进行过滤
+     */
+    commonAssignment(id = null) {
+      const leng = this.commonListIds.length;
+      if (!!id) {
+        const isExist = this.commonListIds.includes(id);
+        let newIds = [...this.commonListIds];
+        if (isExist) newIds = newIds.filter(item => item !== id);
+        newIds.unshift(id);
+        this.commonListIds = newIds;
+      }
+      leng >= this.BIZ_SELECTOR_COMMON_MAX && (this.commonListIds.length = this.BIZ_SELECTOR_COMMON_MAX);
+      this.storage.set(this.BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
+    },
+    handleClickOutSide() {
+      this.showBizList = false;
+    },
+    handleBizSearch(v) {
+      this.keyword = v;
+      this.groupList = this.initGroupList();
+    },
+    experienceDemo() {
+      this.checkSpaceChange(this.demoUid);
+    },
+    handleSearchType(typeId) {
+      this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
+      this.groupList = this.initGroupList();
+    },
+  },
+};
 </script>
 
 <style lang="scss">
-  @import '../../scss/mixins/flex.scss';
-  @import '../../scss/mixins/ellipsis.scss';
+@import '../../scss/mixins/flex.scss';
+@import '../../scss/mixins/ellipsis.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .biz-menu-select {
-    padding-left: 8px;
+/* stylelint-disable no-descending-specificity */
+.biz-menu-select {
+  padding-left: 8px;
 
-    .menu-select {
+  .menu-select {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 32px;
+    padding: 0 4px 0 8px;
+    border-radius: 2px;
+
+    &-name {
       position: relative;
-      display: flex;
       flex: 1;
-      align-items: center;
-      height: 32px;
-      padding: 0 4px 0 8px;
-      border-radius: 2px;
+      padding: 0 26px 0 8px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 30px;
+      color: #acb2c6;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
 
-      &-name {
-        position: relative;
-        flex: 1;
-        padding: 0 26px 0 8px;
-        overflow: hidden;
-        font-size: 12px;
-        line-height: 30px;
-        color: #acb2c6;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        cursor: pointer;
-
-        .select-icon {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          color: #c4c6cc;
-          transition:
-            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-            -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .icon-angle-up-fill {
-          top: 8px;
-          color: #96a2b9;
-        }
+      .select-icon {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        color: #c4c6cc;
+        transition:
+          transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+          -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      &-list {
-        position: fixed;
-        top: 100px;
-        left: 0;
-        z-index: 3000;
+      .icon-angle-up-fill {
+        top: 8px;
+        color: #96a2b9;
+      }
+    }
+
+    &-list {
+      position: fixed;
+      top: 100px;
+      left: 0;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+      background-color: #38455f;
+      border-radius: 2px;
+      box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
+
+      .biz-list {
         display: flex;
         flex-direction: column;
+        max-height: 240px;
+        padding: 6px 0;
         overflow: auto;
-        background-color: #38455f;
-        border-radius: 2px;
-        box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
-        .biz-list {
-          display: flex;
-          flex-direction: column;
-          max-height: 240px;
-          padding: 6px 0;
-          overflow: auto;
-
-          .group-title {
-            display: inline-block;
-            margin: 0 0 7px 12px;
-            font-size: 12px;
-            color: #66768e;
-          }
-
-          .list-empty,
-          %list-empty {
-            flex: 0 0 32px;
-            height: 32px;
-            padding: 0 9px 0 12px;
-            font-size: 12px;
-            color: #c3d0e7;
-
-            @include flex-center;
-          }
-
-          .list-item {
-            justify-content: space-between;
-
-            @extend %list-empty;
-            @include ellipsis;
-            @include flex-align(left);
-
-            &.is-select,
-            &%is-select {
-              color: #fff;
-              background-color: #2c354d;
-            }
-
-            &:hover {
-              cursor: pointer;
-              background-color: #323c53;
-
-              @extend %is-select;
-            }
-
-            &.is-disable {
-              color: #66768e;
-              cursor: not-allowed;
-            }
-
-            .text {
-              width: 100%;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-
-            .apply-text {
-              display: none;
-              color: #3a84ff;
-              cursor: pointer;
-            }
-
-            &:hover .apply-text {
-              display: flex;
-            }
-
-            .list-item-left {
-              /* stylelint-disable-next-line declaration-no-important */
-              display: inline-flex !important;
-              flex: 1;
-              flex-wrap: nowrap;
-              margin-right: 8px;
-
-              @include ellipsis();
-
-              .list-item-name {
-                @include ellipsis();
-              }
-
-              .list-item-id {
-                margin-left: 8px;
-
-                @include ellipsis();
-              }
-            }
-          }
-
-          &::-webkit-scrollbar {
-            width: 4px;
-            background: #38455f;
-          }
-
-          &::-webkit-scrollbar-thumb {
-            background: #ddd;
-            border-radius: 20px;
-            box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
-          }
-        }
-      }
-
-      &-search {
-        flex: 1;
-        width: inherit;
-        padding: 0 12px;
-
-        .left-icon {
-          color: #63656e;
+        .group-title {
+          display: inline-block;
+          margin: 0 0 7px 12px;
+          font-size: 12px;
+          color: #66768e;
         }
 
-        .bk-form-input {
-          color: #acb5c6;
-          background-color: #38455f;
-          border: 0;
-          border-bottom: 1px solid rgba(240, 241, 245, 0.16);
-          border-radius: 0;
+        .list-empty,
+        %list-empty {
+          flex: 0 0 32px;
+          height: 32px;
+          padding: 0 9px 0 12px;
+          font-size: 12px;
+          color: #c3d0e7;
 
-          &::placeholder {
-            /* stylelint-disable-next-line declaration-no-important */
-            color: #66768e !important;
-            background-color: #39455f;
-          }
-
-          &:focus {
-            /* stylelint-disable-next-line declaration-no-important */
-            background-color: #39455f !important;
-
-            /* stylelint-disable-next-line declaration-no-important */
-            border-bottom-color: #434e68 !important;
-          }
+          @include flex-center;
         }
-      }
 
-      &-extension {
-        display: flex;
-        padding: 10px 0;
-        font-size: 12px;
-        color: #c3d0e7;
-        cursor: pointer;
-        background-color: #323c53;
-        border-top: 1px solid #434e68;
+        .list-item {
+          justify-content: space-between;
 
-        &-item {
-          flex-grow: 1;
-          width: 50%;
-          text-align: center;
+          @extend %list-empty;
+          @include ellipsis;
+          @include flex-align(left);
+
+          &.is-select,
+          &%is-select {
+            color: #fff;
+            background-color: #2c354d;
+          }
 
           &:hover {
-            color: #fff;
+            cursor: pointer;
+            background-color: #323c53;
+
+            @extend %is-select;
           }
 
-          &:first-child {
-            border-right: 1px solid #434e68;
+          &.is-disable {
+            color: #66768e;
+            cursor: not-allowed;
           }
 
-          &:last-child {
-            border: 0;
+          .text {
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
-          .icon {
-            font-size: 14px;
+          .apply-text {
+            display: none;
+            color: #3a84ff;
+            cursor: pointer;
           }
+
+          &:hover .apply-text {
+            display: flex;
+          }
+
+          .list-item-left {
+            /* stylelint-disable-next-line declaration-no-important */
+            display: inline-flex !important;
+            flex: 1;
+            flex-wrap: nowrap;
+            margin-right: 8px;
+
+            @include ellipsis();
+
+            .list-item-name {
+              @include ellipsis();
+            }
+
+            .list-item-id {
+              margin-left: 8px;
+
+              @include ellipsis();
+            }
+          }
+        }
+
+        &::-webkit-scrollbar {
+          width: 4px;
+          background: #38455f;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: #ddd;
+          border-radius: 20px;
+          box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
         }
       }
     }
 
-    .menu-title {
+    &-search {
       flex: 1;
-      width: 20px;
-      min-width: 20px;
-      max-width: 20px;
-      height: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #fff;
-      background: #a09e21;
-      border-radius: 2px;
+      width: inherit;
+      padding: 0 12px;
 
-      @include flex-center;
+      .left-icon {
+        color: #63656e;
+      }
+
+      .bk-form-input {
+        color: #acb5c6;
+        background-color: #38455f;
+        border: 0;
+        border-bottom: 1px solid rgba(240, 241, 245, 0.16);
+        border-radius: 0;
+
+        &::placeholder {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #66768e !important;
+          background-color: #39455f;
+        }
+
+        &:focus {
+          /* stylelint-disable-next-line declaration-no-important */
+          background-color: #39455f !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          border-bottom-color: #434e68 !important;
+        }
+      }
+    }
+
+    &-extension {
+      display: flex;
+      padding: 10px 0;
+      font-size: 12px;
+      color: #c3d0e7;
+      cursor: pointer;
+      background-color: #323c53;
+      border-top: 1px solid #434e68;
+
+      &-item {
+        flex-grow: 1;
+        width: 50%;
+        text-align: center;
+
+        &:hover {
+          color: #fff;
+        }
+
+        &:first-child {
+          border-right: 1px solid #434e68;
+        }
+
+        &:last-child {
+          border: 0;
+        }
+
+        .icon {
+          font-size: 14px;
+        }
+      }
     }
   }
 
-  .light-theme {
-    padding: 0;
+  .menu-title {
+    flex: 1;
+    width: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: #a09e21;
+    border-radius: 2px;
 
-    .menu-select {
-      background: transparent;
-      border: 0;
+    @include flex-center;
+  }
+}
 
-      .menu-select-name {
-        font-size: 14px;
-        color: #313238;
-      }
+.light-theme {
+  padding: 0;
 
-      .select-icon {
-        /* stylelint-disable-next-line declaration-no-important */
-        right: 2px !important;
-      }
+  .menu-select {
+    background: transparent;
+    border: 0;
 
-      &-list {
-        top: 106px;
-        left: 16px;
-        min-width: 418px;
-        background-color: #fff;
-        outline: 1px solid #dcdee5;
-
-        .biz-list {
-          min-width: 418px;
-          padding: 6px 0;
-
-          .group-title {
-            display: inline-block;
-            margin: 0 0 7px 12px;
-            font-size: 12px;
-            color: #c4c6cc;
-          }
-
-          .list-empty,
-          %list-empty {
-            color: #63656e;
-          }
-
-          .list-item {
-            max-width: 100%;
-
-            @extend %list-empty;
-
-            &.is-select,
-            &%is-select {
-              color: #3a84ff;
-              background-color: #f5f7fa;
-            }
-
-            &:hover {
-              @extend %is-select;
-            }
-
-            &.is-disable {
-              color: #c4c6cc;
-            }
-          }
-
-          &::-webkit-scrollbar {
-            background: #fff;
-          }
-
-          &::-webkit-scrollbar-thumb {
-            background: #dcdee5;
-          }
-        }
-      }
-
-      &-name {
-        font-size: 12px;
-        color: #63656e;
-      }
-
-      &-search {
-        .bk-form-input {
-          color: #63656e;
-          background-color: #fff;
-          border-bottom: 1px solid #eaebf0;
-
-          &::placeholder {
-            background-color: #fff;
-          }
-
-          &:focus {
-            /* stylelint-disable-next-line declaration-no-important */
-            background-color: #fff !important;
-
-            /* stylelint-disable-next-line declaration-no-important */
-            border-color: #eaebf0 !important;
-          }
-        }
-      }
-
-      &-extension {
-        color: #63656e;
-        background-color: #fafbfd;
-        border-top: 1px solid #dcdee5;
-
-        &-item {
-          &:hover {
-            color: #3a84ff;
-          }
-
-          &:first-child {
-            border-color: #dcdee5;
-          }
-        }
-      }
+    .menu-select-name {
+      font-size: 14px;
+      color: #313238;
     }
 
     .select-icon {
-      color: #c4c6cc;
+      /* stylelint-disable-next-line declaration-no-important */
+      right: 2px !important;
     }
 
-    .space-type-list {
-      border-color: #eaebf0;
+    &-list {
+      top: 106px;
+      left: 16px;
+      min-width: 418px;
+      background-color: #fff;
+      outline: 1px solid #dcdee5;
+
+      .biz-list {
+        min-width: 418px;
+        padding: 6px 0;
+
+        .group-title {
+          display: inline-block;
+          margin: 0 0 7px 12px;
+          font-size: 12px;
+          color: #c4c6cc;
+        }
+
+        .list-empty,
+        %list-empty {
+          color: #63656e;
+        }
+
+        .list-item {
+          max-width: 100%;
+
+          @extend %list-empty;
+
+          &.is-select,
+          &%is-select {
+            color: #3a84ff;
+            background-color: #f5f7fa;
+          }
+
+          &:hover {
+            @extend %is-select;
+          }
+
+          &.is-disable {
+            color: #c4c6cc;
+          }
+        }
+
+        &::-webkit-scrollbar {
+          background: #fff;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: #dcdee5;
+        }
+      }
     }
+
+    &-name {
+      font-size: 12px;
+      color: #63656e;
+    }
+
+    &-search {
+      .bk-form-input {
+        color: #63656e;
+        background-color: #fff;
+        border-bottom: 1px solid #eaebf0;
+
+        &::placeholder {
+          background-color: #fff;
+        }
+
+        &:focus {
+          /* stylelint-disable-next-line declaration-no-important */
+          background-color: #fff !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          border-color: #eaebf0 !important;
+        }
+      }
+    }
+
+    &-extension {
+      color: #63656e;
+      background-color: #fafbfd;
+      border-top: 1px solid #dcdee5;
+
+      &-item {
+        &:hover {
+          color: #3a84ff;
+        }
+
+        &:first-child {
+          border-color: #dcdee5;
+        }
+      }
+    }
+  }
+
+  .select-icon {
+    color: #c4c6cc;
   }
 
   .space-type-list {
+    border-color: #eaebf0;
+  }
+}
+
+.space-type-list {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  margin: 0 12px;
+  border-bottom: 1px solid #434e68;
+
+  .space-type-item {
     display: flex;
     align-items: center;
-    padding: 8px 0;
-    margin: 0 12px;
-    border-bottom: 1px solid #434e68;
-
-    .space-type-item {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 22px;
-      padding: 0 10px;
-      margin-right: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-radius: 2px;
-    }
+    justify-content: center;
+    height: 22px;
+    padding: 0 10px;
+    margin-right: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 2px;
   }
+}
 </style>

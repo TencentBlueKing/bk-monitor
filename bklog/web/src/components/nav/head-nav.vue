@@ -40,7 +40,7 @@
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
       <div class="nav-separator">|</div>
-      <BizMenuSelect class="head-navi-left"></BizMenuSelect>
+      <BkSpaceChoice class="head-navi-left"></BkSpaceChoice>
     </div>
     <div
       class="nav-center fl"
@@ -259,14 +259,15 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
-  import BizMenuSelect from '@/components/biz-menu';
+  // import BizMenuSelect from '@/components/biz-menu'; 
+  import BkSpaceChoice from '@/global/bk-space-choice/index'
 
   export default {
     name: 'HeaderNav',
     components: {
       LogVersion,
       GlobalDialog,
-      BizMenuSelect,
+      BkSpaceChoice,
     },
     mixins: [navMenuMixin],
     props: {

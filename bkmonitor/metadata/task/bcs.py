@@ -122,10 +122,10 @@ def refresh_bcs_metrics_label():
         task_name="refresh_bcs_metrics_label", status=TASK_STARTED, process_target=None
     ).inc()
     start_time = time.time()
-    logger.debug("start refresh bcs metrics label")
+    logger.info("start refresh bcs metrics label")
     # 获取所有bcs相关dataid
     data_ids, data_id_cluster_map = get_bcs_dataids()
-    logger.debug(f"get bcs dataids->{data_ids}")
+    logger.info(f"get bcs dataids->{data_ids}")
 
     # 基于dataid过滤出自定义指标group_id
     time_series_group_ids = [
@@ -134,44 +134,32 @@ def refresh_bcs_metrics_label():
             "time_series_group_id"
         )
     ]
-    logger.debug(f"get bcs time_series_group_ids->{time_series_group_ids}")
 
     # 基于group_id拿到对应的指标项
     bcs_metrics = [
         item
-        for item in models.TimeSeriesMetric.objects.filter(group_id__in=time_series_group_ids).values(
-            "field_name", "field_id", "label"
+        for item in models.TimeSeriesMetric.objects.filter(label="").values(
+            "field_name", "field_id", "label", "group_id"
         )
     ]
-    logger.debug(f"get bcs metrics->{bcs_metrics}")
+
+    kubernetes_field_ids = []
+    non_kubernetes_field_ids = []
+
     # 遍历指标组
-    label_result = {}
-    label_prefix_map = settings.BCS_METRICS_LABEL_PREFIX.copy()
-    default_label = ""
-    if "*" in label_prefix_map.keys():
-        default_label = label_prefix_map["*"]
     for metric in bcs_metrics:
-        # 基于group的dataid，对数据补充集群id字段
-        field_name = metric["field_name"]
-        source_label = metric["label"]
-        target_label = ""
-        # 通过遍历匹配，获取到需要处理label的指标信息
-        for prefix in label_prefix_map.keys():
-            if field_name.startswith(prefix):
-                target_label = label_prefix_map[prefix]
-                break
-        if target_label == "":
-            target_label = default_label
-        # 记录需要更新label的field_id，后面批量更新
-        if source_label != target_label:
-            if target_label not in label_result.keys():
-                label_result[target_label] = [metric["field_id"]]
-            else:
-                label_result[target_label].append(metric["field_id"])
-    logger.debug(f"will replace bcs label info->{label_result}")
-    # 每个label批量更新一下
-    for label_name, field_ids in label_result.items():
-        models.TimeSeriesMetric.objects.filter(field_id__in=field_ids).update(label=label_name)
+        # 若非容器指标，则打上custom标签
+        if metric["group_id"] not in time_series_group_ids:
+            non_kubernetes_field_ids.append(metric["field_id"])
+        else:
+            kubernetes_field_ids.append(metric["field_id"])
+
+    # 更新指标label
+    if kubernetes_field_ids:
+        models.TimeSeriesMetric.objects.filter(field_id__in=kubernetes_field_ids).update(label="kubernetes")
+
+    if non_kubernetes_field_ids:
+        models.TimeSeriesMetric.objects.filter(field_id__in=non_kubernetes_field_ids).update(label="custom")
 
     cost_time = time.time() - start_time
 
@@ -183,7 +171,7 @@ def refresh_bcs_metrics_label():
         cost_time
     )
     metrics.report_all()
-    logger.debug("refresh bcs metrics label done,use->[%s] seconds", cost_time)
+    logger.info("refresh bcs metrics label done,use->[%s] seconds", cost_time)
 
 
 @share_lock(ttl=3600, identify="metadata_discoverBCSClusters")
@@ -251,9 +239,7 @@ def discover_bcs_clusters():
 
                 # 若业务ID变更，其RT对应的业务ID也应一并变更
                 logger.info(
-                    "discover_bcs_clusters: cluster_id:{},project_id:{} change bk_biz_id to {}".format(
-                        cluster_id, project_id, int(bk_biz_id)
-                    )
+                    f"discover_bcs_clusters: cluster_id:{cluster_id},project_id:{project_id} change bk_biz_id to {int(bk_biz_id)}"
                 )
 
                 # 变更对应的路由元信息
@@ -295,23 +281,17 @@ def discover_bcs_clusters():
             is_fed_cluster=is_fed_cluster,
         )
         logger.info(
-            "discover_bcs_clusters: cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
-                cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
-            )
+            f"discover_bcs_clusters: cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} registered"
         )
 
         try:
             logger.info(
-                "cluster_id:{},project_id:{},bk_biz_id:{} start to init resource".format(
-                    cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
-                )
+                f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} start to init resource"
             )
             cluster.init_resource(is_fed_cluster=is_fed_cluster)
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "cluster_id:{},project_id:{},bk_biz_id:{} init resource failed, error:{}".format(
-                    cluster.cluster_id, cluster.project_id, cluster.bk_biz_id, e
-                )
+                f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{e}"
             )
             continue
 
@@ -319,9 +299,7 @@ def discover_bcs_clusters():
         update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
 
         logger.info(
-            "cluster_id:{},project_id:{},bk_biz_id:{} init resource finished".format(
-                cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
-            )
+            f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource finished"
         )
 
     # 如果是不存在的集群列表则更新当前状态为删除，加上>0的判断防止误删
