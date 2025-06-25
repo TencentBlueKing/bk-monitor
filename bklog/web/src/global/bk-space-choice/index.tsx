@@ -29,11 +29,13 @@ import { SPACE_TYPE_MAP } from '@/store/constant';
 import useStore from '../../hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
 import { useNavMenu } from '@/hooks/use-nav-menu';
+import UserConfigMixin from '../../mixins/userStoreConfig';
 import * as authorityMap from '../../common/authority-map';
 import { debounce } from 'throttle-debounce';
 import List from '../biz-select/list';
-// import ListTest from '../biz-select/list-test';
 import './index.scss';
+
+const userConfigMixin = new UserConfigMixin();
 
 export type ThemeType = 'dark' | 'light';
 
@@ -56,11 +58,16 @@ export default defineComponent({
     const { checkSpaceChange } = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
     const spaceBgColor = ref('#3799BA');
     const showBizList = ref(false);
-    const generalList = ref<any[]>([]);
     const keyword = ref('');
     const searchTypeId = ref('');
     const exterlAuthSpaceName = ref('');
     const spaceTypeIdList = ref<any[]>([]);
+    const showDialog = ref(false);
+    const defaultSpace = ref(null); // 当前弹窗中选中的业务
+    const isSetBizIdDefault = ref(true); // 设为默认or取消默认
+    const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
+    const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
+    const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
@@ -95,9 +102,8 @@ export default defineComponent({
       }));
     });
 
-    // 监听 showBizList，弹窗展示时调整宽度，收起时重置滚动条
+    // 监听showBizList，调整宽度
     watch(showBizList, async val => {
-      console.log('showBizList', val);
       if (val) {
         await nextTick();
         const el = document.querySelector('#space-type-ul');
@@ -121,9 +127,9 @@ export default defineComponent({
     );
 
     // 初始化业务列表
-    const groupList = computed(() => {
-      const _keyword = keyword.value.trim().toLocaleLowerCase();
-      const _generalList = mySpaceList.value.filter(item => {
+    const generalList = computed(() => {
+      const keywordVal = keyword.value.trim().toLocaleLowerCase();
+      const filteredList = mySpaceList.value.filter(item => {
         let show = false;
         if (searchTypeId.value) {
           show =
@@ -131,24 +137,23 @@ export default defineComponent({
               ? item.space_type_id === 'bkci' && !!item.space_code
               : item.space_type_id === searchTypeId.value;
         }
-        if ((show && _keyword) || (!searchTypeId.value && !show)) {
+        if ((show && keywordVal) || (!searchTypeId.value && !show)) {
           show =
-            item.space_name.toLocaleLowerCase().indexOf(_keyword) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(_keyword) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(_keyword) > -1 ||
-            `${item.bk_biz_id}`.includes(_keyword) ||
-            `${item.space_code}`.includes(_keyword);
+            item.space_name.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+            item.py_text.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+            item.space_uid.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+            `${item.bk_biz_id}`.includes(keywordVal) ||
+            `${item.space_code}`.includes(keywordVal);
         }
         if (!show) return false;
         if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
         return true;
       });
-      generalList.value = _generalList;
       return [
         {
           id: 'general',
           name: t('有权限的'),
-          children: generalList.value,
+          children: filteredList,
         },
       ];
     });
@@ -169,6 +174,40 @@ export default defineComponent({
     // 点击下拉框外部，收起下拉框
     const handleClickOutSide = () => {
       showBizList.value = false;
+    };
+
+    // 打开设置/取消默认弹窗
+    const openDialog = (data: any, isSetDefault: boolean) => {
+      showDialog.value = true;
+      defaultSpace.value = null;// 先清空再赋值，确保弹窗能正确响应
+      setTimeout(() => {
+        defaultSpace.value = data;
+        isSetBizIdDefault.value = isSetDefault;
+      })
+    }
+
+    // 设置或取消默认业务
+    const handleDefaultId = async () => {
+      setDefaultBizIdLoading.value = true;
+      // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'
+      const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
+      userConfigMixin
+        .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, defaultBizIdApiId.value || 0)
+        .then(result => {
+          if (result) {
+            store.commit('SET_APP_STATE', {
+              defaultBizId: bizId,
+            });
+          }
+        })
+        .catch(e => {
+          console.log(e);
+        })
+        .finally(() => {
+          setDefaultBizIdLoading.value = false;
+          showDialog.value = false;
+          defaultSpace.value = null;
+        });
     };
 
     // 更新路由
@@ -219,6 +258,7 @@ export default defineComponent({
 
     // 点击体验demo按钮
     const experienceDemo = () => {
+      showBizList.value = false;
       checkSpaceChange(demoUid.value);
     };
 
@@ -267,20 +307,20 @@ export default defineComponent({
             style={{ width: `${bizBoxWidth.value}px` }}
             class='biz-list'
           >
-            {groupList.value.length ? (
+            {generalList.value[0].children.length ? (
               <List
                 canSetDefaultSpace={props.canSetDefaultSpace}
                 checked={localValue.value}
-                list={generalList.value}
+                list={generalList.value[0].children}
                 theme={props.theme as ThemeType}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-HandleClickMenuItem={handleClickMenuItem}
-              />
+                on-OpenDialog={openDialog}
+              ></List>
             ) : (
               <li class='list-empty'>{t('无匹配的数据')}</li>
             )}
           </div>
-          {/* <ListTest></ListTest> */}
           {/* 体验DEMO按钮 */}
           <div class='menu-select-extension'>
             {!isExternal.value && demoUid.value && (
@@ -328,6 +368,46 @@ export default defineComponent({
               />
             </span>
           )}
+          {/* 设置默认弹窗内容 */}
+          <bk-dialog
+            width={480}
+            ext-cls='confirm-dialog__set-default'
+            footer-position='center'
+            mask-close={false}
+            value={showDialog.value}
+            transfer={true}
+          >
+            <div class='confirm-dialog__hd'>
+              {isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}
+            </div>
+            <div class='confirm-dialog__bd'>
+              业务名称：<span class='confirm-dialog__bd-name'>{defaultSpace.value?.name || ''}</span>
+            </div>
+            <div class='confirm-dialog__ft'>
+              {isSetBizIdDefault.value
+                ? '设为默认后，每次进入日志平台将会默认选中该业务'
+                : '取消默认业务后，每次进入日志平台将会默认选中最近使用的业务而非当前默认业务'}
+            </div>
+            <div slot='footer'>
+              <bk-button
+                class='btn-confirm'
+                loading={setDefaultBizIdLoading.value}
+                theme='primary'
+                onClick={handleDefaultId}
+              >
+                确认
+              </bk-button>
+              <bk-button
+                class='btn-cancel'
+                onClick={() => {
+                  defaultSpace.value = null;
+                  showDialog.value = false;
+                }}
+              >
+                取消
+              </bk-button>
+            </div>
+          </bk-dialog>
         </div>
         {/* 下拉框内容 */}
         {showBizList.value && useContent()}

@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref, computed } from 'vue';
+import { RecycleScroller } from 'vue-virtual-scroller';
 import useStore from '../../hooks/use-store';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import { SPACE_TYPE_MAP } from '../../store/constant';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './list.scss';
 
 const userConfigMixin = new UserConfigMixin();
@@ -82,17 +84,15 @@ export default defineComponent({
       validator: (val: string) => ['dark', 'light'].includes(val),
     },
   },
-  emits: ['handleClickOutSide', 'handleClickMenuItem'],
+  emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
-    // console.log('props.checked', props.checked);
     const store = useStore();
-    const defaultSpace = ref<IListItem | null>(null);
-    const setDefaultBizIdLoading = ref(false);
-    const isSetBizIdDefault = ref(true);
+    const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
+    const isSetBizIdDefault = ref(true); // 设为默认or取消默认
+    const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
+    const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
-    const defaultBizId = computed(() => store.getters.defaultBizId);
-    const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId);
-    // 获取当前用户的配置id
+    // 获取用户配置的默认业务ID
     const getUserConfigId = () => {
       userConfigMixin
         .handleGetUserConfig(DEFAULT_BIZ_ID)
@@ -108,158 +108,109 @@ export default defineComponent({
         });
     };
 
-    // 默认id处理
-    const handleDefaultId = async () => {
-      setDefaultBizIdLoading.value = true;
-      const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
-      userConfigMixin
-        .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, defaultBizIdApiId.value || 0)
-        .then(result => {
-          if (result) {
-            store.commit('SET_APP_STATE', {
-              defaultBizId: bizId,
-            });
-          }
-        })
-        .catch(e => {
-          console.log(e);
-        })
-        .finally(() => {
-          setDefaultBizIdLoading.value = false;
-          defaultSpace.value = null;
-        });
-    };
-
-    // 打开弹窗
+    // 点击设置/取消默认
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {
       e.stopPropagation();
-      emit('handleClickOutSide'); /* 关闭下拉框 */
       defaultSpace.value = null;
       setTimeout(() => {
         defaultSpace.value = data;
         isSetBizIdDefault.value = isSetDefault;
+        emit('openDialog', defaultSpace.value, isSetBizIdDefault.value);  // 打开弹窗
+        emit('handleClickOutSide');  // 关闭下拉框
       });
     };
 
-    // 点击菜单项时调用该方法
+    // 选中业务项时触发
     const handleSelected = (item: IListItem, type = 'general') => {
       emit('handleClickMenuItem', item, type);
     };
 
-    // 初始化
+    // 初始化时获取用户配置ID
     if (!defaultBizIdApiId.value) {
       getUserConfigId();
     }
 
+    // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
         {props.list.length ? (
-          props.list.map((item, i) => (
-            <div
-              key={item.id || item.name + i}
-              class={['list-group', props.theme, { 'no-name': !item.name }]}
-            >
-              <div
-                key={item.id || i}
-                class={['list-item', props.theme, { checked: item.space_uid === props.checked }]}
-                onClick={() => handleSelected(item, 'general')}
-              >
-                <span class='list-item-left'>
-                  <span class='list-item-name'>{item.name}</span>
-                  <span class={['list-item-id', props.theme]}>
-                    ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
-                  </span>
-                  {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
-                    <span class='item-default-icon'>
-                      <span class='item-default-text'>默认</span>
-                    </span>
-                  )}
-                </span>
-                {!item.is_hidden_tag && (
-                  <span class='list-item-right'>
-                    {item.tags?.map?.(tag => (
-                      <span
-                        key={tag.id}
-                        style={{ ...SPACE_TYPE_MAP[tag.id]?.[props.theme] }}
-                        class='list-item-tag'
-                      >
-                        {SPACE_TYPE_MAP[tag.id]?.name}
+          // 滚动加载
+          <RecycleScroller
+            class={['list-scroller']}
+            items={props.list}
+            item-size={32}
+            buffer={200}  /* 提前加载200px以外的内容 */
+            scopedSlots={{
+              default: ({ item, index }: { item: IListItem; index: number }) => (
+                <div
+                  key={item.id || item.name + index}
+                  class={['list-group', props.theme, { 'no-name': !item.name }]}
+                >
+                  <div
+                    key={item.id || index}
+                    class={['list-item', props.theme, { checked: item.space_uid === props.checked }]}
+                    onClick={() => handleSelected(item, 'general')}
+                  >
+                    <span class='list-item-left'>
+                      <span class='list-item-name'>{item.name}</span>
+                      <span class={['list-item-id', props.theme]}>
+                        {/* 显示业务ID或空间ID */}
+                        ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
-                    ))}
-                  </span>
-                )}
-                {props.canSetDefaultSpace && (
-                  <div class='set-default-button'>
-                    {defaultBizId.value && Number(defaultBizId.value) === Number(item.id) ? (
-                      <div
-                        class={`btn-style-${props.theme} remove`}
-                        onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, false)}
-                      >
-                        取消默认
-                      </div>
-                    ) : (
-                      <div
-                        class={`btn-style-${props.theme}`}
-                        onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, true)}
-                      >
-                        设为默认
+                      {/* 如果当前业务是默认业务，显示“默认”标签 */}
+                      {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
+                        <span class='item-default-icon'>
+                          <span class='item-default-text'>默认</span>
+                        </span>
+                      )}
+                    </span>
+                    {/* 显示标签 */}
+                    {!item.is_hidden_tag && (
+                      <span class='list-item-right'>
+                        {item.tags?.map?.(tag => (
+                          <span
+                            key={tag.id}
+                            style={{ ...SPACE_TYPE_MAP[tag.id]?.[props.theme] }}
+                            class='list-item-tag'
+                          >
+                            {SPACE_TYPE_MAP[tag.id]?.name}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    {/* 设为默认/取消默认按钮 */}
+                    {props.canSetDefaultSpace && (
+                      <div class='set-default-button'>
+                        {defaultBizId.value && Number(defaultBizId.value) === Number(item.id) ? (
+                          <div
+                            class={`btn-style-${props.theme} remove`}
+                            onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, false)}
+                          >
+                            取消默认
+                          </div>
+                        ) : (
+                          <div
+                            class={`btn-style-${props.theme}`}
+                            onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, true)}
+                          >
+                            设为默认
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))
+                </div>
+              ),
+            }}
+          />
         ) : (
+          // 无数据时显示异常提示
           <bk-exception
             class='no-data'
             scene='part'
             type='search-empty'
           />
         )}
-        <bk-dialog
-          width={480}
-          ext-cls='confirm-dialog__set-default'
-          footer-position='center'
-          mask-close={false}
-          value={!!defaultSpace.value}
-          transfer
-          onUpdate:modelValue={val => {
-            if (!val) {
-              defaultSpace.value = null;
-            }
-          }}
-        >
-          <div class='confirm-dialog__hd'>
-            {isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}
-          </div>
-          <div class='confirm-dialog__bd'>
-            业务名称：<span class='confirm-dialog__bd-name'>{defaultSpace.value?.name || ''}</span>
-          </div>
-          <div class='confirm-dialog__ft'>
-            {isSetBizIdDefault.value
-              ? '设为默认后，每次进入日志平台将会默认选中该业务'
-              : '取消默认业务后，每次进入日志平台将会默认选中最近使用的业务而非当前默认业务'}
-          </div>
-          <div slot='footer'>
-            <bk-button
-              class='btn-confirm'
-              loading={setDefaultBizIdLoading.value}
-              theme='primary'
-              onClick={handleDefaultId}
-            >
-              确认
-            </bk-button>
-            <bk-button
-              class='btn-cancel'
-              onClick={() => {
-                defaultSpace.value = null;
-              }}
-            >
-              取消
-            </bk-button>
-          </div>
-        </bk-dialog>
       </div>
     );
   },

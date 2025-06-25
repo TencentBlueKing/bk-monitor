@@ -59,7 +59,8 @@
         flex-direction: column;
         max-height: 240px;
         padding: 6px 0;
-        overflow: auto;
+        // overflow: auto;
+        overflow: hidden;
 
         .group-title {
           display: inline-block;
