@@ -28,12 +28,12 @@ import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-import type { AnalysisTopNDataResponse, AnalysisFieldAggItem, QuickFilterItem } from '../typings';
+import type { AnalysisTopNDataResponse, AnalysisListItem, QuickFilterItem } from '../typings';
 
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
   // 告警、故障、处理记录 分析TopN列表
-  const analysisTopNData = shallowRef<AnalysisTopNDataResponse<AnalysisFieldAggItem>>({
+  const analysisTopNData = shallowRef<AnalysisTopNDataResponse<AnalysisListItem>>({
     doc_count: 0,
     fields: [],
   });
@@ -45,6 +45,8 @@ export function useAlarmAnalysis() {
   const analysisTopNLoading = shallowRef(false);
   // 告警、故障、处理记录 字段列表
   const analysisFields = computed(() => alarmStore.alarmService.analysisFields);
+  // 告警、故障、处理记录 字段名称映射
+  const analysisFieldsMap = computed(() => alarmStore.alarmService.analysisFieldsMap);
 
   const effectFunc = () => {
     analysisDimensionLoading.value = true;
@@ -73,14 +75,28 @@ export function useAlarmAnalysis() {
    * @param {string[]} fields 维度分析字段列表
    * @param {boolean} isAll 是否获取全部数据
    */
-  const getAnalysisDataByFields = (fields: string[], isAll = false) => {
-    return alarmStore.alarmService.getAnalysisTopNData(
+  const getAnalysisDataByFields = async (
+    fields: string[],
+    isAll = false
+  ): Promise<AnalysisTopNDataResponse<AnalysisListItem>> => {
+    const data = await alarmStore.alarmService.getAnalysisTopNData(
       {
         ...alarmStore.commonFilterParams,
         fields: fields,
       },
       isAll
     );
+    return {
+      doc_count: data.doc_count,
+      fields: data.fields.map(item => ({
+        ...item,
+        name: analysisFieldsMap.value[item.field],
+        buckets: item.buckets.map(bucket => ({
+          ...bucket,
+          percent: Number(((bucket.count / data.doc_count) * 100).toFixed(2)),
+        })),
+      })),
+    };
   };
   watchEffect(effectFunc);
 
@@ -90,6 +106,7 @@ export function useAlarmAnalysis() {
     analysisDimensionFields,
     analysisDimensionLoading,
     analysisFields,
+    analysisFieldsMap,
     getAnalysisDataByFields,
   };
 }

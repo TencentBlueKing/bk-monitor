@@ -56,7 +56,10 @@ export abstract class AlarmService<S = AlarmType> {
    * @description: 告警分析字段列表
    */
   abstract get analysisFields(): string[];
-
+  /**
+   * @description: 告警分析字段映射
+   */
+  abstract get analysisFieldsMap(): Record<string, string>;
   /**
    * @description: UI 模式检索字段列表
    */

@@ -86,10 +86,21 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     };
   });
   const commonFilterParams = computed(() => {
+    const statusQuickFilter = [];
+    const otherQuickFilter = [];
+    /** 与我相关和状态两种快捷筛选条件需要特殊处理 */
+    for (const filter of quickFilterValue.value) {
+      if (filter.key !== 'MINE' && filter.key !== 'STATUS') {
+        otherQuickFilter.push(filter);
+      } else {
+        statusQuickFilter.push(...filter.value);
+      }
+    }
     const params = {
       bk_biz_ids: bizIds.value,
-      conditions: [...conditions.value, ...quickFilterValue.value],
+      conditions: [...conditions.value, ...otherQuickFilter],
       query_string: queryString.value,
+      status: statusQuickFilter,
       ...timeRangeTimestamp.value,
       [REFRESH_EFFECT_KEY]: refreshId.value,
     };
@@ -97,7 +108,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     delete params[REFRESH_EFFECT_KEY];
     return params;
   });
-
   const refreshInterval = customRef((track, trigger) => {
     let timer: ReturnType<typeof setInterval>;
     return {

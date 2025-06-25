@@ -413,3 +413,7 @@ export type AnalysisFieldAggItem = {
   bucket_count: number; // 分桶总数
   buckets: AnalysisBucket[]; // 分桶明细
 };
+
+export type AnalysisListItemBucket = { percent: number } & AnalysisBucket;
+
+export type AnalysisListItem = { name: string; buckets: AnalysisListItemBucket[] } & AnalysisFieldAggItem;

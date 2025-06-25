@@ -514,6 +514,24 @@ export class AlertService extends AlarmService {
       'ipv6',
     ];
   }
+  get analysisFieldsMap() {
+    return {
+      alert_name: window.i18n.t('告警名称'),
+      metric: window.i18n.t('指标ID'),
+      duration: window.i18n.t('持续时间'),
+      ip: window.i18n.t('目标IP'),
+      bk_cloud_id: window.i18n.t('管控区域ID'),
+      strategy_id: window.i18n.t('策略ID'),
+      strategy_name: window.i18n.t('策略名称'),
+      assignee: window.i18n.t('通知人'),
+      bk_service_instance_id: window.i18n.t('服务实例ID'),
+      appointee: window.i18n.t('负责人'),
+      labels: window.i18n.t('策略标签'),
+      plugin_id: window.i18n.t('告警来源'),
+      ipv6: window.i18n.t('目标IPv6'),
+    };
+  }
+
   get filterFields(): IFilterField[] {
     return [...ALERT_FILTER_FIELDS];
   }
@@ -583,11 +601,13 @@ export class AlertService extends AlarmService {
           {
             id: 'MINE',
             name: window.i18n.t('与我相关'),
+            count: myAlarmList.reduce((total, item) => total + item.count, 0),
             children: myAlarmList,
           },
           {
-            id: 'ALARM_LEVEL',
+            id: 'STATUS',
             name: window.i18n.t('状态'),
+            count: myAlarmList.reduce((total, item) => total + item.count, 0),
             children: alarmLevelList,
           },
           ...aggs,

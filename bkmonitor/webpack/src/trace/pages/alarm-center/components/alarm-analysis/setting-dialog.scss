@@ -1,0 +1,53 @@
+.alarm-analysis-setting-dialog.bk-dialog {
+  .bk-dialog-header {
+    padding: 16px 24px 20px;
+    line-height: 28px;
+    border-bottom: 1px solid #DCDEE5;
+  }
+
+  .bk-dialog-content {
+    padding: 0;
+    margin: 0;
+  }
+
+  .content {
+    display: flex;
+    height: 524px;
+
+    .field-select-wrap {
+      flex: 1;
+      padding: 12px 24px;
+
+      .select-button-group {
+        width: 100%;
+
+        .bk-button {
+          width: 50%;
+        }
+      }
+
+      .search-input {
+        margin: 8px 0 12px 0;
+      }
+
+      .select-group-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        max-height: calc(100% - 84px);
+        overflow-y: auto;
+
+        .bk-checkbox {
+          flex: 0 0 33.33%;
+          margin-bottom: 18px;
+          margin-left: 0;
+          line-height: 22px;
+        }
+      }
+    }
+
+    .selected-list {
+      width: 360px;
+      background: #F5F7FA;
+    }
+  }
+}

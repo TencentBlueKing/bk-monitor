@@ -20,11 +20,11 @@
     }
 
     .explore-col {
+      display: flex;
+      align-items: center;
       width: 100%;
       height: 23px;
       font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
-      display: flex;
-      align-items: center;
 
       &.explore-click-col {
         color: #3a84ff;
@@ -169,6 +169,7 @@
       }
     }
   }
+
   .t-table--column-fixed .t-table__cell--fixed-left-last::after {
     border-right-width: 1px !important;
     box-shadow: 1px 0px 3px 0px rgba(0, 0, 0, 0.12);

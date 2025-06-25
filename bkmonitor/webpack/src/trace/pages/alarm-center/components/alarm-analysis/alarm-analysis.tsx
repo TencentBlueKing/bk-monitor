@@ -24,88 +24,52 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef } from 'vue';
+import { defineComponent, onMounted, reactive, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Message, Progress, Sideslider } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils';
-import { storeToRefs } from 'pinia';
 
-import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import useUserConfig from '../../../../hooks/useUserConfig';
+import { useAlarmAnalysis } from '../../composables/use-analysis';
+import SettingDialog from './setting-dialog';
+
+import type { AnalysisListItem, AnalysisListItemBucket } from '../../typings';
 
 import './alarm-analysis.scss';
 
-export interface PanelItemChildren {
-  id: string;
-  title: string;
-  count: number;
-  percent: number;
-}
-
-export interface AlarmAnalysisPanels {
-  id: string;
-  title: string;
-  count: number;
-  children: PanelItemChildren[];
-}
+export const AlarmAnalysisCollapse = 'ALARM_ANALYSIS_COLLAPSE';
 
 export default defineComponent({
   name: 'AlarmAnalysis',
   setup() {
     const { t } = useI18n();
-    const store = useAlarmCenterStore();
-
-    const { alarmType } = storeToRefs(store);
+    const { analysisTopNData, analysisDimensionFields, getAnalysisDataByFields, analysisFields } = useAlarmAnalysis();
+    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
     const expand = shallowRef(true);
-    const panelList = shallowRef<AlarmAnalysisPanels[]>([
-      {
-        id: 'module',
-        title: t('模块'),
-        count: 10,
-        children: [
-          {
-            id: 'module1',
-            title: t('模块1'),
-            count: 10,
-            percent: 50,
-          },
-          {
-            id: 'module2',
-            title: t('模块2'),
-            count: 10,
-            percent: 50,
-          },
-        ],
-      },
-      {
-        id: 'module',
-        title: t('模块'),
-        count: 10,
-        children: [
-          {
-            id: 'module1',
-            title: t('模块1'),
-            count: 10,
-            percent: 50,
-          },
-          {
-            id: 'module2',
-            title: t('模块2'),
-            count: 10,
-            percent: 50,
-          },
-        ],
-      },
-    ]);
 
-    const handleConditionChange = (type, value) => {
-      console.log(type, value);
+    onMounted(() => {
+      handleGetUserConfig<boolean>('AlarmAnalysisCollapse').then(res => {
+        expand.value = res ?? true;
+      });
+    });
+
+    const handleCollapse = () => {
+      expand.value = !expand.value;
+      handleSetUserConfig(JSON.stringify(expand.value));
+    };
+
+    const showSetting = shallowRef(false);
+    const handleSettingsClick = (e: Event) => {
+      e.stopPropagation();
+      showSetting.value = true;
     };
 
     /** 批量复制 */
-    const handleCopyNames = (names: PanelItemChildren[] = []) => {
-      const value = names.map(item => item.title).join('\n');
+    const handleCopyNames = (names: AnalysisListItemBucket[] = []) => {
+      const value = names.map(item => item.name).join('\n');
       copyText(value, msg => {
         Message({
           message: msg,
@@ -120,7 +84,7 @@ export default defineComponent({
     };
 
     /** 渲染分析列表 */
-    const renderAnalysisList = (panels: PanelItemChildren[]) => {
+    const renderAnalysisList = (panels: AnalysisListItemBucket[]) => {
       return (
         <div class='analysis-list'>
           {panels.map(item => (
@@ -134,7 +98,7 @@ export default defineComponent({
                     class='item-name'
                     v-overflow-tips
                   >
-                    {item.title}
+                    {item.name}
                   </span>
                   <span class='item-count'>{item.count}</span>
                   <span class='item-percent'>{item.percent}%</span>
@@ -162,23 +126,29 @@ export default defineComponent({
         </div>
       );
     };
+    const handleConditionChange = (type, value) => {
+      console.log(type, value);
+    };
 
     const detailSliderShow = shallowRef(false);
     const detailSliderLoading = shallowRef(false);
     const detailSliderInfo = reactive({
-      title: '',
+      field: '',
+      name: '',
       count: 0,
     });
-    const sliderAnalysisList = shallowRef<PanelItemChildren[]>([]);
+    const sliderAnalysisList = shallowRef([]);
 
     /** 查看全部 */
-    const handleViewAll = async (panel: AlarmAnalysisPanels) => {
+    const handleViewAll = async (panel: AnalysisListItem) => {
       detailSliderShow.value = true;
-      detailSliderInfo.title = panel.title;
+      detailSliderInfo.field = panel.field;
+      detailSliderInfo.name = panel.name;
       detailSliderLoading.value = true;
-      const data = await getTopNData();
+      const data = await getAnalysisDataByFields([panel.field], true);
       detailSliderLoading.value = false;
-      sliderAnalysisList.value = data;
+      sliderAnalysisList.value = data.fields[0]?.buckets || [];
+      detailSliderInfo.count = data.fields[0]?.bucket_count || 0;
     };
     const handleSliderShowChange = (value: boolean) => {
       detailSliderShow.value = value;
@@ -201,9 +171,9 @@ export default defineComponent({
                     class='field-name'
                     v-overflow-tips
                   >
-                    {detailSliderInfo.title}
+                    {detailSliderInfo.name}
                   </span>
-                  (<div class='count'>{detailSliderInfo.count}</div> )
+                  <div class='count'>( {detailSliderInfo.count} )</div>
                   <i
                     class='icon-monitor icon-mc-copy'
                     v-bk-tooltips={{ content: '批量复制' }}
@@ -218,68 +188,81 @@ export default defineComponent({
       );
     };
 
-    const getTopNData = async () => {
-      if (alarmType.value === 'alert') {
-        return [];
-      }
-      if (alarmType.value === 'action') {
-        return [];
-      }
-      return [];
-    };
-
     return {
       t,
       expand,
-      panelList,
       detailSliderShow,
+      showSetting,
+      handleCollapse,
       handleCopyNames,
       handleViewAll,
       renderAnalysisList,
       renderAnalysisSlider,
+      handleSettingsClick,
+      analysisTopNData,
+      analysisDimensionFields,
+      getAnalysisDataByFields,
+      analysisFields,
     };
   },
   render() {
     return (
       <div class='alarm-analysis-comp'>
-        <div class='collapse-header'>
+        <div
+          class='collapse-header'
+          onClick={this.handleCollapse}
+        >
           <i class={['icon-monitor icon-mc-arrow-right arrow-icon', { expand: this.expand }]} />
           <div class='title'>{this.t('告警分析')}</div>
-          <div class='settings'>
+          <div
+            class='settings'
+            onClick={this.handleSettingsClick}
+          >
             <i class='icon-monitor icon-shezhi1' />
             <span>{this.t('设置')}</span>
           </div>
         </div>
-        <div class='collapse-content'>
-          {this.panelList.map(panel => (
-            <div
-              key={panel.id}
-              class='panel-item'
-            >
-              <div class='panel-item-header'>
-                <div class='header-left'>
-                  <span class='title'>{panel.title}</span>
-                  <div class='count'>{panel.count}</div>
-                  <i
-                    class='icon-monitor icon-mc-copy'
-                    v-bk-tooltips={{ content: '批量复制' }}
-                    onClick={() => this.handleCopyNames(panel.children)}
-                  />
+        {this.expand && (
+          <div class='collapse-content'>
+            {this.analysisTopNData.fields.map(panel => (
+              <div
+                key={panel.field}
+                class='panel-item'
+              >
+                <div class='panel-item-header'>
+                  <div class='header-left'>
+                    <span class='title'>{panel.name}</span>
+                    <div class='count'>{panel.bucket_count}</div>
+                    <i
+                      class='icon-monitor icon-mc-copy'
+                      v-bk-tooltips={{ content: '批量复制' }}
+                      onClick={() => this.handleCopyNames(panel.buckets)}
+                    />
+                  </div>
+                  {panel.bucket_count > 5 && (
+                    <span
+                      class='header-right'
+                      onClick={() => this.handleViewAll(panel)}
+                    >
+                      {this.t('查看全部')}
+                    </span>
+                  )}
                 </div>
-                {panel.count > 5 && (
-                  <span
-                    class='header-right'
-                    onClick={() => this.handleViewAll(panel)}
-                  >
-                    {this.t('查看全部')}
-                  </span>
+                {panel.buckets.length ? (
+                  this.renderAnalysisList(panel.buckets.slice(0, 5))
+                ) : (
+                  <EmptyStatus type='empty' />
                 )}
               </div>
-              {this.renderAnalysisList(panel.children)}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
         {this.renderAnalysisSlider()}
+        <SettingDialog
+          v-model:show={this.showSetting}
+          // settingValue={this.settingValue}
+        />
       </div>
     );
   },

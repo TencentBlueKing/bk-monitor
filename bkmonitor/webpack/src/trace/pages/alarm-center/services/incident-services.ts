@@ -120,6 +120,16 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   get analysisFields(): string[] {
     return ['incident_name', 'incident_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
   }
+  get analysisFieldsMap(): Record<string, string> {
+    return {
+      incident_name: window.i18n.t('故障名称'),
+      incident_type: window.i18n.t('故障类型'),
+      operator: window.i18n.t('负责人'),
+      duration: window.i18n.t('处理时长'),
+      strategy_name: window.i18n.t('策略名称'),
+      operate_target_string: window.i18n.t('执行对象'),
+    };
+  }
   get filterFields(): IFilterField[] {
     return [...INCIDENT_FILTER_FIELDS];
   }

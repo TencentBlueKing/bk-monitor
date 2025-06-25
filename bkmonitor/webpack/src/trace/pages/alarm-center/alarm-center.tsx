@@ -25,8 +25,10 @@
  */
 import { defineComponent, shallowRef } from 'vue';
 
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
-import AlarmAnalysis from './components/alarm-analysis';
+import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
 import AlarmTable from './components/alarm-table/alarm-table';
@@ -35,11 +37,14 @@ import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 
+import type { CommonCondition } from './typings';
+
 import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
-    const { quickFilterList } = useQuickFilter();
+    const alarmStore = useAlarmCenterStore();
+    const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data } = useAlarmTable();
     const { tableColumns } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
@@ -48,12 +53,19 @@ export default defineComponent({
       isCollapsed.value = v;
     };
 
+    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+      alarmStore.quickFilterValue = filterValue;
+    };
+
     return {
       quickFilterList,
+      quickFilterLoading,
       isCollapsed,
       updateIsCollapsed,
       data,
       tableColumns,
+      alarmStore,
+      handleFilterValueChange,
     };
   },
   render() {
@@ -68,8 +80,11 @@ export default defineComponent({
                 return (
                   <div class='quick-filtering'>
                     <QuickFiltering
-                      groupList={this.quickFilterList}
+                      filterList={this.quickFilterList}
+                      filterValue={this.alarmStore.quickFilterValue}
+                      loading={this.quickFilterLoading}
                       onClose={this.updateIsCollapsed}
+                      onUpdate:filterValue={this.handleFilterValueChange}
                     />
                   </div>
                 );
