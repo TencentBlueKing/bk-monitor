@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { EFieldType, EMethod, type IFilterField } from '@/components/retrieval-filter/typing';
+import { isEn } from '@/i18n/i18n';
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
 
 import { AlarmService } from './base';
@@ -37,187 +39,463 @@ import type {
   QuickFilterItem,
   TableColumnItem,
 } from '../typings';
+const ALERT_TABLE_COLUMNS = [
+  {
+    colKey: 'id',
+    title: window.i18n.t('告警ID'),
+    is_default: true,
+    align: 'left',
+    width: 140,
+    fixed: 'left',
+    sorter: true,
+  },
+  {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    align: 'left',
+    width: 100,
+    fixed: 'left',
+    sorter: true,
+  },
+  {
+    colKey: 'alert_name',
+    title: window.i18n.t('告警名称'),
+    is_default: true,
+    align: 'left',
+    width: 160,
+    fixed: 'left',
+    sorter: true,
+  },
+  {
+    colKey: 'plugin_display_name',
+    title: window.i18n.t('告警来源'),
+    is_default: false,
+    align: 'left',
+    width: 110,
+  },
+  {
+    colKey: 'category_display',
+    title: window.i18n.t('分类'),
+    is_default: true,
+    align: 'left',
+    width: 160,
+  },
+  {
+    colKey: 'metric',
+    title: window.i18n.t('告警指标'),
+    is_default: true,
+    align: 'left',
+    width: 180,
+    sorter: true,
+  },
+  {
+    colKey: 'event_count',
+    title: window.i18n.t('关联事件'),
+    is_default: true,
+    align: 'left',
+    width: 140,
+  },
+  {
+    colKey: 'create_time',
+    title: window.i18n.t('创建时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'begin_time',
+    title: window.i18n.t('开始时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'end_time',
+    title: window.i18n.t('结束时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'latest_time',
+    title: window.i18n.t('最新事件时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'first_anomaly_time',
+    title: window.i18n.t('首次异常时间'),
+    is_default: false,
+    align: 'left',
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'duration',
+    title: window.i18n.t('持续时间'),
+    is_default: false,
+    align: 'left',
+    sorter: true,
+  },
+  {
+    colKey: 'description',
+    title: window.i18n.t('告警内容'),
+    is_default: true,
+    align: 'left',
+    width: 300,
+  },
+  {
+    colKey: 'tags',
+    title: window.i18n.t('维度'),
+    is_default: false,
+    align: 'left',
+    width: 200,
+  },
+  {
+    colKey: 'extend_info',
+    title: window.i18n.t('关联信息'),
+    is_default: false,
+    align: 'left',
+    width: 250,
+  },
+  {
+    colKey: 'appointee',
+    title: window.i18n.t('负责人'),
+    is_default: true,
+    align: 'left',
+    width: 200,
+  },
+  {
+    colKey: 'assignee',
+    title: window.i18n.t('通知人'),
+    is_default: true,
+    align: 'left',
+    width: 200,
+  },
+  {
+    colKey: 'follower',
+    title: window.i18n.t('关注人'),
+    is_default: true,
+    align: 'left',
+    width: 200,
+  },
+  {
+    colKey: 'strategy_name',
+    title: window.i18n.t('策略名称'),
+    is_default: false,
+    align: 'left',
+  },
+  {
+    colKey: 'labels',
+    title: window.i18n.t('策略标签'),
+    is_default: false,
+    align: 'left',
+    width: 200,
+  },
+  {
+    colKey: 'stage_display',
+    title: window.i18n.t('处理阶段'),
+    is_default: true,
+    align: 'left',
+    fixed: 'right',
+    width: 110,
+  },
+  {
+    colKey: 'status',
+    title: window.i18n.t('状态'),
+    is_default: true,
+    align: 'left',
+    fixed: 'right',
+    width: isEn ? 120 : 80,
+    sorter: true,
+  },
+] as const;
 
+export const ALERT_FILTER_FIELDS: IFilterField[] = [
+  // 全字段检索
+  {
+    name: 'query_string',
+    alias: '全字段检索',
+    type: EFieldType.all,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 告警（策略）名称
+  {
+    name: 'alert_name',
+    alias: '告警（策略）名称',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+    ],
+  },
+  // 策略标签
+  {
+    name: 'labels',
+    alias: '策略标签',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+    ],
+  },
+  // 指标（支持ID和名称）
+  {
+    name: 'event.metric',
+    alias: '指标',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 告警目标（🆕，支持include/exclude，具体字段名请补充）
+  {
+    name: 'target', // 具体字段名请根据实际补充
+    alias: '告警目标',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 状态
+  {
+    name: 'status',
+    alias: '状态',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 告警内容
+  {
+    name: 'event.description',
+    alias: '告警内容',
+    type: EFieldType.text,
+    methods: [
+      {
+        alias: '不等于',
+        value: EMethod.ne,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+    ],
+  },
+  // 级别
+  {
+    name: 'severity',
+    alias: '级别',
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '不等于',
+        value: EMethod.ne,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 目标IP
+  {
+    name: 'event.ip',
+    alias: '目标IP',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 通知人
+  {
+    name: 'assignee',
+    alias: '通知人',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 负责人
+  {
+    name: 'appointee',
+    alias: '负责人',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 关注人
+  {
+    name: 'follower',
+    alias: '关注人',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 维度（query_string，单选，复用query_string字段）
+  {
+    name: 'tags.apiname',
+    alias: '维度',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 处理套餐
+  {
+    name: 'action_name',
+    alias: '处理套餐',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+    ],
+  },
+  // 告警来源
+  {
+    name: 'event.plugin_id',
+    alias: '告警来源',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+    ],
+  },
+  // 目标IPv6
+  {
+    name: 'event.ipv6',
+    alias: '目标IPv6',
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '包含',
+        value: EMethod.include,
+      },
+      {
+        alias: '不包含',
+        value: EMethod.exclude,
+      },
+      {
+        alias: '等于',
+        value: EMethod.eq,
+      },
+    ],
+  },
+  // 其它不支持include/exclude的字段可继续补充
+];
 export class AlertService extends AlarmService {
   readonly storageKey = '__ALERT_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
-    return [
-      {
-        colKey: 'id',
-        title: window.i18n.t('告警ID'),
-        is_default: true,
-        align: 'left',
-        width: 140,
-        fixed: 'left',
-        sorter: true,
-      },
-      {
-        colKey: 'bk_biz_name',
-        title: window.i18n.t('空间名'),
-        is_default: true,
-        align: 'left',
-        width: 100,
-        fixed: 'left',
-        sorter: true,
-      },
-      {
-        colKey: 'alert_name',
-        title: window.i18n.t('告警名称'),
-        is_default: true,
-        align: 'left',
-        width: 160,
-        fixed: 'left',
-        sorter: true,
-      },
-      {
-        colKey: 'plugin_display_name',
-        title: window.i18n.t('告警来源'),
-        is_default: false,
-        align: 'left',
-        width: 110,
-      },
-      {
-        colKey: 'category_display',
-        title: window.i18n.t('分类'),
-        is_default: true,
-        align: 'left',
-        width: 160,
-      },
-      {
-        colKey: 'metric',
-        title: window.i18n.t('告警指标'),
-        is_default: true,
-        align: 'left',
-        width: 180,
-        sorter: true,
-      },
-      {
-        colKey: 'event_count',
-        title: window.i18n.t('关联事件'),
-        is_default: true,
-        align: 'left',
-        width: 140,
-      },
-      {
-        colKey: 'create_time',
-        title: window.i18n.t('创建时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'begin_time',
-        title: window.i18n.t('开始时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'end_time',
-        title: window.i18n.t('结束时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'latest_time',
-        title: window.i18n.t('最新事件时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'first_anomaly_time',
-        title: window.i18n.t('首次异常时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'duration',
-        title: window.i18n.t('持续时间'),
-        is_default: false,
-        align: 'left',
-        sorter: true,
-      },
-      {
-        colKey: 'description',
-        title: window.i18n.t('告警内容'),
-        is_default: true,
-        align: 'left',
-        width: 300,
-      },
-      {
-        colKey: 'tags',
-        title: window.i18n.t('维度'),
-        is_default: false,
-        align: 'left',
-        width: 200,
-      },
-      {
-        colKey: 'extend_info',
-        title: window.i18n.t('关联信息'),
-        is_default: false,
-        align: 'left',
-        width: 250,
-      },
-      {
-        colKey: 'appointee',
-        title: window.i18n.t('负责人'),
-        is_default: true,
-        align: 'left',
-        width: 200,
-      },
-      {
-        colKey: 'assignee',
-        title: window.i18n.t('通知人'),
-        is_default: true,
-        align: 'left',
-        width: 200,
-      },
-      {
-        colKey: 'follower',
-        title: window.i18n.t('关注人'),
-        is_default: true,
-        align: 'left',
-        width: 200,
-      },
-      {
-        colKey: 'strategy_name',
-        title: window.i18n.t('策略名称'),
-        is_default: false,
-        align: 'left',
-      },
-      {
-        colKey: 'labels',
-        title: window.i18n.t('策略标签'),
-        is_default: false,
-        align: 'left',
-        width: 200,
-      },
-      {
-        colKey: 'stage_display',
-        title: window.i18n.t('处理阶段'),
-        is_default: true,
-        align: 'left',
-        fixed: 'right',
-        width: 110,
-      },
-      {
-        colKey: 'status',
-        title: window.i18n.t('状态'),
-        is_default: true,
-        align: 'left',
-        fixed: 'right',
-        width: this.isEn ? 120 : 80,
-        sorter: true,
-      },
-    ];
+    return [...ALERT_TABLE_COLUMNS];
   }
   get analysisFields(): string[] {
     return [
@@ -235,6 +513,9 @@ export class AlertService extends AlarmService {
       'plugin_id',
       'ipv6',
     ];
+  }
+  get filterFields(): IFilterField[] {
+    return [...ALERT_FILTER_FIELDS];
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
