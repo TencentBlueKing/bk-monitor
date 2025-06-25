@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { shallowRef } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmAnalysis from './components/alarm-analysis';
