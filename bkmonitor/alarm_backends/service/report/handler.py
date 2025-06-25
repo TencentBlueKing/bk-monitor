@@ -365,7 +365,7 @@ class ReportHandler:
                         "bk_biz_id": bk_biz_id,
                         "uid": graph_info[1],
                         "panel_id": graph_info[2],
-                        "image_size": self.image_size_mapper.get(content["row_pictures_num"]),
+                        "image_size": {"width": content["width"], "height": content["height"], "deviceScaleFactor": 2},
                         "variables": variables,
                         "tag": graph,
                         "from_time": from_time_stamp,

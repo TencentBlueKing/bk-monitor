@@ -2,7 +2,6 @@ from django.test import TestCase
 from bkmonitor.models.base import ReportContents, ReportItems
 from monitor_web.report.resources import ReportCreateOrUpdateResource
 
-REPORT_ITEM_ID = 1
 BK_TENANT_ID = "system"
 VALIDATED_REQUEST_DATA = {
     "mail_title": "邮件标题623",
@@ -33,7 +32,6 @@ VALIDATED_REQUEST_DATA = {
     "is_link_enabled": False,
 }
 VALIDATED_REQUEST_UPDATE_DATA = {
-    "report_item_id": REPORT_ITEM_ID,
     "mail_title": "邮件标题623",
     "receivers": [
         {"id": "bk_biz_maintainer", "type": "group", "is_enabled": True},
@@ -75,16 +73,17 @@ class TestReportCreateOrUpdateResource(TestCase):
 
     def test_perform_request(self):
         ReportCreateOrUpdateResource().perform_request(VALIDATED_REQUEST_DATA)
-        item = ReportItems.objects.filter(bk_tenant_id=BK_TENANT_ID)
+        item = ReportContents.objects.filter(bk_tenant_id=BK_TENANT_ID)
         self.assertIsNotNone(item)
 
-        item = ReportContents.objects.filter(report_item=1, bk_tenant_id=BK_TENANT_ID)
+        item = ReportItems.objects.filter(bk_tenant_id=BK_TENANT_ID).first()
         self.assertIsNotNone(item)
 
         # 更新逻辑
+        VALIDATED_REQUEST_UPDATE_DATA["report_item_id"] = item.id
         ReportCreateOrUpdateResource().perform_request(VALIDATED_REQUEST_UPDATE_DATA)
         result = (
-            ReportContents.objects.filter(report_item=REPORT_ITEM_ID, bk_tenant_id=BK_TENANT_ID)
+            ReportContents.objects.filter(report_item=item.id, bk_tenant_id=BK_TENANT_ID)
             .values("width", "height")
             .first()
         )

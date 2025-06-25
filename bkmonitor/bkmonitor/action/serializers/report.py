@@ -17,7 +17,9 @@ class ReceiverSerializer(StaffSerializer):
 class ReportContentSerializer(serializers.Serializer):
     content_title = serializers.CharField(required=True, max_length=512, label="子内容标题")
     content_details = serializers.CharField(required=True, max_length=512, label="字内容说明", allow_blank=True)
-    row_pictures_num = serializers.IntegerField(required=True, label="一行几幅图")
+    row_pictures_num = serializers.ChoiceField(
+        required=True, choices=[(1, "1 Picture"), (2, "2 Pictures")], label="一行几幅图"
+    )
     width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度")
     height = serializers.IntegerField(required=False, max_value=2000, label="单图高度")
     graphs = serializers.ListField(required=True, label="图表")
@@ -28,7 +30,7 @@ class ReportContentSerializer(serializers.Serializer):
         """
         size_mapping = {1: (800, 270), 2: (620, 300)}
 
-        row_pictures_num = attrs.get("row_pictures_num")
+        row_pictures_num = attrs["row_pictures_num"]
         if row_pictures_num in size_mapping:
             width, height = size_mapping[row_pictures_num]
             attrs["width"] = attrs.get("width", width)
