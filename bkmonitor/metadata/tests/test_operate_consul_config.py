@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 
@@ -18,7 +18,7 @@ from bkmonitor.utils import consul
 from metadata import models
 from metadata.utils import consul_tools
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 IS_CONSUL_MOCK = False
 es_index = {}
 DEFAULT_NAME = "test_query.base"
@@ -28,7 +28,7 @@ DEFAULT_MQ_CLUSTER_ID_ONE = 20001
 DEFAULT_MQ_CONFIG_ID = 20001
 
 
-class CustomBKConsul(object):
+class CustomBKConsul:
     def __init__(self):
         self.kv = CustomKV()
 
@@ -36,7 +36,7 @@ class CustomBKConsul(object):
         return True
 
 
-class CustomKV(object):
+class CustomKV:
     def __init__(self):
         self.data = {}
 
@@ -73,7 +73,7 @@ def clean_record(mocker):
     models.DataSource.objects.bulk_create(datasource_list)
 
 
-class TestOperateConsulConfig(object):
+class TestOperateConsulConfig:
     def test_redirect_consul_config(self, mocker, clean_record):
         # ===================== mock start ===========================
         # mock gse 请求接口依赖
@@ -97,7 +97,7 @@ class TestOperateConsulConfig(object):
         # 该测试只做实际场景测试
         if IS_CONSUL_MOCK:
             return
-        data_name = "test_name_{}".format(time.time())
+        data_name = f"test_name_{time.time()}"
         etl_config = "bk_standard"
         operator = "admin"
         data_source_label = "bk_monitor"

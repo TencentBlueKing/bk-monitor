@@ -622,11 +622,6 @@ DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID = os.getenv(
     os.getenv("BK_DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID", ""),
 )
 
-# BCS 集群灰度
-BCS_API_DATA_SOURCE = "db"
-BCS_GRAY_CLUSTER_ID_LIST = []
-ENABLE_BCS_GRAY_CLUSTER = False
-
 # UNIFY-QUERY支持bkdata查询灰度业务列表
 BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
 
@@ -735,7 +730,7 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "bkmonitor.db_routers.TableVisitCountRouter"]
 
 # 数据库配置
 (
@@ -786,6 +781,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -794,6 +790,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -1355,11 +1352,14 @@ ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
 # AIDEV配置
+MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL = os.getenv("BK_MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL")
 AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
 AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
 AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
 AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
 AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
+# AIAgent内容生成关键字
+AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
@@ -1415,9 +1415,6 @@ ES_CLUSTER_BLACKLIST = []
 
 # BCS 数据合流配置， 默认为 不启用
 BCS_DATA_CONVERGENCE_CONFIG = {}
-
-# 是否启用 BCS CC 的项目接口
-ENABLE_BCS_CC_PROJECT_API = False
 
 # 独立的vm集群的空间列表
 SINGLE_VM_SPACE_ID_LIST = []

@@ -397,10 +397,10 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
         .map(item => {
           const isDefault = this.groupChecked.some(set => item.id === set);
           let defaultValue = '';
-          for(const w of this.whereChecked) {
-            if(w.key === item.id) {
+          for (const w of this.whereChecked) {
+            if (w.key === item.id) {
               defaultValue = w.value?.[0] || '';
-              if(!isDefault) {
+              if (!isDefault) {
                 this.groupChecked.push(item.id);
               }
               break;
@@ -411,7 +411,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
             disabled: isDefault,
             order: isDefault ? 0 : 1,
             checked: isDefault || !!defaultValue || false,
-            defaultValue
+            defaultValue,
           };
         })
         .sort((a, b) => a.order - b.order);
@@ -523,7 +523,6 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
    * @return {string}
    */
   handleUnitString(value) {
-    console.info(value);
     const data = secToString({ value, unit: '' });
     return `${data.value} ${data.unitEn || 'm'}`;
   }
@@ -569,8 +568,8 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
     }
 
     .retrieval-active {
-      transition: 0.3s;
       transform: rotate(-90deg);
+      transition: 0.3s;
     }
   }
 

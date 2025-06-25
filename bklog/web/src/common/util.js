@@ -871,7 +871,7 @@ export const formatDateTimeField = (data, fieldType) => {
 export const parseTableRowData = (
   row,
   key,
-  fieldType,
+  fieldType = undefined,
   isFormatDate = store.state.isFormatDate,
   emptyCharacter = '--',
 ) => {

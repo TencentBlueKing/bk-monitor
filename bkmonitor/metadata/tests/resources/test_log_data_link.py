@@ -8,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import call, patch
+
 import pytest
 
 from metadata import models
-from unittest.mock import patch, call
-
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.resources import CreateOrUpdateLogRouter
 
@@ -97,7 +97,7 @@ def create_or_delete_records(mocker):
     models.Space.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_records):
     # 创建Doris链路,不指定存储集群即使用默认集群
     create_params = dict(
@@ -232,7 +232,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             assert result_table_ins.bk_biz_id == 2
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_records):
     # 创建ES链路,不指定存储集群即使用默认集群
     create_params = dict(

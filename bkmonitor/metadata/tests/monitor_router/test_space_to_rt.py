@@ -150,7 +150,7 @@ def create_or_delete_records(mocker):
     models.SpaceResource.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
     """测试SPACE_TO_RESULT_TABLE路由推送- BKCC类型"""
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -174,7 +174,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
             )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
     """测试SPACE_TO_RESULT_TABLE路由推送- BKCI类型"""
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -197,7 +197,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records):
     """测试SPACE_TO_RESULT_TABLE路由推送- BKSAAS类型"""
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:

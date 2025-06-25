@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -24,32 +23,32 @@ from .conftest import (
     DEFAULT_SPACE_TYPE,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
 def create_or_delete_records(mocker):
-    models.Space.objects.create(id=123456, space_type_id='bkci', space_id='test_space')
-    models.Space.objects.create(id=123457, space_type_id='bksaas', space_id='test_saas')
+    models.Space.objects.create(id=123456, space_type_id="bkci", space_id="test_space")
+    models.Space.objects.create(id=123457, space_type_id="bksaas", space_id="test_saas")
     models.SpaceResource.objects.create(
-        space_type_id='bkci',
-        space_id='test_space',
-        resource_type='bkcc',
-        resource_id='2',
+        space_type_id="bkci",
+        space_id="test_space",
+        resource_type="bkcc",
+        resource_id="2",
     )
     yield
     models.Space.objects.filter(id__in=[-123456, -123457]).delete()
     models.SpaceResource.objects.filter(
-        space_type_id='bkci', space_id='test_space', resource_type='bkcc', resource_id='2'
+        space_type_id="bkci", space_id="test_space", resource_type="bkcc", resource_id="2"
     ).delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_get_negative_space_related_info(create_or_delete_records):
     bkci_info = utils.get_negative_space_related_info(negative_biz_id=-123456)
     assert bkci_info["space_type"] == "bkci"
     assert bkci_info["space_id"] == "test_space"
-    assert bkci_info["bk_biz_id"] == '2'
+    assert bkci_info["bk_biz_id"] == "2"
     assert bkci_info["negative_biz_id"] == -123456
 
     bksaas_info = utils.get_negative_space_related_info(negative_biz_id=-123457)

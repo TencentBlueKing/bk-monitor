@@ -72,7 +72,7 @@ def create_or_delete_records(mocker):
     models.StorageClusterRecord.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_data_label_table_ids_with_tenant_for_table_ids(create_or_delete_records):
     """
     测试DATA_LABEL_TO_RESULT_TABLE 在多租户环境下的路由推送
@@ -95,7 +95,7 @@ def test_push_data_label_table_ids_with_tenant_for_table_ids(create_or_delete_re
             )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_data_label_table_ids_with_tenant_for_data_labels(create_or_delete_records):
     """
     测试DATA_LABEL_TO_RESULT_TABLE 在多租户环境下的路由推送

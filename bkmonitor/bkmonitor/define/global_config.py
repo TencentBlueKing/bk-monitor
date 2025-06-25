@@ -360,7 +360,6 @@ ADVANCED_OPTIONS = OrderedDict(
                 label="BCS 数据合流配置", default={"is_enabled": False, "k8s_metric_rt": "", "custom_metric_rt": ""}
             ),
         ),
-        ("ENABLE_BCS_CC_PROJECT_API", slz.BooleanField(label="是否启用BCS-CC的项目相关接口", default=False)),
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
         (
             "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
@@ -402,6 +401,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
+        ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
         (
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
@@ -581,9 +581,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("MAIL_REPORT_ALL_BIZ_USERNAMES", slz.ListField(label=_("全业务订阅报表接收人"), default=[])),
         ("MONITOR_MANAGERS", slz.ListField(label=_("监控平台管理员"), default=[])),
         ("DISABLE_BIZ_ID", slz.ListField(label=_("业务黑名单"), default=[])),
-        ("BCS_GRAY_CLUSTER_ID_LIST", slz.ListField(label=_("BCS集群灰度ID名单"), default=[])),
-        ("BCS_API_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群元数据获取方式"), default="db", choices=("db", "api"))),
-        ("ENABLE_BCS_GRAY_CLUSTER", slz.BooleanField(label=_("是否启用BCS集群灰度模式"), default=False)),
         ("NOTICE_TITLE", slz.CharField(label=_("告警通知标题"), default="蓝鲸监控")),
         (
             "DEFAULT_KAFKA_STORAGE_CLUSTER_ID",

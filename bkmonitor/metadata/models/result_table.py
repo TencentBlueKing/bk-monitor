@@ -1192,9 +1192,14 @@ class ResultTable(models.Model):
             self.raw_delete(result_table_field_ids)
 
             # option也需要一并的清理
-            result_table_field_option_ids = ResultTableFieldOption.objects.filter(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            ).values_list("id", flat=True)
+            # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
+            # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
+            # TODO: 后续需要优化option的配置方式，增加option的类型标记
+            result_table_field_option_ids = (
+                ResultTableFieldOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+                .exclude(name__in=ResultTableFieldOption.QUERY_OPTION_NAME_LIST)
+                .values_list("id", flat=True)
+            )
             self.raw_delete(result_table_field_option_ids)
 
             logger.info(
@@ -2915,6 +2920,12 @@ class ResultTableFieldOption(OptionBase):
     OPTION_ES_INDEX = "es_index"
     # influxdb_disabled: influxdb专用，表示字段是否不必写入到influxdb
     OPTION_INFLUXDB_DISABLED = "influxdb_disabled"
+
+    # 查询选项名称列表
+    QUERY_OPTION_NAME_LIST: list[str] = [
+        "need_add_time",  # 是否需要添加时间字段
+        "time_field",  # 指定查询时间单位，如：day、hour、minute、second
+    ]
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
