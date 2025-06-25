@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from unittest import mock
 
 import pytest
@@ -22,7 +22,7 @@ from metadata.task.config_refresh import manage_disable_es_storage, refresh_es_s
 def create_or_delete_records():
     # 集群一
     models.ESStorage.objects.create(
-        table_id='1001_test_bklog.table',
+        table_id="1001_test_bklog.table",
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=1,
         need_create_index=True,
@@ -30,7 +30,7 @@ def create_or_delete_records():
 
     # 集群二
     models.ESStorage.objects.create(
-        table_id='2001_test_bklog.table',
+        table_id="2001_test_bklog.table",
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=2,
         need_create_index=True,
@@ -38,7 +38,7 @@ def create_or_delete_records():
 
     # 集群三
     models.ESStorage.objects.create(
-        table_id='3001_test_bklog.table',
+        table_id="3001_test_bklog.table",
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=3,
         need_create_index=True,
@@ -46,7 +46,7 @@ def create_or_delete_records():
 
     # 禁用数据一
     models.ESStorage.objects.create(
-        table_id='4001_test_bklog.table',
+        table_id="4001_test_bklog.table",
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=4,
         need_create_index=True,
@@ -54,14 +54,14 @@ def create_or_delete_records():
 
     # 禁用数据二
     models.ESStorage.objects.create(
-        table_id='5001_test_bklog.table',
+        table_id="5001_test_bklog.table",
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=5,
         need_create_index=True,
     )
 
     models.ResultTable.objects.create(
-        table_id='1001_test_bklog.table',
+        table_id="1001_test_bklog.table",
         is_enable=True,
         is_deleted=False,
         table_name_zh="test_1001",
@@ -71,7 +71,7 @@ def create_or_delete_records():
         bk_biz_id=0,
     )
     models.ResultTable.objects.create(
-        table_id='2001_test_bklog.table',
+        table_id="2001_test_bklog.table",
         is_enable=True,
         is_deleted=False,
         table_name_zh="test_2001",
@@ -81,7 +81,7 @@ def create_or_delete_records():
         bk_biz_id=0,
     )
     models.ResultTable.objects.create(
-        table_id='3001_test_bklog.table',
+        table_id="3001_test_bklog.table",
         is_enable=True,
         is_deleted=False,
         table_name_zh="test_3001",
@@ -91,7 +91,7 @@ def create_or_delete_records():
         bk_biz_id=0,
     )
     models.ResultTable.objects.create(
-        table_id='4001_test_bklog.table',
+        table_id="4001_test_bklog.table",
         is_enable=False,
         is_deleted=False,
         table_name_zh="test_3001",
@@ -101,7 +101,7 @@ def create_or_delete_records():
         bk_biz_id=0,
     )
     models.ResultTable.objects.create(
-        table_id='5001_test_bklog.table',
+        table_id="5001_test_bklog.table",
         is_enable=False,
         is_deleted=True,
         table_name_zh="test_3001",
@@ -116,7 +116,7 @@ def create_or_delete_records():
     models.ResultTable.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_refresh_es_storage(create_or_delete_records, mocker):
     """
     测试新版ES轮转周期任务能否正常执行
@@ -127,7 +127,7 @@ def test_refresh_es_storage(create_or_delete_records, mocker):
 
     # MOCK过程中调用的逻辑
     mocker.patch("metadata.task.config_refresh._manage_es_storage")
-    mocker.patch.object(manage_es_storage, 'delay')
+    mocker.patch.object(manage_es_storage, "delay")
     mock_logger = mocker.patch("metadata.task.config_refresh.logger")
 
     # 执行
@@ -154,14 +154,14 @@ def test_refresh_es_storage(create_or_delete_records, mocker):
     assert not log_message_not_found_es3
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_manage_disable_es_storage(create_or_delete_records, mocker):
     """
     测试禁用采集项索引清理能力正常调度
     """
     # MOCK过程中调用的逻辑
     # mocker.patch("metadata.task.config_refresh._clean_disable_es_storage")
-    mocker.patch.object(clean_disable_es_storage, 'delay')
+    mocker.patch.object(clean_disable_es_storage, "delay")
     mock_logger = mocker.patch("metadata.task.config_refresh.logger")
 
     # 执行

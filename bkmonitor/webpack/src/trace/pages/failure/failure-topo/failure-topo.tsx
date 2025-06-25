@@ -1452,6 +1452,8 @@ export default defineComponent({
         if (cfg.parentId) {
           // label宽度为cfg.width减去"反馈根因节点"文本宽度
           const labelWidth = cfg.width - (cfg.is_feedback_root ? 90 : 56);
+          const link = tooltipsRef.value?.canJumpByType?.(cfg);
+          const fill = link ? '#699DF4' : '#C4C6CC';
           return {
             ...model,
             type: 'service-combo',
@@ -1466,8 +1468,9 @@ export default defineComponent({
             },
             labelCfg: {
               style: {
-                fill: '#C4C6CC',
+                fill,
                 opacity: 1,
+                cursor: link ? 'pointer' : 'default',
               },
               // 启用 label 事件捕获
               triggerable: true,
@@ -1634,7 +1637,7 @@ export default defineComponent({
       }
 
       graph.on('combo:click', e => {
-        tooltipsRef.value.hide();
+        tooltipsRef.value?.hide?.();
         tooltips.hide();
         labelTooltip.style.visibility = 'hidden';
 
@@ -1642,6 +1645,10 @@ export default defineComponent({
         const { target, item } = e;
         const model = item.getModel();
         if (model.type !== 'service-combo') return;
+        if (target.get('name') === 'text-shape') {
+          tooltipsRef.value.handleToLink(model);
+          return;
+        }
         if (target.get('className') === 'sub-combo-label-feedback') {
           handleFeedBack(model);
         }
@@ -1713,7 +1720,7 @@ export default defineComponent({
     };
     /** 反馈新根因， 反馈后需要重新调用接口拉取数据 */
     const handleFeedBack = model => {
-      tooltipsRef.value.hide();
+      tooltipsRef.value?.hide?.();
       tooltips.hide();
       feedbackModel.value = model;
       if (model.is_feedback_root) {

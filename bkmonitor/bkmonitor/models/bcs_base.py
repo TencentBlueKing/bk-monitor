@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import copy
 import hashlib
 import json
@@ -17,9 +15,8 @@ import logging
 import operator
 from datetime import datetime
 from functools import reduce
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db import models
 from django.db.models import Count, Q
@@ -54,7 +51,7 @@ class BCSBaseManager(models.Manager):
         status_summary = {model["status"]: model["count"] for model in model_items}
         return status_summary
 
-    def count_monitor_status_quantity(self, query_set_list: List) -> Dict:
+    def count_monitor_status_quantity(self, query_set_list: list) -> dict:
         """统计每种指标数据状态的数量 ."""
         if not query_set_list:
             model_items = self.all().values("monitor_status").annotate(count=Count("monitor_status"))
@@ -64,7 +61,7 @@ class BCSBaseManager(models.Manager):
         return status_summary
 
     def get_cluster_ids(self, bk_biz_id):
-        if not isinstance(bk_biz_id, (list, tuple)):
+        if not isinstance(bk_biz_id, list | tuple):
             bk_biz_id = [bk_biz_id]
         cluster_ids = self.filter(bk_biz_id__in=bk_biz_id).values_list("bcs_cluster_id", flat=True)
         return list(cluster_ids)
@@ -248,7 +245,7 @@ class BCSBase(models.Model):
         ]
 
     @classmethod
-    def hash_resource_labels(cls, items: List):
+    def hash_resource_labels(cls, items: list):
         """获得资源的标签hash_id ."""
         has_ids = []
         for item in items:
@@ -270,7 +267,7 @@ class BCSBase(models.Model):
         return has_ids
 
     @classmethod
-    def bulk_save_labels(cls, items: List) -> None:
+    def bulk_save_labels(cls, items: list) -> None:
         """批量更新标签 ."""
         bulk_create_label_list = []
         bcs_cluster_id_list = []
@@ -370,9 +367,7 @@ class BCSBase(models.Model):
 
     @classmethod
     def count(cls, params):
-        if settings.BCS_API_DATA_SOURCE == "db":
-            return cls.objects.filter(**params).count()
-        return len(cls.load_item_from_api(params))
+        return cls.objects.filter(**params).count()
 
     @classmethod
     def load_item(cls, params=None):
@@ -385,10 +380,7 @@ class BCSBase(models.Model):
             clusters = api.kubernetes.get_cluster_info_from_bcs_space({"bk_biz_id": bk_biz_id})
             bcs_cluster_id_list = list(clusters.keys())
             params["bcs_cluster_id__in"] = bcs_cluster_id_list
-        if settings.BCS_API_DATA_SOURCE == "db":
-            return cls.load_item_from_db(params)
-        else:
-            return cls.load_item_from_api(params)
+        return cls.load_item_from_db(params)
 
     @classmethod
     def load_item_from_db(cls, params):
@@ -397,21 +389,6 @@ class BCSBase(models.Model):
             return cls.objects.get(**params)
         except cls.DoesNotExist:
             return
-
-    @classmethod
-    def load_item_from_api(cls, params):
-        params = params if params else {}
-        data = cls.load_list_from_api(params)
-
-        def matched(item, match_params):
-            for k, v in match_params.items():
-                if v != getattr(item, k):
-                    return False
-            return True
-
-        for item in data:
-            if matched(item, params):
-                return item
 
     @classmethod
     def condition_list_to_conditions(cls, condition_list):
@@ -546,7 +523,7 @@ class BCSBase(models.Model):
 
     @staticmethod
     def build_search_link(
-        bk_biz_id: int, dashboard_id: str, value: Any, search: Optional[List] = None, scene_type="detail"
+        bk_biz_id: int, dashboard_id: str, value: Any, search: list | None = None, scene_type="detail"
     ):
         url = f"?bizId={bk_biz_id}#/k8s?sceneId=kubernetes&dashboardId={dashboard_id}&sceneType={scene_type}"
         if search:
@@ -560,25 +537,13 @@ class BCSBase(models.Model):
         return value
 
     def get_label_list(self):
-        if settings.BCS_API_DATA_SOURCE == "db":
-            return [{"key": label.key, "value": label.value} for label in self.labels.all()]
-        if not self.api_labels:
-            self.api_labels = {}
-        label_list = []
-        for k, v in self.api_labels.items():
-            label_list.append(
-                {
-                    "key": k,
-                    "value": v,
-                }
-            )
-        return label_list
+        return [{"key": label.key, "value": label.value} for label in self.labels.all()]
 
-    def render_age(self, bk_biz_id, render_type="list") -> Optional[str]:
+    def render_age(self, bk_biz_id, render_type="list") -> str | None:
         if isinstance(self.created_at, timezone.datetime):
             return naturaldelta(datetime.utcnow().replace(tzinfo=timezone.utc) - self.created_at)
 
-    def render_labels(self, bk_biz_id, render_type="list") -> Dict:
+    def render_labels(self, bk_biz_id, render_type="list") -> dict:
         if self.api_labels:
             return self.api_labels
         elif self.id:
@@ -589,7 +554,7 @@ class BCSBase(models.Model):
     def render_label_list(self, bk_biz_id, render_type="list"):
         return self.get_label_list()
 
-    def render_monitor_status(self, bk_biz_id, render_type="list") -> Dict:
+    def render_monitor_status(self, bk_biz_id, render_type="list") -> dict:
         if self.monitor_status == self.METRICS_STATE_STATE_SUCCESS:
             result = {
                 "type": self.METRICS_STATE_STATE_SUCCESS,
@@ -622,7 +587,7 @@ class BCSBase(models.Model):
         return bcs_cluster_name
 
     @classmethod
-    def add_cluster_column(cls, columns: List, columns_type: str) -> List:
+    def add_cluster_column(cls, columns: list, columns_type: str) -> list:
         if columns_type == "detail":
             columns.extend(
                 [
@@ -701,7 +666,7 @@ class BCSBase(models.Model):
         ]
 
     @staticmethod
-    def get_cpu_usage_resource(usages: Dict, group_by: List) -> Dict:
+    def get_cpu_usage_resource(usages: dict, group_by: list) -> dict:
         """获得CPU资源使用量 ."""
         data = {}
         for value in usages.values():
@@ -715,7 +680,7 @@ class BCSBase(models.Model):
         return data
 
     @staticmethod
-    def fetch_container_usage(bk_biz_id: int, bcs_cluster_id: str, group_by: List) -> Dict:
+    def fetch_container_usage(bk_biz_id: int, bcs_cluster_id: str, group_by: list) -> dict:
         """获得cpu,memory,disk使用量 ."""
         usage_types = ["cpu", "memory", "disk"]
         bulk_params = [
@@ -762,7 +727,7 @@ class BCSBase(models.Model):
         return data
 
     @classmethod
-    def merge_monitor_status(cls, usage_resource_map: Dict, monitor_operator_status_up_map: Dict) -> Dict:
+    def merge_monitor_status(cls, usage_resource_map: dict, monitor_operator_status_up_map: dict) -> dict:
         """合并两个来源的数据状态 ."""
         # 根据资源使用率设置数据状态
         resource_status_map = {}
@@ -780,8 +745,8 @@ class BCSBase(models.Model):
 
     @staticmethod
     def get_monitor_beat_up_status(
-        bk_biz_id: int, bcs_cluster_id: str, monitor_type: Optional[str], group_by: List
-    ) -> Dict:
+        bk_biz_id: int, bcs_cluster_id: str, monitor_type: str | None, group_by: list
+    ) -> dict:
         """获得采集器的采集健康状态 ."""
         params = {
             "bk_biz_id": bk_biz_id,
@@ -845,7 +810,7 @@ class BCSBase(models.Model):
             )
 
     @classmethod
-    def convert_up_code_to_monitor_status(cls, code_list: List) -> str:
+    def convert_up_code_to_monitor_status(cls, code_list: list) -> str:
         Code = BkmMetricbeatEndpointUpStatus
         code_set = set(code_list)
         if code_set.issubset(
@@ -864,8 +829,8 @@ class BCSBase(models.Model):
 
     @classmethod
     def convert_up_to_monitor_status(
-        cls, metric_value_dict: Dict, group_num: int, key_indexes: List, code_index: int
-    ) -> Dict:
+        cls, metric_value_dict: dict, group_num: int, key_indexes: list, code_index: int
+    ) -> dict:
         """将up指标转换为采集器的状态 ."""
         result = {}
         # 获得状态码有多少种
@@ -885,7 +850,7 @@ class BCSBase(models.Model):
 
         return result
 
-    def update_monitor_status(self, params: Dict) -> None:
+    def update_monitor_status(self, params: dict) -> None:
         """更新采集器状态 ."""
         bk_biz_id = params["bk_biz_id"]
         # 判断up指标是否存在
@@ -937,7 +902,7 @@ class BCSBaseUsageResources(models.Model):
         while size >= 1024 and suffix_index < 4:
             suffix_index += 1  # increment the index of the suffix
             size = size / 1024.0  # apply the division
-        return "%.*f%s" % (precision, size, suffixes[suffix_index])
+        return f"{size:.{precision}f}{suffixes[suffix_index]}"
 
     def render_resource_usage_cpu(self, bk_biz_id, render_type="list"):
         return self.get_cpu_human_readable(self.resource_usage_cpu)

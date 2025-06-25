@@ -266,8 +266,6 @@ import {
   defineEmits,
   computed,
   ref,
-  onMounted,
-  onBeforeUnmount,
   nextTick,
   watch,
 } from "vue";
@@ -355,13 +353,16 @@ const rules = {
   ],
 };
 
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
 
-onBeforeUnmount(() => {
-  window.removeEventListener("keydown", handleKeydown);
-});
+watch(() => [props.modelValue], () => {
+  if (props.modelValue) {
+    window.addEventListener("keydown", handleKeydown);
+  } else {
+    nextTick(() => {
+      window.removeEventListener("keydown", handleKeydown);
+    })
+  }
+})
 
 watch(
   allGroupList,

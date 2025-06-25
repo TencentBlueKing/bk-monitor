@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 import json
 
 import pytest
 from django.core.cache import cache
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.local import local
@@ -30,7 +29,7 @@ from metadata.resources import (
 from metadata.tests.common_utils import generate_random_string
 from metadata.utils.redis_tools import RedisTools
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 DEFAULT_DIMENSION_FIELDS = ["project_id"]
 TYPE_ID = generate_random_string()
 SPACE_NAME = generate_random_string()
@@ -61,25 +60,25 @@ def create_and_delete_space_record():
 @pytest.fixture
 def create_or_delete_records(mocker):
     models.SpaceResource.objects.create(
-        space_type_id=SpaceTypes.BKCI.value, space_id='space1', resource_type=SpaceTypes.BKCC.value, resource_id=1001
+        space_type_id=SpaceTypes.BKCI.value, space_id="space1", resource_type=SpaceTypes.BKCC.value, resource_id=1001
     )
     models.SpaceResource.objects.create(
-        space_type_id=SpaceTypes.BKCI.value, space_id='space2', resource_type=SpaceTypes.BKCC.value, resource_id=1001
+        space_type_id=SpaceTypes.BKCI.value, space_id="space2", resource_type=SpaceTypes.BKCC.value, resource_id=1001
     )
     models.SpaceResource.objects.create(
-        space_type_id=SpaceTypes.BKCI.value, space_id='space3', resource_type=SpaceTypes.BKCC.value, resource_id=1002
+        space_type_id=SpaceTypes.BKCI.value, space_id="space3", resource_type=SpaceTypes.BKCC.value, resource_id=1002
     )
     yield
     models.SpaceResource.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_get_biz_related_bkci_spaces_resource(create_or_delete_records):
     """
     测试获取业务关联的bkci空间
     """
     params = dict(space_id=1001)
-    expected = ['space1', 'space2']
+    expected = ["space1", "space2"]
     result = GetBizRelatedBkciSpacesResource().request(params)
     assert len(result) == 2
     assert set(result) == set(expected)
@@ -94,7 +93,7 @@ def test_list_space(create_and_delete_space_record):
     result = ListSpacesResource().request()
     assert "count" in result
     assert "list" in result
-    assert type(result["list"]) == list
+    assert isinstance(result["list"], list)
     assert result["count"] == 1
 
     result = ListSpacesResource().request(space_id="notfound")
