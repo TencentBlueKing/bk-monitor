@@ -30,6 +30,7 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
 
 import type { TableColumnItem } from '../typings';
+import type { BkUiSettings } from '@blueking/tdesign-ui';
 
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
@@ -46,8 +47,15 @@ export function useAlarmTableColumns() {
       };
     });
   });
+  const allTableFields = computed<BkUiSettings['fields']>(() => {
+    return alarmStore.alarmService.allTableColumns.map(item => ({
+      label: item.title.toString(),
+      field: item.colKey,
+    }));
+  });
   return {
     storageColumns,
     tableColumns,
+    allTableFields,
   };
 }

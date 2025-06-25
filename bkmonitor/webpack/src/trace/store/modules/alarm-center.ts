@@ -67,15 +67,13 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   const refreshId = shallowRef(random(4));
 
-  const cacheMap = shallowRef<
-    Map<
-      AlarmType,
-      {
-        conditions?: CommonCondition[];
-        queryString?: string;
-      }
-    >
-  >(new Map());
+  const cacheMap: Map<
+    AlarmType,
+    {
+      conditions?: CommonCondition[];
+      queryString?: string;
+    }
+  > = new Map();
 
   const alarmService = shallowRef<AlarmService<AlarmType>>();
 
@@ -123,12 +121,12 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   watch(
     alarmType,
     () => {
-      cacheMap.value.set(alarmType.value, {
+      cacheMap.set(alarmType.value, {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
         queryString: JSON.parse(JSON.stringify(queryString.value)),
       });
       alarmService.value = AlarmServiceFactory(alarmType.value);
-      const cache = cacheMap.value.get(alarmType.value);
+      const cache = cacheMap.get(alarmType.value);
       if (cache) {
         conditions.value = cache.conditions;
         queryString.value = cache.queryString;
@@ -156,7 +154,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshInterval.value = -1;
     refreshImmediate.value = '';
     quickFilterValue.value = [];
-    cacheMap.value.clear();
+    cacheMap.clear();
   });
   return {
     timeRange,

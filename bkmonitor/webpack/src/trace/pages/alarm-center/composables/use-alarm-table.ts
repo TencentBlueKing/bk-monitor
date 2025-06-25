@@ -44,7 +44,7 @@ export function useAlarmTable() {
 
   const effectFunc = async () => {
     loading.value = true;
-    const res = await alarmStore.alarmService.getFilterTableList<ActionTableItem | AlertTableItem | IncidentTableItem>({
+    const res = await alarmStore.alarmService.getFilterTableList({
       ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
       page: page.value,
@@ -67,8 +67,5 @@ export function useAlarmTable() {
     total,
     data,
     loading,
-    refresh: () => {
-      effectFunc();
-    },
   };
 }
