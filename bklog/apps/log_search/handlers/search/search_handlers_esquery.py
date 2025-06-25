@@ -382,8 +382,7 @@ class SearchHandler:
             self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
-    def fields(self, scope="default"):
-        is_union_search = self.search_dict.get("is_union_search", False)
+    def _get_fields_base_info(self, scope: str, is_union_search: bool = False):
         mapping_handlers = MappingHandlers(
             self.origin_indices,
             self.index_set_id,
@@ -420,21 +419,51 @@ class SearchHandler:
             "config": [],
         }
 
-        if is_union_search:
-            return result_dict
-
         for fields_config in [
             self.bcs_web_console(field_result_list),
-            self.bk_log_to_trace(),
             self.analyze_fields(field_result),
             self.bkmonitor(field_result_list),
             self.async_export(field_result),
+        ]:
+            result_dict["config"].append(fields_config)
+
+        return result_dict
+
+    def _get_fields_config_info(self):
+        return [
+            self.bk_log_to_trace(),
             self.ip_topo_switch(),
             self.apm_relation(),
             self.clustering_config(),
             self.clean_config(),
-        ]:
-            result_dict["config"].append(fields_config)
+        ]
+
+    def fields(self, scope="default"):
+        is_union_search = self.search_dict.get("is_union_search", False)
+
+        if is_union_search:
+            return self._get_fields_base_info(scope=scope, is_union_search=True)
+
+        multi_execute_func = MultiExecuteFunc()
+        # 分两部分并行拉取，提高响应速度
+        multi_execute_func.append(
+            "get_fields_base_info",
+            self._get_fields_base_info,
+            params={"scope": scope, "is_union_search": is_union_search},
+            use_request=True,
+        )
+        multi_execute_func.append(
+            "get_fields_config_info",
+            self._get_fields_config_info,
+            use_request=True,
+        )
+        result = multi_execute_func.run(return_exception=True)
+        result_dict = result["get_fields_base_info"]
+        if isinstance(result_dict, Exception):
+            raise result_dict
+
+        result_dict["config"].extend(result["get_fields_config_info"])
+
         # 将用户当前使用的配置id传递给前端
         config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=self.request_username, scope=scope
