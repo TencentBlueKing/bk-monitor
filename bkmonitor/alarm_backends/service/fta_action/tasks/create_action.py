@@ -2,6 +2,7 @@ import copy
 import logging
 import math
 import time
+import json
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -653,6 +654,31 @@ class CreateActionProcessor:
                     and enable_delay != 0
                     and current_time - alert["begin_time"] > enable_delay
                 ):
+                    description = {
+                        "config_id": action["config_id"],
+                        "action_name": action_config["name"],
+                        "action_signal": action["signal"],
+                        "enable_delay": enable_delay,
+                        "content": f"告警开始时间距离当前时间大于{enable_delay}秒,不处理该套餐",
+                    }
+
+                    # 由于并没有实际创建ActionInstance,所以这里的action_instance_id为0
+                    action_log = dict(
+                        op_type=AlertLog.OpType.ACTION,
+                        alert_id=alert.id,
+                        description=json.dumps(description, ensure_ascii=False),
+                        time=current_time,
+                        create_time=current_time,
+                        event_id=f"{current_time}0",
+                    )
+                    AlertLog.bulk_create([AlertLog(**action_log)])
+                    logger.warning(
+                        "[fta_action] AlertID: %s, ActionName: %s, Reason: %s",
+                        alert.id,
+                        action_config["name"],
+                        f"告警开始时间距离当前时间大于{enable_delay}秒,不处理该套餐",
+                    )
+
                     continue
                 action_instances.append(
                     self.do_create_action(
