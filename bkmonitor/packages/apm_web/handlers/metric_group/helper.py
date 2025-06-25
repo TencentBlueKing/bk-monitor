@@ -213,7 +213,6 @@ class MetricHelper:
                     f"{CUSTOM_METRICS_PROMQL_FILTER}}}, "
                     f'"metric_name", "$1", "__name__", "(.*)")[{count_win}:]))'
                 )
-            print(promql)
 
             request_params["query_configs"][0]["promql"] = promql
             series = resource.grafana.graph_unify_query(request_params)["series"]

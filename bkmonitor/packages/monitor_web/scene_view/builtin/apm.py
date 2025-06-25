@@ -53,7 +53,7 @@ def discover_config_from_node_or_none(node: dict[str, Any]) -> dict[str, Any] | 
             break
 
     if not is_trpc:
-        logger.info("[apm][discover_config_from_node_or_none] system not fount: node -> %s", node)
+        logger.info("[apm][discover_config_from_node_or_none] system not found: node -> %s", node)
         return None
 
     # G 和 Tars 框架的指标类型为 Gauge。
