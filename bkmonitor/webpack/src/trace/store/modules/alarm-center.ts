@@ -29,13 +29,14 @@ import { onScopeDispose } from 'vue';
 import { customRef } from 'vue';
 
 import { useAlarmTable } from '@/pages/alarm-center/composables/use-alarm-table';
-import { AlarmServiceFactory, type AlarmService } from '@page/alarm-center/services/alarm-services';
+import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 import { defineStore } from 'pinia';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { AlarmType } from '../../pages/alarm-center/typings';
 
+import type { AlarmService } from '@/pages/alarm-center/services/base';
 import type {
   CommonCondition,
   QuickFilterItem,

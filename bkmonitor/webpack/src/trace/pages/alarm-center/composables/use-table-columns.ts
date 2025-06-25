@@ -23,50 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, shallowRef, watchEffect, toValue, onScopeDispose } from 'vue';
+
+import { computed, toValue } from 'vue';
+
+import { type MaybeRef, useStorage } from '@vueuse/core';
 
 import type { AlarmService } from '../services/base';
-import type { ActionTableItem, AlertTableItem, CommonFilterParams, IncidentTableItem } from '../typings';
+import type { TableColumnItem } from '../typings';
 
-export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, alarmService: MaybeRef<AlarmService>) {
-  // 分页参数
-  const pageSize = shallowRef(10);
-  // 当前页
-  const page = shallowRef(1);
-  // 总条数
-  const total = shallowRef(0);
-  // 数据
-  const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem)[]>([]);
-  // 是否加载中
-  const loading = shallowRef(false);
-
-  const effectFunc = async () => {
-    loading.value = true;
-    const res = await toValue(alarmService).getFilterTableList<ActionTableItem | AlertTableItem | IncidentTableItem>({
-      ...toValue(params),
-      page_size: pageSize.value,
-      page: page.value,
-    });
-    total.value = res.total;
-    data.value = res.data;
-    loading.value = false;
-  };
-  watchEffect(effectFunc);
-  onScopeDispose(() => {
-    pageSize.value = 10;
-    page.value = 1;
-    total.value = 0;
-    data.value = [];
-    loading.value = false;
+export function useAlarmTableColumns(alarmService: MaybeRef<AlarmService>) {
+  const defaultTableFields = computed(() => {
+    return toValue(alarmService)
+      .allTableColumns.filter(item => item.is_default)
+      .map(item => item.colKey);
   });
+  const storageColumns = useStorage<string[]>(toValue(alarmService).storageKey, [...defaultTableFields.value]);
+
+  const tableColumns = computed<TableColumnItem[]>(() => {
+    return storageColumns.value.map(item => {
+      const column = toValue(alarmService).allTableColumns.find(col => col.colKey === item);
+      return {
+        ...column,
+      };
+    });
+  });
+
   return {
-    pageSize,
-    page,
-    total,
-    data,
-    loading,
-    refresh: () => {
-      effectFunc();
-    },
+    storageColumns,
+    tableColumns,
   };
 }
