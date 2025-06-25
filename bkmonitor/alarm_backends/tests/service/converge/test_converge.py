@@ -185,7 +185,7 @@ def get_action() -> dict:
                 "converge_func": "skip_when_success",
                 "need_biz_converge": True,
             },
-            # "enable_delay": ONE_HOUR  # 显示一小时
+            # "skip_delay": ONE_HOUR  # 显示一小时
         },
         "relate_type": "ACTION",
         "config": {
@@ -419,10 +419,10 @@ class TestActionConverge:
             "5": get_action(),  # 创建action,但是动作被收敛
         }
         # 设置enable_delay时间限制为1小时
-        actions_mapping["2"]["options"]["enable_delay"] = ONE_HOUR  # 设置为1小时，会超时
-        actions_mapping["3"]["options"]["enable_delay"] = ONE_HOUR
+        actions_mapping["2"]["options"]["skip_delay"] = ONE_HOUR  # 设置为1小时，会超时
+        actions_mapping["3"]["options"]["skip_delay"] = ONE_HOUR
         actions_mapping["3"]["signal"] = ["manual"]  # 设置错误的信号
-        actions_mapping["4"]["options"]["enable_delay"] = ONE_HOUR * 20  # 设置为20小时，不会超时
+        actions_mapping["4"]["options"]["skip_delay"] = ONE_HOUR * 20  # 设置为20小时，不会超时
         actions_mapping["5"]["signal"] = ["manual"]
 
         alert = self.get_alert(actions_mapping)
