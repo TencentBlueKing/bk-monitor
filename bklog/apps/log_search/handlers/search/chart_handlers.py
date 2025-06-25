@@ -56,6 +56,7 @@ from apps.log_search.exceptions import (
     IndexSetDorisQueryException,
     SQLQueryException,
 )
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
 from apps.utils.grep_syntax_parse import grep_parser
@@ -554,7 +555,14 @@ class SQLChartHandler(ChartHandler):
                         pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
                     pattern = pattern.strip("'")
                 where_clause += f" AND {grep_where_clause}"
-
+        # 加上排序条件
+        sort_list = params.get("sort_list", [])
+        if not sort_list:
+            sort_list = SearchHandler(self.index_set_id, {}).sort_list
+        # 构建 ORDER BY 子句
+        order_by_clause = ", ".join(f"{field} {direction.upper()}" for field, direction in sort_list)
+        if order_by_clause:
+            where_clause += f" ORDER BY {order_by_clause}"
         # 加上分页条件
         where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
         sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
