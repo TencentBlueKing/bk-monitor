@@ -257,7 +257,7 @@ function handleReject(error, config, reject) {
   if (config.globalError && error.response) {
     // status 是 httpStatus
     const { status, data } = error.response;
-    const nextError = { message: error.message, response: error.response };
+    const nextError = { message: error.message ?? '401 Authorization Required', response: error.response, status };
     // 弹出登录框不需要出 bkMessage 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302
