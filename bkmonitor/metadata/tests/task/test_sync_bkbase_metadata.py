@@ -232,7 +232,7 @@ def create_or_delete_records(mocker):
     models.ResultTableOption.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 指标链路
@@ -282,7 +282,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
         assert mq_config.topic == "bkm_test2_metric_topic"
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 日志链路
@@ -327,7 +327,7 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
         assert deleted_record.is_deleted
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_clusters(create_or_delete_records):
     mock_es_data = [
         {
@@ -578,7 +578,7 @@ bkbase_rt_meta_api_return_data = [
 ]
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_rt_meta_info_all(mocker, create_or_delete_records):
     mocker.patch(
         "core.drf_resource.api.bkdata.bulk_list_result_table",

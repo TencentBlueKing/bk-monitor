@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 import random
 import string
 from contextlib import contextmanager
-from typing import List
 
 from django.conf import settings
 from django.db import models
@@ -39,10 +38,10 @@ def os_env(**kwargs):
 def requests_curl_log(resp, *args, **kwargs):
     """记录requests curl log"""
     # 添加日志信息
-    curl_req = "REQ: curl -X {method} '{url}'".format(method=resp.request.method, url=resp.request.url)
+    curl_req = f"REQ: curl -X {resp.request.method} '{resp.request.url}'"
 
     if resp.request.body:
-        curl_req += " -d '{body}'".format(body=resp.request.body)
+        curl_req += f" -d '{resp.request.body}'"
 
     if resp.request.headers:
         for key, value in resp.request.headers.items():
@@ -52,19 +51,19 @@ def requests_curl_log(resp, *args, **kwargs):
             if key == "Cookie" and value.startswith("x_host_key"):
                 continue
 
-            curl_req += " -H '{k}: {v}'".format(k=key, v=value)
+            curl_req += f" -H '{key}: {value}'"
 
     if resp.headers.get("Content-Type", "").startswith("application/json"):
         resp_text = resp.content
     else:
         resp_text = f"Bin...(total {len(resp.content)} Bytes)"
 
-    curl_resp = "RESP: [{}] {:.2f}ms {}".format(resp.status_code, resp.elapsed.total_seconds() * 1000, resp_text)
+    curl_resp = f"RESP: [{resp.status_code}] {resp.elapsed.total_seconds() * 1000:.2f}ms {resp_text}"
 
     logger.info("%s\n \t %s", curl_req, curl_resp)
 
 
-def generate_uid(exclude_uids: List[str] = None, exclude_model: models.Model.__class__ = None) -> str:
+def generate_uid(exclude_uids: list[str] = None, exclude_model: models.Model.__class__ = None) -> str:
     """
     9位随机字符串，由数字，大小写字母，下划线组成
     """

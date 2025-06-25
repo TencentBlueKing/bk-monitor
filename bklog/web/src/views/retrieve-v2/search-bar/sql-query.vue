@@ -88,9 +88,6 @@
         if (refSqlQueryOption.value?.beforeShowndFn?.()) {
           instance.popper?.style.setProperty('width', '100%');
           refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-          // requestAnimationFrame(() => {
-          //   editorInstance?.setFocus();
-          // });
           return true;
         }
 
@@ -102,6 +99,9 @@
         return true;
       },
       handleWrapperClick: handleWrapperClickCapture,
+      afterShowKeyEnter: () => {
+        editorInstance?.setFocus(Infinity);
+      }
     },
   );
 
@@ -307,6 +307,7 @@
             .ͼb {
               font-weight: bold;
               color: #7c609e;
+              // eslint-disable-next-line
               font-family: RobotoMono-BoldItalic;
               font-style: italic;
             }
