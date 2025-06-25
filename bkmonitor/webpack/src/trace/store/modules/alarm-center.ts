@@ -38,6 +38,7 @@ import { AlarmType } from '../../pages/alarm-center/typings';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
 import type { CommonCondition } from '@/pages/alarm-center/typings';
+const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export interface IAlarmCenterState {
   timeRange: TimeRangeType; // 时间范围
@@ -85,13 +86,16 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     };
   });
   const commonFilterParams = computed(() => {
-    return {
+    const params = {
       bk_biz_ids: bizIds.value,
       conditions: [...conditions.value, ...quickFilterValue.value],
       query_string: queryString.value,
       ...timeRangeTimestamp.value,
-      refreshId: refreshId.value,
+      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
+    // 用于主动触发 依赖副作用 更新
+    delete params[REFRESH_EFFECT_KEY];
+    return params;
   });
 
   const refreshInterval = customRef((track, trigger) => {
