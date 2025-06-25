@@ -57,6 +57,7 @@
         :retrieve-params="retrieveParams"
         :target-fields="targetFields"
         :title="logDialog.title"
+        :indexSetId="logDialog.indexSetId"
         @close-dialog="hideDialog"
         @toggle-screen-full="toggleScreenFull"
       />
@@ -110,6 +111,7 @@
           headerPosition: 'left',
           fullscreen: true,
           data: {},
+          indexSetId: '',
         },
       };
     },
@@ -119,12 +121,13 @@
         this.$el.querySelector('.ai-active')?.classList.remove('ai-active');
       },
       // 打开实时日志或上下文弹窗
-      openLogDialog(row, type) {
+      openLogDialog(row, type , indexSetId) {
         this.logDialog.data = row;
         this.logDialog.type = type;
         this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
         this.logDialog.visible = true;
         this.logDialog.fullscreen = true;
+        this.logDialog.indexSetId = indexSetId;
       },
       openWebConsole(row) {
         // (('cluster', 'container_id'),
@@ -192,6 +195,7 @@
               dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
             });
           } else if (Array.isArray(contextFields) && contextFields.length) {
+            console.log('contextFields', contextFields);
             // 传参配置指定字段
             contextFields.push(timeField);
             contextFields.forEach(field => {
@@ -204,8 +208,10 @@
           } else {
             Object.assign(dialogNewParams, row);
           }
-
-          this.openLogDialog(dialogNewParams, event);
+          
+          console.log(dialogNewParams,row);
+          
+          this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
         } else if (event === 'webConsole') this.openWebConsole(row);
         else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
       },

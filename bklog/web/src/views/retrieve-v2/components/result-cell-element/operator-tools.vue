@@ -106,7 +106,7 @@
     <template v-else>
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html' }"
+        v-bk-tooltips="{ allowHtml: true, content: $t('上下文') }"
       >
         <span
           :class="`icon bklog-icon bklog-shangxiawen`"
@@ -115,7 +115,7 @@
         </span>
       </span>
       <span
-        class="handle-card union-icon"
+        class="handle-card"
         v-bk-tooltips="
           $t('{0}日志来源', {
             0: !isShowSourceField ? $t('显示') : $t('隐藏'),
