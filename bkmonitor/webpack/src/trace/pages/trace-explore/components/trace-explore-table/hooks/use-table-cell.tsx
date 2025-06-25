@@ -33,13 +33,49 @@ import {
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
   TABLE_DEFAULT_CONFIG,
 } from '../constants';
-import { type ExploreTableColumn, ExploreTableColumnTypeEnum, type GetTableCellRenderValue } from '../typing';
+import {
+  type BaseTableColumn,
+  type ExploreTableColumn,
+  ExploreTableColumnTypeEnum,
+  type GetTableCellRenderValue,
+  type TableCellRender,
+} from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-export function useTableCell(rowKeyField: MaybeRef<string>) {
+export interface UseTableCellOptions {
+  /** 表格行数据唯一key字段名 */
+  rowKeyField: MaybeRef<string>;
+  /** 是否启用单元格文本省略号 */
+  cellEllipsisClass?: string;
+  /** 自定义单元格渲染策略对象集合 */
+  customCellRenderMap?: Record<string, TableCellRender>;
+}
+export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderMap }: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
+  /** 不同类型单元格渲染策略对象集合 */
+  let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRender> = {};
+
+  /**
+   * @description 初始化单元格渲染策略
+   *
+   */
+  function initCellRenderHandleMap() {
+    const defaultCellRenderHandleMap: Record<ExploreTableColumnTypeEnum, TableCellRender> = {
+      [ExploreTableColumnTypeEnum.TAGS]: tagsColumnFormatter,
+      [ExploreTableColumnTypeEnum.CLICK]: clickColumnFormatter,
+      [ExploreTableColumnTypeEnum.PREFIX_ICON]: iconColumnFormatter,
+      [ExploreTableColumnTypeEnum.TIME]: timeColumnFormatter,
+      [ExploreTableColumnTypeEnum.DURATION]: durationColumnFormatter,
+      [ExploreTableColumnTypeEnum.LINK]: linkColumnFormatter,
+      [ExploreTableColumnTypeEnum.TEXT]: textColumnFormatter,
+    };
+    cellRenderHandleMap = {
+      ...defaultCellRenderHandleMap,
+      ...(customCellRenderMap || {}),
+    };
+  }
 
   /**
    * @description 获取当前行的唯一 rowId
@@ -47,6 +83,18 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
    */
   function getRowId(row: Record<string, any>) {
     return row?.[get(rowKeyField)] || '';
+  }
+
+  /**
+   * @description 是否启用单元格溢出省略弹出 popover
+   * @returns {string} 开启单元格溢出省略弹出 popover 的类
+   *
+   */
+  function isEnabledCellEllipsis(column: BaseTableColumn<any, any>) {
+    if (column?.cellEllipsis === false) {
+      return '';
+    }
+    return cellEllipsisClass || ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME;
   }
 
   /**
@@ -74,11 +122,9 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
    * @description 表格单元格后置插槽渲染
    *
    */
-  function columnCellSuffixRender(column, row) {
+  function columnCellSuffixRender(column: BaseTableColumn<any, any>, row) {
     const suffixSlot = column?.suffixSlot;
-    if (!suffixSlot) {
-      return null;
-    }
+    if (!suffixSlot) return null;
     return suffixSlot(row, column);
   }
 
@@ -91,7 +137,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = getTableCellRenderValue(row, column);
     return (
       <div class={'explore-col explore-click-col'}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
             onClick={event => column?.clickCallback?.(row, column, event)}
@@ -128,7 +174,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
             prefixIcon(row, column)
           )
         ) : null}
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -152,7 +198,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = formatTraceTableDate(timestamp);
     return (
       <div class={'explore-col explore-time-col'}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -176,7 +222,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = formatDuration(+timestamp);
     return (
       <div class={'explore-col explore-duration-col '}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -213,7 +259,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
           rel='noreferrer'
           target='_blank'
         >
-          <div class={`explore-link-text ${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+          <div class={`explore-link-text ${isEnabledCellEllipsis(column)}`}>
             <span>{item.alias}</span>
           </div>
           <i class='icon-monitor icon-mc-goto' />
@@ -256,7 +302,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
     const alias = getTableCellRenderValue(row, column);
     return (
       <div class={'explore-col explore-text-col '}>
-        <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
+        <div class={`${isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -275,26 +321,17 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function handleSetFormatter(column: ExploreTableColumn, row: Record<string, any>) {
-    switch (column.renderType) {
-      case ExploreTableColumnTypeEnum.CLICK:
-        return clickColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row);
-      case ExploreTableColumnTypeEnum.PREFIX_ICON:
-        return iconColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>, row);
-      case ExploreTableColumnTypeEnum.TIME:
-        return timeColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row);
-      case ExploreTableColumnTypeEnum.DURATION:
-        return durationColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row);
-      case ExploreTableColumnTypeEnum.LINK:
-        return linkColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>, row);
-      case ExploreTableColumnTypeEnum.TAGS:
-        return tagsColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>, row);
-      default:
-        return textColumnFormatter(column as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
-    }
+  function tableCellRender(
+    column: BaseTableColumn<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, any>,
+    row
+  ) {
+    const renderType = column.renderType || ExploreTableColumnTypeEnum.TEXT;
+    const renderMethod = cellRenderHandleMap[renderType];
+    return renderMethod ? renderMethod(column, row) : null;
   }
 
+  initCellRenderHandleMap();
   return {
-    tableCellRender: handleSetFormatter,
+    tableCellRender,
   };
 }

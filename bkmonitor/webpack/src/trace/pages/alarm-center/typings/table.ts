@@ -23,6 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './constants';
-export * from './services';
-export * from './table';
+
+import type { TableCol } from '@blueking/tdesign-ui';
+
+export interface PageInfo {
+  current: number;
+  previous: number;
+  pageSize: number;
+}
+// 表格列字段
+export type TableColumnItem<T = any> = TableCol<T> & {
+  is_default?: boolean; // 是否为默认列
+  renderType?: 'array' | 'boolean' | 'date' | 'number' | 'string'; // 渲染类型
+};
