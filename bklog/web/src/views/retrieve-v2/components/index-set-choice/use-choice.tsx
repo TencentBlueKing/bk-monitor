@@ -25,10 +25,12 @@
  */
 
 import { computed, ref, set } from 'vue';
-import $http from '../../../../api';
+
 import { messageError, messageSuccess } from '@/common/bkmagic';
+
+import $http from '../../../../api';
 export type IndexSetType = 'single' | 'union';
-export type IndexSetTabList = 'single' | 'union' | 'history' | 'favorite';
+export type IndexSetTabList = 'favorite' | 'history' | 'single' | 'union';
 
 export default (props, { emit }) => {
   const historyLoading = ref(false);
@@ -135,7 +137,7 @@ export default (props, { emit }) => {
    * @param type 选中类型： single | union
    * @param id 选中id
    */
-  const handleValueChange = (value: any, type?: 'single' | 'union', id?: string | number) => {
+  const handleValueChange = (value: any, type?: 'single' | 'union', id?: number | string) => {
     unionListValue.value = value;
     emit('value-change', value, type, id);
   };
@@ -247,6 +249,12 @@ export default (props, { emit }) => {
     const target = props.list.find(item => item.index_set_id === id);
     if (target) {
       set(target, 'is_favorite', is_favorite);
+      if (target.parent_node) {
+        const sourceNode = target.parent_node.children.find(child => child.index_set_id === id);
+        if (sourceNode) {
+          set(sourceNode, 'is_favorite', is_favorite);
+        }
+      }
     }
   };
 
@@ -363,7 +371,7 @@ export default (props, { emit }) => {
       });
   };
 
-  const favoriteIndexSet = (args: string | any) => {
+  const favoriteIndexSet = (args: any | string) => {
     if (props.activeId === 'single') {
       return singleFavorite(args);
     }
