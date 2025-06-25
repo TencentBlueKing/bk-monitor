@@ -113,13 +113,13 @@ def create_or_delete_records(mocker):
     )
     models.ResultTable.objects.create(
         table_id="apm_global.precalculate_storage_2",
-        table_name_zh="apm_global.precalculate_storage_1_rt",
+        table_name_zh="apm_global.precalculate_storage_2_rt",
         bk_biz_id_alias="biz_id",
         is_custom_table=True,
     )
     models.ResultTable.objects.create(
         table_id="apm_global.precalculate_storage_3",
-        table_name_zh="apm_global.precalculate_storage_1_rt",
+        table_name_zh="apm_global.precalculate_storage_3_rt",
         bk_biz_id_alias="biz_id",
         is_custom_table=True,
     )
