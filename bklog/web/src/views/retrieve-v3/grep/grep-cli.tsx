@@ -217,7 +217,7 @@ export default defineComponent({
           <div class='grep-cli-editor'>
             <GrepCliEditor
               placeholder={
-                '-- "Common Text" | -i "ignore-case text" | -v "excluded text" | -E "regex match like [0-9]+" | -iv -E "multiple options" --'
+                '"Common Text" | -i "ignore-case text" | -v "excluded text" | -E "regex match like [0-9]+" | -iv -E "multiple options"'
               }
               autoHeight={true}
               maxHeight='160px'

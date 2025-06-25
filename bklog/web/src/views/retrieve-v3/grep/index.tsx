@@ -38,6 +38,7 @@ import { GrepRequestResult } from './types';
 import { axiosInstance } from '@/api';
 
 import './grep-cli.scss';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 
 export default defineComponent({
   name: 'GrepView',
@@ -122,6 +123,7 @@ export default defineComponent({
       const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
 
       const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { alias_settings, sort_list } = useFieldAliasRequestParams();
       const params: any = {
         method: 'post',
         url: `/search/index_set/${store.state.indexId}/grep_query/`,
@@ -137,6 +139,8 @@ export default defineComponent({
           grep_query: grepQuery.value,
           grep_field: field.value,
           begin: grepRequestResult.value.offset,
+          sort_list: alias_settings.value,
+          alias_settings: sort_list.value,
           size: 100,
         },
       };
