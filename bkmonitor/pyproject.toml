@@ -202,6 +202,3 @@ docstring-code-format = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "config/**" = ["F405"]
-
-[tool.basedpyright]
-typeCheckingMode = "basic"
