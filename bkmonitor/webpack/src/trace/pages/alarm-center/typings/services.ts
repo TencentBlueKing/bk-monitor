@@ -1,5 +1,3 @@
-import type { TableCol } from '@blueking/tdesign-ui/.';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -414,10 +412,4 @@ export type AnalysisFieldAggItem = {
   is_char: boolean; // 是否为字符型
   bucket_count: number; // 分桶总数
   buckets: AnalysisBucket[]; // 分桶明细
-};
-
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
-  renderType?: 'array' | 'boolean' | 'date' | 'number' | 'string'; // 渲染类型
 };

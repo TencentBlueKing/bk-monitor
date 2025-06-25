@@ -7,7 +7,7 @@
   height: 100%;
 
   .explore-table {
-    @include traceTable.trace-table-theme();
+    @include traceTable.table-theme();
   }
 
   .t-table__header {
