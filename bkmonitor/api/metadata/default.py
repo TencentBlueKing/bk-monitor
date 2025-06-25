@@ -21,8 +21,8 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 
 class MetaDataAPIGWResource(KernelAPIResource):
     base_url_statement = None
-    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
-        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    base_url = (
+        settings.NEW_MONITOR_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-monitor/{settings.APIGW_STAGE}/"
     )
     # 模块名
     module_name = "metadata_v3"
@@ -155,6 +155,8 @@ class GetDataIdResource(MetaDataAPIGWResource):
     """
     获取监控数据源具体信息
     """
+
+    backend_cache_type = CacheType.DB_CACHE
 
     action = "/app/metadata/get_data_id/"
     method = "GET"

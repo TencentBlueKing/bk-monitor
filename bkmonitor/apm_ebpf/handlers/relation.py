@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 import operator
 
@@ -30,12 +30,14 @@ class RelationHandler:
         """
         BCS集群发现
         """
-        projects = (
-            api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
-        )
-        project_id_mapping = group_by(projects, operator.itemgetter("project_id"))
+        clusters = []
+        project_id_mapping = {}
+        for tenant in api.bk_login.list_tenant():
+            bk_tenant_id = tenant["id"]
+            projects = api.bcs.get_projects(kind="k8s", bk_tenant_id=bk_tenant_id)
+            project_id_mapping.update(group_by(projects, operator.itemgetter("project_id")))
+            clusters.extend(api.bcs_cluster_manager.get_project_k8s_non_shared_clusters(bk_tenant_id=bk_tenant_id))
 
-        clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
         cluster_mapping = group_by(clusters, operator.itemgetter("cluster_id"))
         logger.info(f"[RelationHandler] found: {len(cluster_mapping)} k8s clusters")
 

@@ -169,7 +169,7 @@ export const getApmServiceType = (entity: IEntity) => {
  * @returns {string} - 换行、裁剪后的文本
  * @returns {number} - 占用行数
  */
-export const truncateTextWithWrap = (text: string, maxWidth: number = 80): [string, number] => {
+export const truncateTextWithWrap = (text: string, maxWidth: [string, number]) => {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   let result = '';
@@ -190,7 +190,7 @@ export const truncateTextWithWrap = (text: string, maxWidth: number = 80): [stri
 
     // 情况2：未达最大行数，换行
     if (lineCount < MAX_LINES) {
-      result += currentLine + '\n';
+      result += `${currentLine}\n`;
       currentLine = char;
       currentWidth = charWidth;
       lineCount++;

@@ -15,7 +15,7 @@ from metadata import models
 from metadata.resources import GetOrCreateAgentEventDataIdResource
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_get_or_create_agent_event_data_id_resource(mocker):
     """
     测试获取或创建agent事件数据id资源

@@ -1,0 +1,28 @@
+.analysis-animation-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  margin-top: 100px;
+
+  .animation-wrapper {
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px; /* 每行之间的间距 */
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 600px;
+    height: 200px;
+
+    .animation-line {
+      height: 12px; /* 行高 */
+      background-color: #3a84ff; /* 浅蓝色背景 */
+      border-radius: 1px; /* 圆角 */
+      opacity: 0.2; /* 透明度 */
+      transition: width 0.2s linear; /* 宽度变化动画 */
+    }
+  }
+}

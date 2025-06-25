@@ -207,7 +207,7 @@ bkbase_rt_meta_api_return_data = [
 ]
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_rt_by_biz_id(mocker, create_or_delete_records):
     mocker.patch(
         "core.drf_resource.api.bkdata.bulk_list_result_table",

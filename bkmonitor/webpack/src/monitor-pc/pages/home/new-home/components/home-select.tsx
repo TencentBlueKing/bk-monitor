@@ -777,7 +777,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       });
       return;
     }
-    console.info(item, this.searchList[parentIndex], this.highlightedIndex, '+++++++');
     reportLogStore.reportHomeSearchLog({
       type,
       name: groupName,

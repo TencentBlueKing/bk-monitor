@@ -5,7 +5,7 @@ description = "bkmonitor"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-    "aidev-agent==1.0.0b9",
+    "aidev-agent==1.0.0b11",
     "apigw-manager==4.0.4",
     "arrow==0.6.0",
     "babel==2.14.0",
@@ -129,6 +129,10 @@ dev = [
     "pre-commit==4.1.0",
     "ruff==0.11.6",
 ]
+stubs = [
+    "celery-types>=0.23.0",
+    "django-stubs==4.2.7",
+]
 
 
 # coverage
@@ -150,7 +154,8 @@ skip_empty = true
 console_output_style = "count"
 testpaths = [
     "alarm_backends/tests",
-    "bkmonitor/data_source/tests"
+    "bkmonitor/data_source/tests",
+    "metadata/tests",
 ]
 python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"
