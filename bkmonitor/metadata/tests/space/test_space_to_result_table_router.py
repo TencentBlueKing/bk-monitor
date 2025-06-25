@@ -105,6 +105,24 @@ def create_or_delete_records(mocker):
         data_label="bklog_index_set_1001",
         is_custom_table=False,
     )
+    models.ResultTable.objects.create(
+        table_id="apm_global.precalculate_storage_1",
+        table_name_zh="apm_global.precalculate_storage_1_rt",
+        bk_biz_id_alias="biz_id",
+        is_custom_table=True,
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.precalculate_storage_2",
+        table_name_zh="apm_global.precalculate_storage_1_rt",
+        bk_biz_id_alias="biz_id",
+        is_custom_table=True,
+    )
+    models.ResultTable.objects.create(
+        table_id="apm_global.precalculate_storage_3",
+        table_name_zh="apm_global.precalculate_storage_1_rt",
+        bk_biz_id_alias="biz_id",
+        is_custom_table=True,
+    )
     models.ClusterInfo.objects.create(
         cluster_id=11,
         cluster_name="test_es_1",
@@ -254,3 +272,22 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
                 "bkmonitorv3:spaces:space_to_result_table:channel",
                 ["bksaas__monitor_saas"],
             )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_apm_all_type_table_ids(create_or_delete_records):
+    client = SpaceTableIDRedis()
+
+    bkci_data = client._compose_apm_all_type_table_ids(space_type="bkci", space_id="bkmonitor")
+    assert bkci_data == {
+        "apm_global.precalculate_storage_1": {"filters": [{"biz_id": "-10000"}]},
+        "apm_global.precalculate_storage_2": {"filters": [{"biz_id": "-10000"}]},
+        "apm_global.precalculate_storage_3": {"filters": [{"biz_id": "-10000"}]},
+    }
+
+    bksaas_data = client._compose_apm_all_type_table_ids(space_type="bksaas", space_id="monitor_saas")
+    assert bksaas_data == {
+        "apm_global.precalculate_storage_1": {"filters": [{"biz_id": "-10008"}]},
+        "apm_global.precalculate_storage_2": {"filters": [{"biz_id": "-10008"}]},
+        "apm_global.precalculate_storage_3": {"filters": [{"biz_id": "-10008"}]},
+    }

@@ -784,6 +784,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # APM 真全局数据
+        _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
@@ -837,6 +839,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # APM 真全局数据
+        _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
 
@@ -1006,6 +1010,21 @@ class SpaceTableIDRedis:
         except models.Space.DoesNotExist:
             return {}
         return {tid: {"filters": [{"bk_biz_id": str(-_id)}]} for tid in ALL_SPACE_TYPE_TABLE_ID_LIST}
+
+    def _compose_apm_all_type_table_ids(self, space_type: str, space_id: str) -> dict:
+        """
+        APM特殊逻辑--真正的全局数据, filter key使用配置的bk_biz_id_alias，value使用-id
+        该方法仅对 BKCI 和 BKSAAS类型生效，BKCC类型走通用路由处理逻辑
+        """
+        # TODO： 该方法为临时支持，长期需要改造抽象为公共逻辑
+        logger.info("start to push apm all space type table_id, space_type: %s, space_id: %s", space_type, space_id)
+        try:
+            _id = models.Space.objects.get(space_type_id=space_type, space_id=space_id).id
+        except models.Space.DoesNotExist:
+            return {}
+
+        result_tables = models.ResultTable.objects.filter(table_id__contains="apm_global.precalculate_storage")
+        return {rt.table_id: {"filters": [{rt.bk_biz_id_alias: str(-_id)}]} for rt in result_tables}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,
