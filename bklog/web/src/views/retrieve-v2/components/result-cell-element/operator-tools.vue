@@ -109,8 +109,8 @@
         v-bk-tooltips="{ allowHtml: true, content: $t('上下文') }"
       >
         <span
-          :class="`icon bklog-icon bklog-shangxiawen`"
-          @click.stop="handleCheckClick('contextLog', true)"
+          :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}` "
+          @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
       </span>
