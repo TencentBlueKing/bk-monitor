@@ -7,8 +7,8 @@ import os
 import time
 from datetime import datetime, timedelta
 from functools import reduce
+from typing import Any
 
-from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
 from kubernetes.client.exceptions import ApiException
@@ -444,7 +444,8 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
 
 class FetchK8sPodListByClusterResource(CacheResource):
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
         namespace_list = serializers.ListField(
             required=False, child=serializers.CharField(), default=[], allow_empty=True
         )
@@ -496,17 +497,38 @@ class FetchK8sPodListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         namespace_list = params["namespace_list"]
 
         node_list, replica_set_list, job_list = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": self.get_node_field()},
-                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": self.get_replica_set_field()},
-                {"cluster_id": bcs_cluster_id, "type": "Job", "field": self.get_job_field()},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Node",
+                    "field": self.get_node_field(),
+                },
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "ReplicaSet",
+                    "field": self.get_replica_set_field(),
+                },
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Job",
+                    "field": self.get_job_field(),
+                },
             ]
         )
-        pod_data = api.bcs_storage.fetch_iterator(bcs_cluster_id, "Pod", self.get_pod_field())
+        pod_data = api.bcs_storage.fetch_iterator(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id=bcs_cluster_id,
+            resource_type="Pod",
+            field=self.get_pod_field(),
+        )
 
         # node的ip与name的映射
         node_ip_name_map = {}
@@ -630,6 +652,7 @@ class FetchK8sClusterListResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务ID")
         data_type = serializers.ChoiceField(choices=("simple", "full"), default="simple")
 
@@ -647,9 +670,11 @@ class FetchK8sClusterListResource(CacheResource):
             return attrs
 
     @staticmethod
-    def get_full_clusters(clusters):
-        for index, cluster in enumerate(clusters):
-            nodes = api.kubernetes.fetch_k8s_node_list_by_cluster({"bcs_cluster_id": cluster["cluster_id"]})
+    def get_full_clusters(bk_tenant_id: str, clusters: list[dict[str, Any]]):
+        for cluster in clusters:
+            nodes = api.kubernetes.fetch_k8s_node_list_by_cluster(
+                {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": cluster["cluster_id"]}
+            )
             cluster["master_count"] = len(
                 [
                     node
@@ -666,24 +691,13 @@ class FetchK8sClusterListResource(CacheResource):
             )
         return clusters
 
-    @classmethod
-    def cluster_id_in_gray(cls, cluster_id):
-        if not settings.ENABLE_BCS_GRAY_CLUSTER:
-            return True
-
-        gray_cluster_id_list = []
-        if isinstance(settings.BCS_GRAY_CLUSTER_ID_LIST, str):
-            gray_cluster_id_list = settings.BCS_GRAY_CLUSTER_ID_LIST.split(",")
-        elif isinstance(settings.BCS_GRAY_CLUSTER_ID_LIST, list):
-            gray_cluster_id_list = settings.BCS_GRAY_CLUSTER_ID_LIST
-        return cluster_id in gray_cluster_id_list
-
-    def get_clusters_from_bcs_cluster_manager(self, params):
+    def perform_request(self, params):
         """从cluster manager获取集群列表 ."""
         # 获取集群列表
+        bk_tenant_id = params["bk_tenant_id"]
         bk_biz_id = params.get("bk_biz_id")
         project_id = params.get("project_id")
-        bcs_clusters = api.bcs_cluster_manager.fetch_clusters()
+        bcs_clusters = api.bcs_cluster_manager.fetch_clusters(bk_tenant_id=bk_tenant_id)
         cluster_id_set = set()
         clusters = []
         for bcs_cluster in bcs_clusters:
@@ -695,9 +709,7 @@ class FetchK8sClusterListResource(CacheResource):
             # 业务空间，按业务ID过滤
             if bk_biz_id and bk_biz_id > 0 and f"{bk_biz_id}" != business_id:
                 continue
-            # 根据灰度配置只同步指定集群ID的集群
-            if not self.cluster_id_in_gray(cluster_id):
-                continue
+
             # 忽略重复的集群ID，共享集群有重复的集群ID
             if cluster_id in cluster_id_set:
                 continue
@@ -717,68 +729,17 @@ class FetchK8sClusterListResource(CacheResource):
             }
             clusters.append(cluster)
         if params.get("data_type") == "full":
-            clusters = self.get_full_clusters(clusters)
+            clusters = self.get_full_clusters(bk_tenant_id=bk_tenant_id, clusters=clusters)
 
         return clusters
-
-    def get_clusters_from_bcs_cc(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        project_id = params.get("project_id")
-        projects = [p for p in api.bcs_cc.get_project_list()["results"]]
-        project_id_map = {p["project_id"]: {"bk_biz_id": p["cc_app_id"], "name": p["name"]} for p in projects}
-        areas = api.bcs_cc.get_area_list()["results"]
-        areas_names = {area["id"]: area["chinese_name"] for area in areas}
-        bcs_clusters = api.bcs_cc.get_cluster_list()
-        cluster_id_set = set()
-        clusters = []
-        for cluster in bcs_clusters:
-            cluster_id = cluster["cluster_id"]
-            if not self.cluster_id_in_gray(cluster_id):
-                continue
-            project = project_id_map.get(cluster["project_id"])
-            if not project:
-                continue
-            cluster_bk_biz_id = project.get("bk_biz_id")
-            project_name = project.get("name")
-            if not cluster_bk_biz_id:
-                continue
-            if not project_name:
-                continue
-            # 如果是bcs项目，直接基于project_id过滤
-            if project_id and project_id != cluster["project_id"]:
-                continue
-            # 业务空间，按业务ID过滤
-            if bk_biz_id and bk_biz_id > 0 and bk_biz_id != cluster_bk_biz_id:
-                continue
-            # 忽略重复的集群ID，共享集群有重复的集群ID
-            if cluster_id in cluster_id_set:
-                continue
-            cluster_id_set.add(cluster_id)
-            area_id = cluster.get("area_id")
-            cluster["area_name"] = areas_names.get(area_id, area_id)
-            cluster["bk_biz_id"] = cluster_bk_biz_id
-            cluster["project_name"] = project_name
-            cluster["bcs_cluster_id"] = cluster_id
-            cluster["id"] = cluster_id
-            cluster["name"] = cluster_id
-            cluster["created_at"] = cluster["created_at"]
-            cluster["updated_at"] = cluster["updated_at"]
-            clusters.append(cluster)
-        if params.get("data_type") == "full":
-            clusters = self.get_full_clusters(params, clusters)
-        return clusters
-
-    def perform_request(self, params):
-        if settings.BCS_CLUSTER_SOURCE == "bcs-cc":
-            return self.get_clusters_from_bcs_cc(params)
-        return self.get_clusters_from_bcs_cluster_manager(params)
 
 
 class FetchK8sIngressListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="业务ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     @staticmethod
     def get_ingress_field():
@@ -796,10 +757,13 @@ class FetchK8sIngressListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
         ingress_field = self.get_ingress_field()
-        ingress_list = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field})
+        ingress_list = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field}
+        )
         for ingress in ingress_list:
             ingress_parser = KubernetesIngressJsonParser(ingress)
             ingress_name = ingress_parser.name
@@ -829,6 +793,7 @@ class FetchK8sServiceListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     @staticmethod
@@ -858,14 +823,20 @@ class FetchK8sServiceListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
         endpoint_field = self.get_endpoint_field()
         service_field = self.get_service_field()
         [endpoints, services] = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Endpoints", "field": endpoint_field},
-                {"cluster_id": bcs_cluster_id, "type": "Service", "field": service_field},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Endpoints",
+                    "field": endpoint_field,
+                },
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Service", "field": service_field},
             ]
         )
         for service in services:
@@ -916,14 +887,16 @@ class FetchK8sServiceMonitorListByClusterResource(CacheResource):
     PLURALS = "servicemonitors"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     def perform_request(self, params) -> list:
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
 
         try:
-            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id)
+            cluster = BCSCluster.objects.get(bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id)
         except BCSCluster.DoesNotExist:
             return data
 
@@ -1065,14 +1038,16 @@ class FetchK8sPodMonitorListByClusterResource(CacheResource):
     PLURALS = "podmonitors"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     def perform_request(self, params) -> list:
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
 
         try:
-            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id)
+            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id, bk_tenant_id=bk_tenant_id)
         except BCSCluster.DoesNotExist:
             return data
 
@@ -1121,11 +1096,14 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     def perform_request(self, params):
         bcs_cluster_id = params["bcs_cluster_id"]
-        endpoints = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Endpoints"})
+        endpoints = api.bcs_storage.fetch(
+            {"bk_tenant_id": params["bk_tenant_id"], "cluster_id": bcs_cluster_id, "type": "Endpoints"}
+        )
         data = []
         for endpoint in endpoints:
             data.append(
@@ -1139,11 +1117,15 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
 
 class FetchK8sContainerListByClusterResource(CacheResource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster(
+            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+        )
 
         for pod in pods:
             pod_parser = KubernetesPodJsonParser(pod.get("pod", {}))
@@ -1198,7 +1180,8 @@ class FetchK8sNodeListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     @staticmethod
     def get_node_field():
@@ -1231,13 +1214,19 @@ class FetchK8sNodeListByClusterResource(CacheResource):
         return results
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         node_field = self.get_node_field()
         endpoint_field = self.get_endpoint_field()
         [endpoints, nodes] = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Endpoints", "field": endpoint_field},
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Endpoints",
+                    "field": endpoint_field,
+                },
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
             ]
         )
         data = []
@@ -1285,20 +1274,22 @@ class FetchK8sNamespaceListResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
 
     def perform_request(self, params):
+        bk_tenant_id = params.get("bk_tenant_id")
         bk_biz_id = params.get("bk_biz_id")
         bcs_cluster_id = params.get("bcs_cluster_id")
-        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
+        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id})
         data = []
         for cluster in clusters:
             cluster_id = cluster["bcs_cluster_id"]
             if bcs_cluster_id and bcs_cluster_id != cluster_id:
                 continue
             try:
-                items = self.get_cluster_data(cluster_id)
+                items = self.get_cluster_data(bk_tenant_id=bk_tenant_id, bcs_cluster_id=cluster_id)
                 data.extend(items)
             except Exception as e:
                 logger.error("get cluster data error", e)
@@ -1306,16 +1297,13 @@ class FetchK8sNamespaceListResource(CacheResource):
         return data
 
     @staticmethod
-    def get_cluster_data(bcs_cluster_id):
+    def get_cluster_data(bk_tenant_id: str, bcs_cluster_id: str):
         data = []
-        namespaces = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Namespace"})
+        namespaces = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Namespace"}
+        )
         for namespace in namespaces:
-            data.append(
-                {
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "namespace": namespace,
-                }
-            )
+            data.append({"bcs_cluster_id": bcs_cluster_id, "namespace": namespace})
         return data
 
 
@@ -1337,6 +1325,7 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
         workload_type_list = serializers.ListField(required=False, allow_empty=True, allow_null=True)
 
@@ -1361,13 +1350,16 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
 
     def perform_request(self, params):
         data = []
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         workload_type_list = params.get("workload_type_list")
         if not workload_type_list:
             workload_type_list = api.kubernetes.fetch_k8s_workload_type_list({"bcs_cluster_id": bcs_cluster_id})
 
         # 计算关联pod的资源情况
-        pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster(
+            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+        )
         workload_resources_map = collections.defaultdict(
             lambda: {"requests_cpu": 0, "limits_cpu": 0, "requests_memory": 0, "limits_memory": 0, "pod_names": []}
         )
@@ -1386,7 +1378,12 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
         workload_field = self.get_workload_field()
         for workload_type in workload_type_list:
             items = api.bcs_storage.fetch(
-                {"cluster_id": bcs_cluster_id, "type": workload_type, "field": workload_field}
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": workload_type,
+                    "field": workload_field,
+                }
             )
             for workload in items:
                 workload_specification = KubernetesWorkloadJsonParser(workload)
@@ -2148,13 +2145,16 @@ class FetchKubernetesWorkloadConsistencyCheckResource(FetchKubernetesConsistency
     """BCS workload资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         workload_type_list = kwargs["workload_type_list"]
 
         bcs_storage_workload = {}
         for workload_type in workload_type_list:
-            items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": workload_type})
+            items = api.bcs_storage.fetch(
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": workload_type}
+            )
             for workload in items:
                 parser = KubernetesWorkloadJsonParser(workload)
                 parser.kind = workload_type
@@ -2324,10 +2324,11 @@ class FetchKubernetesPodConsistencyCheckResource(FetchKubernetesConsistencyCheck
     """BCS Pod资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_pod_list = []
-        pod_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Pod"})
+        pod_items = api.bcs_storage.fetch({"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Pod"})
         for pod in pod_items:
             parser = KubernetesPodJsonParser(pod)
             pod_name = parser.name
@@ -2443,10 +2444,11 @@ class FetchKubernetesNodeConsistencyCheckResource(FetchKubernetesConsistencyChec
     """BCS Node资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_node_list = []
-        node_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Node"})
+        node_items = api.bcs_storage.fetch({"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Node"})
         for node in node_items:
             node_parser = KubernetesNodeJsonParser(node)
             node_name = node_parser.name
@@ -2556,10 +2558,13 @@ class FetchKubernetesServiceConsistencyCheckResource(FetchKubernetesConsistencyC
     """BCS Service资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_service_list = []
-        service_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Service"})
+        service_items = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Service"}
+        )
         for service in service_items:
             parser = KubernetesServiceJsonParser(service)
             service_name = parser.name
@@ -2684,10 +2689,13 @@ class FetchKubernetesEndpointConsistencyCheckResource(FetchKubernetesConsistency
     """BCS Endpoints资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_endpoint_list = []
-        endpoints_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Endpoints"})
+        endpoints_items = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Endpoints"}
+        )
         for endpoint in endpoints_items:
             parser = KubernetesEndpointJsonParser(endpoint)
             if parser.namespace in self.IGNORE_NAMESPACE_SET:
@@ -2925,7 +2933,24 @@ class FetchK8sEventLogResource(CacheResource):
 
 
 class GetClusterInfoFromBcsSpaceResource(CacheResource):
-    """根据业务id在bcs空间下获取集群信息 ."""
+    """
+    根据业务id在bcs空间下获取集群信息
+
+    ```python
+    retrun {
+        # 共享集群
+        bcs_cluster_id: {
+            "namespace_list": [...],
+            "clsuter_type": BcsClusterType.SHARED
+        },
+        # 单例集群
+        bcs_cluster_id: {
+            "namespace_list": [],
+            "clsuter_type": BcsClusterType.SINGLE
+        }
+    }
+    ```
+    """
 
     cache_type = CacheType.BCS
 
@@ -3021,7 +3046,7 @@ class HasBkmMetricbeatEndpointUpResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(label="业务ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params: dict):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])

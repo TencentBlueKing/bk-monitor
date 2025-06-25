@@ -333,10 +333,10 @@ export default class MonitorEcharts extends Vue {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0 || !this.getSeriesData) return;
+    if (!v || +v < 60 * 1000 || !this.getSeriesData) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('series')
   onSeriesChange(v) {

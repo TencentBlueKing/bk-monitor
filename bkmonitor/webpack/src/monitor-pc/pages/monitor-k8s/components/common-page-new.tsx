@@ -147,7 +147,7 @@ interface ICommonPageEvent {
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
 // 事件tab的query
-export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn'];
+export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn', 'prop', 'order'];
 const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',

@@ -21,6 +21,7 @@ from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.prometheus import metrics
 
 local_mem = caches["space"]
 
@@ -88,6 +89,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景， 非 bkcc 空间，没有预先缓存，通过api获取后再更新
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
             if space is not miss_cache:
+                metrics.SPACE_QUERY_COUNT.labels(using_cache="1", role=settings.ROLE).inc()
                 return SpaceDefine.from_dict(space)
 
         # 通过数据库直查
@@ -97,6 +99,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         elif "space_uid" in params:
             filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__", 1)
         space_info = cls.list_spaces_dict(using_cache=False, filters=filters)
+        metrics.SPACE_QUERY_COUNT.labels(using_cache="0", role=settings.ROLE).inc()
         if not space_info:
             return None
         space_info = space_info[0]

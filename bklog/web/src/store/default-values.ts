@@ -30,6 +30,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
+import { TimeRangeType } from '@/components/time-range/time-range';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -169,7 +170,7 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
   const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue, format);
+  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
 
   return { datePickerValue, start_time, end_time, format };
 };
