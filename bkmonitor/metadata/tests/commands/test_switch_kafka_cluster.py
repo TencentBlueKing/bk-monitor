@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,7 +16,7 @@ from metadata.tests.common_utils import consul_client
 
 from .conftest import DEFAULT_DATA_ID
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
@@ -47,12 +46,12 @@ def create_or_delete_records(mocker):
         table_id="test_50011",
     )
     models.KafkaStorage.objects.create(
-        table_id='test_50010',
+        table_id="test_50010",
         storage_cluster_id=1,
         topic="test_topic",
     )
     models.KafkaStorage.objects.create(
-        table_id='test_50011',
+        table_id="test_50011",
         storage_cluster_id=1,
         topic="test_topic1",
     )
@@ -62,7 +61,7 @@ def create_or_delete_records(mocker):
     models.KafkaStorage.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_failed_switch_kafka_cluster(create_and_delete_record):
     """
     测试变更Kafka失败
@@ -80,7 +79,7 @@ def test_failed_switch_kafka_cluster(create_and_delete_record):
         )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_switch_frontend_kafka_cluster(create_or_delete_records, mocker):
     """
     测试变更前端Kafka
@@ -98,20 +97,20 @@ def test_switch_frontend_kafka_cluster(create_or_delete_records, mocker):
     assert models.DataSource.objects.get(bk_data_id=50010).mq_cluster_id == 3
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_switch_backend_kafka_cluster(create_or_delete_records, mocker):
     mocker.patch("metadata.models.DataSource.refresh_outer_config", return_value=True)
     # 测试批量
     call_command("switch_kafka_for_data_id", "--data_ids", "50010", "50011", "--kafka_cluster_id=3", "--kind=backend")
 
-    assert models.KafkaStorage.objects.get(table_id='test_50010').storage_cluster_id == 3
+    assert models.KafkaStorage.objects.get(table_id="test_50010").storage_cluster_id == 3
     assert models.DataSource.objects.get(bk_data_id=50010).mq_cluster_id == 1
 
-    assert models.KafkaStorage.objects.get(table_id='test_50011').storage_cluster_id == 3
+    assert models.KafkaStorage.objects.get(table_id="test_50011").storage_cluster_id == 3
     assert models.DataSource.objects.get(bk_data_id=50011).mq_cluster_id == 2
 
     # 测试单个
     call_command("switch_kafka_for_data_id", "--data_ids", "50010", "--kafka_cluster_id=1", "--kind=backend")
 
-    assert models.KafkaStorage.objects.get(table_id='test_50010').storage_cluster_id == 1
+    assert models.KafkaStorage.objects.get(table_id="test_50010").storage_cluster_id == 1
     assert models.DataSource.objects.get(bk_data_id=50010).mq_cluster_id == 1
