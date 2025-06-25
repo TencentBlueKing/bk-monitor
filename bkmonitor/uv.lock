@@ -489,7 +489,7 @@ requires-dist = [
     { name = "ipython", specifier = "==7.34.0" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "jmespath", specifier = "==1.0.1" },
-    { name = "kafka-python", specifier = "==1.4.6" },
+    { name = "kafka-python", specifier = "==2.2.10" },
     { name = "kubernetes", specifier = "==18.20.0" },
     { name = "luqum", specifier = "==0.13.0" },
     { name = "netifaces", specifier = "==0.11.0" },
@@ -1779,11 +1779,11 @@ wheels = [
 
 [[package]]
 name = "kafka-python"
-version = "1.4.6"
+version = "2.2.10"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/26/de/81a65219f7a3f3b2f53b693edec7fb1933f1d7b68b49c931d810d6317f5e/kafka-python-1.4.6.tar.gz", hash = "sha256:08f83d8e0af2e64d25f94314d4bef6785b34e3b0df0effe9eebf76b98de66eeb", size = 282562, upload-time = "2019-04-03T13:45:11.534Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/ac/c62cbbe6cb1c20eda5e4ab3fea4ab44ac0e8faa48e4c9e58032c3605fb22/kafka_python-2.2.10.tar.gz", hash = "sha256:0411d2631719dae53a81716c8be8af13e47470123ba49914d7faba317379e85b", size = 347079, upload-time = "2025-05-22T21:24:11.14Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/39/aebe3ad518513bbb2260dd84ac21e5c30af860cc4c95b32acbd64b9d9d0d/kafka_python-1.4.6-py2.py3-none-any.whl", hash = "sha256:3f55bb3e125764a37da550e9fa3d10a85fa09f8af8f8a40f223d2ec8486c2a5b", size = 259532, upload-time = "2019-04-03T13:45:07.711Z" },
+    { url = "https://files.pythonhosted.org/packages/56/1a/8422696068fc1d2172e9c48c57533b788aed5039daed68e63390ee2064ba/kafka_python-2.2.10-py2.py3-none-any.whl", hash = "sha256:cfca1af8d6277f31d135496587c64f1de0b4021cada8d6376589e8572484068c", size = 309345, upload-time = "2025-05-22T21:24:08.664Z" },
 ]
 
 [[package]]

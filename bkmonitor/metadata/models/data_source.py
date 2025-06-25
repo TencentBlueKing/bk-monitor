@@ -15,7 +15,6 @@ import time
 import traceback
 import uuid
 
-import kafka
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -1070,9 +1069,27 @@ class DataSource(models.Model):
         :return: True | raise Exception
         """
         kafka_hosts = f"{self.mq_cluster.domain_name}:{self.mq_cluster.port}"
-        client = kafka.SimpleClient(hosts=kafka_hosts)
-        # 只是确保TOPIC存在，如果不存在则会创建之
-        client.ensure_topic_exists("%s" % self.mq_config.topic)
+
+        # 使用KafkaAdminClient来创建topic
+        from kafka.admin import KafkaAdminClient, NewTopic
+
+        admin_client = KafkaAdminClient(bootstrap_servers=kafka_hosts)
+
+        topic_name = f"{self.mq_config.topic}"
+
+        # 检查topic是否存在
+        try:
+            metadata = admin_client.describe_topics([topic_name])
+            topic_exists = topic_name in metadata
+        except Exception:
+            topic_exists = False
+
+        if not topic_exists:
+            # 创建topic，默认1个分区，副本数1
+            new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
+            admin_client.create_topics([new_topic])
+            logger.info(f"Created topic: {topic_name}")
+
         logger.info(f"data_id->[{self.bk_data_id}] now must has topic->[{self.mq_config.topic}]")
 
     def get_consul_fields(self):

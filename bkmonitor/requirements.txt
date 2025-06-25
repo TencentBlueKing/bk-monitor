@@ -86,7 +86,7 @@ sqlparse==0.4.4
 ujson==5.7.0
 Pillow==9.5.0
 PyYAML==6.0.1 # 被 elasticsearch-curator 锁定版本
-kafka-python==1.4.6 # 已经停止维护，需要更换
+kafka-python==2.2.10
 babel==2.14.0
 python-consul==1.1.0 # 已经停止维护，需要更换
 ipython==7.34.0
