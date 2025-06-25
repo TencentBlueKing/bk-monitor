@@ -2072,3 +2072,12 @@ class SearchViewSet(APIViewSet):
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
+
+    @detail_route(methods=["POST"], url_path="alias_settings")
+    def alias_settings(self, request, index_set_id):
+        from apps.log_search.serializers import AliasSettingsSerializer
+
+        params = self.params_valid(AliasSettingsSerializer)
+        result = IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params)
+        # 返回更新的索引集id
+        return Response(result)
