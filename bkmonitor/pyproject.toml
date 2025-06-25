@@ -154,7 +154,8 @@ skip_empty = true
 console_output_style = "count"
 testpaths = [
     "alarm_backends/tests",
-    "bkmonitor/data_source/tests"
+    "bkmonitor/data_source/tests",
+    "metadata/tests",
 ]
 python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"
@@ -201,3 +202,6 @@ docstring-code-format = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "config/**" = ["F405"]
+
+[tool.basedpyright]
+typeCheckingMode = "basic"

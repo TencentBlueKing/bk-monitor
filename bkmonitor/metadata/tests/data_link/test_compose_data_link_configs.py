@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -45,7 +44,7 @@ def create_or_delete_records(mocker):
     result_table.delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_id_config(create_or_delete_records):
     """
     测试DataIdConfig能否正确生成
@@ -67,13 +66,13 @@ def test_compose_data_id_config(create_or_delete_records):
     assert json.dumps(content) == expected_config
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_vm_result_table_config(create_or_delete_records):
     """
     测试VMResultTableConfig能否正确生成
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -96,13 +95,13 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_vm_storage_binding_config(create_or_delete_records):
     """
     测试VMStorageBindingConfig能否正确生成
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -129,13 +128,13 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_bus_config(create_or_delete_records):
     """
     测试DataBusConfig能否正确生成
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -172,13 +171,13 @@ def test_compose_data_bus_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_single_conditional_sink_config(create_or_delete_records):
     """
     测试单集群ConditionalSinkConfig能否正确生成
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_data_name == "fed_bkm_data_link_test"
@@ -187,10 +186,10 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010_fed"
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50001", "namespace": "bkmonitor"}
             ],
         },
     ]
@@ -206,7 +205,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -228,13 +227,13 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     assert json.dumps(content) == expected
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_multi_conditional_sink_config(create_or_delete_records):
     """
     测试多集群ConditionalSinkConfig能否正确生成
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_data_name == "fed_bkm_data_link_test"
@@ -244,17 +243,17 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
 
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50001", "namespace": "bkmonitor"}
             ],
         },
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns4", "testns5", "testns6"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50002", "namespace": "bkmonitor"}
             ],
         },
     ]
@@ -270,7 +269,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -281,7 +280,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
                         ],
                     },
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns4", "testns5", "testns6"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
                         "sinks": [
                             {

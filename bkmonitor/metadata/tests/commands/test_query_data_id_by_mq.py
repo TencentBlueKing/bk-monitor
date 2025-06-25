@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -48,7 +47,7 @@ def create_and_delete_data(mocker):
             etl_config="test",
             is_custom_source=False,
             is_enable=True,
-            created_from='bkgse',
+            created_from="bkgse",
         ),
         models.DataSource(
             bk_data_id=DEFAULT_DATA_ID_TWO,
@@ -58,7 +57,7 @@ def create_and_delete_data(mocker):
             etl_config="test",
             is_custom_source=False,
             is_enable=True,
-            created_from='bkdata',
+            created_from="bkdata",
         ),
         models.DataSource(
             bk_data_id=DEFAULT_DATA_ID_THREE,
@@ -68,7 +67,7 @@ def create_and_delete_data(mocker):
             etl_config="test",
             is_custom_source=False,
             is_enable=False,
-            created_from='bkgse',
+            created_from="bkgse",
         ),
     ]
 
@@ -83,7 +82,7 @@ def create_and_delete_data(mocker):
     models.ClusterInfo.objects.filter(cluster_id=DEFAULT_DATA_ID).delete()
 
 
-@pytest.mark.django_db(databases=['default', 'monitor_api'])
+@pytest.mark.django_db(databases="__all__")
 def test_query_data(create_and_delete_data):
     """
     Verify that the query_data_id_by_mq command returns the correct data source IDs

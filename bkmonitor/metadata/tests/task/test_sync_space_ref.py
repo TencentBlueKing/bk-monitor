@@ -10,14 +10,16 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from unittest import mock
+
 import pytest
+
 from metadata.models.space import Space
 from metadata.task.sync_space import sync_bcs_space
 
 logger = logging.getLogger("metadata")
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")(databases=["monitor_api"])
 def test_sync_bcs_space_no_projects_need_update_or_create():
     # 场景1: 没有需要更新或新增的项目
     with (
@@ -44,7 +46,7 @@ def test_sync_bcs_space_no_projects_need_update_or_create():
         mock_create_spaces.assert_not_called()
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")(databases=["monitor_api"])
 def test_sync_bcs_space_has_projects_need_update():
     # 场景2: 有需要更新的项目
     with (
@@ -71,7 +73,7 @@ def test_sync_bcs_space_has_projects_need_update():
         assert updated_space.is_bcs_valid is True
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")(databases=["monitor_api"])
 def test_sync_bcs_space_has_projects_need_create():
     # 场景3: 有需要新增的项目
     with (
@@ -88,7 +90,7 @@ def test_sync_bcs_space_has_projects_need_create():
         mock_create_spaces.assert_called_once_with([new_project])
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")(databases=["monitor_api"])
 def test_sync_bcs_space_create_projects_with_exception():
     # 场景4: 创建项目时抛出异常
     with (
