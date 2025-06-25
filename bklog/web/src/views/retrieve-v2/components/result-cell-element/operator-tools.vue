@@ -243,7 +243,8 @@
     overflow: hidden;
 
     .handle-card {
-      display: inline-block;
+      display: flex;
+      align-items: center;
       width: 18px;
       height: 20px;
       margin-left: 10px;
@@ -258,14 +259,14 @@
         position: relative;
 
         img {
-          width: 20px;
-          height: 20px;
-          opacity: 0;
-          background-color: #fff;
           position: absolute;
           top: 0;
           left: 0;
+          width: 20px;
+          height: 20px;
           cursor: pointer;
+          background-color: #fff;
+          opacity: 0;
         }
       }
     }

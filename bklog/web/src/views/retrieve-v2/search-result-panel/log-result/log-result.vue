@@ -185,17 +185,17 @@
           const dialogNewParams = {};
           const { targetFields = [], sortFields = [] } = config.indexSetValue;
 
-          const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+          // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
 
           Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
           // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-          if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-            fieldParamsKey.forEach(field => {
-              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-            });
-          } else if (Array.isArray(contextFields) && contextFields.length) {
-            console.log('contextFields', contextFields);
+          // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
+          //   fieldParamsKey.forEach(field => {
+          //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
+          //   });
+          // } else 
+          if (Array.isArray(contextFields) && contextFields.length) {
             // 传参配置指定字段
             contextFields.push(timeField);
             contextFields.forEach(field => {
@@ -208,9 +208,6 @@
           } else {
             Object.assign(dialogNewParams, row);
           }
-          
-          console.log(dialogNewParams,row);
-          
           this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
         } else if (event === 'webConsole') this.openWebConsole(row);
         else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
