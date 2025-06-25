@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
 
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { axiosInstance } from '@/api';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
 
+import { getCommonFilterAddition } from '../../../../../store/helper';
+import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
-import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
+import { axiosInstance } from '@/api';
+
 import './index.scss';
-import { getCommonFilterAddition } from '../../../../../store/helper';
 
 export default defineComponent({
   props: {
@@ -76,6 +77,17 @@ export default defineComponent({
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const filter_addition = computed(() => getCommonFilterAddition(store.state));
 
+    const alias_settings = computed(() =>
+      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+      (store.state.indexFieldInfo?.fields ?? {})
+        .filter(f => f.query_alias)
+        .map(f => ({
+          field_name: f.field_name,
+          query_alias: f.query_alias,
+          path_type: f.field_type,
+        })),
+    );
+
     const requestId = 'graphAnalysis_searchSQL';
 
     const handleQueryBtnClick = () => {
@@ -105,6 +117,7 @@ export default defineComponent({
           keyword,
           addition,
           sql, // 使用获取到的内容
+          alias_settings: alias_settings.value,
         },
       };
 
@@ -149,6 +162,7 @@ export default defineComponent({
             end_time,
             keyword,
             sql: sqlContent.value,
+            alias_settings: alias_settings.value,
           },
         })
         .then(resp => {
@@ -259,12 +273,12 @@ export default defineComponent({
     const renderSqlPreview = () => {
       return (
         <div
-          class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
           ref={refSqlPreviewElement}
+          class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
         >
           <div class='sql-preview-title'>
-            <span class='bklog-icon bklog-circle-alert-filled'></span>检测到「顶部查询条件」，已自动补充 SQL（与已输入
-            SQL 语句叠加生效）：
+            <span class='bklog-icon bklog-circle-alert-filled'></span>
+            {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：')}
           </div>
           <div class='sql-preview-text'>{previewSqlContent.value}</div>
         </div>
@@ -299,18 +313,27 @@ export default defineComponent({
       debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
+    // @ts-ignore
     RetrieveHelper.on(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.FAVORITE_ACTIVE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      [
+        RetrieveEvent.SEARCH_VALUE_CHANGE,
+        RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+        RetrieveEvent.SEARCH_TIME_CHANGE,
+        RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onRefereceChange,
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
-    expose({
-      handleQueryBtnClick,
+    onMounted(() => {
+      if (!RetrieveHelper.isSearching) {
+        debounceSyncAdditionToSQL(debounceQuery);
+      }
     });
 
-    onMounted(async () => {
-      debounceSyncAdditionToSQL(debounceQuery);
+    expose({
+      handleQueryBtnClick,
     });
 
     const sqlRootStyle = computed(() => {
@@ -335,8 +358,8 @@ export default defineComponent({
     return (
       <div
         ref='refSqlBox'
-        class='bklog-sql-editor-root'
         style={this.sqlRootStyle}
+        class='bklog-sql-editor-root'
       >
         <div
           ref='refRootElement'

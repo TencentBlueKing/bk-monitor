@@ -34,8 +34,8 @@ import {
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
+import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
-import RetrieveHelper from '../views/retrieve-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -137,16 +137,6 @@ export default class UseJsonFormatter {
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
-  getCurrentFieldRegStr(field: any) {
-    /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t';
-    if (field.tokenize_on_chars) {
-      return field.tokenize_on_chars;
-    }
-
-    return segmentRegStr;
-  }
-
   isTextField(field: any) {
     return field?.field_type === 'text';
   }
@@ -174,8 +164,12 @@ export default class UseJsonFormatter {
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
-      // 这里进来的都是开了分词的情况
-      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
+      if (field.tokenize_on_chars) {
+        // 这里进来的都是开了分词的情况
+        return optimizedSplit(value, field.tokenize_on_chars);
+      }
+
+      return LuceneSegment.split(value, 1000);
     }
 
     return [

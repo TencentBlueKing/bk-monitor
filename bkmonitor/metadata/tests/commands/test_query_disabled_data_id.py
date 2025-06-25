@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -25,7 +24,7 @@ DEFAULT_NAME_TWO = "test_data_source_delete_20240520161416"
 DEFAULT_DATA_ID_THREE = 11002
 DEFAULT_NAME_THREE = "test_data_source1"
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
@@ -65,7 +64,7 @@ def create_and_delete_data(mocker):
     ).delete()
 
 
-@pytest.mark.django_db(databases=['default', 'monitor_api'])
+@pytest.mark.django_db(databases="__all__")
 def test_query_data(create_and_delete_data):
     out = StringIO()
     call_command("query_disabled_data_id", "--all", stdout=out)

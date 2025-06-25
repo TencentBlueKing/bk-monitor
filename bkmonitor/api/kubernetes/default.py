@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import abc
 import collections
 import json
@@ -8,9 +7,8 @@ import os
 import time
 from datetime import datetime, timedelta
 from functools import reduce
-from typing import Dict, List, Tuple, Union
+from typing import Any
 
-from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
 from kubernetes.client.exceptions import ApiException
@@ -47,6 +45,7 @@ from bkmonitor.utils.kubernetes import (
     KubernetesServiceMonitorJsonParser,
     KubernetesWorkloadJsonParser,
 )
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import CacheResource, Resource, api
@@ -63,7 +62,7 @@ def get_bytes_unit_human_readable(size, precision=0):
     while size >= 1024 and suffix_index < 4:
         suffix_index += 1  # increment the index of the suffix
         size = size / 1024.0  # apply the division
-    return "%.*f%s" % (precision, size, suffixes[suffix_index])
+    return f"{size:.{precision}f}{suffixes[suffix_index]}"
 
 
 def get_filter_query_string(filter_query):
@@ -83,7 +82,7 @@ class FetchKubernetesGrafanaMetricRecords(Resource, abc.ABC):
 
     DATA_SOURCE_CLASS = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
 
-    def validate_request_data(self, request_data: Dict) -> Dict:
+    def validate_request_data(self, request_data: dict) -> dict:
         bk_biz_id = int(request_data["bk_biz_id"])
         request_data["bk_biz_id"] = bk_biz_id
         start_time = request_data.get("start_time")
@@ -97,7 +96,7 @@ class FetchKubernetesGrafanaMetricRecords(Resource, abc.ABC):
         return request_data
 
     @classmethod
-    def request_graph_unify_query(cls, validated_request_data) -> Tuple:
+    def request_graph_unify_query(cls, validated_request_data) -> tuple:
         """执行promql查询 ."""
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data["start_time"]
@@ -115,7 +114,7 @@ class FetchKubernetesGrafanaMetricRecords(Resource, abc.ABC):
         result = (key_name, records)
         return result
 
-    def request_performance_data(self, validated_request_data: Dict) -> List:
+    def request_performance_data(self, validated_request_data: dict) -> list:
         """多线程查询多个promql ."""
         pool = ThreadPool()
         args = self.build_graph_unify_query_iterable(validated_request_data)
@@ -126,7 +125,7 @@ class FetchKubernetesGrafanaMetricRecords(Resource, abc.ABC):
         pool.join()
         return performance_data
 
-    def perform_request(self, validated_request_data: Dict) -> Union[List, Dict]:
+    def perform_request(self, validated_request_data: dict) -> list | dict:
         # 多线程查询多个promql
         performance_data = self.request_performance_data(validated_request_data)
         if not performance_data:
@@ -136,12 +135,12 @@ class FetchKubernetesGrafanaMetricRecords(Resource, abc.ABC):
         return data
 
     @abc.abstractmethod
-    def format_performance_data(self, performance_data: List) -> Union[List, Dict]:
+    def format_performance_data(self, performance_data: list) -> list | dict:
         """格式化查询结果 ."""
         ...
 
     @abc.abstractmethod
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List:
+    def build_graph_unify_query_iterable(self, validated_request_data: dict) -> list:
         """构造需要查询的promql ."""
         ...
 
@@ -158,7 +157,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
         node_ips = serializers.ListField(required=False, default=[])
 
     @staticmethod
-    def format_performance_data(performance_data: List):
+    def format_performance_data(performance_data: list):
         data = {}
         overview_data = {}
         for key_name, overview, records in performance_data:
@@ -180,7 +179,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
         return result
 
     @classmethod
-    def request_graph_unify_query(cls, validated_request_data) -> Tuple:
+    def request_graph_unify_query(cls, validated_request_data) -> tuple:
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data["start_time"]
         end_time = validated_request_data["end_time"]
@@ -197,7 +196,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
 
         return result
 
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List:
+    def build_graph_unify_query_iterable(self, validated_request_data: dict) -> list:
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data.get("bcs_cluster_id")
         start_time = validated_request_data.get("start_time")
@@ -235,7 +234,7 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
         system_io_util_overview_promql = self.build_system_io_util_overview_promql(bcs_cluster_ids)
         system_disk_in_use_overview_promql = self.build_system_disk_in_use_overview_promql(bcs_cluster_ids)
 
-        data_source_param_map = [
+        data_source_param_map: list[dict[str, str | bool]] = [
             {"key_name": "system_cpu_summary_usage", "promql": system_cpu_summary_usage_promql},
             {"key_name": "system_load_load15", "promql": system_load_load15_promql},
             {"key_name": "system_mem_pct_used", "promql": system_mem_pct_used_promql},
@@ -275,174 +274,178 @@ class FetchK8sNodePerformanceResource(FetchKubernetesGrafanaMetricRecords):
         return args
 
     @staticmethod
-    def build_system_cpu_summary_usage_promql(bcs_cluster_ids: List[str], instance: str) -> str:
+    def build_system_cpu_summary_usage_promql(bcs_cluster_ids: list[str], instance: str) -> str:
         if not instance:
             promql = (
-                '(1 - avg by(bcs_cluster_id, instance) (irate(node_cpu_seconds_total{mode="idle",'
-                'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[5m]))) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                '(1 - avg by(bcs_cluster_id, instance) (irate(node_cpu_seconds_total{{mode="idle",'
+                'bcs_cluster_id=~"^({bcs_cluster_id})$"}}[5m]))) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
         else:
             promql = (
-                '(1 - avg by(bcs_cluster_id, instance) (irate(node_cpu_seconds_total{mode="idle",'
-                'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"}[5m]))) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids), "instance": instance}
+                '(1 - avg by(bcs_cluster_id, instance) (irate(node_cpu_seconds_total{{mode="idle",'
+                'bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}}[5m]))) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids), instance=instance)
 
         return promql
 
     @staticmethod
-    def build_system_cpu_summary_usage_overview_promql(bcs_cluster_ids: List[str]) -> str:
+    def build_system_cpu_summary_usage_overview_promql(bcs_cluster_ids: list[str]) -> str:
         promql = (
-            '(1 - avg(irate(node_cpu_seconds_total{mode="idle",'
-            'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[5m]))) * 100'
-        ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+            '(1 - avg(irate(node_cpu_seconds_total{{mode="idle",bcs_cluster_id=~"^({bcs_cluster_id})$"}}[5m]))) * 100'
+        ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
         return promql
 
     @staticmethod
-    def build_system_load_load15_promql(bcs_cluster_ids: List[str], instance: str) -> str:
-        if not instance:
-            promql = ('sum by(bcs_cluster_id, instance) (node_load15{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})') % {
-                "bcs_cluster_id": "|".join(bcs_cluster_ids)
-            }
-        else:
-            promql = (
-                'sum by(bcs_cluster_id, instance) (node_load15{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-                'instance=~"%(instance)s"})'
-            ) % {
-                "bcs_cluster_id": "|".join(bcs_cluster_ids),
-                "instance": instance,
-            }
-
-        return promql
-
-    @staticmethod
-    def build_system_load_load15_overview_promql(bcs_cluster_ids: List[str]) -> str:
-        promql = ('sum (node_load15{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})') % {
-            "bcs_cluster_id": "|".join(bcs_cluster_ids)
-        }
-        return promql
-
-    @staticmethod
-    def build_system_mem_pct_used_promql(bcs_cluster_ids: List[str], instance: str) -> str:
+    def build_system_load_load15_promql(bcs_cluster_ids: list[str], instance: str) -> str:
         if not instance:
             promql = (
-                '(SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemFree_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Cached_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Buffers_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                ' + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Shmem_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}))'
-                ' / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                'sum by(bcs_cluster_id, instance) (node_load15{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+            ).format(
+                bcs_cluster_id="|".join(bcs_cluster_ids),
+            )
         else:
             promql = (
-                '(SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemFree_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Cached_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"})'
-                ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Buffers_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"})'
-                ' + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-                '(node_memory_Shmem_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s"}))'
-                ' / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",instance=~"%(instance)s"}) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids), "instance": instance}
+                'sum by(bcs_cluster_id, instance) (node_load15{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+                'instance=~"{instance}"}})'
+            ).format(
+                bcs_cluster_id="|".join(bcs_cluster_ids),
+                instance=instance,
+            )
 
         return promql
 
     @staticmethod
-    def build_system_mem_pct_used_overview_promql(bcs_cluster_ids: List[str]) -> str:
+    def build_system_load_load15_overview_promql(bcs_cluster_ids: list[str]) -> str:
+        promql = ('sum (node_load15{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})').format(
+            bcs_cluster_id="|".join(bcs_cluster_ids),
+        )
+        return promql
+
+    @staticmethod
+    def build_system_mem_pct_used_promql(bcs_cluster_ids: list[str], instance: str) -> str:
+        if not instance:
+            promql = (
+                "(SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemFree_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Cached_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Buffers_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+                " + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Shmem_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}}))'
+                " / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}}) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
+        else:
+            promql = (
+                "(SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemFree_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Cached_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}})'
+                " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Buffers_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}})'
+                " + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+                '(node_memory_Shmem_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}"}}))'
+                " / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+                ' (node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",instance=~"{instance}"}}) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids), instance=instance)
+
+        return promql
+
+    @staticmethod
+    def build_system_mem_pct_used_overview_promql(bcs_cluster_ids: list[str]) -> str:
         promql = (
-            '(SUM(node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-            '-SUM(node_memory_MemFree_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-            '-SUM(node_memory_Cached_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-            '-SUM(node_memory_Buffers_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-            '+SUM(node_memory_Shmem_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}))'
-            '/(SUM(node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})) *100'
-        ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+            '(SUM(node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+            '-SUM(node_memory_MemFree_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+            '-SUM(node_memory_Cached_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+            '-SUM(node_memory_Buffers_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})'
+            '+SUM(node_memory_Shmem_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}}))'
+            '/(SUM(node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$"}})) *100'
+        ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
         return promql
 
     @staticmethod
-    def build_system_io_util_promql(bcs_cluster_ids: List[str], instance: str) -> str:
+    def build_system_io_util_promql(bcs_cluster_ids: list[str], instance: str) -> str:
         if not instance:
             promql = (
-                'max by(bcs_cluster_id, instance)'
-                ' (rate(node_disk_io_time_seconds_total{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[2m])) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                "max by(bcs_cluster_id, instance)"
+                ' (rate(node_disk_io_time_seconds_total{{bcs_cluster_id=~"^({bcs_cluster_id})$"}}[2m])) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
         else:
             promql = (
-                'max by(bcs_cluster_id, instance)'
-                ' (rate(node_disk_io_time_seconds_total{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-                ' instance=~"%(instance)s"}[2m])) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids), "instance": instance}
+                "max by(bcs_cluster_id, instance)"
+                ' (rate(node_disk_io_time_seconds_total{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+                ' instance=~"{instance}"}}[2m])) * 100'
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids), instance=instance)
 
         return promql
 
     @staticmethod
-    def build_system_io_util_overview_promql(bcs_cluster_ids: List[str]) -> str:
-        promql = ('avg (rate(node_disk_io_time_seconds_total{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[2m])) * 100') % {
-            "bcs_cluster_id": "|".join(bcs_cluster_ids)
-        }
-        return promql
-
-    @staticmethod
-    def build_system_disk_in_use_promql(bcs_cluster_ids: List[str], instance: str) -> str:
-        if not instance:
-            promql = (
-                '(max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' - on(bcs_cluster_id, instance) group_right()'
-                ' max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_free_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"}))'
-                ' / on(bcs_cluster_id, instance) group_right()'
-                ' max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
-        else:
-            promql = (
-                '(max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' - on(bcs_cluster_id, instance) group_right()'
-                ' max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_free_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"}))'
-                ' / on(bcs_cluster_id, instance) group_right()'
-                ' max by(bcs_cluster_id, instance)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$", instance=~"%(instance)s",'
-                'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids), "instance": instance}
-
-        return promql
-
-    @staticmethod
-    def build_system_disk_in_use_overview_promql(bcs_cluster_ids: List[str]) -> str:
+    def build_system_io_util_overview_promql(bcs_cluster_ids: list[str]) -> str:
         promql = (
-            '(sum (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-            'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-            ' - sum (node_filesystem_free_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-            'fstype=~"ext[234]|btrfs|xfs|zfs"}))'
-            ' / sum (node_filesystem_size_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$",'
-            'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-            ' * 100'
-        ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+            'avg (rate(node_disk_io_time_seconds_total{{bcs_cluster_id=~"^({bcs_cluster_id})$"}}[2m])) * 100'
+        ).format(
+            bcs_cluster_id="|".join(bcs_cluster_ids),
+        )
+        return promql
+
+    @staticmethod
+    def build_system_disk_in_use_promql(bcs_cluster_ids: list[str], instance: str) -> str:
+        if not instance:
+            promql = (
+                "(max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+                " - on(bcs_cluster_id, instance) group_right()"
+                " max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_free_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}}))'
+                " / on(bcs_cluster_id, instance) group_right()"
+                " max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+                " * 100"
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
+        else:
+            promql = (
+                "(max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+                " - on(bcs_cluster_id, instance) group_right()"
+                " max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_free_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}}))'
+                " / on(bcs_cluster_id, instance) group_right()"
+                " max by(bcs_cluster_id, instance)"
+                ' (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$", instance=~"{instance}",'
+                'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+                " * 100"
+            ).format(bcs_cluster_id="|".join(bcs_cluster_ids), instance=instance)
+
+        return promql
+
+    @staticmethod
+    def build_system_disk_in_use_overview_promql(bcs_cluster_ids: list[str]) -> str:
+        promql = (
+            '(sum (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+            'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+            ' - sum (node_filesystem_free_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+            'fstype=~"ext[234]|btrfs|xfs|zfs"}}))'
+            ' / sum (node_filesystem_size_bytes{{bcs_cluster_id=~"^({bcs_cluster_id})$",'
+            'fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+            " * 100"
+        ).format(bcs_cluster_id="|".join(bcs_cluster_ids))
         return promql
 
 
 class FetchK8sPodListByClusterResource(CacheResource):
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
         namespace_list = serializers.ListField(
             required=False, child=serializers.CharField(), default=[], allow_empty=True
         )
@@ -494,17 +497,38 @@ class FetchK8sPodListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         namespace_list = params["namespace_list"]
 
         node_list, replica_set_list, job_list = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": self.get_node_field()},
-                {"cluster_id": bcs_cluster_id, "type": "ReplicaSet", "field": self.get_replica_set_field()},
-                {"cluster_id": bcs_cluster_id, "type": "Job", "field": self.get_job_field()},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Node",
+                    "field": self.get_node_field(),
+                },
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "ReplicaSet",
+                    "field": self.get_replica_set_field(),
+                },
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Job",
+                    "field": self.get_job_field(),
+                },
             ]
         )
-        pod_data = api.bcs_storage.fetch_iterator(bcs_cluster_id, "Pod", self.get_pod_field())
+        pod_data = api.bcs_storage.fetch_iterator(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id=bcs_cluster_id,
+            resource_type="Pod",
+            field=self.get_pod_field(),
+        )
 
         # node的ip与name的映射
         node_ip_name_map = {}
@@ -628,6 +652,7 @@ class FetchK8sClusterListResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务ID")
         data_type = serializers.ChoiceField(choices=("simple", "full"), default="simple")
 
@@ -645,9 +670,11 @@ class FetchK8sClusterListResource(CacheResource):
             return attrs
 
     @staticmethod
-    def get_full_clusters(clusters):
-        for index, cluster in enumerate(clusters):
-            nodes = api.kubernetes.fetch_k8s_node_list_by_cluster({"bcs_cluster_id": cluster["cluster_id"]})
+    def get_full_clusters(bk_tenant_id: str, clusters: list[dict[str, Any]]):
+        for cluster in clusters:
+            nodes = api.kubernetes.fetch_k8s_node_list_by_cluster(
+                {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": cluster["cluster_id"]}
+            )
             cluster["master_count"] = len(
                 [
                     node
@@ -664,24 +691,13 @@ class FetchK8sClusterListResource(CacheResource):
             )
         return clusters
 
-    @classmethod
-    def cluster_id_in_gray(cls, cluster_id):
-        if not settings.ENABLE_BCS_GRAY_CLUSTER:
-            return True
-
-        gray_cluster_id_list = []
-        if isinstance(settings.BCS_GRAY_CLUSTER_ID_LIST, str):
-            gray_cluster_id_list = settings.BCS_GRAY_CLUSTER_ID_LIST.split(",")
-        elif isinstance(settings.BCS_GRAY_CLUSTER_ID_LIST, list):
-            gray_cluster_id_list = settings.BCS_GRAY_CLUSTER_ID_LIST
-        return cluster_id in gray_cluster_id_list
-
-    def get_clusters_from_bcs_cluster_manager(self, params):
+    def perform_request(self, params):
         """从cluster manager获取集群列表 ."""
         # 获取集群列表
+        bk_tenant_id = params["bk_tenant_id"]
         bk_biz_id = params.get("bk_biz_id")
         project_id = params.get("project_id")
-        bcs_clusters = api.bcs_cluster_manager.fetch_clusters()
+        bcs_clusters = api.bcs_cluster_manager.fetch_clusters(bk_tenant_id=bk_tenant_id)
         cluster_id_set = set()
         clusters = []
         for bcs_cluster in bcs_clusters:
@@ -693,9 +709,7 @@ class FetchK8sClusterListResource(CacheResource):
             # 业务空间，按业务ID过滤
             if bk_biz_id and bk_biz_id > 0 and f"{bk_biz_id}" != business_id:
                 continue
-            # 根据灰度配置只同步指定集群ID的集群
-            if not self.cluster_id_in_gray(cluster_id):
-                continue
+
             # 忽略重复的集群ID，共享集群有重复的集群ID
             if cluster_id in cluster_id_set:
                 continue
@@ -715,68 +729,17 @@ class FetchK8sClusterListResource(CacheResource):
             }
             clusters.append(cluster)
         if params.get("data_type") == "full":
-            clusters = self.get_full_clusters(clusters)
+            clusters = self.get_full_clusters(bk_tenant_id=bk_tenant_id, clusters=clusters)
 
         return clusters
-
-    def get_clusters_from_bcs_cc(self, params):
-        bk_biz_id = params.get("bk_biz_id")
-        project_id = params.get("project_id")
-        projects = [p for p in api.bcs_cc.get_project_list()["results"]]
-        project_id_map = {p["project_id"]: {"bk_biz_id": p["cc_app_id"], "name": p["name"]} for p in projects}
-        areas = api.bcs_cc.get_area_list()["results"]
-        areas_names = {area["id"]: area["chinese_name"] for area in areas}
-        bcs_clusters = api.bcs_cc.get_cluster_list()
-        cluster_id_set = set()
-        clusters = []
-        for cluster in bcs_clusters:
-            cluster_id = cluster["cluster_id"]
-            if not self.cluster_id_in_gray(cluster_id):
-                continue
-            project = project_id_map.get(cluster["project_id"])
-            if not project:
-                continue
-            cluster_bk_biz_id = project.get("bk_biz_id")
-            project_name = project.get("name")
-            if not cluster_bk_biz_id:
-                continue
-            if not project_name:
-                continue
-            # 如果是bcs项目，直接基于project_id过滤
-            if project_id and project_id != cluster["project_id"]:
-                continue
-            # 业务空间，按业务ID过滤
-            if bk_biz_id and bk_biz_id > 0 and bk_biz_id != cluster_bk_biz_id:
-                continue
-            # 忽略重复的集群ID，共享集群有重复的集群ID
-            if cluster_id in cluster_id_set:
-                continue
-            cluster_id_set.add(cluster_id)
-            area_id = cluster.get("area_id")
-            cluster["area_name"] = areas_names.get(area_id, area_id)
-            cluster["bk_biz_id"] = cluster_bk_biz_id
-            cluster["project_name"] = project_name
-            cluster["bcs_cluster_id"] = cluster_id
-            cluster["id"] = cluster_id
-            cluster["name"] = cluster_id
-            cluster["created_at"] = cluster["created_at"]
-            cluster["updated_at"] = cluster["updated_at"]
-            clusters.append(cluster)
-        if params.get("data_type") == "full":
-            clusters = self.get_full_clusters(params, clusters)
-        return clusters
-
-    def perform_request(self, params):
-        if settings.BCS_CLUSTER_SOURCE == "bcs-cc":
-            return self.get_clusters_from_bcs_cc(params)
-        return self.get_clusters_from_bcs_cluster_manager(params)
 
 
 class FetchK8sIngressListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="业务ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     @staticmethod
     def get_ingress_field():
@@ -794,10 +757,13 @@ class FetchK8sIngressListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
         ingress_field = self.get_ingress_field()
-        ingress_list = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field})
+        ingress_list = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field}
+        )
         for ingress in ingress_list:
             ingress_parser = KubernetesIngressJsonParser(ingress)
             ingress_name = ingress_parser.name
@@ -827,6 +793,7 @@ class FetchK8sServiceListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     @staticmethod
@@ -856,14 +823,20 @@ class FetchK8sServiceListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
         endpoint_field = self.get_endpoint_field()
         service_field = self.get_service_field()
         [endpoints, services] = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Endpoints", "field": endpoint_field},
-                {"cluster_id": bcs_cluster_id, "type": "Service", "field": service_field},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Endpoints",
+                    "field": endpoint_field,
+                },
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Service", "field": service_field},
             ]
         )
         for service in services:
@@ -914,14 +887,16 @@ class FetchK8sServiceMonitorListByClusterResource(CacheResource):
     PLURALS = "servicemonitors"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
-    def perform_request(self, params) -> List:
+    def perform_request(self, params) -> list:
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
 
         try:
-            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id)
+            cluster = BCSCluster.objects.get(bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id)
         except BCSCluster.DoesNotExist:
             return data
 
@@ -1006,7 +981,7 @@ class FetchK8sMonitorEndpointListResource(CacheResource):
             raise OperatorVersionNotSupport()
         return result
 
-    def get_pods(self, bcs_cluster_id: str) -> List[BCSPod]:
+    def get_pods(self, bcs_cluster_id: str) -> list[BCSPod]:
         """根据标签检索指定的pods ."""
         try:
             label_model = BCSLabel.objects.get(key=self.LABEL_KEY, value=self.LABEL_VALUE)
@@ -1063,14 +1038,16 @@ class FetchK8sPodMonitorListByClusterResource(CacheResource):
     PLURALS = "podmonitors"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
-    def perform_request(self, params) -> List:
+    def perform_request(self, params) -> list:
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
 
         try:
-            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id)
+            cluster = BCSCluster.objects.get(bcs_cluster_id=bcs_cluster_id, bk_tenant_id=bk_tenant_id)
         except BCSCluster.DoesNotExist:
             return data
 
@@ -1119,11 +1096,14 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     def perform_request(self, params):
         bcs_cluster_id = params["bcs_cluster_id"]
-        endpoints = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Endpoints"})
+        endpoints = api.bcs_storage.fetch(
+            {"bk_tenant_id": params["bk_tenant_id"], "cluster_id": bcs_cluster_id, "type": "Endpoints"}
+        )
         data = []
         for endpoint in endpoints:
             data.append(
@@ -1137,11 +1117,15 @@ class FetchK8sEndpointListByClusterResource(CacheResource):
 
 class FetchK8sContainerListByClusterResource(CacheResource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        pods = api.kubernetes.fetch_k8s_pod_list_by_cluster(
+            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+        )
 
         for pod in pods:
             pod_parser = KubernetesPodJsonParser(pod.get("pod", {}))
@@ -1196,7 +1180,8 @@ class FetchK8sNodeListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
 
     @staticmethod
     def get_node_field():
@@ -1229,13 +1214,19 @@ class FetchK8sNodeListByClusterResource(CacheResource):
         return results
 
     def perform_request(self, params):
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         node_field = self.get_node_field()
         endpoint_field = self.get_endpoint_field()
         [endpoints, nodes] = api.bcs_storage.fetch.bulk_request(
             [
-                {"cluster_id": bcs_cluster_id, "type": "Endpoints", "field": endpoint_field},
-                {"cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": "Endpoints",
+                    "field": endpoint_field,
+                },
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Node", "field": node_field},
             ]
         )
         data = []
@@ -1283,20 +1274,22 @@ class FetchK8sNamespaceListResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
 
     def perform_request(self, params):
+        bk_tenant_id = params.get("bk_tenant_id")
         bk_biz_id = params.get("bk_biz_id")
         bcs_cluster_id = params.get("bcs_cluster_id")
-        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_biz_id": bk_biz_id})
+        clusters = api.kubernetes.fetch_k8s_cluster_list({"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id})
         data = []
         for cluster in clusters:
             cluster_id = cluster["bcs_cluster_id"]
             if bcs_cluster_id and bcs_cluster_id != cluster_id:
                 continue
             try:
-                items = self.get_cluster_data(cluster_id)
+                items = self.get_cluster_data(bk_tenant_id=bk_tenant_id, bcs_cluster_id=cluster_id)
                 data.extend(items)
             except Exception as e:
                 logger.error("get cluster data error", e)
@@ -1304,16 +1297,13 @@ class FetchK8sNamespaceListResource(CacheResource):
         return data
 
     @staticmethod
-    def get_cluster_data(bcs_cluster_id):
+    def get_cluster_data(bk_tenant_id: str, bcs_cluster_id: str):
         data = []
-        namespaces = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Namespace"})
+        namespaces = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Namespace"}
+        )
         for namespace in namespaces:
-            data.append(
-                {
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "namespace": namespace,
-                }
-            )
+            data.append({"bcs_cluster_id": bcs_cluster_id, "namespace": namespace})
         return data
 
 
@@ -1335,6 +1325,7 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
         workload_type_list = serializers.ListField(required=False, allow_empty=True, allow_null=True)
 
@@ -1359,13 +1350,16 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
 
     def perform_request(self, params):
         data = []
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         workload_type_list = params.get("workload_type_list")
         if not workload_type_list:
             workload_type_list = api.kubernetes.fetch_k8s_workload_type_list({"bcs_cluster_id": bcs_cluster_id})
 
         # 计算关联pod的资源情况
-        pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
+        pod_list = api.kubernetes.fetch_k8s_pod_list_by_cluster(
+            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+        )
         workload_resources_map = collections.defaultdict(
             lambda: {"requests_cpu": 0, "limits_cpu": 0, "requests_memory": 0, "limits_memory": 0, "pod_names": []}
         )
@@ -1384,7 +1378,12 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
         workload_field = self.get_workload_field()
         for workload_type in workload_type_list:
             items = api.bcs_storage.fetch(
-                {"cluster_id": bcs_cluster_id, "type": workload_type, "field": workload_field}
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "cluster_id": bcs_cluster_id,
+                    "type": workload_type,
+                    "field": workload_field,
+                }
             )
             for workload in items:
                 workload_specification = KubernetesWorkloadJsonParser(workload)
@@ -1476,7 +1475,7 @@ class FetchK8sEventListResource(CacheResource):
 
         view_options = ViewOptionsSerializer(required=False, allow_null=True)
 
-    def get_cluster_info_list(self, params: Dict) -> List:
+    def get_cluster_info_list(self, params: dict) -> list:
         """获得集群接入注册信息 ."""
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster_id = params.get("bcs_cluster_id")
@@ -1505,7 +1504,7 @@ class FetchK8sEventListResource(CacheResource):
             cluster_info_list = []
         return cluster_info_list
 
-    def get_data_source_result_list(self, params: Dict) -> Tuple:
+    def get_data_source_result_list(self, params: dict) -> tuple:
         """获得集群的事件数据源Id ."""
         cluster_info_list = self.get_cluster_info_list(params)
         data_id_to_cluster_id = {
@@ -1518,7 +1517,7 @@ class FetchK8sEventListResource(CacheResource):
             data_source_result_list = []
         return data_source_result_list, data_id_to_cluster_id
 
-    def get_match_list(self, params: Dict, bcs_cluster_id: str, start_time: int, end_time: int) -> List:
+    def get_match_list(self, params: dict, bcs_cluster_id: str, start_time: int, end_time: int) -> list:
         match_list = [{"range": {"time": {"gte": start_time, "lte": end_time}}}]
         keys = ["kind", "name", "namespace"]
         for key in keys:
@@ -1624,7 +1623,7 @@ class FetchK8sEventListResource(CacheResource):
                 data = {"total": es_data["hits"]["total"]["value"], "list": es_data["hits"]["hits"][offset:]}
         return data
 
-    def get_es_storage_list(self, params: Dict) -> Tuple:
+    def get_es_storage_list(self, params: dict) -> tuple:
         data_source_result_list, data_id_to_cluster_id = self.get_data_source_result_list(params)
         table_id_map = {
             data_source_result.table_id: data_source_result.bk_data_id for data_source_result in data_source_result_list
@@ -1738,7 +1737,7 @@ class FetchNodeCpuUsage(Resource):
         start_time = serializers.IntegerField(required=False, label="start_time")
         end_time = serializers.IntegerField(required=False, label="end_time")
 
-    def validate_request_data(self, request_data: Dict) -> Dict:
+    def validate_request_data(self, request_data: dict) -> dict:
         bk_biz_id = int(request_data["bk_biz_id"])
         request_data["bk_biz_id"] = bk_biz_id
         start_time = request_data.get("start_time")
@@ -1752,17 +1751,17 @@ class FetchNodeCpuUsage(Resource):
         return request_data
 
     @staticmethod
-    def build_promql(validated_request_data: Dict) -> str:
+    def build_promql(validated_request_data: dict) -> str:
         bcs_cluster_id = validated_request_data.get("bcs_cluster_id")
         promql = (
-            '(1 - avg by(instance) '
+            "(1 - avg by(instance) "
             '(irate(node_cpu_seconds_total{mode="idle", '
-            'bcs_cluster_id="%(bcs_cluster_id)s"}[5m])))'
-        ) % {"bcs_cluster_id": bcs_cluster_id}
+            f'bcs_cluster_id="{bcs_cluster_id}"}}[5m])))'
+        )
 
         return promql
 
-    def request_graph_unify_query(self, validated_request_data) -> List:
+    def request_graph_unify_query(self, validated_request_data) -> list:
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data["start_time"]
         end_time = validated_request_data["end_time"]
@@ -1775,7 +1774,7 @@ class FetchNodeCpuUsage(Resource):
         return records
 
     @staticmethod
-    def format_performance_data(records: List) -> Dict:
+    def format_performance_data(records: list) -> dict:
         """格式化数据 ."""
         data = {}
         if not records:
@@ -1790,7 +1789,7 @@ class FetchNodeCpuUsage(Resource):
 
         return data
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         performance_data = self.request_graph_unify_query(validated_request_data)
         if not performance_data:
             return {}
@@ -1818,7 +1817,7 @@ class FetchUsageRatio(FetchKubernetesGrafanaMetricRecords):
             data[key_name] = value
         return data
 
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List:
+    def build_graph_unify_query_iterable(self, validated_request_data: dict) -> list:
         usage_type = validated_request_data["usage_type"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data.get("start_time")
@@ -1830,45 +1829,42 @@ class FetchUsageRatio(FetchKubernetesGrafanaMetricRecords):
 
         if "cpu" in usage_type:
             promql = (
-                '(1 - avg '
-                '(irate(node_cpu_seconds_total{mode="idle", '
-                'bcs_cluster_id="%(bcs_cluster_id)s"}[5m])))'
-                ' * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id}
+                f'(1 - avg (irate(node_cpu_seconds_total{{mode="idle", bcs_cluster_id="{bcs_cluster_id}"}}[5m]))) * 100'
+            )
             data_source_param_map.append({"key_name": "cpu", "promql": promql})
 
         if "memory" in usage_type:
             promql = (
-                '(SUM by(bcs_cluster_id)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)'
-                ' (node_memory_MemFree_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Cached_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Buffers_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' + on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Shmem_bytes{bcs_cluster_id="%(bcs_cluster_id)s"}))'
-                ' / on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)'
-                ' (node_memory_MemTotal_bytes{bcs_cluster_id="%(bcs_cluster_id)s"}) * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id}
+                "(SUM by(bcs_cluster_id)"
+                f' (node_memory_MemTotal_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)"
+                f' (node_memory_MemFree_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                f'(node_memory_Cached_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                f'(node_memory_Buffers_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+                " + on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                f'(node_memory_Shmem_bytes{{bcs_cluster_id="{bcs_cluster_id}"}}))'
+                " / on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)"
+                f' (node_memory_MemTotal_bytes{{bcs_cluster_id="{bcs_cluster_id}"}}) * 100'
+            )
             data_source_param_map.append({"key_name": "memory", "promql": promql})
 
         if "disk" in usage_type:
             promql = (
-                '(sum by(bcs_cluster_id)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id="%(bcs_cluster_id)s",'
+                "(sum by(bcs_cluster_id)"
+                f' (node_filesystem_size_bytes{{bcs_cluster_id="{bcs_cluster_id}",'
                 'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' - on(bcs_cluster_id) group_right()'
-                ' sum by(bcs_cluster_id)'
-                ' (node_filesystem_free_bytes{bcs_cluster_id="%(bcs_cluster_id)s",'
+                " - on(bcs_cluster_id) group_right()"
+                " sum by(bcs_cluster_id)"
+                f' (node_filesystem_free_bytes{{bcs_cluster_id="{bcs_cluster_id}",'
                 'fstype=~"ext[234]|btrfs|xfs|zfs"}))'
-                ' / on(bcs_cluster_id) group_right()'
-                ' sum by(bcs_cluster_id)'
-                ' (node_filesystem_size_bytes{bcs_cluster_id="%(bcs_cluster_id)s",'
+                " / on(bcs_cluster_id) group_right()"
+                " sum by(bcs_cluster_id)"
+                f' (node_filesystem_size_bytes{{bcs_cluster_id="{bcs_cluster_id}",'
                 'fstype=~"ext[234]|btrfs|xfs|zfs"})'
-                ' * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id}
+                " * 100"
+            )
             data_source_param_map.append({"key_name": "disk", "promql": promql})
 
         for data_source_params in data_source_param_map:
@@ -1900,7 +1896,7 @@ class FetchK8sBkmMetricbeatEndpointUpResource(CacheResource):
         bk_monitor_name = serializers.CharField(required=False)
         group_by = serializers.ListField(required=False, default=[])
 
-    def validate_request_data(self, request_data: Dict) -> Dict:
+    def validate_request_data(self, request_data: dict) -> dict:
         end_time = int(time.time())
         start_time = int(time.time() - 300)
         request_data["start_time"] = start_time * 1000
@@ -1965,7 +1961,7 @@ class FetchK8sBkmMetricbeatEndpointUpResource(CacheResource):
         return records
 
     @staticmethod
-    def format_data(validated_request_data: Dict, unify_query_result: List) -> Dict:
+    def format_data(validated_request_data: dict, unify_query_result: list) -> dict:
         group_by = validated_request_data.get("group_by", [])
         data = {}
         for record in unify_query_result:
@@ -1975,7 +1971,7 @@ class FetchK8sBkmMetricbeatEndpointUpResource(CacheResource):
 
         return data
 
-    def perform_request(self, validated_request_data: Dict) -> List:
+    def perform_request(self, validated_request_data: dict) -> list:
         unify_query_result = self.request_unify_query(validated_request_data)
         result = self.format_data(validated_request_data, unify_query_result)
 
@@ -1991,7 +1987,7 @@ class FetchMetricsDefine(Resource):
         读取内置视图配置文件
         """
         file_path = os.path.join(cls.data_file_path, "kubernetes_metrics_define.json")
-        with open(file_path, "r", encoding="utf8") as f:
+        with open(file_path, encoding="utf8") as f:
             return json.loads(f.read())
 
     def perform_request(self, params):
@@ -2005,7 +2001,7 @@ class FetchResourceCount(Resource):
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
 
     @staticmethod
-    def is_shared_cluster(bcs_cluster_id: str, cluster_info: Dict) -> bool:
+    def is_shared_cluster(bcs_cluster_id: str, cluster_info: dict) -> bool:
         return bool(cluster_info.get(bcs_cluster_id))
 
     def perform_request(self, params):
@@ -2099,21 +2095,17 @@ class FetchKubernetesConsistencyCheckResource(Resource, abc.ABC):
         return cluster_model
 
     @abc.abstractmethod
-    def fetch_from_bk_storages(self, params, *args, **kwargs):
-        ...
+    def fetch_from_bk_storages(self, params, *args, **kwargs): ...
 
     @abc.abstractmethod
-    def fetch_from_api_server(self, params, *args, **kwargs):
-        ...
+    def fetch_from_api_server(self, params, *args, **kwargs): ...
 
     @abc.abstractmethod
-    def fetch_from_db(self, params, *args, **kwargs):
-        ...
+    def fetch_from_db(self, params, *args, **kwargs): ...
 
     @classmethod
     @abc.abstractmethod
-    def compare_third_part(cls, params, bcs_storage, api_server, local_db):
-        ...
+    def compare_third_part(cls, params, bcs_storage, api_server, local_db): ...
 
     @classmethod
     def get_fetch_kwargs(cls, params, cluster_model):
@@ -2153,13 +2145,16 @@ class FetchKubernetesWorkloadConsistencyCheckResource(FetchKubernetesConsistency
     """BCS workload资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         workload_type_list = kwargs["workload_type_list"]
 
         bcs_storage_workload = {}
         for workload_type in workload_type_list:
-            items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": workload_type})
+            items = api.bcs_storage.fetch(
+                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": workload_type}
+            )
             for workload in items:
                 parser = KubernetesWorkloadJsonParser(workload)
                 parser.kind = workload_type
@@ -2329,10 +2324,11 @@ class FetchKubernetesPodConsistencyCheckResource(FetchKubernetesConsistencyCheck
     """BCS Pod资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_pod_list = []
-        pod_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Pod"})
+        pod_items = api.bcs_storage.fetch({"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Pod"})
         for pod in pod_items:
             parser = KubernetesPodJsonParser(pod)
             pod_name = parser.name
@@ -2448,10 +2444,11 @@ class FetchKubernetesNodeConsistencyCheckResource(FetchKubernetesConsistencyChec
     """BCS Node资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_node_list = []
-        node_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Node"})
+        node_items = api.bcs_storage.fetch({"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Node"})
         for node in node_items:
             node_parser = KubernetesNodeJsonParser(node)
             node_name = node_parser.name
@@ -2561,10 +2558,13 @@ class FetchKubernetesServiceConsistencyCheckResource(FetchKubernetesConsistencyC
     """BCS Service资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_service_list = []
-        service_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Service"})
+        service_items = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Service"}
+        )
         for service in service_items:
             parser = KubernetesServiceJsonParser(service)
             service_name = parser.name
@@ -2689,10 +2689,13 @@ class FetchKubernetesEndpointConsistencyCheckResource(FetchKubernetesConsistency
     """BCS Endpoints资源同步校验 ."""
 
     def fetch_from_bk_storages(self, params, *args, **kwargs):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
         name = params.get("name")
         bcs_storage_endpoint_list = []
-        endpoints_items = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Endpoints"})
+        endpoints_items = api.bcs_storage.fetch(
+            {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Endpoints"}
+        )
         for endpoint in endpoints_items:
             parser = KubernetesEndpointJsonParser(endpoint)
             if parser.namespace in self.IGNORE_NAMESPACE_SET:
@@ -2930,7 +2933,24 @@ class FetchK8sEventLogResource(CacheResource):
 
 
 class GetClusterInfoFromBcsSpaceResource(CacheResource):
-    """根据业务id在bcs空间下获取集群信息 ."""
+    """
+    根据业务id在bcs空间下获取集群信息
+
+    ```python
+    retrun {
+        # 共享集群
+        bcs_cluster_id: {
+            "namespace_list": [...],
+            "clsuter_type": BcsClusterType.SHARED
+        },
+        # 单例集群
+        bcs_cluster_id: {
+            "namespace_list": [],
+            "clsuter_type": BcsClusterType.SINGLE
+        }
+    }
+    ```
+    """
 
     cache_type = CacheType.BCS
 
@@ -2939,20 +2959,28 @@ class GetClusterInfoFromBcsSpaceResource(CacheResource):
         shard_only = serializers.BooleanField(required=False, default=False)
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, default=None)
 
-    def perform_request(self, params: Dict) -> Dict:
-        space_uid = params.get("space_uid")
+    def perform_request(self, params: dict) -> dict:
+        space_uid: str | None = params.get("space_uid")
         shard_only = params.get("shard_only")
         bk_biz_id = params.get("bk_biz_id")
 
         if space_uid:
             bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-        if bk_biz_id == 0:
+        elif bk_biz_id == 0:
             return {}
-        if bk_biz_id:
+        elif bk_biz_id:
             if bk_biz_id > 0:
                 # 业务空间下无共享集群
                 return {}
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        else:
+            raise ValueError("space_uid or bk_biz_id is required")
+
+        # 仅有bkci和bcs空间支持获取集群信息
+        space_type_id, space_id = space_uid.split("__", 1)
+        if space_type_id not in [SpaceTypeEnum.BKCI.value, SpaceTypeEnum.BCS.value]:
+            return {}
+
         cluster_list = api.metadata.get_clusters_by_space_uid(space_uid=space_uid)
 
         data = {}
@@ -3018,8 +3046,10 @@ class HasBkmMetricbeatEndpointUpResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(label="业务ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
 
-    def perform_request(self, params: Dict):
-        bk_biz_id = params["bk_biz_id"]
-        return MetricListCache.objects.filter(bk_biz_id=bk_biz_id, metric_field=BKM_METRICBEAT_ENDPOINT_UP).exists()
+    def perform_request(self, params: dict):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(params["bk_biz_id"])
+        return MetricListCache.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], metric_field=BKM_METRICBEAT_ENDPOINT_UP
+        ).exists()

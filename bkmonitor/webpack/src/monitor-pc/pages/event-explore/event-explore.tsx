@@ -28,18 +28,20 @@ import { Component as tsc } from 'vue-tsx-support';
 
 // import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
-import { Debounce, deepClone } from 'monitor-common/utils';
+import { eventGenerateQueryString } from 'monitor-api/modules/data_explorer';
+import { copyText, Debounce, deepClone } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
   ECondition,
+  EFieldType,
   EMethod,
   EMode,
   mergeWhereList,
   type IGetValueFnParams,
 } from '../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
-import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
+import { APIType, getEventViewConfig, RetrievalFilterCandidateValue } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
 import EventRetrievalLayout from './components/event-retrieval-layout';
@@ -88,6 +90,7 @@ interface IEvent {
   onCommonWhereChange: (where: IWhereItem[]) => void;
   onShowResidentBtnChange?: (v: boolean) => void;
   onEventSourceTypeChange: (v: ExploreSourceTypeEnum[]) => void;
+  onSetRouteParams: (otherQuery: Record<string, any>) => void;
 }
 @Component
 export default class EventExplore extends tsc<
@@ -166,6 +169,7 @@ export default class EventExplore extends tsc<
   /** 事件源popover实例 */
   eventSourcePopoverInstance = null;
   localEventSourceType = [];
+  retrievalFilterCandidateValue: RetrievalFilterCandidateValue = null;
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -313,6 +317,11 @@ export default class EventExplore extends tsc<
     return isEdit;
   }
 
+  @Emit('setRouteParams')
+  setRouteParams(otherQuery = {}) {
+    return otherQuery;
+  }
+
   handleModeChange(mode: EMode) {
     this.$emit('filterModeChange', mode);
     if (JSON.stringify(this.cacheQueryConfig) !== JSON.stringify(this.queryConfig)) {
@@ -322,6 +331,7 @@ export default class EventExplore extends tsc<
   }
 
   mounted() {
+    this.retrievalFilterCandidateValue = new RetrievalFilterCandidateValue();
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
     this.getViewConfig();
     this.updateQueryConfig();
@@ -376,7 +386,7 @@ export default class EventExplore extends tsc<
   }
 
   async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
-    return getEventTopK(
+    return this.retrievalFilterCandidateValue.getFieldsOptionValuesProxy(
       {
         limit: params?.limit || 5,
         query_configs: [
@@ -395,26 +405,10 @@ export default class EventExplore extends tsc<
         fields: params?.fields || [],
         start_time: this.formatTimeRange[0],
         end_time: this.formatTimeRange[1],
+        isInit__: params?.isInit__,
       },
       this.source
-    )
-      .then(res => {
-        const data = res?.[0] || {};
-        return {
-          count: +data?.distinct_count || 0,
-          list:
-            data?.list?.map(item => ({
-              id: item.value,
-              name: item.alias,
-            })) || [],
-        };
-      })
-      .catch(() => {
-        return {
-          count: 0,
-          list: [],
-        };
-      });
+    );
   }
 
   /** 条件变化触发 */
@@ -528,6 +522,40 @@ export default class EventExplore extends tsc<
     };
   }
 
+  async handleCopyWhere(where) {
+    const whereParams = where.map(w => {
+      const type = this.fieldList.find(item => item.name === w.key)?.type;
+      return {
+        ...w,
+        value:
+          EFieldType.integer === type
+            ? w.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : w.value,
+      };
+    });
+    const copyStr = await eventGenerateQueryString({
+      where: whereParams,
+    }).catch(() => {
+      return '';
+    });
+    if (copyStr) {
+      copyText(copyStr, msg => {
+        this.$bkMessage({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      this.$bkMessage({
+        message: this.$t('复制成功'),
+        theme: 'success',
+      });
+    }
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -558,6 +586,7 @@ export default class EventExplore extends tsc<
                 source={this.source}
                 where={this.where}
                 onCommonWhereChange={this.handleCommonWhereChange}
+                onCopyWhere={this.handleCopyWhere}
                 onFavorite={this.handleFavorite}
                 onModeChange={this.handleModeChange}
                 onQueryStringChange={this.handleQueryStringChange}
@@ -601,6 +630,7 @@ export default class EventExplore extends tsc<
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}
                   onSearch={this.updateQueryConfig}
+                  onSetRouteParams={this.setRouteParams}
                   onShowEventSourcePopover={this.handleShowEventSourcePopover}
                 />
               </div>

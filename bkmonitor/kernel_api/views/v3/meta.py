@@ -286,6 +286,10 @@ class ModifyDatasourceResultTable(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDatasourceResultTable)]
 
 
+class GetOrCreateAgentEventDataId(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetOrCreateAgentEventDataIdResource)]
+
+
 class EsRouteViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.EsRouteResource)]
 
@@ -462,12 +466,24 @@ class UpdateEsRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
 
 
+class CreateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateDorisRouter)]
+
+
+class UpdateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.UpdateDorisRouter)]
+
+
 class AddBkDataTableIdsViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
 
 
 class CreateOrUpdateEsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
+
+
+class CreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):
@@ -476,3 +492,11 @@ class ModifyDataIdSourceViewSet(MetaViewSet):
 
 class GetDataLabelsMapViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetDataLabelsMapResource)]
+
+
+class SyncBkBaseRtMetaByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.SyncBkBaseRtMetaByBizIdResource)]
+
+
+class ListBkBaseRtInfoByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBkBaseRtInfoByBizIdResource)]

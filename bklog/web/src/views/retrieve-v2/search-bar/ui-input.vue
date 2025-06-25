@@ -28,7 +28,21 @@
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
   const { $t } = useLocale();
-
+  const popoverRefs = ref(new Map())
+  const morePopoverRefs = ref([]);
+  const setPopoverRef = (el, parentIndex, childIndex) => {
+    const key = `${parentIndex}-${childIndex}`
+    if (el) {
+      popoverRefs.value.set(key, el)
+    } else {
+      popoverRefs.value.delete(key)
+    }
+  }
+  const setMorePopoverRef = (el, index) => {
+    if (el) {
+      morePopoverRefs.value[index] = el;
+    }
+  }
   const inputValueLength = ref(0);
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
@@ -51,15 +65,13 @@
     }
     item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
+    if (item?.showList?.length && item?.showList?.length !== item.value?.length) {
+      item.showList = Array.from(
+        { length: item.value.length },
+        (_, i) => (i < (item.showList?.length || 0) ? item.showList[i] : false)
+      );
+    }
     return { disabled: false, ...(item ?? {}) };
-  };
-
-  /**
-   * tag数量溢出是否展示所有
-   * @param {*} item
-   */
-  const handleShowAll = item => {
-    item.showAll = !item.showAll;
   };
 
   const handleHeightChange = height => {
@@ -105,13 +117,7 @@
   const queryItem = ref('');
   const activeIndex = ref(null);
 
-  // 表示是否来自input输入的点击弹出
-  // 弹出组件依赖此属性展示内容会改变
-  const isInputFocus = ref(false);
   const showIpSelector = ref(false);
-
-  // // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
-  // let isInputTextFocus = false;
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
@@ -141,17 +147,12 @@
     return false;
   };
 
-  // 是否为自动foucus到input
-  // 自动focus不用弹出选择提示
-  const isAutoFocus = ref(false);
   const { getFieldName } = useFieldNameHook({ store });
   const {
     modelValue,
-    isDocumentMousedown,
     isInputTextFocus,
     setIsInputTextFocus,
     setIsDocumentMousedown,
-    getTippyInstance,
     isInstanceShown,
     delayShowInstance,
     repositionTippyInstance,
@@ -162,50 +163,21 @@
     refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
-    onShowFn: instance => {
+    onShowFn: () => {
       setIsDocumentMousedown(true);
-      const isTagItemClick =
-        instance.reference.classList.contains('search-item') && instance.reference.classList.contains('tag-item');
-      if (!isTagItemClick) {
-        refSearchInput.value?.focus?.();
-      }
-
       refPopInstance.value?.beforeShowndFn?.();
-      isInputFocus.value =
-        instance?.reference?.contains(refSearchInput.value) || instance?.reference === refHiddenFocus.value;
       emit('popup-change', { isShow: true });
     },
     onHiddenFn: () => {
       emit('popup-change', { isShow: false });
-
-      if (isDocumentMousedown.value || isInputTextFocus.value) {
-        setIsDocumentMousedown(false);
-        // 这里blur事件触发会比出发clickoutside收起弹出晚
-        // 所以在收起时，需要一个延迟检测
-        if (isInputTextFocus.value) {
-          requestAnimationFrame(() => {
-            if (!isInputTextFocus.value) {
-              hideTippyInstance();
-            }
-          });
-
-          return false;
-        }
-        return true;
-      }
-
       refPopInstance.value?.afterHideFn?.();
-      if (refSearchInput.value) {
-        isAutoFocus.value = true;
-        refSearchInput.value?.focus();
-        setTimeout(() => {
-          isAutoFocus.value = false;
-        });
-      }
-
       return true;
     },
     handleWrapperClick: handleWrapperClickCapture,
+    onInputFocus: () => {
+      queryItem.value = '';
+      activeIndex.value = null;
+    },
   });
 
   const debounceShowInstance = () => {
@@ -217,7 +189,7 @@
 
   const closeTippyInstance = () => {
     setIsDocumentMousedown(false);
-    getTippyInstance()?.hide();
+    hideTippyInstance();
   };
 
   /**
@@ -246,7 +218,7 @@
   };
 
   const handleAddItem = e => {
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
     const target = e.target.closest('.search-item');
     queryItem.value = '';
     activeIndex.value = null;
@@ -262,17 +234,19 @@
     const itemCopy = cloneDeep(item);
     itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
-    isInputFocus.value = false;
+    setIsInputTextFocus(false);
+
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
     if (!item.relation) item.relation = 'OR';
     Object.assign(queryItem.value, itemCopy);
     const target = e.target.closest('.search-item');
-    activeIndex.value = isInputFocus.value ? null : index;
+    activeIndex.value = index;
     showTagListItems(target);
   };
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
+    set(item, 'showList', new Array(item.value.length).fill(item.disabled))
     emitChange(modelValue.value);
   };
 
@@ -292,52 +266,53 @@
         modelValue.value.push({ ...copyValue, disabled: false });
       }
 
-      closeTippyInstance();
+      repositionTippyInstance();
       setTimeout(() => {
         showIpSelector.value = true;
       }, 100);
+
+      refSearchInput.value?.focus();
       return;
     }
 
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
+    const isFulltextEnterVlaue = isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
 
     const inputVal = getSearchInputValue();
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
     if (isFulltextEnterVlaue && !inputVal.length) {
+      refSearchInput.value?.focus();
       return;
     }
 
     let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
 
-    if (isInputFocus.value) {
+    if (isInputTextFocus.value) {
       setSearchInputValue('');
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
       emitChange(modelValue.value);
-      closeTippyInstance();
+      hideTippyInstance();
+      activeIndex.value = null;
+
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
-    closeTippyInstance();
+    repositionTippyInstance();
+    refSearchInput.value?.focus();
   };
 
   // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
   const isGlobalKeyEnter = ref(false);
   const handleGlobalSaveQueryClick = payload => {
-    blurTimer && clearTimeout(blurTimer);
-
     isGlobalKeyEnter.value = true;
     handleSaveQueryClick(payload);
-    repositionTippyInstance();
     refSearchInput.value.style.setProperty('width', '12px');
-    nextInputBlur?.();
-    nextInputBlur = null;
   };
 
   /**
@@ -355,51 +330,24 @@
   };
 
   const handleCancelClick = () => {
-    closeTippyInstance();
     setSearchInputValue('');
+    closeTippyInstance();
   };
 
   const handleInputTextClick = () => {
-    if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
+    if (isInstanceShown() || isInputTextFocus.value) {
       return;
     }
 
     debounceShowInstance();
   };
-
-  const handleFocusInput = () => {
-    if (isInstanceShown()) {
-      return;
-    }
-
-    setIsInputTextFocus(true);
-    isInputFocus.value = true;
-    activeIndex.value = null;
-    queryItem.value = '';
-
-    if (isAutoFocus.value) {
-      return;
-    }
-
-    debounceShowInstance();
-  };
-
-  let blurTimer = null;
-  let nextInputBlur = null;
 
   const handleFullTextInputBlur = e => {
-    nextInputBlur = () => {
-      setIsInputTextFocus(false);
-      inputValueLength.value = 0;
-      e.target.style.setProperty('width', '12px');
-      e.target.value = '';
-      queryItem.value = '';
-    };
-
-    blurTimer = setTimeout(() => {
-      nextInputBlur();
-      nextInputBlur = null;
-    }, 300);
+    setIsInputTextFocus(false);
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
+    queryItem.value = '';
   };
 
   const handleInputValueChange = e => {
@@ -434,6 +382,37 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
+  const handlePopoverShow = (parentIndex, childIndex)=>{
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.showHandler()
+  }
+  const changeOptionShow = (parentIndex,childIndex,item,show)=>{
+    if(!item.showList){
+      set(item, 'showList', new Array(item.value.length).fill(false))
+    }
+    set(item.showList, childIndex, show)
+    if (item.showList.every(f => f === false)) {
+      set(item, 'disabled', false);
+    }else if (item.showList.every(f => f === true)) {
+      set(item, 'disabled', true);
+    }
+
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const onlyOptionShow =  (parentIndex,childIndex,item)=>{
+    if(!item.showList || item.showList.length !== item.value.length){
+      set(item, 'showList', new Array(item.value.length).fill(true))
+    }
+    item.showList = item.showList.map((_, index) => index !== childIndex);
+    emitChange(cloneDeep(modelValue.value));
+    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
+    popover?.hideHandler()
+  }
+  const moreOption = (index) => {
+    morePopoverRefs.value[index].showHandler()
+  }
 </script>
 
 <template>
@@ -450,7 +429,7 @@
     </li>
     <li
       v-for="(item, index) in modelValue"
-      :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
+      :class="['search-item', 'tag-item', {'is-common-fixed': item.isCommonFixed }]"
       :key="`${item.field}-${index}`"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
@@ -479,12 +458,25 @@
             :key="childIndex"
           >
             <template v-if="item.showAll ? true : childIndex < 3">
-              <span
-                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
-                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
+              <bk-popover 
+                :ref="(el) => setPopoverRef(el, index, childIndex)"
+                placement="bottom" 
+                theme="light" 
+                trigger="click"
               >
-                {{ formatDateTimeField(child, item.field_type) }}
-              </span>
+                <span
+                  v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line':item.showList?.[childIndex]}]"
+                  @click.stop="() => handlePopoverShow(index,childIndex)"
+                >
+                  {{ formatDateTimeField(child, item.field_type) }}
+                </span>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex]" @click="changeOptionShow(index,childIndex,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
               <span
                 v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
                 class="match-value-relation"
@@ -493,12 +485,41 @@
               </span>
             </template>
           </span>
-          <span
-            v-if="item.value.length > 3 && !item.showAll"
-            style="color: #f59500"
+          <bk-popover 
+            :ref="(el) => setMorePopoverRef(el, index)"
+            placement="bottom" 
+            theme="light" 
+            trigger="click"
           >
-            +{{ item.value.length - 3 }}
-          </span>
+            <span
+              v-if="item.value.length > 3 && !item.showAll"
+              style="color: #f59500"
+              @click.stop="moreOption(index)"
+              class="match-value-more"
+            >
+              +{{ item.value.length - 3 }}
+            </span>
+            <div slot="content">
+              <div class="match-value-content">
+              <bk-popover 
+                v-for="(child, childIndex) in item.value.slice(3)"
+                :ref="(el) => setPopoverRef(el, index, childIndex+3)"
+                :key="childIndex"
+                placement="right" 
+                theme="light" 
+                trigger="click"
+                extCls="match-value-popover"
+              >
+                <div class="match-value-child"  :class="[{'delete-line':item.showList?.[childIndex+3]}]">{{ child }}</div>
+                <div slot="content">
+                  <div class="match-value-select" v-if="!item.showList?.[childIndex+3]" @click="changeOptionShow(index,childIndex+3,item,true)">隐藏这个选项</div>
+                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex+3,item,false)">恢复这个选项</div>
+                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex+3,item)">只看这个选项</div>
+                </div>
+              </bk-popover>
+            </div>
+            </div>
+          </bk-popover>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -510,7 +531,7 @@
             'bklog-icon',
             { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
           ]"
-          @click.stop="e => handleDisabledTagItem(item, e)"
+          @click.stop="handleDisabledTagItem(item)"
         />
         <span
           class="bklog-icon bklog-shanchu tag-options-close"
@@ -532,7 +553,6 @@
         type="text"
         @blur.stop="handleFullTextInputBlur"
         @click.stop="handleInputTextClick"
-        @focus.stop="handleFocusInput"
         @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
         @keyup.enter.stop="handleInputValueEnter"
@@ -541,7 +561,7 @@
     <div style="display: none">
       <UiInputOptions
         ref="refPopInstance"
-        :is-input-focus="isInputFocus"
+        :is-input-focus="isInputTextFocus"
         :value="queryItem"
         @cancel="handleCancelClick"
         @save="handleGlobalSaveQueryClick"
@@ -612,5 +632,37 @@
         }
       }
     }
+  }
+
+  .bk-tooltip-content{
+    .match-value-select{
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 32px;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .delete-line{
+      color: #979ba5;
+      text-decoration: line-through;
+    }
+  }
+  .match-value-content{
+    display: flex;
+    flex-direction: column;
+    .bk-tooltip-ref{
+      width: 100%;
+      cursor: pointer;
+    }
+    .match-value-child{
+      font-size: 12px;
+      line-height: 32px;
+    }
+  }
+  .match-value-popover{
+    // eslint-disable-next-line
+    left: 15px !important;
   }
 </style>

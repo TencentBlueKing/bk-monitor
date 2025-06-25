@@ -405,7 +405,6 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
-
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(indexfieldTable.value.getData());
@@ -599,7 +598,7 @@
                   : '',
               },
               etl_config: formData.value.etl_config,
-              fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey),
+              fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
               alias_settings: [
                 ...indexfieldTableData.map(item => {
                   return {
@@ -671,7 +670,7 @@
       align-items: center;
       justify-content: center;
       width: 90px;
-      height: 32px;
+      height: 52px;
       font-size: 12px;
       cursor: pointer;
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,17 +12,17 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 
 import arrow
 from django.http import Http404
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-
+from rest_framework.exceptions import ValidationError
 from apm_web.constants import METRIC_COMMON_DIMENSION
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models.scene_view import (
@@ -87,7 +86,9 @@ class GetSceneViewListResource(ApiAuthResource):
         apm_service_name = serializers.CharField(label="服务名称(APM场景变量)", required=False, allow_null=True)
         apm_category = serializers.CharField(label="服务分类(APM场景变量)", required=False, allow_null=True)
         apm_kind = serializers.CharField(label="服务类型(APM场景变量)", required=False, allow_null=True)
-        apm_predicate_value = serializers.CharField(label="服务类型具体值(APM场景变量)", required=False, allow_null=True)
+        apm_predicate_value = serializers.CharField(
+            label="服务类型具体值(APM场景变量)", required=False, allow_null=True
+        )
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
@@ -99,7 +100,7 @@ class GetSceneViewListResource(ApiAuthResource):
         """
         获取图表数量
         """
-        panels: List[Dict] = view_config.get("panels", [])
+        panels: list[dict] = view_config.get("panels", [])
         count = 0
         for panel in panels:
             if panel.get("type") == "row":
@@ -168,12 +169,12 @@ class GetSceneViewListResource(ApiAuthResource):
                 )
 
         # 按配置进行排序
-        scene: Optional[SceneViewOrderModel] = SceneViewOrderModel.objects.filter(
+        scene: SceneViewOrderModel | None = SceneViewOrderModel.objects.filter(
             bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type
         ).first()
 
         if scene:
-            order: List = scene.config
+            order: list = scene.config
 
             generator = get_scene_processors(scene_id)
             if generator.is_custom_sort(scene_id):
@@ -217,11 +218,17 @@ class GetSceneViewResource(ApiAuthResource):
         bcs_cluster_id = serializers.CharField(label="集群ID", required=False, allow_null=True)
         # ---
         # APM场景变量
-        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
-        apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+        apm_app_name = serializers.CharField(
+            label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
+        apm_service_name = serializers.CharField(
+            label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
         apm_category = serializers.CharField(label="服务分类(APM场景变量)", required=False, allow_null=True)
         apm_kind = serializers.CharField(label="服务类型(APM场景变量)", required=False, allow_null=True)
-        apm_predicate_value = serializers.CharField(label="服务类型具体值(APM场景变量)", required=False, allow_null=True)
+        apm_predicate_value = serializers.CharField(
+            label="服务类型具体值(APM场景变量)", required=False, allow_null=True
+        )
         apm_span_id = serializers.CharField(label="SpanId(APM场景变量)", required=False, allow_null=True)
         # ---
         # 主机信息场景变量
@@ -241,7 +248,7 @@ class GetSceneViewResource(ApiAuthResource):
             return validate_scene_type(params)
 
     @classmethod
-    def process_split(cls, view_config: Dict, split_variables: List[Dict]) -> Dict:
+    def process_split(cls, view_config: dict, split_variables: list[dict]) -> dict:
         """
         分屏逻辑处理
         """
@@ -353,7 +360,9 @@ class UpdateSceneViewResource(Resource):
         class ConfigSerializer(serializers.Serializer):
             mode = serializers.ChoiceField(label="模式", required=False, choices=("auto", "custom"))
             variables = serializers.ListSerializer(label="变量配置", required=False, child=serializers.DictField())
-            order = serializers.ListSerializer(label="排序配置(平铺模式专用)", required=False, child=serializers.DictField())
+            order = serializers.ListSerializer(
+                label="排序配置(平铺模式专用)", required=False, child=serializers.DictField()
+            )
             panels = serializers.ListSerializer(label="图表配置", required=False, child=serializers.DictField())
             list = serializers.ListSerializer(label="列表页配置", required=False, child=serializers.DictField())
             options = serializers.DictField(label="视图配置", required=False)
@@ -369,7 +378,7 @@ class UpdateSceneViewResource(Resource):
         def validate(self, params):
             return validate_scene_type(params)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         # 修改视图排序
         if params["view_order"]:
             order_config, is_created = SceneViewOrderModel.objects.get_or_create(
@@ -404,24 +413,78 @@ class DeleteSceneViewResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         scene_id = serializers.CharField(label="场景分类")
-        id = serializers.CharField(label="视图ID")
+        id = serializers.CharField(label="视图ID", required=False)
+        ids = serializers.ListField(label="视图ID列表", default=[])
         type = serializers.ChoiceField(label="视图类型", choices=("overview", "detail"))
 
         def validate(self, params):
+            if not params.get("id") and not params.get("ids"):
+                raise ValidationError("视图ID不能为空")
             return validate_scene_type(params)
 
     def perform_request(self, params):
+        if not params["ids"]:
+            params["ids"] = [params["id"]]
+
         SceneViewModel.objects.filter(
-            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"], id=params["id"]
+            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"], id__in=params["ids"]
         ).delete()
 
         # 删除对应的排序配置
         try:
             scene = SceneModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["scene_id"])
-            scene.view_order = [_id for _id in scene.view_order if _id != params["id"]]
+            scene.view_order = [_id for _id in scene.view_order if _id not in params["ids"]]
             scene.save()
         except SceneModel.DoesNotExist:
             pass
+
+
+class BulkUpdateSceneViewOrderAndNameResource(Resource):
+    """
+    批量更新场景视图排序及名称
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class ConfigSerializer(serializers.Serializer):
+            name = serializers.CharField(label="视图名称", required=False)
+            id = serializers.CharField(label="视图ID")
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        scene_id = serializers.CharField(label="场景分类")
+        type = serializers.ChoiceField(label="视图类型", choices=("overview", "detail"))
+        config = ConfigSerializer(label="视图配置", default=[], many=True)
+
+    def perform_request(self, params: dict):
+        if not params["config"]:
+            return
+
+        # 找到需要更新名称的视图
+        id_name_map: dict[str, str] = {view["id"]: view["name"] for view in params["config"] if view.get("name")}
+        scene_views = SceneViewModel.objects.filter(
+            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"]
+        )
+        updated_scene_views: list[SceneViewModel] = []
+        for scene_view in scene_views:
+            if scene_view.id in id_name_map and scene_view.name != id_name_map[scene_view.id]:
+                scene_view.name = id_name_map[scene_view.id]
+                updated_scene_views.append(scene_view)
+
+        # 批量更新视图名称
+        if updated_scene_views:
+            SceneViewModel.objects.bulk_update(updated_scene_views, ["name"])
+
+        # 获取需要更新的排序配置
+        order_config: list[str] = [view["id"] for view in params["config"]]
+
+        # 不在排序配置中的，追加到后面
+        for scene_view in scene_views:
+            if scene_view.id not in order_config:
+                order_config.append(scene_view.id)
+
+        # 更新排序配置
+        SceneViewOrderModel.objects.filter(
+            bk_biz_id=params["bk_biz_id"], scene_id=params["scene_id"], type=params["type"]
+        ).update(config=order_config)
 
 
 class GetSceneViewDimensionsResource(ApiAuthResource):
@@ -437,16 +500,21 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         id = serializers.CharField(label="视图ID")
         name = serializers.CharField(label="资源名称", allow_blank=True, allow_null=True, required=False)
         namespace = serializers.CharField(label="命名空间", required=False)
-        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
-        apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+        apm_app_name = serializers.CharField(
+            label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
+        apm_service_name = serializers.CharField(
+            label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
 
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
     @classmethod
-    def get_metrics(cls, params: Dict):
+    def get_metrics(cls, params: dict):
         resource_id = params["id"]
         bk_biz_id = params["bk_biz_id"]
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         bcs_cluster_id = params.get("bcs_cluster_id")
         name = params.get("name")
         namespace = params.get("namespace")
@@ -509,16 +577,24 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                                 filter_metrics.add(metric["field"])
 
         if k8s_metric_fields:
-            k8s_metrics = MetricListCache.objects.filter(result_table_id="", metric_field__in=k8s_metric_fields)
+            k8s_metrics = MetricListCache.objects.filter(
+                bk_tenant_id=bk_tenant_id, result_table_id="", metric_field__in=k8s_metric_fields
+            )
             yield from k8s_metrics
         for (data_source_label, data_type_label), tables in result_table_ids.items():
             if data_source_label != DataSourceLabel.BK_LOG_SEARCH:
                 metrics = MetricListCache.objects.filter(
-                    data_source_label=data_source_label, data_type_label=data_type_label, result_table_id__in=tables
+                    bk_tenant_id=bk_tenant_id,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    result_table_id__in=tables,
                 )
             else:
                 metrics = MetricListCache.objects.filter(
-                    data_source_label=data_source_label, data_type_label=data_type_label, related_id__in=tables
+                    bk_tenant_id=bk_tenant_id,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    related_id__in=tables,
                 )
 
             if filter_with_metric:
@@ -554,8 +630,12 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
         limit = serializers.IntegerField(label="限制数量", default=GRAPH_MAX_SLIMIT)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
-        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
-        apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+        apm_app_name = serializers.CharField(
+            label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
+        apm_service_name = serializers.CharField(
+            label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True
+        )
 
     def perform_request(self, params):
         for metric in GetSceneViewDimensionsResource.get_metrics(params):
@@ -635,7 +715,7 @@ class GetStrategyAndEventCountResource(Resource):
             task_id = params["target"].get("task_id")
             if task_id:
                 conditions.append({"key": "task_id", "value": task_id})
-                query_string = 'tags.task_id : "%s"' % task_id
+                query_string = f'tags.task_id : "{task_id}"'
 
         elif params["scene_id"] == "kubernetes":
             scenario = ["kubernetes"]

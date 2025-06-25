@@ -13,6 +13,7 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import (
     BCSCluster,
     BCSContainer,
@@ -23,7 +24,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 
 
@@ -190,6 +191,14 @@ class K8sResourceMeta:
         self.agg_interval = ""
         self.set_agg_method()
 
+    @property
+    def bcs_cluster_id_filter(self):
+        for f_uid, f_obj in self.filter.filters.items():
+            if f_uid.startswith("bcs_cluster_id"):
+                filter_string = f"bcs_cluster_id={f_obj.filter_string().split('=')[1]}"
+                return filter_string
+        return ""
+
     def set_agg_interval(self, start_time, end_time):
         """设置聚合查询的间隔"""
         if self.method == "count":
@@ -222,7 +231,22 @@ class K8sResourceMeta:
         self.filter = FilterCollection(self)
         # 默认范围，业务-集群
         self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
-        self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+
+        """
+        针对共享集群进行判断, 如果是共享集群，则需要获取集群下的所有命名空间
+        cluster_info： { bcs_cluster_id: {"namespace_list": [], "cluster_type": BcsClusterType}}
+        """
+        space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        cluster_info: dict[str, dict] = api.kubernetes.get_cluster_info_from_bcs_space(
+            {"bk_biz_id": self.bk_biz_id, "space_uid": space_uid, "shard_only": True}
+        )
+
+        if self.bcs_cluster_id in cluster_info and not isinstance(self, K8sNodeMeta, K8sClusterMeta, K8sNamespaceMeta):
+            namespaces = cluster_info[self.bcs_cluster_id].get("namespace_list")
+            self.filter.add(load_resource_filter("namespace", namespaces))
+        else:
+            self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+
         # 默认过滤 container_name!="POD"
         self.filter.add(load_resource_filter("container_exclude", ""))
 
@@ -280,8 +304,15 @@ class K8sResourceMeta:
                     if point[0]:
                         max_data_point = max(max_data_point, point[1])
         for line in series:
-            if line["datapoints"][-1][1] == max_data_point:
-                lines.append([line["datapoints"][-1][0] or 0, line])
+            last_data_points_value: float | int | None = line["datapoints"][-1][0]
+            last_data_points = line["datapoints"][-1][1]
+            if last_data_points == max_data_point:
+                # 如果 len(series) <= page_size，则保留实际值为None的情况
+                # 反之如果大于则对为 None 的情况进行排除
+                if len(series) <= page_size:
+                    lines.append([last_data_points_value or 0, line])
+                elif last_data_points_value is not None:
+                    lines.append([last_data_points_value, line])
             else:
                 lines.append([0, line])
         if order_by:
@@ -578,16 +609,46 @@ class K8sClusterMeta(K8sResourceMeta):
     def meta_prom_with_node_cpu_capacity_ratio(self):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="cpu"'])
+        if self.agg_method:
+            return (
+                "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
+                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                " / "
+                f"on (pod) group_left() count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                " / "
+                f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
+            )
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f"/"
+            "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
+            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            " / "
+            f"on (pod) group_left() count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            " / "
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
+        """
+        指标聚合方法写死，使用 avg
+        ```PromQL
+        (
+            1 - avg by(bcs_cluster) (
+            rate(node_cpu_seconds_total{
+                mode="idle",
+                bk_biz_id="2",
+                bcs_cluster_id="BCS-K8S-00000"
+            }[1m]))
+        ) * 100
+        ```
+        """
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['mode="idle"'])
+        # 写死汇聚方法
+        self.set_agg_method("avg")
+        self.agg_interval = ""
         return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
     @property
@@ -604,9 +665,23 @@ class K8sClusterMeta(K8sResourceMeta):
     def meta_prom_with_node_memory_capacity_ratio(self):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="memory"'])
+        if self.agg_method:
+            return (
+                "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
+                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                " / "
+                f"on (pod) group_left() count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                "/"
+                f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
+            )
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f"/"
+            "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
+            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            " / "
+            f"on (pod) group_left() count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            "/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
 
@@ -622,20 +697,19 @@ class K8sClusterMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_master_node_count(self):
+        """count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{role=~"master|control-plane"}))"""
         filter_string = self.filter.filter_string()
         filter_string += ","
-        filter_string += 'role!="master|control-plane"'
-        return f"""count(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
+        filter_string += 'role=~"master|control-plane"'
+        return f"""count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
 
     @property
     def meta_prom_with_worker_node_count(self):
-        """count(kube_node_labels) - count(sum by (bcs_cluster_id)(kube_node_role{role=~"master|control-plane"}))"""
+        """count by(bcs_cluster_id)(kube_node_labels) - count(sum by (bcs_cluster_id, node)(kube_node_role{role=~"master|control-plane"}))"""
         filter_string = self.filter.filter_string()
-        filter_string += ","
-        filter_string += 'role!="master|control-plane"'
-        return f"""(count(kube_node_labels{{{filter_string}}})
+        return f"""(count by(bcs_cluster_id)(kube_node_labels{{{filter_string}}})
          -
-         count(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}})))"""
+         count(sum by (node)(kube_node_role{{{filter_string}, role=~"master|control-plane"}})))"""
 
     @property
     def meta_prom_with_node_pod_usage(self):
@@ -708,18 +782,50 @@ class K8sNodeMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_node_cpu_capacity_ratio(self):
+        # 过滤被标记为已驱逐的Pod
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="cpu"'])
+        if self.agg_method:
+            return (
+                "sum by (node)(sum by (node,pod) "
+                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                " / "
+                f"on (pod) group_left() count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                " / "
+                f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
+            )
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f"/"
+            "sum by (node)(sum by (node,pod) "
+            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            " / "
+            f"on (pod) group_left() count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            " / "
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
 
     @property
     def meta_prom_with_node_cpu_usage_ratio(self):
+        """
+        指标聚合方法写死，使用 avg
+        ```PromQL
+        (
+            1 - avg by(node) (
+                rate(node_cpu_seconds_total{
+                    mode="idle",
+                    bk_biz_id="2",
+                    bcs_cluster_id="BCS-K8S-00000",
+                    node=~"^(node-127-0-0-1)$"
+                }[1m]))
+        ) * 100
+        ```
+        """
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['mode="idle"'])
+        # 写死汇聚方法
+        self.set_agg_method("avg")
+        self.agg_interval = ""
         return f"(1 - ({self.tpl_prom_with_rate('node_cpu_seconds_total', filter_string=filter_string)})) * 100"
 
     @property
@@ -736,9 +842,23 @@ class K8sNodeMeta(K8sResourceMeta):
     def meta_prom_with_node_memory_capacity_ratio(self):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['resource="memory"'])
+        if self.agg_method:
+            return (
+                "sum by (node)(sum by (node,pod) "
+                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                " / "
+                f"on (pod) group_left() count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                "/"
+                f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
+            )
         return (
-            f"{self.tpl_prom_with_nothing('kube_pod_container_resource_requests', filter_string=filter_string)}"
-            f"/"
+            "sum by (node)(sum by (node,pod) "
+            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            " / "
+            f"on (pod) group_left() count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            "/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
 
@@ -751,33 +871,6 @@ class K8sNodeMeta(K8sResourceMeta):
             f"/"
             f"{self.tpl_prom_with_nothing('node_memory_MemTotal_bytes', filter_string=filter_string)}))"
         )
-
-    @property
-    def bcs_cluster_id_filter(self):
-        for f_uid, f_obj in self.filter.filters.items():
-            if f_uid.startswith("bcs_cluster_id"):
-                filter_string = f"bcs_cluster_id={f_obj.filter_string().split('=')[1]}"
-                return filter_string
-        return ""
-
-    @property
-    def meta_prom_with_master_node_count(self):
-        filter_string = self.bcs_cluster_id_filter
-        if filter_string:
-            filter_string += ","
-        filter_string += 'role=~"master|control-plane"'
-        return f"""count(sum by (node)(kube_node_role{{{filter_string}}}))"""
-
-    @property
-    def meta_prom_with_worker_node_count(self):
-        """count(kube_node_labels) - count(sum by (node)(kube_node_role{role=~"master|control-plane"}))"""
-        filter_string = self.bcs_cluster_id_filter
-        if filter_string:
-            filter_string += ","
-        filter_string += 'role=~"master|control-plane"'
-        return f"""(count(kube_node_labels{{{self.bcs_cluster_id_filter}}})
-         -
-         count(sum by (node)(kube_node_role{{{filter_string}}})))"""
 
     @property
     def meta_prom_with_node_pod_usage(self):
@@ -869,7 +962,7 @@ class NameSpace(dict):
 
     @property
     def objects(self):
-        return BCSWorkload.objects.values(*self.columns)
+        return BCSPod.objects.values(*self.columns)
 
     def __getattr__(self, item):
         if item in self:

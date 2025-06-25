@@ -1,0 +1,81 @@
+/* stylelint-disable declaration-no-important */
+@import '../index.scss';
+@import '../../retrieve-v2/segment-pop.scss';
+@import '../../../scss/theme/theme-light.scss';
+
+// 以下是监控页面样式
+
+.v3-bklog-root {
+  background: #f5f7fa;
+
+  &.is-trace {
+    .search-bar-container {
+      border: 1px solid #DCDEE5;
+      border-radius: 2px;
+      box-shadow: none;
+
+      &::before {
+        background: #fff;
+      }
+    }
+
+    .subbar-container {
+      padding: 0;
+      box-shadow: none;
+
+      .box-biz-select {
+        margin-left: 0 !important;
+      }
+    }
+
+    .filter-container-wrap {
+      box-shadow: none;
+
+      .btn-del-action {
+        font-size: 16px;
+      }
+    }
+
+    .original-log-panel-tools {
+      padding: 0
+    }
+  }
+
+  .v3-bklog-content {
+  padding: 0 16px;
+
+    .v3-bklog-container {
+      .search-bar-wrapper {
+        padding: 0;
+        margin: 0 0 8px 0;
+      }
+    }
+
+    .v3-bklog-body {
+      width: 100%;
+      margin: 0;
+
+      .search-result-panel {
+        .search-result-content {
+          .monitor-echarts-container {
+            .title-wrapper-new {
+              width: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  &.is-sticky-top .search-result-panel.flex .field-list-sticky.is-show {
+    position: sticky;
+    top: calc(var(--top-searchbar-height)) !important;
+    left: 0 !important;
+  }
+}
+
+:root {
+  --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+  --table-fount-size: 13px;
+  --table-fount-color: #313238;
+}

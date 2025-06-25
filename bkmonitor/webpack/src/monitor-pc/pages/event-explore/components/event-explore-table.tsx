@@ -51,6 +51,11 @@ import type { KVFieldList } from './explore-kv-list';
 
 import './event-explore-table.scss';
 
+export interface TableSort {
+  prop: null | string;
+  order: 'ascending' | 'descending' | null;
+}
+
 interface EventExploreTableProps {
   /** 来源 */
   source: APIType;
@@ -76,6 +81,7 @@ interface EventExploreTableEvents {
   onSearch: () => void;
   onClearSearch: () => void;
   onShowEventSourcePopover: (event: Event) => void;
+  onSetRouteParams: (otherQuery: Record<string, any>) => void;
 }
 
 /** 检索表格loading类型枚举 */
@@ -124,6 +130,13 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     [ExploreTableLoadingEnum.REFRESH]: false,
     /** 表格触底加载更多 loading  */
     [ExploreTableLoadingEnum.SCROLL]: false,
+  };
+  /** 表格列排序配置 */
+  sortContainer: TableSort = {
+    /** 排序字段 */
+    prop: '',
+    /** 排序顺序 */
+    order: null,
   };
 
   /** table 数据 */
@@ -184,6 +197,20 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     };
   }
 
+  @Watch('queryParams')
+  queryParamsChange(nVal, oVal) {
+    const nQueryConfig = nVal?.query_configs?.[0];
+    const oQueryConfig = oVal?.query_configs?.[0];
+    if (
+      !!oQueryConfig &&
+      (nQueryConfig?.table !== oQueryConfig?.table ||
+        nQueryConfig?.data_source_label !== oQueryConfig?.data_source_label)
+    ) {
+      this.handleSortChange();
+      this.tableRef?.clearSort?.();
+    }
+  }
+
   @Watch('refreshTable')
   commonParamsChange() {
     this.getEventLogs();
@@ -205,6 +232,21 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return;
   }
 
+  @Emit('setRouteParams')
+  setRouteParams(otherQuery = {}) {
+    return otherQuery;
+  }
+
+  beforeMount() {
+    const { query } = this.$route;
+    if (!query?.prop || !query?.order) {
+      this.setRouteParams({ prop: '', order: null });
+      return;
+    }
+    this.sortContainer.prop = query?.prop as string;
+    this.sortContainer.order = query?.order as 'ascending' | 'descending';
+  }
+
   mounted() {
     this.$nextTick(() => {
       const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
@@ -216,8 +258,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       });
       this.resizeObserver.observe(scrollWrapper);
       if (this.scrollSubject) {
-        this.scrollHeaderFixedObserver = new ExploreObserver(this, this.handleHeaderFixedScroll);
-        this.scrollEndObserver = new ExploreObserver(this, this.handleScrollToEnd);
+        this.scrollHeaderFixedObserver = new ExploreObserver(this.handleHeaderFixedScroll.bind(this));
+        this.scrollEndObserver = new ExploreObserver(this.handleScroll.bind(this));
         this.scrollSubject.addObserver(this.scrollHeaderFixedObserver);
         this.scrollSubject.addObserver(this.scrollEndObserver);
       }
@@ -261,30 +303,45 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       cell.style.top = '0px';
     }
   }
-
   /**
-   * @description: 容器滚动到底部时触发 table 请求
+   * @description 滚动触发事件
    * @param {Event} event 滚动事件对象
-   * @return {*}
+   *
    */
-  handleScrollToEnd(event: Event) {
+  handleScroll(event: Event) {
+    if (!this.tableData?.length) return;
     if (this.$el) {
       this.updateTablePointEvents('none');
       this.handlePopoverHide?.();
     }
-    const target = event.target as HTMLElement;
-    const { scrollHeight } = target;
-    const { scrollTop } = target;
-    const { clientHeight } = target;
-    const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
-
-    if (isEnd) {
-      this.getEventLogs(ExploreTableLoadingEnum.SCROLL);
-    }
+    this.handleScrollToEnd(event.target as HTMLElement);
     this.scrollPointerEventsTimer && clearTimeout(this.scrollPointerEventsTimer);
     this.scrollPointerEventsTimer = setTimeout(() => {
       this.updateTablePointEvents('auto');
     }, 600);
+  }
+
+  /**
+   * @description: 容器滚动到底部时触发 table 请求
+   *
+   */
+  handleScrollToEnd(target: HTMLElement) {
+    if (!this.tableHasScrollLoading) {
+      return;
+    }
+    const { scrollHeight } = target;
+    const { scrollTop } = target;
+    const { clientHeight } = target;
+    const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
+    const noScrollBar = scrollHeight <= clientHeight;
+    const shouldRequest = noScrollBar || isEnd;
+
+    if (
+      !(this.tableLoading[ExploreTableLoadingEnum.REFRESH] || this.tableLoading[ExploreTableLoadingEnum.SCROLL]) &&
+      shouldRequest
+    ) {
+      this.getEventLogs(ExploreTableLoadingEnum.SCROLL);
+    }
   }
 
   updateTablePointEvents(val: 'auto' | 'none') {
@@ -315,31 +372,31 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         name: this.$t('时间'),
         type: TIME,
         width: 150,
+        sortable: true,
       },
-      {
-        id: 'source',
-        name: this.$t('事件来源'),
-        type: PREFIX_ICON,
-        width: 150,
-        customHeaderCls: 'explore-table-source-header-cell',
-        renderHeader:
-          this.source === APIType.APM
-            ? (column: EventExploreTableColumn) => (
-                <div
-                  class='event-source-header'
-                  onClick={this.handleShowEventSourcePopover}
-                >
-                  <span class='header-title'>{column.name}</span>
-                  <i
-                    class={[
-                      'icon-monitor icon-filter-fill filters',
-                      { active: !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL) },
-                    ]}
-                  />
-                </div>
-              )
-            : undefined,
-      },
+      this.source === APIType.APM
+        ? {
+            id: 'source',
+            name: this.$t('事件来源'),
+            type: PREFIX_ICON,
+            width: 150,
+            customHeaderCls: 'explore-table-source-header-cell',
+            renderHeader: (column: EventExploreTableColumn) => (
+              <div
+                class='event-source-header'
+                onClick={this.handleShowEventSourcePopover}
+              >
+                <span class='header-title'>{column.name}</span>
+                <i
+                  class={[
+                    'icon-monitor icon-filter-fill filters',
+                    { active: !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL) },
+                  ]}
+                />
+              </div>
+            ),
+          }
+        : undefined,
       {
         id: 'event_name',
         name: this.$t('事件名'),
@@ -362,7 +419,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         width: 190,
         fixed: 'right',
       },
-    ];
+    ].filter(Boolean);
   }
 
   /**
@@ -387,24 +444,41 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       updateTableDataFn = list => {
         this.tableData = list;
       };
-    } else if (!this.tableHasScrollLoading) {
-      return;
     }
 
+    let sort = [];
+    const { prop, order } = this.sortContainer || {};
+    if (prop && order) {
+      sort = [`${order === 'descending' ? '-' : ''}${prop}`];
+    }
     this.tableLoading[loadingType] = true;
     const requestParam = {
       ...this.queryParams,
       limit: this.limit,
       offset: this.tableData?.length || 0,
+      sort: sort,
     };
     this.abortController = new AbortController();
     const res = await getEventLogs(requestParam, this.source, {
       signal: this.abortController.signal,
     });
+    if (res?.isAborted) {
+      this.tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+      return;
+    }
 
     this.tableLoading[loadingType] = false;
 
     updateTableDataFn(res.list);
+    requestAnimationFrame(() => {
+      // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
+      // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
+      // 所以该场景处理只能通过多次请求的方案来兼容，不能通过首次请求加大页码的方式来兼容
+      // 否则在某些边界场景下会出现首次请求返回的不为空数据已经是全部数据了
+      // 还是但未出现滚动条，导致无法触发触底逻辑再次请求接口判断是否已是全部数据
+      // 从而导致触底loading一直存在但实际已没有更多数据
+      this.handleScrollToEnd(document.querySelector(SCROLL_ELEMENT_CLASS_NAME));
+    });
   }
 
   @Emit('showEventSourcePopover')
@@ -534,6 +608,28 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   handleTableRowClick(row, event, column) {
     if (!this.tableRef || column.columnKey === 'target') return;
     this.tableRef.toggleRowExpansion(row);
+  }
+
+  /**
+   * @description 表格排序
+   * @param {string} sortEvent.prop 排序字段名
+   * @param {'ascending' | 'descending' | null} sortEvent.order 排序方式
+   *
+   */
+  handleSortChange(sortEvent?: TableSort) {
+    let prop = sortEvent?.prop;
+    let order = sortEvent?.order;
+    if (!prop || !order) {
+      prop = '';
+      order = null;
+    }
+    this.sortContainer.prop = prop;
+    this.sortContainer.order = order;
+    this.setRouteParams({
+      prop: prop || '',
+      order: order,
+    });
+    this.getEventLogs();
   }
 
   /**
@@ -696,6 +792,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         prop={column.id}
         render-header={column?.renderHeader ? () => column.renderHeader(column) : undefined}
         show-overflow-tooltip={false}
+        sortable={column?.sortable && 'custom'}
       />
     );
   }
@@ -716,9 +813,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           }}
           border={false}
           data={this.tableData}
+          default-sort={this.sortContainer}
           outer-border={false}
           row-key={row => row._meta.__index + row._meta.__doc_id}
           on-row-click={this.handleTableRowClick}
+          on-sort-change={this.handleSortChange}
         >
           <bk-table-column
             width={24}

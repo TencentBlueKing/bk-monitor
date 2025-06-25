@@ -49,38 +49,38 @@ export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
 
 export const METHOD_MAP = {
   [EMethod.eq]: '=',
-  [EMethod.exclude]: window.i18n.tc('不包含'),
-  [EMethod.include]: window.i18n.tc('包含'),
+  [EMethod.exclude]: window.i18n.t('不包含'),
+  [EMethod.include]: window.i18n.t('包含'),
   [EMethod.ne]: '!=',
 };
 
 export const fieldTypeMap = {
   all: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-a-',
     color: '#979BA5',
     bgColor: '#E8EAF0',
   },
   integer: {
-    name: window.i18n.tc('数字'),
+    name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   keyword: {
-    name: window.i18n.tc('字符串'),
+    name: window.i18n.t('字符串'),
     icon: 'icon-monitor icon-Str',
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
   text: {
-    name: window.i18n.tc('文本'),
+    name: window.i18n.t('文本'),
     icon: 'icon-monitor icon-text1',
     color: '#508CC8',
     bgColor: '#E1E7F2',
   },
   date: {
-    name: window.i18n.tc('时间'),
+    name: window.i18n.t('时间'),
     icon: 'icon-monitor icon-Time',
     color: '#CDAE71',
     bgColor: '#EDE7DB',
@@ -126,8 +126,8 @@ export interface IFilterItem {
   isSetting?: boolean; // 是否是设置项
 }
 export const MODE_LIST = [
-  { id: EMode.ui, name: window.i18n.tc('UI 模式') },
-  { id: EMode.queryString, name: window.i18n.tc('语句模式') },
+  { id: EMode.ui, name: window.i18n.t('UI 模式') },
+  { id: EMode.queryString, name: window.i18n.t('语句模式') },
 ];
 
 export interface IWhereValueOptionsItem {

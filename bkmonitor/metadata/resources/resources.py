@@ -34,6 +34,7 @@ from tenacity import RetryError
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
 from metadata import config, models
@@ -60,7 +61,7 @@ from metadata.models.data_link.utils import (
     get_data_source_related_info,
 )
 from metadata.models.data_source import DataSourceResultTable
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -68,8 +69,10 @@ from metadata.service.data_source import (
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.bkbase import sync_bkbase_result_table_meta
 from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
+from bkmonitor.utils.request import get_request_tenant_id
 
 logger = logging.getLogger("metadata")
 
@@ -114,6 +117,18 @@ class CreateDataIDResource(Resource):
 
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)
+
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("CreateDataIDResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         if space_uid:
             try:
                 validated_request_data["space_type_id"], validated_request_data["space_id"] = space_uid.split(
@@ -134,8 +149,59 @@ class CreateDataIDResource(Resource):
         # 默认来源系统标识
         default_source_system = "unknown"
         validated_request_data["source_system"] = bk_app_code or default_source_system
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
+
+        return {"bk_data_id": new_data_source.bk_data_id}
+
+
+# TODO 该接口理论上不需要租户ID
+class GetOrCreateAgentEventDataIdResource(Resource):
+    """
+    获取/创建 Agent事件 数据ID
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+        etl_config = EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to get_or_create agent event data id,bk_biz_id->[%s]", bk_biz_id
+        )
+        try:
+            data_source = models.DataSource.objects.get(space_uid=space_uid, etl_config=etl_config)
+            return {"bk_data_id": data_source.bk_data_id}
+        except models.DataSource.DoesNotExist:  # 若不存在,则进行申请新建
+            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("GetOrCreateAgentEventDataIdResource: unexpected error occurred,bk_biz_id->[%s]", bk_biz_id)
+            raise e  # 非不存在类报错,直接Raise
+
+        logger.info("GetOrCreateAgentEventDataIdResource: try to create agent event data id,bk_biz_id->[%s]", bk_biz_id)
+
+        data_name = f"base_{bk_biz_id}_agent_event"  # UNIQUE KEY
+
+        logger.info(
+            "GetOrCreateAgentEventDataIdResource: try to create agent event data id for bk_biz_id->[%s],"
+            "use data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+
+        # 调用DataSource模型类方法,事务
+        new_data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=etl_config,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+        )
 
         return {"bk_data_id": new_data_source.bk_data_id}
 
@@ -148,6 +214,18 @@ class ModifyDatasourceResultTable(Resource):
         bk_data_id = serializers.IntegerField(required=True, label="数据源ID")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("ModifyDatasourceResultTable: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.DataSourceResultTable.modify_table_id_datasource(**validated_request_data)
 
 
@@ -184,17 +262,33 @@ class CreateResultTableResource(Resource):
         table_id = request_data.get("table_id", None)
         operator = request_data.get("operator", None)
 
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("CreateResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        request_data["bk_tenant_id"] = bk_tenant_id
+
         if query_alias_settings:
             try:
                 logger.info(
-                    "CreateResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
+                    "CreateResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->["
+                    "%s],bk_tenant_id->[%s]",
                     table_id,
                     query_alias_settings,
+                    bk_tenant_id,
                 )
                 models.ESFieldQueryAliasOption.manage_query_alias_settings(
                     table_id=table_id,
                     query_alias_settings=query_alias_settings,
                     operator=operator,
+                    bk_tenant_id=bk_tenant_id,
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
@@ -222,6 +316,7 @@ class PageSerializer(serializers.Serializer):
     page_size = serializers.IntegerField(default=0, required=False, label="页长")
 
 
+# TODO 这个接口需要确认，后续应该不允许全业务查询
 class ListResultTableResource(Resource):
     """查询返回结果表"""
 
@@ -235,20 +330,36 @@ class ListResultTableResource(Resource):
         )
 
     def perform_request(self, request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("ListResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        request_data["bk_tenant_id"] = bk_tenant_id
+
         # 获取bcs相关的dataid
+        # TODO：理论上业务ID已经决定了租户ID，无需再次指定租户ID
         data_ids, data_id_cluster_map = get_bcs_dataids()
+
         # 使用datasource排除掉dataid,得到table_id列表
         table_ids = [
             item["table_id"]
             for item in DataSourceResultTable.objects.exclude(bk_data_id__in=data_ids).values("table_id").distinct()
         ]
+
         # 只查询不属于bcs指标的信息
         result_table_queryset = models.ResultTable.objects.filter(is_deleted=False, table_id__in=table_ids)
 
         # 判断是否有结果表类型的过滤
         datasource_type = request_data["datasource_type"]
         if datasource_type is not None:
-            result_table_queryset = result_table_queryset.filter(table_id__startswith="%s." % datasource_type)
+            result_table_queryset = result_table_queryset.filter(table_id__startswith=f"{datasource_type}.")
 
         # 判断是否有全业务和单业务的过滤需求
         bk_biz_id = []
@@ -334,6 +445,17 @@ class ModifyResultTableResource(Resource):
         query_alias_settings = request_data.pop("query_alias_settings", None)
         operator = request_data.get("operator", None)
 
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("ModifyResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
             try:
                 logger.info(
@@ -345,6 +467,7 @@ class ModifyResultTableResource(Resource):
                     table_id=table_id,
                     query_alias_settings=query_alias_settings,
                     operator=operator,
+                    bk_tenant_id=bk_tenant_id,
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
@@ -355,7 +478,7 @@ class ModifyResultTableResource(Resource):
                     e,
                 )
         try:
-            result_table = models.ResultTable.objects.get(table_id=table_id)
+            result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
             result_table.modify(**request_data)
         except RetryError as e:
             logger.error(
@@ -370,12 +493,17 @@ class ModifyResultTableResource(Resource):
         result_table.refresh_from_db()
 
         # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
-        query_set = models.ESStorage.objects.filter(table_id=table_id)
+        query_set = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+
         if query_set.exists() and request_data["field_list"] is not None:
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0)
         try:
-            bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
+            bk_data_id = models.DataSourceResultTable.objects.get(
+                table_id=table_id, bk_tenant_id=bk_tenant_id
+            ).bk_data_id
+
+            # 上面获取data_id时已经添加了租户ID过滤条件，无需再次过滤
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
                 result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
@@ -402,12 +530,27 @@ class AccessBkDataByResultTableResource(Resource):
         is_access_now = serializers.BooleanField(default=False, label="是否立即接入")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "AccessBkDataByResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         if not settings.IS_ACCESS_BK_DATA:
             return
 
         table_id = validated_request_data.pop("table_id")
         try:
-            models.ResultTable.objects.get(table_id=table_id)
+            models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except models.ResultTable.DoesNotExist:
             raise ValueError(_("结果表%s不存在，请确认后重试") % table_id)
 
@@ -426,10 +569,24 @@ class IsDataLabelExistResource(Resource):
     def perform_request(self, validated_request_data):
         bk_data_id = validated_request_data["bk_data_id"]
         data_label = validated_request_data["data_label"]
+
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("IsDataLabelExistResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         if not data_label:
             raise ValueError(_("data_label不能为空"))
 
-        qs = models.ResultTable.objects.filter(data_label=data_label)
+        qs = models.ResultTable.objects.filter(data_label=data_label, bk_tenant_id=bk_tenant_id)
         if bk_data_id:
             # 相同data_id的result_table使用的data_label允许重复
             table_ids = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).values_list(
@@ -453,15 +610,31 @@ class CreateDownSampleDataFlowResource(Resource):
         if not settings.IS_ACCESS_BK_DATA:
             return
 
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "CreateDownSampleDataFlowResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         table_id = validated_request_data.pop("table_id")
         agg_interval = validated_request_data.get("agg_interval") or 60
         try:
-            models.ResultTable.objects.get(table_id=table_id)
+            models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except models.ResultTable.DoesNotExist:
             raise ValueError(_("结果表%s不存在，请确认后重试") % table_id)
 
         from metadata.task import tasks
 
+        # TODO：这里是否需要租户ID
         tasks.create_statistics_data_flow.delay(table_id, agg_interval)
 
 
@@ -474,11 +647,23 @@ class QueryDataSourceResource(Resource):
         with_rt_info = serializers.BooleanField(required=False, label="是否需要ResultTable信息", default=True)
 
     def perform_request(self, request_data):
-        if request_data["bk_data_id"] is not None:
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryDataSourceResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        request_data["bk_tenant_id"] = bk_tenant_id
+
+        if request_data["bk_data_id"] is not None:  # 指定bk_data_id时，无需添加租户过滤条件
             data_source = models.DataSource.objects.get(bk_data_id=request_data["bk_data_id"])
         elif request_data["data_name"] is not None:
-            data_source = models.DataSource.objects.get(data_name=request_data["data_name"])
-
+            data_source = models.DataSource.objects.get(data_name=request_data["data_name"], bk_tenant_id=bk_tenant_id)
         else:
             raise ValueError(_("找不到请求参数，请确认后重试"))
 
@@ -500,12 +685,14 @@ class ModifyDataSource(Resource):
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
 
     def perform_request(self, request_data):
+        # 指定data_id的情况下，无需使用租户ID进行二次过滤
         try:
             data_source = models.DataSource.objects.get(bk_data_id=request_data["data_id"])
 
         except models.DataSource.DoesNotExist:
             raise ValueError(_("数据源不存在，请确认后重试"))
 
+        # 不允许更改已经创建的数据源的隶属租户信息
         data_source.update_config(
             operator=request_data["operator"],
             data_name=request_data["data_name"],
@@ -530,7 +717,8 @@ class StopOrEnableDatasource(Resource):
         is_enabled = serializers.BooleanField(required=False, label="是否启用数据源", default=True)
 
     def perform_request(self, request_data):
-        stop_or_enable_datasource(request_data["data_id_list"], request_data["is_enabled"])
+        # 指定data_id的情况下，无需使用租户ID进行二次过滤
+        stop_or_enable_datasource(data_id_list=request_data["data_id_list"], is_enabled=request_data["is_enabled"])
 
 
 class ModifyDataIdSource(Resource):
@@ -546,6 +734,7 @@ class ModifyDataIdSource(Resource):
             return source_system
 
     def perform_request(self, request_data):
+        # 指定data_id的情况下，无需使用租户ID进行二次过滤
         modify_data_id_source(request_data["data_id_list"], request_data["source_system"])
 
 
@@ -559,8 +748,23 @@ class QueryDataSourceBySpaceUidResource(Resource):
         is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=True)
 
     def perform_request(self, request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "QueryDataSourceBySpaceUidResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         data_sources = models.DataSource.objects.filter(
-            space_uid__in=request_data["space_uid_list"], is_platform_data_id=request_data["is_platform_data_id"]
+            space_uid__in=request_data["space_uid_list"],
+            is_platform_data_id=request_data["is_platform_data_id"],
+            bk_tenant_id=bk_tenant_id,
         ).values("data_name", "bk_data_id")
 
         return list(data_sources)
@@ -573,7 +777,18 @@ class QueryResultTableSourceResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
 
     def perform_request(self, request_data):
-        result_table = models.ResultTable.get_result_table(table_id=request_data["table_id"])
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryResultTableSourceResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        result_table = models.ResultTable.get_result_table(table_id=request_data["table_id"], bk_tenant_id=bk_tenant_id)
         return result_table.to_json()
 
 
@@ -585,10 +800,21 @@ class UpgradeResultTableResource(Resource):
         table_id_list = serializers.ListField(required=True, label="结果表ID列表")
 
     def perform_request(self, request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("UpgradeResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         result_table_list = []
 
         for table_id in request_data["table_id_list"]:
-            result_table = models.ResultTable.get_result_table(table_id=table_id)
+            result_table = models.ResultTable.get_result_table(table_id=table_id, bk_tenant_id=bk_tenant_id)
             result_table_list.append(result_table)
 
         for result_table in result_table_list:
@@ -605,15 +831,26 @@ class FullCmdbNodeInfoResource(Resource):
         if not settings.IS_ACCESS_BK_DATA:
             return
 
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("FullCmdbNodeInfoResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_id = validated_request_data["table_id"]
         try:
-            models.ResultTable.objects.get(table_id=table_id)
+            models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except models.ResultTable.DoesNotExist:
             raise ValueError(_("结果表%s不存在，请确认后重试") % table_id)
 
         from metadata.task.tasks import create_full_cmdb_level_data_flow
 
-        create_full_cmdb_level_data_flow.delay(table_id)
+        create_full_cmdb_level_data_flow.delay(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
 
 class CreateResultTableMetricSplitResource(Resource):
@@ -625,8 +862,23 @@ class CreateResultTableMetricSplitResource(Resource):
         cmdb_level = serializers.CharField(required=True, label="CMDB拆分层级目标")
 
     def perform_request(self, request_data):
+        # 若开启多租户模式，需要获取租户ID
         try:
-            result_table = models.ResultTable.objects.get(table_id=request_data["table_id"], is_deleted=False)
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "CreateResultTableMetricSplitResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        try:
+            result_table = models.ResultTable.objects.get(
+                table_id=request_data["table_id"], is_deleted=False, bk_tenant_id=bk_tenant_id
+            )
 
         except models.DataSource.DoesNotExist:
             raise ValueError(_("结果表不存在，请确认后重试"))
@@ -645,8 +897,23 @@ class CleanResultTableMetricSplitResource(Resource):
         cmdb_level = serializers.CharField(required=True, label="CMDB拆分层级目标")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
         try:
-            result_table = models.ResultTable.objects.get(table_id=validated_request_data["table_id"], is_deleted=False)
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "CleanResultTableMetricSplitResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        try:
+            result_table = models.ResultTable.objects.get(
+                table_id=validated_request_data["table_id"], is_deleted=False, bk_tenant_id=bk_tenant_id
+            )
 
         except models.DataSource.DoesNotExist:
             raise ValueError(_("结果表不存在，请确认后重试"))
@@ -684,6 +951,18 @@ class GetResultTableStorageResult(Resource):
         is_plain_text = serializers.BooleanField(required=False, label="是否明文显示链接信息")
 
     def perform_request(self, validated_request_data):
+        # TODO 多租户环境下，此类接口只能查询单一业务下的数据
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("GetResultTableStorageResult: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         # 判断请求的存储类型是否有效
         storage_type = validated_request_data["storage_type"]
         if storage_type not in models.ResultTable.REAL_STORAGE_DICT:
@@ -696,7 +975,7 @@ class GetResultTableStorageResult(Resource):
 
         for result_table in result_table_list:
             try:
-                storage_info = storage_class.objects.get(table_id=result_table)
+                storage_info = storage_class.objects.get(table_id=result_table, bk_tenant_id=bk_tenant_id)
 
             except storage_class.DoesNotExist:
                 # raise ValueError(_("请求结果表[{}]不存在，请确认".format(result_table)))
@@ -738,6 +1017,8 @@ class CreateClusterInfoResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # TODO：集群资源元信息暂时没有租户属性
+
         # 获取请求来源系统
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
@@ -896,8 +1177,19 @@ class QueryEventGroupResource(Resource):
         )
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryEventGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         # 默认都是返回已经删除的内容
-        query_set = models.EventGroup.objects.filter(is_delete=False)
+        query_set = models.EventGroup.objects.filter(is_delete=False, bk_tenant_id=bk_tenant_id)
 
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -965,6 +1257,19 @@ class CreateEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("CreateEventGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         # 默认都是返回已经删除的内容
         event_group = models.EventGroup.create_event_group(**validated_request_data)
         return event_group.to_json()
@@ -981,7 +1286,7 @@ class ModifyEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
-        try:
+        try:  # 指定group_id的情况下，无需再次对租户ID进行过滤
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
                 event_group_id=validated_request_data.pop("event_group_id"),
@@ -1002,6 +1307,7 @@ class DeleteEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需再次对租户ID进行过滤
         try:
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
@@ -1023,6 +1329,7 @@ class GetEventGroupResource(Resource):
         event_infos_limit = serializers.IntegerField(required=False, default=None, label="事件信息列表上限")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需再次对租户ID进行过滤
         try:
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
@@ -1042,7 +1349,9 @@ class GetEventGroupResource(Resource):
         result = event_group.to_json(validated_request_data["event_infos_limit"])
 
         # 查询增加结果表信息
-        result_table = models.ResultTable.objects.get(table_id=event_group.table_id)
+        result_table = models.ResultTable.objects.get(
+            table_id=event_group.table_id, bk_tenant_id=event_group.bk_tenant_id
+        )
         result["shipper_list"] = [real_table.consul_config for real_table in result_table.real_storage_list]
 
         return result
@@ -1052,6 +1361,8 @@ class LogGroupBaseResource(Resource):
     """
     日志分组基类
     """
+
+    # TODO：这个接口似乎没有使用
 
     def get_log_group(self, log_group_id: int) -> models.LogGroup:
         try:
@@ -1071,13 +1382,24 @@ class QueryLogGroupResource(LogGroupBaseResource):
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryLogGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         # 查询条件
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         log_group_name = validated_request_data["log_group_name"]
 
         # 查询
-        query_set = models.LogGroup.objects.filter(is_delete=False)
+        query_set = models.LogGroup.objects.filter(is_delete=False, bk_tenant_id=bk_tenant_id)
         if label is not None:
             query_set = query_set.filter(label=label)
         if bk_biz_id is not None:
@@ -1098,6 +1420,7 @@ class GetLogGroupResource(LogGroupBaseResource):
         log_group_id = serializers.IntegerField(required=True, label="日志分组ID")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         # 获取日志分组
         log_group = self.get_log_group(validated_request_data.pop("log_group_id"))
 
@@ -1119,6 +1442,18 @@ class CreateLogGroupResource(LogGroupBaseResource):
         max_rate = serializers.IntegerField(required=False, label="最大上报速率", default=-1)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("CreateLogGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         log_group = models.LogGroup.create_log_group(**validated_request_data)
         return log_group.to_json(with_token=True)
 
@@ -1136,6 +1471,7 @@ class ModifyLogGroupResource(LogGroupBaseResource):
         max_rate = serializers.IntegerField(required=False, label="最大上报速率")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         # 获取日志分组
         log_group = self.get_log_group(validated_request_data.pop("log_group_id"))
 
@@ -1157,6 +1493,7 @@ class DeleteLogGroupResource(LogGroupBaseResource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         # 获取日志分组
         log_group = self.get_log_group(validated_request_data.pop("log_group_id"))
 
@@ -1182,6 +1519,18 @@ class CreateTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("CreateTimeSeriesGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         # 默认都是返回已经删除的内容
         time_series_group = models.TimeSeriesGroup.create_time_series_group(**validated_request_data)
         return time_series_group.to_json()
@@ -1200,6 +1549,7 @@ class ModifyTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1219,6 +1569,7 @@ class DeleteTimeSeriesGroupResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1236,6 +1587,7 @@ class GetTimeSeriesGroupResource(Resource):
         with_result_table_info = serializers.BooleanField(required=False, label="是否需要带结果表信息")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1250,7 +1602,9 @@ class GetTimeSeriesGroupResource(Resource):
             return results
 
         # 查询增加结果表信息
-        result_table = models.ResultTable.objects.get(table_id=time_series_group.table_id)
+        result_table = models.ResultTable.objects.get(
+            table_id=time_series_group.table_id, bk_tenant_id=time_series_group.bk_tenant_id
+        )
         for result in results:
             result["shipper_list"] = [real_table.consul_config for real_table in result_table.real_storage_list]
 
@@ -1262,6 +1616,7 @@ class GetTimeSeriesMetricsResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
 
     def perform_request(self, validated_request_data):
+        # 指定group_id的情况下，无需使用租户ID再次过滤
         table_id = validated_request_data.pop("table_id")
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
@@ -1278,10 +1633,24 @@ class QueryTimeSeriesGroupResource(Resource):
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryTimeSeriesGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         # 屏蔽bcs相关的dataid
         data_ids, data_id_cluster_map = get_bcs_dataids()
         # 默认都是返回未删除的内容
-        query_set = models.TimeSeriesGroup.objects.filter(is_delete=False).exclude(bk_data_id__in=data_ids)
+        query_set = models.TimeSeriesGroup.objects.filter(
+            is_delete=False,
+            bk_tenant_id=bk_tenant_id,  # 不允许跨租户查询
+        ).exclude(bk_data_id__in=data_ids)
 
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -1319,6 +1688,8 @@ class QueryBCSMetricsResource(Resource):
         dimension_value = serializers.CharField(required=False, label="指标取值", default="")
 
     def perform_request(self, validated_request_data):
+        # TODO：在制定业务ID和集群ID的情况下，理论上不需要使用租户ID再次过滤
+
         # 基于BCS集群信息获取dataid列表，用于过滤
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         cluster_ids = validated_request_data["cluster_ids"]
@@ -1437,10 +1808,21 @@ class QueryTagValuesResource(Resource):
         tag_name = serializers.CharField(required=True, label="dimension/tag名称")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("QueryTagValuesResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_id = validated_request_data.pop("table_id")
         try:
-            rt = models.ResultTable.objects.get(table_id=table_id)
-        except models.TimeSeriesGroup.DoesNotExist:
+            rt = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        except models.ResultTable.DoesNotExist:
             raise ValueError(_("结果表不存在，请确认后重试"))
 
         return {"tag_values": rt.get_tag_values(tag_name=validated_request_data["tag_name"])}
@@ -1474,8 +1856,23 @@ class CheckOrCreateKafkaStorageResource(Resource):
         table_ids = serializers.ListField(required=True, label="结果表IDs")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info(
+                    "CheckOrCreateKafkaStorageResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+                )
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_ids = validated_request_data["table_ids"]
-        exists_table_ids = models.KafkaStorage.objects.filter(table_id__in=table_ids).values_list("table_id", flat=True)
+        exists_table_ids = models.KafkaStorage.objects.filter(
+            table_id__in=table_ids, bk_tenant_id=bk_tenant_id
+        ).values_list("table_id", flat=True)
         need_create_table_ids = list(set(table_ids) - set(exists_table_ids))
         for table_id in need_create_table_ids:
             models.storage.KafkaStorage.create_table(table_id, is_sync_db=True, **{"expired_time": 1800000})
@@ -1501,6 +1898,19 @@ class RegisterBCSClusterResource(Resource):
         bk_env = serializers.CharField(required=False, default="", label="配置来源标签")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        try:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                bk_tenant_id = get_request_tenant_id()
+                logger.info("RegisterBCSClusterResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+            else:
+                bk_tenant_id = DEFAULT_TENANT_ID
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         # 注册集群
         cluster = BCSClusterInfo.register_cluster(**validated_request_data)
         cluster.init_resource()
@@ -1520,6 +1930,7 @@ class ModifyBCSResourceInfoResource(Resource):
         data_id = serializers.IntegerField(required=True, label="修改后的目标dataid")
 
     def perform_request(self, validated_request_data):
+        # 指定集群ID的情况下，无需使用租户ID再次过滤
         resource_type = validated_request_data["resource_type"]
         type_to_class = {
             ServiceMonitorInfo.PLURAL: ServiceMonitorInfo,
@@ -1550,6 +1961,7 @@ class ListBCSResourceInfoResource(Resource):
         resource_type = serializers.CharField(required=True, label="resource类型")
 
     def perform_request(self, validated_request_data):
+        # 指定集群ID的情况下，无需使用租户ID再次过滤
         cluster_list = validated_request_data["cluster_ids"]
         resource_type = validated_request_data["resource_type"]
 
@@ -1611,6 +2023,7 @@ class ApplyYamlToBCSClusterResource(Resource):
         yaml_content = serializers.CharField(required=True, label="yaml文本内容")
 
     def perform_request(self, validated_request_data):
+        # 指定集群ID的情况下，无需使用租户ID再次过滤
         cluster_id = validated_request_data["cluster_id"]
         try:
             cluster = BCSClusterInfo.objects.get(cluster_id=cluster_id)
@@ -1644,6 +2057,14 @@ class CreateEsSnapshotRepositoryResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("CreateEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshotRepository.create_repository(**validated_request_data).to_json()
 
 
@@ -1659,6 +2080,14 @@ class ModifyEsSnapshotRepositoryResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("ModifyEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshotRepository.modify_repository(**validated_request_data)
         return validated_request_data
 
@@ -1674,6 +2103,14 @@ class DeleteEsSnapshotRepositoryResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("DeleteEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshotRepository.delete_repository(**validated_request_data)
         return validated_request_data
 
@@ -1688,6 +2125,14 @@ class VerifyEsSnapshotRepositoryResource(Resource):
         snapshot_repository_name = serializers.CharField(required=True, label="快照仓库名称")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("VerifyEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshotRepository.verify_repository(**validated_request_data)
 
 
@@ -1700,7 +2145,14 @@ class EsSnapshotRepositoryResource(Resource):
         cluster_id = serializers.IntegerField(required=True, label="ES存储集群ID")
 
     def perform_request(self, validated_request_data):
-        queryset = models.EsSnapshotRepository.objects.filter(is_deleted=False)
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("EsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        queryset = models.EsSnapshotRepository.objects.filter(is_deleted=False, bk_tenant_id=bk_tenant_id)
         return [repository.to_json() for repository in queryset.filter(cluster_id=validated_request_data["cluster_id"])]
 
 
@@ -1713,8 +2165,14 @@ class ListEsSnapshotRepositoryResource(Resource):
         cluster_ids = serializers.ListField(required=False, label="ES存储集群ID")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("ListEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
         cluster_ids = validated_request_data.get("cluster_ids")
-        queryset = models.EsSnapshotRepository.objects.filter(is_deleted=False)
+        queryset = models.EsSnapshotRepository.objects.filter(is_deleted=False, bk_tenant_id=bk_tenant_id)
         if cluster_ids:
             queryset = queryset.filter(cluster_id__in=cluster_ids)
         return [repository.to_json() for repository in queryset]
@@ -1732,6 +2190,14 @@ class CreateResultTableSnapshotResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("CreateResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshot.create_snapshot(**validated_request_data).to_json()
 
 
@@ -1747,6 +2213,14 @@ class ModifyResultTableSnapshotResource(Resource):
         status = serializers.CharField(required=False, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("ModifyResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshot.modify_snapshot(**validated_request_data)
         return validated_request_data
 
@@ -1761,6 +2235,14 @@ class DeleteResultTableSnapshotResource(Resource):
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("DeleteResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshot.delete_snapshot(**validated_request_data)
         return validated_request_data
 
@@ -1774,14 +2256,23 @@ class ListResultTableSnapshotResource(Resource):
         table_ids = serializers.ListField(required=False, label="结果表IDs")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("ListResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_ids = validated_request_data.get("table_ids")
         result_queryset = models.EsSnapshot.objects
         if table_ids:
-            result_queryset = result_queryset.filter(table_id__in=table_ids)
-        else:
-            result_queryset = result_queryset.all()
+            result_queryset = result_queryset.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        else:  # 不允许跨租户全局查询
+            result_queryset = result_queryset.filter(bk_tenant_id=bk_tenant_id)
         table_ids = [snapshot.table_id for snapshot in result_queryset]
-        all_doc_count_and_store_size = models.EsSnapshotIndice.all_doc_count_and_store_size(table_ids)
+        all_doc_count_and_store_size = models.EsSnapshotIndice.all_doc_count_and_store_size(
+            table_ids=table_ids, bk_tenant_id=bk_tenant_id
+        )
         result = []
         for snapshot in result_queryset:
             snapshot_json = snapshot.to_self_json()
@@ -1802,8 +2293,17 @@ class ListResultTableSnapshotIndicesResource(Resource):
         table_ids = serializers.ListField(required=True, label="结果表ID")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "ListResultTableSnapshotIndicesResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_ids = validated_request_data.get("table_ids")
-        es_snapshots = models.EsSnapshot.objects.filter(table_id__in=table_ids)
+        es_snapshots = models.EsSnapshot.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
         return [es_snapshot.to_json() for es_snapshot in es_snapshots]
 
 
@@ -1816,7 +2316,17 @@ class GetResultTableSnapshotStateResource(Resource):
         table_ids = serializers.ListField(required=True, label="结果表ids")
 
     def perform_request(self, validated_request_data):
-        return models.EsSnapshot.batch_get_state(validated_request_data["table_ids"])
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "GetResultTableSnapshotStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+        return models.EsSnapshot.batch_get_state(
+            table_ids=validated_request_data["table_ids"], bk_tenant_id=bk_tenant_id
+        )
 
 
 class RestoreResultTableSnapshotResource(Resource):
@@ -1833,6 +2343,14 @@ class RestoreResultTableSnapshotResource(Resource):
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("RestoreResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshotRestore.create_restore(**validated_request_data)
 
 
@@ -1847,6 +2365,17 @@ class ModifyRestoreResultTableSnapshotResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "ModifyRestoreResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         models.EsSnapshotRestore.modify_restore(**validated_request_data)
         return validated_request_data
 
@@ -1862,6 +2391,16 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "DeleteRestoreResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshotRestore.delete_restore(**validated_request_data)
         return validated_request_data
 
@@ -1875,7 +2414,16 @@ class ListRestoreResultTableSnapshotResource(Resource):
         table_ids = serializers.ListField(required=False, label="结果表ID", default=[])
 
     def perform_request(self, validated_request_data):
-        querysets = models.EsSnapshotRestore.objects.filter(is_deleted=False)
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "ListRestoreResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        querysets = models.EsSnapshotRestore.objects.filter(is_deleted=False, bk_tenant_id=bk_tenant_id)
         if validated_request_data["table_ids"]:
             querysets = querysets.filter(table_id__in=validated_request_data["table_ids"])
         return [queryset.to_json() for queryset in querysets]
@@ -1935,6 +2483,13 @@ class KafkaTailResource(Resource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("KafkaTailResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         bk_data_id = validated_request_data.get("bk_data_id")
         result_table = None
 
@@ -1951,7 +2506,7 @@ class KafkaTailResource(Resource):
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
-            result_table = models.ResultTable.objects.get(table_id=table_id)
+            result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
             datasource = result_table.data_source
 
         size = validated_request_data["size"]
@@ -2260,6 +2815,7 @@ class GetBCSClusterRelatedDataLinkResource(Resource):
         bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
 
     def perform_request(self, validated_request_data):
+        # 指定BCS集群ID的情况下，无需使用租户ID二次过滤
         bcs_cluster_id = validated_request_data.get("bcs_cluster_id", None)
         if not bcs_cluster_id:
             logger.info(
@@ -2293,6 +2849,17 @@ class QueryResultTableStorageDetailResource(Resource):
         bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "QueryResultTableStorageDetailResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+
         source = ResultTableAndDataSource(
             table_id=validated_request_data.get("table_id", None),
             bk_data_id=validated_request_data.get("bk_data_id", None),
@@ -2314,6 +2881,13 @@ class NotifyEsDataLinkAdaptNano(Resource):
         force_rotate = serializers.BooleanField(required=False, default=False, label="是否强制轮转索引")
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("NotifyEsDataLinkAdaptNano: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         table_id = validated_request_data.get("table_id", None)
         bk_data_id = validated_request_data.get("bk_data_id", None)
         force_rotate = validated_request_data.get("force_rotate", False)
@@ -2328,7 +2902,7 @@ class NotifyEsDataLinkAdaptNano(Resource):
 
         logger.info("NotifyEsDataLinkAdaptNano: table_id->[%s] changes to date_nanos,will adapt metadata", table_id)
 
-        result_table = models.ResultTable.objects.filter(table_id=table_id).first()
+        result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
         if not result_table:
             raise ValidationError(_("结果表不存在"))
 
@@ -2343,11 +2917,12 @@ class NotifyEsDataLinkAdaptNano(Resource):
                     description="数据时间",
                     tag="dimension",
                     is_config_by_user=True,
+                    bk_tenant_id=bk_tenant_id,
                 )
 
                 # 通过复制的方式,生成dtEventTimestampNanos的option
                 original_objects = models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="dtEventTimeStamp"
+                    table_id=table_id, field_name="dtEventTimeStamp", bk_tenant_id=bk_tenant_id
                 )
 
                 # 创建新对象，修改 field_name 为 'dtEventTimeStampNanos'
@@ -2361,6 +2936,7 @@ class NotifyEsDataLinkAdaptNano(Resource):
                             "value_type": obj.value_type,
                             "value": obj.value,
                             "creator": obj.creator,
+                            "bk_tenant_id": obj.bk_tenant_id,
                         },
                     )
                     logger.info(
@@ -2371,23 +2947,23 @@ class NotifyEsDataLinkAdaptNano(Resource):
                     )
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_type"
+                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_type", bk_tenant_id=bk_tenant_id
                 ).update(value=NANO_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_format"
+                    table_id=table_id, field_name="dtEventTimeStampNanos", name="es_format", bk_tenant_id=bk_tenant_id
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="time", name="es_format"
+                    table_id=table_id, field_name="time", name="es_format", bk_tenant_id=bk_tenant_id
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="dtEventTimeStamp", name="es_format"
+                    table_id=table_id, field_name="dtEventTimeStamp", name="es_format", bk_tenant_id=bk_tenant_id
                 ).update(value=NON_STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
-                    table_id=table_id, field_name="dtEventTimeStamp", name="es_type"
+                    table_id=table_id, field_name="dtEventTimeStamp", name="es_type", bk_tenant_id=bk_tenant_id
                 ).update(value="date")
 
         except Exception as e:  # pylint: disable=broad-except
@@ -2406,7 +2982,7 @@ class NotifyEsDataLinkAdaptNano(Resource):
         )
 
         try:
-            es_storage = models.ESStorage.objects.get(table_id=table_id)
+            es_storage = models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
             es_storage.update_index_v2(force_rotate=force_rotate)
             es_storage.create_or_update_aliases(force_rotate=force_rotate)
         except Exception as e:  # pylint: disable=broad-except
@@ -2430,11 +3006,22 @@ class GetDataLabelsMapResource(Resource):
         )
 
     def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("GetDataLabelsMapResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         data_labels_map = {}
         table_or_labels: list[str] = validated_request_data["table_or_labels"]
         data_labels_queryset = models.ResultTable.objects.filter(
-            Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]], data_label__in=table_or_labels)
-            | Q(table_id__in=table_or_labels)
+            Q(
+                bk_biz_id__in=[0, validated_request_data["bk_biz_id"]],
+                data_label__in=table_or_labels,
+                bk_tenant_id=bk_tenant_id,
+            )
+            | Q(table_id__in=table_or_labels, bk_tenant_id=bk_tenant_id)
         ).values("table_id", "data_label")
         for item in data_labels_queryset:
             data_labels_map[item["table_id"]] = item["data_label"]
@@ -2442,3 +3029,54 @@ class GetDataLabelsMapResource(Resource):
                 # 不为空才建立映射关系，避免写入 empty=empty，
                 data_labels_map[item["data_label"]] = item["data_label"]
         return data_labels_map
+
+
+class SyncBkBaseRtMetaByBizIdResource(Resource):
+    """
+    同步单个业务的计算平台RT元信息
+    """
+
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        # 同步BKDATA元信息,单业务实时触发同步
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        # 同步指定存储类型的数据
+        storages = settings.SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES
+        logger.info("SyncBkBaseRtMetaByBizIdResource: start sync bkbase meta for biz_id->[%s]", bk_biz_id)
+        bkbase_rt_meta_list = api.bkdata.bulk_list_result_table(bk_biz_id=[bk_biz_id], storages=storages)
+        sync_bkbase_result_table_meta(round_iter=0, bkbase_rt_meta_list=bkbase_rt_meta_list, biz_id_list=[bk_biz_id])
+        logger.info("SyncBkBaseRtMetaByBizIdResource: end sync bkbase meta for biz_id->[%s]", bk_biz_id)
+
+
+class ListBkBaseRtInfoByBizIdResource(Resource):
+    class RequestSerializer(PageSerializer):
+        bk_biz_id = serializers.CharField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("ListBkBaseRtInfoByBizIdResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info("ListBkBaseRtInfoByBizIdResource: start query bkbase rts for biz_id->[%s]", bk_biz_id)
+        bkbase_rts = models.ResultTable.objects.filter(
+            bk_biz_id=bk_biz_id, default_storage=models.ClusterInfo.TYPE_BKDATA, bk_tenant_id=bk_tenant_id
+        )
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = bkbase_rts.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = bkbase_rts[offset : offset + page_size]
+            results = [rt.to_json() for rt in paginated_queryset]
+            return {"count": count, "info": results}
+
+        # 如果不分页，返回所有结果
+        results = [rt.to_json() for rt in bkbase_rts]
+        return results

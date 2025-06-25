@@ -125,7 +125,7 @@ export default {
   容量: 'Capacity',
   成本: 'Cost',
   '生成 “{0}” 选项': 'Generate "{0}" Options',
-  '生成 "{0}" Tag': 'Generate "{0}" Tag',
+  '直接输入 "{0}"': 'Enter "{0}"',
   新开标签页: 'Open in New Tab',
   另存为新收藏: 'Save as New Favorite',
   覆盖当前收藏: 'Override Current Favorite',
@@ -138,4 +138,6 @@ export default {
   一个或多个参数: 'One or more parameters',
   全文检索: 'Full-text Search',
   全部来源: 'All Sources',
+  分享: 'Share',
+  从分组中移除: 'Remove from Group',
 };

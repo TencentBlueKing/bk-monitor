@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch, onMounted, getCurrentInstance, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-import { debounce, isElement } from 'lodash';
+import { isElement } from 'lodash';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
@@ -45,6 +45,8 @@ export default (
     onHeightChange,
     addInputListener = true,
     handleWrapperClick = undefined,
+    onInputFocus = undefined,
+    afterShowKeyEnter = undefined
   },
 ) => {
   const modelValue = ref([]);
@@ -95,6 +97,8 @@ export default (
     return input as HTMLInputElement;
   };
 
+  const isInstanceShown = () => popInstanceUtil.isShown();
+
   const handleContainerClick = (e?) => {
     const root = getRoot();
     if (root !== undefined && (e === undefined || root === e?.target)) {
@@ -102,11 +106,15 @@ export default (
 
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+
+      if (!isInstanceShown()) {
+        setIsInputTextFocus(true);
+        onInputFocus?.();
+        delayShowInstance(getPopTarget());
+      }
       return input;
     }
   };
-
-  const isInstanceShown = () => popInstanceUtil.isShown();
 
   const repositionTippyInstance = () => {
     if (isInstanceShown()) {
@@ -191,25 +199,35 @@ export default (
   };
 
   const handleKeydown = event => {
-    const isModifierPressed = true;
 
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
     const isEscKey = event.key === 'Escape' || event.keyCode === 27;
 
-    if (isModifierPressed && isSlashKey && !popInstanceUtil.isShown()) {
+    if (isSlashKey && !popInstanceUtil.isShown()) {
       // 阻止浏览器默认行为（如打开浏览器搜索栏）
       event.preventDefault();
       const targetElement = getPopTarget();
 
       if (refTarget?.value && isElement(refTarget.value)) {
         delayShowInstance(targetElement);
+        setTimeout(() => {
+          afterShowKeyEnter?.();
+        });
         return;
       }
 
       targetElement?.click?.();
+      setTimeout(() => {
+        afterShowKeyEnter?.();
+      });
       return;
     }
+
+    if (!isInputTextFocus.value) {
+      return;
+    }
+
     if (isEscKey && popInstanceUtil.isShown()) {
       setIsInputTextFocus(false);
       popInstanceUtil.hide(100);
@@ -230,7 +248,7 @@ export default (
     resizeHeightObserver(instance?.proxy?.$el);
   });
 
-  onBeforeUnmount(() => {
+  onUnmounted(() => {
     uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
     if (addInputListener) {

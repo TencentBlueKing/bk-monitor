@@ -38,7 +38,7 @@
         $t('监控数据采集是通过下发监控插件来实现数据采集的全生命周期管理，该功能依赖服务器安装bkmonitorbeat采集器')
       "
       :link-text="$t('采集器安装前往节点管理')"
-      :link-url="`${$store.getters.bkNodemanHost}#/plugin-manager/list`"
+      :link-url="`${$store.getters.bkNodeManHost}#/plugin-manager/list`"
       doc-link="collectorConfigMd"
     />
     <div>

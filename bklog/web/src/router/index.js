@@ -282,24 +282,54 @@ const MaskingList = () =>
 const MonitorApmLog = () =>
   import(
     /* webpackChunkName: 'monitor-apm-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
 // #if MONITOR_APP === 'trace'
 const MonitorTraceLog = () =>
   import(
     /* webpackChunkName: 'monitor-trace-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
 
-const getRoutes = () => {
-  const defRouteName = window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true' ? 'manage' : 'retrieve';
+const ShareLink = () =>
+  import(
+    /* webpackChunkName: 'share-link' */
+    '@/views/share/index.tsx'
+  );
+
+const DataIdUrl = () =>
+  import(
+    /* webpackChunkName: 'data-id-url' */
+    '@/views/data-id-url/index.tsx'
+  );
+
+const getRoutes = (spaceId, bkBizId, externalMenu) => {
+  const getDefRouteName = () => {
+    if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
+      if (externalMenu?.includes('retrieve')) {
+        return 'retrieve';
+      }
+
+      return 'manage';
+    }
+
+    return 'retrieve';
+  };
 
   return [
     {
       path: '',
-      redirect: defRouteName,
+      redirect: () => {
+        return {
+          name: getDefRouteName(),
+          query: {
+            spaceUid: spaceId,
+            bizId: bkBizId,
+          },
+        };
+      },
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -309,6 +339,7 @@ const getRoutes = () => {
       path: '/retrieve/:indexId?',
       name: 'retrieve',
       component: retrieve,
+
       meta: {
         title: '检索',
         navId: 'retrieve',
@@ -1066,6 +1097,24 @@ const getRoutes = () => {
       name: 'playground',
       component: playground,
     },
+    {
+      path: '/share/:linkId?',
+      name: 'share',
+      component: ShareLink,
+      meta: {
+        title: '分享链接',
+        navId: 'share',
+      },
+    },
+    {
+      path: '/data_id/:id?',
+      name: 'data_id',
+      component: DataIdUrl,
+      meta: {
+        title: '根据 bk_data_id 获取采集项和索引集信息',
+        navId: 'data_id',
+      },
+    },
     // #if MONITOR_APP === 'apm'
     {
       path: '/monitor-apm-log/:indexId?',
@@ -1104,8 +1153,8 @@ const getRoutes = () => {
  * @param id 路由id
  * @returns 路由配置
  */
-export function getRouteConfigById(id) {
-  const flatConfig = getRoutes().flatMap(config => {
+export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
+  const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
@@ -1120,8 +1169,8 @@ export function getRouteConfigById(id) {
   return flatConfig.find(item => item.meta?.navId === id);
 }
 
-export default () => {
-  const routes = getRoutes();
+export default (spaceId, bkBizId, externalMenu) => {
+  const routes = getRoutes(spaceId, bkBizId, externalMenu);
   const router = new VueRouter({
     routes,
   });
@@ -1165,6 +1214,7 @@ export default () => {
       route_id: to.name,
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
+      external_menu: externalMenu,
     });
   });
 

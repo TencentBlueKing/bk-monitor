@@ -35,7 +35,7 @@ const traceListSetting = {
       field: 'min_start_time',
     },
     {
-      label: `${window.i18n.t('根Span')}`,
+      label: `${window.i18n.t('根 Span')}`,
       field: 'root_span_name',
     },
     {
@@ -181,7 +181,7 @@ const spanListSetting = {
       field: 'resource.telemetry.sdk.version',
     },
     {
-      label: `${window.i18n.t('所属Trace')}`,
+      label: `${window.i18n.t('所属 Trace')}`,
       field: 'trace_id',
     },
   ],
@@ -246,10 +246,6 @@ const interfaceStatisticsSetting = {
     'p90_duration',
     'p50_duration',
   ],
-  limit: 0,
-  size: 'medium',
-  sizeList: [],
-  showLineHeight: false,
 };
 
 const serviceStatisticsSetting = {
@@ -338,7 +334,18 @@ const statisticTableSetting = {
       field: 'count',
     },
   ],
-  checked: ['span_name', 'resource.service.name', 'max_duration', 'min_duration', 'sum_duration', 'P95', 'count'],
+  checked: [
+    'span_name',
+    'resource.service.name',
+    'resource.sdk.name',
+    'kind',
+    'max_duration',
+    'min_duration',
+    'sum_duration',
+    'P95',
+    'count',
+    'operation',
+  ],
   limit: 0,
   size: 'medium',
   sizeList: [],
@@ -376,11 +383,18 @@ const statisticDiffTableSetting = {
       field: 'count',
     },
   ],
-  checked: ['span_name', 'resource.service.name', 'max_duration', 'min_duration', 'sum_duration', 'P95', 'count'],
-  limit: 0,
-  size: 'medium',
-  sizeList: [],
-  showLineHeight: false,
+  checked: [
+    'span_name',
+    'resource.service.name',
+    'resource.sdk.name',
+    'kind',
+    'max_duration',
+    'min_duration',
+    'sum_duration',
+    'P95',
+    'count',
+    'operation',
+  ],
 };
 
 export {

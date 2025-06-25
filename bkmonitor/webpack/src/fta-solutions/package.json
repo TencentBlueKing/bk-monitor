@@ -10,8 +10,8 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/aiops-topo": "0.0.1-beta.4",
-    "@blueking/bk-weweb": "0.0.29-beta.3",
+    "@blueking/aiops-topo": "0.0.1-beta.6",
+    "@blueking/bk-weweb": "0.0.35-beta.7",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/functional-dependency": "0.0.1-beta.14",
     "@blueking/login-modal": "^1.0.6",

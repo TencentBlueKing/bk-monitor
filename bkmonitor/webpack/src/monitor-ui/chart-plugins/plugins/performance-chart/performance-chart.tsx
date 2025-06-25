@@ -66,7 +66,7 @@ export default class PerformanceChart extends TimeSeries {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
     }
@@ -305,12 +305,12 @@ export default class PerformanceChart extends TimeSeries {
           this.handleResize();
         }, 100);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];

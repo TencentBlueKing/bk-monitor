@@ -27,7 +27,7 @@ export type TestSendingTarget = 'all' | 'self';
 
 export enum FrequencyType {
   /** 按天 */
-  dayly = 2,
+  daily = 2,
   /** 按小时 */
   hourly = 5,
   /** 按月 */
@@ -110,3 +110,22 @@ export type Report = {
   timerange?: string[];
 };
 // 订阅详情 对象 结束
+
+export interface IColumn {
+  label: string;
+  field: string;
+  width?: number | string;
+  filter?: { label: string; value: number | string }[];
+  sortable?: boolean;
+  minWidth?: number;
+}
+
+export interface ITable {
+  data: Record<string, any>[];
+  columns: IColumn[];
+  settings?: {
+    checked: string[];
+    fields: { field: string; label: string }[];
+    size: string;
+  };
+}

@@ -19,7 +19,7 @@ from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.drf_resource import api
-from packages.monitor_web.data_explorer.event.constants import (
+from monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
     INNER_FIELD_TYPE_MAPPINGS,
@@ -27,6 +27,23 @@ from packages.monitor_web.data_explorer.event.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def is_dimensions(field: str) -> bool:
+    """判断是否是维度字段"""
+    # 如果是内置字段，不需要补充 dimensions.
+    return field not in INNER_FIELD_TYPE_MAPPINGS
+
+
+def format_field(field: str) -> str:
+    """
+    格式化字段名
+    背景：在告警、API 层都将 DIMENSION_PREFIX 隐藏，新版事件检索沿用以保持向前兼容，在部分场景，例如 where 转 query_string，
+         需要补充前缀。
+    """
+    if is_dimensions(field):
+        return f"{DIMENSION_PREFIX}{field}"
+    return field
 
 
 def get_q_from_query_config(query_config: dict[str, Any]) -> QueryConfigBuilder:
@@ -77,20 +94,15 @@ def create_cicd_info(origin_data, fields: list[str]):
 def create_event_info(origin_data, fields: list[str], data_label: str):
     event_detail: dict[str, Any] = {}
     for field in fields:
-        event_display_item: dict[str, Any] = {"label": get_field_label(field, data_label)}
-        if field in INNER_FIELD_TYPE_MAPPINGS:
-            event_display_item["value"] = origin_data.get(field, "")
-        else:
-            event_display_item["value"] = get_dimension(origin_data, field)
+        event_display_item: dict[str, Any] = {
+            "label": get_field_label(field, data_label),
+            "value": origin_data.get(format_field(field), ""),
+        }
 
         # 为空返回 --，以优化前端展示
         event_display_item["alias"] = event_display_item["value"] or "--"
         event_detail[field] = event_display_item
     return event_detail
-
-
-def get_dimension(origin_data: dict[str, Any], field: str):
-    return origin_data.get(f"{DIMENSION_PREFIX}{field}", "")
 
 
 def get_field_alias(field, label) -> tuple[str, str, int]:

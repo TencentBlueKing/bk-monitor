@@ -56,6 +56,10 @@ export default class MessageChart extends CommonSimpleChart {
     return this.panel.options?.header?.tips || '';
   }
 
+  get queryConfig() {
+    return this.$route.query || {};
+  }
+
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
@@ -63,7 +67,7 @@ export default class MessageChart extends CommonSimpleChart {
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
@@ -108,14 +112,14 @@ export default class MessageChart extends CommonSimpleChart {
       if (res) {
         this.initialized = true;
         this.empty = !this.series.length;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;
@@ -145,6 +149,23 @@ export default class MessageChart extends CommonSimpleChart {
   handleItemShow(item) {
     item.showAll = !item.showAll;
   }
+  /** 调用链跳转 */
+  handleTraceLinkClick(e, item) {
+    e.stopPropagation();
+    const params = {
+      name: 'trace-retrieval',
+      query: {
+        app_name: this.queryConfig['filter-app_name'],
+        where: JSON.stringify([{ key: 'trace_id', operator: 'equal', value: [item.trace_id] }]),
+        filterMode: 'ui',
+        sceneMode: 'trace',
+      },
+    };
+    const routeData = this.$router.resolve(params);
+    const url = location.href.replace(location.hash, `#/trace/home${routeData.href.slice(2)}`);
+    window.open(url, '_blank');
+  }
+
   render() {
     return (
       <div class='message-chart'>
@@ -224,6 +245,13 @@ export default class MessageChart extends CommonSimpleChart {
                     <div class='collapse-item-title'>
                       <div class='item-title'>{item.title}</div>
                       <div class='item-subtitle'>{item.subtitle}</div>
+                      <span
+                        class='item-trace-link'
+                        onClick={e => this.handleTraceLinkClick(e, item)}
+                      >
+                        {this.$t('调用链')}
+                        <i class='icon-monitor icon-mc-goto' />
+                      </span>
                     </div>
                     <div
                       class='collapse-item-content'

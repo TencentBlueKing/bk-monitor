@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,17 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Set
 
 from django.conf import settings
 from django.db.models import Q
 from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import config, models
@@ -40,7 +40,6 @@ from metadata.models.space.utils import (
     create_bcs_spaces,
     create_bkcc_space_data_source,
     create_bkcc_spaces,
-    get_bkci_projects,
     get_metadata_cluster_list,
     get_project_clusters,
     get_shared_cluster_namespaces,
@@ -75,7 +74,11 @@ def sync_bkcc_space(allow_deleted=False):
     sync_archived_bkcc_space()
 
     bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list = api.cmdb.get_business()
+    biz_list = []
+    for tenant in api.bk_login.list_tenant():
+        temp = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+        biz_list.extend(temp)
+
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
     if not biz_list:
         logger.info("query cmdb api resp is null")
@@ -273,45 +276,85 @@ def sync_bcs_space():
     start_time = time.time()
 
     bcs_type_id = SpaceTypes.BKCI.value
-    projects = get_valid_bcs_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     project_id_dict = {p["project_code"]: p for p in projects}
+
     space_qs = Space.objects.filter(space_type_id=bcs_type_id)
+    # 获取所有已有空间的ID列表
     space_id_list = space_qs.values_list("space_id", flat=True)
-    exist_project_id_list = space_qs.filter(space_code="").values_list("space_id", flat=True)
+    space_objs = {space.space_id: space for space in space_qs}
+
+    redis_space_id_list = []
     # 判断需要更新的项目
-    update_projects = set(project_id_dict.keys()) & set(exist_project_id_list)
-    # 判断是否有新项目增加(因为现阶段项目不会删除)
+    for project_code, project_info in project_id_dict.items():
+        if not project_info["project_id"]:
+            logger.warning(
+                "[sync_bcs_space] bcs project_id is empty, project_code: %s, project_name: %s",
+                project_code,
+                project_info["name"],
+            )
+        if project_code in space_objs:
+            current_space = space_objs[project_code]
+            new_space_code = project_info["project_id"]
+            # 修复条件判断：当space_code不一致或space_name不一致时更新
+            if current_space.space_code != new_space_code or current_space.space_name != project_info["name"]:
+                logger.info(
+                    "[sync_bcs_space] detected space inconsistency, space_id: %s, current_code: '%s', new_code: '%s', current_name: '%s', new_name: '%s'",
+                    project_code,
+                    current_space.space_code,
+                    new_space_code,
+                    current_space.space_name,
+                    project_info["name"],
+                )
+                # 更新已有项目的space_code和名称
+                Space.objects.filter(space_type_id=bcs_type_id, space_id=project_code).update(
+                    space_code=new_space_code,
+                    space_name=project_info["name"],
+                    is_bcs_valid=True,
+                )
+                logger.info(
+                    "[sync_bcs_space] updated bcs project, space_id: %s, code: '%s'→'%s', name: '%s'→'%s'",
+                    project_code,
+                    current_space.space_code,
+                    new_space_code,
+                    current_space.space_name,
+                    project_info["name"],
+                )
+                redis_space_id_list.append(f"{bcs_type_id}__{project_code}")
+
+    # 判断需要新增的项目（在项目字典中存在但不在已有空间列表中）
     diff = set(project_id_dict.keys()) - set(space_id_list)
-    if not (diff or update_projects):
-        logger.info("bcs space not need add or update!")
+
+    # 如果没有需要更新或新增的项目，直接返回
+    if not diff:
+        logger.info("[sync_bcs_space] bcs space not need add!")
         return
-    diff_project_list, redis_space_id_list = [], []
-    # 更新 space_code
-    for project_id in update_projects:
-        Space.objects.filter(space_type_id=bcs_type_id, space_id=project_id).update(
-            space_code=project_id_dict[project_id]["project_id"],
-            is_bcs_valid=True,
-            space_name=project_id_dict[project_id]["name"],
-        )
-        redis_space_id_list.append(f"{bcs_type_id}__{project_id}")
-    # 创建空间、空间资源、使用业务的 data id
-    for project_id in diff:
-        diff_project_list.append(project_id_dict[project_id])
-        redis_space_id_list.append(f"{bcs_type_id}__{project_id}")
-    # 批量创建
+
+    diff_project_list = []
+    # 准备新增项目列表
+    for project_code in diff:
+        diff_project_list.append(project_id_dict[project_code])
+        redis_space_id_list.append(f"{bcs_type_id}__{project_code}")
+
+    # 批量创建新增项目空间
     try:
         create_bcs_spaces(diff_project_list)
     except Exception:
-        logger.exception("create bcs project space error")
+        logger.exception("[sync_bcs_space] create bcs project space error")
 
     cost_time = time.time() - start_time
+
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_bcs_space", status=TASK_FINISHED_SUCCESS, process_target=None
     ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bcs_space", process_target=None).observe(cost_time)
     metrics.report_all()
-    logger.info("create bcs space successfully, space: %s,cost: %s", json.dumps(diff_project_list), cost_time)
+    logger.info(
+        "[sync_bcs_space] create bcs space successfully, space: %s,cost: %s", json.dumps(diff_project_list), cost_time
+    )
 
 
 @share_lock(identify="metadata_refresh_bcs_project_biz")
@@ -319,7 +362,9 @@ def refresh_bcs_project_biz():
     """检测 bcs 项目绑定的业务的变化"""
     logger.info("start check and update the binded biz of bcs project task")
     # 检测所有 bcs 项目
-    projects = get_valid_bcs_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     project_id_dict = {p["project_code"]: p["bk_biz_id"] for p in projects}
     # 1. 判断项目空间是否存在，如果不存在直接跳过
     # 2. 如果项目空间存在，则判断绑定的业务是否相等
@@ -348,6 +393,7 @@ def refresh_bcs_project_biz():
         if not res:
             add_resource_list.append(
                 SpaceResource(
+                    bk_tenant_id=s.bk_tenant_id,
                     space_type_id=SpaceTypes.BKCI.value,
                     space_id=space_id,
                     resource_type=SpaceTypes.BKCC.value,
@@ -440,8 +486,10 @@ def refresh_cluster_resource():
     }
     # code 映射 id，仅过滤到有集群的项目
     space_id_code_map = {
-        s["space_id"]: s["space_code"]
-        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values("space_id", "space_code")
+        s["space_id"]: (s["space_code"], s["bk_tenant_id"])
+        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values(
+            "space_id", "space_code", "bk_tenant_id"
+        )
         if s["space_code"]
     }
     # 根据项目查询项目下资源的变化
@@ -450,8 +498,8 @@ def refresh_cluster_resource():
     # 获取存储在metadata中的集群数据
     metadata_clusters = get_metadata_cluster_list()
 
-    for s_id, s_code in space_id_code_map.items():
-        clusters = get_project_clusters(project_id=s_code)
+    for s_id, (s_code, bk_tenant_id) in space_id_code_map.items():
+        clusters = get_project_clusters(bk_tenant_id=bk_tenant_id, project_id=s_code)
         if not clusters:
             continue
         dimension_values = []
@@ -466,7 +514,9 @@ def refresh_cluster_resource():
             if c["is_shared"]:
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=cluster_id, project_code=s_id)
+                    for ns in get_shared_cluster_namespaces(
+                        bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, project_code=s_id
+                    )
                     if cluster_id == ns["cluster_id"]
                 ]
                 dimension_values.append({"cluster_id": cluster_id, "namespace": ns_list, "cluster_type": "shared"})
@@ -547,7 +597,9 @@ def refresh_cluster_resource():
 @share_lock(identify="metadata_refresh_bkci_project")
 def refresh_bkci_space_name():
     """刷新 bkci 空间名称"""
-    projects = get_bkci_projects()
+    projects = []
+    for tenant in api.bk_login.list_tenant():
+        projects.extend(get_valid_bcs_projects(bk_tenant_id=tenant["id"]))
     # 如果查询项目为空，则直接返回
     if not projects:
         return
@@ -577,10 +629,11 @@ def refresh_bkci_space_name():
 
 
 def push_and_publish_space_router(
-    space_type: Optional[str] = None,
-    space_id: Optional[str] = None,
-    space_id_list: Optional[List[str]] = None,
-    is_publish: Optional[bool] = True,
+    space_type: str | None = None,
+    space_id: str | None = None,
+    space_id_list: list[str] | None = None,
+    is_publish: bool | None = True,
+    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
@@ -588,19 +641,25 @@ def push_and_publish_space_router(
     from metadata.task.tasks import multi_push_space_table_ids
 
     # 过滤数据
-    spaces = models.Space.objects.values("space_type_id", "space_id")
+    spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
     if space_type:
         spaces = spaces.filter(space_type_id=space_type)
     if space_id:
         spaces = spaces.filter(space_id=space_id)
+    if bk_tenant_id:
+        logger.info("push and publish space router with bk_tenant_id->[%s]", bk_tenant_id)
+        spaces = spaces.filter(bk_tenant_id=bk_tenant_id)
     # 这里不应该会有太多空间 ID 的输入
     if space_id_list:
         spaces = spaces.filter(space_id__in=space_id_list)
 
     # 拼装数据
-    space_list = [{"space_type": space["space_type_id"], "space_id": space["space_id"]} for space in spaces]
+    space_list = [
+        {"space_type": space["space_type_id"], "space_id": space["space_id"], "bk_tenant_id": space["bk_tenant_id"]}
+        for space in spaces
+    ]
 
-    # 批量处理
+    # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
     bulk_handle(multi_push_space_table_ids, space_list)
 
     # 通知到使用方
@@ -612,15 +671,35 @@ def push_and_publish_space_router(
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     # 仅存在空间 id 时，可以直接按照结果表进行处理
-    table_id_list = []
-    if space_id:
+    # 非多租户环境: 所有table_id的路由一并推送
+    # 多租户环境: 按空间逐个推送路由,因为table_id不再唯一
+
+    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
         for space in space_list:
             tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
-            table_id_list.extend(tid_ds.keys())
+            space_tid_list = list(tid_ds.keys())
+            space_client = SpaceTableIDRedis()
+            space_client.push_table_id_detail(
+                table_id_list=space_tid_list,
+                is_publish=is_publish,
+                include_es_table_ids=True,
+                bk_tenant_id=space["bk_tenant_id"],
+            )
+            space_client.push_data_label_table_ids(
+                table_id_list=space_tid_list,
+                is_publish=is_publish,
+                bk_tenant_id=space["bk_tenant_id"],
+            )
+    else:
+        table_id_list = []
+        if space_id:
+            for space in space_list:
+                tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+                table_id_list.extend(tid_ds.keys())
 
-    space_client = SpaceTableIDRedis()
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
+        space_client = SpaceTableIDRedis()
+        space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
 def push_and_publish_space_router_task():
@@ -635,8 +714,8 @@ def push_and_publish_space_router_task():
 def delete_and_create_paas_space_data_id(
     space_type: str,
     space_id: str,
-    need_delete_data_ids: Set,
-    need_add_data_ids: Set,
+    need_delete_data_ids: set,
+    need_add_data_ids: set,
 ):
     if need_delete_data_ids:
         models.SpaceDataSource.objects.filter(
@@ -654,7 +733,7 @@ def delete_and_create_paas_space_data_id(
     models.SpaceDataSource.objects.bulk_create(bulk_create_records, batch_size=BULK_CREATE_BATCH_SIZE)
 
 
-def authorize_paas_space_cluster_data_source(space_cluster: Dict):
+def authorize_paas_space_cluster_data_source(space_cluster: dict):
     """重新针对使用的集群内置指标数据源授权
 
     NOTE: 仅针对集群的进行授权处理
@@ -730,7 +809,7 @@ def authorize_paas_space_cluster_data_source(space_cluster: Dict):
             )
 
 
-def create_and_update_paas_space_resource(space_cluster_namespaces: Dict):
+def create_and_update_paas_space_resource(space_cluster_namespaces: dict):
     """创建或更新空间绑定的资源"""
     space_type = SpaceTypes.BKSAAS.value
     # 针对资源的集群进行处理

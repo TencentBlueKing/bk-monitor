@@ -30,6 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { blobDownload } from '@/common/util';
 
 import AggChart from './agg-chart';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
+
 import FieldAnalysis from './field-analysis';
 import { axiosInstance } from '@/api';
 
@@ -218,7 +220,7 @@ export default class FieldItem extends tsc<object> {
         }
         const routerIndexSet = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
         const lightName = this.indexSetList.find(item => item.index_set_id === routerIndexSet)?.lightenName;
-        const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`;
+        const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.csv`;
         blobDownload(res, downloadName);
       })
       .finally(() => {
@@ -229,7 +231,7 @@ export default class FieldItem extends tsc<object> {
     this.distinctCount = val;
   }
   retuanFieldName() {
-    let name = this.showFieldAlias
+    let name = this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
       : this.fieldItem.field_name;
     if (this.isFieldObject) {

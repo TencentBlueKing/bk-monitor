@@ -287,6 +287,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-ext:before {
 	content: "\e175";
 }
+.bklog-share:before {
+	content: "\e212";
+}
 .bklog-star-line:before {
 	content: "\e194";
 }
@@ -343,6 +346,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-back2:before {
 	content: "\e1ec";
+}
+.bklog-circle-add:before {
+	content: "\e20c";
 }
 .bklog-close:before {
 	content: "\e1e9";
@@ -670,4 +676,25 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-highlight:before {
 	content: "\e209";
+}
+.bklog-suoyin-mulu:before {
+	content: "\e20a";
+}
+.bklog-suoyin-ronghe:before {
+	content: "\e20b";
+}
+.bklog-all:before {
+	content: "\e20d";
+}
+.bklog-ab:before {
+	content: "\e20e";
+}
+.bklog-daxiaoxie:before {
+	content: "\e20f";
+}
+.bklog-tongpeifu:before {
+	content: "\e210";
+}
+.bklog-share-link:before {
+	content: "\e211";
 }

@@ -27,17 +27,15 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
-import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
-import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
 import CompareType from '../components/header-box/components/compare-type';
-// import GroupBy from '../components/header-box/components/group-by';
+import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
 import WhereCondition from '../components/header-box/components/where-condition';
 import { refreshList } from './utils';
 
 import type { IRefreshItem, IResultItem } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './drill-analysis-filter.scss';
 
@@ -69,6 +67,7 @@ interface IProps {
   };
   timeRange: TimeRangeType;
   refreshInterval: number;
+  isHaveGroupBy?: boolean;
 }
 
 interface IEmit {
@@ -86,6 +85,7 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly filterConfig: IProps['filterConfig'];
   @Prop({ type: Array, required: true }) readonly timeRange: IProps['timeRange'];
   @Prop({ type: Number, required: true }) readonly refreshInterval: IProps['refreshInterval'];
+  @Prop({ type: Boolean, required: false }) readonly isHaveGroupBy: boolean;
 
   @Ref('rootRef') rootRef: HTMLElement;
 
@@ -96,22 +96,6 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
 
   handleConditionChange(value: { where: IResultItem['where']; custom_data: IResultItem['common_conditions'] }) {
     this.$emit('conditionChange', value);
-  }
-
-  handleTimeRangeChange(value: TimeRangeType) {
-    this.$emit('timeRangeChange', value);
-  }
-
-  handleTimezoneChange(value: string) {
-    this.$emit('timezoneChange', value);
-  }
-
-  handleRefreshInterval(value: number) {
-    this.$emit('refreshInterval', value);
-  }
-
-  handleImmediateRefresh() {
-    this.$emit('immediateRefresh');
   }
 
   handleGroupByChange(value: IResultItem['group_by']) {
@@ -162,44 +146,19 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
         class='drill-analysis-filter'
       >
         <div class='filter-confition-wrapper'>
-          <div class='filter-left'>
-            <WhereCondition
-              customData={this.filterConfig.commonConditions}
-              value={this.filterConfig.where}
-              onChange={this.handleConditionChange}
-            />
-          </div>
-          <div class='filter-right'>
-            {/* 时间工具栏 */}
-            {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-              <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
-            ) : (
-              <TimeRange
-                class='filter-tools-timerange'
-                timezone={this.timezone}
-                value={this.timeRange}
-                onChange={this.handleTimeRangeChange}
-                onTimezoneChange={this.handleTimezoneChange}
-              />
-            )}
-            <span class='right-line' />
-            <MonitorDropdown
-              class='filter-tools-interval'
-              icon='icon-zidongshuaxin'
-              isRefreshInterval={true}
-              list={this.refreshList}
-              text-active={this.refreshInterval !== -1}
-              value={this.refreshInterval}
-              on-change={this.handleRefreshInterval}
-              on-on-icon-click={this.handleImmediateRefresh}
-            />
-          </div>
+          <WhereCondition
+            customData={this.filterConfig.commonConditions}
+            value={this.filterConfig.where}
+            onChange={this.handleConditionChange}
+          />
         </div>
         <div class='filter-compare-view'>
-          {/* <GroupBy
-            value={this.filterConfig.group_by}
-            onChange={this.handleGroupByChange}
-          /> */}
+          {this.isHaveGroupBy && (
+            <GroupBy
+              value={this.filterConfig.group_by}
+              onChange={this.handleGroupByChange}
+            />
+          )}
           {this.filterConfig.group_by.length > 0 && (
             <LimitFunction
               value={this.filterConfig.limit}

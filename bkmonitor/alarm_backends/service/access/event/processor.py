@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import json
 import logging
@@ -41,6 +39,7 @@ from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
 from alarm_backends.service.access.priority import PriorityChecker
+from constants.common import DEFAULT_TENANT_ID
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 from core.errors.alarm_backends import LockError
@@ -51,7 +50,7 @@ logger = logging.getLogger("access.event")
 
 class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
     def __init__(self):
-        super(BaseAccessEventProcess, self).__init__()
+        super().__init__()
         self.strategies = {}
 
         self.add_filter(ExpireFilter())
@@ -67,7 +66,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         """
         Pull raw data and generate record.
         """
-        raise NotImplementedError("pull must be implemented " "by BaseAccessEventProcess subclasses")
+        raise NotImplementedError("pull must be implemented by BaseAccessEventProcess subclasses")
 
     def push_to_check_result(self):
         redis_pipeline = None
@@ -88,7 +87,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
 
                 try:
                     # 1. 缓存数据（检测结果缓存）
-                    name = "{}|{}".format(timestamp, ANOMALY_LABEL)
+                    name = f"{timestamp}|{ANOMALY_LABEL}"
                     kwargs = {name: event_record.event_time}
                     check_result.add_check_result_cache(**kwargs)
 
@@ -106,7 +105,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                     # 3. 缓存数据（维度缓存）  事件数据不设置维度缓存, 没有意义
                     # check_result.update_key_to_dimension(event_record.raw_data["dimensions"])
                 except Exception as e:
-                    logger.exception("set check result cache error: %s" % e)
+                    logger.exception(f"set check result cache error: {e}")
 
         if redis_pipeline:
             # 不设置维度缓存，也没必要再设置过期
@@ -119,7 +118,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
                 md5_dimension, strategy_id, item_id, level = md5_dimension_last_point_key
                 CheckResult.update_last_checkpoint_by_d_md5(strategy_id, item_id, md5_dimension, point_timestamp, level)
             except Exception as e:
-                msg = "set check result cache last_check_point error:%s" % e
+                msg = f"set check result cache last_check_point error:{e}"
                 logger.exception(msg)
             CheckResult.expire_last_checkpoint_cache(strategy_id=strategy_id, item_id=item_id)
 
@@ -153,7 +152,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
             for item_id, event_list in list(item_to_event_record.items()):
                 queue_key = key.ANOMALY_LIST_KEY.get_key(strategy_id=strategy_id, item_id=item_id)
                 pipeline.lpush(queue_key, *event_list)
-                anomaly_signal_list.append("{}.{}".format(strategy_id, item_id))
+                anomaly_signal_list.append(f"{strategy_id}.{item_id}")
                 pipeline.expire(queue_key, key.ANOMALY_LIST_KEY.ttl)
         pipeline.execute()
 
@@ -206,12 +205,14 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         return cls._kafka_queues[queue_key]
 
     def __init__(self, data_id=None, topic=None):
-        super(AccessCustomEventGlobalProcess, self).__init__()
+        super().__init__()
 
         self.data_id = data_id
         if not topic:
             # 获取topic信息
-            topic_info = api.metadata.get_data_id(bk_data_id=self.data_id, with_rt_info=False)
+            topic_info = api.metadata.get_data_id(
+                bk_tenant_id=DEFAULT_TENANT_ID, bk_data_id=self.data_id, with_rt_info=False
+            )
             self.topic = topic_info["mq_config"]["storage_config"]["topic"]
         else:
             self.topic = topic
@@ -290,7 +291,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         record_list = []
 
         if not self.topic:
-            logger.warning("[access] dataid:(%s) no topic" % self.data_id)
+            logger.warning(f"[access] dataid:({self.data_id}) no topic")
             return
 
         # group_prefix
@@ -309,12 +310,10 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                     # 数据拉取结束，释放锁
             except LockError:
                 # 加锁失败，重新发布任务
-                logger.info("[get service lock fail] access event dataid:({}). will process later".format(self.data_id))
+                logger.info(f"[get service lock fail] access event dataid:({self.data_id}). will process later")
                 return
             except Exception as e:
-                logger.exception(
-                    "[process error] access event dataid:({data_id}) reason：{msg}".format(data_id=self.data_id, msg=e)
-                )
+                logger.exception(f"[process error] access event dataid:({self.data_id}) reason：{e}")
                 return
 
             if len(result) == MAX_RETRIEVE_NUMBER:
@@ -344,7 +343,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                 logger.info("no strategy to process")
                 exc = None
             else:
-                exc = super(AccessCustomEventGlobalProcess, self).process()
+                exc = super().process()
 
         metrics.ACCESS_EVENT_PROCESS_COUNT.labels(
             data_id=self.data_id,

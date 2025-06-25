@@ -43,10 +43,13 @@ import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
 import getRouter from './router';
 import store from './store';
-import preload from './preload';
+import preload, { getExternalMenuListBySpace } from './preload';
 
 import './static/style.css';
 import './static/font-face/index.css';
+import './scss/theme/theme-dark.scss';
+import './scss/theme/theme-light.scss';
+import { BK_LOG_STORAGE } from './store/store.type';
 
 Vue.prototype.$renderHeader = renderHeader;
 
@@ -54,7 +57,7 @@ const setRouterErrorHandle = router => {
   router.onError(err => {
     const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
     const isChunkLoadFailed = err.message.match(pattern);
-    const targetPath = router.history.pending.fullPath;
+    const targetPath = router.history?.pending?.fullPath;
     if (isChunkLoadFailed) {
       router.replace(targetPath);
     }
@@ -66,13 +69,26 @@ Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
-const mountedVueInstance = router => {
+const mountedVueInstance = () => {
   window.mainComponent = {
     $t: function (key, params) {
       return i18n.t(key, params);
     },
   };
-  preload({ http, store, isExternal: window.IS_EXTERNAL }).then(() => {
+  preload({ http, store }).then(([space]) => {
+    const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+
+    let externalMenu = [];
+     if (window.IS_EXTERNAL && space) {
+      externalMenu = getExternalMenuListBySpace(space) ?? [];
+      store.commit('updateExternalMenu', externalMenu);
+    }
+
+    store.dispatch('requestMenuList', spaceUid);
+    const router = getRouter(spaceUid, bkBizId, externalMenu);
+    setRouterErrorHandle(router);
+
     window.mainComponent = new Vue({
       el: '#app',
       router,
@@ -82,21 +98,10 @@ const mountedVueInstance = router => {
         App,
       },
       template: '<App/>',
-      mounted() {
-        const bkBizId = this.$store.state.bkBizId;
-        const spaceUid = this.$store.state.spaceUid;
-
-        this.$router.replace({
-          query: {
-            ...this.$route.query,
-            bizId: bkBizId,
-            spaceUid: spaceUid,
-          },
-        });
-      },
     });
   });
 };
+window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
   http.request('meta/getEnvConstant').then(res => {
@@ -108,19 +113,11 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.bus = bus;
-    const router = getRouter();
-
-    setRouterErrorHandle(router);
-    mountedVueInstance(router);
+    mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
-  window.bus = bus;
-  const router = getRouter();
-
-  setRouterErrorHandle(router);
-  mountedVueInstance(router);
+  mountedVueInstance();
   Vue.config.devtools = true;
 }
 

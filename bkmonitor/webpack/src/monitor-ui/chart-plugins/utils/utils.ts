@@ -209,7 +209,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         ...list,
         ...handleThresholdOption(config?.thresholds?.[0], level, unitConversion, val => {
           const value = unitConversion ? unitConversion.unit_conversion * val.threshold : val.threshold;
-          return `${window.i18n.tc('阈值')}(${methodMap[val.method]}${value})`;
+          return `${window.i18n.t('阈值')}(${methodMap[val.method]}${value})`;
         }),
       ];
       // config?.[0].forEach((cfg) => {
@@ -671,7 +671,8 @@ export const createMenuList = (
   menuList: { id: string; name: string }[],
   position: { x: number; y: number },
   clickHandler: (id: string) => void,
-  instance: any
+  instance: any,
+  className?: string
 ) => {
   const id = 'contextmenu-list-pop-wrapper';
   const removeEl = () => {
@@ -693,7 +694,7 @@ export const createMenuList = (
   };
   removeEl();
   const el = document.createElement('div');
-  el.className = id;
+  el.className = `${id} ${className || ''}`;
   el.id = id;
   el.style.left = `${(() => {
     const { clientWidth } = document.body;

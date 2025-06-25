@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +13,6 @@ import logging
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.db import transaction
@@ -23,6 +21,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
@@ -84,9 +83,9 @@ def create_statistics_data_flow(table_id, agg_interval):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_full_cmdb_level_data_flow(table_id):
+def create_full_cmdb_level_data_flow(table_id, bk_tenant_id=DEFAULT_TENANT_ID):
     try:
-        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id)
+        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except models.BkDataStorage.DoesNotExist:
         raise Exception(_("数据({})未接入到计算平台，请先接入后再试").format(table_id))
 
@@ -121,8 +120,10 @@ def create_es_storage_index(table_id):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name):
-    models.ESStorage.objects.get(table_id=table_id).delete_all_snapshot(target_snapshot_repository_name)
+def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).delete_all_snapshot(
+        target_snapshot_repository_name
+    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -181,7 +182,7 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages, cluster_id: int = None):
+def manage_es_storage(storage_record_ids, cluster_id: int = None):
     """
     ES索引轮转异步任务
     @param es_storages: 待轮转采集项
@@ -195,6 +196,8 @@ def manage_es_storage(es_storages, cluster_id: int = None):
 
     logger.info("manage_es_storage: start to manage_es_storage")
     start_time = time.time()
+
+    es_storages = models.ESStorage.objects.filter(id__in=storage_record_ids)
 
     # 不再使用白名单，默认全量使用新方式轮转
     for es_storage in es_storages:
@@ -350,12 +353,12 @@ def _manage_es_storage(es_storage):
         logger.info("manage_es_storage:table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
-        if not es_storage.index_settings or es_storage.index_settings == '{}':
+        if not es_storage.index_settings or es_storage.index_settings == "{}":
             logger.error(
                 "manage_es_storage:table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id
             )
             return
-        if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
+        if not es_storage.mapping_settings or es_storage.mapping_settings == "{}":
             logger.error(
                 "manage_es_storage:table_id->[%s] need to create index,but mapping_settings invalid",
                 es_storage.table_id,
@@ -393,17 +396,15 @@ def _manage_es_storage(es_storage):
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
 
-        logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
+        logger.info(f"manage_es_storage:es_storage->[{es_storage.table_id}] cron task success")
     except RetryError as e:
         logger.error(
-            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
-                es_storage.table_id, e.__cause__
-            )
+            f"manage_es_storage:es_storage index lifecycle failed,table_id->{es_storage.table_id},error->{e.__cause__}"
         )
         logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
-        logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
+        logger.error(f"manage_es_storage:es_storage index lifecycle failed,table_id->{es_storage.table_id}")
         logger.exception(e)
 
     cost_time = time.time() - start_time
@@ -418,11 +419,12 @@ def _manage_es_storage(es_storage):
     metrics.report_all()  # 上报全部指标,包括索引轮转原因、轮转状态
 
 
+# TODO: 多租户改造
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def push_and_publish_space_router(
-    space_type: Optional[str] = None,
-    space_id: Optional[str] = None,
-    table_id_list: Optional[List] = None,
+    space_type: str | None = None,
+    space_id: str | None = None,
+    table_id_list: list | None = None,
 ):
     """推送并发布空间路由功能"""
     logger.info(
@@ -467,7 +469,7 @@ def push_and_publish_space_router(
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
 
-def multi_push_space_table_ids(space_list: List[Dict]):
+def multi_push_space_table_ids(space_list: list[dict]):
     """批量推送数据"""
     logger.info("start to multi push space table ids")
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -486,8 +488,8 @@ def _access_bkdata_vm(
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    bcs_cluster_id: Optional[str] = None,
-    allow_access_v2_data_link: Optional[bool] = False,
+    bcs_cluster_id: str | None = None,
+    allow_access_v2_data_link: bool | None = False,
 ):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
@@ -510,9 +512,9 @@ def access_bkdata_vm(
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    space_type: Optional[str] = None,
-    space_id: Optional[str] = None,
-    allow_access_v2_data_link: Optional[bool] = False,
+    space_type: str | None = None,
+    space_id: str | None = None,
+    allow_access_v2_data_link: bool | None = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -793,8 +795,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,"
-                "error->[%s]",
+                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,error->[%s]",
                 data_link_name,
                 component.name,
                 component.kind,
@@ -906,7 +907,7 @@ def sync_bkbase_v4_metadata(key):
 
     bkbase_redis_data = bkbase_redis.hgetall(key)
     bkbase_metadata_dict = {
-        key.decode('utf-8'): json.loads(value.decode('utf-8')) for key, value in bkbase_redis_data.items()
+        key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
     }
     bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
     logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
@@ -926,7 +927,7 @@ def sync_bkbase_v4_metadata(key):
         return
 
     # 处理 Kafka 信息
-    kafka_info = bkbase_metadata.get('kafka')
+    kafka_info = bkbase_metadata.get("kafka")
     if kafka_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -938,7 +939,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get('es')
+    es_info = bkbase_metadata.get("es")
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -948,7 +949,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
-    vm_info = bkbase_metadata.get('vm')
+    vm_info = bkbase_metadata.get("vm")
     if vm_info:
         with transaction.atomic():  # 单独事务
             logger.info(

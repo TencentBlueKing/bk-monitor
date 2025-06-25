@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject, onMounted } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -23,7 +23,7 @@
   const refDataTrendCanvas = ref(null);
   const dynamicHeight = ref(130);
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
-  const { initChartData, setChartData, clearChartData } = useTrendChart({
+  const { initChartData, setChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
     dynamicHeight,
@@ -144,7 +144,7 @@
         )
         .then(res => {
           if (res?.data) {
-            sumCount += setChartData(res?.data?.aggs, gradeOptions.value?.field, isInit);
+            sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
             isInit = false;
 
             store.commit('retrieve/updateTrendDataCount', sumCount);
@@ -199,11 +199,14 @@
   );
 
   onBeforeUnmount(() => {
+    finishPolling.value = true;
+    runningTimer && clearTimeout(runningTimer);
     logChartCancel?.();
-  });
-
-  onMounted(() => {
-    loadTrendData();
+    RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
   });
 </script>
 <script>
@@ -213,7 +216,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isLoading }"
+    v-bkloading="{ isLoading: isLoading, zIndex: 10, size: 'mini' }"
     class="monitor-echart-wrap"
   >
     <div

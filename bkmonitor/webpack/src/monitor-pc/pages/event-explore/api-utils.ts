@@ -105,9 +105,10 @@ export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
+    const isAborted = requestErrorMessage(err);
     return {
       total: 0,
+      isAborted,
     };
   });
 };
@@ -121,8 +122,8 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
-    return { list: [] };
+    const isAborted = requestErrorMessage(err);
+    return { list: [], isAborted };
   });
 };
 
@@ -143,7 +144,117 @@ export const getEventTimeSeries = (type = APIType.MONITOR) => {
  */
 function requestErrorMessage(err) {
   const message = makeMessage(err.error_details || err.message);
-  if (message && err?.message !== 'canceled') {
+  let isAborted = false;
+  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
     bkMessage(message);
+  } else {
+    isAborted = true;
+  }
+  return isAborted;
+}
+
+type ICandidateValueMap = Map<
+  string,
+  {
+    values: { id: string; name: string }[];
+    isEnd: boolean;
+    count: number;
+  }
+>;
+type TRetrievalFilterCandidateValueParams = any & {
+  isInit__?: boolean;
+};
+export class RetrievalFilterCandidateValue {
+  axiosController = new AbortController();
+  candidateValueMap: ICandidateValueMap = new Map();
+
+  getFieldsOptionValuesProxy(params: TRetrievalFilterCandidateValueParams, apiType: APIType) {
+    return new Promise((resolve, _reject) => {
+      try {
+        if (params?.isInit__) {
+          this.candidateValueMap = new Map();
+        }
+        const queryConfig = params.query_configs[0];
+        const { where } = queryConfig;
+        const searchValue = String(where?.[0]?.value?.[0] || '');
+        const candidateItem = this.candidateValueMap.get(this.getMapKey(params));
+        const searchValueLower = searchValue.toLocaleLowerCase();
+        if (!queryConfig?.query_string && candidateItem?.isEnd) {
+          if (searchValue) {
+            const filterValues = candidateItem.values.filter(item => {
+              const idLower = `${item.id}`.toLocaleLowerCase();
+              const nameLower = item.name.toLocaleLowerCase();
+              return idLower.includes(searchValueLower) || nameLower.includes(searchValueLower);
+            });
+            resolve({
+              count: filterValues.length,
+              list: filterValues,
+            });
+          } else {
+            const list = candidateItem.values.slice(0, params.limit);
+            resolve({
+              count: list.length,
+              list: list,
+            });
+          }
+        } else {
+          this.axiosController.abort();
+          this.axiosController = new AbortController();
+          getEventTopK(
+            {
+              ...params,
+              isInit__: undefined,
+            },
+            apiType,
+            {
+              signal: this.axiosController.signal,
+              needMessage: false,
+            }
+          )
+            .then(res => {
+              const data: any = res?.[0] || {};
+              const values =
+                data?.list?.map(item => ({
+                  id: item.value,
+                  name: item.alias,
+                })) || [];
+              const isEnd = values.length < params.limit;
+              const newMap = new Map();
+              if (!searchValue && isEnd) {
+                newMap.set(this.getMapKey(params), {
+                  values: values,
+                  isEnd: isEnd,
+                  count: data.length,
+                });
+              }
+              this.candidateValueMap = newMap;
+              resolve({
+                list: values,
+                count: values.length,
+              });
+            })
+            .catch(err => {
+              if (err?.message !== 'canceled') {
+                resolve({
+                  count: 0,
+                  list: [],
+                });
+              }
+            });
+        }
+      } catch (err) {
+        console.log(err);
+        resolve({
+          count: 0,
+          list: [],
+        });
+      }
+    });
+  }
+  getMapKey(params: TRetrievalFilterCandidateValueParams) {
+    const queryConfig = params.query_configs[0];
+    return `${queryConfig.data_source_label}____${queryConfig.data_type_label}____${
+      queryConfig.table
+    }____${params?.app_name}____${params?.service_name}____${params.fields.join('')}____`;
   }
 }

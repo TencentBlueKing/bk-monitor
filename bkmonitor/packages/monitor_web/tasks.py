@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import logging
@@ -16,8 +16,9 @@ import os
 import shutil
 import time
 import traceback
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import arrow
 from arrow.parser import ParserError
@@ -51,14 +52,16 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmModel, ItemModel, StrategyModel
+from bkmonitor.models import ActionConfig, AlgorithmChoiceConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, Strategy, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_global_user, set_local_username
 from constants.aiops import SCENE_NAME_MAPPING
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
@@ -77,7 +80,7 @@ from monitor_web.constants import (
 )
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
-from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
+from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from monitor_web.strategies.built_in import run_build_in
@@ -87,7 +90,7 @@ logger = logging.getLogger("monitor_web")
 
 
 @shared_task(ignore_result=True)
-def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
+def record_login_user(username: str, source: str, last_login: float, space_info: dict[str, Any]):
     logger.info(
         "[record_login_user] task start: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
         username,
@@ -113,7 +116,7 @@ def record_login_user(username: str, source: str, last_login: float, space_info:
 
 
 @shared_task(ignore_result=True)
-def active_business(username: str, space_info: Dict[str, Any]):
+def active_business(username: str, space_info: dict[str, Any]):
     logger.info("[active_business] task start: username -> %s, space_info -> %s", username, space_info)
     try:
         business.activate(int(space_info["bk_biz_id"]), username)
@@ -158,14 +161,6 @@ def run_init_builtin(bk_biz_id):
 
 
 @shared_task(ignore_result=True)
-def update_config_instance_count():
-    """
-    周期性查询节点管理任务状态，更新启用中的采集配置的主机数和异常数
-    """
-    resource.collecting.update_config_instance_count()
-
-
-@shared_task(ignore_result=True)
 def update_external_approval_status():
     """
     周期性查询外部版权限审批单据状态，更新审批结果
@@ -182,30 +177,87 @@ def update_external_approval_status():
 def update_metric_list():
     """
     定时刷新指标列表结果表
-    :return:
     """
     from monitor.models import GlobalConfig
+
+    now_timestamp = arrow.get(datetime.datetime.now()).timestamp
+    for tenant in api.bk_login.list_tenant():
+        bk_tenant_id = tenant["id"]
+        last_timestamp_key = (
+            f"{bk_tenant_id}_METRIC_CACHE_TASK_LAST_TIMESTAMP"
+            if bk_tenant_id != DEFAULT_TENANT_ID
+            else "METRIC_CACHE_TASK_LAST_TIMESTAMP"
+        )
+
+        # 获取上次执行分发任务时间戳
+        metric_cache_task_last_timestamp, _ = GlobalConfig.objects.get_or_create(
+            key=last_timestamp_key, defaults={"value": 0}
+        )
+        last_timestamp = int(metric_cache_task_last_timestamp.value)
+
+        # 如果当前分发任务距离上次更新时间不超过周期1min，则不执行本次任务，避免短时间重复下发
+        if last_timestamp and now_timestamp - last_timestamp < 60:
+            continue
+
+        # 获取当前任务轮次
+        period = settings.METRIC_CACHE_TASK_PERIOD
+        task_round_key = (
+            f"{bk_tenant_id}_METRIC_CACHE_TASK_ROUND"
+            if bk_tenant_id != DEFAULT_TENANT_ID
+            else "METRIC_CACHE_TASK_ROUND"
+        )
+        metric_cache_task_round, is_created = GlobalConfig.objects.get_or_create(key=task_round_key)
+        if is_created:
+            offset = 0
+        else:
+            offset = int(metric_cache_task_round.value)
+
+        # 更新任务轮次
+        GlobalConfig.objects.filter(key=task_round_key).update(
+            value=0 if period <= 1 or offset >= period - 1 else offset + 1
+        )
+
+        # 刷新指定租户的指标列表结果表
+        _update_metric_list(bk_tenant_id, period, offset)
+
+        # 更新此轮分发任务时间戳
+        GlobalConfig.objects.filter(key=last_timestamp_key).update(value=now_timestamp)
+
+
+def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
+    """
+    刷新指定租户的指标列表结果表
+
+    Args:
+        bk_tenant_id (str): 租户ID，用于区分不同的租户环境
+        period (int): 任务执行周期，以分钟为单位，用于分批执行任务
+        offset (int): 当前任务轮次的偏移量，用于确定本轮处理的业务范围
+
+    Note:
+        该函数负责刷新指定租户下的指标列表结果表，包括以下几种类型：
+        - 全业务类型：BASEALARM, BKMONITORLOG
+        - 单业务类型：BKDATA, LOGTIMESERIES, BKMONITORALERT
+        - 需要包含业务0的类型：BKMONITOR, CUSTOMEVENT, CUSTOMTIMESERIES, BKFTAALERT, BKMONITORK8S
+
+        函数采用分批处理机制，根据period和offset参数确定本轮需要处理的业务列表，
+        避免一次性处理所有业务造成的性能问题。
+
+    Raises:
+        BaseException: 当指标列表更新过程中发生异常时，会记录错误日志但不中断整体流程
+    """
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
-    def update_metric(_source_type, bk_biz_id=None):
+    def update_metric(_source_type: str, bk_biz_id: int | None = None):
         try:
-            if bk_biz_id is not None:
-                SOURCE_TYPE[_source_type](bk_biz_id).run(delay=True)
-            else:
-                SOURCE_TYPE[_source_type]().run(delay=True)
+            SOURCE_TYPE[_source_type](bk_tenant_id, bk_biz_id).run(delay=True)
         except BaseException as e:
-            logger.exception("Failed to update metric list(%s) for (%s)", f"{bk_biz_id}_{_source_type}", e)
+            logger.exception(
+                "Failed to update metric list(%s) for (%s)",
+                f"{bk_tenant_id}_{bk_biz_id}_{_source_type}",
+                e,
+            )
 
     set_local_username(settings.COMMON_USERNAME)
-
-    # 获取上次执行分发任务时间戳
-    metric_cache_task_last_timestamp, _ = GlobalConfig.objects.get_or_create(
-        key="METRIC_CACHE_TASK_LAST_TIMESTAMP", defaults={"value": 0}
-    )
-    # 如果当前分发任务距离上次更新时间不超过周期1min，则不执行本次任务，避免短时间重复下发
-    now_timestamp = arrow.get(datetime.datetime.now()).timestamp
-    if metric_cache_task_last_timestamp.value and now_timestamp - metric_cache_task_last_timestamp.value < 60:
-        return
 
     # 指标缓存类型: 全业务、单业务、业务0
     source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
@@ -216,41 +268,22 @@ def update_metric_list():
     # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
     extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
     # 非web请求， 允许使用 list_spaces
-    businesses = SpaceApi.list_spaces()
-
-    # 记录分发任务轮次
-    metric_cache_task_round, is_created = GlobalConfig.objects.get_or_create(key="METRIC_CACHE_TASK_ROUND")
-    if is_created:
-        metric_cache_task_round.value = 0
-    offset = metric_cache_task_round.value
-    # 分发任务周期，默认为分钟
-    period = settings.METRIC_CACHE_TASK_PERIOD
-
-    # 更新分发任务轮次
-    if period <= 1 or offset == period - 1:
-        metric_cache_task_round.value = 0
-    else:
-        metric_cache_task_round.value = offset + 1
-    metric_cache_task_round.save()
-
-    # 更新此轮分发任务时间戳
-    metric_cache_task_last_timestamp.value = now_timestamp
-    metric_cache_task_last_timestamp.save()
-
+    businesses: list[Space] = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
     # 计算每轮任务更新业务数
     biz_num = math.ceil(len(businesses) / period)
     biz_count = 0
 
+    # 记录任务开始时间
     start = time.time()
-    logger.info("^update metric list(round %s)" % offset)
+    logger.info(f"^update metric list(round {offset})")
 
-    # 最后一轮进行全业务和0业务更新
+    # 第一轮进行全业务和0业务更新
     if offset == 0:
         biz_count += 1
-        for source_type in source_type_add_biz_0:
-            update_metric(source_type, 0)
         for source_type in source_type_all_biz:
             update_metric(source_type)
+        for source_type in source_type_add_biz_0:
+            update_metric(source_type, 0)
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
@@ -280,7 +313,7 @@ def update_metric_list():
     for k8s_biz_id in k8s_biz_set:
         update_metric("BKMONITORK8S", k8s_biz_id)
 
-    logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
+    logger.info(f"$update metric list(round {offset}), biz count: {biz_count}, cost: {time.time() - start}")
 
 
 @shared_task(queue="celery_resource")
@@ -310,9 +343,9 @@ def update_metric_list_by_biz(bk_biz_id):
                 if source_type in source_type_gt_0 and bk_biz_id <= 0:
                     continue
                 start = time.time()
-                logger.info("update metric list({}) by biz({})".format(source_type, bk_biz_id))
+                logger.info(f"update metric list({source_type}) by biz({bk_biz_id})")
                 source(bk_biz_id).run(delay=False)
-                logger.info("update metric list({}) succeed in {}".format(source_type, time.time() - start))
+                logger.info(f"update metric list({source_type}) succeed in {time.time() - start}")
 
         except BaseException as e:
             logger.exception("Failed to update metric list(%s) for (%s)", source_type, e)
@@ -320,11 +353,17 @@ def update_metric_list_by_biz(bk_biz_id):
     ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_update_metric_cache").delete()
 
 
+if TYPE_CHECKING:
+    from monitor_web.strategies.metric_list_cache import BaseMetricCacheManager
+
+
 @shared_task(ignore_result=True)
-def run_metric_manager_async(manager):
+def run_metric_manager_async(manager: "BaseMetricCacheManager"):
     """
     异步执行更新任务
     """
+    set_local_tenant_id(bk_tenant_id=manager.bk_tenant_id)
+
     manager._run()
 
 
@@ -338,7 +377,7 @@ def update_cmdb_util_info():
 
 
 @shared_task(ignore_result=True)
-def append_metric_list_cache(result_table_id_list):
+def append_metric_list_cache(bk_tenant_id: str, result_table_id_list: list[str]):
     """
     追加或更新新增的采集插件标列表
     """
@@ -350,6 +389,7 @@ def append_metric_list_cache(result_table_id_list):
         for metric in metric_list:
             metric["metric_md5"] = count_md5(metric)
             MetricListCache.objects.update_or_create(
+                bk_tenant_id=bk_tenant_id,
                 metric_field=metric["metric_field"],
                 result_table_id=metric["result_table_id"],
                 related_id=metric.get("related_id"),
@@ -362,7 +402,9 @@ def append_metric_list_cache(result_table_id_list):
         # api 调用不做指标实时更新。
         return
 
-    set_local_username(settings.COMMON_USERNAME)
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+    set_local_username(username=settings.COMMON_USERNAME)
+
     if not result_table_id_list:
         return
     one_result_table_id = result_table_id_list[0]
@@ -375,10 +417,12 @@ def append_metric_list_cache(result_table_id_list):
         new_metric_list = []
         if plugin is None:
             plugin_type, plugin_id = db_name.split("_", 1)
-            plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
+            plugin = CollectorPluginMeta.objects.filter(
+                bk_tenant_id=bk_tenant_id, plugin_type=plugin_type, plugin_id=plugin_id
+            ).first()
         for result in group_list:
             result["bk_biz_id"] = plugin.bk_biz_id
-            create_msg = BkmonitorMetricCacheManager().get_plugin_ts_metric(result)
+            create_msg = BkmonitorMetricCacheManager(bk_tenant_id=bk_tenant_id).get_plugin_ts_metric(result)
             new_metric_list.extend(list(create_msg))
         update_or_create_metric_list_cache(new_metric_list)
     else:
@@ -388,7 +432,7 @@ def append_metric_list_cache(result_table_id_list):
             for k in ["source_label", "type_label"]:
                 result_table_msg[k] = data_id_info[k]
 
-            create_msg = BkmonitorMetricCacheManager().get_metrics_by_table(result_table_msg)
+            create_msg = BkmonitorMetricCacheManager(bk_tenant_id=bk_tenant_id).get_metrics_by_table(result_table_msg)
             update_or_create_metric_list_cache(create_msg)
 
 
@@ -428,7 +472,9 @@ def import_config(
     )
     from monitor_web.models import ImportDetail
 
-    set_local_username(username)
+    set_local_username(username=username)
+    set_local_tenant_id(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
+
     import_collect(bk_biz_id, history_instance, collect_config_list)
     import_strategy(bk_biz_id, history_instance, strategy_config_list, is_overwrite_mode)
     import_view(bk_biz_id, view_config_list, is_overwrite_mode)
@@ -465,16 +511,21 @@ def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
         CustomEventCacheManager,
     )
 
-    set_local_username(settings.COMMON_USERNAME)
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+    set_local_username(username=settings.COMMON_USERNAME)
+
     event_group_id = int(bk_event_group_id)
     event_type = CustomEventGroup.objects.get(bk_biz_id=bk_biz_id, bk_event_group_id=event_group_id).type
     if event_type == "custom_event":
         result_table_msg = api.metadata.get_event_group.request.refresh(
             bk_biz_id=bk_biz_id, event_group_id=event_group_id
         )
-        create_msg = CustomEventCacheManager().get_metrics_by_table(result_table_msg)
+        create_msg = CustomEventCacheManager(bk_tenant_id=bk_tenant_id).get_metrics_by_table(result_table_msg)
         for metric_msg in create_msg:
             MetricListCache.objects.update_or_create(
+                bk_tenant_id=bk_tenant_id,
                 metric_field=metric_msg["metric_field"],
                 result_table_id=metric_msg["result_table_id"],
                 related_id=metric_msg.get("related_id", ""),
@@ -483,7 +534,7 @@ def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
                 defaults=metric_msg,
             )
     else:
-        BkMonitorLogCacheManager().run()
+        BkMonitorLogCacheManager(bk_tenant_id=bk_tenant_id).run()
 
 
 @shared_task(ignore_result=True)
@@ -507,33 +558,7 @@ def update_task_running_status(task_id):
     resource.uptime_check.update_task_running_status(task_id)
 
 
-@shared_task(ignore_result=True)
-def append_custom_ts_metric_list_cache(time_series_group_id):
-    from bkmonitor.models.metric_list_cache import MetricListCache
-    from monitor_web.strategies.metric_list_cache import CustomMetricCacheManager
-
-    try:
-        params = {
-            "time_series_group_id": time_series_group_id,
-        }
-        results = api.metadata.get_time_series_group(params)
-        for result in results:
-            result["custom_ts"] = CustomTSTable.objects.get(time_series_group_id=time_series_group_id)
-            create_msg = CustomMetricCacheManager().get_metrics_by_table(result)
-            for metric_msg in create_msg:
-                MetricListCache.objects.update_or_create(
-                    metric_field=metric_msg["metric_field"],
-                    result_table_id=metric_msg["result_table_id"],
-                    related_id=metric_msg.get("related_id", ""),
-                    data_type_label=metric_msg.get("data_type_label"),
-                    data_source_label=metric_msg.get("data_source_label"),
-                    defaults=metric_msg,
-                )
-    except BaseException as err:
-        logger.error("[update_custom_ts_metric] failed, msg is {}".format(err))
-
-
-def get_aiops_access_func(algorithm: AlgorithmModel.AlgorithmChoices) -> callable:
+def get_aiops_access_func(algorithm: str) -> Callable:
     algo_clss = AlgorithmModel.AlgorithmChoices
     return {
         algo_clss.MultivariateAnomalyDetection: access_aiops_multivariate_anomaly_detection_by_bk_biz_id,
@@ -542,7 +567,13 @@ def get_aiops_access_func(algorithm: AlgorithmModel.AlgorithmChoices) -> callabl
 
 
 @shared_task(ignore_result=True, queue="celery_resource")
-def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict, query_config: QueryConfig):
+def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: dict, query_config: QueryConfig):
+    # 查询并设置租户id
+    strategy = StrategyModel.objects.get(id=query_config.strategy_id)
+    bk_biz_id = strategy.bk_biz_id
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+
     deploy_data = api.bkdata.get_dataflow_deploy_data(flow_id=flow_id)
     deploy_task_data = {item["id"]: item for item in deploy_data}
     current_deploy_data = deploy_task_data.get(task_id, deploy_data[0])
@@ -591,7 +622,7 @@ def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict,
         )
 
 
-def report_aiops_access_metrics(base_labels: Dict, result: str, exception: str = "", exc_type: str = ""):
+def report_aiops_access_metrics(base_labels: dict, result: str, exception: str = "", exc_type: str = ""):
     labels = copy.deepcopy(base_labels)
     labels.update({"result": result, "exception": exception, "exc_type": exc_type})
     metrics.AIOPS_ACCESS_TASK_COUNT.labels(**labels).inc()
@@ -614,18 +645,32 @@ def access_aiops_by_strategy_id(strategy_id):
     # 1. 根据策略ID获取智能检测算法(AIOPS)配置，如果没有配置则直接返回
     strategy = StrategyModel.objects.get(id=strategy_id, is_enabled=True)
     item = ItemModel.objects.filter(strategy_id=strategy_id).first()
+    if not item:
+        logger.info("strategy_id({}) does not config item, skipped", strategy_id)
+        return
+
     detect_algorithm = AlgorithmModel.objects.filter(
         strategy_id=strategy_id,
-        item_id=item.id,
+        item_id=item.pk,
         type__in=AlgorithmModel.AIOPS_ALGORITHMS,
     ).first()
     if not detect_algorithm:
         logger.info("strategy_id({}) does not config intelligent detect, skipped", strategy_id)
         return
 
+    # 设置租户id
+    set_local_tenant_id(bk_tenant_id=bk_biz_id_to_bk_tenant_id(strategy.bk_biz_id))
+
     # 2. 获取方案id和方案参数，后续构建数据流需要
     # 若方案id不存在，则直接返回
     plan_id = detect_algorithm.config.get("plan_id")
+
+    # 如果方案配置已经迁移，且还需要走bkbase的方式接入，则需要从迁移后的配置中拿到原来的方案ID
+    if settings.IS_MIGRATE_AIOPS_STRATEGY:
+        algorithm_choice = AlgorithmChoiceConfig.objects.filter(id=plan_id).first()
+        if algorithm_choice and algorithm_choice.config.get("bkbase_plan_id"):
+            plan_id = algorithm_choice.config["bkbase_plan_id"]
+
     if not plan_id:
         logger.info("strategy_id({}) intelligent detect plan_id not exist, skipped", strategy_id)
         return
@@ -633,7 +678,7 @@ def access_aiops_by_strategy_id(strategy_id):
 
     # 3. 获取查询配置，并更新算法接入状态为"已创建"
     rt_query_config = QueryConfig.from_models(
-        QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.id)
+        list(QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.pk))
     )[0]
     rt_query_config.intelligent_detect["status"] = AccessStatus.CREATED
     rt_query_config.save()
@@ -657,16 +702,14 @@ def access_aiops_by_strategy_id(strategy_id):
             api.metadata.access_bk_data_by_result_table(table_id=rt_query_config.result_table_id, is_access_now=True)
         except Exception as e:  # noqa
             # 4.1.2 接入失败，抛出异常，记录错误信息，并更新算法接入状态为"失败"
-            err_msg = "access to bkdata failed: result_table_id: {} err_msg: {}".format(
-                rt_query_config.result_table_id, e
-            )
+            err_msg = f"access to bkdata failed: result_table_id: {rt_query_config.result_table_id} err_msg: {e}"
             rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
             rt_query_config.intelligent_detect["message"] = err_msg
             rt_query_config.save()
             report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg, AccessErrorType.ACCESS_DATAID)
             raise Exception(err_msg)
         else:
-            logger.info("access({}) to bkdata success.".format(rt_query_config.result_table_id))
+            logger.info(f"access({rt_query_config.result_table_id}) to bkdata success.")
         rt_scope = {"bk_biz_id": str(strategy.bk_biz_id)}
         bk_data_result_table_id = to_bk_data_rt_id(rt_query_config.result_table_id, settings.BK_DATA_RAW_TABLE_SUFFIX)
     elif rt_query_config.data_source_label == DataSourceLabel.BK_DATA:
@@ -692,7 +735,7 @@ def access_aiops_by_strategy_id(strategy_id):
     # 6. 构建和启动智能检测数据流
     # 6.1 构建实时计算节点的sql，用于构建数据流
     metric_field = rt_query_config.metric_field
-    value_fields = ["`{}`".format(f) for f in rt_query_config.agg_dimension[:]]
+    value_fields = [f"`{f}`" for f in rt_query_config.agg_dimension[:]]
     group_by_fields = []
     for field in rt_query_config.agg_dimension:
         if field.upper() in FLINK_KEY_WORDS:
@@ -700,7 +743,7 @@ def access_aiops_by_strategy_id(strategy_id):
             continue
         group_by_fields.append(field)
     value_fields.append(
-        "%(method)s(`%(field)s`) as `%(field)s`" % dict(field=metric_field, method=rt_query_config.agg_method)
+        "{method}(`{field}`) as `{field}`".format(**dict(field=metric_field, method=rt_query_config.agg_method))
     )
     sql, params = (
         DataQueryHandler(rt_query_config.data_source_label, rt_query_config.data_type_label)
@@ -758,12 +801,7 @@ def access_aiops_by_strategy_id(strategy_id):
             # 6.5.1 重试次数小于最大重试次数，则继续尝试接入智能检测算法，
             # 并更新算法接入状态为"运行中"，且记录重试次数和错误信息
             retries += 1
-            err_msg = "create intelligent detect by strategy_id({}) failed: {}, retrying: {}/{}".format(
-                strategy.id,
-                e,
-                retries,
-                AIOPS_ACCESS_MAX_RETRIES,
-            )
+            err_msg = f"create intelligent detect by strategy_id({strategy.id}) failed: {e}, retrying: {retries}/{AIOPS_ACCESS_MAX_RETRIES}"
             logger.exception(err_msg)
             access_aiops_by_strategy_id.apply_async(args=(strategy_id,), countdown=AIOPS_ACCESS_RETRY_INTERVAL)
             rt_query_config.intelligent_detect["status"] = AccessStatus.RUNNING
@@ -773,7 +811,7 @@ def access_aiops_by_strategy_id(strategy_id):
             report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg, AccessErrorType.CREATE_FLOW)
         else:
             # 6.5.2 超过最大重试次数后直接失败，更新算法接入状态为"失败"并记录错误信息，且发邮件通知相关人员
-            err_msg = "create intelligent detect by strategy_id({}) failed: {}".format(strategy.id, e)
+            err_msg = f"create intelligent detect by strategy_id({strategy.id}) failed: {e}"
             logger.exception(err_msg)
             rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
             rt_query_config.intelligent_detect["message"] = err_msg
@@ -886,6 +924,7 @@ def update_report_receivers():
 
     report_items = ReportItems.objects.all()
     for report_item in report_items:
+        set_local_tenant_id(bk_tenant_id=report_item.bk_tenant_id)
         receivers = ReportCreateOrUpdateResource().fetch_group_members(report_item.receivers, "receiver")
         # 补充用户被添加进来的时间
         for receiver in receivers:
@@ -920,7 +959,7 @@ def collect_metric(collect):
     try:
         from bkmonitor.utils.request import set_request_username
 
-        set_request_username("admin")
+        set_request_username(settings.COMMON_USERNAME)
         start_time = time.time()
         collect.collect()
         end_time = time.time()
@@ -963,7 +1002,7 @@ def get_multivariate_anomaly_strategy(bk_biz_id, scene_id):
     from bkmonitor.models import AlgorithmModel, StrategyModel
 
     strategy_objs = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-    strategy_ids = [s.id for s in strategy_objs]
+    strategy_ids = [s.pk for s in strategy_objs]
     return AlgorithmModel.objects.filter(
         strategy_id__in=strategy_ids,
         type=AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection,
@@ -1010,6 +1049,9 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
 
     from bkmonitor.aiops.utils import AiSetting
     from bkmonitor.data_source.handler import DataQueryHandler
+
+    # 设置业务租户ID
+    set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -1098,7 +1140,7 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
             scene_config.intelligent_detect = intelligent_detect
             ai_setting.save(multivariate_anomaly_detection=multivariate_anomaly_detection.to_dict())
         except BaseException as e:  # noqa
-            err_msg = "create intelligent detect by bk_biz_id({}), scene({}) failed: {}".format(bk_biz_id, scene, e)
+            err_msg = f"create intelligent detect by bk_biz_id({bk_biz_id}), scene({scene}) failed: {e}"
             intelligent_detect["status"] = AccessStatus.FAILED
             intelligent_detect["message"] = err_msg
             ai_setting.save(multivariate_anomaly_detection=multivariate_anomaly_detection.to_dict())
@@ -1112,9 +1154,7 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
             try:
                 api.cmsi.send_mail(**params)
             except BaseException:  # noqa
-                logger.exception(
-                    "send.mail({}) failed, content:({})".format(settings.BK_DATA_PROJECT_MAINTAINER, params)
-                )
+                logger.exception(f"send.mail({settings.BK_DATA_PROJECT_MAINTAINER}) failed, content:({params})")
             return
 
 
@@ -1135,9 +1175,7 @@ def stop_aiops_multivariate_anomaly_detection_flow(access_bk_biz_id, need_stop_s
             if data_flow.flow_info.get("status") == DataFlow.Status.Running:
                 data_flow.stop()
         except DataFlowNotExists:
-            logger.exception(
-                "biz({}) need close scene({}) flow {} not exists".format(access_bk_biz_id, need_stop_scene, flow_name)
-            )
+            logger.exception(f"biz({access_bk_biz_id}) need close scene({need_stop_scene}) flow {flow_name} not exists")
             continue
 
 
@@ -1148,6 +1186,8 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
     :param access_bk_biz_id: 待接入的业务id
     """
     from bkmonitor.aiops.utils import AiSetting
+
+    set_local_tenant_id(bk_tenant_id=bk_biz_id_to_bk_tenant_id(access_bk_biz_id))
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
@@ -1168,12 +1208,12 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         ai_setting.save()
         # 此处记得从继续启动
     except Exception as e:  # noqa
-        err_msg = "create metric recommend by bk_biz_id({}) failed: {}".format(access_bk_biz_id, e)
+        err_msg = f"create metric recommend by bk_biz_id({access_bk_biz_id}) failed: {e}"
         logger.exception(err_msg)
 
 
 @shared_task(ignore_result=True, queue="celery_resource")
-def access_host_anomaly_detect_by_strategy_id(strategy_id):
+def access_host_anomaly_detect_by_strategy_id(strategy_id: str):
     from bkmonitor.data_source.handler import DataQueryHandler
     from bkmonitor.models import (
         AlgorithmModel,
@@ -1186,18 +1226,24 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     # 1. 根据策略ID获取主机异常检测算法配置，如果没有配置则直接返回
     strategy = StrategyModel.objects.get(id=strategy_id, is_enabled=True)
     item = ItemModel.objects.filter(strategy_id=strategy_id).first()
+    if not item:
+        logger.info(f"strategy_id({strategy_id}) does not config item, skipped")
+        return
+
     detect_algorithm = AlgorithmModel.objects.filter(
         strategy_id=strategy_id,
-        item_id=item.id,
+        item_id=item.pk,
         type=AlgorithmModel.AlgorithmChoices.HostAnomalyDetection,
     ).first()
     if not detect_algorithm:
         logger.info("strategy_id({}) does not config host anomaly detect, skipped", strategy_id)
         return
 
+    set_local_tenant_id(bk_biz_id_to_bk_tenant_id(strategy.bk_biz_id))
+
     # 2. 获取查询配置，并更新算法接入状态为"已创建"
     rt_query_config = QueryConfig.from_models(
-        QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.id)
+        list(QueryConfigModel.objects.filter(strategy_id=strategy_id, item_id=item.pk))
     )[0]
     rt_query_config.intelligent_detect["status"] = AccessStatus.RUNNING
     rt_query_config.save()
@@ -1242,7 +1288,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
 
         # 3.3 创建并启动主机异常检测数据流
         detect_data_flow = HostAnomalyIntelligentDetectTask(
-            strategy_id=strategy.id,
+            strategy_id=strategy.pk,
             access_bk_biz_id=strategy.bk_biz_id,
             rt_id=sql_build_params["result_table_id"],
             strategy_sql=scene_sql,
@@ -1275,12 +1321,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
             # 3.5.1 重试次数小于最大重试次数，则继续尝试接入主机异常检测算法，
             # 并更新算法接入状态为"运行中"，且记录重试次数和错误信息
             retries += 1
-            err_msg = "create intelligent detect by strategy_id({}) failed: {}, retrying: {}/{}".format(
-                strategy.id,
-                e,
-                retries,
-                AIOPS_ACCESS_MAX_RETRIES,
-            )
+            err_msg = f"create intelligent detect by strategy_id({strategy.id}) failed: {e}, retrying: {retries}/{AIOPS_ACCESS_MAX_RETRIES}"
             logger.exception(err_msg)
             access_host_anomaly_detect_by_strategy_id.apply_async(
                 args=(strategy_id,), countdown=AIOPS_ACCESS_RETRY_INTERVAL
@@ -1292,7 +1333,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
             report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg, AccessErrorType.CREATE_FLOW)
         else:
             # 3.5.2 超过最大重试次数后直接失败，更新算法接入状态为"失败"并记录错误信息，且发邮件通知相关人员
-            err_msg = "create intelligent detect by strategy_id({}) failed: {}".format(strategy.id, e)
+            err_msg = f"create intelligent detect by strategy_id({strategy.id}) failed: {e}"
             logger.exception(err_msg)
             rt_query_config.intelligent_detect["status"] = AccessStatus.FAILED
             rt_query_config.intelligent_detect["message"] = err_msg
@@ -1351,7 +1392,7 @@ def clean_bkrepo_temp_file():
     clean_paths = ["as_code/export/", "as_code/", "render/image/dashboard/"]
     for clean_path in clean_paths:
         filenames = set(client.list_dir(clean_path)[1])
-        logger.info("cleaning bkrepo temp files, path: {}, file count: {}".format(clean_path, len(filenames)))
+        logger.info(f"cleaning bkrepo temp files, path: {clean_path}, file count: {len(filenames)}")
         for filename in filenames:
             filepath = f"{clean_path}{filename}"
             last_modified = None
@@ -1421,18 +1462,22 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
 
 
 @shared_task(ignore_result=True)
-def update_target_detail(bk_biz_id=None):
+def update_target_detail(bk_biz_id=None, strategies_ids=None):
     """
     对启用了缓存的业务ID，更新监控目标详情缓存
     """
-    if bk_biz_id is None:
+    if bk_biz_id is None and strategies_ids is None:
         # 总任务，定时任务发起
         for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
             update_target_detail.delay(bk_biz_id=bk_biz_id)
         return
 
+    filter_conditions = {"bk_biz_id": bk_biz_id}
+    if strategies_ids is not None:
+        filter_conditions["id__in"] = strategies_ids
+
     # 参数指定bk_biz_id
-    strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+    strategy_ids = StrategyModel.objects.filter(**filter_conditions).values_list("id", flat=True)
     items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
     resource.strategies.get_target_detail_with_cache.set_mapping(
         {item.strategy_id: (bk_biz_id, item.target) for item in items}
@@ -1452,7 +1497,7 @@ def migrate_all_panels_task(bk_biz_id, org_id):
     from bk_dataview.models import Dashboard
     from monitor.models.models import ApplicationConfig
 
-    dashboard_uids = list(Dashboard.objects.filter(org_id=org_id, is_folder=False).values_list('uid', flat=True))
+    dashboard_uids = list(Dashboard.objects.filter(org_id=org_id, is_folder=False).values_list("uid", flat=True))
     result = {"success_total": 0, "failed_total": 0, "details": [], "dashboard_errors": []}
 
     for dashboard_uid in dashboard_uids:
@@ -1473,5 +1518,5 @@ def migrate_all_panels_task(bk_biz_id, org_id):
             result["dashboard_errors"].append({"dashboard_uid": dashboard_uid, "error_message": exc_info})
 
         ApplicationConfig.objects.update_or_create(
-            cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_migrate_all_panels", defaults={'value': result}
+            cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_migrate_all_panels", defaults={"value": result}
         )

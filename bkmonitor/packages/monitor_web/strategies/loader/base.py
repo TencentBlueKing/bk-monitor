@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,12 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import logging
-from typing import List, Optional, Set
 
 from django.conf import settings
 from django.db.utils import IntegrityError
 
 from bkmonitor.models import DefaultStrategyBizAccessModel
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +23,13 @@ __all__ = ["DefaultAlarmStrategyLoaderBase"]
 
 
 class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
-    STRATEGY_ATTR_NAME = None
+    CACHE = set()
+    LOADER_TYPE = "default"
+    STRATEGY_ATTR_NAME: str = ""
 
     def __init__(self, bk_biz_id: int) -> None:
         self.bk_biz_id = bk_biz_id
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         self.notice_group_cache = {}
 
     @abc.abstractmethod
@@ -35,7 +37,7 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
         """获得已经加载默认告警配置的业务配置 ."""
         raise NotImplementedError
 
-    def get_versions_of_access(self) -> Set:
+    def get_versions_of_access(self) -> set:
         """获得已经接入的版本 ."""
         versions = DefaultStrategyBizAccessModel.objects.filter(
             bk_biz_id=self.bk_biz_id, access_type=self.LOADER_TYPE
@@ -47,17 +49,17 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_default_strategy(self) -> List:
+    def get_default_strategy(self) -> list:
         """获得默认告警策略 ."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def load_strategies(self, strategies: List) -> None:
+    def load_strategies(self, strategies: list) -> None:
         """加载默认配置 ."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_notice_group(self, config_type: Optional[str] = None) -> List:
+    def get_notice_group(self, config_type: str | None = None) -> list:
         """获得告警通知组 ."""
         raise NotImplementedError
 

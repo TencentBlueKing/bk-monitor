@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -157,3 +156,21 @@ class ParsingDataError(PluginError):
     code = 3310023
     name = _("解析数据错误")
     message_tpl = _("解析节点管理返回数据异常，错误原因可能为：1. 插件采集的指标数量过多，2. 插件采集的数据量过大")
+
+
+class RegexParseError(PluginError):
+    code = 3310024  # 错误码
+    name = _("正则表达式解析错误")  # 错误名称
+    message_tpl = _("正则表达式解析错误：{msg}")  # 错误消息模板
+
+
+class SubprocessCallError(PluginError):
+    code = 3310025
+    name = _("子进程调用错误")
+    message_tpl = _("子进程调用错误：{msg}")
+
+
+class JsonParseError(PluginError):
+    code = 3310026
+    name = _("JSON解析错误")
+    message_tpl = _("JSON解析错误：{msg}")

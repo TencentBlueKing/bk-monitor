@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
@@ -28,11 +28,15 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.constants import (
     AGG_CONDITION,
+    AGG_CONDITION_NORMAL,
     AGG_DIMENSION,
+    AGG_DIMENSION_NORMAL,
     ALARM_INTERVAL_CLUSTERING,
     DEFAULT_AGG_METHOD,
     DEFAULT_ALGORITHMS,
+    DEFAULT_DATA_SOURCE_LABEL,
     DEFAULT_DATA_SOURCE_LABEL_BKDATA,
+    DEFAULT_DATA_TYPE_LABEL,
     DEFAULT_DATA_TYPE_LABEL_BKDATA,
     DEFAULT_EXPRESSION,
     DEFAULT_LABEL,
@@ -41,6 +45,7 @@ from apps.log_clustering.constants import (
     DEFAULT_NOTICE_WAY,
     DEFAULT_PATTERN_MONITOR_MSG,
     DEFAULT_SCENARIO,
+    DETECTS,
     ITEM_NAME_CLUSTERING,
     PATTERN_MONITOR_MSG_BY_SWITCH,
     TRIGGER_CONFIG,
@@ -60,7 +65,7 @@ from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_external_app_code
 
 
-class ClusteringMonitorHandler(object):
+class ClusteringMonitorHandler:
     def __init__(self, index_set_id):
         self.index_set_id = index_set_id
         self.index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
@@ -78,48 +83,26 @@ class ClusteringMonitorHandler(object):
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
 
     @atomic
-    def save_clustering_strategy(
+    def save_new_cls_clustering_strategy(
         self,
         pattern_level="",
         table_id=None,
         metric="",
-        strategy_type=StrategiesType.NEW_CLS_strategy,  # 新类告警
         params=None,
     ):
+        """保存新类告警策略"""
         params = params or {}
-        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
-            index_set_id=self.index_set_id,
-            strategy_type=strategy_type,
-            signature="",
-            is_deleted=False,
-            defaults={
-                "strategy_id": None,
-                "bk_biz_id": self.bk_biz_id,
-                "pattern_level": pattern_level,
-            },
-        )
-        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
-            "__clustering_field__", self.clustering_config.clustering_fields
-        )
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
 
         labels = DEFAULT_LABEL.copy()
         labels += [f"LogClustering/Count/{label_index_set_id}"]
-        if strategy_type == StrategiesType.NORMAL_STRATEGY:
-            name = _("{} - 日志数量突增异常告警").format(self.index_set.index_set_name)
-            args = {
-                "$alert_down": "1",
-                "$sensitivity": params.get("sensitivity", 5),
-                "$alert_upward": "1",
-            }
 
-        else:
-            name = _("{} - 日志新类异常告警").format(self.index_set.index_set_name)
-            args = {
-                "$model_file_id": self.clustering_config.model_output_rt,  # 预测节点输出
-                "$new_class_interval": params.get("interval", 30),
-                "$new_class_alert_th": params.get("threshold", 1),
-            }
+        name = _("{} - 日志新类异常告警").format(self.index_set.index_set_name)
+        args = {
+            "$model_file_id": self.clustering_config.model_output_rt,  # 预测节点输出
+            "$new_class_interval": params.get("interval", 30),
+            "$new_class_alert_th": params.get("threshold", 1),
+        }
         items = [
             {
                 "name": ITEM_NAME_CLUSTERING,
@@ -140,7 +123,7 @@ class ClusteringMonitorHandler(object):
                         "agg_condition": AGG_CONDITION,
                         "metric_field": metric,
                         "unit": "",
-                        "metric_id": "bk_data.{table_id}.{metric}".format(table_id=table_id, metric=metric),
+                        "metric_id": f"bk_data.{table_id}.{metric}",
                         "index_set_id": "",
                         "query_string": "*",
                         "custom_event_name": "log_count",
@@ -155,9 +138,7 @@ class ClusteringMonitorHandler(object):
                         "level": params.get("level", 2),
                         "type": "IntelligentDetect",
                         "config": {
-                            "plan_id": self.conf.get("normal_plan_id")
-                            if strategy_type == StrategiesType.NORMAL_STRATEGY
-                            else self.conf.get("algorithm_plan_id"),
+                            "plan_id": self.conf.get("algorithm_plan_id"),
                             "visual_type": "score",
                             "args": args,
                         },
@@ -166,19 +147,122 @@ class ClusteringMonitorHandler(object):
                 ],
             }
         ]
-        detects = [
+
+        notice = self.get_notice(
+            label_index_set_id=label_index_set_id,
+            user_groups=params.get("user_groups"),
+        )
+        request_params = {
+            "type": "monitor",
+            "bk_biz_id": self.bk_biz_id,
+            "scenario": DEFAULT_SCENARIO,
+            "name": name,
+            "labels": labels,
+            "is_enabled": True,
+            "items": items,
+            "detects": DETECTS,
+            "actions": [],
+            "notice": notice,
+        }
+
+        strategy_id = self.save_strategy_infos(
+            table_id=table_id,
+            strategy_type=StrategiesType.NEW_CLS_strategy,
+            pattern_level=pattern_level,
+            request_params=request_params,
+        )
+
+        return {"strategy_id": strategy_id, "label_name": labels}
+
+    @atomic
+    def save_normal_clustering_strategy(
+        self,
+        pattern_level="",
+        table_id=None,
+        params=None,
+    ):
+        """保存数量突增告警策略"""
+        params = params or {}
+        label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
+
+        labels = DEFAULT_LABEL.copy()
+        labels += [f"LogClustering/Count/{label_index_set_id}"]
+        name = f"{self.index_set.index_set_name} - 日志数量突增异常告警"
+        args = {
+            "$alert_down": "1",
+            "$sensitivity": params.get("sensitivity", 5),
+            "$alert_upward": "1",
+            "$alert_slight_shake": "0",
+        }
+        items = [
             {
-                "level": 2,
-                "expression": "",
-                "trigger_config": TRIGGER_CONFIG,
-                "recovery_config": {"check_window": 5},
-                "connector": "and",
+                "name": f"COUNT({self.index_set.index_set_name})",
+                "no_data_config": DEFAULT_NO_DATA_CONFIG,
+                "target": [],
+                "expression": DEFAULT_EXPRESSION,
+                "functions": [],
+                "origin_sql": "",
+                "metric_type": "log",
+                "query_configs": [
+                    {
+                        "data_source_label": DEFAULT_DATA_SOURCE_LABEL,
+                        "data_type_label": DEFAULT_DATA_TYPE_LABEL,
+                        "alias": DEFAULT_EXPRESSION,
+                        "result_table_id": table_id,
+                        "agg_interval": self.conf.get("agg_interval", 60),
+                        "agg_dimension": AGG_DIMENSION_NORMAL,
+                        "agg_condition": AGG_CONDITION_NORMAL,
+                        "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
+                        "index_set_id": self.index_set_id,
+                        "query_string": "*",
+                        "functions": [],
+                        "time_field": "dtEventTimeStamp",
+                    }
+                ],
+                "algorithms": [
+                    {
+                        "level": params.get("level", 2),
+                        "type": "IntelligentDetect",
+                        "config": {
+                            "plan_id": self.conf.get("normal_plan_id"),
+                            "visual_type": "none",
+                            "args": args,
+                        },
+                        "unit_prefix": "",
+                    }
+                ],
             }
         ]
 
-        if params.get("user_groups"):
-            user_groups = params["user_groups"]
-        else:
+        notice = self.get_notice(
+            label_index_set_id=label_index_set_id,
+            user_groups=params.get("user_groups"),
+            dimensions=AGG_DIMENSION_NORMAL,
+        )
+
+        request_params = {
+            "type": "monitor",
+            "bk_biz_id": self.bk_biz_id,
+            "scenario": DEFAULT_SCENARIO,
+            "name": name,
+            "labels": labels,
+            "is_enabled": True,
+            "items": items,
+            "detects": DETECTS,
+            "actions": [],
+            "notice": notice,
+        }
+        strategy_id = self.save_strategy_infos(
+            table_id=table_id,
+            strategy_type=StrategiesType.NORMAL_STRATEGY,
+            pattern_level=pattern_level,
+            request_params=request_params,
+        )
+
+        return {"strategy_id": strategy_id, "label_name": labels}
+
+    def get_notice(self, label_index_set_id, user_groups, dimensions=None):
+        if not user_groups:
             # 没配置告警组的就创建一个默认的
             user_groups = [
                 MonitorUtils.get_or_create_notice_group(
@@ -186,7 +270,10 @@ class ClusteringMonitorHandler(object):
                     bk_biz_id=self.bk_biz_id,
                 )
             ]
-
+        dimensions = dimensions or []
+        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
+            "__clustering_field__", self.clustering_config.clustering_fields
+        )
         notice = {
             "config_id": 0,
             "user_groups": user_groups,
@@ -194,7 +281,7 @@ class ClusteringMonitorHandler(object):
             "options": {
                 "converge_config": {"need_biz_converge": True},
                 "exclude_notice_ways": {"recovered": [], "closed": [], "ack": []},
-                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": []},
+                "noise_reduce_config": {"is_enabled": False, "count": 10, "dimensions": dimensions},
                 "upgrade_config": {"is_enabled": False, "user_groups": []},
                 "assign_mode": ["by_rule", "only_notice"],
                 "chart_image_enabled": False,
@@ -211,19 +298,20 @@ class ClusteringMonitorHandler(object):
                 ],
             },
         }
-        request_params = {
-            "type": "monitor",
-            "bk_biz_id": self.bk_biz_id,
-            "scenario": DEFAULT_SCENARIO,
-            "name": name,
-            "labels": labels,
-            "is_enabled": True,
-            "items": items,
-            "detects": detects,
-            "actions": [],
-            "notice": notice,
-        }
+        return notice
 
+    def save_strategy_infos(self, table_id, strategy_type, pattern_level, request_params):
+        signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
+            index_set_id=self.index_set_id,
+            strategy_type=strategy_type,
+            signature="",
+            is_deleted=False,
+            defaults={
+                "strategy_id": None,
+                "bk_biz_id": self.bk_biz_id,
+                "pattern_level": pattern_level,
+            },
+        )
         if signature_strategy_settings.strategy_id and self.get_strategy(
             strategy_type, signature_strategy_settings.strategy_id
         ):
@@ -250,8 +338,7 @@ class ClusteringMonitorHandler(object):
                 "new_cls_strategy_enable",
             ]
         )
-
-        return {"strategy_id": strategy_id, "label_name": labels}
+        return strategy_id
 
     def get_strategy(self, strategy_type, strategy_id):
         # 获取告警策略信息
@@ -267,11 +354,16 @@ class ClusteringMonitorHandler(object):
         labels = [f"LogClustering/Count/{label_index_set_id}"]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
-            interval = algorithms_config["config"]["args"].get("$new_class_interval", "")
-            threshold = algorithms_config["config"]["args"].get("$new_class_alert_th", "")
+            interval = ""
+            threshold = ""
+            if isinstance(algorithms_config["config"], dict):
+                interval = algorithms_config["config"].get("args", {}).get("$new_class_interval", "")
+                threshold = algorithms_config["config"].get("args", {}).get("$new_class_alert_th", "")
             data.update({"interval": interval, "threshold": threshold})
         else:
-            sensitivity = algorithms_config["config"]["args"].get("$sensitivity", "")
+            sensitivity = ""
+            if isinstance(algorithms_config["config"], dict):
+                sensitivity = algorithms_config["config"].get("args", {}).get("$sensitivity", "")
             data.update({"sensitivity": sensitivity})
         return data
 
@@ -313,12 +405,19 @@ class ClusteringMonitorHandler(object):
             if self.clustering_config.new_cls_pattern_rt
             else self.clustering_config.log_count_aggregation_flow["log_count_aggregation"]["result_table_id"]
         )
-        return self.save_clustering_strategy(
-            table_id=table_id,
-            metric=DEFAULT_METRIC_CLUSTERING,
-            strategy_type=strategy_type,
-            params=params,
-        )
+
+        if strategy_type == StrategiesType.NORMAL_STRATEGY:
+            result = self.save_normal_clustering_strategy(
+                table_id=table_id,
+                params=params,
+            )
+        else:
+            result = self.save_new_cls_clustering_strategy(
+                table_id=table_id,
+                metric=DEFAULT_METRIC_CLUSTERING,
+                params=params,
+            )
+        return result
 
     def create_or_update_pattern_strategy(self, params=None):
         # 日志聚类-告警策略 开关控制启/停
@@ -397,7 +496,7 @@ class ClusteringMonitorHandler(object):
 
         items = [
             {
-                "name": "COUNT({})".format(self.index_set.index_set_name),
+                "name": f"COUNT({self.index_set.index_set_name})",
                 "no_data_config": DEFAULT_NO_DATA_CONFIG,
                 "target": [],
                 "expression": DEFAULT_EXPRESSION,
@@ -415,7 +514,7 @@ class ClusteringMonitorHandler(object):
                         "agg_condition": agg_condition,
                         "metric_field": "_index",
                         "unit": "",
-                        "metric_id": "bk_log_search.index_set.{}".format(label_index_set_id),
+                        "metric_id": f"bk_log_search.index_set.{label_index_set_id}",
                         "index_set_id": label_index_set_id,
                         "query_string": "*",
                         "custom_event_name": "",

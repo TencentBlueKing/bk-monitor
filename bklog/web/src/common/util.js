@@ -513,7 +513,7 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  */
 export function formatDateNanos(val) {
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
-  const nanoseconds = val.slice(23, -1);
+  const nanoseconds = `${val}`.slice(23, -1);
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
   const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
@@ -630,7 +630,7 @@ export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
  * @param {*} val 文本
  * @param {*} alertMsg 弹窗文案
  */
-export const copyMessage = (val, alertMsg) => {
+export const copyMessage = (val, alertMsg = undefined) => {
   try {
     const input = document.createElement('input');
     input.setAttribute('value', val);
@@ -871,7 +871,7 @@ export const formatDateTimeField = (data, fieldType) => {
 export const parseTableRowData = (
   row,
   key,
-  fieldType,
+  fieldType = undefined,
   isFormatDate = store.state.isFormatDate,
   emptyCharacter = '--',
 ) => {

@@ -167,9 +167,9 @@ export default class CollectGroup extends tsc<IProps> {
     }
     this.handleUserOperate(type, this.data);
     // 进行完操作时 清除组或者操作列表实例
-    this.operatePopoverInstance?.destroy();
+    this.operatePopoverInstance?.destroy?.();
     this.operatePopoverInstance = null;
-    this.groupListPopoverInstance?.destroy();
+    this.groupListPopoverInstance?.destroy?.();
     this.groupListPopoverInstance = null;
     this.clearStatus(); // 清空状态
   }
@@ -223,9 +223,9 @@ export default class CollectGroup extends tsc<IProps> {
         extCls: 'more-container',
         zIndex: 999,
         onHidden: () => {
-          this.operatePopoverInstance?.destroy();
+          this.operatePopoverInstance?.destroy?.();
           this.operatePopoverInstance = null;
-          this.groupListPopoverInstance?.destroy();
+          this.groupListPopoverInstance?.destroy?.();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
         },

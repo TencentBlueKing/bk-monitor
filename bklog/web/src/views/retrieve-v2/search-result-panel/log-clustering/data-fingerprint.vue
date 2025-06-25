@@ -446,6 +446,8 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper from '@/views/retrieve-helper';
 
   export default {
     components: {
@@ -564,7 +566,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -675,7 +677,7 @@
         this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
@@ -687,12 +689,20 @@
 
           const resolver = new RetrieveUrlResolver({
             clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
-          router.replace({
-            query,
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
           });
         });
       },
@@ -721,7 +731,7 @@
        * @param { String } state 新增或删除
        */
       scrollEvent(state = 'add') {
-        const scrollEl = document.querySelector('.finger-container');
+        const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
         if (!scrollEl) return;
         if (state === 'add') {
           scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
@@ -921,9 +931,9 @@
           return;
         }
 
-        if (!row.owners.length) {
-          return;
-        }
+        // if (!row.owners.length) {
+        //   return;
+        // }
 
         this.curEditUniqueVal = {
           signature: row.signature,
@@ -1201,7 +1211,9 @@
       renderAlertPolicyHeader(h, { column }) {
         const directive = {
           name: 'bkTooltips',
-          content: '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+          content: this.$t(
+            '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+          ),
           placement: 'top',
         };
         return (
@@ -1242,7 +1254,7 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
       },
       changeStrategy(val, row) {

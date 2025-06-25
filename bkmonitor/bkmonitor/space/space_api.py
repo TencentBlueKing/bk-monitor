@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
-from typing import List, Optional, Union
 
 from django.conf import settings
 from django.core.cache import caches
@@ -22,6 +21,7 @@ from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.prometheus import metrics
 
 local_mem = caches["space"]
 
@@ -38,7 +38,7 @@ def enrich_space_display_name(space_dict):
     # display_name
     # [cc-auto]配置发现
     display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
-    if space_dict['space_type_id'] == SpaceTypeEnum.BKCC.value:
+    if space_dict["space_type_id"] == SpaceTypeEnum.BKCC.value:
         # [2]蓝鲸
         display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
     space_dict["display_name"] = display_name + f" ({space_dict['type_name']})"
@@ -58,7 +58,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return SpaceDefine.from_dict(space_dict)
 
     @classmethod
-    def get_space_detail(cls, space_uid: str = "", bk_biz_id: int = 0) -> Union[None, SpaceDefine]:
+    def get_space_detail(cls, space_uid: str = "", bk_biz_id: int = 0) -> None | SpaceDefine:
         """
         查看具体空间实例详情
         :param space_uid: 空间唯一标识
@@ -89,6 +89,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景， 非 bkcc 空间，没有预先缓存，通过api获取后再更新
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
             if space is not miss_cache:
+                metrics.SPACE_QUERY_COUNT.labels(using_cache="1", role=settings.ROLE).inc()
                 return SpaceDefine.from_dict(space)
 
         # 通过数据库直查
@@ -96,8 +97,9 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         if "id" in params:
             filters["id"] = params["id"]
         elif "space_uid" in params:
-            filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__")
+            filters["space_type_id"], filters["space_id"] = params["space_uid"].split("__", 1)
         space_info = cls.list_spaces_dict(using_cache=False, filters=filters)
+        metrics.SPACE_QUERY_COUNT.labels(using_cache="0", role=settings.ROLE).inc()
         if not space_info:
             return None
         space_info = space_info[0]
@@ -115,15 +117,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return cls._init_space(space_info)
 
     @classmethod
-    def list_spaces(cls, refresh=False, bk_tenant_id: Optional[str] = None) -> List[SpaceDefine]:
+    def list_spaces(cls, refresh=False, bk_tenant_id: str | None = None) -> list[SpaceDefine]:
         """
         查询空间列表
         """
         cache_key = f"metadata:list_spaces:{bk_tenant_id}" if bk_tenant_id else "metadata:list_spaces"
 
-        ret: List[SpaceDefine] = local_mem.get(cache_key, miss_cache)
+        ret: list[SpaceDefine] = local_mem.get(cache_key, miss_cache)
         if ret is miss_cache or refresh:
-            ret: List[SpaceDefine] = [
+            ret: list[SpaceDefine] = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
                 for space_dict in cls.list_spaces_dict(using_cache=False, bk_tenant_id=bk_tenant_id)
             ]
@@ -133,8 +135,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
     @classmethod
     def list_spaces_dict(
-        cls, using_cache=True, bk_tenant_id: Optional[str] = None, filters: Optional[dict[str, Union[str, int]]] = None
-    ) -> List[dict]:
+        cls, using_cache=True, bk_tenant_id: str | None = None, filters: dict[str, str | int] | None = None
+    ) -> list[dict]:
         """
         告警性能版本获取空间列表
         TODO: Space表增加租户字段后，需要修改 SQL，增加租户字段查询，当前使用默认租户
@@ -182,7 +184,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
-            spaces: List[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
             # 如果空间没有指定租户，则补充默认租户
             for space_dict in spaces:

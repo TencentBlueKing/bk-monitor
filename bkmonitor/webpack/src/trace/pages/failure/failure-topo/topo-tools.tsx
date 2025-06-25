@@ -266,6 +266,7 @@ export default defineComponent({
       handleChangeRefleshTime,
       handleTimelineChange,
       handlePlay,
+      t,
     };
   },
   render() {
@@ -290,7 +291,7 @@ export default defineComponent({
         />
         <div
           class='topo-tools-list'
-          v-bk-tooltips={{ content: this.$t('全屏'), disabled: this.isFullscreen }}
+          v-bk-tooltips={{ content: this.t('全屏'), disabled: this.isFullscreen }}
           onClick={this.handleFullscreen}
         >
           <span class='fullscreen'>

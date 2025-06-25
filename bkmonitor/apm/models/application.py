@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import uuid
-from typing import Optional
 
 from django.conf import settings
 from django.db import models
@@ -31,6 +30,7 @@ from bkmonitor.utils.cipher import (
 )
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from constants.apm import TelemetryDataType
+from constants.common import DEFAULT_TENANT_ID
 
 
 class ApmApplication(AbstractRecordModel):
@@ -48,6 +48,8 @@ class ApmApplication(AbstractRecordModel):
     is_enabled_trace = models.BooleanField("是否开启 Traces 功能", default=True)
     is_enabled_metric = models.BooleanField("是否开启 Metrics 功能", default=True)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
+    # 租户id
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
 
     class Meta:
         unique_together = ("app_name", "bk_biz_id")
@@ -221,7 +223,7 @@ class ApmApplication(AbstractRecordModel):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_application(
-        cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: Optional[dict] = None
+        cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: dict | None = None
     ):
         cls.check_application(bk_biz_id, app_name)
 
@@ -237,7 +239,7 @@ class ApmApplication(AbstractRecordModel):
         # step2: 异步创建数据源
         from apm.task.tasks import create_application_async
 
-        create_application_async.delay(application.id, es_storage_config, options)
+        create_application_async.apply_async(args=(application.id, es_storage_config, options), countdown=3)
 
         return {
             "bk_biz_id": bk_biz_id,

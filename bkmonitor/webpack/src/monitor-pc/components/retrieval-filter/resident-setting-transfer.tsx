@@ -105,8 +105,10 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   }
 
   handleCheck(index: number) {
-    const item = JSON.parse(JSON.stringify(this.localFields[index]));
-    this.localFields.splice(index, 1);
+    const name = this.searchLocalFields[index].name;
+    const delIndex = this.localFields.findIndex(item => item.name === name);
+    const item = structuredClone(this.localFields[delIndex]);
+    this.localFields.splice(delIndex, 1);
     this.selectedFields.push(item);
   }
 

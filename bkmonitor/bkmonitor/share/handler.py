@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 
@@ -154,12 +154,14 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     def query_configs_check(self, query_configs):
         # 增加主机指标范围校验
         host_metrics = MetricListCache.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
             bk_biz_id__in=[0, self.bk_biz_id],
             result_table_label="os",
             data_source_label="bk_monitor",
             data_type_label="time_series",
         ).values_list("metric_field", flat=True)
         process_metrics = MetricListCache.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
             bk_biz_id__in=[0, self.bk_biz_id],
             result_table_id="system.proc",
             data_source_label="bk_monitor",
@@ -208,7 +210,7 @@ class EventApiAuthChecker(BaseApiAuthChecker):
     target_cont_map = {"eventId": ["alert_ids"]}
 
     def __init__(self, token):
-        super(EventApiAuthChecker, self).__init__(token)
+        super().__init__(token)
         # 范围校验参数
         self.range_params = self.get_range_params()
 
@@ -241,7 +243,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
     def query_configs_check(self, query_configs):
         if self.scene_params["scene_id"].startswith("collect_"):
             bk_collect_config_id = int(self.scene_params["scene_id"].lstrip("collect_"))
-            plugin = CollectConfigMeta.objects.get(id=bk_collect_config_id).plugin
+            plugin = CollectConfigMeta.objects.get(bk_tenant_id=self.bk_tenant_id, id=bk_collect_config_id).plugin
             # targets校验
             filter_dict = query_configs[0]["filter_dict"]
             if self.filter_params and filter_dict.get("targets", []):
@@ -251,7 +253,7 @@ class CollectApiAuthChecker(BaseApiAuthChecker):
             self.params_check(filter_dict)
         else:
             plugin_id = self.scene_params["scene_id"].lstrip("scene_plugin_")
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+            plugin = CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=plugin_id)
 
         # 结果表范围校验，暂不校验内部
         plugin_type = plugin.plugin_type.lower()
@@ -299,7 +301,7 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
             raise ParamsPermissionDeniedError(
                 {"key": "query_configs.table", "error_params": table, "correct_params": config.table_id}
             )
-        super(CustomEventApiAuthChecker, self).query_configs_check(query_configs)
+        super().query_configs_check(query_configs)
 
     def log_query_check(self, request_data):
         custom_event_id = int(self.scene_params["scene_id"].lstrip("custom_event_"))
@@ -316,7 +318,7 @@ class CustomEventApiAuthChecker(BaseApiAuthChecker):
         self.strict_params_check(request_data["filter_dict"]["targets"][0])
 
     def check(self, request_data):
-        super(CustomEventApiAuthChecker, self).check(request_data)
+        super().check(request_data)
         if request_data.get("filter_dict"):
             self.log_query_check(request_data)
 
@@ -358,7 +360,7 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
                 self.target_params[mapping_key] = [self.extra_params[key]]
 
     def check(self, request_data):
-        super(KubernetesApiAuthChecker, self).check(request_data)
+        super().check(request_data)
         # 校验图表查询参数view_options
         if self.scene_params["type"] == "detail":
             if request_data.get("view_options"):
@@ -406,7 +408,7 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
                             {"key": key, "error_params": request_data[key], "correct_params": value}
                         )
                 return
-        super(KubernetesApiAuthChecker, self).params_check(request_data)
+        super().params_check(request_data)
 
 
 class ApmApiAuthChecker(BaseApiAuthChecker):
@@ -423,7 +425,7 @@ class ApmApiAuthChecker(BaseApiAuthChecker):
     filter_dict_map = {"error": ["resource.service.name"]}
 
     def check(self, request_data):
-        super(ApmApiAuthChecker, self).check(request_data)
+        super().check(request_data)
         for strict_param, paths in self.strict_params_path_map.items():
             for path in paths:
                 if path in self.request.path and self.scene_params["type"] != "overview":
@@ -443,7 +445,7 @@ class ApmApiAuthChecker(BaseApiAuthChecker):
                             {"key": key, "error_params": request_data[key], "correct_params": value}
                         )
                 return
-        super(ApmApiAuthChecker, self).params_check(request_data)
+        super().params_check(request_data)
 
     def query_configs_check(self, query_configs):
         # 校验query_configs的table表名

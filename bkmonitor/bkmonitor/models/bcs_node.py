@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 import logging
 import operator
 from functools import reduce
-from typing import Dict
 
 from django.core.exceptions import EmptyResultSet
 from django.db import models
@@ -34,7 +33,7 @@ logger = logging.getLogger("kubernetes")
 class BCSNodeManager(BCSBaseManager):
     def get_queryset(self):
         # 忽略 eks节点
-        return super(BCSNodeManager, self).get_queryset().exclude(name__startswith="eklet-")
+        return super().get_queryset().exclude(name__startswith="eklet-")
 
     def filter_by_biz_id(
         self,
@@ -108,7 +107,6 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
     def to_meta_dict(self):
         return {
             "node": self.name,
-            "ip": self.ip,
         }
 
     @staticmethod
@@ -295,8 +293,20 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         }
 
     @staticmethod
-    def load_list_from_api(params):
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
+    def load_list_from_api(params: dict[str, tuple[str, int]]):
+        """
+        从API获取Node列表
+
+        Args:
+            params: key为BCS集群ID，value为(租户ID, 业务ID)
+
+        Returns:
+            BCSNode列表
+        """
+        bulk_request_params = [
+            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
+            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
+        ]
         api_nodes = api.kubernetes.fetch_k8s_node_list_by_cluster.bulk_request(
             bulk_request_params, ignore_exceptions=True
         )
@@ -309,7 +319,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         nodes = []
         for n in itertools.chain.from_iterable(item for item in api_nodes if item):
             bcs_cluster_id = n.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
+            bk_biz_id = params[bcs_cluster_id][1]
             bcs_node = BCSNode()
             bcs_node.bk_biz_id = bk_biz_id
             bcs_node.bcs_cluster_id = bcs_cluster_id
@@ -372,7 +382,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         return []
 
     @staticmethod
-    def get_monitor_status_by_usage(bk_biz_id: int, bcs_cluster_id: str) -> Dict:
+    def get_monitor_status_by_usage(bk_biz_id: int, bcs_cluster_id: str) -> dict:
         """根据cpu资源获取数据状态 ."""
         params = {
             "bk_biz_id": bk_biz_id,
@@ -409,7 +419,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
         node_models = cls.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
         old_unique_hash_map = {(bk_biz_id, bcs_cluster_id, item.ip): item.monitor_status for item in node_models}
         # 更新资源使用量
-        new_unique_hash_map = {(bk_biz_id, bcs_cluster_id, key[0]): value for key, value in monitor_status_map.items()}
+        new_unique_hash_map = {(bk_biz_id, bcs_cluster_id, key): value for key, value in monitor_status_map.items()}
         unique_hash_set_for_update = set(old_unique_hash_map.keys()) & set(new_unique_hash_map.keys())
         for unique_hash in unique_hash_set_for_update:
             monitor_status = new_unique_hash_map[unique_hash]

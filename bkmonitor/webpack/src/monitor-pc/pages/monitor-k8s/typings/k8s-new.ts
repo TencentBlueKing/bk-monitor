@@ -34,6 +34,7 @@ export enum EDimensionKey {
   workload = 'workload',
   ingress = 'ingress',
   service = 'service',
+  node = 'node',
 }
 /**
  * @description: k8s tab类型枚举
@@ -78,17 +79,21 @@ export enum K8sTableColumnKeysEnum {
    */
   WORKLOAD = 'workload',
   /**
-   * @description: workload_type - workload_type
+   * @description: workload_kind - workload_kind
    */
-  WORKLOAD_TYPE = 'workload_type',
+  WORKLOAD_KIND = 'workload_kind',
   /**
-   * @description: ingress - 网络场景特有维度字段
+   * @description: ingress - 网络 场景特有维度字段
    */
   INGRESS = 'ingress',
   /**
-   * @description: service - 网络场景特有维度字段
+   * @description: service - 网络 场景特有维度字段
    */
   SERVICE = 'service',
+  /**
+   * @description: node - 容量 场景特有维度字段
+   */
+  NODE = 'node',
   /**
    * @description: container_cpu_usage_seconds_total - CPU使用量
    */
@@ -154,6 +159,7 @@ export type K8sSortType = '' | 'asc' | 'desc';
 export enum SceneEnum {
   Performance = 'performance',
   Network = 'network',
+  Capacity = 'capacity',
 }
 
 export interface GroupListItem<T = string> {

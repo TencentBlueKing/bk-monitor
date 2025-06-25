@@ -23,17 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { loadApp, unmount, mount } from '@blueking/bk-weweb';
 
 import '@blueking/bk-weweb';
 
 import './trace-retrieval.scss';
-
+const traceAppId = 'trace-explore';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceRetrieval extends tsc<object> {
+  @Ref('traceApp') traceApp: HTMLElement;
   @Prop() a: number;
+  unmountCallback: () => void;
   get traceHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -43,27 +47,54 @@ export default class TraceRetrieval extends tsc<object> {
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/home`;
   }
   get traceData() {
-    return JSON.stringify({
+    return {
       host: this.traceHost,
       baseroute: '/trace/',
-    });
+      setUnmountCallback: (callback: () => void) => {
+        this.unmountCallback = callback;
+      },
+    };
   }
-  mounted() {
+  created() {
+    if (!window.customElements.get('trace-explore')) {
+      class TraceExploreElement extends HTMLElement {
+        async connectedCallback() {
+          if (!this.shadowRoot) {
+            this.attachShadow({ delegatesFocus: false, mode: 'open' });
+          }
+        }
+      }
+      window.customElements.define('trace-explore', TraceExploreElement);
+    }
+  }
+  async mounted() {
+    await loadApp({
+      url: this.traceUrl,
+      id: traceAppId,
+      setShodowDom: true,
+      container: this.traceApp.shadowRoot,
+      data: this.traceData,
+      showSourceCode: false,
+      scopeCss: true,
+      scopeJs: true,
+      scopeLocation: false,
+    });
+    mount(traceAppId, this.traceApp.shadowRoot);
     setTimeout(() => {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
+  beforeDestroy() {
+    this.unmountCallback?.();
+    unmount(traceAppId);
+    this.unmountCallback = undefined;
+  }
   render() {
     return (
       <div class='trace-wrap'>
-        <bk-weweb
-          id='trace'
-          class='trace-wrap-iframe'
-          data={this.traceData}
-          setShodowDom={true}
-          showSourceCode={false}
-          url={this.traceUrl}
-        />
+        <div class='trace-wrap-iframe'>
+          <trace-explore ref='traceApp' />
+        </div>
       </div>
     );
   }

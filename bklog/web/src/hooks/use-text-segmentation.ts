@@ -26,8 +26,9 @@
 import { Ref } from 'vue';
 
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import UseSegmentPropInstance from './use-segment-pop';
 import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
+import LuceneSegment from './lucene.segment';
+import UseSegmentPropInstance from './use-segment-pop';
 
 export type FormatterConfig = {
   onSegmentClick: (args: any) => void;
@@ -154,20 +155,6 @@ export default class UseTextSegmentation {
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
-  }
-
-  private getCurrentFieldRegStr(field: any) {
-    /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
-    if (field.tokenize_on_chars) {
-      return field.tokenize_on_chars;
-    }
-
-    return segmentRegStr;
-  }
-
-  private isTextField(field: any) {
-    return field?.field_type === 'text';
   }
 
   private isAnalyzed(field: any) {
@@ -344,8 +331,12 @@ export default class UseTextSegmentation {
     }
 
     if (this.isAnalyzed(field) || forceSplit) {
-      // 这里进来的都是开了分词的情况
-      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
+      if (field.tokenize_on_chars) {
+        // 这里进来的都是开了分词的情况
+        return optimizedSplit(value, field.tokenize_on_chars);
+      }
+
+      return LuceneSegment.split(value, 1000);
     }
 
     const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');

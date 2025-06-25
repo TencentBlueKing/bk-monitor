@@ -2,16 +2,16 @@ import json
 
 import pytest
 from django.conf import settings
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
 from bkmonitor.utils import consul
 from metadata import models
 from metadata.tests.test_models import TestDataSource
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
-class TestBlackList(object):
+class TestBlackList:
     data_name = "exporter_redis"
     etl_config = "bk_exporter"
     operator = "operator"
@@ -97,14 +97,16 @@ class TestBlackList(object):
         mocker.patch("metadata.utils.redis_tools.RedisTools.metadata_redis_client", side_effect=mock_redis_client)
         mocker.patch("metadata.models.result_table.ResultTable.real_storage_list", return_value=[])
         settings.INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME = self.influxdb_cluster_name
-        models.InfluxDBProxyStorage.objects.create(
-            proxy_cluster_id=1,
-            service_name="default",
-            instance_cluster_name="default",
-            creator="system",
-            updater="system",
-            is_default=True,
-        ),
+        (
+            models.InfluxDBProxyStorage.objects.create(
+                proxy_cluster_id=1,
+                service_name="default",
+                instance_cluster_name="default",
+                creator="system",
+                updater="system",
+                is_default=True,
+            ),
+        )
         # 创建 TimeSeriesGroup，并把数据写入consul
         group_info = models.TimeSeriesGroup.create_time_series_group(**params)
         # 判断tsgroup存在

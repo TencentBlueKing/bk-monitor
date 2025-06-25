@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -85,29 +85,33 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
         .first()
     )
 
+    # 日志聚类告警需要提供更详细的信息
+    for label in alert.strategy.get("labels") or []:
+        # 日志聚类新类告警具有特定标签，格式 "LogClustering/NewClass/{index_set_id}"
+        # 根据前缀可识别出来
+        if label.startswith("LogClustering/NewClass/"):
+            content = get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
+            break
+        # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
+        # 根据前缀可识别出来
+        elif label.startswith("LogClustering/Count/"):
+            content = get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
+            break
+
     # 关联日志信息目前固定单指标
-    if query_config and (query_config["data_source_label"], query_config["data_type_label"]) in (
-        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
-        (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
-        (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
-        (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
-        (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
+    if (
+        not content
+        and query_config
+        and (query_config["data_source_label"], query_config["data_type_label"])
+        in (
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
+        )
     ):
         content = get_alert_relation_info_for_log(alert, not length_limit)
-
-    else:
-        # 日志聚类告警需要提供更详细的信息
-        for label in alert.strategy.get("labels") or []:
-            # 日志聚类新类告警具有特定标签，格式 "LogClustering/NewClass/{index_set_id}"
-            # 根据前缀可识别出来
-            if label.startswith("LogClustering/NewClass/"):
-                content = get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
-                break
-            # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
-            # 根据前缀可识别出来
-            elif label.startswith("LogClustering/Count/"):
-                content = get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
-                break
 
     if length_limit:
         content = content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
@@ -123,8 +127,12 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
 
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]
-        signatures = [dimensions["signature"]]
-        sensitivity = dimensions.get("sensitivity", "__dist_05")
+        if "__dist_05" in dimensions:
+            sensitivity = "__dist_05"
+            signatures = [dimensions["__dist_05"]]
+        else:
+            signatures = [dimensions["signature"]]
+            sensitivity = dimensions.get("sensitivity", "__dist_05")
     except Exception as e:
         logger.exception("[get_alert_info_for_log_clustering_count] get dimension error: %s", e)
         return ""
@@ -171,12 +179,15 @@ def get_clustering_log(
 ):
     start_time_str = time_tools.utc2biz_str(start_time)
     end_time_str = time_tools.utc2biz_str(end_time)
+
+    builtin_dimension_fields = ["sensitivity", "signature", "__dist_05"]
+
     addition = [{"field": sensitivity, "operator": "=", "value": ",".join(signatures)}]
     addition.extend(
         [
             {"field": dimension_field, "operator": "=", "value": dimension_value}
             for dimension_field, dimension_value in dimensions.items()
-            if dimension_field not in ["sensitivity", "signature"]
+            if dimension_field not in builtin_dimension_fields
         ]
     )
     params = {
@@ -202,9 +213,10 @@ def get_clustering_log(
                 + [
                     {"key": dimension_field, "method": "eq", "value": [dimension_value]}
                     for dimension_field, dimension_value in dimensions.items()
-                    if dimension_field not in ["sensitivity", "signature"]
+                    if dimension_field not in builtin_dimension_fields
                 ],
-            }
+            },
+            bk_biz_id=alert.event.bk_biz_id,
         )
         logs, log_total = log_data_source.query_log(start_time=start_time * 1000, end_time=end_time * 1000, limit=1)
         if logs:
@@ -230,7 +242,7 @@ def get_clustering_log(
                 [
                     {"field": dimension_field, "operator": "=", "value": dimension_value}
                     for dimension_field, dimension_value in dimensions.items()
-                    if dimension_field not in ["sensitivity", "signature"]
+                    if dimension_field not in builtin_dimension_fields
                 ]
             )
             pattern_params = {
@@ -250,13 +262,14 @@ def get_clustering_log(
 
             patterns = api.log_search.search_pattern(pattern_params)
             log_pattern = patterns[0]
+            record["pattern"] = log_pattern["pattern"]
             record["owners"] = ",".join(log_pattern["owners"])
             if log_pattern["remark"]:
                 remark = log_pattern["remark"][-1]
                 record["remark_text"] = remark["remark"]
                 record["remark_user"] = remark["username"]
                 # 获取备注创建时间字符串
-                record["remark_time"] = arrow.get(remark["create_time"] / 1000).to('local').format('YYYY-MM-DD HH:mm')
+                record["remark_time"] = arrow.get(remark["create_time"] / 1000).to("local").format("YYYY-MM-DD HH:mm")
         except Exception as e:
             logger.exception(f"get alert[{alert.id}] signature[{log_signature}] log clustering new pattern error: {e}")
 

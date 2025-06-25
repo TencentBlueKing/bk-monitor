@@ -483,112 +483,121 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
             </div>
             <div class='alarm-details-item alarm-details-content'>{this.formData.name}</div>
           </div>
-          <div
-            style='margin-bottom: 14px'
-            class='alarm-details-col text-top'
-          >
+          {this.channels.includes('user') && (
             <div
-              class='alarm-details-label alarm-details-person-label'
-              v-en-class='en-lang'
+              style='margin-bottom: 14px'
+              class='alarm-details-col text-top'
             >
-              {this.$t('通知对象')}
-            </div>
-            <div class='alarm-details-item alarm-details-person'>
-              {(() => {
-                if (this.formData.needDuty) {
-                  return (
-                    <div class='duty-wrap'>
-                      {/* <DutyArranges
+              <div
+                class='alarm-details-label alarm-details-person-label'
+                v-en-class='en-lang'
+              >
+                {this.$t('通知对象')}
+              </div>
+              <div class='alarm-details-item alarm-details-person'>
+                {(() => {
+                  if (this.formData.needDuty) {
+                    return (
+                      <div class='duty-wrap'>
+                        {/* <DutyArranges
                     value={this.dutyArranges}
                     readonly={true}
                     key={this.dutyArrangesKey}
                     dutyPlans={this.dutyPlans}
                   ></DutyArranges> */}
-                      <RotationPreview
-                        v-bkloading={{ isLoading: this.previewLoading }}
-                        alarmGroupId={this.id}
-                        dutyPlans={this.dutyPlans}
-                        value={this.previewData}
-                        onStartTimeChange={this.handleStartTimeChange}
-                      />
-                      {/* 值班通知设置 */}
-                      {this.dutyNotice.plan_notice.enabled && (
-                        <div class='duty-notice'>
-                          <div class='mt-16'>{this.$t('排班表发送')}</div>
-                          <div class='mt-16'>
-                            <span class='notice-label'>{this.$t('发送时间')}</span>
-                            <span>
-                              <span>{noticeTypeMap[this.dutyNotice.plan_notice.type]}</span>
-                              <span class='mr-8'>{this.dutyNotice.plan_notice.date}</span>
-                              <span>{this.dutyNotice.plan_notice.time}</span>
-                            </span>
+                        <RotationPreview
+                          v-bkloading={{ isLoading: this.previewLoading }}
+                          alarmGroupId={this.id}
+                          dutyPlans={this.dutyPlans}
+                          value={this.previewData}
+                          onStartTimeChange={this.handleStartTimeChange}
+                        />
+                        {/* 值班通知设置 */}
+                        {this.dutyNotice.plan_notice.enabled && (
+                          <div class='duty-notice'>
+                            <div class='mt-16'>{this.$t('排班表发送')}</div>
+                            <div class='mt-16'>
+                              <span class='notice-label'>{this.$t('发送时间')}</span>
+                              <span>
+                                <span>{noticeTypeMap[this.dutyNotice.plan_notice.type]}</span>
+                                <span class='mr-8'>{this.dutyNotice.plan_notice.date}</span>
+                                <span>{this.dutyNotice.plan_notice.time}</span>
+                              </span>
+                            </div>
+                            <div class='mt-16'>
+                              <span class='notice-label'>{this.$t('发送内容')}</span>
+                              <span>
+                                <i18n path={'近{0}天的排班结果'}>{this.dutyNotice.plan_notice.days}</i18n>
+                              </span>
+                            </div>
+                            <div class='mt-16'>
+                              <span class='notice-label'>{this.$t('企业微信群ID')}</span>
+                              <span>{this.dutyNotice.plan_notice.chat_ids.join(',')}</span>
+                            </div>
                           </div>
-                          <div class='mt-16'>
-                            <span class='notice-label'>{this.$t('发送内容')}</span>
-                            <span>
-                              <i18n path={'近{0}天的排班结果'}>{this.dutyNotice.plan_notice.days}</i18n>
-                            </span>
+                        )}
+                        {this.dutyNotice.personal_notice.enabled && (
+                          <div class='duty-notice'>
+                            <div class='mt-16'>{this.$t('个人轮值通知')}</div>
+                            <div class='mt-16'>
+                              <i18n
+                                class='notice-label'
+                                path={'值班开始前{0}天收到通知'}
+                              >
+                                {this.dutyNotice.personal_notice.hours_ago / 24}
+                              </i18n>
+                            </div>
+                            <div class='mt-16'>
+                              <span class='notice-label'>{this.$t('指定轮值规则')}</span>
+                              <span>{this.dutyList.map(item => item.name).join(',')}</span>
+                            </div>
                           </div>
-                          <div class='mt-16'>
-                            <span class='notice-label'>{this.$t('企业微信群ID')}</span>
-                            <span>{this.dutyNotice.plan_notice.chat_ids.join(',')}</span>
-                          </div>
-                        </div>
-                      )}
-                      {this.dutyNotice.personal_notice.enabled && (
-                        <div class='duty-notice'>
-                          <div class='mt-16'>{this.$t('个人轮值通知')}</div>
-                          <div class='mt-16'>
-                            <i18n
-                              class='notice-label'
-                              path={'值班开始前{0}天收到通知'}
-                            >
-                              {this.dutyNotice.personal_notice.hours_ago / 24}
-                            </i18n>
-                          </div>
-                          <div class='mt-16'>
-                            <span class='notice-label'>{this.$t('指定轮值规则')}</span>
-                            <span>{this.dutyList.map(item => item.name).join(',')}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-                if (this.formData.users?.length) {
-                  return this.formData.users.map(item => (
-                    <div
-                      key={item.id}
-                      class='person-box'
-                    >
-                      <div class='person-image'>
-                        {[
-                          item.logo ? (
-                            <img
-                              alt=''
-                              src={item.logo}
-                            />
-                          ) : undefined,
-                          !item.logo && item.type === 'group' ? (
-                            <i class='icon-monitor icon-mc-user-group no-img' />
-                          ) : undefined,
-                          !item.logo && item.type === 'user' ? (
-                            <i class='icon-monitor icon-mc-user-one no-img' />
-                          ) : undefined,
-                        ]}
+                        )}
                       </div>
-                      <span class='person-name'>
-                        {item.id}
-                        {`(${item.display_name})`}
-                      </span>
-                    </div>
-                  ));
-                }
-                return '--';
-              })()}
+                    );
+                  }
+                  if (this.formData.users?.length) {
+                    return this.formData.users.map(item => (
+                      <div
+                        key={item.id}
+                        class='person-box'
+                      >
+                        <div class='person-image'>
+                          {[
+                            item.logo ? (
+                              <img
+                                key={item.logo}
+                                alt=''
+                                src={item.logo}
+                              />
+                            ) : undefined,
+                            !item.logo && item.type === 'group' ? (
+                              <i
+                                key='icon-mc-user-group'
+                                class='icon-monitor icon-mc-user-group no-img'
+                              />
+                            ) : undefined,
+                            !item.logo && item.type === 'user' ? (
+                              <i
+                                key='icon-mc-user-one'
+                                class='icon-monitor icon-mc-user-one no-img'
+                              />
+                            ) : undefined,
+                          ]}
+                        </div>
+                        <span class='person-name'>
+                          {item.id}
+                          {`(${item.display_name})`}
+                        </span>
+                      </div>
+                    ));
+                  }
+                  return '--';
+                })()}
+              </div>
             </div>
-          </div>
-          {!!this.formData.mention_list.length && (
+          )}
+          {!!this.formData.mention_list.length && this.channels.includes('wxwork-bot') && (
             <div
               style='margin-bottom: 14px'
               class='alarm-details-col text-top'
@@ -610,15 +619,22 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       {[
                         item.logo ? (
                           <img
+                            key={item.logo}
                             alt=''
                             src={item.logo}
                           />
                         ) : undefined,
                         !item.logo && item.type === 'group' ? (
-                          <i class='icon-monitor icon-mc-user-group no-img' />
+                          <i
+                            key='icon-mc-user-group'
+                            class='icon-monitor icon-mc-user-group no-img'
+                          />
                         ) : undefined,
                         !item.logo && item.type === 'user' ? (
-                          <i class='icon-monitor icon-mc-user-one no-img' />
+                          <i
+                            key='icon-mc-user-one'
+                            class='icon-monitor icon-mc-user-one no-img'
+                          />
                         ) : undefined,
                       ]}
                     </div>

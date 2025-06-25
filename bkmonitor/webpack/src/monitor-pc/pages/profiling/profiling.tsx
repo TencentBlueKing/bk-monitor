@@ -23,17 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
 import '@blueking/bk-weweb';
 
 import './profiling.scss';
-
+const profilingAppId = 'profiling-explore';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Profiling extends tsc<object> {
   @Prop() a: number;
+  @Ref('profilingApp') profilingApp: HTMLElement;
+  unmountCallback: () => void;
   get profilingHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -43,12 +47,43 @@ export default class Profiling extends tsc<object> {
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/profiling`;
   }
   get profilingData() {
-    return JSON.stringify({
+    return {
       host: this.profilingHost,
       baseroute: '/trace/',
-    });
+      setUnmountCallback: (callback: () => void) => {
+        this.unmountCallback = callback;
+      },
+    };
   }
-  mounted() {
+  created() {
+    if (!window.customElements.get('profiling-explore')) {
+      class ProfilingExploreElement extends HTMLElement {
+        async connectedCallback() {
+          if (!this.shadowRoot) {
+            this.attachShadow({ delegatesFocus: false, mode: 'open' });
+          }
+        }
+      }
+      window.customElements.define('profiling-explore', ProfilingExploreElement);
+    }
+  }
+  beforeDestroy() {
+    this.unmountCallback?.();
+    unmount(profilingAppId);
+    this.unmountCallback = undefined;
+  }
+  async mounted() {
+    await loadApp({
+      url: this.profilingUrl,
+      id: profilingAppId,
+      container: this.profilingApp.shadowRoot,
+      data: this.profilingData,
+      showSourceCode: true,
+      scopeCss: true,
+      scopeJs: true,
+      scopeLocation: false,
+    });
+    mount(profilingAppId, this.profilingApp.shadowRoot);
     setTimeout(() => {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
@@ -60,14 +95,9 @@ export default class Profiling extends tsc<object> {
   render() {
     return (
       <div class='profiling-wrap'>
-        <bk-weweb
-          id='profiling'
-          class='profiling-wrap-iframe'
-          data={this.profilingData}
-          setShodowDom={true}
-          showSourceCode={true}
-          url={this.profilingUrl}
-        />
+        <div class='profiling-wrap-iframe'>
+          <profiling-explore ref='profilingApp' />
+        </div>
       </div>
     );
   }
