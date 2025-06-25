@@ -276,6 +276,10 @@ class ChartHandler:
         sql = ""
         for condition in addition:
             field_name = condition["field"]
+            if field_name == "*":
+                # TODO: 全文检索字段需要支持动态调整
+                field_name = "log"
+
             if field_name in alias_mappings:
                 field_name = alias_mappings[field_name]
             operator = condition["operator"]
@@ -283,7 +287,7 @@ class ChartHandler:
             # 获取sql操作符
             sql_operator = SQL_CONDITION_MAPPINGS.get(operator)
             # 异常情况,跳过
-            if not sql_operator or field_name in ["*", "query_string"]:
+            if not sql_operator or field_name in ["__query_string__"]:
                 continue
 
             if sql:
