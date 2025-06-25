@@ -555,10 +555,6 @@ class SQLChartHandler(ChartHandler):
                         pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
                     pattern = pattern.strip("'")
                 where_clause += f" AND {grep_where_clause}"
-
-        # 加上分页条件
-        where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
-        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
         # 加上排序条件
         sort_list = params.get("sort_list", [])
         if not sort_list:
@@ -566,7 +562,10 @@ class SQLChartHandler(ChartHandler):
         # 构建 ORDER BY 子句
         order_by_clause = ", ".join(f"{field} {direction.upper()}" for field, direction in sort_list)
         if order_by_clause:
-            sql = f"{sql} ORDER BY {order_by_clause}"
+            where_clause += f" ORDER BY {order_by_clause}"
+        # 加上分页条件
+        where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
+        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
         # 执行doris查询
         result = self.fetch_query_data(sql)
         # 添加高亮标记
