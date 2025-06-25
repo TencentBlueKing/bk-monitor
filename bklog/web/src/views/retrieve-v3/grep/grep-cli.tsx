@@ -27,6 +27,7 @@ import { defineComponent, ref, computed } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
+import { debounce } from 'lodash';
 import { useRoute } from 'vue-router/composables';
 
 import useStore from '../../../hooks/use-store';
@@ -102,7 +103,7 @@ export default defineComponent({
     };
 
     // 搜索输入
-    const handleSearchInput = (value: string) => {
+    const handleSearchInput = debounce((value: string) => {
       emit('search-change', {
         content: value,
         searchValue: value,
@@ -112,7 +113,7 @@ export default defineComponent({
           wordMatch: isWordMatch.value,
         },
       });
-    };
+    }, 300);
 
     // 切换大小写敏感
     const toggleCaseSensitive = () => {
@@ -233,10 +234,11 @@ export default defineComponent({
           <div class='grep-cli-search-section'>
             <bk-input
               class='grep-cli-search-input'
+              clearable={true}
               placeholder={t('搜索')}
               size='small'
               value={props.searchValue}
-              on-enter={handleSearchInput}
+              on-change={handleSearchInput}
             />
             <div class='grep-cli-tools'>
               <BklogPopover
