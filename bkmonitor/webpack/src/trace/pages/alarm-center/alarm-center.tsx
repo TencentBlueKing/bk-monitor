@@ -33,6 +33,7 @@ import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retr
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
+import { useAlarmTableColumns } from './composables/use-table-columns';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -40,6 +41,7 @@ export default defineComponent({
   setup() {
     const { quickFilterList } = useQuickFilter();
     const { data } = useAlarmTable();
+    const { tableColumns } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
     const updateIsCollapsed = (v: boolean) => {
@@ -51,6 +53,7 @@ export default defineComponent({
       isCollapsed,
       updateIsCollapsed,
       data,
+      tableColumns,
     };
   },
   render() {

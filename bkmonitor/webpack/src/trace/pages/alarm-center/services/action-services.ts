@@ -158,10 +158,17 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       ...params,
       show_overview: false, // 是否展示概览
       show_aggs: false, // 是否展示聚合
-    }).catch(() => ({
-      total: 0,
-      data: [],
-    }));
+    })
+      .then(({ actions, total }) => {
+        return {
+          total,
+          data: actions || [],
+        };
+      })
+      .catch(() => ({
+        total: 0,
+        data: [],
+      }));
     console.info('ActionService getFilterTableList', data, '==========');
     return data;
   }

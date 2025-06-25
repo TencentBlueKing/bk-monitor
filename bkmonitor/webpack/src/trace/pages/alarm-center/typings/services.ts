@@ -419,4 +419,5 @@ export type AnalysisFieldAggItem = {
 // 表格列字段
 export type TableColumnItem<T = any> = TableCol<T> & {
   is_default?: boolean; // 是否为默认列
+  renderType?: 'array' | 'boolean' | 'date' | 'number' | 'string'; // 渲染类型
 };

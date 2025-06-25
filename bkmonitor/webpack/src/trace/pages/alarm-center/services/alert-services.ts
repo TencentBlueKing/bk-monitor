@@ -254,10 +254,17 @@ export class AlertService extends AlarmService {
       ...params,
       show_overview: false, // 是否展示概览
       show_aggs: false, // 是否展示聚合
-    }).catch(() => ({
-      total: 0,
-      data: [],
-    }));
+    })
+      .then(({ alerts, total }) => {
+        return {
+          total,
+          data: alerts || [],
+        };
+      })
+      .catch(() => ({
+        total: 0,
+        data: [],
+      }));
     console.info('AlertService getFilterTableList', data, '==========');
     return data;
   }
