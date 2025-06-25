@@ -78,7 +78,8 @@ export abstract class AlarmService<S = AlarmType> {
    * @param {boolean} isAll 是否获取全部数据
    */
   abstract getAnalysisTopNData(
-    params: Partial<CommonFilterParams>
+    params: Partial<CommonFilterParams> & { fields: string[] },
+    isAll?: boolean
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>>;
 
   /**

@@ -26,19 +26,20 @@
 import { defineComponent } from 'vue';
 import { shallowRef } from 'vue';
 
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
-
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmAnalysis from './components/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
 import QuickFiltering from './components/quick-filtering';
+import { useAlarmTable } from './composables/use-alarm-table';
+import { useQuickFilter } from './composables/use-quick-filter';
 
 import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
-    const alarmStore = useAlarmCenterStore();
+    const { quickFilterList } = useQuickFilter();
+    const { data } = useAlarmTable();
     const isCollapsed = shallowRef(false);
 
     const updateIsCollapsed = (v: boolean) => {
@@ -46,9 +47,10 @@ export default defineComponent({
     };
 
     return {
-      alarmStore,
+      quickFilterList,
       isCollapsed,
       updateIsCollapsed,
+      data,
     };
   },
   render() {
@@ -63,7 +65,7 @@ export default defineComponent({
                 return (
                   <div class='quick-filtering'>
                     <QuickFiltering
-                      groupList={this.alarmStore.quickFilterList}
+                      groupList={this.quickFilterList}
                       onClose={this.updateIsCollapsed}
                     />
                   </div>

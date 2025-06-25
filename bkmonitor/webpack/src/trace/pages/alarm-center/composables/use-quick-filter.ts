@@ -24,30 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-import { computed } from 'vue';
+import { onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
-import { useStorage } from '@vueuse/core';
 
-import type { TableColumnItem } from '../typings';
+import type { CommonCondition, QuickFilterItem } from '../typings';
 
-export function useAlarmTableColumns() {
+export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
-  const defaultTableFields = computed(() => {
-    return alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey);
-  });
-  const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, [...defaultTableFields.value]);
-
-  const tableColumns = computed<TableColumnItem[]>(() => {
-    return storageColumns.value.map(item => {
-      const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === item);
-      return {
-        ...column,
-      };
-    });
+  const quickFilterList = shallowRef<QuickFilterItem[]>([]);
+  const quickFilterLoading = shallowRef(false);
+  const effectFunc = async () => {
+    quickFilterLoading.value = true;
+    alarmStore.alarmService
+      .getQuickFilterList(alarmStore.commonFilterParams)
+      .then(quickFilter => {
+        quickFilterList.value = quickFilter;
+      })
+      .finally(() => {
+        quickFilterLoading.value = false;
+      });
+  };
+  watchEffect(effectFunc);
+  const updateQuickFilterValue = (value: CommonCondition[]) => {
+    alarmStore.quickFilterValue = value;
+  };
+  onScopeDispose(() => {
+    quickFilterList.value = [];
+    quickFilterLoading.value = false;
   });
   return {
-    storageColumns,
-    tableColumns,
+    quickFilterList,
+    quickFilterLoading,
+    quickFilterValue: alarmStore.quickFilterValue,
+    updateQuickFilterValue,
   };
 }

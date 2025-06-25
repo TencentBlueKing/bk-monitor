@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, shallowRef, watchEffect, toValue, onScopeDispose } from 'vue';
+import { shallowRef, watchEffect, onScopeDispose } from 'vue';
 
-import type { AlarmService } from '../services/base';
-import type { ActionTableItem, AlertTableItem, CommonFilterParams, IncidentTableItem } from '../typings';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, alarmService: MaybeRef<AlarmService>) {
+import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
+
+export function useAlarmTable() {
+  const alarmStore = useAlarmCenterStore();
   // 分页参数
   const pageSize = shallowRef(10);
   // 当前页
@@ -42,8 +44,8 @@ export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, ala
 
   const effectFunc = async () => {
     loading.value = true;
-    const res = await toValue(alarmService).getFilterTableList<ActionTableItem | AlertTableItem | IncidentTableItem>({
-      ...toValue(params),
+    const res = await alarmStore.alarmService.getFilterTableList<ActionTableItem | AlertTableItem | IncidentTableItem>({
+      ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
       page: page.value,
     });
