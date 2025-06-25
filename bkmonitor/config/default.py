@@ -1013,7 +1013,7 @@ LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
 
 # 采集配置升级，使用订阅更新模式的业务列表
-COLLECTING_UPGRADE_WITH_UPDATE = []
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
