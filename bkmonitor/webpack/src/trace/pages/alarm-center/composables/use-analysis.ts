@@ -46,7 +46,7 @@ export function useAlarmAnalysis() {
   // 告警、故障、处理记录 字段列表
   const analysisFields = computed(() => alarmStore.alarmService.analysisFields);
 
-  const effectFunc = async () => {
+  const effectFunc = () => {
     analysisDimensionLoading.value = true;
     analysisTopNLoading.value = true;
     alarmStore.alarmService
