@@ -72,7 +72,7 @@ class ServiceDiscover(Discover):
         return list(merged_dimensions.values())
 
     def discover(self, start_time, end_time):
-        # 1 - 查询自定义指标中的 service_name 维度，排除 RPC、Span 聚合指标，避免因数据量过大导致查询超时。
+        # 1 - 查询自定义指标中的 service_name 维度。
         custom_metric_promql: str = (
             f'count by (service_name) ({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
         )
