@@ -16,7 +16,7 @@ class ReceiverSerializer(StaffSerializer):
 
 class ReportContentSerializer(serializers.Serializer):
     content_title = serializers.CharField(required=True, max_length=512, label="子内容标题")
-    content_details = serializers.CharField(required=True, max_length=512, label="字内容说明", allow_blank=True)
+    content_details = serializers.CharField(required=True, max_length=512, label="子内容说明", allow_blank=True)
     row_pictures_num = serializers.ChoiceField(
         required=True, choices=[(1, "1 Picture"), (2, "2 Pictures")], label="一行几幅图"
     )
