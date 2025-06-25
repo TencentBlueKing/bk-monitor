@@ -45,3 +45,7 @@ export const alarmTypeMap = [
     value: 'action',
   },
 ] as const;
+/** 我有权限的业务ID */
+export const MY_AUTH_BIZ_ID = -1;
+/** 我有告警的业务ID */
+export const MY_ALARM_BIZ_ID = -2;
