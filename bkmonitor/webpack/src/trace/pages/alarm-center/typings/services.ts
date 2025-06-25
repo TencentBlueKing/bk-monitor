@@ -1,3 +1,5 @@
+import type { TableCol } from '@blueking/tdesign-ui/.';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,7 +29,7 @@ export type CommonCondition = {
   key: string;
   value: string[];
   condition?: string;
-  method: string;
+  method?: string;
 };
 export type CommonFilterParams = {
   bk_biz_ids: number[];
@@ -47,6 +49,7 @@ export type QuickFilterItem = {
   id: string;
   name: string;
   count?: number;
+  icon?: string;
   children?: QuickFilterItem[];
 };
 
@@ -411,4 +414,9 @@ export type AnalysisFieldAggItem = {
   is_char: boolean; // 是否为字符型
   bucket_count: number; // 分桶总数
   buckets: AnalysisBucket[]; // 分桶明细
+};
+
+// 表格列字段
+export type TableColumnItem<T = any> = TableCol<T> & {
+  is_default?: boolean; // 是否为默认列
 };

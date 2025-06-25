@@ -27,8 +27,6 @@
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { storeToRefs } from 'pinia';
-
 import CommonHeader from '../../../components/common-header/common-header';
 import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
 import { alarmTypeMap, type AlarmType } from '../typings';
@@ -41,30 +39,28 @@ export default defineComponent({
   name: 'AlarmCenterHeader',
   setup() {
     const { t } = useI18n();
-    const store = useAlarmCenterStore();
-    const { alarmType, timeRange, timezone, refreshImmediate, refreshInterval, conditions, queryString } =
-      storeToRefs(store);
+    const alarmStore = useAlarmCenterStore();
 
     function handleAlarmTypeChange(value: AlarmType) {
-      alarmType.value = value;
-      conditions.value = [];
-      queryString.value = '';
+      alarmStore.alarmType = value;
+      alarmStore.conditions = [];
+      alarmStore.queryString = '';
     }
 
     function handleImmediateRefreshChange(value: string) {
-      store.refreshImmediate = value;
+      alarmStore.refreshImmediate = value;
     }
 
     function handleRefreshIntervalChange(value: number) {
-      store.refreshInterval = value;
+      alarmStore.refreshInterval = value;
     }
 
     function handleTimeRangeChange(value: TimeRangeType) {
-      store.timeRange = value;
+      alarmStore.timeRange = value;
     }
 
     function handleTimezoneChange(value: string) {
-      store.timezone = value;
+      alarmStore.timezone = value;
     }
 
     function handleGotoOld() {}
@@ -72,27 +68,23 @@ export default defineComponent({
     return {
       t,
       alarmTypeMap,
-      alarmType,
-      timeRange,
-      timezone,
-      refreshImmediate,
-      refreshInterval,
       handleAlarmTypeChange,
       handleImmediateRefreshChange,
       handleRefreshIntervalChange,
       handleTimeRangeChange,
       handleTimezoneChange,
       handleGotoOld,
+      alarmStore,
     };
   },
   render() {
     return (
       <div class='alarm-center-header-comp'>
         <CommonHeader
-          refreshImmediate={this.refreshImmediate}
-          refreshInterval={this.refreshInterval}
-          timeRange={this.timeRange}
-          timezone={this.timezone}
+          refreshImmediate={this.alarmStore.refreshImmediate}
+          refreshInterval={this.alarmStore.refreshInterval}
+          timeRange={this.alarmStore.timeRange}
+          timezone={this.alarmStore.timezone}
           onGotoOld={this.handleGotoOld}
           onImmediateRefreshChange={this.handleImmediateRefreshChange}
           onRefreshIntervalChange={this.handleRefreshIntervalChange}
@@ -105,7 +97,7 @@ export default defineComponent({
                 {this.alarmTypeMap.map(item => (
                   <li
                     key={item.value}
-                    class={['alarm-type-nav-bar-item', { active: item.value === this.alarmType }]}
+                    class={['alarm-type-nav-bar-item', { active: item.value === this.alarmStore.alarmType }]}
                     onClick={() => this.handleAlarmTypeChange(item.value)}
                   >
                     <div class='bar-name'>{item.label}</div>
