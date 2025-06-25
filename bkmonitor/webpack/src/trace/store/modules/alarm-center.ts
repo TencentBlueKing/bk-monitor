@@ -26,7 +26,9 @@
 
 import { computed, ref as deepRef, shallowRef, watch, watchEffect } from 'vue';
 import { onScopeDispose } from 'vue';
+import { customRef } from 'vue';
 
+import { useAlarmTable } from '@/pages/alarm-center/composables/use-alarm-table';
 import { AlarmServiceFactory, type AlarmService } from '@page/alarm-center/services/alarm-services';
 import { defineStore } from 'pinia';
 
@@ -57,22 +59,16 @@ export interface IAlarmCenterState {
 export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const timeRange = deepRef(DEFAULT_TIME_RANGE);
   const timezone = shallowRef(getDefaultTimezone());
-  const refreshInterval = shallowRef(-1);
+  const innerRefreshInterval = shallowRef(-1);
+
   const refreshImmediate = shallowRef('');
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   const bizIds = deepRef([-1]);
 
   const conditions = deepRef<CommonCondition[]>([]);
   const queryString = shallowRef('');
-  const loading = deepRef<{
-    quickFilter: boolean;
-    filterTable: boolean;
-    analysisDimension: boolean;
-  }>({
-    quickFilter: false,
-    filterTable: false,
-    analysisDimension: false,
-  });
+  const quickFilterLoading = shallowRef(false);
+  const analysisDimensionLoading = shallowRef(false);
 
   const cacheMap = shallowRef<
     Map<
@@ -108,6 +104,51 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       ...timeRangeTimestamp.value,
     };
   });
+  const effectFunc = async () => {
+    quickFilterLoading.value = true;
+    analysisDimensionLoading.value = true;
+    alarmService.value
+      .getQuickFilterList(commonFilterParams.value)
+      .then(quickFilter => {
+        quickFilterList.value = quickFilter;
+      })
+      .finally(() => {
+        quickFilterLoading.value = false;
+      });
+    alarmService.value
+      .getAnalysisDimensionFields(commonFilterParams.value)
+      .then(analysisDimension => {
+        analysisDimensionFields.value = analysisDimension;
+      })
+      .finally(() => {
+        analysisDimensionLoading.value = false;
+      });
+  };
+  const refreshInterval = customRef((track, trigger) => {
+    let timer: ReturnType<typeof setInterval>;
+    return {
+      get() {
+        track();
+        return innerRefreshInterval.value;
+      },
+      set(value) {
+        if (timer) {
+          clearInterval(timer);
+        }
+        if (value > 0) {
+          timer = setInterval(
+            () => {
+              effectFunc();
+              refreshTableData();
+            },
+            Math.max(value, 1000 * 60)
+          );
+        }
+        innerRefreshInterval.value = value;
+        trigger();
+      },
+    };
+  });
 
   watch(
     alarmType,
@@ -127,25 +168,22 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       immediate: true,
     }
   );
-  watchEffect(async () => {
-    loading.value.quickFilter = true;
-    loading.value.filterTable = true;
-    loading.value.analysisDimension = true;
-    const [quickFilter, filterTable, analysisDimension] = await Promise.all([
-      alarmService.value.getQuickFilterList(commonFilterParams.value).finally(() => {
-        loading.value.quickFilter = false;
-      }),
-      alarmService.value.getFilterTableList(commonFilterParams.value).finally(() => {
-        loading.value.filterTable = false;
-      }),
-      alarmService.value.getAnalysisDimensionFields(commonFilterParams.value).finally(() => {
-        loading.value.analysisDimension = false;
-      }),
-    ]);
-    quickFilterList.value = quickFilter;
-    filterTableList.value = filterTable;
-    analysisDimensionFields.value = analysisDimension;
+
+  watchEffect(effectFunc);
+  watch(refreshImmediate, () => {
+    effectFunc();
+    refreshTableData();
   });
+
+  const {
+    pageSize,
+    page,
+    total,
+    data,
+    loading: tableLoading,
+    refresh: refreshTableData,
+  } = useAlarmTable(commonFilterParams, alarmService);
+
   onScopeDispose(() => {
     quickFilterList.value = [];
     filterTableList.value = {
@@ -161,15 +199,13 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';
+    quickFilterLoading.value = false;
+    analysisDimensionLoading.value = false;
     cacheMap.value.clear();
-    loading.value = {
-      quickFilter: false,
-      filterTable: false,
-      analysisDimension: false,
-    };
   });
   return {
-    loading,
+    quickFilterLoading,
+    analysisDimensionLoading,
     timeRange,
     timezone,
     refreshInterval,
@@ -184,5 +220,10 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     quickFilterList,
     filterTableList,
     analysisDimensionFields,
+    pageSize,
+    page,
+    total,
+    data,
+    tableLoading,
   };
 });

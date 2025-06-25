@@ -123,7 +123,7 @@ export class AlertService extends AlarmService<AlarmType.ALERT> {
       total: 0,
       data: [],
     }));
-    console.info('getFilterTableList', data, '==========');
+    console.info('AlertService getFilterTableList', data, '==========');
     return data;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
@@ -171,7 +171,7 @@ export class AlertService extends AlarmService<AlarmType.ALERT> {
         ];
       })
       .catch(() => []);
-    console.info('getQuickFilterList', data, '==========');
+    console.info('AlertService getQuickFilterList', data, '==========');
     return data;
   }
 }
@@ -193,7 +193,9 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     }));
     return data;
   }
-  async getFilterTableList<T = ActionTableItem>(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>> {
+  async getFilterTableList<T = IncidentTableItem>(
+    params: Partial<CommonFilterParams>
+  ): Promise<FilterTableResponse<T>> {
     const data = await incidentList({
       ...params,
       show_overview: false, // 是否展示概览
@@ -226,7 +228,6 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
           }
           incidentLevelList.push(item);
         }
-        console.info('IncidentService getQuickFilterList', myIncidentList, incidentLevelList, '==========');
         return [
           {
             id: 'MINE',
@@ -274,6 +275,7 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       total: 0,
       data: [],
     }));
+    console.info('ActionService getFilterTableList', data, '==========');
     return data;
   }
 
@@ -293,7 +295,7 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         ];
       })
       .catch(() => []);
-    console.info(data, '==========');
+    console.info('ActionService getQuickFilterList', data, '==========');
     return data;
   }
 }
