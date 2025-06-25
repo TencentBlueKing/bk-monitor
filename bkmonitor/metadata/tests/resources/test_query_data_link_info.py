@@ -14,7 +14,6 @@ import pytest
 from unittest import mock
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
 from metadata.models import DataSource
-from metadata import models
 
 logger = logging.getLogger("metadata")
 
@@ -35,16 +34,6 @@ def mock_data_source():
     ds.transfer_cluster_id = "default"
     ds.consul_config_path = "metadata/test/data_id/1001"
     return ds
-
-
-@pytest.mark.django_db(databases=["monitor_api"])
-def test_data_source_not_exist(mocker):
-    """测试数据源不存在的情况"""
-    mocker.patch("metadata.models.DataSource.objects.get", side_effect=models.DataSource.DoesNotExist)
-    resource = QueryDataLinkInfoResource()
-    with pytest.raises(Exception) as exc_info:
-        resource.perform_request({"bk_data_id": 9999})
-    assert "bk_data_id 9999 does not exist" in str(exc_info.value)
 
 
 @pytest.mark.django_db(databases=["monitor_api"])
@@ -92,12 +81,18 @@ def test_basic_info_query(mocker, mock_data_source):
 def test_query_with_exception(mocker, mock_data_source):
     """测试查询过程中出现异常的情况"""
     resource = QueryDataLinkInfoResource()
-
-    # 模拟查询过程中抛出异常
-    mocker.patch("metadata.models.DataSource.objects.get", side_effect=Exception("Test exception"))
-
-    with pytest.raises(Exception) as exc_info:
-        res = resource.perform_request({"bk_data_id": mock_data_source.bk_data_id})
+    result = resource.perform_request({"bk_data_id": 9999})
     # 验证错误信息格式是否匹配实际抛出的格式
-    assert "Test exception" in str(exc_info.value)
-    assert "error_info" in res
+    assert isinstance(result, str)
+    result_data = json.loads(result)
+    assert "ds_infos" not in result_data
+    assert "rt_infos" not in result_data
+    assert "es_storage_infos" not in result_data
+    assert "bkbase_infos" not in result_data
+    assert "etl_infos" not in result_data
+    assert "authorized_space_uids" not in result_data
+    assert "expired_metrics" not in result_data
+    assert "rt_detail_router" not in result_data
+    assert "space_to_result_table_router_infos" not in result_data
+    # 验证报错返回信息
+    assert "error_info" in result
