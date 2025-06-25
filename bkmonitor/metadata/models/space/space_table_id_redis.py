@@ -124,7 +124,12 @@ class SpaceTableIDRedis:
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
-            rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
+            data_list = data["data_label"].split(",")
+            if len(data_list) == 1:
+                rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
+            else:
+                for label in data_list:
+                    rt_dl_map.setdefault(label, []).append(data["table_id"])
 
         # 若开启多租户模式,则data_label和table_id都需要在后面拼接@bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
