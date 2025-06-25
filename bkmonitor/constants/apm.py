@@ -1,7 +1,7 @@
 import base64
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache
+from functools import lru_cache, cache
 from typing import Any
 
 from django.db.models import TextChoices
@@ -1225,7 +1225,7 @@ class Vendor:
 
 class CachedEnum(Enum):
     @classmethod
-    @lru_cache(maxsize=None)
+    @cache
     def from_value(cls, value):
         try:
             return cls(value)
@@ -1560,3 +1560,12 @@ class OperatorGroupRelation(str, Enum):
     @classmethod
     def choices(cls):
         return [(relation.name, relation.value) for relation in cls]
+
+
+CUSTOM_METRICS_PROMQL_FILTER = ",".join(
+    [
+        '__name__!~"^rpc_(client|server)_(handled|started)_total"',
+        '__name__!~"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)"',
+        '__name__!~"^(bk_apm_|apm_).*"',
+    ]
+)
