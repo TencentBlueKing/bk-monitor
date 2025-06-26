@@ -26,6 +26,7 @@
 
 import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import useFieldNameHook from '@/hooks/use-field-name';
 import { From } from 'bk-magic-vue';
 
@@ -295,7 +296,6 @@ export default class FilterRule extends tsc<IProps> {
                       v-model={item.value}
                       content-width={232}
                       list={item.valueList}
-                      max-data={1}
                       placeholder={$i18n.t('请输入')}
                       trigger='focus'
                       allow-auto-match
