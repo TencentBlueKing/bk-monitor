@@ -15,6 +15,7 @@ from collections import defaultdict
 from functools import reduce
 from itertools import chain
 
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
@@ -160,10 +161,21 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 "action_name",
                 _("处理套餐名称"),
             ]:
-                action_config_ids = ActionConfig.objects.filter(name=node.value).values_list("id", flat=True)
-                alert_id_ids = ActionInstance.objects.filter(action_config_id__in=action_config_ids).values_list(
-                    "alerts", flat=True
-                )
+                action_config_ids = ActionConfig.objects.filter(
+                    name=node.value, bk_biz_id__in=context.get("bk_biz_ids", [])
+                ).values_list("id", flat=True)
+
+                # 获取开始时间,没有则取7天前的时间
+                if context.get("start_time"):
+                    start_time = context.get("start_time")
+                else:
+                    start_time = int(time.time()) - 7 * 24 * 60 * 60
+
+                start_time = timezone.datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+                alert_id_ids = ActionInstance.objects.filter(
+                    action_config_id__in=action_config_ids, create_time__gte=start_time
+                ).values_list("alerts", flat=True)
                 alert_ids = set(chain.from_iterable(alert_id_ids))
                 node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
                 context = {"ignore_search_field": True, "ignore_word": True}
@@ -330,9 +342,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
+        # 构建上下文信息
+        context = {
+            "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
+        }
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object)
+        search_object = self.add_query_string(search_object, context=context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 
