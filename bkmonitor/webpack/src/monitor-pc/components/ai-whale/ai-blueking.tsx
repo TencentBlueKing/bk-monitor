@@ -36,7 +36,10 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
   get apiUrl() {
-    return window.ai_xiao_jing_base_url?.replace('https:', location.protocol);
+    if (process.env.NODE_ENV === 'development') {
+      return window.ai_xiao_jing_base_url?.replace('https:', location.protocol);
+    }
+    return '/ai_agents/chat';
   }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;
