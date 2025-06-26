@@ -1208,13 +1208,20 @@ export default (spaceId, bkBizId, externalMenu) => {
     }
   });
 
+  let stringifyExternalMenu = '[]';
+  try {
+    stringifyExternalMenu = JSON.stringify(externalMenu);
+  } catch (e) {
+    console.warn('externalMenu JSON.stringify error', e);
+  }
+
   router.afterEach(to => {
     if (to.name === 'exception') return;
     reportLogStore.reportRouteLog({
       route_id: to.name,
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
-      external_menu: externalMenu,
+      external_menu: stringifyExternalMenu,
     });
   });
 
