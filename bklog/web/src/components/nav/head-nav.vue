@@ -69,8 +69,8 @@
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
         align="center"
-        @hide="dropdownGlobalHide"
-        @show="dropdownGlobalShow"
+        @hide="isShowGlobalDropdown = false"
+        @show="isShowGlobalDropdown = true"
       >
         <template #dropdown-trigger>
           <div class="icon-language-container">
@@ -102,8 +102,8 @@
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
-        @hide="dropdownLanguageHide"
-        @show="dropdownLanguageShow"
+        @hide="isShowLanguageDropdown = false"
+        @show="isShowLanguageDropdown = true"
       >
         <template #dropdown-trigger>
           <div class="icon-language-container">
@@ -143,8 +143,8 @@
       <bk-dropdown-menu
         ref="dropdownHelp"
         align="center"
-        @hide="dropdownHelpHide"
-        @show="dropdownHelpShow"
+        @hide="isShowHelpDropdown = false"
+        @show="isShowHelpDropdown = true"
       >
         <template #dropdown-trigger>
           <div
@@ -188,8 +188,8 @@
       <log-version :dialog-show.sync="showLogVersion" />
       <bk-dropdown-menu
         align="center"
-        @hide="dropdownLogoutHide"
-        @show="dropdownLogoutShow"
+        @hide="isShowLogoutDropdown = false"
+        @show="isShowLogoutDropdown = true"
       >
         <template #dropdown-trigger>
           <div
@@ -547,30 +547,7 @@
         }
         location.reload();
       },
-      dropdownLanguageShow() {
-        this.isShowLanguageDropdown = true;
-      },
-      dropdownLanguageHide() {
-        this.isShowLanguageDropdown = false;
-      },
-      dropdownGlobalShow() {
-        this.isShowGlobalDropdown = true;
-      },
-      dropdownGlobalHide() {
-        this.isShowGlobalDropdown = false;
-      },
-      dropdownHelpShow() {
-        this.isShowHelpDropdown = true;
-      },
-      dropdownHelpHide() {
-        this.isShowHelpDropdown = false;
-      },
-      dropdownLogoutShow() {
-        this.isShowLogoutDropdown = true;
-      },
-      dropdownLogoutHide() {
-        this.isShowLogoutDropdown = false;
-      },
+      
       dropdownHelpTriggerHandler(type) {
         this.$refs.dropdownHelp.hide();
         if (type === 'logVersion') {
