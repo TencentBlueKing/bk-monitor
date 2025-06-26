@@ -85,9 +85,14 @@ def push_and_publish_es_aliases(data_label: str):
     # 为避免覆盖，重新获取一遍数据
     table_id_list = list(models.ResultTable.objects.filter(data_label=data_label).values_list("table_id", flat=True))
     table_id_list = [reformat_table_id(i) for i in table_id_list]
-    RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, {data_label: json.dumps(table_id_list)})
-    RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, [data_label])
-
+    data_label_list = data_label.split(",")
+    redis_values = {}
+    for label in data_label_list:
+        label = label.strip()
+        if label:
+            redis_values.update({label: json.dumps(table_id_list)})
+    RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
+    RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))
     logger.info("push and publish es alias, alias: %s", data_label)
 
 
