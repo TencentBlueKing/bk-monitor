@@ -383,6 +383,17 @@ class ChartHandler:
         # 返回所有组合条件
         return " AND ".join(conditions)
 
+    @staticmethod
+    def convert_object_field(field_name):
+        """
+        将object字段转化为JSON_EXTRACT的形式
+        """
+        if "." in field_name:
+            field_list = field_name.split(".")
+            field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+            field_name = f"CAST({field_name} AS TEXT)"
+        return field_name
+
 
 class UIChartHandler(ChartHandler):
     def get_chart_data(self, params: dict) -> dict:
@@ -526,12 +537,14 @@ class SQLChartHandler(ChartHandler):
         """
         :param params: 查询相关参数
         """
+        alias_mappings = params["alias_mappings"]
         where_clause = self.generate_sql(
             addition=params["addition"],
             start_time=params["start_time"],
             end_time=params["end_time"],
             keyword=params.get("keyword"),
             action=SQLGenerateMode.WHERE_CLAUSE.value,
+            alias_mappings=alias_mappings,
         )
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
@@ -540,7 +553,11 @@ class SQLChartHandler(ChartHandler):
         if grep_query and grep_field:
             # 加上 grep 查询条件
             grep_syntax_list = grep_parser(grep_query)
-            grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
+            # 使用别名作为查询条件
+            grep_field = alias_mappings.get(grep_field, grep_field)
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            _grep_field = self.convert_object_field(grep_field)
+            grep_where_clause = self.convert_to_where_clause(_grep_field, grep_syntax_list)
             if grep_where_clause:
                 use_not = False
                 ignore_case = False
@@ -560,14 +577,36 @@ class SQLChartHandler(ChartHandler):
         if not sort_list:
             sort_list = SearchHandler(self.index_set_id, {}).sort_list
         # 构建 ORDER BY 子句
-        order_by_clause = ", ".join(f"{field} {direction.upper()}" for field, direction in sort_list)
+        order_by_clause = ""
+        for field, direction in sort_list:
+            order_field = alias_mappings.get(field, field)
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            order_field = self.convert_object_field(order_field)
+            if order_by_clause:
+                order_by_clause += ", "
+            order_by_clause += f"{order_field} {direction.upper()}"
         if order_by_clause:
             where_clause += f" ORDER BY {order_by_clause}"
         # 加上分页条件
         where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
-        sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
-        # 执行doris查询
-        result = self.fetch_query_data(sql)
+
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("bkdata_doris_query") as span:
+            span.set_attribute("index_set_id", self.index_set_id)
+            span.set_attribute("user.username", get_request_username())
+            span.set_attribute("space_uid", self.data.space_uid)
+
+            if not self.data.support_doris:
+                raise IndexSetDorisQueryException()
+            span.set_attribute("db.table", self.data.doris_table_id)
+            sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
+            span.set_attribute("db.statement", sql)
+            span.set_attribute("db.system", "doris")
+            # 执行doris查询
+            result = self.fetch_query_data(sql)
+            span.set_attribute("total_records", result["total_records"])
+            span.set_attribute("time_taken", result["time_taken"])
+
         # 添加高亮标记
         log_list = add_highlight_mark(
             data_list=result["list"],
