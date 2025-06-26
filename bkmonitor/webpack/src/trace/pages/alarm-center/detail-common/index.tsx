@@ -33,6 +33,7 @@ import { alertDetail } from 'monitor-api/modules/alert';
 
 import AlarmAlert from './components/alarm-alert';
 import AlarmInfo from './components/alarm-info';
+import DiagnosticAnalysis from './components/diagnostic-analysis';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
@@ -134,23 +135,28 @@ export default defineComponent({
 
     return () => (
       <Loading loading={isLoading.value}>
-        <div class='alarm-center-detail-box'>
-          <AlarmAlert data={alterDetailData.value} />
-          <AlarmInfo data={alterDetailData.value} />
-          <Tab
-            class='panel-tab'
-            v-model:active={currentPanel.value}
-            type='unborder-card'
-          >
-            {panelTabList.map(item => (
-              <Tab.TabPanel
-                key={item.name}
-                label={item.label}
-                name={item.name}
-              />
-            ))}
-          </Tab>
-          <panelCom.value />
+        <div class='alarm-center-detail-new'>
+          <div class='alarm-center-detail-box'>
+            <AlarmAlert data={alterDetailData.value} />
+            <AlarmInfo data={alterDetailData.value} />
+            <Tab
+              class='panel-tab'
+              v-model:active={currentPanel.value}
+              type='unborder-card'
+            >
+              {panelTabList.map(item => (
+                <Tab.TabPanel
+                  key={item.name}
+                  label={item.label}
+                  name={item.name}
+                />
+              ))}
+            </Tab>
+            <panelCom.value />
+          </div>
+          <div class='alarm-center-detail-diagnostic'>
+            <DiagnosticAnalysis />
+          </div>
         </div>
       </Loading>
     );
