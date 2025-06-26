@@ -482,11 +482,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
-        # 构建上下午查询信息
+        # 构建上下文信息
         context = {
             "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
         }
-
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object, context=context)
