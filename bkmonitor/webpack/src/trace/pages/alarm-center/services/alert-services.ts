@@ -223,6 +223,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'query_string',
     alias: '全字段检索',
     type: EFieldType.all,
+
     methods: [
       {
         alias: '等于',
@@ -235,6 +236,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'alert_name',
     alias: '告警（策略）名称',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -255,6 +257,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'labels',
     alias: '策略标签',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -275,6 +278,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'event.metric',
     alias: '指标',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '包含',
@@ -295,6 +299,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'target', // 具体字段名请根据实际补充
     alias: '告警目标',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '包含',
@@ -315,6 +320,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'status',
     alias: '状态',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -327,6 +333,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'event.description',
     alias: '告警内容',
     type: EFieldType.text,
+    isEnableOptions: true,
     methods: [
       {
         alias: '不等于',
@@ -351,6 +358,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'severity',
     alias: '级别',
     type: EFieldType.integer,
+    isEnableOptions: true,
     methods: [
       {
         alias: '不等于',
@@ -367,6 +375,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'event.ip',
     alias: '目标IP',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '包含',
@@ -387,6 +396,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'assignee',
     alias: '通知人',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -399,6 +409,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'appointee',
     alias: '负责人',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -411,6 +422,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'follower',
     alias: '关注人',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -423,6 +435,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'tags.apiname',
     alias: '维度',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -435,6 +448,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'action_name',
     alias: '处理套餐',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -455,6 +469,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'event.plugin_id',
     alias: '告警来源',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '等于',
@@ -475,6 +490,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'event.ipv6',
     alias: '目标IPv6',
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '包含',
@@ -615,6 +631,18 @@ export class AlertService extends AlarmService {
       })
       .catch(() => []);
     console.info('AlertService getQuickFilterList', data, '==========');
+    return data;
+  }
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await alertTopN(
+      {
+        ...params,
+      },
+      config
+    ).catch(() => ({
+      doc_count: 0,
+      fields: [],
+    }));
     return data;
   }
 }

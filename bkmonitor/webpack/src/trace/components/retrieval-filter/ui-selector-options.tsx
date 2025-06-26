@@ -269,7 +269,7 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if (checkedItem.value.name === '*' && queryString.value) {
+      if ((checkedItem.value.name === '*' || checkedItem.value.type === EFieldType.all) && queryString.value) {
         const value: IFilterItem = {
           key: { id: checkedItem.value.name, name: t('全文') },
           method: { id: EMethod.include, name: t('包含') },
@@ -548,7 +548,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*') {
+      if (this.checkedItem?.name === '*' || this.checkedItem?.type === EFieldType.all) {
         return [
           <div
             key={'all'}

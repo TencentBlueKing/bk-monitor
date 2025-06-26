@@ -274,7 +274,7 @@ export default defineComponent({
           });
         }
       }
-      cacheWhere.value = structuredClone(where);
+      cacheWhere.value = deepClone(where);
       return props.changeWhereFormatter(where);
     }
 
@@ -283,7 +283,8 @@ export default defineComponent({
         /* 避免重复渲染 */
         return;
       }
-      cacheWhere.value = structuredClone(where);
+      console.log(where);
+      cacheWhere.value = deepClone(where);
       const fieldsMap: Map<string, IFilterField> = new Map();
       for (const item of localFields.value) {
         fieldsMap.set(item.name, item);

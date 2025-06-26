@@ -54,7 +54,7 @@ export interface ILocalSpaceList extends ISpaceItem {
 export const SPACE_SELECTOR_PROPS = {
   /* 当前选中的空间 */
   value: {
-    type: Array as PropType<string[]>,
+    type: Array as PropType<(number | string)[]>,
     default: () => [],
   },
   /* 当前的主空间（勾选的第一个空间） */
