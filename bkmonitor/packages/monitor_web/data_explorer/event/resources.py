@@ -18,6 +18,9 @@ from typing import Any
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
+
 from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
@@ -26,6 +29,7 @@ from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
+from core.drf_resource.exceptions import record_exception
 
 from . import serializers
 from .constants import (
@@ -77,16 +81,42 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+def resource_exception_handler(default: Any = None):
+    """处理 & 记录异常，返回指定的默认值"""
+
+    def decorator(func):
+        def wrapper(instance: Resource, validated_request_data: dict[str, Any]):
+            if not validated_request_data.get("query_configs"):
+                return default
+
+            try:
+                return func(instance, validated_request_data)
+            except Exception as exc:  # pylint: disable=broad-except
+                span = trace.get_current_span()
+
+                # Record the exception in the current span
+                record_exception(span, exc, out_limit=10)
+
+                # Set status in case exception was raised
+                span.set_status(
+                    Status(
+                        status_code=StatusCode.ERROR,
+                        description=f"{type(exc).__name__}: {exc}",
+                    )
+                )
+                return default
+
+        return wrapper
+
+    return decorator
+
+
 class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
+    @resource_exception_handler(default={})
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        try:
-            result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
-        except Exception as exc:
-            logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
-            return {}
-
+        result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         for series in result["series"]:
             dimensions = series["dimensions"]
             if "type" in dimensions and not dimensions["type"].strip():
@@ -98,6 +128,7 @@ class EventTimeSeriesResource(Resource):
 class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
+    @resource_exception_handler(default={"list": []})
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         # 构建统一查询集
         queryset = (
@@ -113,12 +144,8 @@ class EventLogsResource(Resource):
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
             queryset = queryset.add_query(query.order_by("time desc"))
-        try:
-            events: list[dict[str, Any]] = list(queryset)
-        except Exception as exc:
-            logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
-            return {"list": []}
 
+        events: list[dict[str, Any]] = list(queryset)
         processors: list[BaseEventProcessor] = [
             OriginEventProcessor(),
             K8sEventProcessor(BcsClusterContext()),
@@ -227,6 +254,7 @@ class EventViewConfigResource(Resource):
 class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
 
+    @resource_exception_handler(default=[])
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         lock = threading.Lock()
         fields = validated_request_data["fields"]
@@ -452,6 +480,7 @@ class EventTopKResource(Resource):
 class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
+    @resource_exception_handler(default={"total": 0})
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         alias: str = "a"
         # 构建查询列表
@@ -467,11 +496,7 @@ class EventTotalResource(Resource):
         for query in queries:
             query_set = query_set.add_query(query)
 
-        try:
-            return {"total": query_set.original_data[0]["_result_"]}
-        except Exception as exc:
-            logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
-            return {"total": 0}
+        return {"total": query_set.original_data[0]["_result_"]}
 
 
 class EventStatisticsGraphResource(Resource):
