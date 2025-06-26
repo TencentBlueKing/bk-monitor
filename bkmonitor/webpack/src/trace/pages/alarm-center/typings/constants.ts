@@ -49,3 +49,5 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
 export const MY_AUTH_BIZ_ID = -1;
 /** 我有告警的业务ID */
 export const MY_ALARM_BIZ_ID = -2;
+/** 内容滚动元素类名 */
+export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';

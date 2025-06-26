@@ -36,8 +36,7 @@ import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
-
-import type { CommonCondition } from './typings';
+import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type CommonCondition } from './typings';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -45,7 +44,7 @@ export default defineComponent({
   setup() {
     const alarmStore = useAlarmCenterStore();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
-    const { data } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const { tableColumns } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
@@ -61,11 +60,16 @@ export default defineComponent({
       quickFilterList,
       quickFilterLoading,
       isCollapsed,
-      updateIsCollapsed,
       data,
+      loading,
+      total,
+      page,
+      pageSize,
+      ordering,
       tableColumns,
       alarmStore,
       handleFilterValueChange,
+      updateIsCollapsed,
     };
   },
   render() {
@@ -73,7 +77,7 @@ export default defineComponent({
       <div class='alarm-center'>
         <AlarmCenterHeader class='alarm-center-header' />
         <AlarmRetrievalFilter class='alarm-center-filters' />
-        <div class='alarm-center-content'>
+        <div class='alarm-center-main'>
           <TraceExploreLayout
             v-slots={{
               aside: () => {
@@ -91,14 +95,34 @@ export default defineComponent({
               },
               default: () => {
                 return (
-                  <div class='filter-content'>
+                  <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
                     <div class='alarm-analysis'>
                       <AlarmAnalysis />
                     </div>
                     <div class='alarm-center-table'>
                       <AlarmTable
+                        headerAffixedTop={{
+                          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+                        }}
+                        horizontalScrollAffixedBottom={{
+                          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+                        }}
                         columns={this.tableColumns}
+                        currentPage={this.page}
                         data={this.data}
+                        loading={this.loading}
+                        pageSize={this.pageSize}
+                        sort={this.ordering}
+                        total={this.total}
+                        onCurrentPageChange={page => {
+                          this.page = page;
+                        }}
+                        onPageSizeChange={pageSize => {
+                          this.pageSize = pageSize;
+                        }}
+                        onSortChange={sort => {
+                          this.ordering = sort as string;
+                        }}
                       />
                     </div>
                   </div>

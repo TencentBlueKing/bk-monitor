@@ -26,11 +26,6 @@
 
 import type { TableCol } from '@blueking/tdesign-ui';
 
-export interface PageInfo {
-  current: number;
-  previous: number;
-  pageSize: number;
-}
 // 表格列字段
 export type TableColumnItem<T = any> = TableCol<T> & {
   is_default?: boolean; // 是否为默认列

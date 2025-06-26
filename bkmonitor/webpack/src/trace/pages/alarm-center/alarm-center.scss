@@ -24,7 +24,7 @@
     box-shadow: 0 2px 4px 0 #19192914;
   }
 
-  &-content {
+  &-main {
     display: flex;
     flex: 1;
     width: auto;
@@ -42,7 +42,7 @@
       background: #f3f6fa;
     }
 
-    .filter-content {
+    .alarm-center-content {
       display: flex;
       flex-direction: column;
       width: 100%;

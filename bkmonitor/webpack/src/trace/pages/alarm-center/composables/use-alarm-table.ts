@@ -39,6 +39,8 @@ export function useAlarmTable() {
   const total = shallowRef(0);
   // 数据
   const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem)[]>([]);
+  // 排序
+  const ordering = shallowRef('');
   // 是否加载中
   const loading = shallowRef(false);
 
@@ -48,6 +50,7 @@ export function useAlarmTable() {
       ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
       page: page.value,
+      ordering: ordering.value ? [ordering.value] : [],
     });
     total.value = res.total;
     data.value = res.data;
@@ -60,6 +63,7 @@ export function useAlarmTable() {
     total.value = 0;
     data.value = [];
     loading.value = false;
+    ordering.value = '';
   });
   return {
     pageSize,
@@ -67,5 +71,6 @@ export function useAlarmTable() {
     total,
     data,
     loading,
+    ordering,
   };
 }

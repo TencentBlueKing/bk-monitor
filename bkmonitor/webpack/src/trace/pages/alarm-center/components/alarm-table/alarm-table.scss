@@ -1,7 +1,44 @@
 @use '../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
 
 .alarm-table-wrapper {
+  position: relative;
   .alarm-table {
     @include tableCommonTheme.table-theme();
+  }
+  .alarm-table-skeleton {
+    position: absolute;
+    top: var(--trace-table-header-height, 32px);
+    z-index: 100;
+    visibility: hidden;
+    padding: 10px 8px;
+    background: #fff;
+    min-height: fit-content;
+    height: calc(100% - var(--trace-table-header-height, 32px));
+
+    &.alarm-skeleton-show-all,
+    &.alarm-skeleton-show-body {
+      visibility: visible;
+    }
+
+    &.alarm-skeleton-show-body {
+      .common-table-skeleton-row:nth-child(1) {
+        display: none;
+      }
+    }
+
+    .common-table-skeleton-row {
+      margin-bottom: 10px;
+    }
+  }
+  .bk-pagination {
+    padding: 14px 16px;
+    .is-last {
+      margin-left: auto;
+    }
+
+    .bk-pagination-total {
+      display: flex;
+      align-items: center;
+    }
   }
 }
