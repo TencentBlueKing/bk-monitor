@@ -3049,7 +3049,7 @@ class UnionSearchHandler:
         union_time_fields = set()
         union_time_fields_type = set()
         union_time_fields_unit = set()
-        union_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
+        context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
         for index_set_id in index_set_ids:
             result = multi_result[f"union_search_fields_{index_set_id}"]
             fields = result["fields"]
@@ -3057,10 +3057,10 @@ class UnionSearchHandler:
             display_fields = result["display_fields"]
             result_config = result["config"][0]
             if result_config["is_active"]:
-                union_config["is_active"] = True
+                context_and_realtime_config["is_active"] = True
             extra = result_config["extra"]
             extra.update({"index_set_id": index_set_id})
-            union_config["extra"].append(extra)
+            context_and_realtime_config["extra"].append(extra)
 
             for field_info in fields:
                 field_name = field_info["field_name"]
@@ -3142,7 +3142,7 @@ class UnionSearchHandler:
             )
         ret = {
             "config_id": obj.id,
-            "config": self.get_fields_config(union_config),  # TODO
+            "config": self.get_fields_config(context_and_realtime_config),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -3181,7 +3181,7 @@ class UnionSearchHandler:
         return obj
 
     @staticmethod
-    def get_fields_config(union_config: dict):
+    def get_fields_config(context_and_realtime_config: dict):
         return [
             {"name": "bcs_web_console", "is_active": False},
             {"name": "trace", "is_active": False},
@@ -3191,7 +3191,7 @@ class UnionSearchHandler:
             {"name": "apm_relation", "is_active": False},
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
-            union_config,
+            context_and_realtime_config,
         ]
 
     @property
