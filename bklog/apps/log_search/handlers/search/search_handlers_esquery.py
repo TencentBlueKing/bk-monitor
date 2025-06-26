@@ -421,6 +421,7 @@ class SearchHandler:
         }
 
         if is_union_search:
+            result_dict["config"].append(self.analyze_fields(field_result))
             return result_dict
 
         for fields_config in [
@@ -3048,11 +3049,19 @@ class UnionSearchHandler:
         union_time_fields = set()
         union_time_fields_type = set()
         union_time_fields_unit = set()
+        context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
         for index_set_id in index_set_ids:
             result = multi_result[f"union_search_fields_{index_set_id}"]
             fields = result["fields"]
             fields_info[index_set_id] = fields
             display_fields = result["display_fields"]
+            result_config = result["config"][0]
+            if result_config["is_active"]:
+                context_and_realtime_config["is_active"] = True
+            extra = result_config["extra"]
+            extra.update({"index_set_id": index_set_id})
+            context_and_realtime_config["extra"].append(extra)
+
             for field_info in fields:
                 field_name = field_info["field_name"]
                 field_type = field_info["field_type"]
@@ -3131,10 +3140,9 @@ class UnionSearchHandler:
             obj = self.get_or_create_default_config(
                 index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
             )
-
         ret = {
             "config_id": obj.id,
-            "config": self.get_fields_config(),
+            "config": self.get_fields_config(context_and_realtime_config),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -3173,17 +3181,17 @@ class UnionSearchHandler:
         return obj
 
     @staticmethod
-    def get_fields_config():
+    def get_fields_config(context_and_realtime_config: dict):
         return [
             {"name": "bcs_web_console", "is_active": False},
             {"name": "trace", "is_active": False},
-            {"name": "context_and_realtime", "is_active": False},
             {"name": "bkmonitor", "is_active": False},
             {"name": "async_export", "is_active": False},
             {"name": "ip_topo_switch", "is_active": False},
             {"name": "apm_relation", "is_active": False},
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
+            context_and_realtime_config,
         ]
 
     @property
