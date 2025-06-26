@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, watch, onMounted, nextTick } from 'vue';
+import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import useStore from '../../hooks/use-store';
@@ -32,7 +32,7 @@ import { useNavMenu } from '@/hooks/use-nav-menu';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import * as authorityMap from '../../common/authority-map';
 import { debounce } from 'throttle-debounce';
-import List from '../biz-select/list';
+import List from './list';
 import './index.scss';
 
 const userConfigMixin = new UserConfigMixin();
@@ -46,16 +46,18 @@ export default defineComponent({
     theme: { type: String, default: 'dark' },
     handlePropsClick: { type: Function },
     isExternalAuth: { type: Boolean, default: false },
-    canSetDefaultSpace: { type: Boolean, default: true },
+    canSetDefaultSpace: { type: Boolean, default: false },
   },
   setup(props, { emit }) {
+    const { t } = useLocale();
+
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
-
-    const { t } = useLocale();
-    const { mySpaceList } = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
-    const { checkSpaceChange } = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
+    const navMenu = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
+    
+    const mySpaceList = navMenu.mySpaceList;
+    const checkSpaceChange = navMenu.checkSpaceChange;
     const spaceBgColor = ref('#3799BA');
     const showBizList = ref(false);
     const keyword = ref('');
@@ -102,13 +104,24 @@ export default defineComponent({
       }));
     });
 
-    // 监听showBizList，调整宽度
+    // 点击下拉框外内容，收起下拉框
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isInside = document.querySelector('.biz-menu-select')?.contains(target);
+      if (!isInside) {
+        handleClickOutSide();
+      }
+    };
+
+    // 监听showBizList
     watch(showBizList, async val => {
       if (val) {
+        document.addEventListener('click', handleGlobalClick);
         await nextTick();
         const el = document.querySelector('#space-type-ul');
         bizBoxWidth.value = Math.max(394, el?.clientWidth ?? 394) + 24;
       } else {
+        document.removeEventListener('click', handleGlobalClick);
         bizListRef.value && (bizListRef.value.scrollTop = 0);
       }
     });
@@ -125,6 +138,11 @@ export default defineComponent({
       },
       { immediate: true },
     );
+
+    // 在组件卸载时清除监听
+    onUnmounted(() => {
+      document.removeEventListener('click', handleGlobalClick);
+    });
 
     // 初始化业务列表
     const generalList = computed(() => {
@@ -186,7 +204,7 @@ export default defineComponent({
       })
     }
 
-    // 设置或取消默认业务
+    // 设置/取消默认业务
     const handleDefaultId = async () => {
       setDefaultBizIdLoading.value = true;
       // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'
@@ -263,7 +281,7 @@ export default defineComponent({
     };
 
     // 下拉框内容渲染
-    const useContent = () => {
+    const dropdownContent = () => {
       return props.isExpand && (
         <div
           class='menu-select-list'
@@ -309,7 +327,7 @@ export default defineComponent({
           >
             {generalList.value[0].children.length ? (
               <List
-                canSetDefaultSpace={props.canSetDefaultSpace}
+                canSetDefaultSpace={props.canSetDefaultSpace as boolean}
                 checked={localValue.value}
                 list={generalList.value[0].children}
                 theme={props.theme as ThemeType}
@@ -410,7 +428,7 @@ export default defineComponent({
           </bk-dialog>
         </div>
         {/* 下拉框内容 */}
-        {showBizList.value && useContent()}
+        {showBizList.value && dropdownContent()}
       </div>
     );
   },

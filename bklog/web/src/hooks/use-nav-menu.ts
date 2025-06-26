@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { ref, computed, watch, getCurrentInstance } from 'vue';
+import { ref, computed, watch } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import reportLogStore from '@/store/modules/report-log';
-import * as authorityMap from '../common/authority-map';
-import { BK_LOG_STORAGE } from '../store/store.type';
+import * as authorityMap from '@/common/authority-map';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
-// 你可以根据需要传递 t、bkInfo、http、emit 等参数
 export function useNavMenu(options: {
   t: (msg: string) => string;
   bkInfo: any;
@@ -57,14 +56,13 @@ export function useNavMenu(options: {
   const isExternal = computed(() => store.state.isExternal);
   const externalMenu = computed(() => store.state.externalMenu);
 
-  // watch $route.query
+  // watch query.from
   watch(
-    () => route.query,
-    (val: any) => {
-      const queryObj = JSON.parse(JSON.stringify(val));
-      if (queryObj.from) {
-        store.commit('updateAsIframe', queryObj.from);
-        store.commit('updateIframeQuery', queryObj);
+    () => route.query.from,
+    (fromValue) => {
+      if (fromValue) {
+        store.commit('updateAsIframe', fromValue);
+        store.commit('updateIframeQuery', { from: fromValue });
       }
     },
     { immediate: true, deep: true }

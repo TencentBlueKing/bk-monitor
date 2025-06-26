@@ -26,8 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import BizMenuSelect from '@/components/biz-menu/index.vue';
+import BizMenuSelect from '@/global/bk-space-choice/index'
 import { Alert, Message, Select, Option, Button, Input, Table, TableColumn, Tag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 

@@ -188,7 +188,7 @@
 </template>
 
 <script>
-  import BizMenuSelect from '@/components/biz-menu';
+  import BizMenuSelect from '@/global/bk-space-choice/index'
   import StepBox from '@/components/step-box';
   import { debounce } from 'throttle-debounce';
   import { mapGetters, mapState } from 'vuex';
