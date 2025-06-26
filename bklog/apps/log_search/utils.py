@@ -184,6 +184,8 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
             for key in keys[1:-1]:
                 json_data = json_data[key]
             value = json_data[last_key]
+            if not isinstance(value, str):
+                value = str(value)
             json_data[last_key] = re.sub(
                 pattern,
                 lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
