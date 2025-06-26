@@ -44,10 +44,8 @@ class EventViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resources.EventTimeSeriesResource, endpoint="time_series", decorators=[user_visit_record]
         ),
-        ResourceRoute("POST", resources.EventTagsResource, endpoint="tags"),
         ResourceRoute("POST", resources.EventTagDetailResource, endpoint="tag_detail", decorators=[user_visit_record]),
         ResourceRoute("POST", resources.EventGetTagConfigResource, endpoint="get_tag_config"),
-        ResourceRoute("POST", resources.EventTagStatisticsResource, endpoint="tag_statistics"),
         ResourceRoute(
             "POST", resources.EventUpdateTagConfigResource, endpoint="update_tag_config", decorators=[user_visit_record]
         ),

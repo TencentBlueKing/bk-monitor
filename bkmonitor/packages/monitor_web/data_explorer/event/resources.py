@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import logging
 import threading
 from collections import defaultdict
@@ -44,6 +45,13 @@ from .constants import (
     EventCategory,
     EventDimensionTypeEnum,
     EventType,
+    EVENT_ORIGIN_MAPPING,
+    DEFAULT_EVENT_ORIGIN,
+    SYSTEM_EVENT_TRANSLATIONS,
+    EventDomain,
+    K8S_EVENT_TRANSLATIONS,
+    CicdEventName,
+    EventSource,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -57,13 +65,6 @@ from .core.processors.context import (
     SystemClusterContext,
 )
 from .core.processors.k8s import K8sEventProcessor
-from .mock_data import (
-    API_LOGS_RESPONSE,
-    API_TIME_SERIES_RESPONSE,
-    API_TOPK_RESPONSE,
-    API_TOTAL_RESPONSE,
-    API_VIEW_CONFIG_RESPONSE,
-)
 from .utils import (
     get_data_labels_map,
     get_field_alias,
@@ -80,9 +81,6 @@ class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data["is_mock"]:
-            return API_TIME_SERIES_RESPONSE
-
         try:
             result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         except Exception as exc:
@@ -101,9 +99,6 @@ class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_LOGS_RESPONSE
-
         # 构建统一查询集
         queryset = (
             get_qs_from_req_data(validated_request_data)
@@ -140,9 +135,6 @@ class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_VIEW_CONFIG_RESPONSE
-
         data_sources = validated_request_data["data_sources"]
         tables = [data_source["table"] for data_source in data_sources]
         dimension_metadata_map = self.get_dimension_metadata_map(validated_request_data["bk_biz_id"], tables)
@@ -237,9 +229,6 @@ class EventTopKResource(Resource):
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         lock = threading.Lock()
-        if validated_request_data["is_mock"]:
-            return API_TOPK_RESPONSE
-
         fields = validated_request_data["fields"]
         # 计算事件总数
         total = EventTotalResource().perform_request(validated_request_data)["total"]
@@ -464,9 +453,6 @@ class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_TOTAL_RESPONSE
-
         alias: str = "a"
         # 构建查询列表
         queries = [
@@ -719,3 +705,140 @@ class EventGenerateQueryStringResource(Resource):
                 is_wildcard=f.get("options", {}).get("is_wildcard", False),
             )
         return generator.to_query_string()
+
+
+class EventTagDetailResource(Resource):
+    RequestSerializer = serializers.EventTagDetailRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        def _collect(_key: str, _req_data: dict[str, Any]):
+            result[_key] = self.get_tag_detail(_req_data)
+            pass
+
+        result: dict[str, dict[str, Any]] = {}
+        req_data_with_warn: dict[str, Any] = copy.deepcopy(validated_request_data)
+        for qc in req_data_with_warn["query_configs"]:
+            qc.setdefault("where", []).append(
+                {"key": "type", "method": "eq", "value": [EventType.Warning.value], "condition": "and"}
+            )
+
+        run_threads(
+            [
+                InheritParentThread(target=_collect, args=(EventType.Warning.value, req_data_with_warn)),
+                InheritParentThread(target=_collect, args=("All", validated_request_data)),
+            ]
+        )
+        return result
+
+    @classmethod
+    def get_event_origin_req_data_map(
+        cls,
+        validated_request_data: dict[str, Any],
+        data_labels_map: dict[str, str],
+        exclude_origins: list[tuple[str, str]] | None = None,
+    ) -> dict[tuple[str, str], Any]:
+        exclude_origins = exclude_origins or []
+        event_origin_req_data_map: dict[tuple[str, str], dict[str, Any]] = {}
+        for query_config in validated_request_data["query_configs"]:
+            event_origin: tuple[str, str] = EVENT_ORIGIN_MAPPING.get(
+                data_labels_map.get(query_config["table"]), DEFAULT_EVENT_ORIGIN
+            )
+            if event_origin in exclude_origins:
+                continue
+
+            if event_origin not in event_origin_req_data_map:
+                event_origin_req_data_map[event_origin] = copy.deepcopy(validated_request_data)
+                event_origin_req_data_map[event_origin]["query_configs"] = []
+            event_origin_req_data_map[event_origin]["query_configs"].append(query_config)
+        return event_origin_req_data_map
+
+    @classmethod
+    def get_tag_detail(cls, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        # 获取 total
+        tag_detail: dict[str, Any] = {"time": validated_request_data["start_time"], "total": 0}
+        try:
+            total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
+        except Exception:  # pylint: disable=broad-except
+            return {**tag_detail, "total": 0, "list": []}
+
+        if total == 0:
+            tag_detail["list"] = []
+            return tag_detail
+
+        if total > 20:
+            topk: list[dict[str, Any]] = cls.fetch_topk(validated_request_data)
+            for item in topk:
+                item["proportions"] = format_percent((item["count"] / total) * 100, 3, 3, 3)
+            tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[: validated_request_data["limit"]]
+        else:
+            tag_detail["list"] = cls.fetch_logs(validated_request_data)
+
+        tag_detail["total"] = total
+        return tag_detail
+
+    @classmethod
+    def fetch_topk(cls, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        data_labels_map: dict[str, str] = get_data_labels_map(
+            validated_request_data["bk_biz_id"],
+            [query_config["table"] for query_config in validated_request_data["query_configs"]],
+        )
+        validated_request_data: dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["fields"] = ["event_name"]
+        origin_req_data_map: dict[tuple[str, str], dict[str, Any]] = cls.get_event_origin_req_data_map(
+            validated_request_data, data_labels_map
+        )
+        event_origin_topk_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        run_threads(
+            [
+                InheritParentThread(target=cls.query_topk, args=(event_origin, req_data, event_origin_topk_map))
+                for event_origin, req_data in origin_req_data_map.items()
+            ]
+        )
+
+        event_tuple_count_map: dict[tuple[str, str, str], int] = defaultdict(int)
+        for event_origin, topk in event_origin_topk_map.items():
+            domain, source = event_origin
+            for item in topk:
+                event_tuple_count_map[(domain, source, item["value"])] += item["count"]
+
+        event_name_translations: dict[str, dict[str, str]] = {
+            EventDomain.SYSTEM.value: SYSTEM_EVENT_TRANSLATIONS,
+            EventDomain.CICD.value: {
+                CicdEventName.PIPELINE_STATUS_INFO.value: CicdEventName.PIPELINE_STATUS_INFO.label
+            },
+        }
+        for k8s_event_name_translations in K8S_EVENT_TRANSLATIONS.values():
+            event_name_translations.setdefault(EventDomain.K8S.value, {}).update(k8s_event_name_translations)
+
+        processed_topk: list[dict[str, Any]] = []
+        for event_tuple, count in event_tuple_count_map.items():
+            domain, source, event_name = event_tuple
+            processed_topk.append(
+                {
+                    "domain": {"value": domain, "alias": EventDomain.from_value(domain).label},
+                    "source": {"value": source, "alias": EventSource.from_value(source).label},
+                    "event_name": {
+                        "value": event_name,
+                        "alias": _("{alias}（{name}）").format(
+                            alias=event_name_translations.get(domain, {}).get(event_name, event_name), name=event_name
+                        ),
+                    },
+                    "count": count,
+                }
+            )
+        return processed_topk
+
+    @classmethod
+    def query_topk(
+        cls,
+        event_origin: tuple[str, str],
+        req_data: dict[str, Any],
+        event_origin_topk_map: dict[tuple[str, str], list[dict[str, Any]]],
+    ):
+        event_origin_topk_map[event_origin] = EventTopKResource().perform_request(req_data)[0].get("list") or []
+
+    @classmethod
+    def fetch_logs(cls, validated_request_data: dict[str, Any], limit: int = 10) -> list[dict[str, Any]]:
+        validated_request_data: dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["offset"] = 0
+        return EventLogsResource().perform_request(validated_request_data).get("list") or []
