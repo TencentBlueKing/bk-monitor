@@ -208,4 +208,16 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
     console.info('ActionService getQuickFilterList', data, '==========');
     return data;
   }
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await actionTopN(
+      {
+        ...params,
+      },
+      config
+    ).catch(() => ({
+      doc_count: 0,
+      fields: [],
+    }));
+    return data;
+  }
 }

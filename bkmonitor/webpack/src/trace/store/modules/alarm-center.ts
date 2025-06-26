@@ -32,6 +32,7 @@ import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
+import { EMode } from '../../components/retrieval-filter/typing';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { AlarmType } from '../../pages/alarm-center/typings';
@@ -65,6 +66,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const quickFilterValue = deepRef<CommonCondition[]>([]);
 
   const queryString = shallowRef('');
+  // 检索栏模式
+  const filterMode = shallowRef(EMode.ui);
 
   const refreshId = shallowRef(random(4));
 
@@ -183,5 +186,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     timeRangeTimestamp,
     alarmService,
     quickFilterValue,
+    filterMode,
   };
 });

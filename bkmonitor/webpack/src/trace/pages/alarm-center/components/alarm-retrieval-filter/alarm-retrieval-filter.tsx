@@ -37,6 +37,7 @@ import { useAppStore } from '../../../../store/modules/app';
 import { AlarmType } from '../../typings';
 import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
+import { useAlarmFilter } from './hooks/use-alarm-filter';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
 
@@ -44,13 +45,7 @@ import './alarm-retrieval-filter.scss';
 
 export default defineComponent({
   name: 'AlarmRetrievalFilter',
-  props: {
-    searchType: {
-      type: String,
-      default: 'alert',
-    },
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n();
     const appStore = useAppStore();
     const alarmStore = useAlarmCenterStore();
@@ -58,7 +53,7 @@ export default defineComponent({
       return appStore.bizId;
     });
     const isIncident = computed(() => {
-      return props.searchType === AlarmType.INCIDENT;
+      return alarmStore.alarmType === AlarmType.INCIDENT;
     });
     const bizList = computed(() => {
       return appStore.bizList;
@@ -66,6 +61,18 @@ export default defineComponent({
 
     const localBizIds = shallowRef(alarmStore.bizIds);
     const allowedBizList = shallowRef([]);
+
+    const {
+      fields,
+      condition,
+      queryString,
+      residentSettingOnlyId,
+      filterMode,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      getRetrievalFilterValueData,
+    } = useAlarmFilter();
 
     /**
      * @description: 通过业务id 获取无权限申请url
@@ -104,14 +111,42 @@ export default defineComponent({
       isIncident,
       localBizIds,
       bizList,
+      fields,
+      condition,
+      queryString,
+      residentSettingOnlyId,
+      filterMode,
       t,
       handleCheckAllowedByIds,
       handleBizIdsChange,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      getRetrievalFilterValueData,
     };
   },
   render() {
     return (
-      <RetrievalFilter class='alarm-center__alarm-retrieval-filter-component'>
+      <RetrievalFilter
+        class='alarm-center__alarm-retrieval-filter-component'
+        changeWhereFormatter={where => {
+          return where.map(w => ({
+            key: w.key,
+            method: w.method,
+            value: w.value,
+            condition: w.condition,
+          }));
+        }}
+        fields={this.fields}
+        filterMode={this.filterMode}
+        getValueFn={this.getRetrievalFilterValueData}
+        queryString={this.queryString}
+        residentSettingOnlyId={this.residentSettingOnlyId}
+        where={this.condition}
+        onModeChange={this.handleFilterModeChange}
+        onQueryStringChange={this.handleQueryStringChange}
+        onWhereChange={this.handleConditionChange}
+      >
         {{
           default: () => (
             <>

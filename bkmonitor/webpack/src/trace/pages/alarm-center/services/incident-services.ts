@@ -199,4 +199,17 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     console.info('IncidentService getQuickFilterList', data, '==========');
     return data;
   }
+
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await incidentTopN(
+      {
+        ...params,
+      },
+      config
+    ).catch(() => ({
+      doc_count: 0,
+      fields: [],
+    }));
+    return data;
+  }
 }

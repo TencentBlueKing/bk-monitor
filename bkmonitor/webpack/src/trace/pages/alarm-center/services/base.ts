@@ -104,4 +104,10 @@ export abstract class AlarmService<S = AlarmType> {
    * @param {Partial<CommonFilterParams>} params
    */
   abstract getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]>;
+  /**
+   * @description 获取检索值数据
+   * @param params
+   * @param config
+   */
+  abstract getRetrievalFilterValues(params: Partial<CommonFilterParams>, config?: Record<string, any>);
 }
