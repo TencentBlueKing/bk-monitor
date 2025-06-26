@@ -29,8 +29,8 @@ import useStore from '@/hooks/use-store';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import reportLogStore from '@/store/modules/report-log';
-import * as authorityMap from '../../common/authority-map';
-import { BK_LOG_STORAGE } from '../../store/store.type';
+import * as authorityMap from '@/common/authority-map';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export function useNavMenu(options: {
   t: (msg: string) => string;

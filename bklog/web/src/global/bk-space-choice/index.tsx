@@ -28,7 +28,7 @@ import useLocale from '@/hooks/use-locale';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import useStore from '../../hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
-import { useNavMenu } from './use-nav-menu';
+import { useNavMenu } from '@/hooks/use-nav-menu';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import * as authorityMap from '../../common/authority-map';
 import { debounce } from 'throttle-debounce';

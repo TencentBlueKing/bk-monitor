@@ -252,7 +252,7 @@
   import { useJSONP } from '@/common/jsonp';
   import GlobalDialog from '@/components/global-dialog';
   import logoImg from '@/images/log-logo.png';
-  import { useNavMenu } from '@/global/bk-space-choice/use-nav-menu';
+  import { useNavMenu } from '@/hooks/use-nav-menu';
   import platformConfigStore from '@/store/modules/platform-config';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
@@ -381,7 +381,7 @@
     beforeUnmount() {
       window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
     },
-    
+
     methods: {
       async getUserInfo() {
         try {
