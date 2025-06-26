@@ -237,7 +237,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         if diff_result["plugin_version"]["is_modified"]:
             # 判断是否需要使用update模式进行插件升级
 
-            if self.deployment_config.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ:
+            if self.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ:
                 return "update"
             return "rebuild"
 
