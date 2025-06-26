@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.6
-        version: 1.1.0-beta.6(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
+        specifier: 1.1.0-beta.7
+        version: 1.1.0-beta.7(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)
       '@blueking/bk-weweb':
         specifier: 0.0.35-beta.7
         version: 0.0.35-beta.7
@@ -1493,8 +1493,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.6':
-    resolution: {integrity: sha512-HpsOFpkXPjBwu5lDgRCdaqQW0k7ON/0nUVTSjo4ZpIK0hsWuDLhviDC83flUk3kelMVXB1PPf4HxK8ikFrrXFw==}
+  '@blueking/ai-blueking@1.1.0-beta.7':
+    resolution: {integrity: sha512-f2TkZ/VuHR4XCYqpxBV/w9kvhPeMy/gF9AaeSGpRX2oYz7EWhjCtaD1PTVXueDlDk/AsTr/lRqqGBT1AgwZCiA==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -9730,7 +9730,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.6(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
+  '@blueking/ai-blueking@1.1.0-beta.7(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.0.15-beta.38(dayjs@1.11.13)(postcss@8.5.3)(quill@1.3.7)(vue@2.7.16)(x-mavon-editor@0.0.15)

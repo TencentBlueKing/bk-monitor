@@ -423,10 +423,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
-        ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
+        ("INITIALIZED_TENANT_LIST", slz.ListField(label="已经初始化的租户列表", default=["system"])),
         # RUM 配置
-        ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
-        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
+        ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
+        ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
     ]
 )
 
