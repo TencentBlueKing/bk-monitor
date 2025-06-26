@@ -281,7 +281,7 @@ export default defineComponent({
     };
 
     // 下拉框内容渲染
-    const useContent = () => {
+    const dropdownContent = () => {
       return props.isExpand && (
         <div
           class='menu-select-list'
@@ -428,7 +428,7 @@ export default defineComponent({
           </bk-dialog>
         </div>
         {/* 下拉框内容 */}
-        {showBizList.value && useContent()}
+        {showBizList.value && dropdownContent()}
       </div>
     );
   },

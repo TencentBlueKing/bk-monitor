@@ -49,7 +49,7 @@
       <ul>
         <li
           v-for="menu in menuList"
-          :class="['menu-item', { active: activeTopMenu.id === menu.id }]"
+          :class="['menu-item', { active: navMenu.activeTopMenu.id === menu.id }]"
           :data-test-id="`topNavBox_li_${menu.id}`"
           :id="`${menu.id}MenuGuide`"
           :key="menu.id"
@@ -252,7 +252,7 @@
   import { useJSONP } from '@/common/jsonp';
   import GlobalDialog from '@/components/global-dialog';
   import logoImg from '@/images/log-logo.png';
-  import navMenuMixin from '@/mixins/nav-menu-mixin';
+  import { useNavMenu } from '@/global/bk-space-choice/use-nav-menu';
   import platformConfigStore from '@/store/modules/platform-config';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
@@ -268,7 +268,6 @@
       GlobalDialog,
       BizMenuSelect,
     },
-    mixins: [navMenuMixin],
     props: {
       welcomeData: {
         type: Object,
@@ -277,6 +276,7 @@
     },
     data() {
       return {
+        navMenu: null,
         isFirstLoad: true,
         isOpenVersion: window.RUN_VER.indexOf('open') !== -1,
         username: '',
@@ -327,7 +327,7 @@
         let current;
         if (this.currentMenu.dropDown && this.currentMenu.children) {
           const routeName = this.$route.name;
-          current = this.activeTopMenu(this.currentMenu.children, routeName);
+          current = this.navMenu.activeTopMenu(this.currentMenu.children, routeName);
         }
         return current || {};
       },
@@ -335,7 +335,7 @@
         return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
       },
       menuList() {
-        const list = this.topMenu.filter(menu => {
+        const list = this.navMenu.topMenu.filter(menu => {
           return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
         });
         // #if MONITOR_APP === 'apm'
@@ -363,7 +363,17 @@
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
-      this.requestMySpaceList();
+
+      // 初始化 navMenu 并保存到组件数据
+      this.navMenu = useNavMenu({
+        t: $t,
+        bkInfo: window.$bkInfo,
+        http: window.$http,
+        emit: window.$emit
+      });
+
+      this.navMenu.requestMySpaceList();
+      
       this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
@@ -371,6 +381,7 @@
     beforeUnmount() {
       window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
     },
+    
     methods: {
       async getUserInfo() {
         try {
@@ -427,7 +438,7 @@
       routerHandler(menu) {
         // 关闭全局设置弹窗
         this.$store.commit('updateIsShowGlobalDialog', false);
-        if (menu.id === this.activeTopMenu.id) {
+        if (menu.id === this.navMenu.activeTopMenu.id) {
           if (menu.id === 'retrieve') {
             this.$router.push({
               name: menu.id,
@@ -547,7 +558,7 @@
         }
         location.reload();
       },
-      
+
       dropdownHelpTriggerHandler(type) {
         this.$refs.dropdownHelp.hide();
         if (type === 'logVersion') {
