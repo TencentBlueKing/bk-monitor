@@ -232,7 +232,6 @@ class TestChart(TestCase):
             addition = search_param["addition"]
             sql_param = search_param.get("sql")
             keyword = search_param.get("keyword")
-            self.maxDiff = None
             data = ChartHandler.generate_sql(
                 addition=addition,
                 start_time=start_time,
