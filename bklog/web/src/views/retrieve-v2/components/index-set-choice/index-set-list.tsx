@@ -625,7 +625,7 @@ export default defineComponent({
           <div class='bklog-v3-search-input'>
             <bk-input
               clearable
-              placeholder='请输入 索引集、采集项 搜索'
+              placeholder={$t('请输入 索引集、采集项 搜索')}
               right-icon="'bk-icon icon-search'"
               style='width: 650px; margin-right: 12px;'
               value={searchText.value}
@@ -638,7 +638,7 @@ export default defineComponent({
               on-change={handleHiddenEmptyItemChange}
             >
               <span class='hidden-empty-icon'></span>
-              <span>隐藏无数据</span>
+              <span>{$t('隐藏无数据')}</span>
             </bk-checkbox>
           </div>
           <div class={['bklog-v3-tag-list', { 'is-empty': indexSetTagList.value.length === 0 }]}>

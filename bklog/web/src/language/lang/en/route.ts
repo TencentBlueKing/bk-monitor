@@ -38,7 +38,7 @@ export default {
   监控策略: 'Monitoring',
   日志提取: 'Log Extract',
   新建目录: 'New Directory',
-  告警策略: 'Alarm Rules',
+  告警策略: 'Alert Rules',
   ES集群: 'ES Cluster',
   计算平台: 'BK-Base',
   采集接入: 'Collector',

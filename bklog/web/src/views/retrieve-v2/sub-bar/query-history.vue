@@ -63,7 +63,7 @@
             v-else
             class="list-item not-history"
           >
-            {{ this.$t('暂无历史记录') }}
+            {{ $t('暂无历史记录') }}
           </li>
         </ul>
       </div>
@@ -133,8 +133,8 @@
         return textMap[searchMode] || '';
       },
       getContent(item){
-        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>语句：${item.query_string}</div></div>`
+        return `<div><div>${this.$t('检索时间')}：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>${this.$t('语句')}：${item.query_string}</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();

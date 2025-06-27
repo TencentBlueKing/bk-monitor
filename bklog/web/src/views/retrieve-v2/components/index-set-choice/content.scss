@@ -25,6 +25,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        white-space: nowrap;
         cursor: pointer;
 
         &.is-active {

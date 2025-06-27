@@ -114,11 +114,11 @@ export default defineComponent({
     const gradeCategory = ref([
       {
         id: 'normal',
-        name: '默认配置',
+        name: $t('默认配置'),
       },
       {
         id: 'custom',
-        name: '自定义',
+        name: $t('自定义'),
       },
     ]);
 
@@ -276,7 +276,7 @@ export default defineComponent({
               on-change={v => handleGradeOptionFormChange('disabled', !v)}
             ></bk-switcher>
             <span class='bklog-icon bklog-info-fill'></span>
-            <span>指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段</span>
+            <span>{$t('指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段')}</span>
           </div>
         </div>
         <div class='grade-row'>
@@ -327,13 +327,13 @@ export default defineComponent({
                 style='width: 46px'
                 class='grade-table-col col-color'
               >
-                颜色
+                {$t('颜色')}
               </div>
               <div
                 style='width: 240px'
                 class='grade-table-col'
               >
-                字段定义
+                {$t('字段定义')}
               </div>
               <div
                 style='width: 330px'
@@ -347,14 +347,14 @@ export default defineComponent({
                     value={GradeFieldValueType.VALUE}
                     disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
                   >
-                    快速选择
+                    {$t('快速选择')}
                   </bk-radio>
                   <bk-radio
                     value={GradeFieldValueType.REGEXP}
                     style='margin-left: 14px;'
                     disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
                   >
-                    正则表达式
+                    {$t('正则表达式')}
                   </bk-radio>
                 </bk-radio-group>
               </div>
@@ -362,7 +362,7 @@ export default defineComponent({
                 style='width: 60px'
                 class='grade-table-col'
               >
-                启用
+                {$t('启用')}
               </div>
             </div>
             <div class='grade-table-body'>
@@ -419,14 +419,13 @@ export default defineComponent({
         </div>
         <div class='grade-row grade-footer'>
           <bk-button
-            style='width: 64px; height: 32px; margin-right: 8px'
+            style='margin-right: 8px'
             theme='primary'
             onClick={e => handleSaveGradeSettingClick(e, true)}
           >
             {$t('确定')}
           </bk-button>
           <bk-button
-            style='width: 64px; height: 32px'
             theme='default'
             onClick={e => handleSaveGradeSettingClick(e, false)}
           >

@@ -27,7 +27,7 @@
 import { computed, defineComponent, ref } from 'vue';
 import './common-list.scss';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
-
+import useLocale from '@/hooks/use-locale';
 export default defineComponent({
   props: {
     list: {
@@ -69,16 +69,17 @@ export default defineComponent({
   },
   emits: ['delete', 'value-click', 'icon-click'],
   setup(props, { emit }) {
+    const { $t } = useLocale();
     const textMap = ref({
       history: {
-        title: '搜索历史',
-        delLable: '清空历史',
+        title: $t('搜索历史'),
+        delLable: $t('清空历史'),
         delAll: true,
         itemIcon: 'bklog-history-2',
       },
       favorite: {
-        title: '我的收藏',
-        delLable: '清空收藏',
+        title: $t('我的收藏'),
+        delLable: $t('清空收藏'),
         delAll: false,
         itemIcon: 'bklog-lc-star-shape',
       },

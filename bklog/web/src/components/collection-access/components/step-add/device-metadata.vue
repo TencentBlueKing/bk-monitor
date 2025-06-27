@@ -36,7 +36,7 @@
       <div class="switcher-tips">
         <i class="bk-icon icon-info-circle" />
         <span>
-          {{ this.$t('该设置可以将采集设备的元数据信息补充至日志中') }}
+          {{ $t('该设置可以将采集设备的元数据信息补充至日志中') }}
         </span>
       </div>
     </div>
@@ -63,8 +63,8 @@
         </bk-option>
       </bk-select>
       <div>
-      <span class='addTagBtn' @click="handleAddExtraLabel">添加自定义标签</span>
-      <span>如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果</span>
+      <span class='addTagBtn' @click="handleAddExtraLabel">{{ $t('添加自定义标签') }}</span>
+      <span>{{ $t('如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果') }}</span>
       <template v-if="extraLabelList.length">
         <div
           v-for="(item, index) in extraLabelList"
@@ -81,7 +81,7 @@
               <i
                 style="right: 8px"
                 class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                v-bk-tooltips.top="'自定义标签key与元数据key重复'"
+                v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
               ></i>
             </template>
           </div>
