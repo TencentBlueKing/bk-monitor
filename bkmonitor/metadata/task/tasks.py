@@ -881,6 +881,11 @@ def bulk_create_fed_data_link(sub_clusters):
 def sync_bkbase_v4_metadata(key):
     """
     同步计算平台元数据信息至Metadata
+    Redis中的数据格式
+    redis_key
+        kafka: {}
+        vm: {rt1:{},rt2:{},rt3:{}}
+        es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
@@ -909,8 +914,7 @@ def sync_bkbase_v4_metadata(key):
     bkbase_metadata_dict = {
         key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
     }
-    bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
-    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
+    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata_dict)
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
@@ -927,7 +931,7 @@ def sync_bkbase_v4_metadata(key):
         return
 
     # 处理 Kafka 信息
-    kafka_info = bkbase_metadata.get("kafka")
+    kafka_info = bkbase_metadata_dict.get("kafka")
     if kafka_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -939,23 +943,26 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get("es")
+    es_info = bkbase_metadata_dict.get("es")
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
             )
-            sync_es_metadata(es_info, table_id)
+            # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
+            # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
+            es_info_value = next(iter(es_info.values()))
+            sync_es_metadata(es_info_value, table_id)
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
-    vm_info = bkbase_metadata.get("vm")
+    vm_info = bkbase_metadata_dict.get("vm")
     if vm_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
             )
-            sync_vm_metadata(vm_info, table_id)
+            sync_vm_metadata(vm_info)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
 
     cost_time = time.time() - start_time
