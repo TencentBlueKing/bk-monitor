@@ -46,6 +46,15 @@
     .blue-txt {
       color: #3a84ff;
       cursor: pointer;
+      margin: 0 3px;
+    }
+    .ai-card-loading {
+      height: 60px;
+      margin: 0 auto;
+      width: 95%;
+      .ai-card-main {
+        color: #f3f6ff;
+      }
     }
     .ai-card {
       width: 100%;
@@ -96,6 +105,8 @@
         color: #4d4f56;
         font-size: 12px;
         padding: 0 16px;
+        max-height: 360px;
+        overflow: auto;
       }
     }
     .failure-collapse {
@@ -150,7 +161,9 @@
         padding: 5px 16px;
         color: #4d4f56;
         font-size: 12px;
-        margin-bottom: 8px;
+        // margin-bottom: 8px;
+        max-height: 360px;
+        overflow: auto;
         .bk-loading-wrapper {
           margin-top: 5px;
         }
@@ -166,6 +179,7 @@
             line-height: 26px;
             background: #eaebf0;
             border-radius: 2px 2px 0 0;
+            padding-left: 0;
             .bk-collapse-title {
               font-size: 12px;
               color: #313238;
@@ -173,6 +187,7 @@
             }
             .bk-collapse-icon {
               top: 4px;
+              left: 1px;
               svg {
                 font-size: 18px;
               }
@@ -195,25 +210,42 @@
           display: block;
           width: 100%;
           .dimensional-content-item {
-            display: block;
+            display: flex;
             width: 100%;
             line-height: 24px;
             padding: 2px 16px;
+            justify-content: center;
             &:nth-child(2n) {
               background: #f8fafd;
             }
             .item-label {
               display: inline-block;
-              width: 80px;
-              text-align: left;
+              width: 130px;
+              text-align: right;
               color: #757880;
+              margin-right: 2px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            .item-value {
+              flex: 1;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
             }
           }
           .content-title {
             display: block;
             width: 100%;
-            padding: 4px 14px;
-            background: #eaebf0;
+            padding: 4px 14px 4px 20px;
+            // background: #eaebf0;
+          }
+          .dimensional-content-link {
+            display: block;
+            width: 100%;
+            line-height: 24px;
+            padding: 2px 16px;
           }
         }
         .bk-collapse-content {

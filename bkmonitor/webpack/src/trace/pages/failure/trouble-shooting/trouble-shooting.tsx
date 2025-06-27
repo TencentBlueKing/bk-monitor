@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type Ref, inject, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, shallowRef, watch, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { Collapse, Exception, Loading } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 
-import type { IIncident } from '../types';
+import MarkdownView from './markdown-view';
 
 import './trouble-shooting.scss';
 
@@ -41,132 +42,117 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['chooseOperation', 'changeTab'],
+  emits: ['alertList'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
+    const route = useRoute();
     const isAllCollapsed = shallowRef(true);
-    const contentList = shallowRef({});
-    const loadingList = shallowRef({});
-    const data = [
-      {
-        key: 'name',
-        value: 'VM-156-110-centos',
-        label: '主机名',
-      },
-      {
-        key: 'ip',
-        value: '11.185.157.110',
-        label: '目标IP',
-      },
-
-      {
-        key: 'area',
-        value: 0,
-        label: '管控区域',
-      },
-      {
-        key: 'key',
-        value: 'Value 占位',
-        label: 'Key占位',
-      },
-    ];
-    const alert = ['日志平台-es 磁盘容量告警', '蓝鲸-es 磁盘容量告警', 'GSE-es 磁盘容量告警'];
+    const contentList = reactive({});
+    const loadingList = reactive({
+      summary: false,
+    });
     const activeIndex = shallowRef([0, 1]);
     const childActiveIndex = shallowRef([0]);
-    const dimensional = shallowRef([
-      {
-        name: '异常维度（组合）1',
-        content: '拥有支撑数百款腾讯业务的经验沉淀，兼容各种复杂的系统架构，生于运维 · 精于运维',
-        percentage: '90%',
-        data,
-        alert,
-      },
-      {
-        name: '异常维度（组合）2',
-        percentage: '80%',
-        content:
-          '从配置管理，到作业执行、任务调度和监控自愈，再通过运维大数据分析辅助运营决策，全方位覆盖业务运营的全周期保障管理。',
-        data,
-        alert,
-      },
-      {
-        name: '异常维度（组合）3',
-        percentage: '70%',
-        content: '开放的PaaS，具备强大的开发框架和调度引擎，以及完整的运维开发培训体系，助力运维快速转型升级。',
-        data,
-        alert,
-      },
-    ]);
+    const aiLoading = computed(() => {
+      const { sub_panels } = props.panelConfig;
+      return sub_panels?.summary?.status;
+    });
+
     const dimensionalTitleSlot = item => (
       <span class='dimensional-title'>
-        {item.name}
+        {item.name || `异常维度（组合）${item.$index + 1}`}
         <span class='red-font'>
-          {t('异常程度')} {item.percentage}
+          {t('异常程度')} {item?.score.toFixed(2) * 100}%
         </span>
       </span>
     );
-    const dimensionalContentSlot = item => (
-      <span class='dimensional-content'>
-        {item.data.map(ele => (
-          <span
-            key={ele.key}
-            class='dimensional-content-item'
-          >
-            <span class='item-label'>{ele.label}</span>
-            <span>{ele.value}</span>
+    /** 侧滑展开告警详情 */
+    const goDetail = data => {
+      window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
+    };
+    /** 跳转到告警tab */
+    const goAlertList = list => {
+      emit('alertList', list);
+    };
+    const dimensionalContentSlot = item => {
+      return (
+        <span class='dimensional-content'>
+          {Object.keys(item.dimension_values || {}).map(key => (
+            <span
+              key={key}
+              class='dimensional-content-item'
+            >
+              <span
+                class='item-label'
+                title={key}
+              >
+                {key}：
+              </span>
+              <span
+                class='item-value'
+                title={item.dimension_values[key]}
+              >
+                {item.dimension_values[key]}
+              </span>
+            </span>
+          ))}
+          <span class='content-title'>
+            {t('包含')}
+            <b
+              class='blue-txt'
+              onClick={() => goAlertList(item.alerts)}
+            >
+              {item.alert_count}
+            </b>
+            {t('个告警')}
           </span>
-        ))}
-        <span class='content-title'>
-          包含 <b class='blue-txt'>{item.alert.length}</b> 个告警
+          {(item.alerts || []).map(ele => (
+            <span
+              key={ele.id}
+              class='dimensional-content-link'
+              onClick={() => goDetail(ele)}
+            >
+              <span class='blue-txt'>{ele.alert_name}</span>
+            </span>
+          ))}
         </span>
-        {item.alert.map((ele, ind) => (
-          <span
-            key={ind}
-            class='dimensional-content-item'
-          >
-            <span class='blue-txt'>{ele}</span>
-          </span>
-        ))}
-      </span>
-    );
+      );
+    };
 
-    const renderDisposal = () => (
-      <div>
-        {renderEmpty()}
-        {/* 基于历史故障知识库的处置建议
-        <div>该故障内您共有 3 个未恢复告警待处理。分别的建议处置建议：</div>
-        <div>1. XXXXXXXXXXXXXXXXXX 前往处理 </div>
-        <div>2. XXXXXXXXXXXXXXXXXX </div>
-        <div>3. XXXXXXXXXXXXXXXXXX </div> */}
-      </div>
-    );
+    const renderDisposal = () => {
+      return <MarkdownView content={contentList?.suggestion} />;
+    };
 
-    const renderDimensional = () => (
-      <div>
-        <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
-        <Collapse
-          class='dimensional-collapse'
-          v-model={childActiveIndex.value}
-          v-slots={{
-            default: item => dimensionalTitleSlot(item),
-            content: item => dimensionalContentSlot(item),
-          }}
-          list={dimensional.value}
-        />
-      </div>
-    );
+    const renderDimensional = () => {
+      const len = contentList?.dimension_analysis?.length;
+      return (
+        <div>
+          <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
+          {len && (
+            <Collapse
+              class='dimensional-collapse'
+              v-model={childActiveIndex.value}
+              v-slots={{
+                default: item => dimensionalTitleSlot(item),
+                content: item => dimensionalContentSlot(item),
+              }}
+              list={contentList?.dimension_analysis || []}
+            />
+          )}
+        </div>
+      );
+    };
 
-    const renderEmpty = () => (
+    const renderEmpty = data => (
       <Exception
         class='exception-wrap-item'
-        description='我是详细说明文案的占位'
+        description={data.message}
         scene='part'
-        title='超时错误'
+        title={t('超时错误')}
         type='500'
       />
     );
-    const list = shallowRef([
+    const list = reactive([
       {
         name: t('处置建议'),
         key: 'suggestion',
@@ -182,41 +168,33 @@ export default defineComponent({
     ]);
     const handleToggleAll = () => {
       isAllCollapsed.value = !isAllCollapsed.value;
-      activeIndex.value = isAllCollapsed.value ? list.value.map((_, ind) => ind) : [];
+      activeIndex.value = isAllCollapsed.value ? list.map((_, ind) => ind) : [];
     };
 
     const getIncidentDiagnosis = sub_panel => {
-      loadingList.value[sub_panel] = true;
+      loadingList[sub_panel] = true;
       incidentDiagnosis({
-        id: incidentDetail.value?.incident_id,
+        id: route.params.id,
         sub_panel,
-      })
-        .then(res => {
-          contentList.value[sub_panel] = res.contents;
-          console.log(res, contentList.value);
-        })
-        .finally(() => {
-          loadingList.value[sub_panel] = false;
-        });
+      }).then(res => {
+        contentList[sub_panel] = res.contents;
+        const { sub_panels } = props.panelConfig;
+        loadingList[sub_panel] = sub_panels[sub_panel].status === 'running';
+      });
     };
     watch(
       () => props.panelConfig,
       val => {
         const { status, sub_panels } = val;
+        let keys = Object.keys(sub_panels);
         if (status === 'running') {
-          const keys = Object.keys(sub_panels).filter(key => sub_panels[key].status === 'finished');
-          list.value.map(item =>
-            Object.assign(item, {
-              status: sub_panels[item.key].status,
-              loading: sub_panels[item.key].status === 'running',
-            })
-          );
-          keys.map(key => {
-            !contentList.value[key] && getIncidentDiagnosis(key);
-          });
+          keys = Object.keys(sub_panels || {}).filter(key => sub_panels[key].status === 'running');
         }
+        keys.map(key => {
+          getIncidentDiagnosis(key);
+        });
       },
-      { deep: true }
+      { deep: true, immediate: true }
     );
 
     return {
@@ -226,6 +204,9 @@ export default defineComponent({
       isAllCollapsed,
       handleToggleAll,
       contentList,
+      aiLoading,
+      loadingList,
+      renderEmpty,
     };
   },
   render() {
@@ -235,14 +216,34 @@ export default defineComponent({
         <span class='field-name'>{item.name}</span>
       </span>
     );
-    const contentSlot = item => <Loading loading={item.loading}>{item.render()}</Loading>;
+    const contentSlot = item => {
+      const { sub_panels } = this.panelConfig;
+      if (sub_panels[item.key].status === 'failed') {
+        return this.renderEmpty(sub_panels[item.key]);
+      }
+      return (
+        <Loading
+          class={{ 'ai-card-loading': this.loadingList[item.key] }}
+          loading={this.loadingList[item.key]}
+        >
+          {!this.loadingList[item.key] && item.render(item)}
+        </Loading>
+      );
+    };
+    const aiCardRender = () => {
+      const { sub_panels } = this.panelConfig;
+      if (sub_panels.summary.status === 'failed') {
+        return this.renderEmpty(sub_panels.summary);
+      }
+      return !this.loadingList.summary && <MarkdownView content={this.contentList?.summary} />;
+    };
     return (
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
           {this.t('诊断分析')}
           <span class='header-bg' />
           <i
-            class={`icon-monitor icon-${this.isAllCollapsed ? 'shouqi3' : 'zhankai2'} icon-btn`}
+            class={`icon-monitor icon-${this.isAllCollapsed ? 'zhankai2' : 'shouqi3'} icon-btn`}
             v-bk-tooltips={{
               content: this.isAllCollapsed ? this.t('全部收起') : this.t('全部展开'),
               placements: ['top'],
@@ -256,10 +257,13 @@ export default defineComponent({
               <span class='ai-card-title-icon' />
               {this.t('故障总结')}
             </div>
-            <div class='ai-card-main'>
-              {this.contentList?.summary || this.t('暂无故障总结')}
-              {/* 根因节点和影响范围（结合图谱的实体回答：服务、模块），触发的告警情况、影响面积分析文本占位文本占位。查看详情 */}
-            </div>
+            <Loading
+              class={{ 'ai-card-loading': this.loadingList.summary }}
+              color={'#f3f6ff'}
+              loading={this.loadingList.summary}
+            >
+              <div class='ai-card-main'>{aiCardRender()}</div>
+            </Loading>
           </div>
           <Collapse
             class='failure-collapse'

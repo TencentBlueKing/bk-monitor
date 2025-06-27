@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, KeepAlive, type PropType, type Ref, defineComponent, inject, shallowRef } from 'vue';
+import { computed, KeepAlive, type PropType, type Ref, defineComponent, inject, ref as deepRef, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -49,14 +49,23 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace', 'changeTab'],
+  emits: [
+    'nodeClick',
+    'filterSearch',
+    'nodeExpand',
+    'treeScroll',
+    'chooseOperation',
+    'changeSpace',
+    'changeTab',
+    'alertList',
+  ],
   setup(props, { emit }) {
     /** 左侧头部菜单 */
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const incidentResults = inject<Ref<object>>('incidentResults');
-    const alertAggregateParams = shallowRef({});
-    const refNav = shallowRef(null);
+    const alertAggregateParams = deepRef({});
+    const refNav = deepRef(null);
     const tabList = [
       {
         name: 'FailureHandle',
@@ -77,7 +86,7 @@ export default defineComponent({
         key: 'incident_diagnosis',
       },
     ];
-    const active = shallowRef('TroubleShooting');
+    const active = shallowRef('FailureHandle');
     const showKeys = computed(() => {
       const keys = Object.keys(incidentResults.value).filter(key => incidentResults.value[key].enabled);
       return keys;
@@ -153,6 +162,17 @@ export default defineComponent({
     const changeTab = () => {
       emit('changeTab');
     };
+    /** 跳转到告警tab */
+    const goAlertList = list => {
+      const len = list.length;
+      const alertIds = list.map(item => item.id);
+      const name = list[0]?.alert_name;
+      const alertObj = {
+        ids: `告警ID: ${alertIds.join(' OR 告警ID: ')}`,
+        label: `${name} 等共 ${len} 个告警`,
+      };
+      emit('alertList', alertObj);
+    };
     return {
       active,
       tabList,
@@ -170,6 +190,7 @@ export default defineComponent({
       showTabList,
       showKeys,
       currentTabConfig,
+      goAlertList,
     };
   },
   render() {
@@ -199,6 +220,7 @@ export default defineComponent({
               onNodeClick={this.nodeClick}
               onNodeExpand={this.nodeExpand}
               onTreeScroll={this.treeScroll}
+              onAlertList={this.goAlertList}
             />
           </KeepAlive>
         </div>

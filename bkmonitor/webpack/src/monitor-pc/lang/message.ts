@@ -524,4 +524,6 @@ export default {
   批量编辑成功: 'Batch edit successful',
 
   暂无故障总结: 'No fault summary',
+  处置建议: 'Disposal suggestion',
+  个告警: ' alarms',
 };

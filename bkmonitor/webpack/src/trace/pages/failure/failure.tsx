@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, provide, nextTick, shallowRef, onBeforeUnmount, watch } from 'vue';
+import { computed, defineComponent, onMounted, provide, nextTick, ref as deepRef, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -93,27 +93,27 @@ export default defineComponent({
     useIncidentProvider(computed(() => props.id));
     const route = useRoute();
     const router = useRouter();
-    const operations = shallowRef([]);
-    const bkzIds = shallowRef([]);
+    const operations = deepRef([]);
+    const bkzIds = deepRef([]);
     const { t } = useI18n();
-    const incidentDetailData = shallowRef<IIncident>({});
-    const valueMap = shallowRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
-    const analyzeTagList = shallowRef([]);
-    const tagInfo = shallowRef<ITagInfoType>({});
-    const currentNode = shallowRef([] as string[]);
-    const filterSearch = shallowRef<IFilterSearch>({});
-    const alertAggregateData = shallowRef([]);
-    const operationsLoading = shallowRef(false);
-    const scrollTopNum = shallowRef(0);
-    const operationTypeMap = shallowRef({});
-    const playLoading = shallowRef(false);
-    const operationTypes = shallowRef([]);
-    const refContent = shallowRef<InstanceType<typeof FailureContent>>();
-    const failureNavRef = shallowRef<InstanceType<typeof FailureNav>>();
-    const topoNodeId = shallowRef<string>();
-    const incidentResultList = shallowRef({});
-    const incidentResultStatus = shallowRef('');
-    const timer = shallowRef();
+    const incidentDetailData = deepRef<IIncident>({});
+    const valueMap = deepRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
+    const analyzeTagList = deepRef([]);
+    const tagInfo = deepRef<ITagInfoType>({});
+    const currentNode = deepRef([] as string[]);
+    const filterSearch = deepRef<IFilterSearch>({});
+    const alertAggregateData = deepRef([]);
+    const operationsLoading = deepRef(false);
+    const scrollTopNum = deepRef(0);
+    const operationTypeMap = deepRef({});
+    const playLoading = deepRef(false);
+    const operationTypes = deepRef([]);
+    const refContent = deepRef<InstanceType<typeof FailureContent>>();
+    const failureNavRef = deepRef<InstanceType<typeof FailureNav>>();
+    const topoNodeId = deepRef<string>();
+    const incidentResultList = deepRef({});
+    const incidentResultStatus = deepRef('');
+    const timer = deepRef();
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -324,7 +324,7 @@ export default defineComponent({
         if (val === 'running') {
           timer.value = setInterval(() => {
             getIncidentResults();
-          }, 3000);
+          }, 4000);
         } else {
           clearInterval(timer.value);
         }
@@ -370,6 +370,9 @@ export default defineComponent({
     const changeTab = () => {
       refContent.value?.handleChangeActive('FailureView');
     };
+    const goAlertList = data => {
+      refContent.value?.goAlertDetail(data);
+    };
     return {
       incidentDetailData,
       getIncidentDetail,
@@ -394,6 +397,7 @@ export default defineComponent({
       handleChangeSelectNode,
       topoNodeId,
       changeTab,
+      goAlertList,
     };
   },
   render() {
@@ -416,6 +420,7 @@ export default defineComponent({
                 ref='failureNavRef'
                 tagInfo={this.tagInfo}
                 topoNodeId={this.topoNodeId}
+                onAlertList={this.goAlertList}
                 onChangeSpace={this.handleChangeSpace}
                 onChangeTab={this.changeTab}
                 onChooseOperation={this.chooseOperation}
