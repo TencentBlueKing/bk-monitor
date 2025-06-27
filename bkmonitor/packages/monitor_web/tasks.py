@@ -60,6 +60,7 @@ from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_global_user, set_local_username
+from monitor.utils import db_safe_wrapper
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -78,11 +79,15 @@ from monitor_web.constants import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
+from monitor_web.collecting.resources.backend import CollectConfigListResource
+from monitor_web.collecting.constant import CollectStatus, OperationResult
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
+from monitor_web.models import CollectConfigMeta
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
-from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
+from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION, PluginType
 from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
 
@@ -1522,3 +1527,94 @@ def migrate_all_panels_task(bk_biz_id, org_id):
         ApplicationConfig.objects.update_or_create(
             cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_migrate_all_panels", defaults={"value": result}
         )
+
+
+@shared_task(ignore_result=True)
+@db_safe_wrapper
+def bulk_update_collect_config_cache_data(config_data_list: list[CollectConfigMeta]):
+    """
+    获取节点管理订阅实时状态
+    :param config_data_list: 采集配置数据列表
+    :return: self.realtime_data
+    """
+
+    updated_configs = []
+
+    subscription_id_status_map, subscription_id_config_map = CollectConfigListResource.get_subs_status_data(
+        config_data_list
+    )
+
+    for subscription_id, subscription_status_data in subscription_id_status_map.items():
+        error_count = subscription_status_data.get("error_instance_count", 0)
+        total_count = subscription_status_data.get("total_instance_count", 0)
+        pending_count = subscription_status_data.get("pending_instance_count", 0)
+        running_count = subscription_status_data.get("running_instance_count", 0)
+
+        config = subscription_id_config_map[subscription_id]
+        if not config:
+            continue
+        if error_count == 0:
+            operation_result = OperationResult.SUCCESS
+        elif error_count == total_count:
+            operation_result = OperationResult.FAILED
+        elif running_count + pending_count != 0:
+            operation_result = OperationResult.DEPLOYING
+        else:
+            operation_result = OperationResult.WARNING
+
+        # 更新缓存
+        cache_data = {
+            "error_instance_count": subscription_status_data.get("error_instance_count", 0),
+            "total_instance_count": subscription_status_data.get("total_instance_count", 0),
+        }
+        if config.cache_data != cache_data or config.operation_result != operation_result:
+            config.cache_data = cache_data
+            config.operation_result = operation_result
+            updated_configs.append(config)
+
+    collector_plugins = CollectorPluginMeta.objects.filter(id__in=[config.id for config in config_data_list]).values(
+        "plugin_id", "plugin_type"
+    )
+
+    plugin_id_type_map = {plugin["plugin_id"]: plugin["plugin_type"] for plugin in collector_plugins}
+    # 更新k8s插件采集配置的状态
+    for collect_config in config_data_list:
+        # 跳过非k8s插件
+        if plugin_id_type_map.get(collect_config.plugin_id) != PluginType.K8S:
+            continue
+
+        if collect_config.operation_result not in [OperationResult.PREPARING, OperationResult.DEPLOYING]:
+            continue
+
+        error_count, total_count, pending_count, running_count = 0, 0, 0, 0
+        installer = get_collect_installer(collect_config)
+        for node in installer.status():
+            for instance in node["child"]:
+                if instance["status"] == CollectStatus.RUNNING:
+                    running_count += 1
+                elif instance["status"] == CollectStatus.PENDING:
+                    pending_count += 1
+                elif instance["status"] in [CollectStatus.FAILED, CollectStatus.UNKNOWN]:
+                    error_count += 1
+                total_count += 1
+
+        if error_count == total_count:
+            operation_result = OperationResult.FAILED
+        elif running_count + pending_count != 0:
+            operation_result = OperationResult.DEPLOYING
+        elif error_count == 0:
+            operation_result = OperationResult.SUCCESS
+        else:
+            operation_result = OperationResult.WARNING
+
+        # 更新缓存
+        cache_data = {
+            "error_instance_count": error_count,
+            "total_instance_count": total_count,
+        }
+        if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
+            collect_config.cache_data = cache_data
+            collect_config.operation_result = operation_result
+            updated_configs.append(collect_config)
+
+    CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])

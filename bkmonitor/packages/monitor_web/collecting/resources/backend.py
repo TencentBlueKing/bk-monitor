@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from copy import copy
 from typing import Any
+from collections import namedtuple
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -54,7 +55,7 @@ from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
-from monitor_web.tasks import append_metric_list_cache
+from monitor_web.tasks import append_metric_list_cache, bulk_update_collect_config_cache_data
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ class CollectConfigListResource(Resource):
 
     def __init__(self):
         super().__init__()
-        self.realtime_data = {}  # 采集配置实时数据结果
+        self.realtime_data: dict | None = None  # 采集配置实时数据结果
         self.service_type_data = {}  # 服务分类数据
         self.plugin_release_version = {}  # 插件最新版本，用于检查采集配置是否需要升级
         self.bk_biz_id = None
@@ -80,15 +81,17 @@ class CollectConfigListResource(Resource):
         page = serializers.IntegerField(required=False, default=1, label="页数")
         limit = serializers.IntegerField(required=False, default=10, label="大小")
 
-    def get_realtime_data(self, config_data_list):
+    @staticmethod
+    def get_subs_status_data(config_data_list: list[CollectConfigMeta]):
         """
-        获取节点管理订阅实时状态
+        获取节点管理订阅实时状态以及订阅ID与采集配置的映射
         :param config_data_list: 采集配置数据列表
-        :return: self.realtime_data
+        :return: 包含订阅状态和订阅ID与采集配置映射的字典
         """
 
         subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
-        updated_configs = []
+
+        subscription_id_status_map = {}
 
         # 节点管理返回的状态数量
         for subscription_status in statistics_data:
@@ -106,76 +109,29 @@ class CollectConfigListResource(Resource):
                 "pending_instance_count": pending_count,
                 "running_instance_count": running_count,
             }
-            self.realtime_data.update({subscription_status["subscription_id"]: subscription_status_data})
+            subscription_id_status_map[subscription_status["subscription_id"]] = subscription_status_data
 
-            # 更新任务状态
-            config = subscription_id_config_map[subscription_status["subscription_id"]]
-            if not config:
-                continue
-            if error_count == 0:
-                operation_result = OperationResult.SUCCESS
-            elif error_count == total_count:
-                operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
-            else:
-                operation_result = OperationResult.WARNING
+        SubscriptionStatusData = namedtuple("SubscriptionStatusData", ["status_map", "config_map"])
+        return SubscriptionStatusData(subscription_id_status_map, subscription_id_config_map)
 
-            # 更新缓存
-            cache_data = {
-                "error_instance_count": subscription_status_data.get("error_instance_count", 0),
-                "total_instance_count": subscription_status_data.get("total_instance_count", 0),
-            }
-            if config.cache_data != cache_data or config.operation_result != operation_result:
-                config.cache_data = cache_data
-                config.operation_result = operation_result
-                updated_configs.append(config)
+    def update_realtime_data(self, config_data_list: list[CollectConfigMeta]):
+        """
+        更新实时状态数据
+        :param config_data_list: 采集配置数据列表
+        """
+        if not self.realtime_data:
+            self.realtime_data = {}
 
-        # 更新k8s插件采集配置的状态
-        for collect_config in config_data_list:
-            # 跳过非k8s插件
-            if collect_config.plugin.plugin_type != PluginType.K8S:
-                continue
+        subscription_status_data = self.get_subs_status_data(config_data_list)
 
-            if collect_config.operation_result not in [OperationResult.PREPARING, OperationResult.DEPLOYING]:
-                continue
-
-            error_count, total_count, pending_count, running_count = 0, 0, 0, 0
-            installer = get_collect_installer(collect_config)
-            for node in installer.status():
-                for instance in node["child"]:
-                    if instance["status"] == CollectStatus.RUNNING:
-                        running_count += 1
-                    elif instance["status"] == CollectStatus.PENDING:
-                        pending_count += 1
-                    elif instance["status"] in [CollectStatus.FAILED, CollectStatus.UNKNOWN]:
-                        error_count += 1
-                    total_count += 1
-
-            if error_count == total_count:
-                operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
-            elif error_count == 0:
-                operation_result = OperationResult.SUCCESS
-            else:
-                operation_result = OperationResult.WARNING
-
-            # 更新缓存
-            cache_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-            }
-            if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-                collect_config.cache_data = cache_data
-                collect_config.operation_result = operation_result
-                updated_configs.append(collect_config)
-
-        CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
+        self.realtime_data.update(subscription_status_data.status_map)
 
     def update_cache_data(self, config: CollectConfigMeta):
         # 更新采集配置的缓存数据（总数、异常数）
         subscription_id = config.deployment_config.subscription_id
+        if not self.realtime_data or subscription_id not in self.realtime_data:
+            self.update_realtime_data([config])
+
         realtime_data = self.realtime_data.get(subscription_id)
         if not realtime_data:
             return
@@ -347,11 +303,7 @@ class CollectConfigListResource(Resource):
             config_data_list = list(config_list)
 
         if refresh_status:
-            try:
-                self.get_realtime_data(config_data_list)
-            except Exception:
-                # 尝试实时获取，获取失败就用缓存数据
-                pass
+            bulk_update_collect_config_cache_data.delay(config_data_list)
 
         search_list = []
         for item in config_data_list:
@@ -1049,7 +1001,7 @@ class SaveCollectConfigResource(Resource):
             # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
             # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
             # 这两种情况要替换为实际值（默认值兜底）
-            if isinstance(received_password, (type(None), bool)):
+            if isinstance(received_password, type(None) | bool):
                 default_password = param["default"]
                 actual_password = deployment_params[param_mode].get(param_name, default_password)
                 data["params"][param_mode][param_name] = actual_password
