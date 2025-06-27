@@ -44,6 +44,7 @@ import type { IFilterField } from '@/components/retrieval-filter/typing';
 
 export abstract class AlarmService<S = AlarmType> {
   isEn = false;
+  abstract readonly storageAnalysisKey: string;
   abstract readonly storageKey: string;
   constructor(public scenes: S = AlarmType.ALERT as S) {
     this.isEn = isEn;

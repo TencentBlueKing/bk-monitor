@@ -113,6 +113,7 @@ const INCIDENT_TABLE_COLUMNS = [
 export const INCIDENT_FILTER_FIELDS: IFilterField[] = [];
 
 export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
+  readonly storageAnalysisKey = '__INCIDENT_ANALYZE_STORAGE_KEY__';
   readonly storageKey = '__INCIDENT_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
     return [...INCIDENT_TABLE_COLUMNS];

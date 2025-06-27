@@ -45,9 +45,72 @@
       }
     }
 
-    .selected-list {
+    .right-panel {
       width: 360px;
+      padding: 10px 25px;
       background: #F5F7FA;
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        line-height: 22px;
+
+        .selected-count {
+           font-weight: 700;
+        }
+
+        .clear-btn {
+          color: #3A84FF;
+          cursor: pointer;
+        }
+      }
+
+      .selected-list {
+        padding: 8px 0;
+        overflow-y: auto;
+
+        .drag-move {
+          transition: transform 0.3s;
+        }
+
+        .list-item {
+          display: flex;
+          align-items: center;
+          height: 36px;
+          padding: 0 10px;
+          background: #FFFFFF;
+          border-radius: 2px;
+          box-shadow: 0 1px 2px 0 #00000029;
+          
+
+          &+.list-item {
+            margin-top: 4px;
+          }
+
+          .list-item-left {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+
+            .icon-mc-tuozhuai {
+              cursor: pointer;
+            }
+
+            .item-label {
+              margin-left: 9px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+          }
+
+          .icon-mc-close {
+            color: #C4C6CC;
+            cursor: pointer;
+          }
+        }
+      }
     }
   }
 }
