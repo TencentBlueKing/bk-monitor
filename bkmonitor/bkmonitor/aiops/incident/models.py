@@ -805,6 +805,8 @@ class IncidentSnapshot:
 
         # 遍历被聚合的实体，把他们的边归拢到主实体的边上
         for entity in main_entity.aggregated_entities:
+            # 被聚合的节点，标记上聚合它们的外层节点
+            entity.properties["aggregated_by"] = main_entity.entity_id
             for edge_type in self.entity_targets[entity.entity_id].keys():
                 # 遍历被聚合实体指向的目标实体ID
                 for target_entity_id in self.entity_targets[entity.entity_id][edge_type]:
@@ -861,7 +863,10 @@ class IncidentSnapshot:
             self.incident_graph_edges[_to].anomaly_score = max(
                 self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
             )
-            self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
+            aggregated_edge = self.incident_graph_edges[_from]
+            # 被聚合的边，标记上聚合它们的外层边
+            aggregated_edge.properties["aggregated_by"] = list(_to)
+            self.incident_graph_edges[_to].aggregated_edges.append(aggregated_edge)
             if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
                 self.incident_graph_edges[_to].edge_cluster_id = None
 
