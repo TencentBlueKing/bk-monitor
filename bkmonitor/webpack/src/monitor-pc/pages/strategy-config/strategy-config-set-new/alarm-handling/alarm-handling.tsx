@@ -71,7 +71,7 @@ export interface IValue {
       count: number; // 执行次数，默认设置为 1
       is_enabled?: boolean; // 是否启用
     };
-    enable_delay: number; // 数据延迟秒数
+    skip_delay: number; // 数据延迟秒数
   };
   signal?: string[];
 }
@@ -119,7 +119,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           count: 1, // 执行次数，默认设置为 1
           is_enabled: true,
         },
-        enable_delay: 1, // 数据延迟秒数
+        skip_delay: 1, // 数据延迟秒数
       },
     }),
   })
@@ -160,12 +160,15 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         count: 1, // 执行次数，默认设置为 1
         is_enabled: true,
       },
-      enable_delay: 1, // 数据延迟秒数
+      skip_delay: 1, // 数据延迟秒数
     },
   };
   isShowDetail = false;
 
-  disableDelay = false; // 关闭数据延迟秒数输入
+  // 数据延迟开关
+  enableSkipDelay = false;
+  // 数据延迟秒数
+  delayTime = 1;
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
@@ -174,6 +177,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   @Emit('change')
   handleChange() {
     return this.data;
+  }
+
+  mounted() {
+    this.delayTime = this.data.options.skip_delay;
+    this.enableSkipDelay = this.data.options.skip_delay > 0;
   }
 
   // 切换套餐
@@ -190,12 +198,24 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   }
 
   // 数据延迟switch
-  handleChangeDelay(isSwitchOn: boolean) {
-    this.disableDelay = !isSwitchOn;
+  handleSwitchDelay(isSwitchOn: boolean) {
     if (!isSwitchOn) {
-      this.data.options.enable_delay = 0;
+      this.data.options.skip_delay = 0;
       this.handleChange();
+      return;
     }
+  }
+
+  handleDelayChange(v) {
+    // const regex = /^(?!0$)(0*[1-9][0-9]*|[1-9][0-9]*)$/正整数
+    // 允许小数
+    const regex = /^(?!0(\.0+)?$)(\d+|\d*\.\d+)$/;
+    if (!regex.test(v)) {
+      this.data.options.skip_delay = 0;
+      return;
+    }
+    this.data.options.skip_delay = v;
+    this.handleChange();
   }
 
   handleToAddSetMeal() {
@@ -368,31 +388,35 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           >
             <bk-switcher
               class='converge-config-option'
+              v-model={this.enableSkipDelay}
               disabled={this.readonly}
               size='small'
               theme='primary'
-              value
-              on-change={this.handleChangeDelay}
+              on-change={this.handleSwitchDelay}
             />
             <i18n
-              class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
+              class={`defense-wrap skip-delay ${this.isSimple ? 'simple' : ''}`}
               path='当首次异常时间超过{0}分钟时不执行该套餐'
             >
               {!this.readonly ? (
                 <bk-input
                   class='small-input'
-                  v-model={this.data.options.enable_delay}
+                  v-model={this.delayTime}
                   behavior='simplicity'
-                  readonly={this.readonly || this.disableDelay}
+                  min={0}
+                  readonly={this.readonly || !this.enableSkipDelay}
                   showControls={false}
                   size='small'
                   type='number'
-                  on-change={this.handleChange}
+                  on-change={this.handleDelayChange}
                 />
               ) : (
-                <span>{this.data.options.enable_delay}</span>
+                <span>{`${this.delayTime}`}</span>
               )}
             </i18n>
+            {this.enableSkipDelay && this.delayTime <= 0 && (
+              <span class='error-tips'>{this.$t('只能填写大于0的值')}</span>
+            )}
           </CommonItem>
         )}
 

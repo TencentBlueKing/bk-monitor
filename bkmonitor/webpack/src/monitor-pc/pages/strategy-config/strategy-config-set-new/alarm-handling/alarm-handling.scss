@@ -29,6 +29,11 @@
     &.simple {
       padding-right: 2px;
     }
+
+    &.skip-delay {
+      flex: none;
+    }
+
     .small-input {
       width: 66px;
       input {
@@ -39,6 +44,12 @@
       flex: 1;
     }
   }
+
+  .error-tips {
+    margin-top: -4px;
+    color: #ea3636;
+  }
+
   .tips-key1 {
     background: #f0f8ff;
     border: 1px solid #c5daff;
