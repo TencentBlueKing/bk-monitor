@@ -71,11 +71,13 @@ def test_push_and_publish_es_aliases_single():
         mock.patch("metadata.models.ResultTable.objects.filter") as mock_filter,
         mock.patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish,
     ):
+        # 测试数据
         mock_data = ["custom.metric"]
         mock_queryset = MagicMock()
         mock_queryset.values_list.return_value = mock_data
         mock_filter.return_value = mock_queryset
 
+        # 调用函数
         push_and_publish_es_aliases("host_cpu")
 
         expected_redis_values = {
@@ -99,7 +101,6 @@ def test_push_and_publish_es_aliases_multiple():
         mock_queryset.values_list.return_value = mock_data
         mock_filter.return_value = mock_queryset
 
-        # 修复输入字符串中的多余逗号问题
         push_and_publish_es_aliases("app_metric,memory_metrics,")
 
         expected_redis_values = {
