@@ -77,9 +77,11 @@
       .t-table__header {
         tr {
           background: #f5f7fa;
+
           th {
             padding: 0 var(--td-comp-paddingLR-s);
           }
+
           .t-table__th-cell-inner {
             display: flex;
             align-items: center;
@@ -109,6 +111,7 @@
           td {
             padding: 0 var(--td-comp-paddingLR-s);
           }
+
           &:not(.t-table__row--full) {
             height: var(--trace-table-row-height, 32px);
           }

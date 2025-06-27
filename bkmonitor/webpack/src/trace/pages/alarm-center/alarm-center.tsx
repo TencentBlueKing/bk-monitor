@@ -45,7 +45,7 @@ export default defineComponent({
     const alarmStore = useAlarmCenterStore();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
-    const { tableColumns } = useAlarmTableColumns();
+    const { tableColumns, storageColumns } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
     const updateIsCollapsed = (v: boolean) => {
@@ -67,6 +67,7 @@ export default defineComponent({
       pageSize,
       ordering,
       tableColumns,
+      storageColumns,
       alarmStore,
       handleFilterValueChange,
       updateIsCollapsed,
@@ -110,6 +111,7 @@ export default defineComponent({
                         columns={this.tableColumns}
                         currentPage={this.page}
                         data={this.data}
+                        displayColFields={this.storageColumns}
                         loading={this.loading}
                         pageSize={this.pageSize}
                         sort={this.ordering}

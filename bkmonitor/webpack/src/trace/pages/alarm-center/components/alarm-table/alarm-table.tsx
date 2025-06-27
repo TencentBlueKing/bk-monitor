@@ -56,6 +56,10 @@ export default defineComponent({
       type: Array as PropType<Record<string, any>[]>,
       default: () => [],
     },
+    /** 表格展示列配置数组 */
+    displayColFields: {
+      type: Array as PropType<string[]>,
+    },
     /** 表格排序信息,字符串格式，以id为例：倒序 => -id；正序 => id；*/
     sort: {
       type: [String, Array] as PropType<string | string[]>,
@@ -213,6 +217,9 @@ export default defineComponent({
         <PrimaryTable
           ref='tableRef'
           class={`alarm-table ${this.tableSkeletonConfig?.tableClass}`}
+          bkUiSettings={{
+            checked: this.displayColFields,
+          }}
           activeRowType='single'
           columns={this.tableColumns}
           data={this.data}
