@@ -26,7 +26,6 @@
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType, modifiers } from 'vue-tsx-support';
 
-import { isEn } from '@/i18n/lang';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
@@ -48,6 +47,7 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import { isEn } from '../../../i18n/lang';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import AuthComponent from '../../../pages/exception-page/auth-component';
