@@ -62,6 +62,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const bizIds = deepRef([-1]);
   // 上层搜索条件
   const conditions = deepRef<CommonCondition[]>([]);
+  // 常驻筛选条件
+  const residentCondition = deepRef<CommonCondition[]>([]);
   // 快速过滤条件
   const quickFilterValue = deepRef<CommonCondition[]>([]);
 
@@ -101,8 +103,11 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     }
     const params = {
       bk_biz_ids: bizIds.value,
-      conditions: [...conditions.value, ...otherQuickFilter],
-      query_string: queryString.value,
+      conditions: [
+        ...(filterMode.value === EMode.ui ? [...conditions.value, ...residentCondition.value] : []),
+        ...otherQuickFilter,
+      ],
+      query_string: filterMode.value === EMode.queryString ? queryString.value : '',
       status: statusQuickFilter,
       ...timeRangeTimestamp.value,
       [REFRESH_EFFECT_KEY]: refreshId.value,
@@ -187,5 +192,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     alarmService,
     quickFilterValue,
     filterMode,
+    residentCondition,
   };
 });
