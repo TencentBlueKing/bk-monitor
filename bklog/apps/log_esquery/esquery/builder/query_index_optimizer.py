@@ -19,9 +19,11 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
 from typing import Any
 
 import arrow
+from apps.log_esquery.constants import INDICES_LENGTH
 from apps.log_esquery.type_constants import type_index_set_list, type_index_set_string
 from apps.log_search.models import Scenario
 from apps.utils.function import map_if
@@ -76,20 +78,20 @@ class QueryIndexOptimizer:
         self, result_table_id_list: type_index_set_list, start_time: arrow.Arrow, end_time: arrow.Arrow, time_zone: str
     ) -> list[str]:
         # BkData索引集优化
-        self.date_format = ""
+        date_format = ""
         while True:
             final_index_list: list = []
             for x in result_table_id_list:
-                a_index_list: list = self.index_time_filter(x, start_time, end_time, time_zone)
+                a_index_list, date_format = self.index_time_filter(x, start_time, end_time, time_zone, date_format)
                 final_index_list = final_index_list + a_index_list
-            self.date_format = "%".join(self.date_format.split("%")[:-1])
-            if len(str(final_index_list)) < 2300 or not self.date_format:
+            date_format = "%".join(date_format.split("%")[:-1])
+            if len(json.dumps(final_index_list)) < INDICES_LENGTH or not date_format:
                 break
         return final_index_list
 
     def index_time_filter(
-        self, index: str, date_start: arrow.Arrow, date_end: arrow.Arrow, time_zone: str
-    ) -> type_index_set_list:
+        self, index: str, date_start: arrow.Arrow, date_end: arrow.Arrow, time_zone: str, date_format: str
+    ):
         date_start = date_start.to(time_zone)
         date_end = date_end.to(time_zone)
         now = arrow.now(time_zone)
@@ -107,30 +109,30 @@ class QueryIndexOptimizer:
             )
         )
 
-        filter_list: type_index_set_list = self._generate_filter_list(index, date_day_list, date_month_list)
-        return list(set(filter_list))
+        filter_list, date_format = self._generate_filter_list(index, date_day_list, date_month_list, date_format)
+        return list(set(filter_list)), date_format
 
-    def _generate_filter_list(self, index, date_day_list, date_month_list):
+    def _generate_filter_list(self, index, date_day_list, date_month_list, date_format):
         filter_list: type_index_set_list = []
         if len(date_day_list) == 1:
-            self.date_format = self.date_format or "%Y%m%d"
+            date_format = date_format or "%Y%m%d"
             for x in date_day_list:
-                filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
+                filter_list.append(f"{index}_{x.strftime(date_format)}*")
         elif len(date_day_list) > 1 and len(date_month_list) == 1:
             if len(date_day_list) > 14:
-                self.date_format = self.date_format or "%Y%m"
+                date_format = date_format or "%Y%m"
                 for x in date_month_list:
-                    filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
+                    filter_list.append(f"{index}_{x.strftime(date_format)}*")
             else:
-                self.date_format = self.date_format or "%Y%m%d"
+                date_format = date_format or "%Y%m%d"
                 for x in date_day_list:
-                    filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
+                    filter_list.append(f"{index}_{x.strftime(date_format)}*")
         elif len(date_day_list) > 1 and len(date_month_list) > 1:
-            self.date_format = self.date_format or "%Y%m"
+            date_format = date_format or "%Y%m"
             if len(date_month_list) <= 6:
                 for x in date_month_list:
-                    filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
+                    filter_list.append(f"{index}_{x.strftime(date_format)}*")
             else:
                 for x in date_month_list[-6::1]:
-                    filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
-        return filter_list
+                    filter_list.append(f"{index}_{x.strftime(date_format)}*")
+        return filter_list, date_format
