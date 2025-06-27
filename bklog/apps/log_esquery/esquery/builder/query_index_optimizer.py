@@ -126,12 +126,11 @@ class QueryIndexOptimizer:
                 for x in date_day_list:
                     filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
         elif len(date_day_list) > 1 and len(date_month_list) > 1:
+            self.date_format = self.date_format or "%Y%m"
             if len(date_month_list) <= 6:
-                self.date_format = self.date_format or "%Y%m"
                 for x in date_month_list:
                     filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
             else:
-                self.date_format = self.date_format or "%Y%m"
                 for x in date_month_list[-6::1]:
                     filter_list.append(f"{index}_{x.strftime(self.date_format)}*")
         return filter_list
