@@ -333,12 +333,24 @@ class ReportHandler:
                 if graph_info[2] != "*":
                     variables = {"bk_biz_id": var_bk_biz_ids}
 
+                # 获取默认宽度高度
+                if not graph_info[2] == "*":
+                    default_width = 1600
+                    default_height = None
+                else:
+                    default_width = self.image_size_mapper.get(content["row_pictures_num"], {}).get("width", 620)
+                    default_height = self.image_size_mapper.get(content["row_pictures_num"], {}).get("height", 300)
+
                 total_graphs.append(
                     {
                         "bk_biz_id": bk_biz_id,
                         "uid": graph_info[1],
                         "panel_id": graph_info[2],
-                        "image_size": {"width": content["width"], "height": content["height"], "deviceScaleFactor": 2},
+                        "image_size": {
+                            "width": content["width"] or default_width,
+                            "height": content["height"] or default_height,
+                            "deviceScaleFactor": 2,
+                        },
                         "variables": variables,
                         "tag": graph,
                         "from_time": from_time_stamp,
