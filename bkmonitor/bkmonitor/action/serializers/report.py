@@ -20,23 +20,27 @@ class ReportContentSerializer(serializers.Serializer):
     row_pictures_num = serializers.ChoiceField(
         required=True, choices=[(1, "1 Picture"), (2, "2 Pictures")], label="一行几幅图"
     )
-    width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度")
-    height = serializers.IntegerField(required=False, max_value=2000, label="单图高度")
+    width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度", allow_null=True)
+    height = serializers.IntegerField(required=False, max_value=2000, label="单图高度", allow_null=True)
     graphs = serializers.ListField(required=True, label="图表")
+
+    # 单图宽度高度默认值
+    size_mapping = {1: (800, 270), 2: (620, 300)}
 
     def validate(self, attrs):
         """
         根据 row_pictures_num 的值设置 width 和 height 的默认值。
         """
-        size_mapping = {1: (800, 270), 2: (620, 300)}
-
-        row_pictures_num = attrs["row_pictures_num"]
-        if row_pictures_num in size_mapping:
-            width, height = size_mapping[row_pictures_num]
+        # 判断是否是整屏图表
+        if attrs.get("graphs") and "*" in attrs["graphs"][0]:
+            attrs["width"] = attrs.get("width", 1600)
+            attrs["height"] = attrs.get("height", None)
+        else:
+            # 如果图表是单图，则根据row_pictures_num设置width和height
+            width, height = self.size_mapping[attrs["row_pictures_num"]]
             attrs["width"] = attrs.get("width", width)
             attrs["height"] = attrs.get("height", height)
-
-        return super().validate(attrs)
+        return attrs
 
 
 class FrequencySerializer(serializers.Serializer):

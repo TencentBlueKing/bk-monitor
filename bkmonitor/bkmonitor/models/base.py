@@ -1091,17 +1091,6 @@ class ReportContents(Model):
     width = models.IntegerField(verbose_name="单图宽度", null=True, blank=True)
     height = models.IntegerField(verbose_name="单图高度", null=True, blank=True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # 根据 row_pictures_num 动态设置 width 和 height 默认值
-        if self.row_pictures_num == 1:
-            self.width = self.width or 800
-            self.height = self.height or 270
-        elif self.row_pictures_num == 2:
-            self.width = self.width or 620
-            self.height = self.height or 300
-
 
 class ReportStatus(Model):
     """

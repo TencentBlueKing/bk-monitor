@@ -221,33 +221,6 @@ class ReportHandler:
             receivers.remove("system")
         return receivers
 
-    def fetch_graphs_info(self, report_items_contents):
-        """
-        获取所有图表信息
-        :param report_items_contents: 订阅报表内容字典
-        :return: 所有图表信息:{
-            "bk_biz_id": graph_info[0],
-            "uid": graph_info[1],
-            "panel_id": graph_info[2],
-            "image_size": image_size_mapper.get(content["row_pictures_num"])
-        }
-        """
-        contents = report_items_contents.get(self.item_id)
-        total_graphs = []
-        for content in contents:
-            graphs = content["graphs"]
-            for graph in graphs:
-                bk_biz_id, uid, panel_id = split_graph_id(graph)
-                total_graphs.append(
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "uid": uid,
-                        "panel_id": panel_id,
-                        "image_size": self.image_size_mapper.get(content["row_pictures_num"]),
-                    }
-                )
-        return total_graphs
-
     def fetch_images_time(self, frequency):
         """
         解析frequency成起始时间和结束时间
