@@ -97,7 +97,7 @@ async def start_tasks(elements):
             dashboard_uid=element["dashboard_uid"],
             panel_id=element["panel_id"],
             with_panel_title=element["with_panel_title"],
-            width=element["width"] if element["panel_id"] else 1600,
+            width=element["width"],
             height=element["height"],
             scale=element["scale"],
             variables=element["variables"],
