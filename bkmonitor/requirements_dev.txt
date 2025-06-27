@@ -1,6 +1,0 @@
-# refer to requirements
--r requirements.txt
--r requirements_test.txt
-
-pre-commit==4.1.0
-ruff==0.11.6

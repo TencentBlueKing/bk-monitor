@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -42,13 +42,15 @@ class EventDataSource(serializers.Serializer):
 class EventFilterSerializer(EventDataSource):
     NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
 
-    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True
+    )
     filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
     where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
     group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
 
     @classmethod
-    def drop_group_by(cls, query_configs: List[Dict[str, Any]]):
+    def drop_group_by(cls, query_configs: list[dict[str, Any]]):
         for query_config in query_configs:
             query_config["group_by"] = []
 
@@ -75,7 +77,6 @@ class BaseEventRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
@@ -89,6 +90,7 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     def validate(self, attrs):
         time_alignment: bool = attrs.get("time_alignment", False)
         attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        attrs["null_as_zero"] = not time_alignment
 
         # interval 自适应
         for query_config in attrs["query_configs"]:
@@ -116,7 +118,9 @@ class EventViewConfigRequestSerializer(BaseEventRequestSerializer):
 
 class EventTopKRequestSerializer(BaseEventRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=0)
-    fields = serializers.ListField(label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False)
+    fields = serializers.ListField(
+        label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False
+    )
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
     need_empty = serializers.BooleanField(label="是否需要统计空值", required=False, default=False)
 
@@ -138,14 +142,9 @@ class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
 
 
 class EventStatisticsFieldSerializer(serializers.Serializer):
-    field_type = serializers.CharField(label="字段类型")
+    field_type = serializers.ChoiceField(label="字段类型", choices=EventDimensionTypeEnum.choices())
     field_name = serializers.CharField(label="字段名称")
     values = serializers.ListField(label="查询过滤条件值列表", required=False, allow_empty=True, default=[])
-
-    def validate(self, attrs):
-        if attrs["field_type"] not in [EventDimensionTypeEnum.INTEGER.value, EventDimensionTypeEnum.KEYWORD.value]:
-            raise ValueError(_("不支持的字段类型"))
-        return attrs
 
 
 class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):
@@ -163,4 +162,24 @@ class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
             return attrs
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))
+        return attrs
+
+
+class EventGenerateQueryStringRequestSerializer(serializers.Serializer):
+    where = serializers.ListField(label="过滤条件", default=[], child=serializers.DictField())
+
+
+class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
+    limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+    interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        attrs["expression"] = "a"
+        for query_config in attrs["query_configs"]:
+            attrs["interval"] = query_config.get("interval") or 60
+
+        attrs["end_time"] = attrs["start_time"] + attrs["interval"]
+
         return attrs

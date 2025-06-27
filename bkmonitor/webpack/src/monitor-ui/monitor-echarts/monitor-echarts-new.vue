@@ -588,11 +588,11 @@ export default class MonitorEcharts extends Vue {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0 || !this.getSeriesData) return;
+    if (!v || +v < 60 * 1000 || !this.getSeriesData) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       // 上次接口未返回时不执行请求
       !this.loading && this.chart && this.handleSeriesData();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -1684,8 +1684,8 @@ export default class MonitorEcharts extends Vue {
       width: 100%;
       content: '';
       border-top: 1px solid transparent;
-      transition: border-color 0.2s ease-in-out 0s;
       transform: translateY(-50%);
+      transition: border-color 0.2s ease-in-out 0s;
     }
 
     &::after {

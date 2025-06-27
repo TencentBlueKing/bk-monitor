@@ -342,7 +342,7 @@ class SpaceTableIDRedis:
         for record in bkbase_rt_records:
             # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
             db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
-            fields = (all_fields.get(record.table_id) or [],)
+            fields = all_fields.get(record.table_id) or []
             data[record.table_id] = json.dumps(
                 {
                     "db": db,
@@ -559,6 +559,51 @@ class SpaceTableIDRedis:
             )
         return _table_id_detail
 
+    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
+        """
+        构建字段别名映射map
+        @param table_id_list: 结果表列表
+        @param bk_tenant_id: 租户ID
+        @return: 字段别名映射map
+        """
+        logger.info(
+            "_get_field_alias_map: try to get field alias map,table_id_list->[%s],bk_tenant_id->[%s]",
+            table_id_list,
+            bk_tenant_id,
+        )
+        if not table_id_list:
+            return {}
+        try:
+            # 获取指定table_id列表的未删除别名记录
+            alias_records = models.ESFieldQueryAliasOption.objects.filter(
+                table_id__in=table_id_list, is_deleted=False, bk_tenant_id=bk_tenant_id
+            ).values("table_id", "query_alias", "field_path")
+
+            # 按table_id分组构建别名映射
+            field_alias_map = {}
+            for record in alias_records:
+                table_id = record["table_id"]
+                query_alias = record["query_alias"]
+                field_path = record["field_path"]
+
+                if table_id not in field_alias_map:
+                    field_alias_map[table_id] = {}
+
+                field_alias_map[table_id][query_alias] = field_path
+
+            logger.info("Field alias map generated: %s", field_alias_map)
+            return field_alias_map
+
+        except Exception as e:
+            logger.error(
+                "_get_field_alias_map:Error getting field alias map for table_ids: %s, error: %s",
+                table_id_list,
+                str(e),
+                exc_info=True,
+            )
+            # 发生错误时返回空字典，确保不影响主流程
+            return {}
+
     def _compose_es_table_id_detail(
         self, table_id_list: list[str] | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
     ):
@@ -576,6 +621,8 @@ class SpaceTableIDRedis:
             data_label_map = models.ResultTable.objects.filter(
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
             ).values("table_id", "data_label")
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
         else:
             table_ids = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id).values(
                 "table_id",
@@ -590,6 +637,8 @@ class SpaceTableIDRedis:
             data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "data_label"
             )
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
 
         # data_label字典 {table_id:data_label}
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
@@ -636,6 +685,7 @@ class SpaceTableIDRedis:
                     "storage_type": models.ESStorage.STORAGE_TYPE,
                     "storage_cluster_records": storage_record,
                     "data_label": data_label_map_dict.get(tid, ""),
+                    "field_alias": field_alias_map.get(tid, {}),  # 字段查询别名
                 }
             )
         return data
@@ -734,6 +784,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # APM 真全局数据
+        _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
@@ -787,6 +839,8 @@ class SpaceTableIDRedis:
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
+        # APM 真全局数据
+        _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
 
@@ -956,6 +1010,23 @@ class SpaceTableIDRedis:
         except models.Space.DoesNotExist:
             return {}
         return {tid: {"filters": [{"bk_biz_id": str(-_id)}]} for tid in ALL_SPACE_TYPE_TABLE_ID_LIST}
+
+    def _compose_apm_all_type_table_ids(self, space_type: str, space_id: str) -> dict:
+        """
+        APM特殊逻辑--真正的全局数据, filter key使用配置的bk_biz_id_alias，value使用-id
+        该方法仅对 BKCI 和 BKSAAS类型生效，BKCC类型走通用路由处理逻辑
+        """
+        # TODO： 该方法为临时支持，长期需要改造抽象为公共逻辑
+        logger.info("start to push apm all space type table_id, space_type: %s, space_id: %s", space_type, space_id)
+        try:
+            space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+        except models.Space.DoesNotExist:
+            return {}
+
+        result_tables = models.ResultTable.objects.filter(
+            table_id__contains="apm_global.precalculate_storage", bk_tenant_id=space.bk_tenant_id
+        )
+        return {rt.table_id: {"filters": [{rt.bk_biz_id_alias: str(-space.id)}]} for rt in result_tables}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,

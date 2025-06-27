@@ -28,7 +28,14 @@
               class="list-item"
               @click="handleClickHistory(item)"
             >
-              <div class="item-text">
+              <div class="item-text"
+                v-bk-tooltips="{
+                  allowHTML:true,
+                  placement:'top',
+                  content: getContent(item),
+                  disabled: item.query_string.length < 5,
+                }"
+              >
                 <span
                   class="bklog-icon"
                   :class="getClass(item.search_mode)"
@@ -38,19 +45,16 @@
 
                 <div
                   class="text"
-                  v-bk-tooltips="{
-                    content: getContent(item),
-                    disabled: item.query_string.length < 5,
-                  }"
                 >
                   {{ item.query_string }}
                 </div>
                 <BookmarkPop
+                v-if="!isMonitorComponent"
                 :sql="item.query_string"
                 :addition="item.params.addition"
                 searchMode='sql'
                 active-favorite="history"
-                ref="bookmarkPop"
+                @instanceShow="instanceShow"
                 ></BookmarkPop>
               </div>
             </li>
@@ -68,7 +72,11 @@
 </template>
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  // #else
+  // #code const BookmarkPop = () => null;
+  // #endif
   import dayjs from 'dayjs';
   export default {
     data() {
@@ -78,10 +86,15 @@
         popoverInstance: null,
         historyRecords: [],
         searchInput: "",
+        bookmarkPopRefsShow: false,
+        isMonitorComponent: false
       };
     },
     components:{
       BookmarkPop
+    },
+    mounted(){
+      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     computed: {
       isUnionSearch() {
@@ -120,7 +133,8 @@
         return textMap[searchMode] || '';
       },
       getContent(item){
-        return dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')
+        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>语句：${item.query_string}</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
@@ -137,7 +151,7 @@
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
           onHide: () => {
-            if(this.$refs.bookmarkPop[0].$refs.popoverContentRef.instance?.state.isShown){
+            if(this.bookmarkPopRefsShow){
               return false
             }
           },
@@ -187,6 +201,9 @@
             this.historyLoading = false;
           });
       },
+      instanceShow(val){
+        this.bookmarkPopRefsShow = val
+      }
     },
   };
 </script>

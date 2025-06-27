@@ -24,7 +24,7 @@ from requests.exceptions import HTTPError, ReadTimeout
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import make_userinfo
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.contrib.cache import CacheResource
@@ -162,10 +162,21 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
         else:
-            user_info = make_userinfo()
+            user_info = make_userinfo(bk_tenant_id=self._get_tenant_id())
             self.bk_username = user_info.get("bk_username")
             validated_request_data.update(user_info)
         return validated_request_data
+
+    def _get_tenant_id(self) -> str:
+        if self.bk_tenant_id:
+            return self.bk_tenant_id
+        bk_tenant_id = get_request_tenant_id(peaceful=True)
+        if not bk_tenant_id:
+            logger.warning(
+                f"get_request_tenant_id: cannot get tenant_id from request or local, {self.module_name} {self.action}"
+            )
+            return DEFAULT_TENANT_ID
+        return bk_tenant_id
 
     def before_request(self, kwargs):
         return kwargs
@@ -186,23 +197,13 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
-            auth_params.update(make_userinfo())
+            auth_params.update(make_userinfo(bk_tenant_id=self._get_tenant_id()))
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
         # 多租户模式下添加租户ID
         # 如果是web请求，通过用户名获取租户ID
         # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            request = get_request(peaceful=True)
-            if self.bk_tenant_id:
-                headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
-            elif request and request.user.tenant_id:
-                headers["X-Bk-Tenant-Id"] = request.user.tenant_id
-            else:
-                headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
-        else:
-            # 不开启租户模式，蓝鲸内部系统默认使用default租户，不过为了兼容性，监控内部系统使用system租户
-            headers["X-Bk-Tenant-Id"] = "default"
+        headers["X-Bk-Tenant-Id"] = self._get_tenant_id()
         return headers
 
     def perform_request(self, validated_request_data):
@@ -210,7 +211,6 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         发起http请求
         """
         validated_request_data = dict(validated_request_data)
-        validated_request_data = self.full_request_data(validated_request_data)
 
         # 获取租户ID
         if not self.bk_tenant_id:
@@ -227,6 +227,9 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
                 )
                 if space:
                     self.bk_tenant_id = space.bk_tenant_id
+
+        # 补充用户字段
+        validated_request_data = self.full_request_data(validated_request_data)
 
         # 拼接最终请求的url
         request_url = self.get_request_url(validated_request_data)

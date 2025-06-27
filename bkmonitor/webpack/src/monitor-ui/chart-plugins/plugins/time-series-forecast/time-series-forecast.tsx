@@ -134,7 +134,7 @@ export default class TimeSeriesForecast extends LineChart {
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       const series = [];
@@ -201,7 +201,7 @@ export default class TimeSeriesForecast extends LineChart {
         .then(() => true)
         .catch(err => {
           console.error(err);
-          this.emptyText = window.i18n.tc('出错了');
+          this.emptyText = window.i18n.t('出错了');
           return false;
         });
       if (series.length) {
@@ -443,12 +443,12 @@ export default class TimeSeriesForecast extends LineChart {
           this.hasSetEvent = true;
         }
       } else if (completed) {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];

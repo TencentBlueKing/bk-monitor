@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict
 
 from monitor_web.k8s.core.errors import K8sResourceNotFound, MultiWorkloadError
 
@@ -21,12 +19,12 @@ def register_filter(filter_cls):
     return filter_cls
 
 
-class ResourceFilter(object):
+class ResourceFilter:
     resource_type = ""
     filter_field = ""
 
     def __init__(self, value, fuzzy=False):
-        if not isinstance(value, (list, tuple)):
+        if not isinstance(value, list | tuple):
             value = [value]
         value = list(map(str, value))
         self.value = sorted(value)
@@ -37,7 +35,7 @@ class ResourceFilter(object):
         return f"{self.resource_type}{self.filter_field}{self.value}"
 
     @property
-    def filter_dict(self) -> Dict:
+    def filter_dict(self) -> dict:
         """
         用于ORM的查询
         """
@@ -56,13 +54,23 @@ class ResourceFilter(object):
         return f'{self.filter_field}=~"^({value_regex})$"'
 
     def fuzzy_filter_string(self) -> str:
-        return f'''{self.filter_field}=~"({'|'.join(self.value)})"'''
+        return f'''{self.filter_field}=~"({"|".join(self.value)})"'''
 
 
 @register_filter
 class NamespaceFilter(ResourceFilter):
     resource_type = "namespace"
     filter_field = "namespace"
+
+    @property
+    def filter_dict(self):
+        """
+        namespace:a
+        namespace__in: [a]
+        """
+        if self.fuzzy:
+            return {f"{self.filter_field}__icontains": self.value[0]}
+        return {f"{self.filter_field}__in": self.value}
 
 
 @register_filter
@@ -77,7 +85,7 @@ class WorkloadFilter(ResourceFilter):
     filter_field = "workload"
 
     @property
-    def filter_dict(self) -> Dict[str, str]:
+    def filter_dict(self) -> dict[str, str]:
         filter = {}
         if len(self.value) > 1:
             raise MultiWorkloadError()

@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
 import re
 from collections import defaultdict
 from typing import Any
@@ -20,6 +21,9 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.data_source import CpAggMethods
 from bkmonitor.data_source.backends.base import compiler
+from constants.common import DEFAULT_TENANT_ID
+
+logger = logging.getLogger("bkmonitor.data_source.elastic_search")
 
 
 class SQLCompiler(compiler.SQLCompiler):
@@ -97,7 +101,12 @@ class SQLCompiler(compiler.SQLCompiler):
             raise
 
     def as_sql(self):
-        dsl = {}
+        bk_tenant_id = self.query.bk_tenant_id
+        if not bk_tenant_id:
+            logger.warning(f"get_query_tenant_id is empty, es query: {self.query.table_name}")
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        dsl: dict[str, Any] = {"bk_tenant_id": bk_tenant_id}
 
         return_fields, select_fields = self._parser_select()
 
@@ -173,7 +182,7 @@ class SQLCompiler(compiler.SQLCompiler):
         field_values = defaultdict(list)
         for child in node.children:
             if isinstance(child, tuple) and len(child) == 2:
-                if isinstance(child[1], (tuple, list)):
+                if isinstance(child[1], tuple | list):
                     field_values[child[0]].extend(child[1])
                 else:
                     field_values[child[0]].append(child[1])
@@ -184,7 +193,7 @@ class SQLCompiler(compiler.SQLCompiler):
         node.children = children
 
         for child in node.children:
-            if isinstance(child, (tuple, list)) and len(child) == 2:
+            if isinstance(child, tuple | list) and len(child) == 2:
                 field = child[0].split("__")
                 if len(field) == 1:
                     field = field[0]
@@ -362,7 +371,7 @@ class SQLCompiler(compiler.SQLCompiler):
                 self.query.time_field: {
                     "date_histogram": {
                         "field": self.query.time_field,
-                        "interval": "%ss" % agg_interval,
+                        "interval": f"{agg_interval}s",
                         "time_zone": timezone.get_current_timezone_name(),
                     },
                     "aggregations": aggregations,
@@ -371,9 +380,7 @@ class SQLCompiler(compiler.SQLCompiler):
 
         # dimension aggregation
         for dimension in dimensions:
-            # missing="" 用于聚合出不存在某个字段的日志条数，和 series 的行为对齐。
-            # 此处行为和 UnifyQuery 保持一致，从而确保切换前后查询语句、返回结果等价。
-            _aggregations = {dimension: {"terms": {"field": dimension, "missing": "", "size": self._get_bucket_size()}}}
+            _aggregations = {dimension: {"terms": {"field": dimension, "size": self._get_bucket_size()}}}
             _aggregations[dimension]["aggregations"] = aggregations
             aggregations = _aggregations
 
@@ -524,7 +531,7 @@ class SQLCompiler(compiler.SQLCompiler):
                     condition_list.append(where_cond)
                     where_cond = {field_lookup: value}
                 else:
-                    raise Exception("Unsupported connector(%s)" % condition)
+                    raise Exception(f"Unsupported connector({condition})")
             else:
                 where_cond = {field_lookup: value}
 

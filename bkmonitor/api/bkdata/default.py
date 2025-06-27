@@ -48,7 +48,7 @@ class UseSaaSAuthInfoMixin:
 
 class BkDataAPIGWResource(APIResource, metaclass=abc.ABCMeta):
     base_url_statement = None
-    base_url = settings.BKDATA_API_BASE_URL or "%s/api/bk-base/prod/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.BKDATA_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-base/prod/"
 
     # 模块名
     module_name = "bkdata"
@@ -1343,6 +1343,18 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
 
 
+class GetIncidentAnalysisResults(DataAccessAPIResource):
+    """
+    获取故障根因定位快照数据
+    """
+
+    action = "/v3/aiops/incident/{incident_id}/analysis_results/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        incident_id = serializers.IntegerField(required=True, label="故障ID")
+
+
 class GetStorageMetricsDataCount(DataAccessAPIResource):
     """
     获取数据源数据
@@ -1446,3 +1458,17 @@ class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
         kind = serializers.CharField(required=True, label="资源类型")
+
+
+class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    计算平台V4链路清洗调试接口
+    """
+
+    action = "/v3/databus/clean/debug/"
+    method = "POST"
+
+    class RequestSerializer(CommonRequestSerializer):
+        input = serializers.JSONField(required=True, label="输入数据")
+        rules = serializers.JSONField(required=True, label="清洗规则")
+        filter_rules = serializers.ListField(required=False, label="过滤规则")

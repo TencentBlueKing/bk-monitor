@@ -1,0 +1,57 @@
+.metric-view-manage-btn {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-right: 6px;
+  &:hover,
+  &.is-active {
+    background: #f5f7fa;
+  }
+}
+.metric-view-drag-item {
+  width: 100%;
+  height: 32px;
+  font-size: 12px;
+  line-height: 32px;
+  border-radius: 2px;
+  margin-bottom: 4px;
+  padding-left: 20px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  // border: 1px solid red;
+  .drag-input {
+    width: 95%;
+  }
+  .drag-icon {
+    display: block;
+    color: #979ba5;
+    font-size: 10px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    cursor: move;
+  }
+  .icon-group {
+    position: absolute;
+    right: -5px;
+  }
+  .del-icon {
+    color: #ea3636;
+    font-size: 14px;
+    cursor: pointer;
+  }
+}
+.metric-view-manage-dialog {
+  .bk-dialog-body {
+    max-height: 390px;
+    overflow: auto;
+  }
+}

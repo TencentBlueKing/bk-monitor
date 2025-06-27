@@ -264,7 +264,7 @@ export default class App extends tsc<object> {
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     this.getGlobalConfig();
-    this.getAiUserConfig();
+    aiWhaleStore.setEnableAiAssistantAction();
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -707,9 +707,6 @@ export default class App extends tsc<object> {
   // 获取配置
   async getGlobalConfig() {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
-  }
-  async getAiUserConfig() {
-    aiWhaleStore.setEnableAiAssistantAction();
   }
 
   render() {

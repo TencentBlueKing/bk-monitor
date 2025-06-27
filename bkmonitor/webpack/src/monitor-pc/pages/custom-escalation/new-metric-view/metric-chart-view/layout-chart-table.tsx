@@ -31,9 +31,10 @@ import { toPng } from 'html-to-image';
 import { deepClone, random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
-import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
+import CheckViewDetail from '../components/check-view';
 import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
@@ -133,6 +134,20 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       document.removeEventListener('mousemove', this.handleMouseMove);
       document.removeEventListener('mouseup', this.stopDragging);
     });
+    /** 是否需要默认打开维度下钻 */
+    setTimeout(() => {
+      if (this.$route.query.isViewDrillDown) {
+        const panel = JSON.parse(sessionStorage.getItem('BK_MONITOR_DRILL_PANEL'));
+        panel && this.handelDrillDown(panel, 0);
+        const { isViewDrillDown, ...rest } = this.$route.query;
+        this.$router.replace({
+          query: {
+            ...rest,
+            key: `${Date.now()}`,
+          },
+        });
+      }
+    });
   }
 
   //  支持上下拖拽
@@ -176,12 +191,36 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     });
     this.currentChart = {
       ...chart,
+      groupId: null, // 去除当前的group_id
       targets: [chart.targets[ind]],
     };
+  }
+  /** 查看大图里面的右键维度下钻 */
+  contextMenuClick(panel: IPanelModel) {
+    sessionStorage.setItem('BK_MONITOR_DRILL_PANEL', JSON.stringify(panel));
+    const routeData = this.$router.resolve({
+      name: 'custom-escalation-view',
+      query: { ...this.$route.query, isViewDrillDown: true, key: `${Date.now()}` },
+    });
+    window.open(routeData.href, '_blank');
   }
   handleLegendData(list: ILegendItem[], loading: boolean) {
     this.tableList = list;
     this.loading = loading;
+  }
+
+  deepCloneWithTargetProcessing(config: IPanelModel): IPanelModel {
+    const clonedConfig = deepClone(config);
+    clonedConfig.targets = clonedConfig.targets.map(target => {
+      return {
+        ...target,
+        function: {
+          ...target.function,
+          time_compare: (target.function.time_compare || []).slice(0, 1),
+        },
+      };
+    });
+    return clonedConfig;
   }
 
   /**
@@ -189,11 +228,25 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    * @param {boolean} loading
    */
   handleFullScreen(config: IPanelModel, compareValue?: any) {
-    this.viewQueryConfig = {
-      config: JSON.parse(JSON.stringify(config)),
-      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
-    };
     this.showViewDetail = true;
+    let newFilterOption = deepClone(this.filterOption);
+    if (this.filterOption.compare) {
+      const { offset, type } = this.filterOption.compare;
+      newFilterOption = {
+        ...this.filterOption,
+        compare: {
+          ...this.filterOption.compare,
+          offset: offset.slice(0, 1),
+          type: type === 'metric' ? '' : type,
+        },
+      };
+    }
+
+    this.viewQueryConfig = {
+      config: this.deepCloneWithTargetProcessing(config),
+      compareValue: deepClone({ ...this.compareValue, ...compareValue }),
+      filterOption: newFilterOption,
+    };
   }
   /**
    * @description: 关闭查看大图弹窗
@@ -409,6 +462,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           >
             <div slot='aside'>{renderChart()}</div>
             <div
+              style={{ height: `${this.drag.height - 20}px` }}
               class='main-table'
               slot='main'
             >
@@ -434,10 +488,12 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         )}
         {/* 全屏查看大图 */}
         {this.showViewDetail && (
-          <ViewDetail
-            show={this.showViewDetail}
-            viewConfig={this.viewQueryConfig}
-            on-close-modal={this.handleCloseViewDetail}
+          <CheckViewDetail
+            currentMethod={this.currentMethod}
+            panel={this.viewQueryConfig}
+            timeRangeData={this.timeRange}
+            onClose={() => (this.showViewDetail = false)}
+            onContextMenuClick={this.contextMenuClick}
           />
         )}
         {/* 收藏到仪表盘 */}

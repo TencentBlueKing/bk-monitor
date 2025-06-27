@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 import arrow
@@ -49,24 +49,19 @@ from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
-from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TimeEnum
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
-from apps.utils.function import map_if
-from apps.utils.local import activate_request
 from apps.utils.log import logger
-from apps.utils.thread import generate_request
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
-class ClusteringConfigHandler(object):
+class ClusteringConfigHandler:
     class AccessStatusCode:
         PENDING = "PENDING"
         RUNNING = "RUNNING"
@@ -90,14 +85,6 @@ class ClusteringConfigHandler(object):
 
     def retrieve(self):
         return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
-
-    def start(self):
-        from apps.log_clustering.handlers.pipline_service.aiops_service import (
-            operator_aiops_service,
-        )
-
-        pipeline_id = operator_aiops_service(self.index_set_id)
-        return pipeline_id
 
     def online_start(self):
         from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
@@ -324,7 +311,9 @@ class ClusteringConfigHandler(object):
                     # 如果原始数据也没有上报，那么就直接判定为接入完成
                     access_finished = True
             except Exception as e:
-                result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e))
+                result["data_check"].update(
+                    status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e)
+                )
         else:
             result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
 
@@ -339,7 +328,9 @@ class ClusteringConfigHandler(object):
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
             # 此处简化流程，只检查模型预测 flow 的状态即可
-            result["flow_run"].update(self.check_dataflow_status(clustering_config.predict_flow_id))
+            result["flow_run"].update(
+                self.check_dataflow_status(clustering_config.predict_flow_id, bk_biz_id=clustering_config.bk_biz_id)
+            )
         else:
             # 如果 flow 不存在，说明基本流程没走完
             result["flow_run"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
@@ -367,17 +358,17 @@ class ClusteringConfigHandler(object):
 
         return result
 
-    def check_dataflow_status(self, flow_id):
+    def check_dataflow_status(self, flow_id, bk_biz_id):
         """
         检查 dataflow 状态
         """
         flow_status = ""
         try:
-            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id)
+            flow = DataFlowHandler().get_dataflow_info(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if flow:
                 flow_status = flow["status"]
         except Exception as e:  # pylint:disable=broad-except
-            return {"status": self.AccessStatusCode.FAILED, "message": _("dataflow({}) 获取信息失败: {}".format(flow_id, e))}
+            return {"status": self.AccessStatusCode.FAILED, "message": _(f"dataflow({flow_id}) 获取信息失败: {e}")}
 
         flow_status_mapping = {
             "": {"status": self.AccessStatusCode.FAILED, "message": _("未创建")},
@@ -390,7 +381,7 @@ class ClusteringConfigHandler(object):
 
         task_detail = {}
         if flow_status == "running":
-            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id)
+            deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=flow_id, bk_biz_id=bk_biz_id)
             if deploy_data["status"] == "failure":
                 flow_status = "failure"
             elif deploy_data["status"] == "success":
@@ -405,12 +396,17 @@ class ClusteringConfigHandler(object):
             "task_detail": task_detail,
         }
 
-    def debug(self, input_data, predefined_varibles):
+    def debug(self, input_data, predefined_varibles, delimeter, max_log_length):
         """
         正则调试
         """
         try:
-            return pattern.debug(log=input_data, predefined_variables=predefined_varibles)
+            return pattern.debug(
+                log=input_data,
+                predefined_variables=predefined_varibles,
+                delimeter=delimeter,
+                max_log_length=max_log_length,
+            )
         except Exception as e:
             raise ClusteringDebugException(ClusteringDebugException.MESSAGE.format(e=e))
 
@@ -449,40 +445,6 @@ class ClusteringConfigHandler(object):
         # collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
         pass
 
-    def change_data_stream(self, topic: str, partition: int = 1):
-        """
-        change_data_stream
-        :param topic:
-        :param partition:
-        :return:
-        """
-        collector_handler = CollectorHandler(self.data.collector_config_id)
-        if not self.data.log_bk_data_id:
-            self.data.log_bk_data_id = CollectorScenario.change_data_stream(
-                collector_handler.data, mq_topic=topic, mq_partition=partition
-            )
-            self.data.save()
-        # 设置request线程变量
-        activate_request(generate_request())
-
-        collector_detail = collector_handler.retrieve(use_request=False)
-
-        # need drop built in field
-        collector_detail["fields"] = map_if(collector_detail["fields"], if_func=lambda field: not field["is_built_in"])
-        from apps.log_databus.handlers.etl import EtlHandler
-
-        etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        etl_handler.update_or_create(
-            collector_detail["etl_config"],
-            collector_detail["table_id"],
-            collector_detail["storage_cluster_id"],
-            collector_detail["retention"],
-            collector_detail.get("allocation_min_days", 0),
-            collector_detail["storage_replies"],
-            etl_params=collector_detail["etl_params"],
-            fields=collector_detail["fields"],
-        )
-
     @classmethod
     def pre_check_fields(cls, fields, etl_config, clustering_fields):
         """
@@ -518,4 +480,8 @@ class ClusteringConfigHandler(object):
         if space:
             return space.bk_biz_id
         # 无业务关联的空间，不允许创建日志聚类 当前抛出异常
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(bk_biz_id=bk_biz_id))
+        raise NoRelatedResourceError(
+            _(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(
+                bk_biz_id=bk_biz_id
+            )
+        )

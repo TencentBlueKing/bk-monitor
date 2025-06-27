@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import operator
 import time
 from functools import reduce
-from typing import Dict, List
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -99,8 +98,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     MY_ASSIGNEE_STATUS_NAME = "MY_ASSIGNEE_INCIDENT"
     MY_HANDLER_STATUS_NAME = "MY_HANDLER_INCIDENT"
 
-    def __init__(self, bk_biz_ids: List[int] = None, username: str = "", status: List[str] = None, **kwargs):
-        super(IncidentQueryHandler, self).__init__(bk_biz_ids, username, **kwargs)
+    def __init__(self, bk_biz_ids: list[int] = None, username: str = "", status: list[str] = None, **kwargs):
+        super().__init__(bk_biz_ids, username, **kwargs)
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:
             # 默认排序
@@ -143,7 +142,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         return search_object
 
-    def search(self, show_overview: bool = False, show_aggs: bool = False) -> Dict:
+    def search(self, show_overview: bool = False, show_aggs: bool = False) -> dict:
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
@@ -158,6 +157,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         search_result = search_object.execute()
         incidents = self.handle_hit_list(search_result.hits)
+        for incident in incidents:
+            incident["bk_biz_id"] = int(incident["bk_biz_id"])
         BizTranslator().translate_from_dict(incidents, "bk_biz_id", "bk_biz_name")
 
         result = {
@@ -196,13 +197,13 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         return search_object
 
     @classmethod
-    def handle_hit_list(cls, hits: AttrList = None) -> List[Dict]:
+    def handle_hit_list(cls, hits: AttrList = None) -> list[dict]:
         hits = hits or []
         incidents = [cls.handle_hit(hit) for hit in hits]
         return incidents
 
     @classmethod
-    def handle_hit(cls, hit) -> Dict:
+    def handle_hit(cls, hit) -> dict:
         incident = super().handle_hit(hit)
         incident["status_alias"] = IncidentStatus(incident["status"].lower()).alias
         incident["level_alias"] = IncidentLevel(incident["level"]).alias
@@ -212,7 +213,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             incident["duration"] = hms_string(int(time.time()) - incident["begin_time"])
         return incident
 
-    def date_histogram(self, interval: str = "auto") -> Dict:
+    def date_histogram(self, interval: str = "auto") -> dict:
         interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
@@ -255,7 +256,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         search_object.aggs.bucket("handlers", "filter", {"term": {"handlers": self.request_username}})
         return search_object
 
-    def handle_overview(self, search_result: Response) -> Dict:
+    def handle_overview(self, search_result: Response) -> dict:
         """处理返回内容中的检索全览部分.
 
         :param search_result: 检索结果
@@ -300,7 +301,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         search_object.aggs.bucket("level", "terms", field="level")
         return search_object
 
-    def handle_aggs(self, search_result: Response) -> List[Dict]:
+    def handle_aggs(self, search_result: Response) -> list[dict]:
         """处理返回内容中的检索聚合统计部分.
 
         :param search_result: 检索结果
@@ -312,7 +313,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         return agg_result
 
-    def handle_aggs_level(self, search_result: Response) -> Dict:
+    def handle_aggs_level(self, search_result: Response) -> dict:
         if search_result.aggs:
             level_dict = {bucket.key: bucket.doc_count for bucket in search_result.aggs.level.buckets}
         else:
@@ -329,8 +330,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         }
         return result
 
-    def top_n(self, fields: List, size=10, translators: dict = None) -> Dict:
-        return super(IncidentQueryHandler, self).top_n(fields, size, translators)
+    def top_n(self, fields: list, size=10, translators: dict = None) -> dict:
+        return super().top_n(fields, size, translators)
 
 
 class IncidentAlertQueryHandler(AlertQueryHandler):

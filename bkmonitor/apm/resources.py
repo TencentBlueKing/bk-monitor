@@ -13,6 +13,7 @@ import datetime
 import json
 import logging
 import time
+from typing import Any
 
 import pytz
 from django.conf import settings
@@ -21,11 +22,19 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
+from apm.constants import (
+    GLOBAL_CONFIG_BK_BIZ_ID,
+    AggregatedMethod,
+    ConfigTypes,
+    EnabledStatisticsDimension,
+    StatisticsProperty,
+    VisibleEnum,
+)
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
@@ -58,13 +67,20 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializers import (
+    TraceFieldStatisticsInfoRequestSerializer,
+    TraceFieldsTopkRequestSerializer,
+    TraceFieldStatisticsGraphRequestSerializer,
+)
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
+
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
@@ -73,10 +89,11 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
+from apm.serializers import FilterSerializer as TraceFilterSerializer
 
 logger = logging.getLogger("apm")
 
@@ -837,6 +854,7 @@ class QuerySpanResource(Resource):
         fields = serializers.ListField(required=False, label="过滤字段")
         category = serializers.CharField(required=False, label="类别")
         group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
+        limit = serializers.IntegerField(required=False, label="限制数量", default=10_000, min_value=1)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -853,6 +871,7 @@ class QuerySpanResource(Resource):
         }
         if not validated_request_data.get("group_keys"):
             param["fields"] = validated_request_data.get("fields")
+            param["limit"] = validated_request_data["limit"]
             return application.trace_datasource.query_span(**param)
 
         param["group_keys"] = validated_request_data.get("group_keys")
@@ -931,21 +950,13 @@ class QueryEventResource(Resource):
 
 
 class QuerySerializer(serializers.Serializer):
-    class FilterSerializer(serializers.Serializer):
-        key = serializers.CharField(label="查询键")
-        operator = serializers.CharField(label="操作符")
-        value = serializers.ListSerializer(
-            label="查询值", child=serializers.CharField(allow_blank=True), allow_empty=True
-        )
-
     bk_biz_id = serializers.IntegerField(label="业务id")
     app_name = serializers.CharField(label="应用名称", max_length=50)
     start_time = serializers.IntegerField(required=True, label="数据开始时间")
     end_time = serializers.IntegerField(required=True, label="数据开始时间")
     offset = serializers.IntegerField(required=False, label="偏移量", default=0)
     limit = serializers.IntegerField(required=False, label="每页数量", default=10)
-    es_dsl = serializers.DictField(required=False, label="DSL语句")
-    filters = serializers.ListSerializer(required=False, label="查询条件", child=FilterSerializer())
+    filters = serializers.ListSerializer(required=False, label="查询条件", child=TraceFilterSerializer())
     exclude_field = serializers.ListSerializer(required=False, label="排除字段", child=serializers.CharField())
     query_mode = serializers.ChoiceField(
         required=False,
@@ -953,6 +964,21 @@ class QuerySerializer(serializers.Serializer):
         choices=TraceListQueryMode.choices(),
         default=TraceListQueryMode.PRE_CALCULATION,
     )
+    query_string = serializers.CharField(label="查询字符串", allow_blank=True, required=False)
+    sort = serializers.ListSerializer(label="排序字段", required=False, child=serializers.CharField())
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        processed_sort: list[str] = []
+        for ordering in attrs.get("sort") or []:
+            if not ordering:
+                continue
+            if ordering.startswith("-"):
+                processed_sort.append(ordering[1:] + " desc")
+            else:
+                processed_sort.append(ordering)
+
+        attrs["sort"] = processed_sort
+        return attrs
 
 
 class QueryTraceListResource(Resource):
@@ -973,7 +999,9 @@ class QueryTraceListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
+            validated_data.get("exclude_field"),
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -990,8 +1018,9 @@ class QuerySpanListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
             validated_data.get("exclude_field"),
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1007,6 +1036,9 @@ class QueryOptionValuesSerializer(serializers.Serializer):
         default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
         choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
     )
+    filters = serializers.ListSerializer(label="查询条件", child=TraceFilterSerializer(), default=[])
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
+    limit = serializers.IntegerField(label="数量限制", default=500)
 
 
 class QueryTraceOptionValues(Resource):
@@ -1021,6 +1053,9 @@ class QueryTraceOptionValues(Resource):
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1036,6 +1071,9 @@ class QuerySpanOptionValues(Resource):
             validated_data["start_time"],
             validated_data["end_time"],
             validated_data["fields"],
+            validated_data["limit"],
+            validated_data["filters"],
+            validated_data["query_string"],
         )
 
 
@@ -1275,9 +1313,7 @@ class QueryTraceByIdsResource(Resource):
         trace_ids = list(set(validated_request_data["trace_ids"]))
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             validated_request_data["trace_ids"] = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1334,9 +1370,7 @@ class QueryAppByTraceResource(Resource):
         trace_ids = validated_request_data["trace_ids"]
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             trace_ids = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1410,7 +1444,10 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         # bk_data_id，bk_biz_id，start_time，end_time 等参数用来限定自动关联范围
         # 索引集对应采集ID, 不一定有，这里只做尽可能的关联
         bk_data_id = serializers.IntegerField(required=False, label=_("索引集对应采集ID"), default=None)
-        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID", default=0, allow_null=True)
+        related_bk_biz_id = serializers.IntegerField(
+            required=False, label="关联 CC 的业务ID", default=0, allow_null=True
+        )
         start_time = serializers.IntegerField(required=False, label="关联开始时间", default=None, allow_null=True)
         end_time = serializers.IntegerField(required=False, label="关联结束时间", default=None, allow_null=True)
 
@@ -1458,10 +1495,19 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 # 取最近一小时的关联关系
                 end_time = int(time.time())
                 start_time = end_time - one_hour_seconds
+            else:
+                # 从日志平台传过来的时间是毫秒的时间戳，需要转换一下
+                start_time = start_time // 1000
+                end_time = end_time // 1000
+
             if end_time - start_time > one_hour_seconds:
                 # 防止时间范围太大，导致接口查询过慢
                 start_time = end_time - one_hour_seconds
+
+            bk_data_id_bk_biz_id = data.get("bk_biz_id")
+            related_bk_biz_id = data.get("related_bk_biz_id")
             response = api.unify_query.query_multi_resource_range(
+                bk_biz_ids=[related_bk_biz_id or bk_data_id_bk_biz_id],
                 query_list=[
                     {
                         "start_time": start_time,
@@ -1472,13 +1518,18 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                         "step": f"{end_time - start_time}s",
                         "path_resource": ["datasource", "pod", "apm_service_instance"],
                     }
-                ]
+                ],
             )
             if response:
                 for each_data in response.get("data", []):
                     for target in each_data.get("target_list", []):
                         for item in target.get("items", []):
-                            return {"bk_biz_id": data.get("bk_biz_id"), "app_name": item["apm_application_name"]}
+                            app_name = item["apm_application_name"]
+                            app = ApmApplication.objects.filter(
+                                app_name=app_name, bk_biz_id__in=[bk_data_id_bk_biz_id, related_bk_biz_id]
+                            ).first()
+                            if app:
+                                return {"bk_biz_id": app.bk_biz_id, "app_name": app_name}
 
         return {}
 
@@ -1563,7 +1614,8 @@ class QuerySpanStatisticsListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1578,7 +1630,8 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data["limit"],
             validated_data["offset"],
             validated_data.get("filters"),
-            validated_data.get("es_dsl"),
+            validated_data.get("query_string"),
+            validated_data.get("sort"),
         )
 
 
@@ -1875,3 +1928,331 @@ class StopApplicationSimpleResource(Resource):
         from apm_web.meta.resources import StopResource
 
         return StopResource().request(validated_request_data)
+
+
+class QueryFieldsTopkResource(Resource):
+    RequestSerializer = TraceFieldsTopkRequestSerializer
+
+    def perform_request(self, validated_data):
+        base_query_params = {
+            "query_mode": validated_data["mode"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "query_string": validated_data["query_string"],
+            "filters": validated_data["filters"],
+        }
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        # 字段 topk 值字典
+        field_topk_map = {}
+        # 字段去重数字典
+        field_distinct_map = {}
+        field_total_map = {}
+        fields = validated_data["fields"]
+        # 查询字段总行数
+        total_threads = [
+            InheritParentThread(
+                target=self.query_aggregated_value,
+                args=(
+                    proxy,
+                    {**base_query_params, "field": field, "method": AggregatedMethod.COUNT.value},
+                    field_total_map,
+                ),
+            )
+            for field in fields
+        ]
+        run_threads(total_threads)
+
+        # 查询字段去重数和topk值
+        to_be_executed_threads = []
+        for field in fields:
+            if field_total_map[field] == 0:
+                continue
+
+            # 构建去重数查询线程
+            to_be_executed_threads.append(
+                InheritParentThread(
+                    target=self.query_aggregated_value,
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "method": AggregatedMethod.DISTINCT.value},
+                        field_distinct_map,
+                    ),
+                )
+            )
+
+            # 构建topk查询线程
+            to_be_executed_threads.append(
+                InheritParentThread(
+                    target=self.query_topk,
+                    args=(
+                        proxy,
+                        {**base_query_params, "field": field, "limit": validated_data["limit"]},
+                        field_topk_map,
+                    ),
+                )
+            )
+        run_threads(to_be_executed_threads)
+
+        # 组装 topk 返回结果
+        processed_topk_fields = []
+        for field in fields:
+            topk_field = {"field": field, "distinct_count": field_distinct_map.get(field, 0), "list": []}
+            for field_topk in field_topk_map.get(field, []):
+                topk_field["list"].append(
+                    {
+                        "value": field_topk["field_value"],
+                        "count": field_topk["count"],
+                        "proportions": format_percent(
+                            100 * (field_topk["count"] / field_total_map[field]) if field_total_map[field] > 0 else 0,
+                            precision=3,
+                            sig_fig_cnt=3,
+                            readable_precision=3,
+                        ),
+                    }
+                )
+            processed_topk_fields.append(topk_field)
+        return processed_topk_fields
+
+    @classmethod
+    def query_aggregated_value(cls, proxy, query_params, field_aggregated_map):
+        field_aggregated_map[query_params["field"]] = proxy.query_field_aggregated_value(**query_params)
+
+    @classmethod
+    def query_topk(cls, proxy, query_params, field_topk_map):
+        field_topk_map[query_params["field"]] = proxy.query_field_topk(**query_params)
+
+
+class QueryFieldStatisticsInfoResource(Resource):
+    RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
+
+    @classmethod
+    def _is_number_field(cls, field: dict[str, Any]) -> bool:
+        """判断一个字段是否为数值类型。"""
+        return field["field_type"] in [
+            EnabledStatisticsDimension.LONG.value,
+            EnabledStatisticsDimension.DOUBLE.value,
+            EnabledStatisticsDimension.INTEGER.value,
+        ]
+
+    def perform_request(self, validated_data):
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        statistics_properties = [
+            StatisticsProperty.TOTAL_COUNT.value,
+            StatisticsProperty.FIELD_COUNT.value,
+            StatisticsProperty.DISTINCT_COUNT.value,
+        ]
+
+        # 数值类型，补充数值类型统计信息
+        if self._is_number_field(validated_data["field"]):
+            statistics_properties.extend(
+                [
+                    StatisticsProperty.MAX.value,
+                    StatisticsProperty.MIN.value,
+                    StatisticsProperty.MEDIAN.value,
+                    StatisticsProperty.AVG.value,
+                ]
+            )
+
+        statistics_info = {}
+        run_threads(
+            [
+                InheritParentThread(
+                    target=self.query_statistics_info,
+                    args=(
+                        proxy,
+                        validated_data,
+                        property_name,
+                        statistics_info,
+                    ),
+                )
+                for property_name in statistics_properties
+            ]
+        )
+        # 格式化统计信息
+        return self.process_statistics_info(statistics_info)
+
+    @classmethod
+    def query_statistics_info(cls, proxy, validated_data, property_name, statistics_info) -> None:
+        query_property_method_map = {
+            StatisticsProperty.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
+            StatisticsProperty.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
+            StatisticsProperty.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
+            StatisticsProperty.AVG.value: AggregatedMethod.AVG.value,
+            StatisticsProperty.MAX.value: AggregatedMethod.MAX.value,
+            StatisticsProperty.MIN.value: AggregatedMethod.MIN.value,
+            StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
+        }
+        if property_name not in query_property_method_map:
+            raise ValueError(_(f"未知的字段统计属性: {property_name}"))
+
+        # 数值类型、不为字段计数时，需要计入空值。
+        field: dict[str, Any] = validated_data["field"]
+        filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
+        if property_name == StatisticsProperty.FIELD_COUNT.value:
+            exclude_empty_operator: str = FilterOperator.NOT_EQUAL
+            if cls._is_number_field(validated_data["field"]):
+                exclude_empty_operator: str = FilterOperator.EXISTS
+
+            filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
+
+        statistics_info[property_name] = proxy.query_field_aggregated_value(
+            validated_data["mode"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            field["field_name"],
+            query_property_method_map[property_name],
+            filters,
+            validated_data["query_string"],
+        )
+
+    @classmethod
+    def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
+        processed_statistics_info = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            value = format_percent(value, 3, 3, 3)
+            if statistics_property in [
+                StatisticsProperty.MAX.value,
+                StatisticsProperty.MIN.value,
+                StatisticsProperty.MEDIAN.value,
+                StatisticsProperty.AVG.value,
+            ]:
+                processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            processed_statistics_info[statistics_property] = value
+
+        # 计算百分比
+        processed_statistics_info["field_percent"] = (
+            round(
+                statistics_info[StatisticsProperty.FIELD_COUNT.value]
+                / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+                * 100,
+                2,
+            )
+            if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
+            else 0
+        )
+        return processed_statistics_info
+
+
+class QueryFieldStatisticsGraphResource(Resource):
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, validated_data):
+        proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
+        # keyword类型，返回时序数据图
+        field = validated_data["field"]
+        values = field["values"]
+        base_query_params = {
+            "query_mode": validated_data["mode"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "query_string": validated_data["query_string"],
+            "filters": validated_data["filters"],
+            "field": field["field_name"],
+        }
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+            base_query_params["filters"].append(
+                {
+                    "key": field["field_name"],
+                    "value": values,
+                    "operator": FilterOperator.EQUAL,
+                }
+            )
+            config = proxy.query_graph_config(**base_query_params)
+            config.update(
+                {
+                    "query_method": validated_data["query_method"],
+                    "time_alignment": validated_data["time_alignment"],
+                    "null_as_zero": not validated_data["time_alignment"],
+                    "start_time": config["start_time"] // 1000,
+                    "end_time": config["end_time"] // 1000,
+                }
+            )
+            return resource.grafana.graph_unify_query(config)
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
+            field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
+            return self.process_graph_info(
+                [
+                    [topk_item["count"], int(topk_item["field_value"])]
+                    for topk_item in sorted(field_topk, key=lambda topk_item: topk_item["field_value"])
+                ]
+            )
+        return self.process_graph_info(
+            self.calculate_interval_buckets(
+                base_query_params, proxy, self.calculate_intervals(min_value, max_value, interval_num)
+            )
+        )
+
+    @classmethod
+    def calculate_intervals(cls, min_value, max_value, interval_num):
+        """
+        计算区间
+        :param min_value: int
+            区间的最小值。
+        :param max_value: int
+            区间的最大值。
+        :param interval_num: int
+            区间数量。
+        :return: List[Tuple[int, int]]
+            返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
+        """
+        intervals = []
+        current_min = min_value
+        for i in range(interval_num):
+            # 闭区间，加上区间数后要 -1
+            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
+            # 确保最后一个区间覆盖到 max_value
+            if i == interval_num - 1:
+                current_max = max_value
+            intervals.append((current_min, current_max))
+            current_min = current_max + 1
+        return intervals
+
+    @classmethod
+    def process_graph_info(cls, buckets):
+        """
+        处理数值趋势图格式，和时序趋势图保持一致
+        """
+        return {"series": [{"datapoints": buckets}]}
+
+    @classmethod
+    def calculate_interval_buckets(cls, base_query_params, proxy, intervals) -> list:
+        """
+        统计各区间计数
+        """
+        buckets = []
+        run_threads(
+            [
+                InheritParentThread(
+                    target=cls.collect_interval_buckets,
+                    args=(
+                        base_query_params,
+                        proxy,
+                        buckets,
+                        interval,
+                    ),
+                )
+                for interval in intervals
+            ]
+        )
+        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+
+    @classmethod
+    def collect_interval_buckets(cls, base_query_params, proxy, bucket, interval: tuple[int, int]):
+        interval_query_params = copy.deepcopy(base_query_params)
+        interval_query_params["filters"].append(
+            {
+                "key": interval_query_params["field"],
+                "value": [interval[0], interval[1]],
+                "operator": FilterOperator.BETWEEN,
+            }
+        )
+        interval_query_params["method"] = AggregatedMethod.COUNT.value
+        interval_count = proxy.query_field_aggregated_value(
+            **interval_query_params,
+        )
+        bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])

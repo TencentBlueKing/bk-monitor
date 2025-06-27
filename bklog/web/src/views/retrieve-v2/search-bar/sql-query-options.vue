@@ -79,7 +79,7 @@
   const originFieldList = () => totalFieldsNameList.value;
 
   const activeType: Ref<string[]> = ref([]);
-  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+  // const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
   const fieldList: Ref<string[]> = ref([]);
   const valueList: Ref<string[]> = ref([]);
 
@@ -197,8 +197,16 @@
     return props.value;
   };
 
-  const emitValueChange = (appendValue: string, retrieve = false, replace = false, type = undefined) => {
-    emits('change', appendValue, retrieve, replace, type);
+  const getFocusRightValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(props.focusPosition);
+    }
+
+    return '';
+  };
+
+  const emitValueChange = (appendValue: string, retrieve = false, replace = false, focusPosition = undefined) => {
+    emits('change', appendValue, retrieve, replace, focusPosition);
   };
 
   // 如果是当前位置 AND | OR | AND NOT 结尾
@@ -240,10 +248,11 @@
       return;
     }
 
+    const lastFragments = value.split(/\s+(AND\s+NOT|OR|AND)\s+/i);
+    const lastFragment = lastFragments?.[lastFragments.length - 1] ?? '';
+
     // 如果是以 : 结尾，说明需要显示字段值列表
     if (regExpFieldValue.test(value)) {
-      const lastFragments = value.split(separator);
-      const lastFragment = lastFragments[lastFragments.length - 1];
       const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
 
       if (confirmField) {
@@ -256,14 +265,26 @@
       return;
     }
 
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValue = lastValues?.[3] ?? lastValues?.[2];
+    const matchValueWithQuotes = lastValues?.[2];
+
+    if (matchValueWithQuotes && lastFragment.length >= matchValue.length) {
+      const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
+
+      if (confirmField) {
+        showWhichDropdown(OptionItemType.Value);
+        setValueList(confirmField, matchValue);
+        return;
+      }
+    }
+
     // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
     if (/\S+\s+$/.test(value)) {
       showWhichDropdown(OptionItemType.Continue);
       return;
     }
-
-    const lastFragments = value.split(separator);
-    const lastFragment = lastFragments[lastFragments.length - 1];
 
     if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
       showColonOperator(lastFragment);
@@ -287,8 +308,26 @@
    * 选择某个可选字段
    * @param {string} field
    */
+
   const handleClickField = (field: string) => {
-    emitValueChange(field, false, false, 'field');
+    const sqlValue = getFocusLeftValue();
+    const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
+    let leftValue = sqlValue.slice(0, sqlValue.length - lastFieldStr.replace(/^\s/, '').length);
+
+    if (leftValue.length && !/\s$/.test(leftValue)) {
+      leftValue = `${leftValue} `;
+    }
+
+    const isEndWithConnection = regExpAndOrNot.test(leftValue);
+
+    const rightValue = getFocusRightValue();
+
+    const rightEndPosition = isEndWithConnection ? 0 : rightValue.indexOf(':');
+    const targetPosition = rightEndPosition >= 0 ? rightEndPosition : 0;
+    const rightFieldStr = rightValue.slice(targetPosition);
+    const result = `${leftValue}${field}${rightFieldStr}`;
+
+    emitValueChange(result, false, true, leftValue.length + field.length);
 
     showColonOperator(field as string);
     nextTick(() => {
@@ -306,7 +345,12 @@
     if (type === ': *') {
       target = `${target} `;
     }
-    emitValueChange(target);
+
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const result = `${sqlValue}${target}${rightValue}`;
+
+    emitValueChange(result, false, true, sqlValue.length + target.length);
     calculateDropdown();
 
     nextTick(() => {
@@ -320,8 +364,25 @@
    * @param {string} value
    */
   const handleClickValue = (value: string) => {
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
+
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValueWithQuotes = lastValues?.[2] ?? '';
+    const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
+    const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
+
+    const rightFirstValue =
+      matchValueWithQuotes.length >= 1 ? rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '' : '';
+
+    const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
+    const appendSpace = formatRightValue === '' ? ' ' : '';
+    const result = `${matchLeft}"${targetValue}"${formatRightValue}${appendSpace}`;
+    const focusPosition = matchLeft.length + targetValue.length + 3;
+
     // 当前输入值可能的情况 【name:"a】【age:】
-    emitValueChange(`"${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `);
+    emitValueChange(result, false, true, focusPosition);
     nextTick(() => {
       activeIndex.value = 0;
       setOptionActive();
@@ -333,7 +394,10 @@
    * @param {string} type
    */
   const handleClickContinue = (type: string) => {
-    emitValueChange(`${type} `);
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const result = `${sqlValue}${type} ${rightValue}`;
+    emitValueChange(result, false, true, sqlValue.length + type.length + 1);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
@@ -371,8 +435,8 @@
 
     // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
     if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
-      // stopEventPreventDefault(e);
-      // handleRetrieve();
+      stopEventPreventDefault(e);
+      handleRetrieve();
       emits('cancel');
       return;
     }
@@ -395,9 +459,6 @@
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
         emitValueChange(props.value, false, true);
-        nextTick(() => {
-          handleRetrieve();
-        });
       }
     }
 

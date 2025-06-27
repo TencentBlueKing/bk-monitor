@@ -28,8 +28,10 @@ import { Ref } from 'vue';
 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration } from './retrieve-core/interface';
+import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
 import RetrieveBase from './retrieve-core/base';
+import { RouteQueryTab } from './retrieve-v3/index.type';
+import { parseTableRowData } from '@/common/util';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
@@ -76,32 +78,45 @@ class RetrieveHelper extends RetrieveBase {
    * 更新索引集id
    * @param id
    */
-  setIndexsetId(idList: string[], type: string) {
+  setIndexsetId(idList: string[], type: string, fireEvent = true) {
     this.indexSetIdList = idList;
     this.indexSetType = type;
-    this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    if (fireEvent) {
+      this.runEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, idList, type);
+    }
   }
 
   /**
    * // 初始化 Mark.js 实例
    * @param target
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string, root?: HTMLElement) {
+  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
     this.markInstance = new OptimizedHighlighter({
       target: target ?? (() => document.getElementById(this.logRowsContainerId)),
       chunkStrategy: 'fixed',
     });
   }
 
-  highlightElement(target) {
-    this.markInstance.highlightElement(target);
+  destroyMarkInstance() {
+    this.markInstance?.destroy();
   }
 
-  highLightKeywords(keywords?: string[], reset = true) {
+  highlightElement(target) {
+    this.markInstance?.highlightElement(target);
+  }
+
+  /**
+   * 高亮关键词
+   * @param keywords 关键词
+   * @param reset 是否重置
+   * @param afterMarkFn 高亮后回调
+   */
+  highLightKeywords(keywords?: string[], reset = true, afterMarkFn?: () => void) {
     if (!this.markInstance) {
       return;
     }
 
+    const { caseSensitive } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
     this.markInstance.highlight(
@@ -110,7 +125,7 @@ class RetrieveHelper extends RetrieveBase {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: new RegExp(`^${keyword}$`),
+          textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
         };
       }),
       reset,
@@ -121,9 +136,44 @@ class RetrieveHelper extends RetrieveBase {
     this.markInstance.incrementalUpdate();
   }
 
+  isMatchedGroup(group, fieldValue, isGradeMatchValue) {
+    if (isGradeMatchValue) {
+      return group.fieldValue?.includes(fieldValue) ?? false;
+    }
+
+    const regExp = this.getRegExp(group.regExp);
+    return regExp.test(fieldValue);
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): string | null {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
   /**
    * 解析日志级别
-   * @param str
+   * @param field
+   * @param options
    * @returns
    */
   getLogLevel(field: any, options: GradeConfiguration) {
@@ -132,7 +182,7 @@ class RetrieveHelper extends RetrieveBase {
     }
 
     if ((options?.type ?? 'normal') === 'normal') {
-      const str = field?.log ?? '';
+      const str = this.convertToMatchableString(field?.log);
 
       if (!str?.trim()) return null;
 
@@ -173,14 +223,22 @@ class RetrieveHelper extends RetrieveBase {
       return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
     }
 
-    if (options.type === 'custom' && field[options.field]) {
-      const target = `${field[options.field]}`;
+    const fieldValue = parseTableRowData(field, options.field, options.fieldType);
+
+    if (options.type === 'custom' && fieldValue) {
+      const target = this.convertToMatchableString(fieldValue);
+
+      if (!target) {
+        return null;
+      }
+
       const levels = [];
       // 截取前1000字符避免性能问题
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          new RegExp(item.regExp).test(logSegment) && levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
+            levels.push(item.id);
         }
       });
 
@@ -321,6 +379,43 @@ class RetrieveHelper extends RetrieveBase {
     const isMac = userAgent.includes('Macintosh');
     const isWin = userAgent.includes('Windows');
     return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
+  }
+
+  /**
+   * 修复路由参数中的 tab 值
+   * @param indexSetItem
+   * @param tabValue
+   * @returns
+   */
+  routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
+    const isclusteringEnable = () => {
+      return (
+        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
+        indexSetItem?.scenario_id === 'bkdata'
+      );
+    };
+
+    const isChartEnable = () => indexSetItem?.support_doris && !isUnionSearch;
+
+    if (indexSetItem) {
+      if (tabValue === RouteQueryTab.CLUSTERING) {
+        if (!isclusteringEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
+      }
+
+      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
+        if (!isChartEnable()) {
+          return { tab: RouteQueryTab.ORIGIN };
+        }
+      }
+    }
+
+    if (tabValue) {
+      return { tab: tabValue };
+    }
+
+    return {};
   }
 
   private handleScroll = (e: MouseEvent) => {

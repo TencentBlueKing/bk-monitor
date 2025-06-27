@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from functools import lru_cache
 
 from django.utils.functional import cached_property
@@ -702,9 +702,125 @@ class QueryMode:
     @classmethod
     def choices(cls):
         return [
-            (cls.TRACE, "Trace视角"),
-            (cls.SPAN, "span视角"),
+            (cls.TRACE, "Trace 视角"),
+            (cls.SPAN, "Span 视角"),
         ]
+
+
+# TRPC 场景默认设置（表头、常用筛选项）
+TRPC_TRACE_VIEW_CONFIG = {
+    "span_config": {
+        "resident_setting": [
+            "trace_id",
+            "elapsed_time",
+            "attributes.trpc.namespace",  # "物理环境"
+            "attributes.trpc.envname",  # "用户环境"
+            "attributes.trpc.caller_server",  # "主调服务"
+            "attributes.trpc.caller_service",  # "主调 Service"
+            "attributes.trpc.caller_method",  # "主调接口"
+            "attributes.trpc.caller_ip",  # "主调 IP"
+            "attributes.trpc.caller_container",  # "主调容器"
+            "attributes.trpc.callee_server",  # "被调服务"
+            "attributes.trpc.callee_service",  # "被调 Service"
+            "attributes.trpc.callee_method",  # "被调接口"
+            "attributes.trpc.callee_ip",  # "被调 IP"
+            "attributes.trpc.callee_container",  # "被调容器"
+            "attributes.trpc.status_code",  # "tRPC 状态码"
+        ],
+        "display_columns": [
+            "span_id",
+            "start_time",
+            "elapsed_time",
+            "attributes.trpc.caller_service",  # "主调 Service"
+            "attributes.trpc.callee_service",  # "被调 Service"
+            "attributes.trpc.callee_method",  # "被调接口"
+            "attributes.trpc.status_code",  # "tRPC 状态码"
+            "attributes.trpc.envname",  # "用户环境"
+            "status.code",
+            "kind",
+            "resource.service.name",
+            "trace_id",
+        ],
+    },
+    "trace_config": {
+        "resident_setting": [
+            "trace_id",
+            "trace_duration",
+            "collections.resource.service.name",
+            "collections.span_name",
+        ],
+        "display_columns": [
+            "trace_id",
+            "min_start_time",
+            "root_span_name",
+            "root_service",
+            "root_service_span_name",
+            "root_service_category",
+            "root_service_status_code",
+            "trace_duration",
+            "span_count",
+            "service_count",
+        ],
+    },
+}
+
+# Trace 检索下默认场景的设置（表头、常用筛选项）
+DEFAULT_TRACE_VIEW_CONFIG = {
+    "span_config": {
+        "resident_setting": ["trace_id", "elapsed_time", "resource.service.name", "span_name"],
+        "display_columns": [
+            "span_id",
+            "span_name",
+            "start_time",
+            "end_time",
+            "elapsed_time",
+            "status.code",
+            "kind",
+            "resource.service.name",
+            "trace_id",
+        ],
+    },
+    "trace_config": {
+        "resident_setting": [
+            "trace_id",
+            "trace_duration",
+            "collections.resource.service.name",
+            "collections.span_name",
+        ],
+        "display_columns": [
+            "trace_id",
+            "min_start_time",
+            "root_span_name",
+            "root_service",
+            "root_service_span_name",
+            "root_service_category",
+            "root_service_status_code",
+            "trace_duration",
+            "span_count",
+            "service_count",
+        ],
+    },
+}
+
+
+# Span 顶层字段展示顺序
+SPAN_SORTED_FIELD = [
+    "trace_id",
+    "span_id",
+    "elapsed_time",
+    "kind",
+    "span_name",
+    "start_time",
+    "end_time",
+    "parent_span_id",
+    "trace_state",
+    "time",
+    "status",
+    "resource",
+    "attributes",
+    "events",
+    "links",
+]
 
 
 class SpanSourceCategory:
@@ -892,26 +1008,6 @@ DEFAULT_DB_CONFIG = {
 
 METRIC_TUPLE = ("request_count", "avg_duration", "error_request_count", "slow_request_count", "slow_command_rate")
 
-METRIC_PARAM_MAP = {
-    "error_request_count": {"filter": {"bool": {"filter": [{"term": {"status.code": 2}}]}}},
-    "slow_request_count": {"filter": {"bool": {"filter": [{"term": {"attributes.db.is_slow": 1}}]}}},
-}
-
-METRIC_MAP = {
-    "request_count": {"request_count": {"value_count": {"field": ""}}},
-    "avg_duration": {"avg_duration": {"avg": {"field": "elapsed_time"}}},
-    "error_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
-    "slow_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
-    "slow_command_rate": {
-        "slow_command_rate": {
-            "bucket_script": {
-                "buckets_path": {"slowRequestCount": "slow_request_count.count", "requestCount": "request_count"},
-                "script": {"inline": "params.slowRequestCount/params.requestCount"},
-            }
-        }
-    },
-}
-
 METRIC_RELATION_MAP = {"slow_command_rate": {"slow_request_count", "request_count"}}
 
 METRIC_RATE_TUPLE = ("slow_command_rate",)
@@ -1006,7 +1102,9 @@ class ApdexCachedEnum(CachedEnum):
     @cached_property
     def label(self):
         return str(
-            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(
+                self, self.value
+            )
         )
 
     @cached_property

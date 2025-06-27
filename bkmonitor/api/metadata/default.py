@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -22,8 +21,8 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 
 class MetaDataAPIGWResource(KernelAPIResource):
     base_url_statement = None
-    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
-        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    base_url = (
+        settings.NEW_MONITOR_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-monitor/{settings.APIGW_STAGE}/"
     )
     # 模块名
     module_name = "metadata_v3"
@@ -156,6 +155,8 @@ class GetDataIdResource(MetaDataAPIGWResource):
     """
     获取监控数据源具体信息
     """
+
+    backend_cache_type = CacheType.DB_CACHE
 
     action = "/app/metadata/get_data_id/"
     method = "GET"
@@ -726,7 +727,7 @@ class StickSpaceResource(MetaDataAPIGWResource):
     class RequestSerializer(UsernameSerializer):
         action = serializers.CharField(label="置顶动作", default="on")
         space_uid = serializers.CharField(label="空间uid")
-        username = serializers.CharField(label="用户名", required=False)
+        username = serializers.CharField(label="用户名", required=True)
 
 
 class CreateSpaceResource(MetaDataAPIGWResource):

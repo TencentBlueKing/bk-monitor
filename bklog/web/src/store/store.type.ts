@@ -51,6 +51,8 @@ enum BK_LOG_STORAGE {
 
   /**
    * 索引集激活的tab
+   * single - 单选
+   * union - 多选
    */
   INDEX_SET_ACTIVE_TAB = '_10',
 
@@ -73,9 +75,16 @@ enum BK_LOG_STORAGE {
    * 当前 bk_biz_id
    */
   BK_BIZ_ID = '_14',
+
+  /**
+   * 最后选择索引ID
+   */
+  LAST_INDEX_SET_ID = '_15',
 }
 
 export { BK_LOG_STORAGE };
+
+export const SEARCH_MODE_DIC = ['ui', 'sql'];
 
 export type ConsitionItem = {
   field: string;

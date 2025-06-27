@@ -35,24 +35,39 @@ enum RetrieveEvent {
   FAVORITE_SHOWN_CHANGE = 'favorite-shown-change',
 
   /**
+   * 收藏栏是否仅查看当前索引集
+   */
+  FAVORITE_VIEW_CURRENT_CHANGE = 'favorite-view-current-change',
+
+  /**
    * 收藏栏宽度变化
    */
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
   /**
-   * 收藏栏是否仅查看当前索引集
+   * 全局滚动
    */
-  FAVORITE_VIEW_CURRENT_CHANGE = 'favorite-view-current-change',
-
-/**
-   * 左侧字段信息初始化
-   */
-  LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',
+  GLOBAL_SCROLL = 'global-scroll',
 
   /**
-   * 左侧字段设置宽度变化
+   * 触发高亮设置
    */
-  LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
+  HILIGHT_TRIGGER = 'hilight-trigger',
+
+  /**
+   * 打开索引配置
+   */
+  INDEX_CONFIG_OPEN = 'index-config-open',
+
+  /**
+   * 索引集id 变化
+   */
+  INDEX_SET_ID_CHANGE = 'index-set-id-change',
+
+  /**
+   * 左侧字段信息更新
+   */
+  LEFT_FIELD_INFO_UPDATE = 'left-field-info-update',
 
   /**
    * 左侧字段设置是否展示
@@ -60,9 +75,34 @@ enum RetrieveEvent {
   LEFT_FIELD_SETTING_SHOWN_CHANGE = 'left-field-setting-shown-change',
 
   /**
+   * 左侧字段设置宽度变化
+   */
+  LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
+
+  /**
+   * 搜索时间变化
+   */
+  SEARCH_TIME_CHANGE = 'search-time-change',
+
+  /**
+   * 搜索条件改变
+   */
+  SEARCH_VALUE_CHANGE = 'search-value-change',
+
+  /**
    * 搜索栏高度变化
    */
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
+
+  /**
+   * 搜索中时间改变
+   */
+  SEARCHING_CHANGE = 'searching-change',
+
+  /**
+   * localStorage 变化
+   */
+  STORAGE_CHANGE = 'storage-change',
 
   /**
    * 趋势图高度变化
@@ -78,46 +118,6 @@ enum RetrieveEvent {
    * 趋势图缩放
    */
   TREND_GRAPH_ZOOM = 'trend-graph-zoom',
-
-  /**
-   * localStorage 变化
-   */
-  STORAGE_CHANGE = 'storage-change',
-
-  /**
-   * 打开索引配置
-   */
-  INDEX_CONFIG_OPEN = 'index-config-open',
-
-  /**
-   * 触发高亮设置
-   */
-  HILIGHT_TRIGGER = 'hilight-trigger',
-
-  /**
-   * 搜索条件改变
-   */
-  SEARCH_VALUE_CHANGE = 'search-value-change',
-
-  /**
-   * 搜索时间变化
-   */
-  SEARCH_TIME_CHANGE = 'search-time-change',
-
-  /**
-   * 全局滚动
-   */
-  GLOBAL_SCROLL = 'global-scroll',
-
-  /**
-   * 索引集id 变化
-   */
-  INDEX_SET_ID_CHANGE = 'index-set-id-change',
-
-  /**
-   * 搜索中时间改变
-   */
-  SEARCHING_CHANGE = 'searching-change',
 }
 
 export default RetrieveEvent;

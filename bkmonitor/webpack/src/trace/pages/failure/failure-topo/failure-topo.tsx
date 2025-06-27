@@ -1450,8 +1450,10 @@ export default defineComponent({
           originLabel: originLabel,
         };
         if (cfg.parentId) {
-          // label宽度为cfg.width减去“反馈根因节点”文本宽度
+          // label宽度为cfg.width减去"反馈根因节点"文本宽度
           const labelWidth = cfg.width - (cfg.is_feedback_root ? 90 : 56);
+          const link = tooltipsRef.value?.canJumpByType?.(cfg);
+          const fill = link ? '#699DF4' : '#C4C6CC';
           return {
             ...model,
             type: 'service-combo',
@@ -1466,8 +1468,9 @@ export default defineComponent({
             },
             labelCfg: {
               style: {
-                fill: '#C4C6CC',
+                fill,
                 opacity: 1,
+                cursor: link ? 'pointer' : 'default',
               },
               // 启用 label 事件捕获
               triggerable: true,
@@ -1518,7 +1521,7 @@ export default defineComponent({
           labelTooltip.style.visibility = 'visible';
         }
 
-        // 移入展示“反馈新根因”文本
+        // 移入展示"反馈新根因"文本
         if (!item.getModel().parentId) return;
         graph.setItemState(item, 'hover', true);
         const feedbackImg = item.getContainer().find(ele => ele.get('name') === 'sub-combo-feedback-img');
@@ -1531,7 +1534,7 @@ export default defineComponent({
         // 移出隐藏combo label的Tooltip
         labelTooltip.style.visibility = 'hidden';
 
-        // 移出隐藏“反馈新根因”文本
+        // 移出隐藏"反馈新根因"文本
         const { item } = e;
         const model = item.getModel();
         if (!model.parentId) return;
@@ -1634,7 +1637,7 @@ export default defineComponent({
       }
 
       graph.on('combo:click', e => {
-        tooltipsRef.value.hide();
+        tooltipsRef.value?.hide?.();
         tooltips.hide();
         labelTooltip.style.visibility = 'hidden';
 
@@ -1642,6 +1645,10 @@ export default defineComponent({
         const { target, item } = e;
         const model = item.getModel();
         if (model.type !== 'service-combo') return;
+        if (target.get('name') === 'text-shape') {
+          tooltipsRef.value.handleToLink(model);
+          return;
+        }
         if (target.get('className') === 'sub-combo-label-feedback') {
           handleFeedBack(model);
         }
@@ -1713,7 +1720,7 @@ export default defineComponent({
     };
     /** 反馈新根因， 反馈后需要重新调用接口拉取数据 */
     const handleFeedBack = model => {
-      tooltipsRef.value.hide();
+      tooltipsRef.value?.hide?.();
       tooltips.hide();
       feedbackModel.value = model;
       if (model.is_feedback_root) {
@@ -2085,11 +2092,10 @@ export default defineComponent({
         path: '/trace/home',
         query: {
           app_name: rca_trace_info?.abnormal_traces_query.app_name,
-          search_type: 'scope',
-          search_id: 'traceID',
           refreshInterval: '-1',
+          filterMode: 'queryString',
           query: rca_trace_info.abnormal_traces_query.query,
-          listType: 'trace',
+          sceneMode: 'trace',
           incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
           ...query,
         },
@@ -2154,6 +2160,7 @@ export default defineComponent({
       detailInfo,
       refresh,
       goToTracePage,
+      t,
     };
   },
   render() {
@@ -2199,7 +2206,7 @@ export default defineComponent({
                   }}
                 >
                   <div style={{ color: this.isNoData ? '#979BA5' : '#E04949' }}>
-                    <div class='exception-title'>{this.isNoData ? this.$t('暂无数据') : this.$t('查询异常')}</div>
+                    <div class='exception-title'>{this.isNoData ? this.t('暂无数据') : this.t('查询异常')}</div>
                     {this.errorData.isError && <div class='exception-desc'>{this.errorData.msg}</div>}
                   </div>
                 </Exception>
@@ -2217,23 +2224,23 @@ export default defineComponent({
                         content: (
                           <div class='failure-topo-graph-legend-content'>
                             <ul class='node-type'>
-                              <li class='node-type-title'>{this.$t('节点图例')}</li>
+                              <li class='node-type-title'>{this.t('节点图例')}</li>
                               {NODE_TYPE.map(node => {
                                 return (
                                   <li key={node.status}>
                                     <span class='circle-wrap'>
                                       <span class={['circle', node.status]}>
                                         {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
-                                        {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
+                                        {['feedBackRoot', 'root'].includes(node.status) && this.t('根因')}
                                       </span>
                                     </span>
-                                    <span>{this.$t(node.text)}</span>
+                                    <span>{this.t(node.text)}</span>
                                   </li>
                                 );
                               })}
                             </ul>
                             <ul class='node-type node-line-type'>
-                              <li class='node-type-title'>{this.$t('标签图例')}</li>
+                              <li class='node-type-title'>{this.t('标签图例')}</li>
                               {TAG_TYPE.map(node => {
                                 return (
                                   <li key={node.status}>
@@ -2242,27 +2249,27 @@ export default defineComponent({
                                         {['notRestored', 'restored'].includes(node.status) && (
                                           <i class='icon-monitor icon-menu-event' />
                                         )}
-                                        {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
+                                        {['feedBackRoot', 'root'].includes(node.status) && this.t('根因')}
                                       </span>
                                     </span>
-                                    <span>{this.$t(node.text)}</span>
+                                    <span>{this.t(node.text)}</span>
                                   </li>
                                 );
                               })}
                             </ul>
                             <ul class='node-line-type'>
-                              <li class='node-line-title'>{this.$t('边图例')}</li>
+                              <li class='node-line-title'>{this.t('边图例')}</li>
                               <li>
                                 <span class='line' />
-                                <span>{this.$t('从属关系')}</span>
+                                <span>{this.t('从属关系')}</span>
                               </li>
                               <li>
                                 <span class='line arrow' />
-                                <span>{this.$t('调用关系')}</span>
+                                <span>{this.t('调用关系')}</span>
                               </li>
                               <li>
                                 <span class='line dash' />
-                                <span>{this.$t('故障传播')}</span>
+                                <span>{this.t('故障传播')}</span>
                               </li>
                             </ul>
                           </div>
@@ -2271,7 +2278,7 @@ export default defineComponent({
                           <div
                             class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
                             v-bk-tooltips={{
-                              content: this.$t('显示图例'),
+                              content: this.t('显示图例'),
                               disabled: this.showLegend,
                               boundary: this.wrapRef,
                             }}
@@ -2320,7 +2327,7 @@ export default defineComponent({
                     <span class='failure-topo-graph-line' />
                     <div
                       class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                      v-bk-tooltips={{ content: this.$t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
+                      v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
                       onClick={this.handleResetZoom}
                     >
                       <i class='icon-monitor icon-mc-restoration-ratio' />

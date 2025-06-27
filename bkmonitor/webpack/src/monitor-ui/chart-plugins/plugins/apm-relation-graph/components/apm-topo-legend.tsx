@@ -50,43 +50,43 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
   get nodeColor() {
     if (this.dataType === EDataType.Alert) {
       return [
-        { color: '#2DCB56', label: window.i18n.tc('无告警') },
-        { color: '#3A84FF', label: window.i18n.tc('提醒') },
-        { color: '#FF9C01', label: window.i18n.tc('预警') },
-        { color: '#EA3636', label: window.i18n.tc('致命') },
-        // { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
+        { color: '#2DCB56', label: window.i18n.t('无告警') },
+        { color: '#3A84FF', label: window.i18n.t('提醒') },
+        { color: '#FF9C01', label: window.i18n.t('预警') },
+        { color: '#EA3636', label: window.i18n.t('致命') },
+        // { color: '#DCDEE5', label: window.i18n.t('无请求数据') },
       ];
     }
 
     if (this.dataType === EDataType.Apdex) {
       return [
-        { color: '#2DCB56', label: window.i18n.tc('满意') },
-        { color: '#FF9C01', label: window.i18n.tc('可容忍') },
-        { color: '#EA3636', label: window.i18n.tc('烦躁期') },
-        { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
+        { color: '#2DCB56', label: window.i18n.t('满意') },
+        { color: '#FF9C01', label: window.i18n.t('可容忍') },
+        { color: '#EA3636', label: window.i18n.t('烦躁期') },
+        { color: '#DCDEE5', label: window.i18n.t('无请求数据') },
       ];
     }
 
     return [
-      { color: '#2DCB56', label: window.i18n.tc('正常') },
-      { color: '#FF9C01', label: window.i18n.tc('错误率 < 10%') },
-      { color: '#EA3636', label: window.i18n.tc('错误率 ≥ 10%') },
-      { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
+      { color: '#2DCB56', label: window.i18n.t('正常') },
+      { color: '#FF9C01', label: window.i18n.t('错误率 < 10%') },
+      { color: '#EA3636', label: window.i18n.t('错误率 ≥ 10%') },
+      { color: '#DCDEE5', label: window.i18n.t('无请求数据') },
     ];
   }
 
   nodeSize = [
     {
       id: 'small',
-      label: window.i18n.tc('请求数 0~200'),
+      label: window.i18n.t('请求数 0~200'),
     },
     {
       id: 'medium',
-      label: window.i18n.tc('请求数 200~1k'),
+      label: window.i18n.t('请求数 200~1k'),
     },
     {
       id: 'large',
-      label: window.i18n.tc('请求数 1k 以上'),
+      label: window.i18n.t('请求数 1k 以上'),
     },
   ];
   durationList: { id: EdgeDataType; label: string }[] = [

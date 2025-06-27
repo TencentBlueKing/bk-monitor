@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import copy
 import logging
 import threading
 from collections import defaultdict
 from threading import Lock
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -20,6 +21,9 @@ from django.utils.translation import gettext_lazy as _
 from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
+from bkmonitor.utils.common_utils import format_percent
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import Resource, resource
 
@@ -36,10 +40,18 @@ from .constants import (
     INNER_FIELD_TYPE_MAPPINGS,
     QUERY_MAX_LIMIT,
     TYPE_OPERATION_MAPPINGS,
+    Operation,
     CategoryWeight,
     EventCategory,
     EventDimensionTypeEnum,
     EventType,
+    EVENT_ORIGIN_MAPPING,
+    DEFAULT_EVENT_ORIGIN,
+    SYSTEM_EVENT_TRANSLATIONS,
+    EventDomain,
+    K8S_EVENT_TRANSLATIONS,
+    CicdEventName,
+    EventSource,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -53,18 +65,13 @@ from .core.processors.context import (
     SystemClusterContext,
 )
 from .core.processors.k8s import K8sEventProcessor
-from .mock_data import (
-    API_LOGS_RESPONSE,
-    API_TIME_SERIES_RESPONSE,
-    API_TOPK_RESPONSE,
-    API_TOTAL_RESPONSE,
-    API_VIEW_CONFIG_RESPONSE,
-)
 from .utils import (
     get_data_labels_map,
     get_field_alias,
     get_q_from_query_config,
     get_qs_from_req_data,
+    is_dimensions,
+    format_field,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,12 +80,9 @@ logger = logging.getLogger(__name__)
 class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data["is_mock"]:
-            return API_TIME_SERIES_RESPONSE
-
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         try:
-            result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
+            result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         except Exception as exc:
             logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
             return {}
@@ -94,10 +98,7 @@ class EventTimeSeriesResource(Resource):
 class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_LOGS_RESPONSE
-
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         # 构建统一查询集
         queryset = (
             get_qs_from_req_data(validated_request_data)
@@ -111,14 +112,14 @@ class EventLogsResource(Resource):
         for query in [
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
-            queryset = queryset.add_query(query.order_by("-time"))
+            queryset = queryset.add_query(query.order_by("time desc"))
         try:
-            events: List[Dict[str, Any]] = list(queryset)
+            events: list[dict[str, Any]] = list(queryset)
         except Exception as exc:
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
             return {"list": []}
 
-        processors: List[BaseEventProcessor] = [
+        processors: list[BaseEventProcessor] = [
             OriginEventProcessor(),
             K8sEventProcessor(BcsClusterContext()),
             HostEventProcessor(SystemClusterContext()),
@@ -133,10 +134,7 @@ class EventLogsResource(Resource):
 class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_VIEW_CONFIG_RESPONSE
-
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         data_sources = validated_request_data["data_sources"]
         tables = [data_source["table"] for data_source in data_sources]
         dimension_metadata_map = self.get_dimension_metadata_map(validated_request_data["bk_biz_id"], tables)
@@ -147,9 +145,10 @@ class EventViewConfigResource(Resource):
     def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
         # 维度元数据集
         data_labels_map = get_data_labels_map(bk_biz_id, tuple(sorted(tables)))
-        dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
-            "dimensions", "result_table_id"
-        )
+        dimensions_queryset = MetricListCache.objects.filter(
+            result_table_id__in=data_labels_map.keys(),
+            bk_tenant_id=get_request_tenant_id(),
+        ).values("dimensions", "result_table_id")
         dimension_metadata_map = {
             default_dimension_field: {"table_ids": set(), "data_labels": set()}
             for default_dimension_field in DEFAULT_DIMENSION_FIELDS
@@ -172,7 +171,7 @@ class EventViewConfigResource(Resource):
         return dimension_metadata_map
 
     @classmethod
-    def sort_fields(cls, dimension_metadata_map) -> List[Dict[str, Any]]:
+    def sort_fields(cls, dimension_metadata_map) -> list[dict[str, Any]]:
         fields = []
         for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
@@ -183,7 +182,6 @@ class EventViewConfigResource(Resource):
                 # 内置字段，没有 data_labels，这里直接传 common
                 alias, field_category, index = get_field_alias(name, EventCategory.COMMON.value)
             is_option_enabled = cls.is_option_enabled(field_type)
-            is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
             fields.append(
                 {
@@ -191,7 +189,7 @@ class EventViewConfigResource(Resource):
                     "alias": alias,
                     "type": field_type,
                     "is_option_enabled": is_option_enabled,
-                    "is_dimensions": is_dimensions,
+                    "is_dimensions": is_dimensions(name),
                     "supported_operations": supported_operations,
                     "index": index,
                     "category": field_category,
@@ -210,11 +208,6 @@ class EventViewConfigResource(Resource):
         return fields
 
     @classmethod
-    def is_dimensions(cls, name) -> bool:
-        # 如果是内置字段，不需要补充 dimensions.
-        return name not in INNER_FIELD_TYPE_MAPPINGS
-
-    @classmethod
     def get_field_type(cls, field) -> str:
         """ "
         获取字段类型
@@ -227,18 +220,15 @@ class EventViewConfigResource(Resource):
         return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
-    def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
+    def get_supported_operations(cls, field_type) -> list[dict[str, Any]]:
         return TYPE_OPERATION_MAPPINGS[field_type]
 
 
 class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         lock = threading.Lock()
-        if validated_request_data["is_mock"]:
-            return API_TOPK_RESPONSE
-
         fields = validated_request_data["fields"]
         # 计算事件总数
         total = EventTotalResource().perform_request(validated_request_data)["total"]
@@ -324,11 +314,15 @@ class EventTopKResource(Resource):
                 "distinct_count": field_distinct_map[field],
                 "list": [
                     {
-                        # TODO unifyquery 处理完空值问题会退这段代码
-                        "value": "" if not field_value or field_value == " " else field_value,
-                        "alias": "--" if not field_value or field_value == " " else field_value,
+                        "value": field_value or "",
+                        "alias": "--" if not field_value else field_value,
                         "count": field_count,
-                        "proportions": round(100 * (field_count / total), 2) if total > 0 else 0,
+                        "proportions": format_percent(
+                            100 * (field_count / total) if total > 0 else 0,
+                            precision=3,
+                            sig_fig_cnt=3,
+                            readable_precision=3,
+                        ),
                     }
                     for field_value, field_count in sorted_fields
                 ],
@@ -347,21 +341,21 @@ class EventTopKResource(Resource):
 
     @classmethod
     def query_topk(
-        cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0, need_empty: bool = False
+        cls, queryset: UnifyQuerySet, qs: list[QueryConfigBuilder], field: str, limit: int = 0, need_empty: bool = False
     ):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(
                 q.metric(field="_index" if need_empty else field, method="COUNT", alias=alias)
                 .group_by(field)
-                .order_by("-_value")
+                .order_by("_value desc")
             )
 
         queryset.expression(alias)
         return list(queryset.limit(limit))
 
     @classmethod
-    def query_distinct(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str):
+    def query_distinct(cls, queryset: UnifyQuerySet, qs: list[QueryConfigBuilder], field: str):
         alias: str = "a"
         for q in qs:
             queryset = queryset.add_query(q.metric(field=field, method="cardinality", alias=alias))
@@ -371,7 +365,7 @@ class EventTopKResource(Resource):
 
     @classmethod
     def get_match_query_configs(
-        cls, field: str, query_configs: List[Dict[str, Any]], dimension_metadata_map: Dict[str, Dict[str, Set[str]]]
+        cls, field: str, query_configs: list[dict[str, Any]], dimension_metadata_map: dict[str, dict[str, set[str]]]
     ):
         """
         获取字段匹配的查询条件
@@ -390,10 +384,10 @@ class EventTopKResource(Resource):
         cls,
         lock: Lock,
         queryset: UnifyQuerySet,
-        query_configs: List[Dict[str, Any]],
+        query_configs: list[dict[str, Any]],
         field: str,
         limit: int,
-        field_topk_map: Dict[str, Dict[str, int]],
+        field_topk_map: dict[str, dict[str, int]],
         need_empty: bool = False,
     ):
         """
@@ -416,7 +410,7 @@ class EventTopKResource(Resource):
 
     @classmethod
     def calculate_distinct_count_for_table(
-        cls, queryset: UnifyQuerySet, query_config: Dict[str, Any], field: str, field_distinct_map: Dict[str, int]
+        cls, queryset: UnifyQuerySet, query_config: dict[str, Any], field: str, field_distinct_map: dict[str, int]
     ):
         """
         计算数据源的维度去重数量
@@ -433,11 +427,11 @@ class EventTopKResource(Resource):
         cls,
         lock: Lock,
         queryset: UnifyQuerySet,
-        query_configs: List[Dict[str, Any]],
+        query_configs: list[dict[str, Any]],
         field: str,
-        dimension_metadata_map: Dict[str, Dict[str, Set[str]]],
-        field_distinct_map: Dict[str, int],
-        field_topk_map: Dict[str, Dict[str, int]],
+        dimension_metadata_map: dict[str, dict[str, set[str]]],
+        field_distinct_map: dict[str, int],
+        field_topk_map: dict[str, dict[str, int]],
         need_empty: bool = False,
     ):
         """
@@ -458,10 +452,7 @@ class EventTopKResource(Resource):
 class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_TOTAL_RESPONSE
-
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         alias: str = "a"
         # 构建查询列表
         queries = [
@@ -486,7 +477,7 @@ class EventTotalResource(Resource):
 class EventStatisticsGraphResource(Resource):
     RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """
         param:field[values]:list
                 1）当字段类型为 integer 时，包含字段的最小值、最大值、枚举数量和区间数量。具体结构如下：
@@ -517,21 +508,21 @@ class EventStatisticsGraphResource(Resource):
                 )
                 queries.append(q)
 
-        # 字段枚举数量少于区间数量或者区间的最大数量小于区间数，直接查询枚举值返回
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if distinct_count < interval_num or (max_value - min_value + 1) < interval_num:
+        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
             for q in queries:
                 queryset = queryset.add_query(q.group_by(field_name))
             return self.process_graph_info(
                 [
                     [datapoint["_result_"], datapoint[field_name]]
-                    for datapoint in sorted(queryset.limit(values[2]), key=lambda x: int(x[field_name]))
+                    for datapoint in sorted(queryset.limit(distinct_count), key=lambda x: int(x[field_name]))
                 ]
             )
         # 划分区间计算
         return self.process_graph_info(
             self.calculate_interval_buckets(
-                queryset, queries, field_name, self.calculate_intervals(values[0], values[1], values[3])
+                queryset, queries, field_name, self.calculate_intervals(min_value, max_value, interval_num)
             )
         )
 
@@ -561,7 +552,7 @@ class EventStatisticsGraphResource(Resource):
         return intervals
 
     @classmethod
-    def calculate_interval_buckets(cls, queryset, queries, field, intervals) -> List:
+    def calculate_interval_buckets(cls, queryset, queries, field, intervals) -> list:
         """
         统计各区间计数
         """
@@ -600,7 +591,7 @@ class EventStatisticsGraphResource(Resource):
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod
-    def collect_interval_buckets(cls, queryset, queries, bucket, interval: Tuple[int, int]):
+    def collect_interval_buckets(cls, queryset, queries, bucket, interval: tuple[int, int]):
         for query in queries:
             queryset = queryset.add_query(query)
         try:
@@ -613,7 +604,7 @@ class EventStatisticsGraphResource(Resource):
 class EventStatisticsInfoResource(Resource):
     RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         queries = [
             get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
         ]
@@ -648,22 +639,26 @@ class EventStatisticsInfoResource(Resource):
         return self.process_statistics_info(statistics_info)
 
     @classmethod
-    def process_statistics_info(cls, statistics_info: Dict[str, Any]) -> Dict[str, Any]:
+    def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
         processed_statistics_info = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
             # 平均值取两位小数
             if statistics_property == "avg":
-                value = round(value, 2)
+                value = format_percent(value, precision=3, sig_fig_cnt=3, readable_precision=3)
             if statistics_property in ["max", "min", "median", "avg"]:
                 processed_statistics_info.setdefault("value_analysis", {})[statistics_property] = value
                 continue
             processed_statistics_info[statistics_property] = value
+
         # 计算百分比
-        processed_statistics_info["field_percent"] = (
-            round(statistics_info["field_count"] / statistics_info["total_count"] * 100, 2)
+        processed_statistics_info["field_percent"] = format_percent(
+            (statistics_info["field_count"] / statistics_info["total_count"]) * 100
             if statistics_info["total_count"] > 0
-            else 0
+            else 0,
+            precision=3,
+            sig_fig_cnt=3,
+            readable_precision=3,
         )
         return processed_statistics_info
 
@@ -695,3 +690,155 @@ class EventStatisticsInfoResource(Resource):
         根据查询函数适配表达式
         """
         return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")
+
+
+class EventGenerateQueryStringResource(Resource):
+    RequestSerializer = serializers.EventGenerateQueryStringRequestSerializer
+
+    def perform_request(self, data):
+        generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
+        for f in data["where"]:
+            generator.add_filter(
+                format_field(f["key"]),
+                f["method"],
+                f["value"],
+                is_wildcard=f.get("options", {}).get("is_wildcard", False),
+            )
+        return generator.to_query_string()
+
+
+class EventTagDetailResource(Resource):
+    RequestSerializer = serializers.EventTagDetailRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        def _collect(_key: str, _req_data: dict[str, Any]):
+            result[_key] = self.get_tag_detail(_req_data)
+            pass
+
+        result: dict[str, dict[str, Any]] = {}
+        req_data_with_warn: dict[str, Any] = copy.deepcopy(validated_request_data)
+        for qc in req_data_with_warn["query_configs"]:
+            qc.setdefault("where", []).append(
+                {"key": "type", "method": "eq", "value": [EventType.Warning.value], "condition": "and"}
+            )
+
+        run_threads(
+            [
+                InheritParentThread(target=_collect, args=(EventType.Warning.value, req_data_with_warn)),
+                InheritParentThread(target=_collect, args=("All", validated_request_data)),
+            ]
+        )
+        return result
+
+    @classmethod
+    def get_event_origin_req_data_map(
+        cls,
+        validated_request_data: dict[str, Any],
+        data_labels_map: dict[str, str],
+        exclude_origins: list[tuple[str, str]] | None = None,
+    ) -> dict[tuple[str, str], Any]:
+        exclude_origins = exclude_origins or []
+        event_origin_req_data_map: dict[tuple[str, str], dict[str, Any]] = {}
+        for query_config in validated_request_data["query_configs"]:
+            event_origin: tuple[str, str] = EVENT_ORIGIN_MAPPING.get(
+                data_labels_map.get(query_config["table"]), DEFAULT_EVENT_ORIGIN
+            )
+            if event_origin in exclude_origins:
+                continue
+
+            if event_origin not in event_origin_req_data_map:
+                event_origin_req_data_map[event_origin] = copy.deepcopy(validated_request_data)
+                event_origin_req_data_map[event_origin]["query_configs"] = []
+            event_origin_req_data_map[event_origin]["query_configs"].append(query_config)
+        return event_origin_req_data_map
+
+    @classmethod
+    def get_tag_detail(cls, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        # 获取 total
+        tag_detail: dict[str, Any] = {"time": validated_request_data["start_time"], "total": 0}
+        try:
+            total: int = EventTotalResource().perform_request(validated_request_data).get("total") or 0
+        except Exception:  # pylint: disable=broad-except
+            return {**tag_detail, "total": 0, "list": []}
+
+        if total == 0:
+            tag_detail["list"] = []
+            return tag_detail
+
+        if total > 20:
+            topk: list[dict[str, Any]] = cls.fetch_topk(validated_request_data)
+            for item in topk:
+                item["proportions"] = format_percent((item["count"] / total) * 100, 3, 3, 3)
+            tag_detail["topk"] = sorted(topk, key=lambda _t: -_t["count"])[: validated_request_data["limit"]]
+        else:
+            tag_detail["list"] = cls.fetch_logs(validated_request_data)
+
+        tag_detail["total"] = total
+        return tag_detail
+
+    @classmethod
+    def fetch_topk(cls, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        data_labels_map: dict[str, str] = get_data_labels_map(
+            validated_request_data["bk_biz_id"],
+            [query_config["table"] for query_config in validated_request_data["query_configs"]],
+        )
+        validated_request_data: dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["fields"] = ["event_name"]
+        origin_req_data_map: dict[tuple[str, str], dict[str, Any]] = cls.get_event_origin_req_data_map(
+            validated_request_data, data_labels_map
+        )
+        event_origin_topk_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        run_threads(
+            [
+                InheritParentThread(target=cls.query_topk, args=(event_origin, req_data, event_origin_topk_map))
+                for event_origin, req_data in origin_req_data_map.items()
+            ]
+        )
+
+        event_tuple_count_map: dict[tuple[str, str, str], int] = defaultdict(int)
+        for event_origin, topk in event_origin_topk_map.items():
+            domain, source = event_origin
+            for item in topk:
+                event_tuple_count_map[(domain, source, item["value"])] += item["count"]
+
+        event_name_translations: dict[str, dict[str, str]] = {
+            EventDomain.SYSTEM.value: SYSTEM_EVENT_TRANSLATIONS,
+            EventDomain.CICD.value: {
+                CicdEventName.PIPELINE_STATUS_INFO.value: CicdEventName.PIPELINE_STATUS_INFO.label
+            },
+        }
+        for k8s_event_name_translations in K8S_EVENT_TRANSLATIONS.values():
+            event_name_translations.setdefault(EventDomain.K8S.value, {}).update(k8s_event_name_translations)
+
+        processed_topk: list[dict[str, Any]] = []
+        for event_tuple, count in event_tuple_count_map.items():
+            domain, source, event_name = event_tuple
+            processed_topk.append(
+                {
+                    "domain": {"value": domain, "alias": EventDomain.from_value(domain).label},
+                    "source": {"value": source, "alias": EventSource.from_value(source).label},
+                    "event_name": {
+                        "value": event_name,
+                        "alias": _("{alias}（{name}）").format(
+                            alias=event_name_translations.get(domain, {}).get(event_name, event_name), name=event_name
+                        ),
+                    },
+                    "count": count,
+                }
+            )
+        return processed_topk
+
+    @classmethod
+    def query_topk(
+        cls,
+        event_origin: tuple[str, str],
+        req_data: dict[str, Any],
+        event_origin_topk_map: dict[tuple[str, str], list[dict[str, Any]]],
+    ):
+        event_origin_topk_map[event_origin] = EventTopKResource().perform_request(req_data)[0].get("list") or []
+
+    @classmethod
+    def fetch_logs(cls, validated_request_data: dict[str, Any], limit: int = 10) -> list[dict[str, Any]]:
+        validated_request_data: dict[str, Any] = copy.deepcopy(validated_request_data)
+        validated_request_data["offset"] = 0
+        return EventLogsResource().perform_request(validated_request_data).get("list") or []

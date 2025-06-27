@@ -199,7 +199,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         return item;
       }
       acc.targets.push(...item.targets);
-      acc.title = window.i18n.tc('对比');
+      acc.title = window.i18n.t('对比');
       acc.subTitle = '';
       return acc;
     }, null);

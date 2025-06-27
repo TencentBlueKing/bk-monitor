@@ -8,8 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import call, patch
+
 import pytest
-from unittest.mock import patch, call
+
 from metadata import models
 from metadata.models.space.ds_rt import (
     compose_monitor_table_detail_for_bkbase_type,
@@ -120,7 +122,7 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
     """
     测试新版BkBaseResultTable路由是否能够如期组装
@@ -152,7 +154,7 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
     assert new_way_table_id_detail_res == expected
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_doris_table_id_detail(create_or_delete_records):
     # 结果表详情路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -177,7 +179,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_bkbase_table_id_detail(create_or_delete_records):
     # 结果表详情路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -189,7 +191,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
                 '"data_label":"bkbase_rt_meta_metric",'
-                '"fields":[["metric_a","metric_b"]]}'
+                '"fields":["metric_a","metric_b"]}'
             }
 
             mock_hmset_to_redis.assert_has_calls(

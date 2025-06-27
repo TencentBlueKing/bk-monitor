@@ -35,8 +35,9 @@ import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import App from './pages/app';
 import router from './router/router';
@@ -70,7 +71,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bkUrl: window.bk_url,
   });
 
-  window.mainComponent = new Vue({
+  new Vue({
     el: '#app',
     router,
     store,
@@ -88,9 +89,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      Object.keys(data).forEach(key => {
-        window[key.toLocaleLowerCase()] = data[key];
-      });
+      assignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -107,7 +106,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bkUrl: window.bk_url,
       });
 
-      window.mainComponent = new Vue({
+      new Vue({
         el: '#app',
         router,
         store,
@@ -124,9 +123,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          Object.keys(data).forEach(key => {
-            window[key.toLocaleLowerCase()] = data[key];
-          });
+          assignWindowField(data);
         });
     })
     .catch(e => console.error(e))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -20,6 +20,7 @@ from apm_web.models import (
     LogServiceRelation,
 )
 from core.drf_resource import api
+from monitor_web.data_explorer.event.constants import EventDomain, EventSource
 
 
 class CMDBServiceRelationSerializer(serializers.ModelSerializer):
@@ -118,3 +119,24 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
             "updated_at",
             "updated_by",
         ]
+
+
+class BaseServiceRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    app_name = serializers.CharField(label="服务名")
+
+
+class BasePipelineRequestSerializer(BaseServiceRequestSerializer):
+    keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
+    page = serializers.IntegerField(label="页码", required=False, default=1)
+    page_size = serializers.IntegerField(label="每页条数", required=False, default=5)
+    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
+
+
+class PipelineOverviewRequestSerializer(BasePipelineRequestSerializer):
+    domain = serializers.CharField(label="事件领域", required=False, default=EventDomain.CICD.value)
+    source = serializers.CharField(label="事件来源", required=False, default=EventSource.BKCI.value)
+
+
+class ListPipelineRequestSerializer(BasePipelineRequestSerializer):
+    project_id = serializers.CharField(label="项目ID")

@@ -6,7 +6,7 @@ from metadata.resources import GetEventGroupResource, QueryTimeSeriesGroupResour
 from metadata.tests.common_utils import any_return_model
 from metadata.tests.task.conftest import EventGroupFakeES
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 EventGroupName = "test_event_group_1"
 DataID = 2000001
@@ -58,7 +58,7 @@ def test_get_event_group_resource(mocker, create_and_delete_record):
         GetEventGroupResource().request(with_result_table_info=False, need_refresh=False)
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 class TestTimeSeriesGroupResource:
     """测试 TimeSeriesGroupResource。"""
 
@@ -119,5 +119,5 @@ class TestTimeSeriesGroupResource:
             assert response_data["count"] == self.COUNT
             assert len(response_data["info"]) == self.PAGE_SIZE
             # 检查每页第一项的名称是否正确
-            expected_group_name = f'{self.GROUP_NAME_PREFIX}{(page_number - 1) * self.PAGE_SIZE + 1}'
+            expected_group_name = f"{self.GROUP_NAME_PREFIX}{(page_number - 1) * self.PAGE_SIZE + 1}"
             assert response_data["info"][0]["time_series_group_name"] == expected_group_name

@@ -53,7 +53,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
   initialized = false;
   metrics = [];
   legendData = [];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.t('查无数据');
   empty = true;
   extendData: IExtendDataItem[] = [];
   colorList = ['rgba(45, 203, 86)', 'rgba(255, 235, 0)', 'rgba(255, 156, 1)', 'rgba(234, 54, 54)'];
@@ -106,7 +106,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
       let series = [];
@@ -160,12 +160,12 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
         this.initialized = true;
         this.empty = false;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;

@@ -12,6 +12,7 @@ import copy
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 
+
 from bkmonitor.documents.incident import IncidentDocument
 from constants.incident import (
     IncidentGraphComponentType,
@@ -335,23 +336,24 @@ class IncidentSnapshot:
             if item["entity_id"] == entity_id
         ]
 
-    def get_entity_alert_parent(self, entity_id: str) -> IncidentGraphEntity:
+    def get_entity_alert_parent(self, entity_id: str, types: list) -> list[IncidentGraphEntity]:
         """获取实体父节点
 
         :param entity_id: 实体ID
+        :param types: 按照指定的类型列表过滤
         :return: 实体父节点
         """
-        if len(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
-            return None
+        if len(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
+            return []
 
-        parent_entity = None
-        for parent_entity_id in self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
+        parent_entities = []
+        for parent_entity_id in self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]:
             parent_entity = self.incident_graph_entities[parent_entity_id]
-            # 优先展示BcsService的有告警的父节点
-            if self.incident_graph_entities[parent_entity_id].entity_type == "BcsService":
-                break
+            if parent_entity.entity_type not in types:
+                continue
+            parent_entities.append(parent_entity)
 
-        return parent_entity
+        return parent_entities
 
     def generate_entity_sub_graph(self, entity_id: str) -> "IncidentSnapshot":
         """生成资源子图
@@ -536,6 +538,7 @@ class IncidentSnapshot:
             # 根据调用关系聚类结果进行聚合
             groups_by_clusters = self.generate_groups_by_edge_clusters()
             groups_by_clusters = self.drop_groups_duplicates(groups_by_clusters)
+            groups_by_clusters = self.drop_groups_interset(groups_by_clusters)
             groups_by_clusters = self.split_by_logic_key(groups_by_clusters)
             self.aggregate_by_groups(groups_by_clusters, entities_orders)
 
@@ -673,6 +676,41 @@ class IncidentSnapshot:
 
         return False
 
+    def drop_groups_interset(self, groups_by_clusters: dict[tuple, set]) -> dict[tuple, set]:
+        """清除存在交集但是不完全相同的任意两个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 清理交集后的分组情况
+        """
+        tmp_groups_by_clusters = copy.deepcopy(groups_by_clusters)
+
+        while True:
+            removed = False
+            for edge_cluster_id, groups in tmp_groups_by_clusters.items():
+                intersection = set()
+
+                for comp_edge_cluster_id, comp_groups in tmp_groups_by_clusters.items():
+                    if edge_cluster_id != comp_edge_cluster_id:
+                        intersection = groups & comp_groups
+                        if groups != comp_groups and len(intersection) > 0:
+                            tmp_groups_by_clusters[edge_cluster_id] -= intersection
+                            tmp_groups_by_clusters[comp_edge_cluster_id] -= intersection
+                            removed = True
+                            break
+
+                if len(intersection) > 0:
+                    break
+
+            if not removed:
+                break
+
+        result_groups = {}
+        for cluster_id, groups in tmp_groups_by_clusters.items():
+            if len(groups) >= 2:
+                result_groups[cluster_id] = groups
+
+        return result_groups
+
     def drop_groups_duplicates(self, groups_by_clusters: dict[tuple, set]) -> dict[tuple, set]:
         """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
 
@@ -767,6 +805,8 @@ class IncidentSnapshot:
 
         # 遍历被聚合的实体，把他们的边归拢到主实体的边上
         for entity in main_entity.aggregated_entities:
+            # 被聚合的节点，标记上聚合它们的外层节点
+            entity.properties["aggregated_by"] = main_entity.entity_id
             for edge_type in self.entity_targets[entity.entity_id].keys():
                 # 遍历被聚合实体指向的目标实体ID
                 for target_entity_id in self.entity_targets[entity.entity_id][edge_type]:
@@ -823,7 +863,10 @@ class IncidentSnapshot:
             self.incident_graph_edges[_to].anomaly_score = max(
                 self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
             )
-            self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
+            aggregated_edge = self.incident_graph_edges[_from]
+            # 被聚合的边，标记上聚合它们的外层边
+            aggregated_edge.properties["aggregated_by"] = list(_to)
+            self.incident_graph_edges[_to].aggregated_edges.append(aggregated_edge)
             if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
                 self.incident_graph_edges[_to].edge_cluster_id = None
 

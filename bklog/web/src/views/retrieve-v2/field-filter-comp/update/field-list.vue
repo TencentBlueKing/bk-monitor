@@ -235,7 +235,7 @@
             class="field-input"
             v-model="searchKeyword"
             left-icon="icon-search"
-            placeholder="搜索 模板名称"
+            :placeholder="$t('请输入模板名称')"
             clearable
           />
         </div>

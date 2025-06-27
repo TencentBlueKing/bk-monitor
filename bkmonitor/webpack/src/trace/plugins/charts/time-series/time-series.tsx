@@ -61,7 +61,7 @@ import {
   useChartResize,
   useCommonChartWatch,
   useTimeOffsetInject,
-  useTimeRanceInject,
+  useTimeRangeInject,
   useViewOptionsInject,
 } from '../../hooks';
 import {
@@ -165,11 +165,11 @@ export default defineComponent({
       computed(() => [])
     );
     // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
-    const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll') || ref(false);
-    const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
-    const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
-    const showRestore = inject<Ref>('showRestore') || ref(false);
-    const defaultTimeRange = useTimeRanceInject();
+    const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll', ref(false));
+    const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom', () => null);
+    const handleRestoreEvent = inject<() => void>('handleRestoreEvent', () => null);
+    const showRestore = inject<Ref>('showRestore', ref(false));
+    const defaultTimeRange = useTimeRangeInject();
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];

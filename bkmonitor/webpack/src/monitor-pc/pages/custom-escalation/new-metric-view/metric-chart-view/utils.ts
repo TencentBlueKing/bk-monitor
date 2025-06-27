@@ -28,6 +28,17 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ValueFormatter } from 'monitor-ui/monitor-echarts/valueFormats';
+
+interface NestedObject<T = unknown> {
+  [key: string]: NestedObject<T> | T;
+}
+export const typeEnums = {
+  '1h': window.i18n.tc('1小时前'),
+  '1d': window.i18n.tc('1天前'),
+  '7d': window.i18n.tc('7天前'),
+  '30d': window.i18n.tc('30天前'),
+  current: window.i18n.tc('当前'),
+};
 export const refreshList = [
   // 刷新间隔列表
   {
@@ -153,10 +164,10 @@ export function handleTransformTimeShift(val: string) {
     return val;
   }
   if (val === '1d') {
-    return this.$t('昨天');
+    return window.i18n.tc('昨天');
   }
   if (val === '1w') {
-    return this.$t('上周');
+    return window.i18n.tc('上周');
   }
   return hasMatch
     ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
@@ -168,10 +179,10 @@ export function handleTimeOffset(timeOffset: string) {
   if (match) {
     const [target, , num, type] = match;
     const map = {
-      d: this.$t('{n} 天前', { n: num }),
-      w: this.$t('{n} 周前', { n: num }),
-      M: this.$t('{n} 月前', { n: num }),
-      current: this.$t('当前'),
+      d: window.i18n.tc('{n} 天前', { n: num }),
+      w: window.i18n.tc('{n} 周前', { n: num }),
+      M: window.i18n.tc('{n} 月前', { n: num }),
+      current: window.i18n.tc('当前'),
     };
     return map[type || target];
   }
@@ -255,4 +266,24 @@ export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter,
  * */
 export const formatTipsContent = (name: string, alias: string) => {
   return `${window.i18n.tc('指标名：')}${name || '--'} <br/> ${window.i18n.tc('指标别名：')}${alias || '--'}`;
+};
+
+export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
+  // 处理特殊情况：非对象或 null
+  if (obj1 === obj2) return true;
+  if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) return false;
+
+  // 排序键名（确保键顺序不影响比较）
+  const sortKeys = obj =>
+    Object.fromEntries(
+      Object.keys(obj)
+        .sort()
+        .map(key => [key, obj[key]])
+    );
+
+  // 转为字符串并比较（忽略空格，处理数组和嵌套对象）
+  const str1 = JSON.stringify(sortKeys(obj1));
+  const str2 = JSON.stringify(sortKeys(obj2));
+
+  return str1 === str2;
 };

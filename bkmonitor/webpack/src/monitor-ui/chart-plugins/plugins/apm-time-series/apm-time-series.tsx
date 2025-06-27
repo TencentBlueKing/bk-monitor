@@ -57,8 +57,8 @@ export default class ApmTimeSeries extends TimeSeries {
 
   contextmenuInfo = {
     options: [
-      // { id: 'details', name: window.i18n.tc('查看详情') },
-      { id: 'topo', name: window.i18n.tc('查看拓扑') },
+      // { id: 'details', name: window.i18n.t('查看详情') },
+      { id: 'topo', name: window.i18n.t('查看拓扑') },
     ],
     sliceStartTime: 0, // 当前切片起始时间
     sliceEndTime: 0,
@@ -151,7 +151,7 @@ export default class ApmTimeSeries extends TimeSeries {
       return;
     }
     if (this.initialized) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
     }
@@ -405,12 +405,12 @@ export default class ApmTimeSeries extends TimeSeries {
         }, 100);
       } else {
         this.initialized = this.metrics.length > 0;
-        this.emptyText = window.i18n.tc('暂无数据');
+        this.emptyText = window.i18n.t('暂无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     // 初始化刷新定时器

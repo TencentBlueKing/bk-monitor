@@ -5,7 +5,7 @@
 
   // 给 statistics-table 中为设置 width 属性的 列 添加一个默认值，
   // 使其可以在小屏幕里也可以正常显示，以及按比例自适应显示。
-  col[width=auto] {
+  col[width='auto'] {
     width: 100px;
   }
 
@@ -136,14 +136,6 @@
     }
   }
 
-  td {
-    height: 40px !important;
-
-    .cell {
-      line-height: 40px !important;
-    }
-  }
-
   thead .cell.has-filter {
     padding: 0 15px !important;
 
@@ -189,7 +181,7 @@
   th,
   td {
     &.max_duration {
-      border-left: 1px solid #dcdee5;;
+      border-left: 1px solid #dcdee5;
     }
   }
 }

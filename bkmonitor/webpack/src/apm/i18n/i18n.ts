@@ -24,5 +24,4 @@
  * IN THE SOFTWARE.
  */
 import i18n from 'monitor-pc/i18n/i18n';
-
 export default i18n;

@@ -37,7 +37,9 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
+    DEFAULT_TRACE_VIEW_CONFIG,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
+    TRPC_TRACE_VIEW_CONFIG,
     BizConfigKey,
     CategoryEnum,
     CustomServiceMatchType,
@@ -112,7 +114,7 @@ from apm_web.service.serializers import (
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import span_time_strft, get_interval_number
+from apm_web.utils import get_interval_number, span_time_strft
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -136,7 +138,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
-from constants.data_source import ApplicationsResultTableLabel, DataTypeLabel, DataSourceLabel
+from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
@@ -273,7 +275,7 @@ class ListApplicationInfoResource(Resource):
 
     many_response_data = True
 
-    class ResponseSerializer(serializers.ModelSerializer):
+    class ApplicationInfoResponseSerializer(serializers.ModelSerializer):
         class Meta:
             ref_name = "list_application_info"
             model = Application
@@ -281,9 +283,15 @@ class ListApplicationInfoResource(Resource):
 
     def perform_request(self, validated_request_data):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
-        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).filter(
-            Application.q_filter_create_finished()
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        qs = Application.objects.filter(bk_biz_id=bk_biz_id).filter(Application.q_filter_create_finished())
+        apps = self.ApplicationInfoResponseSerializer(instance=qs, many=True).data
+        biz_trpc_apps = settings.APM_TRPC_APPS.get(str(bk_biz_id)) or []
+        for app in apps:
+            app_name = app["app_name"]
+            app["view_config"] = TRPC_TRACE_VIEW_CONFIG if app_name in biz_trpc_apps else DEFAULT_TRACE_VIEW_CONFIG
+
+        return apps
 
 
 class ApplicationInfoResource(Resource):
@@ -2258,17 +2266,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                         url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
-                        + "&listType=span",
-                        target="blank",
-                        event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-                    ),
-                    LinkTableFormat(
-                        id="statistics",
-                        name=_("统计"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
-                        + "&search_type=scope"
-                        + "&start_time={start_time}&end_time={end_time}"
-                        + "&listType=interfaceStatistics",
+                        + "&sceneMode=span&filterMode=ui",
                         target="blank",
                         event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                     ),
@@ -2314,33 +2312,19 @@ class QueryEndpointStatisticsResource(PageListResource):
 
     def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
         items = super().get_pagination_data(data, params, column_type)
+        service_name_key = OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
+        service_name = params.get("filter_params", {}).get(service_name_key)
 
         # url 拼接
         for item in items["data"]:
-            tmp = {}
-            filter_http_url = ""
-            if item["filter_key"] in ["attributes.http.url"]:
-                filter_http_url = f'&query=attributes.http.url:"{item["summary"]}"'
-            else:
-                tmp[item.get("filter_key")] = {
-                    "selectedCondition": {"label": "=", "value": "equal"},
-                    "isInclude": True,
-                    "selectedConditionValue": [item.get("summary")],
-                }
-            service_name = params.get("filter_params", {}).get(
-                OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
-            )
+            filters: list[dict[str, Any]] = [
+                {"key": item.get("filter_key"), "operator": "equal", "value": [item.get("summary")]}
+            ]
             if service_name:
-                tmp[OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)] = {
-                    "selectedCondition": {"label": "=", "value": "equal"},
-                    "isInclude": True,
-                    "selectedConditionValue": [service_name],
-                }
+                filters.append({"key": service_name_key, "operator": "equal", "value": [service_name]})
 
             for i in item["operation"]:
-                i["url"] = i["url"] + "&conditionList=" + json.dumps(tmp)
-                if filter_http_url:
-                    i["url"] += filter_http_url
+                i["url"] = i["url"] + "&where=" + json.dumps(filters)
 
         return items
 
@@ -2739,7 +2723,7 @@ class QueryExceptionTypeGraphResource(Resource):
             .end_time(validated_data["end_time"])
         )
         return resource.grafana.graph_unify_query(
-            **{**qs.config, "time_alignment": False, "query_method": "query_reference"}
+            **{**qs.config, "time_alignment": False, "null_as_zero": True, "query_method": "query_reference"}
         )
 
 
@@ -3016,8 +3000,6 @@ class CustomServiceDataViewResource(Resource):
 
 
 class CustomServiceDataSourceResource(Resource):
-    TIME_DELTA = 1
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
@@ -3029,7 +3011,7 @@ class CustomServiceDataSourceResource(Resource):
             raise ValueError(_("应用不存在"))
 
         end_time = datetime.datetime.now()
-        start_time = end_time - datetime.timedelta(days=self.TIME_DELTA)
+        start_time = end_time - datetime.timedelta(hours=2)
 
         if data["type"] == CustomServiceType.HTTP:
             return SpanHandler.get_span_urls(app, start_time, end_time)

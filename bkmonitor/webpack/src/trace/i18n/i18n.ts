@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { createI18n } from 'vue-i18n';
+import { createI18n, type Locale, type Path } from 'vue-i18n';
 
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
-import { mergeI18nJson } from 'monitor-pc/i18n/commmon';
+import { mergeI18nJson } from 'monitor-pc/i18n/common';
 
 import './dayjs';
 
@@ -37,19 +37,23 @@ if (currentLang === 'en') {
 } else {
   currentLang = 'zhCN';
 }
+// 判断当前语言是否为英文
+export const isEn = currentLang === 'enUS';
 const i18n = createI18n({
   locale: currentLang,
   fallbackLocale: 'zh-cn',
-  silentTranslationWarn: true,
-  silentFallbackWarn: true,
-  // allowComposition: true,
-  // legacy: false,
+  silentTranslationWarn: false,
+  silentFallbackWarn: false,
+  legacy: true,
+  missing: (locale: Locale, key: Path) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`缺少翻译key: ${key} in ${locale}`);
+    }
+    return key;
+  },
   messages: {
     ...mergeI18nJson(),
   },
 });
 window.i18n = i18n.global;
-window.mainComponent = {
-  $t: window.i18n.tc,
-};
 export default i18n;

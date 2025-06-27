@@ -10,9 +10,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import importlib
 import ntpath
 import os
 import sys
+import warnings
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -22,15 +24,15 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
+from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
-from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
+    IS_CONTAINER_MODE,  # noqa
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -152,8 +154,8 @@ FORCE_SCRIPT_NAME = SITE_URL
 STATICFILES_DIRS = []
 STATIC_VERSION = "1.0"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
-STATIC_URL = "%sstatic/" % SITE_URL
-REMOTE_STATIC_URL = "%sremote/" % STATIC_URL
+STATIC_URL = f"{SITE_URL}static/"
+REMOTE_STATIC_URL = f"{STATIC_URL}remote/"
 
 # 文件资源配置
 MEDIA_ROOT = os.path.join(BASE_DIR, "USERRES")
@@ -179,8 +181,8 @@ BK_PAAS_INNER_HOST = (
 )
 BK_COMPONENT_API_URL = os.getenv("BK_COMPONENT_API_URL") or BK_PAAS_INNER_HOST
 BK_COMPONENT_API_URL_FRONTEND = os.getenv("BK_COMPONENT_API_URL") or BK_PAAS_HOST
-BK_LOGIN_URL = os.getenv("BKPAAS_LOGIN_URL", "%s/login" % BK_PAAS_HOST).rstrip("/")
-BK_LOGIN_INNER_URL = os.getenv("BK_LOGIN_INNER_URL", "%s/login" % BK_PAAS_INNER_HOST).rstrip("/")
+BK_LOGIN_URL = os.getenv("BKPAAS_LOGIN_URL", f"{BK_PAAS_HOST}/login").rstrip("/")
+BK_LOGIN_INNER_URL = os.getenv("BK_LOGIN_INNER_URL", f"{BK_PAAS_INNER_HOST}/login").rstrip("/")
 ESB_SDK_NAME = "blueking.component"
 
 # 内外差异化配置
@@ -445,6 +447,9 @@ SKIP_PLUGIN_DEBUG = False
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
 
+# bk-monitor-worker api 地址
+BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -543,6 +548,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
+# {2:["app1", "app2"], 3:["app_name"]}
+APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
@@ -614,11 +621,6 @@ DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID = os.getenv(
     "BKAPP_DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID",
     os.getenv("BK_DEBUGGING_BCS_CLUSTER_ID_MAPPING_BIZ_ID", ""),
 )
-
-# BCS 集群灰度
-BCS_API_DATA_SOURCE = "db"
-BCS_GRAY_CLUSTER_ID_LIST = []
-ENABLE_BCS_GRAY_CLUSTER = False
 
 # UNIFY-QUERY支持bkdata查询灰度业务列表
 BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST = []
@@ -728,7 +730,7 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "bkmonitor.db_routers.TableVisitCountRouter"]
 
 # 数据库配置
 (
@@ -758,11 +760,12 @@ else:
 ) = get_grafana_mysql_settings()
 
 try:
-    from dj_db_conn_pool.backends import mysql
+    # 判断 dj_db_conn_pool 是否存在
+    importlib.import_module("dj_db_conn_pool")
 
     assert ROLE == "web"
     default_db_engine = "dj_db_conn_pool.backends.mysql"
-except (ImportError, AssertionError):
+except (AssertionError, ModuleNotFoundError):
     default_db_engine = "django.db.backends.mysql"
 
 DATABASES = {
@@ -778,6 +781,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -786,6 +790,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -847,6 +852,18 @@ if not os.path.exists(LOG_PATH):
         os.makedirs(LOG_PATH)
     except Exception:
         pass
+
+# 单独配置部分模块日志级别
+LOG_LEVEL_MAP = {
+    "iam": "ERROR",
+    "bk_dataview": "ERROR",
+    "elasticsearch": "WARNING",
+    "kafka": "WARNING",
+}
+
+warnings.filterwarnings(
+    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 #
 # 数据平台接入配置
@@ -928,7 +945,6 @@ BK_DATA_AIOPS_INCIDENT_BROKER_URL = os.getenv(
 )
 BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE = os.getenv("BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE", "aiops_incident")
 
-
 # 表后缀(字母或数字([A-Za-z0-9]), 不能有下划线"_", 且最好不超过10个字符)
 BK_DATA_RAW_TABLE_SUFFIX = "raw"  # 数据接入
 BK_DATA_CMDB_FULL_TABLE_SUFFIX = "full"  # 补充cmdb节点信息后的表后缀
@@ -995,6 +1011,9 @@ LINUX_PLUGIN_PID_PATH = "/var/run/gse"
 LINUX_PLUGIN_LOG_PATH = "/var/log/gse"
 LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
+
+# 采集配置升级，使用订阅更新模式的业务列表
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
@@ -1122,7 +1141,7 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
+BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1159,8 +1178,11 @@ BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
+# 蓝盾网关接口请求头应用鉴权信息，有此配置，认证请求头优先使用此配置
+BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
+BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = "%s?bizId={bk_biz_id}/#/event-center/action-detail/{action_id}" % BK_MONITOR_HOST
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
 )
@@ -1169,8 +1191,6 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
 BK_IAM_SYSTEM_NAME = _("监控平台")
-
-BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST") or "http://bkiam.service.consul:5001")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
@@ -1257,7 +1277,6 @@ SHOW_REALTIME_STRATEGY = False
 # 强制使用数据平台查询的cmdb层级表
 BKDATA_CMDB_LEVEL_TABLES = []
 
-
 # 邮件报表整屏渲染等待时间
 MAIL_REPORT_FULL_PAGE_WAIT_TIME = 60
 
@@ -1335,6 +1354,16 @@ ALARM_BACKEND_CLUSTER_NAME = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_NAME", 
 ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 0)
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
+# AIDEV配置
+MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL = os.getenv("BK_MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL")
+AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
+AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
+AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
+AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
+AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
+# AIAgent内容生成关键字
+AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
@@ -1373,7 +1402,7 @@ ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
-    os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
+    os.environ["BK_API_URL_TMPL"] = f"{BK_COMPONENT_API_URL}/api/{{api_name}}"
 
 BK_API_URL_TMPL = os.getenv("BK_API_URL_TMPL")
 
@@ -1390,9 +1419,6 @@ ES_CLUSTER_BLACKLIST = []
 # BCS 数据合流配置， 默认为 不启用
 BCS_DATA_CONVERGENCE_CONFIG = {}
 
-# 是否启用 BCS CC 的项目接口
-ENABLE_BCS_CC_PROJECT_API = False
-
 # 独立的vm集群的空间列表
 SINGLE_VM_SPACE_ID_LIST = []
 
@@ -1401,9 +1427,6 @@ DOC_LINK_MAPPING = {}
 
 # 插件授权给 bkci 空间使用
 BKCI_SPACE_ACCESS_PLUGIN_LIST = []
-
-# 禁用告警CMDB缓存刷新
-DISABLE_ALARM_CMDB_CACHE_REFRESH = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
@@ -1462,7 +1485,7 @@ ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 是否启用新版方式接入计算平台
-ENABLE_V2_ACCESS_BKBASE_METHOD = False
+ENABLE_V2_ACCESS_BKBASE_METHOD = True
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
@@ -1571,9 +1594,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
-# 事件检索新版灰度列表
-EVENT_V2_BIZ_LIST = []
-
 # Trace 检索新版灰度配置
 TRACE_V2_BIZ_LIST = []
 
@@ -1603,11 +1623,13 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
+# IAM多租户配置
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
 
-# 新版自定义时序灰度业务列表
-ENABLE_CUSTOM_TS_V2_BIZ_LIST = []
-
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
+
+# 用户管理web api地址
+BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"

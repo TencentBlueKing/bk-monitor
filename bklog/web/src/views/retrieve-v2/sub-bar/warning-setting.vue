@@ -29,9 +29,16 @@
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
-              <div class="selector-owner" v-if="active === 'mission'">
-                我的
-                <bk-switcher class="selector-owner-switch" size="small" v-model="filterOwner"></bk-switcher>
+              <div
+                class="selector-owner"
+                v-if="active === 'mission'"
+              >
+                {{ $t('我的') }}
+                <bk-switcher
+                  class="selector-owner-switch"
+                  size="small"
+                  v-model="filterOwner"
+                ></bk-switcher>
               </div>
               <div
                 v-if="active === 'mission'"
@@ -216,7 +223,9 @@
 
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
-  // import label from '../../../language/lang/en/label';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+
   const { t } = useLocale();
   const store = useStore();
 
@@ -255,13 +264,12 @@
   // 本人待处理数量
   const ownPendingCount = ref(0);
 
-
   const activeBar = {
     position: 'top',
     height: '6px',
   };
   const loading = ref(false);
-  const filterOwner = ref(true)
+  const filterOwner = ref(true);
   const active = ref('mission');
   const typeMap = {
     all: 'ALL',
@@ -280,13 +288,16 @@
   const originRecordList = ref([]);
   const strategyList = ref([]);
   const recordListshow = computed(() => {
-    if(filterOwner.value){
-      return recordList.value.filter((item: any) =>item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username))
-    }else{
-      return recordList.value
+    if (filterOwner.value) {
+      return recordList.value.filter(
+        (item: any) =>
+          item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+          item.appointee?.some(appointee => appointee === userMeta.value.username),
+      );
+    } else {
+      return recordList.value;
     }
   });
-
 
   const pageSize = 10;
 
@@ -341,7 +352,7 @@
   const handleTabChange = () => {
     tableKey.value += 1;
   };
-  
+
   const handleSortChange = ({ column }: { column }) => {
     if (!column.order) {
       recordList.value = originRecordList.value;
@@ -366,11 +377,6 @@
     const [start_time, end_time] = store.state.indexItem.datePickerValue;
 
     return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
-
-
-       
-   
-
   };
 
   const handleJumpMonitor = () => {
@@ -379,20 +385,15 @@
       config: 'strategy-config',
     };
     if (active.value === 'mission') {
-      const res = getQueryString()
-      window.open(
-        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
-        '_blank',
-      );
+      const res = getQueryString();
+      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank');
       return;
     }
 
-   
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
       '_blank',
-    )
-   
+    );
   };
 
   const handleViewWarningDetail = row => {
@@ -433,9 +434,12 @@
 
       if (val === 'NOT_SHIELDED_ABNORMAL') {
         badgeCount.value = res?.data.length;
-        ownPendingCount.value = res?.data.filter(item =>{
-          return item.assignee?.some(assignee => assignee === userMeta.value.username) || item.appointee?.some(appointee => appointee === userMeta.value.username)
-        }).length
+        ownPendingCount.value = res?.data.filter(item => {
+          return (
+            item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+            item.appointee?.some(appointee => appointee === userMeta.value.username)
+          );
+        }).length;
       }
 
       recordList.value = res?.data || [];
@@ -490,7 +494,7 @@
   };
 
   const handleViewLogInfo = row => {
-    const startTime = row.first_anomaly_time * 1000
+    const startTime = row.first_anomaly_time * 1000;
     const endTime = row.end_time * 1000 || Date.now();
 
     loading.value = true;
@@ -520,17 +524,22 @@
             }),
             keyword: query_string,
           };
-          resolveCommonParams(params);
-          resolveQueryParams(params, true).then(res => {
-            if (res) {
-              store.commit('updateIndexItemParams', { start_time: startTime, end_time: endTime, datePickerValue: [startTime, endTime] });
-              setTimeout(() => {
+          resolveCommonParams(params).then(() => {
+            resolveQueryParams(params, true).then(res => {
+              if (res) {
+                store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+                store.commit('updateIndexItemParams', {
+                  start_time: startTime,
+                  end_time: endTime,
+                  datePickerValue: [startTime, endTime],
+                });
                 store.dispatch('requestIndexSetQuery', { isPagination: false });
+                RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
                 PopInstanceUtilInstance.hide();
-              });
-             
-            }
+              }
+            });
           });
+
           return;
         }
 
@@ -575,9 +584,12 @@
       }
     },
   );
-  watch(() => recordListshow.value.length, (newLength) => {
-    panels.value[0].count = newLength;
-  });
+  watch(
+    () => recordListshow.value.length,
+    newLength => {
+      panels.value[0].count = newLength;
+    },
+  );
 </script>
 <style lang="scss">
   .warn-table-wrap {
@@ -630,7 +642,7 @@
             /* stylelint-disable-next-line declaration-no-important */
             line-height: 42px !important;
 
-            .panel-name{
+            .panel-name {
               font-size: 13px;
             }
           }
@@ -664,7 +676,7 @@
         }
 
         .bk-table-row-striped td {
-          background-color: #FAFBFD;
+          background-color: #fafbfd;
         }
       }
     }
@@ -686,12 +698,12 @@
     }
   }
 
-  .selector-owner{
+  .selector-owner {
     display: flex;
     align-items: center;
     margin-right: 10px;
 
-    .selector-owner-switch{
+    .selector-owner-switch {
       margin-left: 5px;
     }
   }
@@ -708,7 +720,7 @@
     border-radius: 4px;
   }
 
-  .selector-more{
+  .selector-more {
     font-size: 12px;
   }
 

@@ -41,6 +41,7 @@ from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import (
     hms_string,
     parse_time_compare_abbreviation,
@@ -230,7 +231,7 @@ class AddNullDataProcessor:
             last_datapoint_timestamp = None
             for timestamp in range(start_time, end_time, interval):
                 if time_to_value[timestamp] is None:
-                    if not time_alignment:
+                    if params.get("null_as_zero"):
                         # 补 0 代替补 Null
                         row["datapoints"].append([0, timestamp])
                         last_datapoint_timestamp = timestamp
@@ -562,17 +563,18 @@ class UnifyQueryRawResource(ApiAuthResource):
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
         time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
+        null_as_zero = serializers.BooleanField(label="是否将空值转换为0", required=False, default=False)
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
 
         @classmethod
         def to_str(cls, value):
             if isinstance(value, dict):
-                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, (dict, list))}
+                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, dict | list)}
             elif isinstance(value, list):
-                return [cls.to_str(v) for v in value if v or not isinstance(v, (dict, list))]
+                return [cls.to_str(v) for v in value if v or not isinstance(v, dict | list)]
             elif isinstance(value, dict):
-                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, (dict, list))}
+                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, dict | list)}
             else:
                 return str(value)
 
@@ -642,7 +644,9 @@ class UnifyQueryRawResource(ApiAuthResource):
         if not metric_queries:
             return []
 
-        metrics = MetricListCache.objects.filter(reduce(lambda x, y: x | y, metric_queries))
+        metrics = MetricListCache.objects.filter(
+            reduce(lambda x, y: x | y, metric_queries), bk_tenant_id=get_request_tenant_id()
+        )
         metric_infos = cls.transfer_metric(metrics=metrics, bk_biz_id=params["bk_biz_id"])
         return metric_infos
 
@@ -964,7 +968,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             )
 
             if record.get("_result_") is not None:
-                if isinstance(record["_result_"], (int, float)):
+                if isinstance(record["_result_"], int | float):
                     record["_result_"] = round(record["_result_"], settings.POINT_PRECISION)
 
                 # 查询结果取值
@@ -989,7 +993,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     alias = metric.get("alias") or metric["field"]
                     if record.get(alias) is not None:
                         value = record[alias]
-                        if isinstance(value, (int, float)):
+                        if isinstance(value, int | float):
                             value = round(value, settings.POINT_PRECISION)
                         formatted_data[dimensions].setdefault((alias, display_dimension), []).append(
                             [value, record["_time_"]]

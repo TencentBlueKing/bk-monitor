@@ -656,7 +656,7 @@ def generate_query_string(params: dict) -> str:
     if additions:
         str_additions = []
         for addition in additions:
-            if not addition.get("field"):
+            if not addition.get("field") or not addition.get("operator"):
                 continue
             if addition["operator"] in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
                 str_additions.append(f"{addition['field']} {addition['operator']}")
@@ -867,7 +867,7 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
     例如: 'abc" cde\'fgh'ijkl'mn' => "abc\" cde'fgh"ijkl"mn"
     """
 
-    RE = r"'(?:[^'\\]|\\.)*'"
+    RE = r"\"(?:\\.|[^\"\\])*\"|(?P<content>'(?:\\.|[^\'\\])*')"
 
     def match(self) -> bool:
         if re.search(self.RE, self.query_string):
@@ -875,13 +875,14 @@ class SingleQuotationMarkAdaptationEnhanceLucene(EnhanceLuceneBase):
         return False
 
     def transform(self) -> str:
-        matches = re.findall(self.RE, self.query_string)
+        matches = re.finditer(self.RE, self.query_string)
         if not matches:
             return self.query_string
-        for original in matches:
-            res = original.replace('"', '\\"').replace("\\'", "'")
-            target_str = '"' + res[1:-1] + '"'
-            self.query_string = self.query_string.replace(original, target_str)
+        for match in matches:
+            if original := match.group("content"):
+                res = original.replace('"', '\\"').replace("\\'", "'")
+                target_str = '"' + res[1:-1] + '"'
+                self.query_string = self.query_string.replace(original, target_str)
         return self.query_string
 
 

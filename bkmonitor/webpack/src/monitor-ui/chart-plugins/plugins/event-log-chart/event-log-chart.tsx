@@ -98,71 +98,71 @@ class EventLogChart extends CommonSimpleChart {
   }
 
   async getPanelData(start_time?: string, end_time?: string): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      this.beforeGetPanelData(start_time, end_time);
-      this.handleLoadingChange(true);
-      this.emptyText = window.i18n.tc('加载中...');
-      try {
-        this.unregisterObserver();
-        // const { startTime, endTime } = handleTimeRange(this.timeRange);
-        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-        const params = {
-          data_format: 'scene_view',
-          limit: this.pagination.limit,
-          offset: (this.pagination.current - 1) * this.pagination.limit,
-          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-          end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        };
-        const variablesService = new VariablesService({
-          ...this.scopedVars,
-          ...this.variables,
-          interval: reviewInterval(
-            this.viewOptions.interval,
-            params.end_time - params.start_time,
-            this.panel.collect_interval
-          ),
-        });
-        const promiseList = this.tablePanel.targets.map(item =>
-          (this as any).$api[item.apiModule]
-            [item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions,
-                },
+    this.beforeGetPanelData(start_time, end_time);
+    this.handleLoadingChange(true);
+    this.emptyText = window.i18n.t('加载中...').toString();
+    try {
+      this.unregisterObserver();
+      // const { startTime, endTime } = handleTimeRange(this.timeRange);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const params = {
+        data_format: 'scene_view',
+        limit: this.pagination.limit,
+        offset: (this.pagination.current - 1) * this.pagination.limit,
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
+      };
+      const variablesService = new VariablesService({
+        ...this.scopedVars,
+        ...this.variables,
+        interval: reviewInterval(
+          this.viewOptions.interval,
+          params.end_time - params.start_time,
+          this.panel.collect_interval
+        ),
+      });
+      const promiseList = this.tablePanel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          [item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.series = res;
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
-        );
-        const res = await Promise.all(promiseList).catch(() => false);
-        if (!!res) {
-          this.initialized = true;
-          this.empty = false;
-          this.columns = res[0].columns;
-          this.tableData = res[0].data;
-          this.pagination.count = res[0].total;
-          resolve(res);
-        } else {
-          this.emptyText = window.i18n.tc('查无数据');
-          this.empty = true;
-        }
-      } catch (e) {
-        this.empty = true;
-        this.emptyText = window.i18n.tc('出错了');
-        console.error(e);
-        reject(e);
+            },
+            { needMessage: false }
+          )
+          .then((res: any) => {
+            this.series = res;
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch((error: any) => {
+            this.handleErrorMsgChange(error.msg || error.message);
+            return null;
+          })
+      );
+      const res = await Promise.all(promiseList);
+      if (res?.[0]) {
+        this.initialized = true;
+        this.empty = false;
+        this.columns = res[0].columns;
+        this.tableData = res[0].data;
+        this.pagination.count = res[0].total;
+        return res;
       }
+      this.emptyText = window.i18n.t('查无数据').toString();
+      this.empty = true;
+      return null;
+    } catch (e: any) {
+      this.empty = true;
+      this.emptyText = window.i18n.t('出错了').toString();
+      console.error(e);
+      throw e;
+    } finally {
       this.handleLoadingChange(false);
-    });
+    }
   }
 
   handleTimeRangeChange() {
@@ -235,6 +235,7 @@ class EventLogChart extends CommonSimpleChart {
         >
           {[
             <TimeSeries
+              key='time-series'
               ref='timeSeries'
               class='event-log-bar'
               needSetEvent={false}
@@ -244,6 +245,7 @@ class EventLogChart extends CommonSimpleChart {
             />,
             !!this.tableData.length && (
               <CommonTable
+                key='event-log-table'
                 class='event-log-table'
                 checkable={false}
                 columns={this.columns as any}

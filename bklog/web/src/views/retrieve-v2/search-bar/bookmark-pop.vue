@@ -35,7 +35,7 @@
       type: Boolean,
     },
   });
-  const emit = defineEmits(['refresh', 'save-current-active-favorite']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -43,9 +43,15 @@
 
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
-  const indexSetItemList = computed(() => store.state.indexItem.items);
+  // const indexSetItemList = computed(() => store.state.indexItem.items);
+  // const indexSetName = computed(() => {
+  //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+  // });
   const indexSetName = computed(() => {
-    return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+    const indexSetList = store.state.retrieve.indexSetList || [];
+    const indexSetId = store.state.indexId;
+    const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
   });
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
@@ -305,6 +311,7 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
+    emit('instanceShow',false);
     nextTick(() => {
       popoverContentRef.value?.clearError();
     });
@@ -315,6 +322,11 @@
   const popoverShow = ref(false);
   // 弹窗按钮打开逻辑
   const handleCollection = () => {
+    popoverShow.value ? hidePopover() : showPopover();
+  };
+  // 历史记录弹窗按钮打开逻辑
+  const handleHistoryCollection = () => {
+    emit('instanceShow',true);
     popoverShow.value ? hidePopover() : showPopover();
   };
   const showPopover = () => {
@@ -361,7 +373,7 @@
     <span v-if="activeFavorite === 'history'">
       <span
         class="bklog-icon bklog-lc-star-shape"
-        @click.stop="handleCollection"
+        @click.stop="handleHistoryCollection"
       >
       </span>
     </span>
@@ -420,7 +432,7 @@
         >
           <bk-form-item
             :property="'name'"
-            label="收藏名称"
+            :label="$t('收藏名称')"
             required
           >
             <bk-input
@@ -430,14 +442,14 @@
           </bk-form-item>
           <bk-form-item
             :property="'project'"
-            label="所属分组"
+            :label="$t('所属分组')"
           >
             <bk-select
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"
-              placeholder="未编组"
+              :placeholder="$t('未编组')"
               searchable
               @change="handleSelectGroup"
             >
@@ -507,7 +519,7 @@
             </bk-select>
           </bk-form-item>
 
-          <bk-form-item label="索引集">
+          <bk-form-item :label="$t('索引集')">
             <bk-input
               :value="indexSetName"
               readonly
@@ -515,7 +527,7 @@
             ></bk-input>
           </bk-form-item>
 
-          <bk-form-item label="查询语句">
+          <bk-form-item :label="$t('查询语句')">
             <bk-input
               :value="sqlString"
               type="textarea"

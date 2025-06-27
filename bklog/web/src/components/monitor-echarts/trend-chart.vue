@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, onBeforeUnmount, inject } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject, onMounted } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -199,7 +199,14 @@
   );
 
   onBeforeUnmount(() => {
+    finishPolling.value = true;
+    runningTimer && clearTimeout(runningTimer);
     logChartCancel?.();
+    RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
+    RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
   });
 </script>
 <script>

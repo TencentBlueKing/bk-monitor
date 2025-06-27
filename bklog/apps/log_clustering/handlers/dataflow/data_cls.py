@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,13 +20,13 @@ the project delivered to anyone in the future.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
 
 @dataclass
-class ExportFlowCls(object):
+class ExportFlowCls:
     """
     导出flow
     """
@@ -36,7 +35,7 @@ class ExportFlowCls(object):
 
 
 @dataclass
-class CreateFlowCls(object):
+class CreateFlowCls:
     """
     创建flow
     """
@@ -47,7 +46,7 @@ class CreateFlowCls(object):
 
 
 @dataclass
-class OperatorFlowCls(object):
+class OperatorFlowCls:
     """
     开启flow
     """
@@ -58,7 +57,7 @@ class OperatorFlowCls(object):
 
 
 @dataclass
-class StopFlowCls(object):
+class StopFlowCls:
     """
     停止flow
     """
@@ -67,13 +66,13 @@ class StopFlowCls(object):
 
 
 @dataclass
-class FrontendInfoCls(object):
+class FrontendInfoCls:
     x: float = 30.0
     y: float = 51.0
 
 
 @dataclass
-class StreamSourceNodeCls(object):
+class StreamSourceNodeCls:
     """
     实时数据源node
     """
@@ -82,29 +81,29 @@ class StreamSourceNodeCls(object):
     bk_biz_id: int
     name: str
     id: int
-    from_nodes: List[str] = field(default_factory=list)
+    from_nodes: list[str] = field(default_factory=list)
     node_type: str = "stream_source"
     frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
-class InputNodeCls(object):
+class InputNodeCls:
     serving_fields_mapping: dict
     input_result_table: str
     group_serving: bool = False
     grouped_training: bool = False
     group_serving_enable: bool = True
-    input_fields: List[str] = field(default_factory=list)
-    group_columns: List[str] = field(default_factory=list)
+    input_fields: list[str] = field(default_factory=list)
+    group_columns: list[str] = field(default_factory=list)
 
 
 @dataclass
-class InputConfigCls(object):
+class InputConfigCls:
     input_node: InputNodeCls
 
 
 @dataclass
-class OutputNodeFieldsCls(object):
+class OutputNodeFieldsCls:
     origin: list
     default_value: bool
     field_alias: str
@@ -125,21 +124,21 @@ class OutputNodeFieldsCls(object):
 
 
 @dataclass
-class OutputNodeCls(object):
-    output_fields: List[OutputNodeFieldsCls]
+class OutputNodeCls:
+    output_fields: list[OutputNodeFieldsCls]
     table_alias: str
     table_name: str
     table_zh_name: str
 
 
 @dataclass
-class OutputConfigCls(object):
+class OutputConfigCls:
     output_node: OutputNodeCls
 
 
 @dataclass
-class ServingSchedulerParamsCls(object):
-    recovery: Dict = field(default_factory=lambda: {"enable": False, "interval_time": "5m", "retry_times": 1})
+class ServingSchedulerParamsCls:
+    recovery: dict = field(default_factory=lambda: {"enable": False, "interval_time": "5m", "retry_times": 1})
     data_period: int = 1
     data_period_unit: str = "day"
     period: int = 1
@@ -150,44 +149,44 @@ class ServingSchedulerParamsCls(object):
 
 
 @dataclass
-class ScheduleConfigCls(object):
+class ScheduleConfigCls:
     serving_scheduler_params: ServingSchedulerParamsCls
     training_scheduler_params: Any = None
 
 
 @dataclass
-class SpecificUpdateConfigCls(object):
+class SpecificUpdateConfigCls:
     update_time: str
     specific_update: bool
 
 
 @dataclass
-class SampleFeedbackConfigCls(object):
+class SampleFeedbackConfigCls:
     result_table_feedback: bool
     specific_update_config: SpecificUpdateConfigCls
 
 
 @dataclass
-class UpgradeConfigCls(object):
+class UpgradeConfigCls:
     auto_upgrade: bool
     notification: bool
 
 
 @dataclass
-class FromNodesCls(object):
+class FromNodesCls:
     id: int
-    from_result_table_ids: List[str]
+    from_result_table_ids: list[str]
 
 
 @dataclass
-class ModelClusterPredictNodeCls(object):
+class ModelClusterPredictNodeCls:
     """
     聚类预测模型应用
     """
 
     table_name: str
     result_table_id: str
-    clustering_training_params: Dict
+    clustering_training_params: dict
     model_release_id: int
     model_id: str
     input_fields: str
@@ -195,7 +194,7 @@ class ModelClusterPredictNodeCls(object):
 
 
 @dataclass
-class ModelTsCustomNodeCls(object):
+class ModelTsCustomNodeCls:
     """
     时序模型应用
     """
@@ -210,24 +209,24 @@ class ModelTsCustomNodeCls(object):
     schedule_config: ScheduleConfigCls
     model_id: str
     id: int
-    from_nodes: List[FromNodesCls]
+    from_nodes: list[FromNodesCls]
     serving_mode: str = "realtime"
-    sample_feedback_config: Dict = field(default_factory=lambda: {"result_table_feedback": False})
-    upgrade_config: Dict = field(
+    sample_feedback_config: dict = field(default_factory=lambda: {"result_table_feedback": False})
+    upgrade_config: dict = field(
         default_factory=lambda: {
             "auto_upgrade": True,
             "notification": False,
             "specific_update_config": {"update_time": "12:00:00", "specific_update": False},
         }
     )
-    model_extra_config: Dict = field(default_factory=lambda: {"predict_args": []})
+    model_extra_config: dict = field(default_factory=lambda: {"predict_args": []})
     scene_name: str = "custom"
     node_type: str = "model_ts_custom"
     frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
-class RealTimeNodeCls(object):
+class RealTimeNodeCls:
     """
     实时计算
     """
@@ -243,7 +242,7 @@ class RealTimeNodeCls(object):
     output_name: str
     window_lateness: dict
     id: int
-    from_nodes: List[FromNodesCls]
+    from_nodes: list[FromNodesCls]
     node_type: str = "realtime"
     counter: Any = None
     session_gap: Any = None
@@ -254,7 +253,7 @@ class RealTimeNodeCls(object):
 
 
 @dataclass
-class TspiderStorageNodeCls(object):
+class TspiderStorageNodeCls:
     """
     tspider落地存储
     """
@@ -262,19 +261,19 @@ class TspiderStorageNodeCls(object):
     name: str
     result_table_id: str
     bk_biz_id: int
-    indexed_fields: List[str]
+    indexed_fields: list[str]
     cluster: str
     expires: int
     has_unique_key: bool
     storage_keys: list
     id: int
-    from_nodes: List[FromNodesCls]
+    from_nodes: list[FromNodesCls]
     node_type: str = "tspider_storage"
     frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
-class QueueStorageNodeCls(object):
+class QueueStorageNodeCls:
     """
     队列存储节点
     """
@@ -285,13 +284,13 @@ class QueueStorageNodeCls(object):
     expires: int
     result_table_id: str
     id: int
-    from_nodes: List[FromNodesCls]
+    from_nodes: list[FromNodesCls]
     node_type: str = "queue_storage"
     frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
-class StreamSourceCls(object):
+class StreamSourceCls:
     """
     实时数据源节点输入
     """
@@ -300,7 +299,7 @@ class StreamSourceCls(object):
 
 
 @dataclass
-class RealTimeCls(object):
+class RealTimeCls:
     """
     实时计算输入
     """
@@ -313,7 +312,7 @@ class RealTimeCls(object):
 
 
 @dataclass
-class HDFSStorageCls(object):
+class HDFSStorageCls:
     """
     hdfs存储
     """
@@ -323,7 +322,7 @@ class HDFSStorageCls(object):
 
 
 @dataclass
-class PreTreatDataFlowCls(object):
+class PreTreatDataFlowCls:
     stream_source: StreamSourceCls
     sample_set: RealTimeCls
     sample_set_hdfs: HDFSStorageCls
@@ -334,7 +333,7 @@ class PreTreatDataFlowCls(object):
 
 
 @dataclass
-class ModelCls(object):
+class ModelCls:
     table_name: str
     model_release_id: int
     model_id: str
@@ -344,30 +343,30 @@ class ModelCls(object):
 
 
 @dataclass
-class MergeNodeCls(object):
+class MergeNodeCls:
     table_name: str
     result_table_id: str
 
 
 @dataclass
-class TspiderStorageCls(object):
+class TspiderStorageCls:
     cluster: str
     expires: int
 
 
 @dataclass
-class RedisStorageCls(object):
+class RedisStorageCls:
     cluster: str
 
 
 @dataclass
-class SplitCls(object):
+class SplitCls:
     table_name: str
     result_table_id: str
 
 
 @dataclass
-class ElasticsearchCls(object):
+class ElasticsearchCls:
     analyzed_fields: str = ""
     doc_values_fields: str = ""
     json_fields: str = ""
@@ -376,7 +375,7 @@ class ElasticsearchCls(object):
 
 
 @dataclass
-class AfterTreatDataFlowCls(object):
+class AfterTreatDataFlowCls:
     sample_set_stream_source: StreamSourceCls
     non_clustering_stream_source: StreamSourceCls
     model: ModelCls
@@ -400,7 +399,7 @@ class AfterTreatDataFlowCls(object):
 
 
 @dataclass
-class PredictDataFlowCls(object):
+class PredictDataFlowCls:
     table_name_no_id: str
     result_table_id: str
     clustering_stream_source: RealTimeCls
@@ -413,12 +412,12 @@ class PredictDataFlowCls(object):
 
 
 @dataclass
-class LogCountAggregationFlowCls(object):
+class LogCountAggregationFlowCls:
     """
     日志数量统计聚合
     """
 
-    log_count_signatures: List[str]
+    log_count_signatures: list[str]
     table_name_no_id: str
     result_table_id: str
     agg: RealTimeCls
@@ -430,13 +429,13 @@ class LogCountAggregationFlowCls(object):
 
 
 @dataclass
-class AddFlowNodesCls(object):
+class AddFlowNodesCls:
     flow_id: int
     result_table_id: str
-    from_links: List = field(default_factory=list)
+    from_links: list = field(default_factory=list)
     node_type: str = "redis_kv_source"
-    frontend_info: Dict = field(default_factory=lambda: {"x": 1247.0, "y": 426.0})
-    config: Dict = field(
+    frontend_info: dict = field(default_factory=lambda: {"x": 1247.0, "y": 426.0})
+    config: dict = field(
         default_factory=lambda: {
             "bk_biz_id": 0,
             "from_result_table_ids": [],
@@ -447,50 +446,32 @@ class AddFlowNodesCls(object):
 
 
 @dataclass
-class RequireNodeCls(object):
-    node_id: int
-    result_table_id: str
-    id: str
-
-
-@dataclass
-class ModifyFlowCls(object):
-    id: str
-    flow_id: int
-    node_id: int
-    bk_biz_id: int
-    table_name: str
-    group_by_node: RequireNodeCls
-    redis_node: RequireNodeCls
-
-
-@dataclass
-class UpdateModelInstanceCls(object):
+class UpdateModelInstanceCls:
     filter_id: str
-    execute_config: Dict
+    execute_config: dict
     table_name: str = "model_instance"
 
 
 @dataclass
-class CreateOnlineTaskCls(object):
+class CreateOnlineTaskCls:
     """
     创建在线训练任务
     """
 
     model_instance_id: int
-    pipeline_params: Dict
-    trigger: Dict
+    pipeline_params: dict
+    trigger: dict
     aiops_stage: str
 
 
 @dataclass
-class UpdateOnlineTaskCls(object):
+class UpdateOnlineTaskCls:
     """
     更新在线训练任务
     """
 
     model_instance_id: int
-    pipeline_params: Dict
-    trigger: Dict
+    pipeline_params: dict
+    trigger: dict
     aiops_stage: str
     online_task_id: int
