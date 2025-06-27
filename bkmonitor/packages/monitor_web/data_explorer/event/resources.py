@@ -733,7 +733,7 @@ class EventStatisticsInfoResource(EventBaseResource):
         return queryset.expression(f"{method}(a)") if method in {"max", "min"} else queryset.expression("a")
 
 
-class EventGenerateQueryStringResource(Resource):
+class EventGenerateQueryStringResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = ""
     RequestSerializer = serializers.EventGenerateQueryStringRequestSerializer
 
@@ -741,7 +741,7 @@ class EventGenerateQueryStringResource(Resource):
     def is_return_default_early(cls, validated_request_data: dict[str, Any]) -> bool:
         return False
 
-    def perform_request(self, data):
+    def _perform_request(self, data):
         generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
         for f in data["where"]:
             generator.add_filter(
