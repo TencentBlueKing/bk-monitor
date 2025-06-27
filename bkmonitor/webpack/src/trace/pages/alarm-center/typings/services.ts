@@ -48,6 +48,8 @@ export type QuickFilterItem = {
   name: string;
   count?: number;
   icon?: string;
+  textColor?: string;
+  iconColor?: string;
   children?: QuickFilterItem[];
 };
 

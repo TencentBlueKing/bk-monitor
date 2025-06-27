@@ -95,9 +95,13 @@ export default defineComponent({
         // 3. 其他情况保留（有有效count或非空子项）
         const hasChildren = item.children?.length > 0;
         const hasContent = item.count > 0 || hasChildren;
-
         return hasContent;
       });
+    };
+
+    const handleClearFilter = (item: QuickFilterItem) => {
+      localValue.value[item.id] = [];
+      emitFilterValue();
     };
 
     const handleNodeChecked = (filterGroupId: string, ids: TreeNodeValue[]) => {
@@ -149,21 +153,21 @@ export default defineComponent({
             },
             label: ({ node }) => (
               <div class='condition-tree-item'>
-                {filterGroup.type === 'icon' && (
+                {node.data.icon && (
                   <i
-                    style={{ color: node.data.color || filterGroup.color || '#8E9BB3' }}
+                    style={{ color: node.data.iconColor || '#8E9BB3' }}
                     class={['icon-monitor', 'item-icon', node.data.icon]}
                   />
                 )}
-                {filterGroup.type === 'rect' && (
+                {node.data.icon === 'rect' && (
                   <div
-                    style={{ backgroundColor: node.data.color || filterGroup.color || '#8E9BB3' }}
+                    style={{ backgroundColor: node.data.iconColor || '#8E9BB3' }}
                     class='item-rect'
                   />
                 )}
                 <span
                   style={{
-                    color: (filterGroup.type === 'rect' ? node.data.color || filterGroup.color : '') || '#313238',
+                    color: node.data.textColor || '#313238',
                   }}
                   class='item-name'
                   v-overflow-tips
@@ -187,6 +191,7 @@ export default defineComponent({
       handleClose,
       renderFilterTree,
       showFilterList,
+      handleClearFilter,
     };
   },
   render() {
@@ -202,7 +207,7 @@ export default defineComponent({
         </div>
         {this.loading ? (
           <div class='skeleton-wrap'>
-            {new Array(5).fill(0).map(index => (
+            {new Array(5).fill(0).map((item, index) => (
               <div
                 key={index}
                 class='skeleton-group'
@@ -223,7 +228,10 @@ export default defineComponent({
               >
                 <div class='filter-group-header'>
                   <div class='filter-group-title'>{item.name}</div>
-                  <i class='icon-monitor icon-a-Clearqingkong' />
+                  <i
+                    class='icon-monitor icon-a-Clearqingkong'
+                    onClick={() => this.handleClearFilter(item)}
+                  />
                 </div>
                 <div class='filter-group-children'>{this.renderFilterTree(item)}</div>
               </div>

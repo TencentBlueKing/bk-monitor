@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, watch } from 'vue';
+import { computed, defineComponent, shallowRef, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useThrottleFn } from '@vueuse/core';
 import { Button, Checkbox, Dialog, Input } from 'bkui-vue';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 
 import type { QuickFilterItem } from '../../typings';
@@ -52,12 +54,12 @@ export default defineComponent({
       type: Array as PropType<Omit<QuickFilterItem, 'children'>[]>,
       default: () => [],
     },
-    settingValue: {
+    selectValue: {
       type: Array as PropType<string[]>,
       default: () => [],
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'selectValueChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const alarmStore = useAlarmCenterStore();
@@ -67,11 +69,17 @@ export default defineComponent({
       () => props.show,
       value => {
         if (value) {
-          localSelectValue.value = [...props.settingValue];
+          localSelectValue.value = [...props.selectValue];
         }
       }
     );
 
+    const localSelectValueList = computed(() => {
+      const list = [...props.fieldList, ...props.dimensionList];
+      return localSelectValue.value.map(id => list.find(item => item.id === id) || { id, name: id });
+    });
+
+    /** 字段，维度类别 */
     const selectType = shallowRef<SelectType>('field');
     const types = shallowRef<{ id: SelectType; name: string }[]>([
       { id: 'field', name: t('字段') },
@@ -81,22 +89,31 @@ export default defineComponent({
       selectType.value = type;
     };
 
+    /** 搜索 */
     const searchValue = shallowRef('');
     const handleSearch = (value: string) => {
       searchValue.value = value;
     };
-
-    const showList = computed(() => {
+    /** 搜索结果列表 */
+    const searchResultList = computed(() => {
       const list = selectType.value === 'field' ? props.fieldList : props.dimensionList;
       return list.filter(item => item.name.includes(searchValue.value));
     });
 
     const handleCheckChange = (item: Omit<QuickFilterItem, 'children'>, checked: boolean) => {
       if (checked) {
-        localSelectValue.value.push(item.id);
+        localSelectValue.value = [...localSelectValue.value, item.id];
       } else {
         localSelectValue.value = localSelectValue.value.filter(id => id !== item.id);
       }
+    };
+
+    const handleDeleteItem = (index: number) => {
+      localSelectValue.value = localSelectValue.value.filter((id, i) => i !== index);
+    };
+
+    const handleClearSelect = () => {
+      localSelectValue.value = [];
     };
 
     const handleShowChange = (value: boolean) => {
@@ -107,18 +124,99 @@ export default defineComponent({
       emit('update:show', value);
     };
 
+    const draggingField = shallowRef('');
+    /**
+     * @description 源对象开始进入目标对象范围内触发，源对象和目标对象互换位置
+     *
+     */
+    function handleDragover(e: DragEvent, field: string) {
+      dragPreventDefault(e);
+      const sourceField = draggingField.value;
+      if (!sourceField || !field || field === draggingField.value) {
+        return;
+      }
+      const list = [...localSelectValue.value];
+      const targetIndex = list.indexOf(field);
+      const sourceIndex = list.indexOf(sourceField);
+      if (sourceIndex > targetIndex) {
+        list.splice(sourceIndex, 1);
+        list.splice(targetIndex, 0, sourceField);
+      } else {
+        list.splice(targetIndex + 1, 0, sourceField);
+        list.splice(sourceIndex, 1);
+      }
+      localSelectValue.value = list;
+    }
+    const throttleDragover = useThrottleFn(handleDragover, 300);
+
+    /**
+     * @description 源对象拖动结束时触发
+     *
+     */
+    function handleDragend(e: DragEvent) {
+      const target = e.target as HTMLElement;
+      const dragDom = target.closest('.target-item');
+      if (dragDom) {
+        dragDom?.classList.remove('dragging');
+        // @ts-ignore
+        dragDom.draggable = false;
+      }
+      draggingField.value = '';
+    }
+
+    /**
+     * @description 源对象开始被拖动时触发，记录当前拖拽的key值
+     *
+     */
+    function handleDragstart(e: DragEvent, field: string) {
+      draggingField.value = field;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', field);
+      // @ts-ignore
+      e.target.closest('.target-item').classList.add('dragging');
+    }
+
+    /**
+     * @description drag 操作句柄鼠标 按下/松开 触发回调事件
+     *
+     */
+    function dragHandleMouseOperation(e: MouseEvent, draggable) {
+      // @ts-ignore
+      e.target.closest('.target-item').draggable = draggable;
+    }
+
+    /**
+     * @description 阻止默认事件
+     */
+    function dragPreventDefault(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleConfirm() {
+      emit('selectValueChange', localSelectValue.value);
+    }
+
     return {
       t,
       alarmStore,
       types,
       selectType,
       searchValue,
-      showList,
+      searchResultList,
       localSelectValue,
+      localSelectValueList,
       handleShowChange,
       handleTypeChange,
       handleSearch,
       handleCheckChange,
+      handleDeleteItem,
+      handleClearSelect,
+      throttleDragover,
+      handleDragend,
+      handleDragstart,
+      dragHandleMouseOperation,
+      handleConfirm,
     };
   },
   render() {
@@ -128,6 +226,7 @@ export default defineComponent({
         class='alarm-analysis-setting-dialog'
         isShow={this.show}
         quickClose
+        onConfirm={this.handleConfirm}
         onUpdate:isShow={this.handleShowChange}
       >
         {{
@@ -157,26 +256,74 @@ export default defineComponent({
                   onClear={() => this.handleSearch('')}
                   onInput={this.handleSearch}
                 />
-
-                {/* <Checkbox.Group
-                  class='select-check-box-group'
-                  modelValue={this.selectType === 'field' ? this.fieldSelectList : this.dimensionSelectList}
-                  onChange={this.handleCheckChange}
-                ></Checkbox.Group> */}
-                <div class='select-group-wrap'>
-                  {this.showList.map(item => (
-                    <Checkbox
-                      key={item.id}
-                      label={item.id}
-                      modelValue={this.localSelectValue.includes(item.id)}
-                      onChange={checked => this.handleCheckChange(item, checked)}
-                    >
-                      {item.name}
-                    </Checkbox>
-                  ))}
-                </div>
+                {this.searchResultList.length ? (
+                  <div class='select-group-wrap'>
+                    {this.searchResultList.map(item => (
+                      <Checkbox
+                        key={item.id}
+                        label={item.id}
+                        modelValue={this.localSelectValue.includes(item.id)}
+                        onChange={checked => this.handleCheckChange(item, checked)}
+                      >
+                        {item.name}
+                      </Checkbox>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyStatus type='empty' />
+                )}
               </div>
-              <div class='selected-list' />
+              <div class='right-panel'>
+                <div class='header'>
+                  <i18n-t
+                    keypath='已选{0}项'
+                    tag='span'
+                  >
+                    <span class='selected-count'>{this.localSelectValue.length}</span>
+                  </i18n-t>
+                  <span
+                    class='clear-btn'
+                    onClick={this.handleClearSelect}
+                  >
+                    {this.$t('清空')}
+                  </span>
+                </div>
+                <TransitionGroup
+                  class='selected-list'
+                  name='drag'
+                  tag='ul'
+                >
+                  {this.localSelectValueList.map((field, index) => {
+                    return (
+                      <li
+                        key={field.id}
+                        class='list-item target-item'
+                        onDragend={this.handleDragend}
+                        onDragover={e => this.throttleDragover(e, field.id)}
+                        onDragstart={e => this.handleDragstart(e, field.id)}
+                      >
+                        <div class='list-item-left'>
+                          <i
+                            class='icon-monitor icon-mc-tuozhuai'
+                            onMousedown={e => this.dragHandleMouseOperation(e, true)}
+                            onMouseup={e => this.dragHandleMouseOperation(e, false)}
+                          />
+                          <span
+                            class='item-label'
+                            v-overflow-tips
+                          >
+                            {field.name}
+                          </span>
+                        </div>
+                        <i
+                          class='icon-monitor icon-mc-close'
+                          onClick={() => this.handleDeleteItem(index)}
+                        />
+                      </li>
+                    );
+                  })}
+                </TransitionGroup>
+              </div>
             </div>
           ),
         }}

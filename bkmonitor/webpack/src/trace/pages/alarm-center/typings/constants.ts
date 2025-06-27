@@ -45,6 +45,40 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
     value: AlarmType.ACTION,
   },
 ] as const;
+
+export const AlarmStatusIconMap = {
+  NOT_SHIELDED_ABNORMAL: {
+    icon: 'icon-mind-fill',
+    iconColor: '#F59789',
+  },
+  SHIELDED_ABNORMAL: {
+    icon: 'icon-menu-shield',
+    iconColor: '#F8B64F',
+  },
+  RECOVERED: {
+    icon: 'icon-mc-check-fill',
+    iconColor: '#6FC5BF',
+  },
+};
+
+export const AlarmLevelIconMap = {
+  1: {
+    icon: 'rect',
+    iconColor: '#E71818',
+    textColor: '#E71818',
+  },
+  2: {
+    icon: 'rect',
+    iconColor: '#E38B02',
+    textColor: '#E38B02',
+  },
+  3: {
+    icon: 'rect',
+    iconColor: '#3A84FF',
+    textColor: '#3A84FF',
+  },
+};
+
 /** 我有权限的业务ID */
 export const MY_AUTH_BIZ_ID = -1;
 /** 我有告警的业务ID */

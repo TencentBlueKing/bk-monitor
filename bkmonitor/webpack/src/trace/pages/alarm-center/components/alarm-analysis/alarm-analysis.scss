@@ -39,7 +39,7 @@
   .collapse-content {
     display: flex;
     flex-wrap: wrap;
-    padding: 0 16px;
+    padding: 0 16px 4px;
 
     .panel-item {
       flex: 1;
@@ -98,6 +98,26 @@
           font-size: 12px;
           color: #3a84ff;
           cursor: pointer;
+        }
+      }
+    }
+  }
+
+  .skeleton-wrap {
+    display: flex;
+    flex-wrap: wrap;
+
+    .skeleton-panel-item {
+      flex: 0 0 20%;
+      height: 208px;
+      padding: 6px 8px 4px 12px;
+
+      .skeleton-element {
+        height: 26px;
+        margin-bottom: 8px;
+
+        &.title {
+          width: 80px;
         }
       }
     }

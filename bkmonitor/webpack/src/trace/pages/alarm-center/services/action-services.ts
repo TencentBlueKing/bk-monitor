@@ -136,6 +136,7 @@ const ACTION_TABLE_COLUMNS = [
 
 export const ACTION_FILTER_FIELDS: IFilterField[] = [];
 export class ActionService extends AlarmService<AlarmType.ACTION> {
+  readonly storageAnalysisKey = '__ACTION_ANALYZE_STORAGE_KEY__';
   readonly storageKey = '__ACTION_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
     return [...ACTION_TABLE_COLUMNS];

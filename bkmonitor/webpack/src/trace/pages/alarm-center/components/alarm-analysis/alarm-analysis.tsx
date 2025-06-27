@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, onMounted, reactive, shallowRef } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Message, Progress, Sideslider } from 'bkui-vue';
@@ -45,8 +46,41 @@ export default defineComponent({
   name: 'AlarmAnalysis',
   setup() {
     const { t } = useI18n();
-    const { analysisTopNData, analysisDimensionFields, getAnalysisDataByFields, analysisFields } = useAlarmAnalysis();
+    const {
+      analysisFieldTopNData,
+      analysisFieldTopNLoading,
+      analysisFields,
+      analysisFieldsMap,
+      analysisDimensionFields,
+      analysisDimensionTopNData,
+      getAnalysisDataByFields,
+      analysisSettings,
+    } = useAlarmAnalysis();
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+
+    /** 告警字段分析列表 */
+    const analysisFieldList = computed(() => {
+      return analysisFields.value.map(item => {
+        return {
+          id: item,
+          name: analysisFieldsMap.value[item],
+        };
+      });
+    });
+
+    /** 告警分析TopN列表(包含字段和维度) */
+    const analysisList = computed(() => {
+      return [...analysisFieldTopNData.value.fields, ...analysisDimensionTopNData.value.fields];
+    });
+
+    /** 当前展示的告警分析 */
+    const showAnalysisList = computed<AnalysisListItem[]>(() => {
+      return analysisSettings.value.reduce((pre, cur) => {
+        const field = analysisList.value.find(item => item.field === cur);
+        if (field) pre.push(field);
+        return pre;
+      }, []);
+    });
 
     const expand = shallowRef(true);
 
@@ -84,10 +118,10 @@ export default defineComponent({
     };
 
     /** 渲染分析列表 */
-    const renderAnalysisList = (panels: AnalysisListItemBucket[]) => {
+    const renderAnalysisList = (buckets: AnalysisListItemBucket[], field: string) => {
       return (
         <div class='analysis-list'>
-          {panels.map(item => (
+          {buckets.map(item => (
             <div
               key={item.id}
               class='analysis-item'
@@ -114,11 +148,11 @@ export default defineComponent({
               <div class='analysis-item-tools'>
                 <i
                   class='icon-monitor icon-a-sousuo'
-                  onClick={() => handleConditionChange('equal', item)}
+                  onClick={() => handleConditionChange('equal', item.id, field)}
                 />
                 <i
                   class='icon-monitor icon-sousuo-'
-                  onClick={() => handleConditionChange('not_equal', item)}
+                  onClick={() => handleConditionChange('not_equal', item.id, field)}
                 />
               </div>
             </div>
@@ -126,8 +160,13 @@ export default defineComponent({
         </div>
       );
     };
-    const handleConditionChange = (type, value) => {
-      console.log(type, value);
+
+    const handleConditionChange = (type, value: string, field: string) => {
+      console.log(type, value, field);
+    };
+
+    const handleSelectValueChange = (val: string[]) => {
+      analysisSettings.value = val;
     };
 
     const detailSliderShow = shallowRef(false);
@@ -182,7 +221,7 @@ export default defineComponent({
                 </div>
               </div>
             ),
-            default: () => renderAnalysisList(sliderAnalysisList.value),
+            default: () => renderAnalysisList(sliderAnalysisList.value, detailSliderInfo.field),
           }}
         </Sideslider>
       );
@@ -191,18 +230,22 @@ export default defineComponent({
     return {
       t,
       expand,
-      detailSliderShow,
-      showSetting,
       handleCollapse,
+      showAnalysisList,
+      analysisFieldTopNLoading,
+      analysisFieldList,
       handleCopyNames,
-      handleViewAll,
       renderAnalysisList,
-      renderAnalysisSlider,
-      handleSettingsClick,
-      analysisTopNData,
-      analysisDimensionFields,
-      getAnalysisDataByFields,
       analysisFields,
+      analysisSettings,
+      showSetting,
+      analysisDimensionFields,
+      handleSettingsClick,
+      detailSliderShow,
+      handleViewAll,
+      renderAnalysisSlider,
+      getAnalysisDataByFields,
+      handleSelectValueChange,
     };
   },
   render() {
@@ -222,46 +265,66 @@ export default defineComponent({
             <span>{this.t('设置')}</span>
           </div>
         </div>
-        {this.expand && (
-          <div class='collapse-content'>
-            {this.analysisTopNData.fields.map(panel => (
-              <div
-                key={panel.field}
-                class='panel-item'
-              >
-                <div class='panel-item-header'>
-                  <div class='header-left'>
-                    <span class='title'>{panel.name}</span>
-                    <div class='count'>{panel.bucket_count}</div>
-                    <i
-                      class='icon-monitor icon-mc-copy'
-                      v-bk-tooltips={{ content: '批量复制' }}
-                      onClick={() => this.handleCopyNames(panel.buckets)}
+        {this.expand &&
+          (this.analysisFieldTopNLoading ? (
+            <div class='skeleton-wrap'>
+              {new Array(5).fill(0).map((panel, index) => (
+                <div
+                  key={index}
+                  class='skeleton-panel-item'
+                >
+                  {new Array(6).fill(0).map((item, i) => (
+                    <div
+                      key={i}
+                      class={['skeleton-element', { title: i === 0 }]}
                     />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div class='collapse-content'>
+              {this.showAnalysisList.map(panel => (
+                <div
+                  key={panel.field}
+                  class='panel-item'
+                >
+                  <div class='panel-item-header'>
+                    <div class='header-left'>
+                      <span class='title'>{panel.name}</span>
+                      <div class='count'>{panel.bucket_count}</div>
+                      <i
+                        class='icon-monitor icon-mc-copy'
+                        v-bk-tooltips={{ content: '批量复制' }}
+                        onClick={() => this.handleCopyNames(panel.buckets)}
+                      />
+                    </div>
+                    {panel.bucket_count > 5 && (
+                      <span
+                        class='header-right'
+                        onClick={() => this.handleViewAll(panel)}
+                      >
+                        {this.t('查看全部')}
+                      </span>
+                    )}
                   </div>
-                  {panel.bucket_count > 5 && (
-                    <span
-                      class='header-right'
-                      onClick={() => this.handleViewAll(panel)}
-                    >
-                      {this.t('查看全部')}
-                    </span>
+                  {panel.buckets.length ? (
+                    this.renderAnalysisList(panel.buckets.slice(0, 5), panel.field)
+                  ) : (
+                    <EmptyStatus type='empty' />
                   )}
                 </div>
-                {panel.buckets.length ? (
-                  this.renderAnalysisList(panel.buckets.slice(0, 5))
-                ) : (
-                  <EmptyStatus type='empty' />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ))}
 
         {this.renderAnalysisSlider()}
         <SettingDialog
           v-model:show={this.showSetting}
-          // settingValue={this.settingValue}
+          dimensionList={this.analysisDimensionFields}
+          fieldList={this.analysisFieldList}
+          selectValue={this.analysisSettings}
+          onSelectValueChange={this.handleSelectValueChange}
         />
       </div>
     );

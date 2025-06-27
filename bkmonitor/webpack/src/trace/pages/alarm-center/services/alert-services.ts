@@ -28,17 +28,18 @@ import { EFieldType, EMethod, type IFilterField } from '@/components/retrieval-f
 import { isEn } from '@/i18n/i18n';
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
 
-import { AlarmService } from './base';
-
-import type {
-  CommonFilterParams,
-  AnalysisTopNDataResponse,
-  AnalysisFieldAggItem,
-  AlertTableItem,
-  FilterTableResponse,
-  QuickFilterItem,
-  TableColumnItem,
+import {
+  type CommonFilterParams,
+  type AnalysisTopNDataResponse,
+  type AnalysisFieldAggItem,
+  type AlertTableItem,
+  type FilterTableResponse,
+  type QuickFilterItem,
+  type TableColumnItem,
+  AlarmStatusIconMap,
+  AlarmLevelIconMap,
 } from '../typings';
+import { AlarmService } from './base';
 const ALERT_TABLE_COLUMNS = [
   {
     colKey: 'id',
@@ -509,6 +510,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   // 其它不支持include/exclude的字段可继续补充
 ];
 export class AlertService extends AlarmService {
+  readonly storageAnalysisKey = '__ALERT_ANALYZE_STORAGE_KEY__';
   readonly storageKey = '__ALERT_EVENT_COLUMN__';
   get allTableColumns(): TableColumnItem[] {
     return [...ALERT_TABLE_COLUMNS];
@@ -592,11 +594,12 @@ export class AlertService extends AlarmService {
     })
       .then(({ aggs, overview }) => {
         const myAlarmList = [];
-        const alarmLevelList = [];
+        const alarmStatusList = [];
         for (const item of overview?.children || []) {
           if (item.id === 'MY_APPOINTEE') {
             myAlarmList.push({
               ...item,
+              icon: 'icon-gaojingfenpai',
               name: window.i18n.t('分派给我的'),
             });
             continue;
@@ -604,15 +607,20 @@ export class AlertService extends AlarmService {
           if (item.id === 'MY_ASSIGNEE') {
             myAlarmList.push({
               ...item,
+              icon: 'icon-inform-circle',
               name: window.i18n.t('通知给我'),
             });
             continue;
           }
           // 告警状态
           if (['NOT_SHIELDED_ABNORMAL', 'SHIELDED_ABNORMAL', 'RECOVERED'].includes(item.id)) {
-            alarmLevelList.push(item);
+            alarmStatusList.push({
+              ...item,
+              ...AlarmStatusIconMap[item.id],
+            });
           }
         }
+
         return [
           {
             id: 'MINE',
@@ -624,9 +632,20 @@ export class AlertService extends AlarmService {
             id: 'STATUS',
             name: window.i18n.t('状态'),
             count: myAlarmList.reduce((total, item) => total + item.count, 0),
-            children: alarmLevelList,
+            children: alarmStatusList,
           },
-          ...aggs,
+          ...aggs.map(item => {
+            if (item.id === 'severity') {
+              return {
+                ...item,
+                children: item.children.map(child => ({
+                  ...child,
+                  ...AlarmLevelIconMap[child.id],
+                })),
+              };
+            }
+            return item;
+          }),
         ];
       })
       .catch(() => []);
