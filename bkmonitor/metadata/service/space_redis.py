@@ -88,9 +88,9 @@ def push_and_publish_es_aliases(data_label: str):
     data_label_list = data_label.split(",")
     redis_values = {}
     for label in data_label_list:
-        if label.strip() == "":
-            continue
-        redis_values.update({label: json.dumps(table_id_list)})
+        label = label.strip()
+        if label:
+            redis_values.update({label: json.dumps(table_id_list)})
     RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
     RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))
     logger.info("push and publish es alias, alias: %s", data_label)
