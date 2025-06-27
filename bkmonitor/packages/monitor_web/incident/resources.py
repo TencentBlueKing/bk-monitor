@@ -1397,7 +1397,16 @@ class IncidentResultsResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(validated_request_data["id"]))
+        # 去除前面的时间戳
+        incident_id = str(validated_request_data["id"])[10:]
+        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        sub_panel_status = {}
+        for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
+            sub_panel_status[sub_panel_name] = {
+                "status": sub_panel["status"],
+                "message": sub_panel["message"] if sub_panel.get("message") else "",
+                "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
+            }
         incident_results = {
             "panels": {
                 "incident_handlers": {  # 故障处理tab
@@ -1416,7 +1425,7 @@ class IncidentResultsResource(IncidentBaseResource):
                     "enabled": True,
                     "status": "finished",
                 },
-                "incident_diagnosis": diagnosis_results,
+                "incident_diagnosis": sub_panel_status,
             },
             "status": "unknown",
         }
@@ -1451,5 +1460,23 @@ class IncidentDiagnosisResource(IncidentBaseResource):
 
     def perform_request(self, validated_request_data: dict) -> dict:
         sub_panel = validated_request_data.get("sub_panel")
-        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(validated_request_data["id"]))
-        return diagnosis_results.get("sub_panels", {}).get(sub_panel)
+        incident_id = str(validated_request_data["id"])[10:]
+        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_content = diagnosis_results.get("sub_panels", {}).get(sub_panel, {}).get("content")
+        if sub_panel == "anomaly_analysis":
+            content = []
+            drill_results = raw_content.get("dimension_drill_result", {}).get("dimension_drill_result", [])
+            for drill_result in drill_results:
+                alerts = (
+                    self.get_alerts_by_alert_ids(drill_result["alert_ids"]) if drill_result.get("alert_ids") else []
+                )
+                content_item = {
+                    "score": drill_result["score"],
+                    "alert_count": len(alerts),
+                    "alerts": alerts,
+                    "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
+                }
+                content.append(content_item)
+        else:
+            content = raw_content
+        return content
