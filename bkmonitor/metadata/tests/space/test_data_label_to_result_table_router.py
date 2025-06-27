@@ -33,27 +33,25 @@ def test_push_data_label_table_ids(mock_space_table_id_redis):
         # 模拟返回数据
         mock_data = [
             {"table_id": "system", "data_label": "host_cpu"},
-            {"table_id": "custom.metric", "data_label": "app_metric,memory_metrics"},  # 移除逗号后的空格
+            {"table_id": "custom.metric", "data_label": "app_metric,memory_metrics"},
         ]
         mock_refine.return_value = mock_data
 
         # 调用测试方法
         mock_space_table_id_redis.push_data_label_table_ids(
-            data_label_list=["host_cpu", "app_metric,memory_metrics"],  # 保持输入格式一致
+            data_label_list=["host_cpu", "app_metric,memory_metrics"],
             table_id_list=["system", "custom.metric"],
             is_publish=True,
         )
 
         # 验证redis操作
         expected_redis_values = {
-            "memory_metrics": '["custom.metric"]',
-            "app_metric": '["custom.metric"]',
             "host_cpu": '["system.__default__"]',
+            "app_metric": '["custom.metric"]',
+            "memory_metrics": '["custom.metric"]',
         }
         mock_hmset_to_redis.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_KEY, expected_redis_values)
-        mock_publish.assert_called_once_with(
-            DATA_LABEL_TO_RESULT_TABLE_CHANNEL, ["host_cpu", "app_metric", "memory_metrics"]
-        )
+        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(expected_redis_values.keys()))
 
 
 def test_push_with_empty_result(mock_space_table_id_redis):
@@ -84,7 +82,7 @@ def test_push_and_publish_es_aliases_single():
             "host_cpu": '["custom.metric"]',
         }
         mock_hmset_to_redis.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_KEY, expected_redis_values)
-        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, ["host_cpu"])
+        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(expected_redis_values.keys()))
 
 
 def test_push_and_publish_es_aliases_multiple():
