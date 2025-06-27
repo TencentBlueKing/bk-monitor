@@ -1493,4 +1493,4 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                 content.append(content_item)
         else:
             content = raw_content
-        return content
+        return {"sub_panel": sub_panel, "contents": content}
