@@ -1,0 +1,64 @@
+@use '../../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
+
+.common-table-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  .common-table {
+    @include tableCommonTheme.table-theme();
+
+    .t-table {
+      &__header {
+        th[data-colkey*='__col_setting__'] {
+          .t-table__th-cell-inner > div {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+          }
+        }
+      }
+    }
+  }
+
+  .common-table-skeleton {
+    position: absolute;
+    top: var(--trace-table-header-height, 34px);
+    z-index: 100;
+    visibility: hidden;
+    height: calc(100% - var(--trace-table-header-height, 34px));
+    min-height: fit-content;
+    padding: 10px 8px;
+    background: #fff;
+
+    &.common-skeleton-show-all,
+    &.common-skeleton-show-body {
+      visibility: visible;
+    }
+
+    &.common-skeleton-show-body {
+      .common-table-skeleton-row:nth-child(1) {
+        display: none;
+      }
+    }
+
+    .common-table-skeleton-row {
+      margin-bottom: 10px;
+    }
+  }
+
+  .bk-pagination {
+    padding: 14px 16px;
+
+    .is-last {
+      margin-left: auto;
+    }
+
+    .bk-pagination-total {
+      display: flex;
+      align-items: center;
+    }
+  }
+}

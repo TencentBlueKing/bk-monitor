@@ -161,15 +161,15 @@
         }
       }
 
-      .t-table__affixed-header-elm-wrap {
-        height: var(--trace-table-header-height, 34px) !important;
-        opacity: unset !important;
+      // .t-table__affixed-header-elm-wrap {
+      //   height: var(--trace-table-header-height, 34px) !important;
+      //   opacity: unset !important;
 
-        .t-table__affixed-header-elm {
-          overflow: hidden !important;
-          opacity: unset !important;
-        }
-      }
+      //   .t-table__affixed-header-elm {
+      //     overflow: hidden !important;
+      //     opacity: unset !important;
+      //   }
+      // }
     }
   }
 

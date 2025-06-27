@@ -135,6 +135,9 @@ export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderM
    */
   function clickColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, row) {
     const alias = getTableCellRenderValue(row, column);
+    if (!alias) {
+      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+    }
     return (
       <div class={'explore-col explore-click-col'}>
         <div class={`${isEnabledCellEllipsis(column)}`}>
@@ -195,6 +198,9 @@ export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderM
    */
   function timeColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>, row) {
     const timestamp = getTableCellRenderValue(row, column);
+    if (!timestamp) {
+      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+    }
     const alias = formatTraceTableDate(timestamp);
     return (
       <div class={'explore-col explore-time-col'}>
@@ -219,6 +225,9 @@ export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderM
    */
   function durationColumnFormatter(column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>, row) {
     const timestamp = getTableCellRenderValue(row, column);
+    if (!timestamp) {
+      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+    }
     const alias = formatDuration(+timestamp);
     return (
       <div class={'explore-col explore-duration-col '}>
