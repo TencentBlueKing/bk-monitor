@@ -334,7 +334,7 @@ class ReportHandler:
                     variables = {"bk_biz_id": var_bk_biz_ids}
 
                 # 获取默认宽度高度
-                if not graph_info[2] == "*":
+                if graph_info[2] == "*":
                     default_width = 1600
                     default_height = None
                 else:
