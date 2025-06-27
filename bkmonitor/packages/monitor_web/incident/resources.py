@@ -1461,17 +1461,27 @@ class IncidentDiagnosisResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         sub_panel = validated_request_data.get("sub_panel")
         incident_id = str(validated_request_data["id"])[10:]
+<<<<<<< HEAD
         bk_biz_id = int(validated_request_data["bk_biz_id"])
+=======
+>>>>>>> 590a87496 (feat: 故障处置内容展示调整 --story=119032343)
         diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
         raw_content = diagnosis_results.get("sub_panels", {}).get(sub_panel, {}).get("content")
         if sub_panel == "anomaly_analysis":
             content = []
+<<<<<<< HEAD
             drill_results = raw_content.get("dimension_drill_result", [])
             for drill_result in drill_results:
                 alerts = (
                     self.get_alerts_by_alert_ids(drill_result["alert_ids"], bk_biz_ids=[bk_biz_id])
                     if drill_result.get("alert_ids")
                     else []
+=======
+            drill_results = raw_content.get("dimension_drill_result", {}).get("dimension_drill_result", [])
+            for drill_result in drill_results:
+                alerts = (
+                    self.get_alerts_by_alert_ids(drill_result["alert_ids"]) if drill_result.get("alert_ids") else []
+>>>>>>> 590a87496 (feat: 故障处置内容展示调整 --story=119032343)
                 )
                 content_item = {
                     "score": drill_result["score"],
