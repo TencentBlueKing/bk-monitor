@@ -36,6 +36,7 @@ import SettingKvSelector from './setting-kv-selector';
 import TimeConsuming from './time-consuming';
 import {
   ECondition,
+  EFieldType,
   EMethod,
   type IFieldItem,
   type IFilterField,
@@ -44,7 +45,7 @@ import {
   RESIDENT_SETTING_PROPS,
   type TGetValueFn,
 } from './typing';
-import { defaultWhereItem, DURATION_KEYS, EXISTS_KEYS, INPUT_TAG_KEYS } from './utils';
+import { defaultWhereItem, EXISTS_KEYS } from './utils';
 
 import './resident-setting.scss';
 import 'tippy.js/dist/tippy.css';
@@ -335,7 +336,7 @@ export default defineComponent({
         <div class='right-content'>
           {this.localValue.length ? (
             this.localValue.map((item, index) => {
-              if (DURATION_KEYS.includes(item.field.name)) {
+              if (item.field.type === EFieldType.duration) {
                 return (
                   <TimeConsuming
                     key={item.field.name}
@@ -346,7 +347,7 @@ export default defineComponent({
                   />
                 );
               }
-              if (INPUT_TAG_KEYS.includes(item.field.name)) {
+              if ([EFieldType.input, EFieldType.all, EFieldType.text].includes(item.field.type)) {
                 return (
                   <SettingKvInput
                     key={item.field.name}

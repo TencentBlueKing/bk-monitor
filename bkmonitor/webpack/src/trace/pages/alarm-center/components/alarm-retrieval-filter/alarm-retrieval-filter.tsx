@@ -68,10 +68,13 @@ export default defineComponent({
       queryString,
       residentSettingOnlyId,
       filterMode,
+      residentCondition,
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
       getRetrievalFilterValueData,
+      handleResidentConditionChange,
+      handleQuery,
     } = useAlarmFilter();
 
     /**
@@ -116,6 +119,7 @@ export default defineComponent({
       queryString,
       residentSettingOnlyId,
       filterMode,
+      residentCondition,
       t,
       handleCheckAllowedByIds,
       handleBizIdsChange,
@@ -123,6 +127,8 @@ export default defineComponent({
       handleQueryStringChange,
       handleFilterModeChange,
       getRetrievalFilterValueData,
+      handleResidentConditionChange,
+      handleQuery,
     };
   },
   render() {
@@ -137,14 +143,17 @@ export default defineComponent({
             condition: w.condition,
           }));
         }}
+        commonWhere={this.residentCondition}
         fields={this.fields}
         filterMode={this.filterMode}
         getValueFn={this.getRetrievalFilterValueData}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
         where={this.condition}
+        onCommonWhereChange={this.handleResidentConditionChange}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
+        onSearch={this.handleQuery}
         onWhereChange={this.handleConditionChange}
       >
         {{

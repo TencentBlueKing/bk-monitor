@@ -47,7 +47,6 @@ import {
 } from './typing';
 import {
   DEFAULT_GROUP_RELATION,
-  DURATION_KEYS,
   EXISTS_KEYS,
   fieldTypeMap,
   GROUP_RELATION_KEY,
@@ -123,7 +122,7 @@ export default defineComponent({
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
-      return DURATION_KEYS.includes(checkedItem.value?.name);
+      return checkedItem.value.type === EFieldType.duration;
     });
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
@@ -269,9 +268,12 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if ((checkedItem.value.name === '*' || checkedItem.value.type === EFieldType.all) && queryString.value) {
+      if (
+        (checkedItem.value.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value.type)) &&
+        queryString.value
+      ) {
         const value: IFilterItem = {
-          key: { id: checkedItem.value.name, name: t('全文') },
+          key: { id: checkedItem.value.name, name: checkedItem.value.alias },
           method: { id: EMethod.include, name: t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
@@ -548,7 +550,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*' || this.checkedItem?.type === EFieldType.all) {
+      if (this.checkedItem?.name === '*' || [EFieldType.all, EFieldType.text].includes(this.checkedItem?.type)) {
         return [
           <div
             key={'all'}

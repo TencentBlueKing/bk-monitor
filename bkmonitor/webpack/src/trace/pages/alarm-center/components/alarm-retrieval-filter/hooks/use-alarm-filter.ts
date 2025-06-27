@@ -26,6 +26,8 @@
 
 import { computed } from 'vue';
 
+import { random } from 'monitor-common/utils';
+
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 
 import type { EMode, IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
@@ -65,6 +67,9 @@ export function useAlarmFilter() {
   const condition = computed(() => {
     return alarmStore.conditions as ICondition[];
   });
+  const residentCondition = computed(() => {
+    return alarmStore.residentCondition as ICondition[];
+  });
   const queryString = computed(() => {
     return alarmStore.queryString;
   });
@@ -83,6 +88,16 @@ export function useAlarmFilter() {
   }
   function handleFilterModeChange(val: EMode) {
     alarmStore.filterMode = val;
+  }
+
+  function handleResidentConditionChange(val) {
+    alarmStore.residentCondition = val.map(item => ({
+      ...item,
+      condition: 'and',
+    }));
+  }
+  function handleQuery() {
+    alarmStore.refreshImmediate = random(4);
   }
 
   function getRetrievalFilterValueData(params: IGetValueFnParams) {
@@ -169,9 +184,12 @@ export function useAlarmFilter() {
     queryString,
     residentSettingOnlyId,
     filterMode,
+    residentCondition,
+    handleQuery,
     handleConditionChange,
     handleQueryStringChange,
     handleFilterModeChange,
     getRetrievalFilterValueData,
+    handleResidentConditionChange,
   };
 }

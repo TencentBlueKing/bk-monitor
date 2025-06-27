@@ -78,6 +78,18 @@ export const fieldTypeMap = {
     color: '#B59D8D',
     bgColor: '#EBE0D9',
   },
+  duration: {
+    name: window.i18n.t('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  input: {
+    name: window.i18n.t('字符串'),
+    icon: 'icon-monitor icon-Str',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
+  },
 };
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';

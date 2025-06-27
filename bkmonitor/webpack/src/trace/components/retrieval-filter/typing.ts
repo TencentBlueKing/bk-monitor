@@ -31,12 +31,18 @@ export enum EMode {
   ui = 'ui',
 }
 export enum EFieldType {
+  // 全文检索输入框
   all = 'all',
   boolean = 'boolean',
   date = 'date',
+  // 是否为耗时组件
+  duration = 'duration',
+  // input输入框
+  input = 'input',
   integer = 'integer',
   keyword = 'keyword',
   long = 'long',
+  // textarea 输入框
   text = 'text',
 }
 
