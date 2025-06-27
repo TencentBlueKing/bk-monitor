@@ -37,6 +37,16 @@ SEARCH_PARAMS = {
         {"field": "__query_string__", "operator": "=", "value": []},
         {"field": "error", "operator": "contains", "value": []},
         {"field": "test", "operator": "test", "value": ["test"]},
+        {"field": "*", "operator": "contains match phrase prefix", "value": ["error"]},
+        {"field": "*", "operator": "contains match phrase prefix", "value": ["error", "levelname"]},
+        {"field": "log", "operator": "contains match phrase prefix", "value": ["html"]},
+        {"field": "log", "operator": "contains match phrase prefix", "value": ["hello", "world"]},
+        {"field": "log", "operator": "not contains match phrase prefix", "value": ["are you ok"]},
+        {"field": "log", "operator": "not contains match phrase prefix", "value": ["are you ok", "hhh"]},
+        {"field": "log", "operator": "all contains match phrase prefix", "value": ["name"]},
+        {"field": "log", "operator": "all contains match phrase prefix", "value": ["name", "level"]},
+        {"field": "log", "operator": "all not contains match phrase prefix", "value": ["This is a \"test\" string"]},
+        {"field": "log", "operator": "all not contains match phrase prefix", "value": ["error", "500"]},
     ],
 }
 
@@ -97,9 +107,29 @@ TRANSFORM_RESULT = (
     " AND "
     r"NOT theme: (pg\||db* AND ?h\\h?)"
     " AND "
-    "(\"error\")"
+    "\"error\""
     " AND "
     "(success OR 200)"
+    " AND "
+    "\"error\""
+    " AND "
+    "(\"error\" OR \"levelname\")"
+    " AND "
+    "log: \"html\""
+    " AND "
+    "log: (\"hello\" OR \"world\")"
+    " AND "
+    "NOT log: \"are you ok\""
+    " AND "
+    "NOT log: (\"are you ok\" OR \"hhh\")"
+    " AND "
+    "log: \"name\""
+    " AND "
+    "log: (\"name\" AND \"level\")"
+    " AND "
+    "NOT log: \"This is a \\\"test\\\" string\""
+    " AND "
+    "NOT log: (\"error\" AND \"500\")"
 )
 
 

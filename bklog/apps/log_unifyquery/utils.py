@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dateutil import parser
 
 from apps.log_search.constants import OperatorEnum
@@ -22,6 +22,7 @@ def transform_advanced_addition(addition: dict):
     op = ADVANCED_OP_MAP.get(origin_operator, {}).get("operator", "eq")
     condition = ADVANCED_OP_MAP.get(origin_operator, {}).get("condition", "or")
     is_wildcard = ADVANCED_OP_MAP.get(origin_operator, {}).get("is_wildcard", False)
+    is_prefix = ADVANCED_OP_MAP.get(origin_operator, {}).get("is_prefix", False)
 
     if origin_operator in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
         value = ["true" if origin_operator == OperatorEnum.IS_TRUE["operator"] else "false"]
@@ -31,10 +32,15 @@ def transform_advanced_addition(addition: dict):
         value = value if isinstance(value, list) else value.split(",")
 
     if condition == "or":
-        field_list = [{"field_name": field, "op": op, "value": value, "is_wildcard": is_wildcard}]
+        field_list = [
+            {"field_name": field, "op": op, "value": value, "is_wildcard": is_wildcard, "is_prefix": is_prefix}
+        ]
         condition_list = []
     else:
-        field_list = [{"field_name": field, "op": op, "value": [v], "is_wildcard": is_wildcard} for v in value]
+        field_list = [
+            {"field_name": field, "op": op, "value": [v], "is_wildcard": is_wildcard, "is_prefix": is_prefix}
+            for v in value
+        ]
         condition_list = [condition] * (len(value) - 1)
 
     return field_list, condition_list

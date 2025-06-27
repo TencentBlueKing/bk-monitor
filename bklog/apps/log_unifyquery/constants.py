@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from enum import Enum
-from typing import Dict
 
 from apps.log_search.constants import OperatorEnum
 
-MAX_LEN_DICT = Dict[str, int]
+MAX_LEN_DICT = dict[str, int]
 
 BODY_DATA_FOR_CONTEXT = {
     "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
@@ -70,7 +69,7 @@ ADVANCED_OP_MAP = {
     OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
         "operator": "contains",
         "condition": "or",
-        "is_wildcard": True
+        "is_wildcard": True,
     },
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
         "operator": "ncontains",
@@ -88,6 +87,18 @@ ADVANCED_OP_MAP = {
         "operator": "ncontains",
         "condition": "and",
         "is_wildcard": True,
+    },
+    OperatorEnum.CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {"operator": "eq", "condition": "or", "is_prefix": True},
+    OperatorEnum.NOT_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {"operator": "ne", "condition": "or", "is_prefix": True},
+    OperatorEnum.ALL_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {
+        "operator": "eq",
+        "condition": "and",
+        "is_prefix": True,
+    },
+    OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {
+        "operator": "ne",
+        "condition": "and",
+        "is_prefix": True,
     },
     OperatorEnum.EXISTS["operator"]: {"operator": "ne", "condition": "or"},
     OperatorEnum.NOT_EXISTS["operator"]: {"operator": "eq", "condition": "or"},
