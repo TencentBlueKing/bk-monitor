@@ -92,18 +92,15 @@ def resource_exception_handler(default: Any = None):
             try:
                 return func(instance, validated_request_data)
             except Exception as exc:  # pylint: disable=broad-except
+                # Record the exception and set status in the current span.
                 span = trace.get_current_span()
-
-                # Record the exception in the current span
-                record_exception(span, exc, out_limit=10)
-
-                # Set status in case exception was raised
                 span.set_status(
                     Status(
                         status_code=StatusCode.ERROR,
                         description=f"{type(exc).__name__}: {exc}",
                     )
                 )
+                record_exception(span, exc, out_limit=10)
                 return default
 
         return wrapper

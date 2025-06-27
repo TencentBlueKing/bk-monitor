@@ -122,7 +122,7 @@ def filter_tables_by_source(
 
 def filter_by_relation(
     q: QueryConfigBuilder, relation: dict[str, Any], data_labels_map: dict[str, str], table: str | None = None
-) -> QueryConfigBuilder | None:
+) -> QueryConfigBuilder:
     q = q.table(table or relation["table"])
     domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
     cond_handler: Callable[[dict[str, Any]], Q] = DOMAIN_CONF_HANDLER_MAP.get(domain, default_cond_handler)
