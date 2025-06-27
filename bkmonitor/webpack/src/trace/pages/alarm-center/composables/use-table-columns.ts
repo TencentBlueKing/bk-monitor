@@ -39,7 +39,10 @@ export function useAlarmTableColumns() {
   const defaultTableFields = computed(() => {
     return alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey);
   });
-  const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, [...defaultTableFields.value]);
+
+  // 不通过 computed 计算属性过渡会无法正确收集到响应式Effect，导致storageKey 变更时无法触发 useStorage 的响应式逻辑
+  const storageKey = computed(() => alarmStore.alarmService.storageKey);
+  const storageColumns = useStorage<string[]>(storageKey, [...defaultTableFields.value]);
 
   const tableColumns = computed<TableColumnItem[]>(() => {
     return storageColumns.value
