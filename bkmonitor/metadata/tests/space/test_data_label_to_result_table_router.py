@@ -62,8 +62,8 @@ def test_push_with_empty_result(mock_space_table_id_redis):
         assert result is None
 
 
-def test_push_and_publish_es_aliases_single():
-    """测试push_and_publish_es_aliases方法 - 单个data_label情况"""
+def _test_push_and_publish_es_aliases_template(data_label, expected_values):
+    """测试push_and_publish_es_aliases方法的模板函数"""
     from metadata.service.space_redis import push_and_publish_es_aliases
 
     with (
@@ -71,41 +71,27 @@ def test_push_and_publish_es_aliases_single():
         mock.patch("metadata.models.ResultTable.objects.filter") as mock_filter,
         mock.patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish,
     ):
-        # 测试数据
+        # 模拟返回数据
         mock_data = ["custom.metric"]
         mock_queryset = MagicMock()
         mock_queryset.values_list.return_value = mock_data
         mock_filter.return_value = mock_queryset
 
-        # 调用函数
-        push_and_publish_es_aliases("host_cpu")
+        # 调用方法
+        push_and_publish_es_aliases(data_label)
 
-        expected_redis_values = {
-            "host_cpu": '["custom.metric"]',
-        }
-        mock_hmset_to_redis.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_KEY, expected_redis_values)
-        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(expected_redis_values.keys()))
+        # 验证redis操作
+        mock_hmset_to_redis.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_KEY, expected_values)
+        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(expected_values.keys()))
+
+
+def test_push_and_publish_es_aliases_single():
+    """测试push_and_publish_es_aliases方法 - 单个data_label情况"""
+    _test_push_and_publish_es_aliases_template("host_cpu", {"host_cpu": '["custom.metric"]'})
 
 
 def test_push_and_publish_es_aliases_multiple():
     """测试push_and_publish_es_aliases方法 - 多个data_label情况"""
-    from metadata.service.space_redis import push_and_publish_es_aliases
-
-    with (
-        mock.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis,
-        mock.patch("metadata.models.ResultTable.objects.filter") as mock_filter,
-        mock.patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish,
-    ):
-        mock_data = ["custom.metric"]
-        mock_queryset = MagicMock()
-        mock_queryset.values_list.return_value = mock_data
-        mock_filter.return_value = mock_queryset
-
-        push_and_publish_es_aliases("app_metric,memory_metrics,")
-
-        expected_redis_values = {
-            "app_metric": '["custom.metric"]',
-            "memory_metrics": '["custom.metric"]',
-        }
-        mock_hmset_to_redis.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_KEY, expected_redis_values)
-        mock_publish.assert_called_once_with(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(expected_redis_values.keys()))
+    _test_push_and_publish_es_aliases_template(
+        "app_metric,memory_metrics,", {"app_metric": '["custom.metric"]', "memory_metrics": '["custom.metric"]'}
+    )
