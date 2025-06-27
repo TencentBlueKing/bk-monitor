@@ -103,7 +103,7 @@ class EventBaseResource(Resource, abc.ABC):
         except Exception as exc:  # pylint: disable=broad-except
             # Record the exception and set status in the current span.
             span = trace.get_current_span()
-            # 内部调用 xx.perform_request 时，需要补充上 user.username，便于快速定位触发用户，
+            # 内部调用 xx.perform_request 时，需要补充上 user.username，便于快速定位触发用户。
             span.set_attribute("user.username", get_request_username())
             span.set_status(
                 Status(
