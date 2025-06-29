@@ -171,7 +171,9 @@ def test_push_doris_table_id_detail(create_or_delete_records):
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_doris_table_id_detail(table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True)
+            space_client.push_doris_table_id_detail(
+                bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
+            )
             expected_rt_detail_router = {
                 "2_bklog.test_doris_non_exists": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
@@ -196,7 +198,9 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_bkbase_table_id_detail(table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True)
+            space_client.push_bkbase_table_id_detail(
+                bk_tenant_id="riot", table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True
+            )
             expected_rt_detail_router = {
                 "2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'

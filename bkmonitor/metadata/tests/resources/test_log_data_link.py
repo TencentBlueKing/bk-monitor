@@ -171,7 +171,9 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_doris_table_id_detail(table_id_list=[non_exist_doris_table_id], is_publish=True)
+            space_client.push_doris_table_id_detail(
+                bk_tenant_id="system", table_id_list=[non_exist_doris_table_id], is_publish=True
+            )
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'

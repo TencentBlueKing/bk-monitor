@@ -174,10 +174,10 @@ class SpaceTableIDRedis:
         for data in rt_dl_qs:
             rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
 
-        # 若开启多租户模式,则data_label和table_id都需要在后面拼接@bk_tenant_id
+        # 若开启多租户模式,则data_label和table_id都需要在前面拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
             rt_dl_map = {
-                f"{data_label}@{bk_tenant_id}": [f"{table_id}@{bk_tenant_id}" for table_id in table_ids]
+                f"{bk_tenant_id}|{data_label}": [f"{bk_tenant_id}|{table_id}" for table_id in table_ids]
                 for data_label, table_ids in rt_dl_map.items()
             }
 
@@ -256,7 +256,7 @@ class SpaceTableIDRedis:
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{key}@{bk_tenant_id}"] = _table_id_detail.pop(key)
+                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -310,9 +310,14 @@ class SpaceTableIDRedis:
             )
         return data
 
-    def push_doris_table_id_detail(self, table_id_list: list | None = None, is_publish: bool | None = True):
+    def push_doris_table_id_detail(
+        self, bk_tenant_id: str, table_id_list: list | None = None, is_publish: bool | None = True
+    ):
         """
         推送Doris结果表详情路由
+        @param bk_tenant_id: 租户ID
+        @param table_id_list: 结果表列表
+        @param is_publish: 是否执行推送
         """
         logger.info(
             "push_doris_table_id_detail: try to push doris_table_id_detail for table_id_list->[%s]", table_id_list
@@ -349,6 +354,15 @@ class SpaceTableIDRedis:
 
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
+
+                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    logger.info(
+                        "push_es_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        bk_tenant_id,
+                    )
+                    for key in list(_table_id_detail.keys()):
+                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -402,9 +416,14 @@ class SpaceTableIDRedis:
             )
         return data
 
-    def push_bkbase_table_id_detail(self, table_id_list: list | None = None, is_publish: bool | None = True):
+    def push_bkbase_table_id_detail(
+        self, bk_tenant_id: str, table_id_list: list | None = None, is_publish: bool | None = True
+    ):
         """
         推送BkBase结果表详情路由
+        @param bk_tenant_id: 租户ID
+        @param table_id_list: 结果表列表
+        @param is_publish: 是否执行推送
         """
         logger.info(
             "push_bkbase_table_id_detail: try to push bkbase_table_id_detail for table_id_list->[%s]", table_id_list
@@ -442,6 +461,15 @@ class SpaceTableIDRedis:
 
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
+
+                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    logger.info(
+                        "push_bkbase_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        bk_tenant_id,
+                    )
+                    for key in list(_table_id_detail.keys()):
+                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
