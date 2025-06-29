@@ -417,7 +417,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(otherQuery = {}) {
     const query = {
       ...this.$route.query,
       from: this.timeRange[0],
@@ -445,6 +445,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
       commonWhere: JSON.stringify(this.commonWhere),
       showResidentBtn: String(this.showResidentBtn),
       favoriteId: String(this.currentFavorite?.id || ''),
+      ...otherQuery,
     };
 
     const targetRoute = this.$router.resolve({
@@ -522,6 +523,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         onFilterModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onQueryStringInputChange={this.handleQueryStringInputChange}
+        onSetRouteParams={this.setRouteParams}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />

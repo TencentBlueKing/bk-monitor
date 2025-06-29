@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Optional
 
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -90,7 +90,9 @@ class CollectConfigMeta(OperateRecordModelBase):
     # HOST                   INSTANCE             主机实例
     target_object_type = models.CharField("采集对象类型", max_length=32, choices=TARGET_OBJECT_TYPE_CHOICES)
 
-    deployment_config = models.ForeignKey("DeploymentConfigVersion", verbose_name="当前的部署配置", on_delete=models.CASCADE)
+    deployment_config = models.ForeignKey(
+        "DeploymentConfigVersion", verbose_name="当前的部署配置", on_delete=models.CASCADE
+    )
     cache_data = JsonField("缓存数据", default=None)
     last_operation = models.CharField("最近一次操作", max_length=32, choices=OPERATION_TYPE_CHOICES)
     operation_result = models.CharField("最近一次任务结果", max_length=32, choices=OPERATION_RESULT_CHOICES)
@@ -228,18 +230,25 @@ class CollectConfigMeta(OperateRecordModelBase):
     def operate_type(self, diff_result):
         if self.collect_type == self.CollectType.LOG or self.collect_type == self.CollectType.SNMP_TRAP:
             return "update"
-        if (
-            diff_result["plugin_version"]["is_modified"]
-            or diff_result["remote_collecting_host"]["is_modified"]
-            or (not self.deployment_config.subscription_id)
-        ):
+
+        if diff_result["remote_collecting_host"]["is_modified"] or (not self.deployment_config.subscription_id):
             return "rebuild"
-        elif (
+
+        if diff_result["plugin_version"]["is_modified"]:
+            # 判断是否需要使用update模式进行插件升级
+
+            if self.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ:
+                return "update"
+            return "rebuild"
+
+        if (
             diff_result["params"]["is_modified"]
             or diff_result["nodes"]["is_modified"]
             or self.deployment_config.target_nodes
         ):
             return "update"
+
+        return None
 
     @property
     def data_id(self):

@@ -60,9 +60,18 @@ class IncidentBaseResource(Resource):
     故障相关资源基类
     """
 
-    def get_snapshot_alerts(self, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
+    @classmethod
+    def get_snapshot_alerts(cls, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
         alert_ids = snapshot.get_related_alert_ids()
-        start_time, end_time = self.generate_time_range_from_alerts(alert_ids)
+        if "bk_biz_ids" not in kwargs:
+            kwargs["bk_biz_ids"] = list(
+                map(lambda x: int(x), snapshot.incident_snapshot_content["rca_summary"]["bk_biz_ids"])
+            )
+        return cls.get_alerts_by_alert_ids(alert_ids, **kwargs)
+
+    @classmethod
+    def get_alerts_by_alert_ids(cls, alert_ids, **kwargs):
+        start_time, end_time = cls.generate_time_range_from_alerts(alert_ids)
 
         if "start_time" not in kwargs:
             kwargs["start_time"] = start_time
@@ -73,14 +82,11 @@ class IncidentBaseResource(Resource):
             kwargs["conditions"].append({"key": "id", "value": alert_ids, "method": "eq"})
         else:
             kwargs["conditions"] = [{"key": "id", "value": alert_ids, "method": "eq"}]
-        if "bk_biz_ids" not in kwargs:
-            kwargs["bk_biz_ids"] = list(
-                map(lambda x: int(x), snapshot.incident_snapshot_content["rca_summary"]["bk_biz_ids"])
-            )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
 
-    def generate_time_range_from_alerts(self, alert_ids: list[int]) -> tuple[int, int]:
+    @classmethod
+    def generate_time_range_from_alerts(cls, alert_ids: list[int]) -> tuple[int, int]:
         start_time, end_time = None, None
         for alert_id in alert_ids:
             timestamp = int(str(alert_id)[:10])
@@ -1383,3 +1389,94 @@ class AlertIncidentDetailResource(IncidentDetailResource):
                 result["wx_cs_link"] = item["link"]
 
         return result
+
+
+class IncidentResultsResource(IncidentBaseResource):
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="故障ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # 去除前面的时间戳
+        incident_id = str(validated_request_data["id"])[10:]
+        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        sub_panel_status = {}
+        for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
+            sub_panel_status[sub_panel_name] = {
+                "status": sub_panel["status"],
+                "message": sub_panel["message"] if sub_panel.get("message") else "",
+                "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
+            }
+        incident_results = {
+            "panels": {
+                "incident_handlers": {  # 故障处理tab
+                    "enabled": True,  # 是否展示该tab
+                    "status": "finished",
+                },
+                "incident_operations": {  # 故障流转tab
+                    "enabled": True,
+                    "status": "finished",
+                },
+                "incident_topology": {  # 故障拓扑tab
+                    "enabled": True,
+                    "status": "finished",
+                },
+                "incident_alerts": {  # 故障告警tab
+                    "enabled": True,
+                    "status": "finished",
+                },
+                "incident_diagnosis": sub_panel_status,
+            },
+            "status": "unknown",
+        }
+
+        if all(
+            [
+                panel_properties.get("status") == "finished"
+                for panel_properties in incident_results["panels"].values()
+                if panel_properties.get("enabled")
+            ]
+        ):
+            incident_results["status"] = "finished"
+        elif any(
+            [
+                panel_properties.get("status") == "failed"
+                for panel_properties in incident_results["panels"].values()
+                if panel_properties.get("enabled")
+            ]
+        ):
+            incident_results["status"] = "failed"
+        else:
+            incident_results["status"] = "running"
+
+        return incident_results
+
+
+class IncidentDiagnosisResource(IncidentBaseResource):
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="故障ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        sub_panel = serializers.CharField(required=False, default="summary")
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        sub_panel = validated_request_data.get("sub_panel")
+        incident_id = str(validated_request_data["id"])[10:]
+        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_content = diagnosis_results.get("sub_panels", {}).get(sub_panel, {}).get("content")
+        if sub_panel == "anomaly_analysis":
+            content = []
+            drill_results = raw_content.get("dimension_drill_result", {}).get("dimension_drill_result", [])
+            for drill_result in drill_results:
+                alerts = (
+                    self.get_alerts_by_alert_ids(drill_result["alert_ids"]) if drill_result.get("alert_ids") else []
+                )
+                content_item = {
+                    "score": drill_result["score"],
+                    "alert_count": len(alerts),
+                    "alerts": alerts,
+                    "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
+                }
+                content.append(content_item)
+        else:
+            content = raw_content
+        return content

@@ -23,7 +23,7 @@ class RenderDashboardConfig:
     bk_biz_id: int
     dashboard_uid: str
     width: int
-    height: int
+    height: int | None = None
     panel_id: str | None = None
     variables: dict[str, list[str]] = field(default_factory=dict)
     start_time: int = field(default_factory=lambda: int(time.time() - 10800))

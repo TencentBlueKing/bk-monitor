@@ -283,6 +283,9 @@
         type: Boolean,
         default: true,
       },
+      maxLogLength: {
+        type: Number
+      },
     },
     data() {
       return {
@@ -362,6 +365,7 @@
         const query = {
           input_data: this.logOriginal,
           predefined_varibles: predefinedVariables,
+          max_log_length: this.maxLogLength,
         };
         this.$http
           .request('/logClustering/debug', { data: { ...query } })

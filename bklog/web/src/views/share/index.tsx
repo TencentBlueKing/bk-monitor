@@ -24,18 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute, useRouter } from 'vue-router/composables';
-import useStore from '@/hooks/use-store';
+import { defineComponent, onMounted, ref } from 'vue';
+
 import http from '@/api/index';
-import './share.scss';
-import { messageError } from '@/common/bkmagic';
+import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
+
+import './index.scss';
 
 export default defineComponent({
   setup() {
     const router = useRouter();
     const route = useRoute();
     const store = useStore();
+    const errorMessage = ref('正在解析地址, 请稍候 ...');
 
     const linkId = route.params.linkId as string;
 
@@ -45,19 +47,26 @@ export default defineComponent({
     }
 
     const getLinkParams = () => {
-      http.request('retrieve/getShareParams', { query: { token: linkId } }).then(resp => {
-        if (resp.result) {
-          const data = resp.data.data;
-          const { storage, indexItem, catchFieldCustomConfig } = data.store;
-          store.commit('updateStorage', storage);
-          store.commit('updateIndexItem', indexItem);
-          store.commit('retrieve/updateCatchFieldCustomConfig', catchFieldCustomConfig);
-          router.push({ ...data.route });
-          return;
-        }
+      errorMessage.value = '正在解析地址, 请稍候 ...';
+      http
+        .request('retrieve/getShareParams', { query: { token: linkId } }, { catchIsShowMessage: false })
+        .then(resp => {
+          debugger;
+          if (resp.result) {
+            const data = resp.data.data;
+            const { storage, indexItem, catchFieldCustomConfig } = data.store;
+            store.commit('updateStorage', storage);
+            store.commit('updateIndexItem', indexItem);
+            store.commit('retrieve/updateCatchFieldCustomConfig', catchFieldCustomConfig);
+            router.push({ ...data.route });
+            return;
+          }
 
-        messageError(resp.message || '获取分享链接参数失败，请稍后重试！');
-      });
+          errorMessage.value = resp.message || '获取分享链接参数失败，请稍后重试！';
+        })
+        .catch(err => {
+          errorMessage.value = err.message || err || '获取分享链接参数失败，请稍后重试！';
+        });
     };
 
     onMounted(() => {
@@ -67,17 +76,17 @@ export default defineComponent({
     return () => (
       <div class='analysis-animation-container'>
         <bk-exception
-          type='search-empty'
           style={{
-            marginTop: '20px',
+            marginTop: '10%',
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
             top: '0',
           }}
           scene='part'
+          type='search-empty'
         >
-          {'正在解析地址, 请稍候 ...'}
+          {errorMessage.value}
         </bk-exception>
       </div>
     );

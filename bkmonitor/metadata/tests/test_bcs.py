@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
 
@@ -23,12 +23,12 @@ from metadata.tests.common_utils import MockCache, consul_client
 
 logger = logging.getLogger("metadata")
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 IS_CONSUL_MOCK = False
 es_index = {}
 
 
-class TestOperateConsulConfig(object):
+class TestOperateConsulConfig:
     data_name = "2_system.cpu"
     etl_config = "basereport"
     operator = "operator"
@@ -166,7 +166,7 @@ class TestOperateConsulConfig(object):
             out_date = (datetime.datetime.utcnow() - datetime.timedelta(days=365 * 3)).strftime("%Y%m%d%H")
             new_date = (datetime.datetime.utcnow() + datetime.timedelta(days=1)).strftime("%Y%m%d%H")
 
-            return {"{}_{}_0".format(table_id, out_date): "", "{}_{}_0".format(table_id, new_date): ""}
+            return {f"{table_id}_{out_date}_0": "", f"{table_id}_{new_date}_0": ""}
 
         mocker.patch("elasticsearch5.client.indices.IndicesClient.get", side_effect=es_get_index)
 

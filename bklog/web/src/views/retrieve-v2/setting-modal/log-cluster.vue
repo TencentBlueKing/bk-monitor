@@ -143,6 +143,7 @@
           :global-editable="globalEditable"
           :submit-lading="isHandle"
           :table-str="defaultData.predefined_varibles"
+          :max-log-length="formData.max_log_length"
           @submit-rule="handleSubmitClusterChange"
         />
       </div>

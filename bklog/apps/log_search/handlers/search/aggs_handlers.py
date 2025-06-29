@@ -299,6 +299,32 @@ class AggsViewAdapter(object):
     def __init__(self):
         self._aggs_handlers = AggsHandlers
 
+    @staticmethod
+    def _init_union_configs(union_configs=None):
+        """
+        初始化索引集配置
+        """
+        union_config_map = dict()
+
+        if not union_configs:
+            return union_config_map
+
+        for config in union_configs:
+            if not isinstance(config, dict):
+                continue
+            index_set_id = int(config.get("index_set_id"))
+            custom_indices = config.get("custom_indices", "")
+
+            if index_set_id not in union_configs:
+                union_config_map[index_set_id] = {}
+            union_config_map[index_set_id].update(
+                {
+                    "index_set_id": index_set_id,
+                    "custom_indices": custom_indices
+                }
+            )
+        return union_config_map
+
     def terms(self, index_set_id, query_data: dict):
         terms_result = self._aggs_handlers.terms(index_set_id, query_data)
         aggs_result = terms_result.get("aggs", {})
@@ -410,14 +436,19 @@ class AggsViewAdapter(object):
         return_data["aggs"] = self._del_empty_histogram(return_data["aggs"])
         return return_data
 
-    @staticmethod
-    def union_search_date_histogram(query_data: dict):
+    def union_search_date_histogram(self, query_data: dict):
         index_set_ids = query_data.get("index_set_ids", [])
+        union_configs = query_data.get("union_configs", [])
+
+        # 初始化索引集配置
+        union_config_map = self._init_union_configs(union_configs)
 
         # 多线程请求数据
         multi_execute_func = MultiExecuteFunc()
 
         for index_set_id in index_set_ids:
+            if union_config_map:
+                query_data["custom_indices"] = union_config_map.get(index_set_id, {}).get("custom_indices", "")
             params = {"index_set_id": index_set_id, "query_data": query_data}
             multi_execute_func.append(
                 result_key=f"union_search_date_histogram_{index_set_id}",
@@ -449,14 +480,19 @@ class AggsViewAdapter(object):
 
         return ret_data
 
-    @staticmethod
-    def union_search_terms(query_data: dict):
+    def union_search_terms(self, query_data: dict):
         index_set_ids = query_data.get("index_set_ids", [])
+        union_configs = query_data.get("union_configs", [])
+
+        # 初始化索引集配置
+        union_config_map = self._init_union_configs(union_configs)
 
         # 多线程请求数据
         multi_execute_func = MultiExecuteFunc()
 
         for index_set_id in index_set_ids:
+            if union_config_map:
+                query_data["custom_indices"] = union_config_map.get(index_set_id, {}).get("custom_indices", "")
             params = {"index_set_id": index_set_id, "query_data": query_data}
             multi_execute_func.append(
                 result_key=f"union_search_terms_{index_set_id}",

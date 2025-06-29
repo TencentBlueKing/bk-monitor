@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
-from typing import List, Tuple
 
-import mock
+from unittest import mock
 import pytest
 from mockredis import MockRedis
 
@@ -223,7 +222,7 @@ def monkeypatch_cmdb_get_info_by_ip(monkeypatch):
     monkeypatch.setattr(GetHostByIP, "bulk_request", lambda self, params: MOCK_CMDB_GET_HOST_BY_IP)
 
 
-class HashConsulMocker(object):
+class HashConsulMocker:
     result_list = {}
 
     def put(self, key, value):
@@ -239,7 +238,7 @@ class HashConsulMocker(object):
         else:
             self.result_list.pop(key, None)
 
-    def list(self, key: str) -> List:
+    def list(self, key: str) -> list:
         """返回格式
         (xxx, [{Key: xxx, Value: xxx}])
         """
@@ -250,6 +249,13 @@ class HashConsulMocker(object):
 
         return ("297766103", val if val else None)
 
-    def get(self, key: str) -> Tuple:
+    def get(self, key: str) -> tuple:
         val = self.result_list.get(key)
         return ("297766103", {"Key": key, "Value": val} if val else None)
+
+
+@pytest.fixture(
+    autouse=True,
+)
+def enable_db_access(db):
+    pass
