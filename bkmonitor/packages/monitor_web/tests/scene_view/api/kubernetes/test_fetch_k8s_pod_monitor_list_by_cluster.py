@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from api.kubernetes.default import FetchK8sPodMonitorListByClusterResource
 from core.drf_resource import api
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestFetchK8sPodMonitorListByClusterResource:
     def test_fetch(
         self,
@@ -28,17 +28,17 @@ class TestFetchK8sPodMonitorListByClusterResource:
         actual = api.kubernetes.fetch_k8s_pod_monitor_list_by_cluster({"bcs_cluster_id": bcs_cluster_id})
         expect = [
             {
-                'age': None,
-                'bcs_cluster_id': 'BCS-K8S-00000',
-                'created_at': None,
-                'endpoint_count': 1,
-                'label_list': [{'key': 'app.kubernetes.io/name', 'value': 'pod-monitor'}],
-                'labels': {'app.kubernetes.io/name': 'pod-monitor'},
-                'metric_interval': ['300s'],
-                'metric_path': ['/metrics'],
-                'metric_port': ['http'],
-                'name': 'pod-monitor-test',
-                'namespace': 'default',
+                "age": None,
+                "bcs_cluster_id": "BCS-K8S-00000",
+                "created_at": None,
+                "endpoint_count": 1,
+                "label_list": [{"key": "app.kubernetes.io/name", "value": "pod-monitor"}],
+                "labels": {"app.kubernetes.io/name": "pod-monitor"},
+                "metric_interval": ["300s"],
+                "metric_path": ["/metrics"],
+                "metric_port": ["http"],
+                "name": "pod-monitor-test",
+                "namespace": "default",
             }
         ]
         assert actual == expect

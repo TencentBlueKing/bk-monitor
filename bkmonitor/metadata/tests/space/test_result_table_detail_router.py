@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import call, patch
 
+from django.conf import settings
 import pytest
 
 from metadata import models
@@ -167,6 +168,8 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
 
 @pytest.mark.django_db(databases="__all__")
 def test_push_doris_table_id_detail(create_or_delete_records):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+
     # 结果表详情路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
@@ -175,7 +178,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
             )
             expected_rt_detail_router = {
-                "2_bklog.test_doris_non_exists": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
+                "riot|2_bklog.test_doris_non_exists": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
             }
 
@@ -187,13 +190,17 @@ def test_push_doris_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_non_exists"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bklog.test_doris_non_exists"]),
                 ]
             )
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
 
 
 @pytest.mark.django_db(databases="__all__")
 def test_push_bkbase_table_id_detail(create_or_delete_records):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+
     # 结果表详情路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
@@ -202,7 +209,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True
             )
             expected_rt_detail_router = {
-                "2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
+                "riot|2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
                 '"data_label":"bkbase_rt_meta_metric",'
@@ -217,6 +224,8 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bkbase_metric_agg.__default__"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bkbase_metric_agg.__default__"]),
                 ]
             )
+
+    settings.ENABLE_MULTI_TENANT_MODE = False

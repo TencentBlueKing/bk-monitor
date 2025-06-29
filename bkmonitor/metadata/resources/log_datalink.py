@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
 
 from django.db.transaction import atomic
 from rest_framework import serializers
@@ -20,10 +20,10 @@ from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.service.space_redis import (
-    push_and_publish_es_aliases,
-    push_and_publish_log_space_router,
-    push_and_publish_es_table_id,
     push_and_publish_doris_table_id_detail,
+    push_and_publish_es_aliases,
+    push_and_publish_es_table_id,
+    push_and_publish_log_space_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ class CreateEsRouter(BaseLogRouter):
 
     def perform_request(self, data: OrderedDict):
         space = models.Space.objects.get(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
         )
         bk_tenant_id = space.bk_tenant_id
 
@@ -155,7 +155,7 @@ class CreateDorisRouter(BaseLogRouter):
 
     def perform_request(self, data: dict):
         space = models.Space.objects.get(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
         )
         bk_tenant_id = space.bk_tenant_id
 
@@ -216,10 +216,7 @@ class UpdateEsRouter(BaseLogRouter):
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
 
     def perform_request(self, data: OrderedDict):
-        space = models.Space.objects.get(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
-        )
-        bk_tenant_id = space.bk_tenant_id
+        bk_tenant_id = get_request_tenant_id()
 
         # 查询结果表存在
         table_id = data["table_id"]
@@ -290,7 +287,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
     def perform_request(self, data: OrderedDict):
         space = models.Space.objects.get(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
         )
         bk_tenant_id = space.bk_tenant_id
 
@@ -364,7 +361,7 @@ class CreateOrUpdateLogRouter(Resource):
 
     def perform_request(self, validated_request_data):
         space = models.Space.objects.get(
-            space_type=validated_request_data["space_type"],
+            space_type_id=validated_request_data["space_type"],
             space_id=validated_request_data["space_id"],
             bk_tenant_id=get_request_tenant_id(),
         )

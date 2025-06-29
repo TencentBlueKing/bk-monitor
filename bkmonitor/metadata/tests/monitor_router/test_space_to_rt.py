@@ -184,6 +184,28 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_push_space_to_rt_router_without_tenant_for_bkcc(create_or_delete_records):
+    """测试SPACE_TO_RESULT_TABLE路由推送- BKCC类型"""
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            settings.ENABLE_MULTI_TENANT_MODE = False
+            client = SpaceTableIDRedis()
+            client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
+
+            expected = {
+                "bkcc__1": '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
+            }
+
+            # 验证 RedisTools.hmset_to_redis 是否被正确调用
+            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:space_to_result_table", expected)
+            # 验证 RedisTools.publish 是否被正确调用
+            mock_publish.assert_called_once_with(
+                "bkmonitorv3:spaces:space_to_result_table:channel",
+                ["bkcc__1"],
+            )
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
     """测试SPACE_TO_RESULT_TABLE路由推送- BKCI类型"""
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -203,6 +225,29 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
                 ["tencent|bkci__bkmonitor"],
+            )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_push_space_to_rt_router_without_tenant_for_bkci(create_or_delete_records):
+    """测试SPACE_TO_RESULT_TABLE路由推送- BKCI类型"""
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            settings.ENABLE_MULTI_TENANT_MODE = False
+            client = SpaceTableIDRedis()
+            client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
+
+            expected = {
+                "bkci__bkmonitor": '{"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},'
+                '"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]}}'
+            }
+
+            # 验证 RedisTools.hmset_to_redis 是否被正确调用
+            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:space_to_result_table", expected)
+            # 验证 RedisTools.publish 是否被正确调用
+            mock_publish.assert_called_once_with(
+                "bkmonitorv3:spaces:space_to_result_table:channel",
+                ["bkci__bkmonitor"],
             )
 
 
@@ -227,4 +272,28 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
                 ["tencent|bksaas__monitor_saas"],
+            )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_push_space_to_rt_router_without_tenant_for_bksaas(create_or_delete_records):
+    """测试SPACE_TO_RESULT_TABLE路由推送- BKSAAS类型"""
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            settings.ENABLE_MULTI_TENANT_MODE = False
+            client = SpaceTableIDRedis()
+            client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
+
+            expected = {
+                "bksaas__monitor_saas": '{"custom_report_aggate.base":{"filters":[{'
+                '"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{'
+                '"bk_biz_id":"-10008"}]}}'
+            }
+
+            # 验证 RedisTools.hmset_to_redis 是否被正确调用
+            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:space_to_result_table", expected)
+            # 验证 RedisTools.publish 是否被正确调用
+            mock_publish.assert_called_once_with(
+                "bkmonitorv3:spaces:space_to_result_table:channel",
+                ["bksaas__monitor_saas"],
             )

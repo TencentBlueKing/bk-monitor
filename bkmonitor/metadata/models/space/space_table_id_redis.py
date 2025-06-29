@@ -249,10 +249,10 @@ class SpaceTableIDRedis:
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
 
-                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     logger.info(
-                        "push_es_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
@@ -355,10 +355,10 @@ class SpaceTableIDRedis:
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
 
-                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     logger.info(
-                        "push_es_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
@@ -462,10 +462,10 @@ class SpaceTableIDRedis:
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
 
-                # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     logger.info(
-                        "push_bkbase_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]",
+                        "push_bkbase_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
@@ -579,11 +579,11 @@ class SpaceTableIDRedis:
                 self._compose_es_table_id_detail(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
             )
 
-        # 若开启多租户模式,则在table_id后拼接@bk_tenant_id
+        # 若开启多租户模式,则在table_id前拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info("push_table_id_detail: enable multi tenant mode,will append @bk_tenant_id->[%s]", bk_tenant_id)
+            logger.info("push_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]", bk_tenant_id)
             for key in list(_table_id_detail.keys()):
-                _table_id_detail[f"{key}@{bk_tenant_id}"] = _table_id_detail.pop(key)
+                _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
 
         # 推送数据
         if _table_id_detail:
