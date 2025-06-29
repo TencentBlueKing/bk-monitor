@@ -20,9 +20,6 @@ from metadata.models.space.constants import (
     RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_REDIS_KEY,
-    SPACE_TO_RESULT_TABLE_CHANNEL,
-    SPACE_TO_RESULT_TABLE_KEY,
-    SpaceTypes,
 )
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.space.utils import reformat_table_id
@@ -54,27 +51,7 @@ def get_kihan_prom_field_list(domain: str) -> list:
 def push_and_publish_log_space_router(space_type: str, space_id: str):
     """推送并发布es空间路由"""
     client = SpaceTableIDRedis()
-    if space_type == SpaceTypes.BKCC.value:
-        values = client._push_bkcc_space_table_ids(space_type, space_id, can_push_data=False)
-    elif space_type == SpaceTypes.BKCI.value:
-        values = client._push_bkci_space_table_ids(space_type, space_id, can_push_data=False)
-    elif space_type == SpaceTypes.BKSAAS.value:
-        values = client._push_bksaas_space_table_ids(space_type, space_id, can_push_data=False)
-    else:
-        logger.error("not found space_type: %s, space_id: %s", space_type, space_id)
-        raise ValueError("not found space type")
-
-    # 二段式校验&补充
-    values_to_redis = {}
-    for key, value in values.items():
-        key = reformat_table_id(key)
-        values_to_redis[key] = value
-
-    # 推送并发布
-    space_uid = f"{space_type}__{space_id}"
-    RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, {space_uid: json.dumps(values_to_redis)})
-    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_uid])
-
+    client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     logger.info("push and publish es space router success, space_type: %s, space_id: %s", space_type, space_id)
 
 

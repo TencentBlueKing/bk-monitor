@@ -64,9 +64,7 @@ class SpaceTableIDRedis:
     多租户环境下,不允许跨租户推送路由,即每次操作的目标数据,必须是同一租户下的,不能跨租户
     """
 
-    def push_space_table_ids(
-        self, space_type: str, space_id: str, is_publish: bool | None = False, can_push_data: bool | None = True
-    ):
+    def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
         """
         推送空间及对应的结果表和过滤条件
         多租户环境下,需要统一在table_id后拼接租户ID
@@ -74,19 +72,69 @@ class SpaceTableIDRedis:
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
         # NOTE: 为防止 space_id 传递非字符串，转换一次
         space_id = str(space_id)
+
+        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+        bk_tenant_id = space.bk_tenant_id
+
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
-            self._push_bkcc_space_table_ids(space_type, space_id, can_push_data=can_push_data)
+            redis_values = self._compose_bkcc_space_table_ids(space)
         elif space_type == SpaceTypes.BKCI.value:
             # 开启容器服务，则需要处理集群+业务+构建机+其它(在当前空间下创建的插件、自定义上报等)
-            self._push_bkci_space_table_ids(space_type, space_id, can_push_data=can_push_data)
+            redis_values = self._compose_bkci_space_table_ids(space)
         elif space_type == SpaceTypes.BKSAAS.value:
-            self._push_bksaas_space_table_ids(space_type, space_id, can_push_data=can_push_data)
+            redis_values = self._compose_bksaas_space_table_ids(space)
+        else:
+            logger.error("not found space_type: %s, space_id: %s", space_type, space_id)
+            raise ValueError("not found space type")
 
-        # 如果指定要更新，则通知
+        # 二段式校验&补充
+        values_to_redis = {}
+        for key, value in redis_values.items():
+            key = reformat_table_id(key)
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                # 若开启多租户模式,需要在table_id前拼接bk_tenant_id
+                key = f"{bk_tenant_id}|{key}"
+            values_to_redis[key] = value
+
+        # 组装redis key
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            space_redis_key = f"{bk_tenant_id}|{space_type}__{space_id}"
+        else:
+            space_redis_key = f"{space_type}__{space_id}"
+
+        # 推送数据
+        if values_to_redis:
+            RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, {space_redis_key: json.dumps(values_to_redis)})
+
+        logger.info(
+            "push redis space_to_result_table, space_type: %s, space_id: %s",
+            space_type,
+            space_id,
+        )
+
+        # 通知使用方
         if is_publish:
-            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [f"{space_type}__{space_id}"])
+            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_redis_key])
         logger.info("push space table_id data successfully, space_type: %s, space_id: %s", space_type, space_id)
+
+    def push_multi_space_table_ids(self, spaces: list[models.Space], is_publish: bool | None = False) -> None:
+        """
+        批量推送空间数据
+        """
+        # 推送数据
+        for space in spaces:
+            self.push_space_table_ids(space.space_type_id, space.space_id, is_publish=False)
+
+        # 通知使用方
+        if is_publish:
+            push_redis_keys = []
+            for space in spaces:
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+                else:
+                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
+            RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     def push_data_label_table_ids(
         self,
@@ -690,17 +738,18 @@ class SpaceTableIDRedis:
             )
         return data
 
-    def _push_bkcc_space_table_ids(
+    def _compose_bkcc_space_table_ids(
         self,
-        space_type: str,
-        space_id: str,
+        space: models.Space,
         from_authorization: bool | None = None,
-        can_push_data: bool | None = True,
-    ):
+    ) -> dict[str, dict[str, dict]]:
         """推送 bkcc 类型空间数据"""
+
+        bk_tenant_id: str = space.bk_tenant_id
+        space_type: str = space.space_type_id
+        space_id: str = space.space_id
+
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
-        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
-        bk_tenant_id = space.bk_tenant_id
         logger.info(
             "_push_bkcc_space_table_ids: space_type->[%s],space_id->[%s],bk_tenant_id->[%s]",
             space_type,
@@ -730,38 +779,18 @@ class SpaceTableIDRedis:
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
-
-        # 二段式校验&补充
-        values_to_redis = {}
-        for key, value in _values.items():
-            key = reformat_table_id(key)
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                # 若开启多租户模式,需要在table_id后拼接@bk_tenant_id
-                key += f"@{space.bk_tenant_id}"
-            values_to_redis[key] = value
-
-        # 推送数据
-        if values_to_redis and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
-            RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
-
-        logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id: %s",
-            space_type,
-            space_id,
-        )
         return _values
 
-    def _push_bkci_space_table_ids(
+    def _compose_bkci_space_table_ids(
         self,
-        space_type: str,
-        space_id: str,
-        can_push_data: bool | None = True,
-    ):
+        space: models.Space,
+    ) -> dict[str, dict[str, dict]]:
         """推送 bcs 类型空间下的关联业务的数据"""
+        space_type: str = space.space_type_id
+        space_id: str = space.space_id
+        bk_tenant_id: str = space.bk_tenant_id
         logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
-        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
-        bk_tenant_id = space.bk_tenant_id
+
         _values = self._compose_bcs_space_biz_table_ids(
             space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id
         )
@@ -789,38 +818,19 @@ class SpaceTableIDRedis:
 
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
-
-        # 二段式校验&补充
-        values_to_redis = {}
-        for key, value in _values.items():
-            key = reformat_table_id(key)
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                # 若开启多租户模式,需要在table_id后拼接@bk_tenant_id
-                key += f"@{space.bk_tenant_id}"
-            values_to_redis[key] = value
-
-        # 推送数据
-        if _values and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
-            RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
-        logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s",
-            space_type,
-            space_id,
-        )
         return _values
 
-    def _push_bksaas_space_table_ids(
+    def _compose_bksaas_space_table_ids(
         self,
-        space_type: str,
-        space_id: str,
+        space: models.Space,
         table_id_list: list | None = None,
-        can_push_data: bool | None = True,
-    ):
+    ) -> dict[str, dict[str, dict]]:
         """推送 bksaas 类型空间下的数据"""
+        space_type: str = space.space_type_id
+        space_id: str = space.space_id
+        bk_tenant_id: str = space.bk_tenant_id
         logger.info("start to push bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id)
-        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
-        bk_tenant_id = space.bk_tenant_id
+
         _values = self._compose_bksaas_space_cluster_table_ids(
             space_type=space_type, space_id=space_id, table_id_list=table_id_list, bk_tenant_id=bk_tenant_id
         )
@@ -843,24 +853,6 @@ class SpaceTableIDRedis:
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
         # 替换自定义过滤条件别名
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
-
-        # 二段式校验&补充
-        values_to_redis = {}
-        for key, value in _values.items():
-            key = reformat_table_id(key)
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                # 若开启多租户模式,需要在table_id后拼接@bk_tenant_id
-                key += f"@{space.bk_tenant_id}"
-            values_to_redis[key] = value
-
-        if _values and can_push_data:
-            redis_values = {f"{space_type}__{space_id}": json.dumps(values_to_redis)}
-            RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
-        logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id: %s",
-            space_type,
-            space_id,
-        )
         return _values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
@@ -1151,7 +1143,7 @@ class SpaceTableIDRedis:
             return _values
 
         # 提取仅包含写入 influxdb 和 vm 的结果表
-        table_ids = self._refine_table_ids(list(table_id_data_id.keys()))
+        table_ids = self._refine_table_ids(list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
         # 再一次过滤，过滤到有链路的结果表，并且写入 influxdb 或 vm 的数据
         table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
 

@@ -23,6 +23,14 @@ from metadata.tests.common_utils import consul_client
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    models.Space.objects.all().delete()
+    models.BkBaseResultTable.objects.all().delete()
+    models.ClusterInfo.objects.all().delete()
+    models.DorisStorage.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.ResultTableField.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+
     # Space
     models.Space.objects.create(
         space_type_id="bkcc",
@@ -116,10 +124,13 @@ def create_or_delete_records(mocker):
 
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.Space.objects.all().delete()
     models.BkBaseResultTable.objects.all().delete()
     models.ClusterInfo.objects.all().delete()
     models.DorisStorage.objects.all().delete()
     models.ResultTable.objects.all().delete()
+    models.ResultTableField.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
 
 
 @pytest.mark.django_db(databases="__all__")

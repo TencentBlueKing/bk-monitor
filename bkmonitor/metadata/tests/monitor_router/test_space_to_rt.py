@@ -27,6 +27,17 @@ def create_or_delete_records(mocker):
     """
     创建或删除测试数据
     """
+
+    models.DataSource.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+    models.ESStorage.objects.all().delete()
+    models.ClusterInfo.objects.all().delete()
+    models.StorageClusterRecord.objects.all().delete()
+    models.Space.objects.all().delete()
+    models.SpaceDataSource.objects.all().delete()
+    models.SpaceResource.objects.all().delete()
+
     # ---------------------空间数据--------------------- #
     models.Space.objects.create(
         space_type_id="bkcc",
@@ -160,9 +171,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
             expected = {
-                "bkcc__1": '{"1001_bkmonitor_time_series_50010.__default__@riot":{"filters":[{'
-                '"bk_biz_id":"1"}]},"1001_bklog.stdout@riot":{"filters":[{"bk_biz_id":"1"}]},'
-                '"bkm_1_record_rule.__default__@riot":{"filters":[]}}'
+                "riot|bkcc__1": '{"riot|1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"riot|1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"riot|bkm_1_record_rule.__default__":{"filters":[]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -170,7 +179,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["bkcc__1"],
+                ["riot|bkcc__1"],
             )
 
 
@@ -184,8 +193,8 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
             expected = {
-                "bkci__bkmonitor": '{"custom_report_aggate.base@tencent":{"filters":[{"bk_biz_id":"-10000"}]},'
-                '"bkm_statistics.base@tencent":{"filters":[{"bk_biz_id":"-10000"}]}}'
+                "tencent|bkci__bkmonitor": '{"tencent|custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},'
+                '"tencent|bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -193,7 +202,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["bkci__bkmonitor"],
+                ["tencent|bkci__bkmonitor"],
             )
 
 
@@ -207,8 +216,8 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
             expected = {
-                "bksaas__monitor_saas": '{"custom_report_aggate.base@tencent":{"filters":[{'
-                '"bk_biz_id":"-10008"}]},"bkm_statistics.base@tencent":{"filters":[{'
+                "tencent|bksaas__monitor_saas": '{"tencent|custom_report_aggate.base":{"filters":[{'
+                '"bk_biz_id":"-10008"}]},"tencent|bkm_statistics.base":{"filters":[{'
                 '"bk_biz_id":"-10008"}]}}'
             }
 
@@ -217,5 +226,5 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["bksaas__monitor_saas"],
+                ["tencent|bksaas__monitor_saas"],
             )

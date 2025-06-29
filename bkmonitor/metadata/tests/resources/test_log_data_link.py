@@ -38,11 +38,13 @@ def create_or_delete_records(mocker):
     )
 
     # Space
-    models.Space.objects.create(
+    models.Space.objects.update_or_create(
         space_type_id="bkcc",
         space_id=2,
-        space_code="2_space",
-        space_name="2_space",
+        defaults={
+            "space_code": "2_space",
+            "space_name": "2_space",
+        },
     )
 
     # 平台公共默认Doris集群
@@ -260,7 +262,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                 '"measurement":"__default__","source_type":"bkdata","options":{},'
                 '"storage_type":"elasticsearch","storage_cluster_records":[{'
                 '"storage_id":3,"enable_time":1747130440}],'
-                '"data_label":"bkdata_index_set_6788"}'
+                '"data_label":"bkdata_index_set_6788","field_alias":{}}'
             )
 
             detail_string = detail_string.replace(
