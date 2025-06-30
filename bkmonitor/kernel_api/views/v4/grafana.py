@@ -16,10 +16,16 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.grafana.get_variable_field, endpoint="get_variable_field"),
         ResourceRoute("POST", resource.grafana.time_series_metric_level, endpoint="time_series/metric_level"),
         ResourceRoute(
-            "POST", resource.grafana.graph_unify_query, endpoint="time_series/unify_query", content_encoding="gzip"
+            "POST",
+            resource.grafana.kernel_graph_unify_query,
+            endpoint="time_series/unify_query",
+            content_encoding="gzip",
         ),
         ResourceRoute(
-            "POST", resource.grafana.unify_query_raw, endpoint="time_series/unify_query_raw", content_encoding="gzip"
+            "POST",
+            resource.grafana.kernel_unify_query_raw,
+            endpoint="time_series/unify_query_raw",
+            content_encoding="gzip",
         ),
         ResourceRoute("POST", resource.grafana.graph_promql_query, endpoint="graph_promql_query"),
         ResourceRoute(
