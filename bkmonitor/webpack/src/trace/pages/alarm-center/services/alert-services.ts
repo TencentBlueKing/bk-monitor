@@ -486,9 +486,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   },
   // 其它不支持include/exclude的字段可继续补充
 ];
+
+export const ALERT_STORAGE_KEY = '__ALERT_EVENT_COLUMN__';
 export class AlertService extends AlarmService {
   readonly storageAnalysisKey = '__ALERT_ANALYZE_STORAGE_KEY__';
-  readonly storageKey = '__ALERT_EVENT_COLUMN__';
+  readonly storageKey = ALERT_STORAGE_KEY;
   get allTableColumns(): TableColumnItem[] {
     return [...ALERT_TABLE_COLUMNS];
   }

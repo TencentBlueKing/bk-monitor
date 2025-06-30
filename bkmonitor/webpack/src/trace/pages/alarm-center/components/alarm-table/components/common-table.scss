@@ -49,10 +49,20 @@
     }
   }
 
-  .bk-pagination {
-    padding: 14px 16px;
+  .common-table-empty {
+    .exception-image {
+      height: 180px;
+    }
 
-    .is-last {
+    .bk-exception-description {
+      margin-top: 16px;
+    }
+  }
+
+  .bk-pagination {
+    padding: 12px 16px;
+
+    .bk-pagination-small-list {
       margin-left: auto;
     }
 

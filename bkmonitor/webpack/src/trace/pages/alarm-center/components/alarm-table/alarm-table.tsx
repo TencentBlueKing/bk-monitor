@@ -25,11 +25,20 @@
  */
 import { computed, defineComponent, type PropType } from 'vue';
 
+import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 import {
   ExploreTableColumnTypeEnum,
   type BaseTableColumn,
 } from '../../../trace-explore/components/trace-explore-table/typing';
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem } from '../../typings';
+import { ACTION_STORAGE_KEY } from '../../services/action-services';
+import { ALERT_STORAGE_KEY } from '../../services/alert-services';
+import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
+import {
+  type AlarmStorageKey,
+  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
+  EventStatusMap,
+  type TableColumnItem,
+} from '../../typings';
 import CommonTable from './components/common-table';
 
 import './alarm-table.scss';
@@ -44,53 +53,73 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const transformedColumns = computed(() =>
-      props.columns.map(column => ({
+    const alarmStore = useAlarmCenterStore();
+    /** 不同视角下获取需要特殊渲染的单元格列 column 配置项的方法集合 */
+    const getSpecialRenderColumnsPropFnMap: Record<AlarmStorageKey, () => Record<string, BaseTableColumn>> = {
+      [ALERT_STORAGE_KEY]: getAlterSpecialRenderColumnsProps,
+      [INCIDENT_STORAGE_KEY]: () => ({}),
+      [ACTION_STORAGE_KEY]: getAlterSpecialRenderColumnsProps,
+    };
+
+    const transformedColumns = computed(() => {
+      const storageKey = alarmStore.alarmService.storageKey;
+      const specialRenderColumnsPropsMap = getSpecialRenderColumnsPropFnMap[storageKey]?.() || {};
+      return props.columns.map(column => ({
         ...column,
         ...(specialRenderColumnsPropsMap[column.colKey] || {}),
-      }))
-    );
+      }));
+    });
 
-    /** 需要特殊渲染的单元格列 column配置项集合 */
-    const specialRenderColumnsPropsMap: Record<string, BaseTableColumn> = {
-      metric: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
-        getRenderValue: row => row.metric?.map?.(e => ({ alias: e, value: e })),
-      },
-      event_count: {
-        renderType: ExploreTableColumnTypeEnum.CLICK,
-        clickCallback(row, column, event) {},
-      },
-      create_time: {
-        renderType: ExploreTableColumnTypeEnum.TIME,
-      },
-      begin_time: {
-        renderType: ExploreTableColumnTypeEnum.TIME,
-      },
-      end_time: {
-        renderType: ExploreTableColumnTypeEnum.TIME,
-      },
-      latest_time: {
-        renderType: ExploreTableColumnTypeEnum.TIME,
-      },
-      first_anomaly_time: {
-        renderType: ExploreTableColumnTypeEnum.TIME,
-      },
-      tags: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
-        getRenderValue: row => {
-          return row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value }));
+    /** 获取告警table表格列中单元格需要特殊渲染的列配置 */
+    function getAlterSpecialRenderColumnsProps(): Record<string, BaseTableColumn> {
+      return {
+        metric: {
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          getRenderValue: row => row.metric?.map?.(e => ({ alias: e, value: e })),
         },
-      },
-      strategy_name: {
-        renderType: ExploreTableColumnTypeEnum.LINK,
-        getRenderValue: row => ({ url: getStrategyUrl(row), alias: row.strategy_name }),
-      },
-      labels: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
-        getRenderValue: row => row.labels?.map?.(e => ({ alias: e, value: e })),
-      },
-    };
+        event_count: {
+          renderType: ExploreTableColumnTypeEnum.CLICK,
+          clickCallback(row, column, event) {},
+        },
+        create_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+        },
+        begin_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+        },
+        end_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+        },
+        latest_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+        },
+        first_anomaly_time: {
+          renderType: ExploreTableColumnTypeEnum.TIME,
+        },
+        tags: {
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          getRenderValue: row => {
+            return row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value }));
+          },
+        },
+        strategy_name: {
+          renderType: ExploreTableColumnTypeEnum.LINK,
+          getRenderValue: row => ({ url: getStrategyUrl(row), alias: row.strategy_name }),
+        },
+        labels: {
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          getRenderValue: row => row.labels?.map?.(e => ({ alias: e, value: e })),
+        },
+        status: {
+          renderType: ExploreTableColumnTypeEnum.TAGS,
+          getRenderValue(row) {
+            const tagInfo = EventStatusMap?.[row.status];
+            if (!tagInfo) return;
+            return [tagInfo];
+          },
+        },
+      };
+    }
 
     /**
      * @description 跳转策略详情页面

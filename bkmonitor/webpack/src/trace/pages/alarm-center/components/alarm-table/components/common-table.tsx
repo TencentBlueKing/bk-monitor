@@ -26,14 +26,15 @@
 import { defineComponent, computed, type PropType, useTemplateRef, onMounted } from 'vue';
 
 import { type BkUiSettings, PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
-import { Pagination } from 'bkui-vue';
+import { Exception, Pagination } from 'bkui-vue';
 
 import TableSkeleton from '../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 
 import type { BaseTableColumn, TableCellRender } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { CheckboxGroupValue, TdAffixProps } from 'tdesign-vue-next';
+import type { TableEmpty, TableRenderer } from '../../../typings';
+import type { CheckboxGroupValue, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -91,6 +92,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 表格空数据展示 */
+    empty: {
+      type: [Object, Function] as PropType<TableEmpty>,
+    },
     /** 表头吸顶。使用该功能，需要非常注意表格是相对于哪一个父元素进行滚动 */
     headerAffixedTop: {
       type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
@@ -98,6 +103,10 @@ export default defineComponent({
     /** 滚动条吸底 */
     horizontalScrollAffixedBottom: {
       type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
+    },
+    /** 表格尾行内容，横跨所有列。 */
+    lastFullRow: {
+      type: Function as PropType<TableRenderer>,
     },
     /** 表格单元格自定义渲染集合 key => customerRenderType,  value => TableCellRender */
     customCellRenderMap: {
@@ -211,6 +220,35 @@ export default defineComponent({
       emit('displayColFieldsChange', displayColFields as string[]);
     }
 
+    /**
+     * @description 表格最后一行渲染方法(默认填充一个 div 占位)
+     *
+     */
+    function tableLastFullRowRender(): SlotReturnValue {
+      if (!props.lastFullRow) {
+        return (<div />) as unknown as SlotReturnValue;
+      }
+      return props.lastFullRow();
+    }
+
+    /**
+     * @description 表格空数据渲染方法
+     *
+     */
+    function tableEmptyRender(): SlotReturnValue {
+      if (typeof props.empty === 'function') {
+        return props.empty();
+      }
+      return (
+        <Exception
+          class='common-table-empty'
+          description={props.empty?.emptyText || '搜索为空'}
+          scene='part'
+          type={props.empty?.type || 'search-empty'}
+        />
+      ) as unknown as SlotReturnValue;
+    }
+
     return {
       tableColumns,
       tableSort,
@@ -221,6 +259,8 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
+      tableLastFullRowRender,
+      tableEmptyRender,
     };
   },
   render() {
@@ -229,6 +269,9 @@ export default defineComponent({
         <PrimaryTable
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
+          v-slots={{
+            empty: this.tableEmptyRender,
+          }}
           bkUiSettings={{
             fields: this.allTableFields,
             checked: this.displayColFields,
@@ -241,6 +284,7 @@ export default defineComponent({
           headerAffixedTop={this.headerAffixedTop}
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
+          lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
           resizable={true}
           rowKey={this.rowKey}
           showSortColumnBgColor={true}
@@ -260,6 +304,7 @@ export default defineComponent({
             limit={this.pageSize}
             location={'right'}
             modelValue={this.currentPage}
+            small={true}
             onChange={this.handleCurrentPageChange}
             onLimitChange={this.handlePageSizeChange}
           />
