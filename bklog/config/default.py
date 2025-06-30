@@ -1246,9 +1246,9 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
-DEFAULT_TENANT_ID = "system"
+BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
-INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
+INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:

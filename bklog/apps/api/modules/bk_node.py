@@ -80,7 +80,7 @@ class _BKNodeApi:
             module=self.MODULE,
             description="查询订阅实例状态",
             before_request=get_bk_node_request_before,
-            bk_tenant_id=settings.DEFAULT_TENANT_ID,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
         )
         self.get_subscription_task_status = DataAPI(
             method="POST",

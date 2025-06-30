@@ -175,4 +175,4 @@ def get_request_tenant_id():
         request = get_request(peaceful=True)
         if request and hasattr(request.user, "tenant_id"):
             return request.user.tenant_id
-    return settings.DEFAULT_TENANT_ID
+    return settings.BK_APP_TENANT_ID
