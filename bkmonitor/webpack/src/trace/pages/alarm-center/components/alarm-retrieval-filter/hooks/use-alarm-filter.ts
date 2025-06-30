@@ -28,9 +28,9 @@ import { computed } from 'vue';
 
 import { random } from 'monitor-common/utils';
 
+import { EMode, type IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 
-import type { EMode, IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
 import type { CommonCondition } from '../../../../../pages/alarm-center/typings/services';
 
 interface ICondition extends CommonCondition {
@@ -78,6 +78,9 @@ export function useAlarmFilter() {
   });
   const filterMode = computed(() => {
     return alarmStore.filterMode;
+  });
+  const showAlarmModule = computed(() => {
+    return filterMode.value === EMode.ui;
   });
 
   function handleConditionChange(val) {
@@ -185,6 +188,7 @@ export function useAlarmFilter() {
     residentSettingOnlyId,
     filterMode,
     residentCondition,
+    showAlarmModule,
     handleQuery,
     handleConditionChange,
     handleQueryStringChange,

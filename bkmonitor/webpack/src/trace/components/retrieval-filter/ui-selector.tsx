@@ -248,10 +248,11 @@ export default defineComponent({
     }
     function handleEnter() {
       if (inputValue.value) {
+        const allItem = props.fields.find(item => item.type === EFieldType.all);
         localValue.value.push({
           key: {
-            id: '*',
-            name: t('全文'),
+            id: allItem?.name || '*',
+            name: allItem?.alias || t('全文'),
           },
           value: [{ id: inputValue.value, name: inputValue.value }],
           method: { id: EMethod.include, name: t('包含') },
