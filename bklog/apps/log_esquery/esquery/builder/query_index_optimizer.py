@@ -47,7 +47,6 @@ class QueryIndexOptimizer:
         indices = indices.replace(" ", "")
         result_table_id_list: list[str] = map_if(indices.split(","))
         # 根据查询场景优化index
-        _index = ""
         if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             # 日志采集使用0时区区分index入库,数据平台使用服务器所在时区
             time_zone = "GMT" if scenario_id == Scenario.LOG else tz.gettz()
