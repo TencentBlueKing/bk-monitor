@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +20,7 @@ from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
 
-base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
+base_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -210,7 +210,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
 
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
             actual_json = actual_mapping["system|bkcc__1"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            assert json.loads(actual_json) == json.loads(expected)
 
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
@@ -234,7 +234,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
 
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
             actual_json = actual_mapping["bkcc__1"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            assert json.loads(actual_json) == json.loads(expected)
 
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
@@ -259,7 +259,7 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
             actual_json = actual_mapping["system|bkci__bkmonitor"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            assert json.loads(actual_json) == json.loads(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
@@ -285,7 +285,7 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
             actual_json = actual_mapping["system|bksaas__monitor_saas"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            assert json.loads(actual_json) == json.loads(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(

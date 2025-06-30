@@ -145,6 +145,9 @@ def pytest_configure():
         new_callable=PropertyMock,
         return_value=fakeredis.FakeRedis(decode_responses=False),
     ).start()
+    mock.patch(
+        "alarm_backends.core.storage.redis.redis.Redis", return_value=fakeredis.FakeRedis(decode_responses=True)
+    ).start()
 
 
 @pytest.fixture

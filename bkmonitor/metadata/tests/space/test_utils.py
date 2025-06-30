@@ -28,6 +28,9 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    models.Space.objects.all().delete()
+    models.SpaceResource.objects.all().delete()
+
     models.Space.objects.create(id=123456, space_type_id="bkci", space_id="test_space")
     models.Space.objects.create(id=123457, space_type_id="bksaas", space_id="test_saas")
     models.SpaceResource.objects.create(

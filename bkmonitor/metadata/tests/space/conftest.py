@@ -36,6 +36,7 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 @pytest.fixture
 def create_and_delete_record(mocker):
     models.DataSource.objects.filter().delete()
+    models.Space.objects.filter().delete()
     models.SpaceDataSource.objects.all().delete()
     models.ResultTable.objects.filter().delete()
     models.DataSourceResultTable.objects.filter().delete()
@@ -149,6 +150,7 @@ def create_and_delete_record(mocker):
     )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.Space.objects.filter().delete()
     models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()
     models.SpaceDataSource.objects.all().delete()
     models.ResultTable.objects.filter(table_id=DEFAULT_TABLE_ID).delete()
