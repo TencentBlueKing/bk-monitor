@@ -31,7 +31,7 @@ import { toPng } from 'html-to-image';
 import { deepClone, random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
-import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
+// import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
 import CheckViewDetail from '../components/check-view';
@@ -134,6 +134,20 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       document.removeEventListener('mousemove', this.handleMouseMove);
       document.removeEventListener('mouseup', this.stopDragging);
     });
+    /** 是否需要默认打开维度下钻 */
+    setTimeout(() => {
+      if (this.$route.query.isViewDrillDown) {
+        const panel = JSON.parse(sessionStorage.getItem('BK_MONITOR_DRILL_PANEL'));
+        panel && this.handelDrillDown(panel, 0);
+        const { isViewDrillDown, ...rest } = this.$route.query;
+        this.$router.replace({
+          query: {
+            ...rest,
+            key: `${Date.now()}`,
+          },
+        });
+      }
+    });
   }
 
   //  支持上下拖拽
@@ -183,7 +197,12 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   }
   /** 查看大图里面的右键维度下钻 */
   contextMenuClick(panel: IPanelModel) {
-    this.handelDrillDown(panel, 0);
+    sessionStorage.setItem('BK_MONITOR_DRILL_PANEL', JSON.stringify(panel));
+    const routeData = this.$router.resolve({
+      name: 'custom-escalation-view',
+      query: { ...this.$route.query, isViewDrillDown: true, key: `${Date.now()}` },
+    });
+    window.open(routeData.href, '_blank');
   }
   handleLegendData(list: ILegendItem[], loading: boolean) {
     this.tableList = list;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -88,7 +87,7 @@ def test_refine_bk_sql_and_metrics(mocker):
     assert data["metrics"] == {"mem_usage_avg_1h"}
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_generate_pre_cal_table_id():
     """
     测试 generate_pre_cal_table_id 的各种实际输入场景

@@ -254,6 +254,7 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
             for chunk in agent_instance.execute(validated_kwargs):
                 logger.info(f"CreateChatCompletionResource: Yielding chunk: {chunk}")
                 yield chunk
+                logger.info(f"CreateChatCompletionResource: Yielded chunk: {chunk}")
         except Exception as error:
             logger.error(f"CreateChatCompletionResource: Error in streaming generator: {error}")
             raise

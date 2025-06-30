@@ -116,7 +116,7 @@ def create_or_delete_records(mocker):
     models.StorageClusterRecord.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_table_id_detail_with_tenant_for_metric(create_or_delete_records):
     """测试结果表详情路由"""
 
@@ -150,7 +150,7 @@ def test_push_table_id_detail_with_tenant_for_metric(create_or_delete_records):
             )
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
     """测试结果表详情路由"""
 

@@ -1390,7 +1390,7 @@
           {{ $t('确定') }} {{ getOsCommandLabel() }} + Enter
         </bk-button>
         <bk-button
-          style="width: 64px"
+          class="cancel-btn"
           @click="handleCancelBtnClick"
           >{{ $t('取消') }}</bk-button
         >

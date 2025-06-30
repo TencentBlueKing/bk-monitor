@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 import pytest
@@ -18,18 +18,17 @@ from metadata.models import constants
 from metadata.models.influxdb_cluster import InfluxDBHostInfo, InfluxDBTool
 from metadata.utils.redis_tools import RedisTools
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
-class TestInfluxDBHostInfo(object):
-
+class TestInfluxDBHostInfo:
     domain_name = "domain.com"
     influxdb_host_name = "host1"
     port = 123
     influxdb_username = "username"
     influxdb_password = "password"
 
-    pytestmark = pytest.mark.django_db
+    pytestmark = pytest.mark.django_db(databases="__all__")
     IS_CONSUL_MOCK = True
     es_index = {}
 
@@ -155,8 +154,8 @@ def test_push_to_redis_success(patch_redis_tools):
     InfluxDBTool.push_to_redis(key, field, value)
 
     redis_data = RedisTools.hget(f"{constants.INFLUXDB_KEY_PREFIX}:{key}", field)
-    assert type(redis_data) == bytes
-    assert redis_data.decode('utf8') == value
+    assert isinstance(redis_data, bytes)
+    assert redis_data.decode("utf8") == value
 
 
 @pytest.fixture

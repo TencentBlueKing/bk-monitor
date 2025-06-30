@@ -253,6 +253,17 @@ const getShareParams = {
   method: 'get',
 };
 
+/**
+ * @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
+ * @apiDescription 根据 bk_data_id 获取采集项和索引集信息的接口
+ * @apiName query_by_dataid
+ * @apiSuccessExample {json} 成功返回:
+ */
+const getIndexSetDataByDataId = {
+  url: '/index_set/query_by_dataid/',
+  method: 'get',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -304,4 +315,5 @@ export {
   unionExportAsync,
   createOrUpdateToken,
   getShareParams,
+  getIndexSetDataByDataId,
 };

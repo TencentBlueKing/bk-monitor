@@ -2164,6 +2164,7 @@ class QueryFieldStatisticsGraphResource(Resource):
                 {
                     "query_method": validated_data["query_method"],
                     "time_alignment": validated_data["time_alignment"],
+                    "null_as_zero": not validated_data["time_alignment"],
                     "start_time": config["start_time"] // 1000,
                     "end_time": config["end_time"] // 1000,
                 }

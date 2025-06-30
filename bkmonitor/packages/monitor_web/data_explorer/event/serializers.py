@@ -77,7 +77,6 @@ class BaseEventRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
@@ -91,6 +90,7 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     def validate(self, attrs):
         time_alignment: bool = attrs.get("time_alignment", False)
         attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        attrs["null_as_zero"] = not time_alignment
 
         # interval 自适应
         for query_config in attrs["query_configs"]:
@@ -167,3 +167,19 @@ class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
 
 class EventGenerateQueryStringRequestSerializer(serializers.Serializer):
     where = serializers.ListField(label="过滤条件", default=[], child=serializers.DictField())
+
+
+class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
+    limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+    interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        attrs["expression"] = "a"
+        for query_config in attrs["query_configs"]:
+            attrs["interval"] = query_config.get("interval") or 60
+
+        attrs["end_time"] = attrs["start_time"] + attrs["interval"]
+
+        return attrs
