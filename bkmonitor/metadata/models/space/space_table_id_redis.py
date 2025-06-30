@@ -93,13 +93,13 @@ class SpaceTableIDRedis:
         for key, value in redis_values.items():
             key = reformat_table_id(key)
             if settings.ENABLE_MULTI_TENANT_MODE:
-                # 若开启多租户模式,需要在table_id前拼接bk_tenant_id
-                key = f"{bk_tenant_id}|{key}"
+                # 若开启多租户模式,需要增加租户ID后缀
+                key = f"{key}|{bk_tenant_id}"
             values_to_redis[key] = value
 
         # 组装redis key
         if settings.ENABLE_MULTI_TENANT_MODE:
-            space_redis_key = f"{bk_tenant_id}|{space_type}__{space_id}"
+            space_redis_key = f"{space_type}__{space_id}|{bk_tenant_id}"
         else:
             space_redis_key = f"{space_type}__{space_id}"
 
@@ -131,7 +131,7 @@ class SpaceTableIDRedis:
             push_redis_keys = []
             for space in spaces:
                 if settings.ENABLE_MULTI_TENANT_MODE:
-                    push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+                    push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
                 else:
                     push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
@@ -177,7 +177,7 @@ class SpaceTableIDRedis:
         # 若开启多租户模式,则data_label和table_id都需要在前面拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
             rt_dl_map = {
-                f"{bk_tenant_id}|{data_label}": [f"{bk_tenant_id}|{table_id}" for table_id in table_ids]
+                f"{data_label}|{bk_tenant_id}": [f"{table_id}|{bk_tenant_id}" for table_id in table_ids]
                 for data_label, table_ids in rt_dl_map.items()
             }
 
@@ -256,7 +256,10 @@ class SpaceTableIDRedis:
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
+                        table_detail = json.loads(_table_id_detail.pop(key))
+                        if table_detail.get("data_label"):
+                            table_detail["data_label"] = f"{table_detail['data_label']}|{bk_tenant_id}"
+                        _table_id_detail[f"{key}|{bk_tenant_id}"] = json.dumps(table_detail)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -362,7 +365,7 @@ class SpaceTableIDRedis:
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
+                        _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -469,7 +472,7 @@ class SpaceTableIDRedis:
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
+                        _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
 
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
@@ -583,7 +586,10 @@ class SpaceTableIDRedis:
         if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info("push_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]", bk_tenant_id)
             for key in list(_table_id_detail.keys()):
-                _table_id_detail[f"{bk_tenant_id}|{key}"] = _table_id_detail.pop(key)
+                table_detail = json.loads(_table_id_detail.pop(key))
+                if table_detail.get("data_label"):
+                    table_detail["data_label"] = f"{table_detail['data_label']}|{bk_tenant_id}"
+                _table_id_detail[f"{key}|{bk_tenant_id}"] = json.dumps(table_detail)
 
         # 推送数据
         if _table_id_detail:

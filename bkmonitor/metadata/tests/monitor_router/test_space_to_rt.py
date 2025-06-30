@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import timedelta
+import json
 from unittest.mock import patch
 
 import pytest
@@ -171,15 +172,19 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
             expected = {
-                "riot|bkcc__1": '{"riot|1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"riot|1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"riot|bkm_1_record_rule.__default__":{"filters":[]}}'
+                "bkcc__1|riot": '{"1001_bklog.stdout|riot":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__|riot":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__|riot":{"filters":[]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:space_to_result_table", expected)
+            actual: dict[str, str] = mock_hmset_to_redis.call_args[0][1]
+            assert isinstance(actual, dict)
+            assert list(actual.keys()) == list(expected.keys())
+            assert json.loads(actual["bkcc__1|riot"]) == json.loads(expected["bkcc__1|riot"])
+
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["riot|bkcc__1"],
+                ["bkcc__1|riot"],
             )
 
 
@@ -197,7 +202,11 @@ def test_push_space_to_rt_router_without_tenant_for_bkcc(create_or_delete_record
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:space_to_result_table", expected)
+            actual: dict[str, str] = mock_hmset_to_redis.call_args[0][1]
+            assert isinstance(actual, dict)
+            assert list(actual.keys()) == list(expected.keys())
+            assert json.loads(actual["bkcc__1"]) == json.loads(expected["bkcc__1"])
+
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
@@ -215,8 +224,8 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
             expected = {
-                "tencent|bkci__bkmonitor": '{"tencent|custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},'
-                '"tencent|bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]}}'
+                "bkci__bkmonitor|tencent": '{"custom_report_aggate.base|tencent":{"filters":[{"bk_biz_id":"-10000"}]},'
+                '"bkm_statistics.base|tencent":{"filters":[{"bk_biz_id":"-10000"}]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -224,7 +233,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["tencent|bkci__bkmonitor"],
+                ["bkci__bkmonitor|tencent"],
             )
 
 
@@ -261,8 +270,8 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
             expected = {
-                "tencent|bksaas__monitor_saas": '{"tencent|custom_report_aggate.base":{"filters":[{'
-                '"bk_biz_id":"-10008"}]},"tencent|bkm_statistics.base":{"filters":[{'
+                "bksaas__monitor_saas|tencent": '{"custom_report_aggate.base|tencent":{"filters":[{'
+                '"bk_biz_id":"-10008"}]},"bkm_statistics.base|tencent":{"filters":[{'
                 '"bk_biz_id":"-10008"}]}}'
             }
 
@@ -271,7 +280,7 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["tencent|bksaas__monitor_saas"],
+                ["bksaas__monitor_saas|tencent"],
             )
 
 

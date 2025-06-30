@@ -27,6 +27,14 @@ def create_or_delete_records(mocker):
     """
     创建或删除测试数据
     """
+    models.DataSource.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.DataSourceResultTable.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+    models.ESStorage.objects.all().delete()
+    models.ClusterInfo.objects.all().delete()
+    models.StorageClusterRecord.objects.all().delete()
+    models.ResultTableField.objects.all().delete()
     # 创建测试数据
 
     # ---------------------指标数据--------------------- #
@@ -129,7 +137,7 @@ def test_push_table_id_detail_with_tenant_for_metric(create_or_delete_records):
             )
 
             expected = {
-                "tencent|1001_bkmonitor_time_series_50010.__default__": '{"vm_rt":"1001_vm_test_50010",'
+                "1001_bkmonitor_time_series_50010.__default__|tencent": '{"vm_rt":"1001_vm_test_50010",'
                 '"storage_id":111,"cluster_name":"",'
                 '"storage_name":"","db":"",'
                 '"measurement":"bk_split_measurement'
@@ -146,7 +154,7 @@ def test_push_table_id_detail_with_tenant_for_metric(create_or_delete_records):
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:result_table_detail:channel",
-                ["tencent|1001_bkmonitor_time_series_50010.__default__"],
+                ["1001_bkmonitor_time_series_50010.__default__|tencent"],
             )
             settings.ENABLE_MULTI_TENANT_MODE = False
 
@@ -199,7 +207,7 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
             )
 
             expected = {
-                "riot|1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001","field_alias":{}}'
+                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001|riot","field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -207,7 +215,7 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
-                "bkmonitorv3:spaces:result_table_detail:channel", ["riot|1001_bklog.stdout"]
+                "bkmonitorv3:spaces:result_table_detail:channel", ["1001_bklog.stdout|riot"]
             )
 
     # ES专用路径--push_es_table_id_detail
@@ -222,11 +230,11 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
             )
 
             expected = {
-                "riot|1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__",'
+                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__",'
                 '"source_type":"log","options":{},"storage_type":"elasticsearch",'
                 '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
                 '{"storage_id":12,"enable_time":1572652800},{"storage_id":11,'
-                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001","field_alias":{}}'
+                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001|riot","field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -234,7 +242,7 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
-                "bkmonitorv3:spaces:result_table_detail:channel", ["riot|1001_bklog.stdout"]
+                "bkmonitorv3:spaces:result_table_detail:channel", ["1001_bklog.stdout|riot"]
             )
 
 
