@@ -34,6 +34,7 @@ from apps.exceptions import ApiResultError, ValidationError
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
+    CACHE_KEY_UPDATE_RESULT_TABLE,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
     EtlConfig,
@@ -598,11 +599,11 @@ class EtlStorage:
             del params["time_option"]["es_doc_values"]
 
         update_flag = False
-        cache_key = f"update_or_create_result_table_{table_id}"
+        cache_key = CACHE_KEY_UPDATE_RESULT_TABLE.format(table_id)
         cached_data = cache.get(cache_key)
         if not cached_data or cached_data != params:
             # 缓存1小时数据
-            cache.set(cache_key, params, timeout=3600)
+            cache.set(cache_key, params)
             update_flag = True
         # 当配置发生改变时再请求metadata接口
         if update_flag:
