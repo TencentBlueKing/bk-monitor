@@ -105,7 +105,17 @@
     </template>
     <template v-else>
       <span
-        class="handle-card union-icon"
+        class="handle-card"
+        v-bk-tooltips="{ allowHtml: true, content: $t('上下文') }"
+      >
+        <span
+          :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}` "
+          @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        >
+        </span>
+      </span>
+      <span
+        class="handle-card"
         v-bk-tooltips="
           $t('{0}日志来源', {
             0: !isShowSourceField ? $t('显示') : $t('隐藏'),
@@ -233,7 +243,9 @@
     overflow: hidden;
 
     .handle-card {
-      display: inline-block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 18px;
       height: 20px;
       margin-left: 10px;
@@ -248,14 +260,14 @@
         position: relative;
 
         img {
-          width: 20px;
-          height: 20px;
-          opacity: 0;
-          background-color: #fff;
           position: absolute;
           top: 0;
           left: 0;
+          width: 20px;
+          height: 20px;
           cursor: pointer;
+          background-color: #fff;
+          opacity: 0;
         }
       }
     }

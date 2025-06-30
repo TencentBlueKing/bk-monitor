@@ -162,6 +162,10 @@
         type: Array,
         default: () => [],
       },
+      indexSetId: {
+        type: Number,
+        default: 0,
+      },
     },
     data() {
       const id = 'fields-config-tippy';
@@ -272,7 +276,7 @@
           this.isConfigLoading = true;
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: this.indexSetId || (window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId)
             },
             query: {
               scope: 'search_context',
@@ -317,7 +321,7 @@
           this.logLoading = true;
           const res = await this.$http.request('retrieve/getContentLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: this.indexSetId || (window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId)
             },
             data,
           });
