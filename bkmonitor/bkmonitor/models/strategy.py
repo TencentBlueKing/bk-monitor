@@ -950,6 +950,8 @@ class AlgorithmChoiceConfig(Model):
     document = models.TextField("使用说明", null=True, blank=True)
     description = models.TextField("描述", null=True, blank=True)
     is_default = models.BooleanField("是否默认", default=False)
+    is_new_version = models.BooleanField("是否最新版本", default=True)
+    version_no = models.CharField(max_length=10, null=False, blank=True)
     instruction = models.TextField("方案描述", null=True, blank=True)
     variable_info = models.JSONField("参数变量", blank=True, null=True, default=dict)
     ts_freq = models.IntegerField("数据频率",default=0)
