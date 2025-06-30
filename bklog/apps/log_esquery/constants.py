@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 DEFAULT_SCHEMA = "http"
 
 ES_ROUTE_ALLOW_URL = ["_cat", "_cluster", "_nodes", "_stats"]
@@ -28,3 +28,5 @@ WILDCARD_PATTERN = "*"
 BKDATA_NOT_HAVE_INDEX = "1532006"
 
 WILDCARD_QUERY = {"match_all": {}}
+
+INDICES_LENGTH = 2000
