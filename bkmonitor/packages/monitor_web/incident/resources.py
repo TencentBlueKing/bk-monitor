@@ -1400,13 +1400,15 @@ class IncidentResultsResource(IncidentBaseResource):
         # 去除前面的时间戳
         incident_id = str(validated_request_data["id"])[10:]
         diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
-        sub_panel_status = {}
+        sub_panel_status = {"status": None, "enabled": None, "sub_panels": {}}
         for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
-            sub_panel_status[sub_panel_name] = {
+            sub_panel_status["sub_panels"][sub_panel_name] = {
                 "status": sub_panel["status"],
                 "message": sub_panel["message"] if sub_panel.get("message") else "",
                 "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
             }
+        self.set_upper_status(sub_panel_status, sub_key="sub_panels")
+
         incident_results = {
             "panels": {
                 "incident_handlers": {  # 故障处理tab
@@ -1427,13 +1429,24 @@ class IncidentResultsResource(IncidentBaseResource):
                 },
                 "incident_diagnosis": sub_panel_status,
             },
-            "status": "unknown",
+            "status": None,
         }
+
+        self.set_upper_status(incident_results, sub_key="panels")
+
+        return incident_results
+
+    @classmethod
+    def set_upper_status(cls, incident_results, sub_key):
+        if any([panel_properties.get("enabled") for panel_properties in incident_results[sub_key].values()]):
+            incident_results["enabled"] = True
+        else:
+            incident_results["enabled"] = False
 
         if all(
             [
                 panel_properties.get("status") == "finished"
-                for panel_properties in incident_results["panels"].values()
+                for panel_properties in incident_results[sub_key].values()
                 if panel_properties.get("enabled")
             ]
         ):
@@ -1441,15 +1454,13 @@ class IncidentResultsResource(IncidentBaseResource):
         elif any(
             [
                 panel_properties.get("status") == "failed"
-                for panel_properties in incident_results["panels"].values()
+                for panel_properties in incident_results[sub_key].values()
                 if panel_properties.get("enabled")
             ]
         ):
             incident_results["status"] = "failed"
         else:
             incident_results["status"] = "running"
-
-        return incident_results
 
 
 class IncidentDiagnosisResource(IncidentBaseResource):
