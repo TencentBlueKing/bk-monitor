@@ -128,6 +128,10 @@ export default defineComponent({
     const notValueOfMethod = computed(() => {
       return NOT_VALUE_METHODS.includes(method.value);
     });
+    /* 是否选择了全文检索或者同类型的输入形式 */
+    const isTextarea = computed(() => {
+      return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
+    });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
       enterSelection(isFocus);
@@ -245,7 +249,7 @@ export default defineComponent({
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
-      if (checkedItem.value.name === '*') {
+      if (isTextarea.value) {
         queryString.value = value[0]?.id || '';
       } else {
         if (cacheCheckedName.value !== item.name) {
@@ -268,12 +272,9 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if (
-        (checkedItem.value.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value.type)) &&
-        queryString.value
-      ) {
+      if (isTextarea.value && queryString.value) {
         const value: IFilterItem = {
-          key: { id: checkedItem.value.name, name: checkedItem.value.alias },
+          key: { id: checkedItem.value?.name || '*', name: checkedItem.value?.alias || t('全文') },
           method: { id: EMethod.include, name: t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
@@ -533,6 +534,7 @@ export default defineComponent({
       timeConsumingValue,
       notValueOfMethod,
       isDurationKey,
+      isTextarea,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -550,7 +552,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*' || [EFieldType.all, EFieldType.text].includes(this.checkedItem?.type)) {
+      if (this.isTextarea) {
         return [
           <div
             key={'all'}

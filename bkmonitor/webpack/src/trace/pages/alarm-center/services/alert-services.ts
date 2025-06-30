@@ -224,11 +224,10 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     name: 'query_string',
     alias: '全字段检索',
     type: EFieldType.all,
-
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '包含',
+        value: EMethod.include,
       },
     ],
   },
