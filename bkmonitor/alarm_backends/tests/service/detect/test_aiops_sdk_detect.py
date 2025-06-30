@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 import copy
-from unittest import TestCase
+from unittest import TestCase, mock
 
-import mock
 import pytest
 
 from alarm_backends.service.detect import DataPoint
@@ -11,7 +9,7 @@ from alarm_backends.tests.service.detect.mocked_data import mocked_item
 from bkmonitor.models import CacheNode
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestAIOpsSDKDetect(TestCase):
     def setUp(self):
         # 重置测试用例的Item防止ID超过用例上限
@@ -39,7 +37,7 @@ class TestAIOpsSDKDetect(TestCase):
                 "timestamp": 1736404800000,
                 "lower_bound": 9,
                 "upper_bound": 10,
-                "extra_info": "{\"anomaly_uncertainty\": 0.1, \"anomaly_alert\": 1.0, \"alert_msg\": \"上升异常\"}",
+                "extra_info": '{"anomaly_uncertainty": 0.1, "anomaly_alert": 1.0, "alert_msg": "上升异常"}',
                 "anomaly_alert": 0,
                 "anomaly_score": 0.5,
                 "value": 9.094444,
@@ -54,7 +52,7 @@ class TestAIOpsSDKDetect(TestCase):
                 "timestamp": 1736404800000,
                 "lower_bound": 9,
                 "upper_bound": 10,
-                "extra_info": "{\"anomaly_uncertainty\": 0.001, \"anomaly_alert\": 0.0, \"alert_msg\": \"正常\"}",
+                "extra_info": '{"anomaly_uncertainty": 0.001, "anomaly_alert": 0.0, "alert_msg": "正常"}',
                 "anomaly_alert": 0,
                 "anomaly_score": 0.1,
                 "value": 9.094444,
@@ -75,7 +73,10 @@ class TestAIOpsSDKDetect(TestCase):
             )
             anomaly_result = detect_engine.detect_records(self.datapoint99, 1)
             assert len(anomaly_result) == 1
-            assert anomaly_result[0].anomaly_message == "avg(测试指标)智能模型检测到异常, 异常类型: 上升异常, 异常分值: 0.5, 当前值99%"
+            assert (
+                anomaly_result[0].anomaly_message
+                == "avg(测试指标)智能模型检测到异常, 异常类型: 上升异常, 异常分值: 0.5, 当前值99%"
+            )
 
     def test_detect_not_anomaly(self):
         with mock.patch(

@@ -451,15 +451,17 @@ def push_and_publish_space_router(
         space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     else:
         # NOTE: 现阶段仅针对 bkcc 类型做处理
-        space_type = SpaceTypes.BKCC.value
-        space_ids = models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
-        # 拼装数据
-        space_list = [{"space_type": space_type, "space_id": space_id} for space_id in space_ids]
+        spaces = list(models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value))
         # 使用线程处理
-        bulk_handle(multi_push_space_table_ids, space_list)
+        bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list, is_publish=False), spaces)
 
         # 通知到使用方
-        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        push_redis_keys = []
+        for space in spaces:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+            else:
+                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     # 更新数据
@@ -467,21 +469,6 @@ def push_and_publish_space_router(
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
-
-
-def multi_push_space_table_ids(space_list: list[dict]):
-    """批量推送数据"""
-    logger.info("start to multi push space table ids")
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    space_client = SpaceTableIDRedis()
-    for space in space_list:
-        try:
-            space_client.push_space_table_ids(space_type=space["space_type"], space_id=space["space_id"])
-        except Exception as e:
-            logger.error("push space to redis error, %s", e)
-
-    logger.info("multi push space table ids successfully")
 
 
 def _access_bkdata_vm(

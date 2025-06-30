@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import pytest
 
@@ -119,8 +117,8 @@ def mock_uptime_check_task_model(mocker):
     return mocked_func
 
 
-@pytest.mark.django_db
-class TestGenerateSubConfig(object):
+@pytest.mark.django_db(databases="__all__")
+class TestGenerateSubConfig:
     def test_perform_request_test(self, mocker):
         params = get_mock_uptime_check_task_params_test()
         result = resource.uptime_check.generate_sub_config(params)

@@ -1122,7 +1122,7 @@ def cached_cluster_data_id_list() -> list:
     return cluster_data_id_list
 
 
-def cached_cluster_k8s_data_id() -> list:
+def cached_cluster_k8s_data_id() -> dict[str, int]:
     """从缓存中读取集群内置的数据源 ID
 
     NOTE: 因为集群变动没有那么频繁，可以设置超时时间为1小时

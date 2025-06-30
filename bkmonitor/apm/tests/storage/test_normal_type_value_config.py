@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 
 import django
@@ -25,12 +24,11 @@ DB_SLOW_COMMAND_CONFIG = {
 }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestReleaseAppConfig(django.test.TestCase):
-
     databases = {
-        'default',
-        'monitor_api',
+        "default",
+        "monitor_api",
     }
 
     def test_db_slow_command_config(self):

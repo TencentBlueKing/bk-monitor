@@ -26,6 +26,7 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
+    SPACE_TO_RESULT_TABLE_CHANNEL,
     SYSTEM_USERNAME,
     BCSClusterTypes,
     SpaceStatus,
@@ -35,6 +36,7 @@ from metadata.models.space.space_data_source import (
     get_biz_data_id,
     get_real_zero_biz_data_id,
 )
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.space.utils import (
     cached_cluster_k8s_data_id,
     create_bcs_spaces,
@@ -638,7 +640,6 @@ def push_and_publish_space_router(
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
     from metadata.models.space.ds_rt import get_space_table_id_data_id
-    from metadata.task.tasks import multi_push_space_table_ids
 
     # 过滤数据
     spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
@@ -660,11 +661,18 @@ def push_and_publish_space_router(
     ]
 
     # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
-    bulk_handle(multi_push_space_table_ids, space_list)
+    bulk_handle(
+        lambda batch_spaces: space_client.push_multi_space_table_ids(batch_spaces, is_publish=False), list(spaces)
+    )
 
     # 通知到使用方
     if is_publish:
-        space_uid_list = [f"{space['space_type_id']}__{space['space_id']}" for space in spaces]
+        space_uid_list = []
+        for space in spaces:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                space_uid_list.append(f"{space['bk_tenant_id']}|{space['space_type_id']}__{space['space_id']}")
+            else:
+                space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
 
     # 更新数据
@@ -854,10 +862,8 @@ def refresh_bksaas_space_resouce():
     space_type = SpaceTypes.BKSAAS.value
 
     # 获取bksaas的空间
-    space_id_list = [
-        {"app_code": space_id}
-        for space_id in models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
-    ]
+    spaces = list(models.Space.objects.filter(space_type_id=space_type))
+    space_id_list = [{"app_code": space.space_id} for space in spaces]
 
     # 批量获取蓝鲸应用使用的集群资源
     space_id_count = len(space_id_list)
@@ -866,16 +872,16 @@ def refresh_bksaas_space_resouce():
 
     # 然后根据分组进行请求
     space_cluster_namespaces, space_cluster = {}, {}
-    for spaces in space_with_page_list:
-        cluster_ns = api.bk_paas.get_app_cluster_namespace.bulk_request(spaces)
+    for space_dicts in space_with_page_list:
+        cluster_ns = api.bk_paas.get_app_cluster_namespace.bulk_request(space_dicts)
         # 组装数据
-        for space, val in zip(spaces, cluster_ns):
+        for space_dict, val in zip(space_dicts, cluster_ns):
             # 转换格式 {"cluster_id": xxx, "namespace": ["xxx", "xxx"]}
             _cn = {}
             for v in val:
                 _cn.setdefault(v["bcs_cluster_id"], []).append(v["namespace"])
             # 获取空间使用的集群数据
-            space_cluster_namespaces[space["app_code"]] = [
+            space_cluster_namespaces[space_dict["app_code"]] = [
                 {
                     "cluster_id": c,
                     "namespace": n,
@@ -883,7 +889,7 @@ def refresh_bksaas_space_resouce():
                 }
                 for c, n in _cn.items()
             ]
-            space_cluster[space["app_code"]] = {v["bcs_cluster_id"] for v in val}
+            space_cluster[space_dict["app_code"]] = {v["bcs_cluster_id"] for v in val}
 
     # 创建或更新空间绑定的资源
     create_and_update_paas_space_resource(space_cluster_namespaces)
@@ -891,10 +897,17 @@ def refresh_bksaas_space_resouce():
     authorize_paas_space_cluster_data_source(space_cluster)
 
     # 批量进行推送数据
-    from metadata.task.tasks import multi_push_space_table_ids
-
-    space_ids = [{"space_type": space_type, "space_id": space["app_code"]} for space in space_id_list]
     # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
-    bulk_handle(multi_push_space_table_ids, space_ids)
+    space_client = SpaceTableIDRedis()
+    bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list), spaces)
+
+    # 通知到使用方
+    push_redis_keys = []
+    for space in spaces:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+        else:
+            push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
+    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     logger.info("refresh bksaas space resource successfully")

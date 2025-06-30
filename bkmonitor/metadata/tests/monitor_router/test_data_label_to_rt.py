@@ -85,13 +85,13 @@ def test_push_data_label_table_ids_with_tenant_for_table_ids(create_or_delete_re
             client.push_data_label_table_ids(
                 table_id_list=["1001_bkmonitor_time_series_50010.__default__"], bk_tenant_id="tencent", is_publish=True
             )
-            expected = {"metric_data_label@tencent": '["1001_bkmonitor_time_series_50010.__default__@tencent"]'}
+            expected = {"tencent|metric_data_label": '["tencent|1001_bkmonitor_time_series_50010.__default__"]'}
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:data_label_to_result_table", expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
-                "bkmonitorv3:spaces:data_label_to_result_table:channel", ["metric_data_label@tencent"]
+                "bkmonitorv3:spaces:data_label_to_result_table:channel", ["tencent|metric_data_label"]
             )
 
 
@@ -108,11 +108,11 @@ def test_push_data_label_table_ids_with_tenant_for_data_labels(create_or_delete_
             client.push_data_label_table_ids(
                 data_label_list=["metric_data_label"], bk_tenant_id="tencent", is_publish=True
             )
-            expected = {"metric_data_label@tencent": '["1001_bkmonitor_time_series_50010.__default__@tencent"]'}
+            expected = {"tencent|metric_data_label": '["tencent|1001_bkmonitor_time_series_50010.__default__"]'}
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:data_label_to_result_table", expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
-                "bkmonitorv3:spaces:data_label_to_result_table:channel", ["metric_data_label@tencent"]
+                "bkmonitorv3:spaces:data_label_to_result_table:channel", ["tencent|metric_data_label"]
             )

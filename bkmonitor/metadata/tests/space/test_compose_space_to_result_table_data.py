@@ -17,6 +17,12 @@ from metadata.tests.common_utils import consul_client
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    models.DataSource.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.SpaceDataSource.objects.all().delete()
+    models.DataSourceResultTable.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+
     models.DataSource.objects.create(
         bk_data_id=50010,
         data_name="data_link_test",

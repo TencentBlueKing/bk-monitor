@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from collections import UserList
 
 from metadata.models import DataSource
@@ -17,7 +15,7 @@ from metadata.models.constants import IGNORED_CONSUL_SYNC_DATA_IDS
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo
 
 
-class MockHashConsul(object):
+class MockHashConsul:
     result_list = []
 
     def put(self, key, value):
@@ -29,8 +27,8 @@ class MockClusterList(UserList):
         return len(self.data)
 
 
-class TestConsulCluster(object):
-    def test_refresh_consul_cluster_config(self, mocker, patch_redis_tools):
+class TestConsulCluster:
+    def test_refresh_consul_cluster_config(self, mocker):
         cluster_host_list = MockClusterList()
         cluster_host_list.append(InfluxDBClusterInfo(host_name="host1", cluster_name="cluster1", host_readable=True))
         cluster_host_list.append(InfluxDBClusterInfo(host_name="host2", cluster_name="cluster1", host_readable=False))
@@ -44,8 +42,7 @@ class TestConsulCluster(object):
             "unreadable_host_list": ["host2"],
         }
 
-    def test_refresh_consul_data_source_config(self, mocker, patch_redis_tools):
-
+    def test_refresh_consul_data_source_config(self, mocker):
         data_source_list = [DataSource(bk_data_id=data_id) for data_id in IGNORED_CONSUL_SYNC_DATA_IDS]
         data_source_list.append(DataSource(bk_data_id=12345))
         mocker.patch("metadata.models.DataSource.objects.all", return_value=data_source_list)

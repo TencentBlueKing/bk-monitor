@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
 import django
-import mock
 import pytest
+
 from apm_web.meta.resources import ApplicationInfoResource
 
 pytestmark = pytest.mark.django_db
@@ -24,11 +25,11 @@ DESCRIPTION = "this is demo"
 APPLICATION_ID = 10
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestApplicationInfo(django.test.TestCase):
     databases = {
-        'default',
-        'monitor_api',
+        "default",
+        "monitor_api",
     }
 
     def test_application_info(self):

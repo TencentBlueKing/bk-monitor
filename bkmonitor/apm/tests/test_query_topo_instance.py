@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
 import django
-import mock
 import pytest
+
 from apm.models import TopoInstance
 from apm.resources import QueryTopoInstanceResource
 
@@ -24,15 +25,14 @@ APP_ALIAS = "test_demo"
 DESCRIPTION = "this is demo"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestTopoInstance(django.test.TestCase):
     databases = {
-        'default',
-        'monitor_api',
+        "default",
+        "monitor_api",
     }
 
     def setUp(self):
-
         need_create_instances = {
             ("demo", "mysql:::3306", "component", "db", "mysql", "opentelemetry", "1.11.1", "python"),
             ("demo01", "es:::", "component", "db", "es", "opentelemetry", "1.11.1", "python"),

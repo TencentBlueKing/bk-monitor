@@ -404,8 +404,10 @@ class QueryDataLinkInfoResource(Resource):
             try:
                 # 从 Redis 获取当前空间的路由信息
                 space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, item)
-                space_router_data = json.loads(space_router.decode("utf-8"))
-
+                if not space_router:
+                    continue
+                space_router_data: dict[str, dict[str, dict]] = json.loads(space_router.decode("utf-8"))
+                space_router_data = {key.split("|")[-1]: value for key, value in space_router_data.items()}
                 # 初始化每个空间的记录列表
                 space_to_result_table_router_infos[item] = []
 

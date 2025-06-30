@@ -44,7 +44,7 @@ def test_get_result_tables_by_data_ids(create_and_delete_record, data_id_list, t
 
 def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
     data = ds_rt.get_table_info_for_influxdb_and_vm([DEFAULT_TABLE_ID])
-    keys = ["cluster_name", "db", "measurement", "storage_id", "vm_rt", "tags_key", "storage_name"]
+    keys = ["cluster_name", "db", "measurement", "storage_id", "vm_rt", "tags_key", "storage_name", "storage_type"]
     assert set(keys) == set(data[DEFAULT_TABLE_ID].keys())
 
     data = ds_rt.get_table_info_for_influxdb_and_vm(["test.not_exist"])
@@ -57,14 +57,12 @@ def test_compose_es_table_id_detail(create_and_delete_record):
 
     log_data = json.loads(data[DEFAULT_LOG_ES_TABLE_ID])
     assert log_data["db"] == DEFAULT_LOG_ES_TABLE_ID.split(".")[0]
-    assert log_data["measurement"] == DEFAULT_LOG_ES_TABLE_ID.split(".")[1]
 
-    assert f"{DEFAULT_EVENT_ES_TABLE_ID}.__default__" in data
-    event_data = json.loads(data[f"{DEFAULT_EVENT_ES_TABLE_ID}.__default__"])
+    assert f"{DEFAULT_EVENT_ES_TABLE_ID}" in data
+    event_data = json.loads(data[f"{DEFAULT_EVENT_ES_TABLE_ID}"])
     assert event_data["db"] == DEFAULT_EVENT_ES_TABLE_ID
-    assert event_data["measurement"] == "__default__"
 
     # 校验必要 key 存在
     for key in ["db", "measurement", "storage_id"]:
         assert key in data[DEFAULT_LOG_ES_TABLE_ID]
-        assert key in data[f"{DEFAULT_EVENT_ES_TABLE_ID}.__default__"]
+        assert key in data[f"{DEFAULT_EVENT_ES_TABLE_ID}"]

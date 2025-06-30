@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import copy
 import json
 from unittest import TestCase
@@ -13,7 +12,7 @@ from alarm_backends.tests.service.detect.mocked_data import mocked_item
 from bkmonitor.models import CacheNode
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestTimeSeriesForecasting(TestCase):
     def setUp(self):
         # 重置测试用例的Item防止ID超过用例上限

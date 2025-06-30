@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
 import django
-import mock
 import pytest
 
 from apm_web.db.resources import ListDbSpanResource
@@ -114,11 +114,11 @@ DB_SPAN_RES = {
 }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestListDbSpan(django.test.TestCase):
     databases = {
-        'default',
-        'monitor_api',
+        "default",
+        "monitor_api",
     }
 
     def test_list_db_span(self):
