@@ -188,7 +188,7 @@ export function useExploreColumnConfig({
                     let sortBy = sortContainer.sortBy;
                     let descending = sortContainer.descending;
                     if (sortBy === column.colKey) {
-                      const sortDescValueList = [true, false, null];
+                      const sortDescValueList = [false, true, null];
                       const sortIndex = sortDescValueList.findIndex(v => descending === v);
                       descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
                       if (descending === null) {
@@ -196,7 +196,7 @@ export function useExploreColumnConfig({
                       }
                     } else {
                       sortBy = column.colKey;
-                      descending = true;
+                      descending = false;
                     }
                     handleSortChange({ sortBy, descending });
                   }
