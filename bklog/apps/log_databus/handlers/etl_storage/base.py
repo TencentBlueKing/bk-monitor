@@ -602,7 +602,6 @@ class EtlStorage:
         cache_key = CACHE_KEY_UPDATE_RESULT_TABLE.format(table_id)
         cached_data = cache.get(cache_key)
         if not cached_data or cached_data != params:
-            # 缓存1小时数据
             cache.set(cache_key, params)
             update_flag = True
         # 当配置发生改变时再请求metadata接口
