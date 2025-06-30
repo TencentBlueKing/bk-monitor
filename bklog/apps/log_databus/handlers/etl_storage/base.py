@@ -597,28 +597,37 @@ class EtlStorage:
         if "time_option" in params and "es_doc_values" in params["time_option"]:
             del params["time_option"]["es_doc_values"]
 
-        # 获取结果表是否已经创建，如果创建则选择更新
-        table_id = ""
-        try:
-            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
-        except ApiResultError:
-            pass
+        update_flag = False
+        cache_key = f"update_or_create_result_table_{table_id}"
+        cached_data = cache.get(cache_key)
+        if not cached_data or cached_data != params:
+            # 缓存1小时数据
+            cache.set(cache_key, params, timeout=3600)
+            update_flag = True
+        # 当配置发生改变时再请求metadata接口
+        if update_flag:
+            # 获取结果表是否已经创建，如果创建则选择更新
+            table_id = ""
+            try:
+                table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
+            except ApiResultError:
+                pass
 
-        # 兼容插件与采集项
-        if not table_id:
-            # 创建结果表
-            table_id = TransferApi.create_result_table(params)["table_id"]
-        else:
-            # 更新结果表
-            params["table_id"] = table_id
-            from apps.log_databus.tasks.collector import modify_result_table
+            # 兼容插件与采集项
+            if not table_id:
+                # 创建结果表
+                table_id = TransferApi.create_result_table(params)["table_id"]
+            else:
+                # 更新结果表
+                params["table_id"] = table_id
+                from apps.log_databus.tasks.collector import modify_result_table
 
-            modify_result_table.delay(params)
-            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+                modify_result_table.delay(params)
+                cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
 
-        if not instance.table_id:
-            instance.table_id = table_id
-            instance.save()
+            if not instance.table_id:
+                instance.table_id = table_id
+                instance.save()
 
         return {"table_id": instance.table_id, "params": params}
 
