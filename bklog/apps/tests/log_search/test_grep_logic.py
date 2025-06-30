@@ -1,40 +1,42 @@
 from django.test import TestCase
+from unittest.mock import patch, MagicMock
 
 from apps.exceptions import GrepParseError
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
+from apps.log_search.utils import add_highlight_mark
 from apps.utils.grep_syntax_parse import grep_parser
 
 GREP_SYNTAX_CASE = [
     "error",
-    "grep \"error\"",
-    "egrep -i \"WARNING\"",
-    "grep -v \"debug\"",
-    "grep -i \"error\" | grep -v \"test\"",
-    "grep \"hello\\\"world\"",
+    'grep "error"',
+    'egrep -i "WARNING"',
+    'grep -v "debug"',
+    'grep -i "error" | grep -v "test"',
+    'grep "hello\\"world"',
     "grep -i critical\ error",
-    "grep -v \"info\" | egrep -i \"error\" | grep \"failed\"",
-    "-v \"success\"",
+    'grep -v "info" | egrep -i "error" | grep "failed"',
+    '-v "success"',
     "egrep -i 'OOM' | grep -v \"kill\"",
-    "egrep \"error|warning\"",
-    "grep \"https\\?://\"",
-    "grep \"192\\.168\\.[0-9]\\+\\.[0-9]\\+\"",
-    "egrep \"error|warning\"",
-    "egrep \"https?://\"",
-    "egrep \"[0-9]{4}-[0-9]{2}-[0-9]{2}\"",
-    "egrep \"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\"",
-    "egrep \"ERR-([0-9]{3})\"",
-    "egrep \"(start|end)[0-9]+\"",
-    "egrep \"[0-9]{3}-[A-Z]{2}\"",
+    'egrep "error|warning"',
+    'grep "https\\?://"',
+    'grep "192\\.168\\.[0-9]\\+\\.[0-9]\\+"',
+    'egrep "error|warning"',
+    'egrep "https?://"',
+    'egrep "[0-9]{4}-[0-9]{2}-[0-9]{2}"',
+    'egrep "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"',
+    'egrep "ERR-([0-9]{3})"',
+    'egrep "(start|end)[0-9]+"',
+    'egrep "[0-9]{3}-[A-Z]{2}"',
     "grep $#&*a\ d",
     "grep suc\.es.",
     "grep ^suc*ess\*\^\$$",
-    "grep \"er\\+or@?\"",
-    "grep -i -v \"suc\\{1,2\\}ess\"",
-    "grep \"suc+e?s{2{1,2}\"",
-    "egrep \"suc\\+e\\?s\\{2{1,2}\"",
-    "egrep \"s\\.s\\?c\\+e\\?s\\{2{1,2}a.*?\"",
-    "grep -iv \"xxx\"",
-    "grep -Ei -v \"xxx\"",
+    'grep "er\\+or@?"',
+    'grep -i -v "suc\\{1,2\\}ess"',
+    'grep "suc+e?s{2{1,2}"',
+    'egrep "suc\\+e\\?s\\{2{1,2}"',
+    'egrep "s\\.s\\?c\\+e\\?s\\{2{1,2}a.*?"',
+    'grep -iv "xxx"',
+    'grep -Ei -v "xxx"',
 ]
 
 GREP_RESULT_CASE = [
@@ -43,7 +45,7 @@ GREP_RESULT_CASE = [
     [{"command": "egrep", "args": ["i"], "pattern": "WARNING"}],
     [{"command": "grep", "args": ["v"], "pattern": "debug"}],
     [{"command": "grep", "args": ["i"], "pattern": "error"}, {"command": "grep", "args": ["v"], "pattern": "test"}],
-    [{"command": "grep", "args": [], "pattern": "hello\"world"}],
+    [{"command": "grep", "args": [], "pattern": 'hello"world'}],
     [{"command": "grep", "args": ["i"], "pattern": "critical error"}],
     [
         {"command": "grep", "args": ["v"], "pattern": "info"},
@@ -63,15 +65,15 @@ GREP_RESULT_CASE = [
     [{"command": "egrep", "args": [], "pattern": "(start|end)[0-9]+"}],
     [{"command": "egrep", "args": [], "pattern": "[0-9]{3}-[A-Z]{2}"}],
     [{"command": "grep", "args": [], "pattern": "$#&*a d"}],
-    [{'command': 'grep', 'args': [], 'pattern': 'suc\\.es.'}],
-    [{'command': 'grep', 'args': [], 'pattern': '^suc*ess\\*\\^\\$$'}],
+    [{"command": "grep", "args": [], "pattern": "suc\\.es."}],
+    [{"command": "grep", "args": [], "pattern": "^suc*ess\\*\\^\\$$"}],
     [{"command": "grep", "args": [], "pattern": "er+or@\\?"}],
-    [{"command": "grep", "args": ['i', 'v'], "pattern": 'suc{1,2}ess'}],
-    [{'command': 'grep', 'args': [], 'pattern': 'suc\\+e\\?s\\{2\\{1,2\\}'}],
-    [{'command': 'egrep', 'args': [], 'pattern': 'suc\\+e\\?s\\{2{1,2}'}],
-    [{'command': 'egrep', 'args': [], 'pattern': 's\\.s\\?c\\+e\\?s\\{2{1,2}a.*?'}],
-    [{'command': 'grep', 'args': ['iv'], 'pattern': 'xxx'}],
-    [{'command': 'egrep', 'args': ['Ei', 'v'], 'pattern': 'xxx'}],
+    [{"command": "grep", "args": ["i", "v"], "pattern": "suc{1,2}ess"}],
+    [{"command": "grep", "args": [], "pattern": "suc\\+e\\?s\\{2\\{1,2\\}"}],
+    [{"command": "egrep", "args": [], "pattern": "suc\\+e\\?s\\{2{1,2}"}],
+    [{"command": "egrep", "args": [], "pattern": "s\\.s\\?c\\+e\\?s\\{2{1,2}a.*?"}],
+    [{"command": "grep", "args": ["iv"], "pattern": "xxx"}],
+    [{"command": "egrep", "args": ["Ei", "v"], "pattern": "xxx"}],
 ]
 
 WHERE_CLAUSE_RESULT = [
@@ -107,6 +109,91 @@ WHERE_CLAUSE_RESULT = [
     "LOWER(log) NOT REGEXP LOWER('xxx')",
 ]
 
+DORIS_QUERY_RESULT = []
+
+GREP_QUERY_PARAMS = {
+    "start_time": 1743669932630,
+    "end_time": 1744274732630,
+    "keyword": None,
+    "addition": [],
+    "grep_query": "egrep d6658",
+    "grep_field": "__ext.container_id",
+    "begin": 2,
+    "size": 10,
+    "sort_list": [["time", "asc"], ["cloudId_alias", "asc"], ["container_id", "desc"]],
+    "alias_settings": [
+        {"field_name": "cloudId_raw", "query_alias": "cloudId_alias", "path_type": "string"},
+        {"field_name": "__ext.container_id", "query_alias": "container_id", "path_type": "string"},
+        {"field_name": "id_raw", "query_alias": "id_alias", "path_type": "string"},
+    ],
+    "alias_mappings": {"cloudId_alias": "cloudId_raw", "container_id": "__ext.container_id", "id_alias": "id_raw"},
+}
+DORIS_RESULT_LIST = [
+    {
+        "thedate": 20250625,
+        "dteventtimestamp": 1750840049000,
+        "dteventtime": "2025-06-25 16:27:29",
+        "localtime": "2025-06-25 16:27:33",
+        "__shard_key__": 29180667007,
+        "_starttime_": "2025-06-25 16:27:29",
+        "_endtime_": "2025-06-25 16:27:29",
+        "bk_host_id": 2149975,
+        "__ext": '{"container_id":"a22b52a367d66582","labels":{"app":"dsa", "io_jobName":"tbuspp_agent"}}',
+        "cloudid": 0,
+        "serverip": "21.35.63",
+        "path": "/proz/logds/ds-8444249584138321_2025.06.25-16..782.log",
+        "gseindex": 113430,
+        "iterationindex": 46,
+        "log": "[2025.06.25-16.27.28:718][804]LogPzPal",
+        "time": 1750840049,
+    }
+]
+
+GREP_PARAMS = [
+    {
+        "where_clause": "time >= 20250403",
+        "grep_field": "id_alias",
+        "grep_query": "egrep a",
+        "alias_mappings": {"id_alias": "id"},
+        "sort_list": [["time", "asc"], ["container_id", "desc"]],
+    },
+    {
+        "where_clause": "time >= 20250403",
+        "grep_field": "__ext.app.label",
+        "grep_query": "egrep a",
+        "alias_mappings": {"app_label": "__ext.app.label"},
+        "sort_list": [["time", "asc"], ["app_label", "asc"]],
+    },
+]
+
+GREP_QUERY_RESULT = {
+    "time >= 20250403 AND id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
+    "time >= 20250403 AND CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
+}
+
+HIGHLIGHT_PARAMS = [
+    {
+        "data_list": [{"host_id": 21, "__ext": '{"container_id":"7df2fe1","labels":{"app":"dsa","component":"se"}}'}],
+        "match_field": "host_id",
+        "pattern": "1",
+    },
+    {
+        "data_list": [{"host_id": 21, "__ext": '{"container_id":"7df2fe1","labels":{"app":"dsa","component":"se"}}'}],
+        "match_field": "__ext.container_id",
+        "pattern": "df",
+    },
+    {
+        "data_list": [{"host_id": 21, "__ext": '{"container_id":"7df2fe1","labels":{"app":"dsa","component":"se"}}'}],
+        "match_field": "__ext.labels.app",
+        "pattern": "s",
+    },
+]
+HIGHLIGHT_RESULT = [
+    [{"host_id": "2<mark>1</mark>", "__ext": '{"container_id":"7df2fe1","labels":{"app":"dsa","component":"se"}}'}],
+    [{"host_id": 21, "__ext": '{"container_id": "7<mark>df</mark>2fe1", "labels": {"app": "dsa", "component": "se"}}'}],
+    [{"host_id": 21, "__ext": '{"container_id": "7df2fe1", "labels": {"app": "d<mark>s</mark>a", "component": "se"}}'}],
+]
+
 
 class TestGrepLogic(TestCase):
     GREP_FIELD = "log"
@@ -125,3 +212,19 @@ class TestGrepLogic(TestCase):
         exception_syntax = "grep a b c"
         with self.assertRaises(GrepParseError):
             grep_parser(exception_syntax)
+
+    @patch("apps.log_search.models.LogIndexSet.objects.get")
+    def test_add_grep_condition(self, mock_log_index_get):
+        mock_data = MagicMock()
+        mock_data.support_doris = 1
+        mock_data.doris_table_id = "x"
+        mock_log_index_get.return_value = mock_data
+        instance = ChartHandler.get_instance(index_set_id=1, mode="sql")
+        for grep_param, grep_query_result in zip(GREP_PARAMS, GREP_QUERY_RESULT):
+            result, _, _ = instance.add_grep_condition(**grep_param)
+            self.assertEqual(result, grep_query_result)
+
+    def test_add_highlight_mark(self):
+        for highlight_param, highlight_result in zip(HIGHLIGHT_PARAMS, HIGHLIGHT_RESULT):
+            result = add_highlight_mark(**highlight_param)
+            self.assertEqual(result, highlight_result)

@@ -165,25 +165,22 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
     if not data_list or not match_field or not pattern or ("." not in match_field and match_field not in data_list[0]):
         return data_list
 
-    if "." in match_field:
-        value = json.loads(data_list[0][match_field.split(".")[0]])
-        keys = match_field.split(".")
-        first_key = keys[0]
-        last_key = keys[-1]
-        for key in keys[1:]:
-            if isinstance(value, dict) and key in value:
-                value = value[key]
-            else:
-                return data_list
-
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
         if "." in match_field:
-            json_data = json.loads(data[first_key])
+            json_data = json.loads(data_list[0][match_field.split(".")[0]])
             tmp_dic = json_data
-            for key in keys[1:-1]:
-                json_data = json_data[key]
-            value = json_data[last_key]
+            keys = match_field.split(".")
+            first_key = keys[0]
+            last_key = keys[-1]
+            for key in keys[1:]:
+                if isinstance(json_data, dict) and key in json_data:
+                    if key == last_key:
+                        value = json_data[last_key]
+                    else:
+                        json_data = json_data[key]
+                else:
+                    continue
             if not isinstance(value, str):
                 value = str(value)
             json_data[last_key] = re.sub(
