@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import json
 from typing import Any
 
 import arrow
@@ -48,6 +47,7 @@ class QueryIndexOptimizer:
         indices = indices.replace(" ", "")
         result_table_id_list: list[str] = map_if(indices.split(","))
         # 根据查询场景优化index
+        _index = ""
         if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             # 日志采集使用0时区区分index入库,数据平台使用服务器所在时区
             time_zone = "GMT" if scenario_id == Scenario.LOG else tz.gettz()
@@ -85,7 +85,7 @@ class QueryIndexOptimizer:
                 a_index_list, date_format = self.index_time_filter(x, start_time, end_time, time_zone, date_format)
                 final_index_list = final_index_list + a_index_list
             date_format = "%".join(date_format.split("%")[:-1])
-            if len(json.dumps(final_index_list)) < INDICES_LENGTH or not date_format:
+            if len(",".join(final_index_list)) < INDICES_LENGTH or not date_format:
                 break
         return final_index_list
 
