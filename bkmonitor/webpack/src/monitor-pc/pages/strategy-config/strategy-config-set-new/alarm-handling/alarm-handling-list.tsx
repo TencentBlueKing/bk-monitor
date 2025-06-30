@@ -106,7 +106,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             timedelta: 1,
             count: 1,
           },
-          enable_delay: 1,
+          skip_delay: 1,
         },
       });
       this.addValue = [];
