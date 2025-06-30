@@ -173,6 +173,6 @@ def get_request_tenant_id():
     """
     if settings.ENABLE_MULTI_TENANT_MODE:
         request = get_request(peaceful=True)
-        if request and request.user.tenant_id:
+        if request and hasattr(request.user, "tenant_id"):
             return request.user.tenant_id
     return settings.DEFAULT_TENANT_ID
