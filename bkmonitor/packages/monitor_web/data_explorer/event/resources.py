@@ -52,7 +52,6 @@ from .constants import (
     K8S_EVENT_TRANSLATIONS,
     CicdEventName,
     EventSource,
-    DIMENSION_PREFIX,
 )
 from .core.processors import (
     BaseEventProcessor,
@@ -73,7 +72,7 @@ from .utils import (
     get_qs_from_req_data,
     is_dimensions,
     format_field,
-    sort_by_fields,
+    sort_fields,
 )
 
 logger = logging.getLogger(__name__)
@@ -109,12 +108,13 @@ class EventLogsResource(Resource):
             .limit(validated_request_data["limit"])
             .offset(validated_request_data["offset"])
         )
+        # 预处理排序字段，默认按照时间降序
+        processed_sort_fields = self.process_sort_fields(validated_request_data["sort"])
 
-        # 添加查询到查询集中
         for query in [
             get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]:
-            queryset = queryset.add_query(query.order_by("time desc"))
+            queryset = queryset.add_query(query.order_by(*processed_sort_fields))
         try:
             events: list[dict[str, Any]] = list(queryset)
         except Exception as exc:
@@ -130,7 +130,30 @@ class EventLogsResource(Resource):
         for processor in processors:
             events = processor.process(events)
 
-        return {"list": sorted(events, key=lambda _e: -_e["_meta"]["_time_"])}
+        return {"list": sort_fields(events, processed_sort_fields, extractor=lambda item: item.get("origin_data"))}
+
+    @classmethod
+    def process_sort_fields(cls, fields):
+        """
+        预处理排序字段列表，为字段添加前缀，并调整字段排序格式
+
+        :param fields: 原始排序字段列表，如 ["-time", "name"]
+        :return: 处理后的排序字段列表，如 ["time desc", "dimensions.name"]
+        """
+        processed_fields = []
+        for field in fields:
+            # 提取字段名（去掉可能的 "-" 前缀）
+            is_descending = field.startswith("-")
+            field = field[1:] if is_descending else field
+            # 是否是内置字段,不是添加 dimensions. 前缀
+            field = format_field(field)
+
+            # 保留原始排序方向
+            if is_descending:
+                processed_fields.append(f"{field} desc")
+            else:
+                processed_fields.append(field)
+        return processed_fields
 
 
 class EventViewConfigResource(Resource):
@@ -455,9 +478,6 @@ class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_TOTAL_RESPONSE
-
         alias: str = "a"
         # 构建查询列表
         queries = [

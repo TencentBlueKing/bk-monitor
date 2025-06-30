@@ -182,53 +182,45 @@ class DescendingStr:
         return self.value > other.value
 
 
-def sort_by_fields(data, fields, field_path=None):
+def sort_fields(records, fields, extractor=None):
     """
-    对字典列表按照多个字段进行排序，支持字段名前加"-"表示降序
-    支持从任意嵌套路径获取字段值
+    对字典列表按照多个字段进行排序，支持字段名后加"desc"表示降序
+    支持使用自定义提取器获取字段值
 
-    :param data: 要排序的数据列表（字典列表）
-    :param fields: 排序字段列表，如 ["time", "-event.count"]
-    :param field_path: 字段值所在的嵌套路径，如 "origin_data"
+    :param records: 要排序的数据列表（字典列表）
+    :param fields: 排序字段列表，如 ["time", "event.count desc"]
+    :param extractor: 字段提取函数，用于从记录中提取基础数据字典
     :return: 排序后的字典列表
     """
 
-    def get_nested_value(item, path):
-        """从嵌套字典中获取指定路径的值"""
-        if not path or item is None:
-            return None
-
-        # 分割路径为多个部分
-        parts = path.split(".")
-        current = item
-        for part in parts:
-            current = current[part]
-        return current
-
     def get_sort_key(item):
-        key_parts = []
-
+        # 提取比较的字典数据
+        base_data = extractor(item) if extractor else item
+        keys = []
         for field in fields:
-            # 判断是否降序
-            is_descending = field.startswith("-")
-            field_name = field[1:] if is_descending else field
-            # 获取排序字段所在的字典
-            base_data = get_nested_value(item, field_path) if field_path else item
-            # 获取字段值
-            value = base_data.get(field_name)
-
-            # 处理降序
-            if is_descending:
-                # 处理数值类型
-                if isinstance(value, int | float):
-                    key_parts.append(-value)
-                else:
-                    # 处理字符串类型, 使用自定义类实现降序
-                    key_parts.append(DescendingStr(value))
+            # 解析字段和排序顺序
+            if len(field.split()) == 1:
+                field, order = field, "asc"
             else:
-                key_parts.append(value)
+                field, order = field.split(maxsplit=1)
 
-        # 将排序的键组合成一个元组，排序时会按照元组中字段的顺序依次比较
-        return tuple(key_parts)
+            value = base_data.get(field)
+            # 用元组来控制 None 的排序顺序，None->(1,)，正常值：(0, value)，确保 None 在最后
+            if value is None:
+                keys.append((1,))
+                continue
 
-    return sorted(data, key=get_sort_key)
+            # 升序处理
+            if order != "desc":
+                keys.append((0, value))
+                continue
+
+            # 降序处理
+            if isinstance(value, int | float):
+                keys.append((0, -value))
+            else:
+                keys.append((0, DescendingStr(value)))
+
+        return tuple(keys)
+
+    return sorted(records, key=get_sort_key)
