@@ -79,12 +79,10 @@ from monitor_web.constants import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
-from monitor_web.collecting.resources.backend import CollectConfigListResource
+from monitor_web.collecting.utils import get_subs_status_data
 from monitor_web.collecting.constant import CollectStatus, OperationResult
-from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
-from monitor_web.models import CollectConfigMeta
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION, PluginType
@@ -1531,18 +1529,19 @@ def migrate_all_panels_task(bk_biz_id, org_id):
 
 @shared_task(ignore_result=True)
 @db_safe_wrapper
-def bulk_update_collect_config_cache_data(config_data_list: list[CollectConfigMeta]):
+def bulk_update_collect_config_cache_data(config_data_list):
     """
     获取节点管理订阅实时状态
     :param config_data_list: 采集配置数据列表
     :return: self.realtime_data
     """
 
+    from monitor_web.collecting.deploy import get_collect_installer
+    from monitor_web.models import CollectConfigMeta
+
     updated_configs = []
 
-    subscription_id_status_map, subscription_id_config_map = CollectConfigListResource.get_subs_status_data(
-        config_data_list
-    )
+    subscription_id_status_map, subscription_id_config_map = get_subs_status_data(config_data_list)
 
     for subscription_id, subscription_status_data in subscription_id_status_map.items():
         error_count = subscription_status_data.get("error_instance_count", 0)

@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 from copy import copy
 from typing import Any
-from collections import namedtuple
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -37,14 +36,13 @@ from core.errors.collecting import (
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.collecting.constant import (
     COLLECT_TYPE_CHOICES,
-    CollectStatus,
     OperationResult,
     OperationType,
     Status,
     TaskStatus,
 )
 from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.utils import get_subs_status_data
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
@@ -81,39 +79,6 @@ class CollectConfigListResource(Resource):
         page = serializers.IntegerField(required=False, default=1, label="页数")
         limit = serializers.IntegerField(required=False, default=10, label="大小")
 
-    @staticmethod
-    def get_subs_status_data(config_data_list: list[CollectConfigMeta]):
-        """
-        获取节点管理订阅实时状态以及订阅ID与采集配置的映射
-        :param config_data_list: 采集配置数据列表
-        :return: 包含订阅状态和订阅ID与采集配置映射的字典
-        """
-
-        subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
-
-        subscription_id_status_map = {}
-
-        # 节点管理返回的状态数量
-        for subscription_status in statistics_data:
-            status_number = {}
-            for status_result in subscription_status.get("status", []):
-                status_number[status_result["status"]] = status_result["count"]
-
-            error_count = status_number.get(CollectStatus.FAILED, 0)
-            total_count = subscription_status.get("instances", 0)
-            pending_count = status_number.get(CollectStatus.PENDING, 0)
-            running_count = status_number.get(CollectStatus.RUNNING, 0)
-            subscription_status_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-                "pending_instance_count": pending_count,
-                "running_instance_count": running_count,
-            }
-            subscription_id_status_map[subscription_status["subscription_id"]] = subscription_status_data
-
-        SubscriptionStatusData = namedtuple("SubscriptionStatusData", ["status_map", "config_map"])
-        return SubscriptionStatusData(subscription_id_status_map, subscription_id_config_map)
-
     def update_realtime_data(self, config_data_list: list[CollectConfigMeta]):
         """
         更新实时状态数据
@@ -122,7 +87,7 @@ class CollectConfigListResource(Resource):
         if not self.realtime_data:
             self.realtime_data = {}
 
-        subscription_status_data = self.get_subs_status_data(config_data_list)
+        subscription_status_data = get_subs_status_data(config_data_list)
 
         self.realtime_data.update(subscription_status_data.status_map)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from collections import namedtuple
 from core.drf_resource import api
+from monitor_web.collecting.constant import CollectStatus
 
 
 def chunks(lst, n):
@@ -39,3 +41,36 @@ def fetch_sub_statistics(config_data_list):
     collect_statistics_data = [item for group in collect_statistics_data for item in group]
 
     return subscription_id_config_map, collect_statistics_data
+
+
+def get_subs_status_data(config_data_list):
+    """
+    获取节点管理订阅实时状态以及订阅ID与采集配置的映射
+    :param config_data_list: 采集配置数据列表
+    :return: 包含订阅状态和订阅ID与采集配置映射的字典
+    """
+
+    subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+
+    subscription_id_status_map = {}
+
+    # 节点管理返回的状态数量
+    for subscription_status in statistics_data:
+        status_number = {}
+        for status_result in subscription_status.get("status", []):
+            status_number[status_result["status"]] = status_result["count"]
+
+        error_count = status_number.get(CollectStatus.FAILED, 0)
+        total_count = subscription_status.get("instances", 0)
+        pending_count = status_number.get(CollectStatus.PENDING, 0)
+        running_count = status_number.get(CollectStatus.RUNNING, 0)
+        subscription_status_data = {
+            "error_instance_count": error_count,
+            "total_instance_count": total_count,
+            "pending_instance_count": pending_count,
+            "running_instance_count": running_count,
+        }
+        subscription_id_status_map[subscription_status["subscription_id"]] = subscription_status_data
+
+    SubscriptionStatusData = namedtuple("SubscriptionStatusData", ["status_map", "config_map"])
+    return SubscriptionStatusData(subscription_id_status_map, subscription_id_config_map)
