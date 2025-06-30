@@ -28,15 +28,15 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
-
 import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
   setPreviewDataOfServer,
-} from '../../../../trace/pages/rotation/components/calendar-preview';
-import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
-import { type RuleDetailModel, randomColor, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
+} from 'monitor-common/rotation-utils/calendar-preview';
+import { RotationTabTypeEnum } from 'monitor-common/rotation-utils/common';
+import { randomColor, type RuleDetailModel, transformRulesDetail } from 'monitor-common/rotation-utils/utils';
+
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RotationCalendarPreview from './rotation-calendar-preview';
 
