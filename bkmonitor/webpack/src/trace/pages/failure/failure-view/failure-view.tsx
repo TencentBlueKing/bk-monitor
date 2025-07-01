@@ -78,6 +78,12 @@ export default defineComponent({
       },
       { deep: true }
     );
+    watch(
+      () => bkzIds.value,
+      () => {
+        getIncidentAlertView();
+      }
+    );
     const getIncidentAlertView = () => {
       loading.value = true;
       const queryString =
@@ -95,6 +101,7 @@ export default defineComponent({
           loading.value = false;
           console.log(err);
         });
+      console.log(1, recommendedMetricPanels.value);
     };
     onMounted(() => {
       getIncidentAlertView();

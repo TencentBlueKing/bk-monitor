@@ -32,6 +32,8 @@ import { incidentDiagnosis } from 'monitor-api/modules/incident';
 
 import MarkdownView from './markdown-view';
 
+import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis, IAlertObj } from '../types';
+
 import './trouble-shooting.scss';
 
 export default defineComponent({
@@ -47,7 +49,7 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const isAllCollapsed = shallowRef(true);
-    const contentList = reactive({});
+    const contentList: IContentList = reactive({});
     const loadingList = reactive({
       summary: false,
     });
@@ -58,23 +60,23 @@ export default defineComponent({
       return sub_panels?.summary?.status;
     });
 
-    const dimensionalTitleSlot = item => (
+    const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
       <span class='dimensional-title'>
         {item.name || `异常维度（组合）${item.$index + 1}`}
         <span class='red-font'>
-          {t('异常程度')} {item?.score.toFixed(2) * 100}%
+          {t('异常程度')} {(item?.score || 0).toFixed(2) * 100}%
         </span>
       </span>
     );
     /** 侧滑展开告警详情 */
-    const goDetail = data => {
+    const goDetail = (data: IAlertData) => {
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
     };
     /** 跳转到告警tab */
-    const goAlertList = list => {
+    const goAlertList = (list: IAlertData[]) => {
       emit('alertList', list);
     };
-    const dimensionalContentSlot = item => {
+    const dimensionalContentSlot = (item: IAnomalyAnalysis) => {
       return (
         <span class='dimensional-content'>
           {Object.keys(item.dimension_values || {}).map(key => (
@@ -90,9 +92,9 @@ export default defineComponent({
               </span>
               <span
                 class='item-value'
-                title={item.dimension_values[key]}
+                title={(item.dimension_values[key] || []).join('、')}
               >
-                {item.dimension_values[key]}
+                {(item.dimension_values[key] || []).join('、')}
               </span>
             </span>
           ))}
@@ -106,7 +108,7 @@ export default defineComponent({
             </b>
             {t('个告警')}
           </span>
-          {(item.alerts || []).map(ele => (
+          {(item.alerts || []).map((ele: IAlertData) => (
             <span
               key={ele.id}
               class='dimensional-content-link'
@@ -124,7 +126,7 @@ export default defineComponent({
     };
 
     const renderDimensional = () => {
-      const len = contentList?.dimension_analysis?.length;
+      const len = contentList?.anomaly_analysis?.length;
       return (
         <div>
           <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
@@ -136,14 +138,14 @@ export default defineComponent({
                 default: item => dimensionalTitleSlot(item),
                 content: item => dimensionalContentSlot(item),
               }}
-              list={contentList?.dimension_analysis || []}
+              list={contentList?.anomaly_analysis || []}
             />
           )}
         </div>
       );
     };
 
-    const renderEmpty = data => (
+    const renderEmpty = (data: IListItem) => (
       <Exception
         class='exception-wrap-item'
         description={data.message}
@@ -161,7 +163,7 @@ export default defineComponent({
       },
       {
         name: t('告警异常维度分析'),
-        key: 'dimension_analysis',
+        key: 'anomaly_analysis',
         icon: 'icon-dimension-line',
         render: renderDimensional,
       },
@@ -171,15 +173,15 @@ export default defineComponent({
       activeIndex.value = isAllCollapsed.value ? list.map((_, ind) => ind) : [];
     };
 
-    const getIncidentDiagnosis = sub_panel => {
-      loadingList[sub_panel] = true;
+    const getIncidentDiagnosis = (key: string) => {
+      loadingList[key] = true;
       incidentDiagnosis({
         id: route.params.id,
-        sub_panel,
+        sub_panel: key,
       }).then(res => {
-        contentList[sub_panel] = res.contents;
+        contentList[key] = res.contents;
         const { sub_panels } = props.panelConfig;
-        loadingList[sub_panel] = sub_panels[sub_panel].status === 'running';
+        loadingList[key] = sub_panels[key].status === 'running';
       });
     };
     watch(
@@ -210,15 +212,15 @@ export default defineComponent({
     };
   },
   render() {
-    const titleSlot = item => (
+    const titleSlot = (item: IListItem) => (
       <span class='collapse-item-title'>
         <i class={`icon-monitor ${item.icon} title-icon-circle`} />
         <span class='field-name'>{item.name}</span>
       </span>
     );
-    const contentSlot = item => {
+    const contentSlot = (item: IListItem) => {
       const { sub_panels } = this.panelConfig;
-      if (sub_panels[item.key].status === 'failed') {
+      if (sub_panels[item.key]?.status === 'failed') {
         return this.renderEmpty(sub_panels[item.key]);
       }
       return (
@@ -226,7 +228,7 @@ export default defineComponent({
           class={{ 'ai-card-loading': this.loadingList[item.key] }}
           loading={this.loadingList[item.key]}
         >
-          {!this.loadingList[item.key] && item.render(item)}
+          {!this.loadingList[item.key] && item.render()}
         </Loading>
       );
     };

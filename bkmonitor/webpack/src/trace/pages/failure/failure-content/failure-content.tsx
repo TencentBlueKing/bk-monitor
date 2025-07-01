@@ -102,11 +102,13 @@ export default defineComponent({
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
     provide('activeName', active);
+    const incidentResults = inject<Ref<object>>('incidentResults');
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
         name: FailureContentTabView.FAILURE_TOPO,
         label: t('故障拓扑'),
+        key: 'incident_topology',
       },
       // {
       //   name: FailureContentTabView.FAILURE_TIMING,
@@ -115,6 +117,7 @@ export default defineComponent({
       {
         name: FailureContentTabView.FAILURE_VIEW,
         label: t('告警'),
+        key: 'incident_alerts',
       },
     ];
     /** 告警Tab中二级tab列表  */
@@ -135,6 +138,15 @@ export default defineComponent({
       return props.currentNode;
     });
     const inputStatus = ref<string>('success');
+
+    const showTabList = computed(() => {
+      return tabList.filter(item => incidentResults.value[item.key]?.enabled);
+    });
+
+    const isShowTab = () => {
+      const tab = tabList.find(item => item.name === active.value);
+      return tab ? incidentResults.value[tab.key]?.enabled : true;
+    };
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
@@ -167,6 +179,13 @@ export default defineComponent({
         handleChangeActive(FailureContentTabView.FAILURE_TOPO);
       }
     );
+    watch(
+      () => showTabList.value,
+      list => {
+        active.value = list[0]?.name || FailureContentTabView.FAILURE_VIEW;
+      }
+    );
+
     const handleChangeSelectNode = (nodeId: string) => {
       emit('changeSelectNode', nodeId);
     };
@@ -218,6 +237,8 @@ export default defineComponent({
       handleQueryStringChange,
       inputStatus,
       searchValidate,
+      showTabList,
+      isShowTab,
     };
   },
   render() {
@@ -230,7 +251,7 @@ export default defineComponent({
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
-          {this.active === FailureContentTabView.FAILURE_TOPO && (
+          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               ref='failureTopo'
               selectNode={this.currentNodeData || []}
@@ -250,7 +271,7 @@ export default defineComponent({
               onRefresh={this.refresh}
             />
           )} */}
-          {this.active === FailureContentTabView.FAILURE_VIEW && (
+          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>
                 <div class='head-tab'>

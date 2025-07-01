@@ -1,12 +1,4 @@
 /*
- * @Author: EmilyMei 447693773@qq.com
- * @Date: 2025-06-26 11:16:08
- * @LastEditors: EmilyMei 447693773@qq.com
- * @LastEditTime: 2025-06-26 11:50:45
- * @FilePath: /webpack/src/trace/pages/failure/trouble-shooting/markdown-view.tsx
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *

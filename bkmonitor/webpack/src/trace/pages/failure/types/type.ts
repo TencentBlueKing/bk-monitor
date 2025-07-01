@@ -551,3 +551,26 @@ export interface IAlertObj {
   ids?: string;
   label?: string;
 }
+export interface IAnomalyAnalysis {
+  name?: string;
+  $index?: number;
+  score?: number;
+  alert_count?: number;
+  dimension_values?: {
+    [key: string]: string[];
+  };
+  alerts?: IAlertData[];
+}
+export interface IContentList {
+  suggestion?: string;
+  anomaly_analysis?: IAnomalyAnalysis[];
+  summary?: string;
+}
+
+export interface IListItem {
+  name?: string;
+  key?: string;
+  icon?: string;
+  message?: string;
+  render?: () => JSX.Element;
+}

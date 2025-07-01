@@ -324,7 +324,7 @@ export default defineComponent({
         if (val === 'running') {
           timer.value = setInterval(() => {
             getIncidentResults();
-          }, 4000);
+          }, 5000);
         } else {
           clearInterval(timer.value);
         }
