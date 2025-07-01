@@ -493,7 +493,7 @@ export default class EventExplore extends tsc<
     this.handleWhereChange([]);
   }
 
-  /** 添加告警策略 */
+  /** 跳转添加告警策略 */
   handleAddAlertPolicy() {
     const { data_source_label, data_type_label, table, where } = this.queryConfig;
     const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id;
@@ -516,11 +516,13 @@ export default class EventExplore extends tsc<
       expression: 'a',
       query_configs: queryConfigs,
     };
-    window.open(
-      `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
-        JSON.stringify(queryData)
-      )}`
-    );
+    const { href } = this.$router.resolve({
+      name: 'strategy-config-add',
+      query: {
+        data: JSON.stringify(queryData),
+      }
+    });
+    window.open(href, '_blank');
   }
 
   /** 更新queryConfig */
