@@ -1139,16 +1139,6 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         }
 
 
-class KernelUnifyQueryRawResource(UnifyQueryRawResource):
-    class RequestSerializer(UnifyQueryRawResource.RequestSerializer):
-        with_metric = serializers.BooleanField(label="是否返回metric信息", default=False)
-
-
-class KernelGraphUnifyQueryResource(GraphUnifyQueryResource):
-    class RequestSerializer(GraphUnifyQueryResource.RequestSerializer):
-        with_metric = serializers.BooleanField(label="是否返回metric信息", default=False)
-
-
 class GraphTraceQueryResource(ApiAuthResource):
     """
     trace信息查询
