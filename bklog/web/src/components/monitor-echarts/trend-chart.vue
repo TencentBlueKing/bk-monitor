@@ -31,11 +31,10 @@
 
   const finishPolling = ref(false);
   const isStart = ref(false);
-
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
-  let logChartCancel = null;
+  let logChartCancel = null; 
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600000;

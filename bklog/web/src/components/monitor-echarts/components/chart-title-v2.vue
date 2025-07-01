@@ -107,7 +107,7 @@
 <script lang="ts">
   import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
 
-  import { formatNumberWithRegex } from '@/common/util';
+  import { formatNumberWithRegex } from '../../../common/util';
 
   import ChartMenu from './chart-menu.vue';
   import BklogPopover from '../../bklog-popover';
@@ -209,6 +209,7 @@
     }
   }
 </script>
+
 <style lang="scss" scoped>
   .title-wrapper-new {
     position: relative;
