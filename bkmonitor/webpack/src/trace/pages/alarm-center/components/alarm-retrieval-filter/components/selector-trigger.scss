@@ -38,8 +38,16 @@
 
     .down-btn {
       .icon-mc-triangle-down {
+        display: block;
         font-size: 16px;
         color: #4D4F56;
+        transition: all 0.3s;
+      }
+
+      &.active {
+        .icon-mc-triangle-down {
+          transform: rotate(180deg);
+        }
       }
     }
   }

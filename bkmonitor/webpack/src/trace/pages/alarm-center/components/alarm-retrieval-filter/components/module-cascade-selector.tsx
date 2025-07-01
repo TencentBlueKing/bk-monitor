@@ -97,7 +97,10 @@ export default defineComponent({
           >
             {{
               trigger: ({ selected }) => (
-                <SelectorTrigger defaultWidth={150}>
+                <SelectorTrigger
+                  active={item.isOpen}
+                  defaultWidth={150}
+                >
                   {{
                     top: () => <span>{item.name}</span>,
                     bottom: () => <span>{selected.map(s => s.value).join(', ')}</span>,
