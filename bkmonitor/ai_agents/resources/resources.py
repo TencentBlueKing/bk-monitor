@@ -123,12 +123,12 @@ class CreateChatSessionContentResource(Resource):
         # 快捷指令
         try:
             command_data = property_data.get("extra")
-            if command_data:
+            if command_data.get("command"):
+                logger.info("CreateChatSessionContentResource: try to process command->[%s]", command_data)
                 processed_content = self.command_processor.process_command(command_data)
                 validated_request_data["content"] = processed_content
         except Exception as e:  # pylint: disable=broad-except
             logger.error("CreateChatSessionContentResource: process command error->[%s]", e)
-            raise ValueError(f"Failed to process command,error->{e}")
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
