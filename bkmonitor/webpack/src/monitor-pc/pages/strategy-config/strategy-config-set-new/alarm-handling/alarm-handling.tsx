@@ -150,6 +150,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
     return this.allAction.filter(item => item.id !== 'notice');
   }
 
+  // 延迟时间校验的状态
+  get isSkipDelayValid() {
+    return this.enableSkipDelay && this.data.options.skip_delay <= 0;
+  }
+
   data: IValue = {
     config_id: 0,
     user_groups: [],
@@ -200,10 +205,13 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   // 数据延迟switch
   handleSwitchDelay(isSwitchOn: boolean) {
     if (!isSwitchOn) {
+      // 关闭状态 输入的分钟数不变，但提交给后端0分钟
       this.data.options.skip_delay = 0;
+      // this.delayTime = 0;
       this.handleChange();
       return;
     }
+    this.handleDelayChange(this.delayTime);
   }
 
   handleDelayChange(v) {
@@ -211,7 +219,9 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
     // 允许小数
     const regex = /^(?!0(\.0+)?$)(\d+|\d*\.\d+)$/;
     if (!regex.test(v)) {
-      this.data.options.skip_delay = 0;
+      // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开，用于父组件校验不通过；0表示关闭可通过
+      this.data.options.skip_delay = this.enableSkipDelay ? -1 : 0;
+      this.handleChange();
       return;
     }
     this.data.options.skip_delay = v;
@@ -383,7 +393,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         )}
         {this.data.options.converge_config.is_enabled && this.data.signal.includes(this.list[0].id) && (
           <CommonItem
-            class='no-label'
+            class='no-label skip-delay'
             title=''
           >
             <bk-switcher
@@ -395,14 +405,21 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               on-change={this.handleSwitchDelay}
             />
             <i18n
-              class={`defense-wrap skip-delay ${this.isSimple ? 'simple' : ''}`}
+              class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
               path='当首次异常时间超过{0}分钟时不执行该套餐'
             >
               {!this.readonly ? (
                 <bk-input
                   class='small-input'
                   v-model={this.delayTime}
+                  v-bk-tooltips={
+                    !this.enableSkipDelay
+                      ? { content: this.$t('先打开功能'), showOnInit: false, placements: ['top'] }
+                      : { disabled: true }
+                  }
                   behavior='simplicity'
+                  disabled={!this.enableSkipDelay}
+                  inputStyle={{ borderBottomColor: this.isSkipDelayValid ? '#ea3636' : '#c4c6cc' }}
                   min={0}
                   readonly={this.readonly || !this.enableSkipDelay}
                   showControls={false}
@@ -414,9 +431,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 <span>{`${this.delayTime}`}</span>
               )}
             </i18n>
-            {this.enableSkipDelay && this.delayTime <= 0 && (
-              <span class='error-tips'>{this.$t('只能填写大于0的值')}</span>
-            )}
+            {this.isSkipDelayValid && <span class='error-tips'>{this.$t('只能填写大于0的值')}</span>}
           </CommonItem>
         )}
 
