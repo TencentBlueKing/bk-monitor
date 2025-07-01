@@ -196,7 +196,9 @@ export default class UseJsonFormatter {
 
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
-      validTextNode.classList.add('valid-text');
+      if (item.isCursorText) {
+        validTextNode.classList.add('valid-text');
+      }
       validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
