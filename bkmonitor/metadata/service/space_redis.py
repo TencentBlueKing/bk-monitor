@@ -61,14 +61,16 @@ def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
     if not data_label:
         return
 
-    result_tables = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, data_label=data_label)
+    result_tables = models.ResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, data_label=data_label, is_deleted=False, is_enable=True
+    )
 
     # 未开启多租户模式，直接推送
     table_ids = [reformat_table_id(i.table_id) for i in result_tables]
 
     if settings.ENABLE_MULTI_TENANT_MODE:
         redis_values = {
-            f"{bk_tenant_id}|{data_label}": json.dumps([f"{bk_tenant_id}|{table_id}" for table_id in table_ids])
+            f"{data_label}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
         }
     else:
         redis_values = {data_label: json.dumps(table_ids)}
