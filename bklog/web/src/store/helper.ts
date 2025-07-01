@@ -42,8 +42,13 @@ export const STORAGE_KEY = 'commonFilterAddition';
 
 export type FilterAdditionStorageItem = {
   indexSetIdList: string[];
-  filterAddition: Record<string, any>;
+  filterAddition: Record<string, any>[];
   t: number; // ISO 8601 format timestamp
+};
+
+export type OldFilterAdditionStorageItem = {
+  indexId: string;
+  value: Record<string, any>[];
 };
 
 export const isAiAssistantActive = (val: string[]) => {
@@ -52,14 +57,18 @@ export const isAiAssistantActive = (val: string[]) => {
 
 export const getStorageCommonFilterAddition = () => {
   const value = localStorage.getItem(STORAGE_KEY);
-  let jsonValue: FilterAdditionStorageItem[] = [];
+  let jsonValue: FilterAdditionStorageItem[] | OldFilterAdditionStorageItem = [];
   try {
     jsonValue = JSON.parse(value || '[]');
+
+    if (!Array.isArray(jsonValue) && 'indexId' in jsonValue && 'value' in jsonValue) {
+      jsonValue = [{ indexSetIdList: [jsonValue.indexId], filterAddition: [jsonValue.value], t: new Date().getTime() }];
+    }
   } catch (e) {
     console.error('Failed to parse common filter addition:', e);
   }
 
-  return jsonValue ?? [];
+  return jsonValue as FilterAdditionStorageItem[];
 };
 
 export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list?: FilterAdditionStorageItem[]) => {
@@ -120,7 +129,7 @@ export const getCommonFilterAdditionWithValues = state =>
     operator,
   }));
 
-export const setStorageCommonFilterAddition = (state, filterAddition: Record<string, any>) => {
+export const setStorageCommonFilterAddition = (state, filterAddition: Record<string, any>[]) => {
   const allStorage = getStorageCommonFilterAddition();
   const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
 
