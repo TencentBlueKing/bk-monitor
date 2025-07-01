@@ -66,6 +66,7 @@ export default {
   数据采样: 'Data Sampling',
   数据量趋势: 'Data Volume Trend',
   告警策略: 'Alert Rules',
+  '告警 ID': 'Alert ID',
   查询设置: 'Query Settings',
   分享链接: 'Copy Link',
   数据来源: 'Data Source',

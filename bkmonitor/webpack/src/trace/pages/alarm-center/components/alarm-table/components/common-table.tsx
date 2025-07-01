@@ -131,7 +131,10 @@ export default defineComponent({
 
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
-      props.columns.map(column => ({ ...column, cell: column?.cell || ((_, { row }) => tableCellRender(column, row)) }))
+      props.columns.map(column => ({
+        ...column,
+        cell: (_, { row }) => (column?.cellRenderer ? column?.cellRenderer(row, column) : tableCellRender(row, column)),
+      }))
     );
     /** 表格骨架屏展示相关配置 */
     const tableSkeletonConfig = computed(() => {
