@@ -12,6 +12,7 @@ from aidev_agent.services.chat import ExecuteKwargs
 from django.http import StreamingHttpResponse
 
 from ai_agents.services.agent_instance import AgentInstanceBuilder
+from ai_agents.services.command_handler import CommandProcessor
 from core.drf_resource import Resource
 from rest_framework import serializers
 from ai_agents.services.api_client import AidevApiClientBuilder
@@ -105,10 +106,29 @@ class CreateChatSessionContentResource(Resource):
         content = serializers.CharField(label="内容", required=True)
         property = serializers.DictField(label="属性", required=False)
 
+    def __init__(self):
+        super().__init__()
+        self.command_processor = CommandProcessor()
+
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
+        property_data = validated_request_data.get("property", {})
 
-        logger.info("CreateChatSessionContentResource: try to create content with session_code->[%s]", session_code)
+        logger.info(
+            "CreateChatSessionContentResource: try to create content with session_code->[%s],property->[%s]",
+            session_code,
+            property_data,
+        )
+
+        # 快捷指令
+        try:
+            command_data = property_data.get("extra")
+            if command_data:
+                processed_content = self.command_processor.process_command(command_data)
+                validated_request_data["content"] = processed_content
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("CreateChatSessionContentResource: process command error->[%s]", e)
+            raise ValueError(f"Failed to process command,error->{e}")
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
