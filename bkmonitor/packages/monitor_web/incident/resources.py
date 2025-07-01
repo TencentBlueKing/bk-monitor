@@ -1400,6 +1400,7 @@ class IncidentResultsResource(IncidentBaseResource):
         # 去除前面的时间戳
         incident_id = str(validated_request_data["id"])[10:]
         diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        topology_enabled = diagnosis_results.get("topology_enabled", False)
         sub_panel_status = {"status": None, "enabled": None, "sub_panels": {}}
         for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
             sub_panel_status["sub_panels"][sub_panel_name] = {
@@ -1420,7 +1421,7 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": "finished",
                 },
                 "incident_topology": {  # 故障拓扑tab
-                    "enabled": True,
+                    "enabled": topology_enabled,
                     "status": "finished",
                 },
                 "incident_alerts": {  # 故障告警tab
@@ -1453,14 +1454,14 @@ class IncidentResultsResource(IncidentBaseResource):
             incident_results["status"] = "finished"
         elif any(
             [
-                panel_properties.get("status") == "failed"
+                panel_properties.get("status") == "running"
                 for panel_properties in incident_results[sub_key].values()
                 if panel_properties.get("enabled")
             ]
         ):
-            incident_results["status"] = "failed"
-        else:
             incident_results["status"] = "running"
+        else:
+            incident_results["status"] = "failed"
 
 
 class IncidentDiagnosisResource(IncidentBaseResource):
