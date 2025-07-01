@@ -247,7 +247,7 @@ export default defineComponent({
         <FailureMenu
           width={'calc(100vw - 500px)'}
           active={this.active}
-          tabList={this.tabList}
+          tabList={this.showTabList}
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
