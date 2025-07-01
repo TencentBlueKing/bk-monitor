@@ -156,10 +156,6 @@ class SpaceTableIDRedis:
             table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
         )
 
-        other_filter = {}
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            other_filter = {"bk_tenant_id": bk_tenant_id, "is_deleted": False, "is_enable": True}
-
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = filter_model_by_in_page(
             model=models.ResultTable,
@@ -167,7 +163,7 @@ class SpaceTableIDRedis:
             filter_data=list(data_labels),
             value_func="values",
             value_field_list=["table_id", "data_label"],
-            other_filter=other_filter,
+            other_filter={"is_deleted": False, "is_enable": True, "bk_tenant_id": bk_tenant_id},
         )
         # 组装数据
         rt_dl_map = {}
