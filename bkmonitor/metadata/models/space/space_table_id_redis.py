@@ -158,7 +158,7 @@ class SpaceTableIDRedis:
 
         other_filter = {}
         if settings.ENABLE_MULTI_TENANT_MODE:
-            other_filter = {"bk_tenant_id": bk_tenant_id}
+            other_filter = {"bk_tenant_id": bk_tenant_id, "is_deleted": False, "is_enable": True}
 
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = filter_model_by_in_page(
