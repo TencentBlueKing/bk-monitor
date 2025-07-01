@@ -52,9 +52,11 @@ class ListBCSCluster(Resource):
         for data_id_info in event_data_id_values:
             event_data_id_map[data_id_info["cluster_id"]] = data_id_info["K8sEventDataID"]
         for cluster in cluster_list:
-            event_data_id = event_data_id_map.get(cluster["id"])
-            data_source_result = models.DataSourceResultTable.objects.get(bk_data_id=event_data_id)
-            result_table_id = data_source_result.table_id
+            event_data_id = event_data_id_map.get(cluster["id"]) or 0
+            data_source_result = models.DataSourceResultTable.objects.filter(bk_data_id=event_data_id).first()
+            result_table_id = ""
+            if data_source_result:
+                result_table_id = data_source_result.table_id
             cluster["event_table_id"] = result_table_id
         return cluster_list
 

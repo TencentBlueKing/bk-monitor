@@ -1279,6 +1279,8 @@ class BkMonitorTimeSeriesDataSource(TimeSeriesDataSource):
         group_by: list[str] | None = None,
         **kwargs,
     ):
+        # ！！！cmdb level 数据查询路由逻辑！！！
+
         if settings.IS_ACCESS_BK_DATA and cls.is_cmdb_level_query(
             where=agg_condition, filter_dict=where, group_by=group_by
         ):
