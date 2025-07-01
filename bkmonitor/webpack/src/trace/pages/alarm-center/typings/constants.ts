@@ -79,6 +79,27 @@ export const AlarmLevelIconMap = {
   },
 };
 
+export const EventStatusMap = {
+  ABNORMAL: {
+    tagColor: '#EA3536',
+    tagBgColor: '#FEEBEA',
+    alias: window.i18n.t('未恢复'),
+    value: 'ABNORMAL',
+  },
+  RECOVERED: {
+    tagColor: '#14A568',
+    bgColor: '#E4FAF0',
+    name: window.i18n.t('已恢复'),
+    value: 'RECOVERED',
+  },
+  CLOSED: {
+    tagColor: '#63656E',
+    tagBgColor: '#F0F1F5',
+    alias: window.i18n.t('已失效'),
+    value: 'CLOSED',
+  },
+};
+
 /** 我有权限的业务ID */
 export const MY_AUTH_BIZ_ID = -1;
 /** 我有告警的业务ID */

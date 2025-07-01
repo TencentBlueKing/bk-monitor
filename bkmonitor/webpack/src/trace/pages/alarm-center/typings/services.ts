@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { ACTION_STORAGE_KEY } from '../services/action-services';
+import type { ALERT_STORAGE_KEY } from '../services/alert-services';
+import type { INCIDENT_STORAGE_KEY } from '../services/incident-services';
+
 export type CommonCondition = {
   key: string;
   value: string[];
@@ -419,3 +424,5 @@ export type AnalysisFieldAggItem = {
 export type AnalysisListItemBucket = { percent: number } & AnalysisBucket;
 
 export type AnalysisListItem = { name: string; buckets: AnalysisListItemBucket[] } & AnalysisFieldAggItem;
+
+export type AlarmStorageKey = typeof ACTION_STORAGE_KEY | typeof ALERT_STORAGE_KEY | typeof INCIDENT_STORAGE_KEY;

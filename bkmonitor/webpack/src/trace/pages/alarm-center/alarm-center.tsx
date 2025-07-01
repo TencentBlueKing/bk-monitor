@@ -45,7 +45,7 @@ export default defineComponent({
     const alarmStore = useAlarmCenterStore();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
-    const { tableColumns } = useAlarmTableColumns();
+    const { tableColumns: tableSourceColumns, storageColumns, allTableFields } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
     const updateIsCollapsed = (v: boolean) => {
@@ -66,7 +66,9 @@ export default defineComponent({
       page,
       pageSize,
       ordering,
-      tableColumns,
+      tableSourceColumns,
+      storageColumns,
+      allTableFields,
       alarmStore,
       handleFilterValueChange,
       updateIsCollapsed,
@@ -101,21 +103,21 @@ export default defineComponent({
                     </div>
                     <div class='alarm-center-table'>
                       <AlarmTable
-                        headerAffixedTop={{
-                          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-                        }}
-                        horizontalScrollAffixedBottom={{
-                          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-                        }}
-                        columns={this.tableColumns}
+                        // @ts-ignore
+                        allTableFields={this.allTableFields}
+                        columns={this.tableSourceColumns}
                         currentPage={this.page}
                         data={this.data}
+                        displayColFields={this.storageColumns}
                         loading={this.loading}
                         pageSize={this.pageSize}
                         sort={this.ordering}
                         total={this.total}
                         onCurrentPageChange={page => {
                           this.page = page;
+                        }}
+                        onDisplayColFieldsChange={displayColFields => {
+                          this.storageColumns = displayColFields;
                         }}
                         onPageSizeChange={pageSize => {
                           this.pageSize = pageSize;
