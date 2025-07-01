@@ -888,7 +888,7 @@ class TimeSeriesDataSource(DataSource):
         index_set_id = query_config.get("index_set_id")
 
         return cls(
-            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+            bk_tenant_id=kwargs.get("bk_tenant_id") or bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
             table=query_config.get("result_table_id", ""),
             metrics=metrics,
