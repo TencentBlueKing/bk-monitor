@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 import json
 
 import pytest
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
 from api.cmdb.define import Business
 from metadata.models import BCSClusterInfo
@@ -21,7 +20,7 @@ from metadata.task.sync_space import (
 )
 from metadata.tests.common_utils import MockCache
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def test_sync_bkcc_space(create_and_delete_record, table_id, mocker):
