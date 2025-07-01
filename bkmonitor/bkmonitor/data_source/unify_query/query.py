@@ -279,6 +279,7 @@ class UnifyQuery:
             return True
 
         # 接入数据平台时，cmdb level表在白名单中的，不走统一查询模块
+        # 直接用datasource查询： _query_data_using_datasource
         for data_source in self.data_sources:
             if (
                 settings.IS_ACCESS_BK_DATA
