@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 
@@ -31,7 +32,8 @@ import { ConfigProvider, Navigation } from 'bkui-vue';
 import { en, zhCn } from 'bkui-vue/lib/locale';
 import { getLinkMapping } from 'monitor-api/modules/commons';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { docCookies, getUrlParam } from 'monitor-common/utils/utils';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { docCookies } from 'monitor-common/utils/utils';
 
 import AuthorityModal from '../components/authority-modal/authority-modal';
 import { createRouteConfig } from '../router/router-config';
@@ -47,8 +49,8 @@ export default defineComponent({
     const store = useAppStore();
     const route = useRoute();
     const bizId = computed(() => store.bizId);
-    const needMenu = ref(!window.__POWERED_BY_BK_WEWEB__);
-    useAppReadonlyProvider(!!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly'));
+    const needMenu = shallowRef(!window.__POWERED_BY_BK_WEWEB__ && globalUrlFeatureMap.NEED_MENU);
+    useAppReadonlyProvider(window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY);
     /** 国际化语言设置 */
     const locale = computed(() => {
       const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);

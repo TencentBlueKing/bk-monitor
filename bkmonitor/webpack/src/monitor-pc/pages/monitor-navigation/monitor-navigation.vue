@@ -399,7 +399,7 @@ export default {
     ...mapMutations([SET_BIZ_ID]),
     // 设置是否需要menu
     handleSetNeedMenu() {
-      const needMenu = getUrlParam('needMenu');
+      const needMenu = globalUrlFeatureMap.NEED_MENU;
       this.header.needMenu = `${needMenu}` !== 'false';
     },
     // 设置全局业务

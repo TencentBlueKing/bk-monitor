@@ -325,4 +325,11 @@ export default {
   '快捷键 / ，请输入...': 'Quick key/, please enter...',
   '快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索': 'Quick key/, can directly enter Trace ID / Span ID to search',
   'ID / 告警组名称 / 轮值规则 / 通知对象': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
+  请输入需要解释的内容: 'Please enter the content to be explained',
+  请输入需要翻译的内容: 'Please enter the content to be translated',
+  请选择语言: 'Please select the language',
+  待翻译文本: 'Text to be translated',
+  内容: 'Content',
+  解释: 'Explanation',
+  翻译: 'Translation',
 };
