@@ -68,12 +68,10 @@ def get_table_info_for_influxdb_and_vm(
     bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ) -> dict:
     """获取influxdb 和 vm的结果表"""
-    vm_tables = models.AccessVMRecord.objects.values(
+    vm_tables = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id).values(
         "result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_tenant_id"
     )
     # 如果结果表存在，则过滤指定的结果表
-    if settings.ENABLE_MULTI_TENANT_MODE and bk_tenant_id:
-        vm_tables = vm_tables.filter(bk_tenant_id=bk_tenant_id)
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
 
@@ -132,8 +130,10 @@ def get_table_info_for_influxdb_and_vm(
     }
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
-        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(table_id=table_id, name='cmdb_level_vm_rt')
-        if cmdb_level_vm_rt_opts.exists():
+        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(
+            table_id=table_id, name="cmdb_level_vm_rt", bk_tenant_id=bk_tenant_id
+        ).first()
+        if cmdb_level_vm_rt_opts:
             detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.first().value
         else:
             detail["cmdb_level_vm_rt"] = ""
@@ -145,7 +145,7 @@ def get_table_info_for_influxdb_and_vm(
                     "vm_rt": detail["vm_rt"],
                     "storage_name": storage_name,
                     "storage_type": models.ClusterInfo.TYPE_VM,
-                    "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"]
+                    "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"],
                 }
             )
         else:
@@ -166,6 +166,7 @@ def get_table_info_for_influxdb_and_vm(
 def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = None) -> dict:
     """
     针对接入过计算平台类型的结果表，组装其详情信息，为RESULT_TABLE_DETAIL使用,现阶段只有VM类型
+    TODO 该方法暂时未启用
     @param table_id_list: 监控平台自身结果表列表
     """
     # 0. 先从BkBaseResultTable中提取必要信息：监控平台RT、计算平台RT、存储集群
@@ -192,19 +193,17 @@ def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = No
     table_id_info = {}
     for table_id, detail in bkbase_table_map.items():
         storage_name = bkbase_cluster_id_name.get(detail["storage_id"], "")
-        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(table_id=table_id, name='cmdb_level_vm_rt')
-        if cmdb_level_vm_rt_opts.exists():
+        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(
+            table_id=table_id, name="cmdb_level_vm_rt"
+        ).first()
+        if cmdb_level_vm_rt_opts:
             detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.first().value
         else:
             detail["cmdb_level_vm_rt"] = ""
 
         if table_id in table_id_info:
             table_id_info[table_id].update(
-                {
-                    "vm_rt": detail["vm_rt"],
-                    "storage_name": storage_name,
-                    "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"]
-                }
+                {"vm_rt": detail["vm_rt"], "storage_name": storage_name, "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"]}
             )
         else:
             detail.update(
