@@ -46,7 +46,7 @@ interface DimensionFilterPanelProps {
   listLoading: boolean;
   condition: IWhereItem[];
   queryString: string;
-  source: APIType;
+  source?: APIType;
   eventSourceType?: ExploreSourceTypeEnum[];
   hasSourceSelect?: boolean;
 }

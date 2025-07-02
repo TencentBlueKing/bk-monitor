@@ -25,14 +25,16 @@
  */
 import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
+import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
+import DimensionFilterPanel from '../event-explore/components/dimension-filter-panel';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
@@ -45,7 +47,14 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
+import {
+  type IK8SMetricItem,
+  type ICommonParams,
+  K8sNewTabEnum,
+  SceneEnum,
+  EDimensionKey,
+  type IEventSceneCommonParams,
+} from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 
@@ -133,12 +142,19 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   resizeObserver = null;
   headerHeight = 102;
 
+  /** 事件场景 字段列表 */
+  fieldList = [];
+  eventCondition = [];
+  eventQueryString = '';
+  fieldListLoading = false;
+
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
 
-  get selectClusterName() {
-    return this.clusterList.find(item => item.id === this.cluster)?.name;
+  /** 当前选择的集群 */
+  get selectCluster() {
+    return this.clusterList.find(item => item.id === this.cluster);
   }
 
   get groupFilters() {
@@ -185,12 +201,38 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 公共参数 */
   @ProvideReactive('commonParams')
-  get commonParams(): ICommonParams {
-    return {
+  get commonParams(): ICommonParams | IEventSceneCommonParams {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+
+    if (this.scene === SceneEnum.Event) {
+      return {
+        query_configs: [
+          {
+            data_source_label: 'custom',
+            data_type_label: 'event',
+            table: this.selectCluster?.event_table_id,
+            query_string: this.eventQueryString,
+            where: this.eventCondition,
+            group_by: [],
+            filter_dict: {},
+          },
+        ],
+        start_time: startTime,
+        end_time: endTime,
+      };
+    }
+
+    const commonParams = {
       scenario: this.scene,
       bcs_cluster_id: this.cluster,
       timeRange: this.timeRange,
+      /** 主动触发监控 */
+      REFRESH_KEY: this.refreshImmediate,
     };
+    return Object.keys(commonParams).reduce((pre, cur) => {
+      if (cur !== 'REFRESH_KEY') pre[cur] = commonParams[cur];
+      return pre;
+    }, {}) as ICommonParams;
   }
 
   get tableCommonParam() {
@@ -272,9 +314,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  created() {
+  async created() {
     this.getRouteParams();
-    this.getClusterList();
+    await this.getClusterList();
+    this.getViewConfig();
     this.getScenarioMetricList();
     this.getHideMetrics();
   }
@@ -334,6 +377,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @description 获取场景指标列表
    */
   async getScenarioMetricList() {
+    if (this.scene === SceneEnum.Event) return;
     this.metricLoading = true;
     const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
     this.metricLoading = false;
@@ -341,6 +385,29 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       ...item,
       count: item.children.length,
     }));
+  }
+
+  async getViewConfig() {
+    if (this.scene !== SceneEnum.Event || !this.selectCluster.event_table_id) return;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const data = await eventViewConfig({
+      data_sources: [
+        {
+          data_source_label: 'custom',
+          data_type_label: 'event',
+          table: this.selectCluster.event_table_id,
+        },
+      ],
+      start_time: startTime,
+      end_time: endTime,
+    }).catch(() => ({ display_fields: [], entities: [], field: [] }));
+    this.fieldList = data.field.map(item => {
+      const pinyinStr = this.$bkToPinyin(item.alias, true, '') || '';
+      return {
+        ...item,
+        pinyinStr,
+      };
+    });
   }
 
   /** 获取隐藏的指标项 */
@@ -355,11 +422,15 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     });
   }
 
-  handleSceneChange(value) {
+  handleSceneChange(value: SceneEnum) {
     this.scene = value;
     this.initGroupBy();
     this.initFilterBy();
-    this.getScenarioMetricList();
+    if (value === SceneEnum.Event) {
+      this.getViewConfig();
+    } else {
+      this.getScenarioMetricList();
+    }
     this.showCancelDrill = false;
     this.getHideMetrics();
     this.setRouteParams();
@@ -367,6 +438,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleImmediateRefresh() {
     this.refreshImmediate = random(4);
+    this.getViewConfig();
   }
 
   handleRefreshChange(value: number) {
@@ -382,6 +454,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.timeRange = timeRange;
+    this.getViewConfig();
     this.setRouteParams();
   }
 
@@ -456,6 +529,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       this.activeMetricId = '';
     }, 3000);
   }
+
+  handleEventConditionChange() {}
 
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
@@ -644,7 +719,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                   class='cluster-name'
                   v-bk-overflow-tips
                 >
-                  {this.$t('集群')}: {this.selectClusterName}
+                  {this.$t('集群')}: {this.selectCluster?.name}
                 </span>
                 <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
               </div>
@@ -689,25 +764,40 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         >
           <div class='content-left'>
             <K8sLeftPanel>
-              <K8sDimensionList
-                commonParams={this.commonParams}
-                filterBy={this.filterBy}
-                groupBy={this.groupFilters}
-                onClearFilterBy={this.clearFilterBy}
-                onDimensionTotal={this.dimensionTotalChange}
-                onDrillDown={this.handleTableGroupChange}
-                onFilterByChange={this.filterByChange}
-                onGroupByChange={this.groupByChange}
-              />
-              <K8sMetricList
-                activeMetric={this.activeMetricId}
-                disabledMetricList={this.disabledMetricList}
-                hideMetrics={this.resultHideMetrics}
-                loading={this.metricLoading}
-                metricList={this.metricList}
-                onHandleItemClick={this.handleMetricItemClick}
-                onMetricHiddenChange={this.metricHiddenChange}
-              />
+              {this.scene !== SceneEnum.Event ? (
+                [
+                  <K8sDimensionList
+                    key='dimension-list'
+                    commonParams={this.commonParams as ICommonParams}
+                    filterBy={this.filterBy}
+                    groupBy={this.groupFilters}
+                    onClearFilterBy={this.clearFilterBy}
+                    onDimensionTotal={this.dimensionTotalChange}
+                    onDrillDown={this.handleTableGroupChange}
+                    onFilterByChange={this.filterByChange}
+                    onGroupByChange={this.groupByChange}
+                  />,
+                  <K8sMetricList
+                    key='metric-list'
+                    activeMetric={this.activeMetricId}
+                    disabledMetricList={this.disabledMetricList}
+                    hideMetrics={this.resultHideMetrics}
+                    loading={this.metricLoading}
+                    metricList={this.metricList}
+                    onHandleItemClick={this.handleMetricItemClick}
+                    onMetricHiddenChange={this.metricHiddenChange}
+                  />,
+                ]
+              ) : (
+                <DimensionFilterPanel
+                  condition={this.eventCondition}
+                  list={this.fieldList}
+                  listLoading={this.fieldListLoading}
+                  queryString={this.eventQueryString}
+                  // onClose={this.handleCloseDimensionPanel}
+                  onConditionChange={this.handleEventConditionChange}
+                />
+              )}
             </K8sLeftPanel>
           </div>
 
