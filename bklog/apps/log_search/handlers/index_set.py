@@ -1360,52 +1360,49 @@ class IndexSetHandler(APIModel):
             "bk_tenant_id": space.bk_tenant_id,
         }
 
-    def update_alias_settings(self, params):
-        # indexes = [
-        #     {
-        #         "bk_biz_id": self.data.bk_biz_id,
-        #         "result_table_id": self.data.table_id,
-        #         "result_table_name": self.data.collector_config_name,
-        #         "time_field": "dtEventTimeStamp",
-        #     }
-        # ]
-        # index_set_obj = LogIndexSet.objects.filter(index_set_id=self.index_set_id).update(
-        #     query_alias_settings=params["alias_settings"],
-        # )
+    def update_alias_settings(self, query_alias_settings):
+        index_set_names = []
+        # log_index_set_data_objs = LogIndexSetData.objects.filter(index_set_id=self.data.index_set_id)
+        # print("log_index_set_data_objs", log_index_set_data_objs)
+        # if log_index_set_data_objs:
+        #     # 多索引集情景,索引集别名的配置应用到所有的子索引上
+        #     print("多索引集情景")
+        #     indexes = []
+        #     for log_index_set_data_obj in log_index_set_data_objs:
+        #         indexes.append({"result_table_id": log_index_set_data_obj.result_table_id})
+        #         index_set_ids.append(log_index_set_data_obj.index_set_id)
+        #     LogIndexSet.objects.filter(index_set_id__in=index_set_ids).update(query_alias_settings=query_alias_settings)
+        # else:
+        #     # 单索引集情景
+        #     print("单索引集情景")
+        #     try:
+        #         collect_config = CollectorConfig.objects.get(collector_config_id=self.data.collector_config_id)
+        #     except CollectorConfig.DoesNotExist:
+        #         raise CollectorConfigNotExistException()
+        #     indexes = [{"result_table_id": collect_config.table_id}]
+        #     index_set_ids.append(self.data.index_set_id)
+        #
+        # print("index_set_ids", index_set_ids)
+        # LogIndexSet.objects.filter(index_set_id__in=index_set_ids).update(query_alias_settings=query_alias_settings)
+        #
         # request_params = {
-        #     "cluster_id": index_set_obj.storage_cluster_id,
-        #     "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
-        #     "source_type": index_set_obj.scenario_id,
-        #     "data_label": self.get_data_label(index_set.scenario_id, index_set.index_set_id),
-        #     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
-        #     "space_id": index_set.space_uid.split("__")[-1],
-        #     "space_type": index_set.space_uid.split("__")[0],
-        #     "need_create_index": True if index_set.collector_config_id else False,
-        #     "options": [
-        #         {
-        #             "name": "time_field",
-        #             "value_type": "dict",
-        #             "value": json.dumps(
-        #                 {
-        #                     "name": index_set.time_field,
-        #                     "type": index_set.time_field_type,
-        #                     "unit": index_set.time_field_unit
-        #                     if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-        #                     else TimeFieldUnitEnum.MILLISECOND.value,
-        #                 }
-        #             ),
-        #         },
-        #         {
-        #             "name": "need_add_time",
-        #             "value_type": "bool",
-        #             "value": json.dumps(index_set.scenario_id != Scenario.ES),
-        #         },
-        #     ],
+        #     "table_id": self.get_rt_id(self.data.index_set_id, self.data.collector_config_id, indexes),
+        #     "query_alias_settings": query_alias_settings,
         # }
-        # if query_alias_settings := index_set.query_alias_settings:
-        #     request_params["query_alias_settings"] = query_alias_settings
-        # TransferApi.create_or_update_log_router(request_params)
-        return "ok"
+        # try:
+        #     TransferApi.create_or_update_log_router(request_params)
+        # except Exception as e:
+        #     print("e", e)
+        #     logger.exception("create or update index set(%s) es router failed：%s", self.data.index_set_id, e)
+        return {"index_set_ids": index_set_names}
+
+    @staticmethod
+    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
+        if clustered_rt:
+            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
+        if collector_config_id:
+            return ",".join([index["result_table_id"] for index in indexes])
+        return f"bklog_index_set_{str(index_set_id)}.__default__"
 
 
 class BaseIndexSetHandler:

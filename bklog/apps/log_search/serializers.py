@@ -1135,5 +1135,4 @@ class LogGrepQuerySerializer(serializers.Serializer):
 
 
 class AliasSettingsSerializer(serializers.Serializer):
-    is_cover = serializers.BooleanField(label=_("是否覆盖子索引集"), required=False)
-    alias_settings = AliasSettingSerializer(many=True, required=False)
+    alias_settings = AliasSettingSerializer(many=True, required=True)

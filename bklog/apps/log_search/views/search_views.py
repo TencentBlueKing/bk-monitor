@@ -2078,6 +2078,6 @@ class SearchViewSet(APIViewSet):
         from apps.log_search.serializers import AliasSettingsSerializer
 
         params = self.params_valid(AliasSettingsSerializer)
-        result = IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params)
+        result = IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"])
         # 返回更新的索引集id
         return Response(result)
