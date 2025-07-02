@@ -42,10 +42,10 @@ import {
 import { AlarmService } from './base';
 const ALERT_TABLE_COLUMNS = [
   {
-    colKey: 'id',
-    title: window.i18n.t('告警ID'),
+    colKey: 'alert_name',
+    title: window.i18n.t('告警名称'),
     is_default: true,
-    width: 140,
+    width: 160,
     fixed: 'left',
     sorter: true,
   },
@@ -54,14 +54,6 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('空间名'),
     is_default: true,
     width: 100,
-    fixed: 'left',
-    sorter: true,
-  },
-  {
-    colKey: 'alert_name',
-    title: window.i18n.t('告警名称'),
-    is_default: true,
-    width: 160,
     fixed: 'left',
     sorter: true,
   },

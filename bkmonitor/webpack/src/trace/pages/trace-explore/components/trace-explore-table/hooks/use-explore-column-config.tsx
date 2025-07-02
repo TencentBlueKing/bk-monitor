@@ -168,7 +168,7 @@ export function useExploreColumnConfig({
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(column, row);
+        const tableCell = (_, { row }) => tableCellRender(row, column);
 
         return {
           ...defaultTableConfig,
