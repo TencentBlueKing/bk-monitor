@@ -78,18 +78,20 @@ def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
 
     data_label_to_table_ids: dict[str, list[str]] = defaultdict(list)
     for result_table in result_tables:
-        for data_label in result_table.data_label.split(","):
-            if not data_label or data_label not in data_label_list:
+        # 拆分data_label
+        for dl in result_table.data_label.split(","):
+            if not dl or dl not in data_label_list:
                 continue
-            data_label_to_table_ids[data_label].append(reformat_table_id(result_table.table_id))
+            data_label_to_table_ids[dl].append(reformat_table_id(result_table.table_id))
 
+    # 多租户模式下，在data_label前拼接bk_tenant_id
     if settings.ENABLE_MULTI_TENANT_MODE:
         redis_values = {
-            f"{data_label}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
-            for data_label, table_ids in data_label_to_table_ids.items()
+            f"{dl}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
+            for dl, table_ids in data_label_to_table_ids.items()
         }
     else:
-        redis_values = {data_label: json.dumps(table_ids) for data_label, table_ids in data_label_to_table_ids.items()}
+        redis_values = {dl: json.dumps(table_ids) for dl, table_ids in data_label_to_table_ids.items()}
 
     RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
     RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))
@@ -182,7 +184,7 @@ def push_and_publish_doris_table_id_detail(
     logger.info("push_and_publish_doris_table_id_detail: table_id->[%s]", table_id)
 
     try:
-        result_table = models.ResultTable.objects.get(table_id=table_id)
+        result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         doris_storage = models.DorisStorage.objects.get(table_id=table_id)
     except Exception as e:
         logger.error(
@@ -193,11 +195,16 @@ def push_and_publish_doris_table_id_detail(
         )
         raise ValueError(f"get result table or doris storage failed, table_id:{table_id}")
 
+    # 多租户模式下，在data_label后拼接bk_tenant_id
+    new_data_label = result_table.data_label
+    if new_data_label and settings.ENABLE_MULTI_TENANT_MODE:
+        new_data_label = ",".join([f"{dl}|{bk_tenant_id}" for dl in new_data_label.split(",")])
+
     values = {
         "db": doris_storage.bkbase_table_id,
         "measurement": models.ClusterInfo.TYPE_DORIS,
         "storage_type": "bk_sql",
-        "data_label": result_table.data_label,
+        "data_label": new_data_label,
     }
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id

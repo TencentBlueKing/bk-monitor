@@ -112,11 +112,11 @@ def create_or_delete_records(mocker):
         bk_base_data_id=50010,
     )
     models.ResultTableOption.objects.create(
-        table_id='1001_bkmonitor_time_series_50010.__default__',
-        name='cmdb_level_vm_rt',
-        value='bkm_1001_bkmonitor_time_series_50010_cmdb',
-        value_type='string',
-        creator='system'
+        table_id="1001_bkmonitor_time_series_50010.__default__",
+        name="cmdb_level_vm_rt",
+        value="bkm_1001_bkmonitor_time_series_50010_cmdb",
+        value_type="string",
+        creator="system",
     )
 
     models.ClusterInfo.objects.create(
@@ -186,8 +186,8 @@ def test_push_doris_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
             )
             expected_rt_detail_router = {
-                "riot|2_bklog.test_doris_non_exists": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+                "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839|riot"}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -198,7 +198,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bklog.test_doris_non_exists"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_non_exists|riot"]),
                 ]
             )
 
@@ -217,10 +217,10 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True
             )
             expected_rt_detail_router = {
-                "riot|2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
+                "2_bkbase_metric_agg.__default__|riot": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
-                '"data_label":"bkbase_rt_meta_metric",'
+                '"data_label":"bkbase_rt_meta_metric|riot",'
                 '"fields":["metric_a","metric_b"]}'
             }
 
@@ -232,7 +232,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bkbase_metric_agg.__default__"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bkbase_metric_agg.__default__|riot"]),
                 ]
             )
 

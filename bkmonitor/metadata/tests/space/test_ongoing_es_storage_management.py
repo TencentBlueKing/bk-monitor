@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -110,7 +109,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "data_label": "bklog_index_set_1001",
         "field_alias": {},
     }
-    expected = {"1001_bklog.stdout": json.dumps(expected_json)}
+    expected = {"1001_bklog.stdout": expected_json}
     assert data == expected
 
     event_detail = client._compose_es_table_id_detail(table_id_list=["test_system_event"])
@@ -125,7 +124,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "data_label": "",
         "field_alias": {},
     }
-    expected = {"test_system_event": json.dumps(expected_json)}
+    expected = {"test_system_event": expected_json}
     assert event_detail == expected
 
 

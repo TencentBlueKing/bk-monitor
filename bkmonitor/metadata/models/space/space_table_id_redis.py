@@ -157,15 +157,22 @@ class SpaceTableIDRedis:
             table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
         )
 
-        # 再通过 data_label 过滤到结果表
-        rt_dl_qs = filter_model_by_in_page(
-            model=models.ResultTable,
-            field_op="data_label__contains",
-            filter_data=list(data_labels),
-            value_func="values",
-            value_field_list=["table_id", "data_label"],
-            other_filter={"is_deleted": False, "is_enable": True, "bk_tenant_id": bk_tenant_id},
-        )
+        # 如果data_labels为空，则直接返回
+        if not data_labels:
+            return logger.info("push redis data_label_to_result_table")
+
+        # 组装data_label查询条件
+        data_label_query = Q(data_label__contains=data_labels[0])
+        for data_label in data_labels[1:]:
+            data_label_query |= Q(data_label__contains=data_label)
+
+        # 通过data_label查询结果表
+        rt_dl_qs = models.ResultTable.objects.filter(
+            data_label_query,
+            is_deleted=False,
+            is_enable=True,
+            bk_tenant_id=bk_tenant_id,
+        ).values("table_id", "data_label")
 
         # 组装数据
         rt_dl_map = {}
@@ -217,7 +224,7 @@ class SpaceTableIDRedis:
             is_publish,
             bk_tenant_id,
         )
-        _table_id_detail = {}
+        _table_id_detail: dict[str, dict] = {}
         try:
             _table_id_detail.update(
                 self._compose_es_table_id_detail(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
@@ -230,7 +237,7 @@ class SpaceTableIDRedis:
                     json.dumps(_table_id_detail),
                     RESULT_TABLE_DETAIL_KEY,
                 )
-                updated_table_id_detail = {}
+                updated_table_id_detail: dict[str, dict] = {}
                 for key, value in _table_id_detail.items():
                     parts = key.split(".")  # 通过 "." 分割 key
                     if len(parts) == 1:
@@ -259,12 +266,16 @@ class SpaceTableIDRedis:
                         bk_tenant_id,
                     )
                     for key in list(_table_id_detail.keys()):
-                        table_detail = json.loads(_table_id_detail.pop(key))
+                        table_detail = _table_id_detail.pop(key)
                         if table_detail.get("data_label"):
-                            table_detail["data_label"] = f"{table_detail['data_label']}|{bk_tenant_id}"
-                        _table_id_detail[f"{key}|{bk_tenant_id}"] = json.dumps(table_detail)
+                            table_detail["data_label"] = ",".join(
+                                [f"{dl}|{bk_tenant_id}" for dl in table_detail["data_label"].split(",") if dl]
+                            )
+                        _table_id_detail[f"{key}|{bk_tenant_id}"] = table_detail
 
-                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                RedisTools.hmset_to_redis(
+                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
+                )
                 if is_publish:
                     logger.info(
                         "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->[%s]",
@@ -282,7 +293,7 @@ class SpaceTableIDRedis:
             return
         logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
 
-    def _compose_doris_table_id_detail(self, table_id_list: list[str] | None = None) -> dict:
+    def _compose_doris_table_id_detail(self, table_id_list: list[str] | None = None) -> dict[str, dict]:
         """组装doris结果表的详情"""
         logger.info(
             "_compose_doris_table_id_detail:start to compose doris table_id detail data,table_id_list->[%s]",
@@ -300,20 +311,18 @@ class SpaceTableIDRedis:
 
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
 
-        data = {}
+        data: dict[str, dict] = {}
         for record in doris_records:
             db = record.bkbase_table_id
             table_id = record.table_id
             data_label = data_label_map_dict.get(table_id, "")
 
-            data[table_id] = json.dumps(
-                {
-                    "db": db,
-                    "measurement": models.ClusterInfo.TYPE_DORIS,
-                    "storage_type": "bk_sql",
-                    "data_label": data_label,
-                }
-            )
+            data[table_id] = {
+                "db": db,
+                "measurement": models.ClusterInfo.TYPE_DORIS,
+                "storage_type": "bk_sql",
+                "data_label": data_label,
+            }
         return data
 
     def push_doris_table_id_detail(
@@ -369,8 +378,18 @@ class SpaceTableIDRedis:
                     )
                     for key in list(_table_id_detail.keys()):
                         _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
+                        if _table_id_detail[f"{key}|{bk_tenant_id}"].get("data_label"):
+                            _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"] = ",".join(
+                                [
+                                    f"{dl}|{bk_tenant_id}"
+                                    for dl in _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"].split(",")
+                                    if dl
+                                ]
+                            )
 
-                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                RedisTools.hmset_to_redis(
+                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
+                )
                 if is_publish:
                     logger.info(
                         "push_doris_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->["
@@ -392,7 +411,7 @@ class SpaceTableIDRedis:
             "push_doris_table_id_detail: push doris_table_detail for table_id_list->[%s] successfully", table_id_list
         )
 
-    def _compose_bkbase_table_id_detail(self, table_id_list: list[str] | None = None) -> dict:
+    def _compose_bkbase_table_id_detail(self, table_id_list: list[str] | None = None) -> dict[str, dict]:
         """
         组装计算平台结果表详情
         """
@@ -411,15 +430,14 @@ class SpaceTableIDRedis:
             # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
             db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
             fields = all_fields.get(record.table_id) or []
-            data[record.table_id] = json.dumps(
-                {
-                    "db": db,
-                    "measurement": "",  # 现阶段不关注存储类型
-                    "storage_type": "bk_sql",
-                    "data_label": record.data_label,
-                    "fields": fields,
-                }
-            )
+            data[record.table_id] = {
+                "db": db,
+                "measurement": "",  # 现阶段不关注存储类型
+                "storage_type": "bk_sql",
+                "data_label": record.data_label,
+                "fields": fields,
+            }
+
         return data
 
     def push_bkbase_table_id_detail(
@@ -435,7 +453,7 @@ class SpaceTableIDRedis:
             "push_bkbase_table_id_detail: try to push bkbase_table_id_detail for table_id_list->[%s]", table_id_list
         )
 
-        _table_id_detail = {}
+        _table_id_detail: dict[str, dict] = {}
         try:
             _table_id_detail.update(self._compose_bkbase_table_id_detail(table_id_list))
 
@@ -445,7 +463,7 @@ class SpaceTableIDRedis:
                     table_id_list,
                     json.dumps(_table_id_detail),
                 )
-                updated_table_id_detail = {}
+                updated_table_id_detail: dict[str, dict] = {}
                 for key, value in _table_id_detail.items():
                     parts = key.split(".")  # 通过 "." 分割 key
                     if len(parts) == 1:
@@ -476,8 +494,18 @@ class SpaceTableIDRedis:
                     )
                     for key in list(_table_id_detail.keys()):
                         _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
+                        if _table_id_detail[f"{key}|{bk_tenant_id}"].get("data_label"):
+                            _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"] = ",".join(
+                                [
+                                    f"{dl}|{bk_tenant_id}"
+                                    for dl in _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"].split(",")
+                                    if dl
+                                ]
+                            )
 
-                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                RedisTools.hmset_to_redis(
+                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
+                )
                 if is_publish:
                     logger.info(
                         "push_bkbase_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->["
@@ -566,14 +594,14 @@ class SpaceTableIDRedis:
         table_id_fields = self._compose_table_id_fields(
             table_ids=set(table_id_detail.keys()), bk_tenant_id=bk_tenant_id
         )
-        _table_id_detail = {}
+        _table_id_detail: dict[str, dict] = {}
         for table_id, detail in table_id_detail.items():
             detail["fields"] = table_id_fields.get(table_id) or []
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
             detail["data_label"] = _table_id_dict.get(table_id, {}).get("data_label") or ""
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
-            _table_id_detail[table_id] = json.dumps(detail)
+            _table_id_detail[table_id] = detail
 
         # 追加预计算结果表详情
         # TODO: BkBase 多租户
@@ -589,10 +617,12 @@ class SpaceTableIDRedis:
         if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info("push_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]", bk_tenant_id)
             for key in list(_table_id_detail.keys()):
-                table_detail = json.loads(_table_id_detail.pop(key))
+                table_detail = _table_id_detail.pop(key)
                 if table_detail.get("data_label"):
-                    table_detail["data_label"] = f"{table_detail['data_label']}|{bk_tenant_id}"
-                _table_id_detail[f"{key}|{bk_tenant_id}"] = json.dumps(table_detail)
+                    table_detail["data_label"] = ",".join(
+                        [f"{dl}|{bk_tenant_id}" for dl in table_detail["data_label"].split(",") if dl]
+                    )
+                _table_id_detail[f"{key}|{bk_tenant_id}"] = table_detail
 
         # 推送数据
         if _table_id_detail:
@@ -601,7 +631,9 @@ class SpaceTableIDRedis:
                 RESULT_TABLE_DETAIL_KEY,
                 json.dumps(_table_id_detail),
             )
-            RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+            RedisTools.hmset_to_redis(
+                RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
+            )
             if is_publish:
                 logger.info(
                     "push_table_id_detail: try to push into channel->[%s] for ->[%s]",
@@ -612,7 +644,7 @@ class SpaceTableIDRedis:
         logger.info("push_table_id_detail： push redis result_table_detail")
 
     # TODO: BkBase多租户 -- 预计算结果表多租户
-    def _compose_record_rule_table_id_detail(self) -> dict:
+    def _compose_record_rule_table_id_detail(self) -> dict[str, dict]:
         """组装预计算结果表的详情"""
         from metadata.models.record_rule.rules import RecordRule
 
@@ -623,25 +655,24 @@ class SpaceTableIDRedis:
                 "cluster_id", "cluster_name"
             )
         }
-        _table_id_detail = {}
+        _table_id_detail: dict[str, dict] = {}
         for obj in record_rule_objs:
-            _table_id_detail[obj["table_id"]] = json.dumps(
-                {
-                    "vm_rt": obj["dst_vm_table_id"],
-                    "storage_id": obj["vm_cluster_id"],
-                    "cluster_name": "",
-                    "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
-                    "db": "",
-                    "measurement": "",
-                    "tags_key": [],
-                    "fields": list(obj["rule_metrics"].values()),
-                    "measurement_type": "bk_split_measurement",
-                    "bcs_cluster_id": "",
-                    "data_label": "",
-                    "storage_type": models.RecordRule.STORAGE_TYPE,
-                    "bk_data_id": None,
-                }
-            )
+            _table_id_detail[obj["table_id"]] = {
+                "vm_rt": obj["dst_vm_table_id"],
+                "storage_id": obj["vm_cluster_id"],
+                "cluster_name": "",
+                "storage_name": vm_cluster_id_name.get(obj["vm_cluster_id"], ""),
+                "db": "",
+                "measurement": "",
+                "tags_key": [],
+                "fields": list(obj["rule_metrics"].values()),
+                "measurement_type": "bk_split_measurement",
+                "bcs_cluster_id": "",
+                "data_label": "",
+                "storage_type": models.RecordRule.STORAGE_TYPE,
+                "bk_data_id": None,
+            }
+
         return _table_id_detail
 
     def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
@@ -691,7 +722,7 @@ class SpaceTableIDRedis:
 
     def _compose_es_table_id_detail(
         self, table_id_list: list[str] | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
-    ):
+    ) -> dict[str, dict]:
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
         # 这里要过来的结果表不会太多
@@ -760,19 +791,18 @@ class SpaceTableIDRedis:
                 storage_record = []
 
             # 索引集，直接按照存储进行路由
-            data[tid] = json.dumps(
-                {
-                    "storage_id": storage_id,
-                    "db": table_id_db,
-                    "measurement": DEFAULT_MEASUREMENT,
-                    "source_type": source_type,
-                    "options": tid_options_map.get(tid) or {},
-                    "storage_type": models.ESStorage.STORAGE_TYPE,
-                    "storage_cluster_records": storage_record,
-                    "data_label": data_label_map_dict.get(tid, ""),
-                    "field_alias": field_alias_map.get(tid, {}),  # 字段查询别名
-                }
-            )
+            data[tid] = {
+                "storage_id": storage_id,
+                "db": table_id_db,
+                "measurement": DEFAULT_MEASUREMENT,
+                "source_type": source_type,
+                "options": tid_options_map.get(tid) or {},
+                "storage_type": models.ESStorage.STORAGE_TYPE,
+                "storage_cluster_records": storage_record,
+                "data_label": data_label_map_dict.get(tid, ""),
+                "field_alias": field_alias_map.get(tid, {}),  # 字段查询别名
+            }
+
         return data
 
     def _compose_bkcc_space_table_ids(
