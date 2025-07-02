@@ -681,6 +681,7 @@
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
+            return
           } else {
             this.$emit('show-change', 'origin');
           }

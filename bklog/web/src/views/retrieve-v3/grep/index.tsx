@@ -26,6 +26,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
@@ -122,6 +123,8 @@ export default defineComponent({
       const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
 
       const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { alias_settings, sort_list } = useFieldAliasRequestParams();
+
       const params: any = {
         method: 'post',
         url: `/search/index_set/${store.state.indexId}/grep_query/`,
@@ -137,6 +140,8 @@ export default defineComponent({
           grep_query: grepQuery.value,
           grep_field: field.value,
           begin: grepRequestResult.value.offset,
+          sort_list: sort_list.value,
+          alias_settings: alias_settings.value,
           size: 100,
         },
       };

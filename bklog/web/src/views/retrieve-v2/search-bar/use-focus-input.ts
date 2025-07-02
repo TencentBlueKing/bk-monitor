@@ -224,10 +224,6 @@ export default (
       return;
     }
 
-    if (!isInputTextFocus.value) {
-      return;
-    }
-
     if (isEscKey && popInstanceUtil.isShown()) {
       setIsInputTextFocus(false);
       popInstanceUtil.hide(100);
