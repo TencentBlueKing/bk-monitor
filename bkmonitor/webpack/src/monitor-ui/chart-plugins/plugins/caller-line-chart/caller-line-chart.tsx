@@ -1143,20 +1143,24 @@ class CallerLineChart extends CommonSimpleChart {
       };
     });
   }
-  handleEventAnalyzeChange() {
+  handleEventAnalyzeChange(v) {
     this.eventConfig.is_enabled_metric_tags = !this.eventConfig.is_enabled_metric_tags;
+
+    if (!v) return;
+    // 每次打开开关，重置为全选状态
+    this.checkedAllChange(true, 'source', this.eventColumns.filter(item => item.name === 'source')[0].list);
+    this.checkedAllChange(true, 'type', this.eventColumns.filter(item => item.name === 'type')[0].list);
   }
   checkedAllChange(v: boolean, type: string, columnList: EventTagColumn['list']) {
     const config = this.eventConfig[type];
     config.is_select_all = v;
-    if (v) {
-      config.list = columnList.map(item => item.value);
-    }
+    config.list = v ? columnList.map(item => item.value) : columnList.length > 0 ? [columnList[0].value] : [];
   }
   checkedGroupChange(v: string[], type: string) {
+    const columnList = this.eventColumns.filter(item => item.name === type)[0].list || [];
     const config = this.eventConfig[type];
     config.list = v;
-    config.is_select_all = false;
+    config.is_select_all = v.length === columnList.length;
   }
   handleEventAnalyzeShow() {
     this.cacheEventConfig = JSON.parse(JSON.stringify(this.eventConfig));
@@ -1290,6 +1294,7 @@ class CallerLineChart extends CommonSimpleChart {
                               {column.list?.map(item => (
                                 <bk-checkbox
                                   key={item.value}
+                                  disabled={config.list.length === 1 && config.list.includes(item.value)}
                                   size='small'
                                   value={item.value}
                                 >
