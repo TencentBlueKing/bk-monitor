@@ -11,11 +11,12 @@ specific language governing permissions and limitations under the License.
 import logging
 from copy import copy
 from typing import Any
+from collections import namedtuple
 
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
@@ -47,6 +48,7 @@ from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
     DeploymentConfigVersion,
+    PluginVersionHistory,
 )
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
@@ -141,26 +143,30 @@ class CollectConfigListResource(Resource):
         conf.save(not_update_user=True, update_fields=["cache_data"])
         return status
 
-    def _need_upgrade(self, conf):
+    def _need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
         if conf.task_status == TaskStatus.STOPPED or conf.get_cache_data("total_instance_count", 0) == 0:
             return False
         else:
-            config_version = self.plugin_release_version.get(conf.plugin.plugin_id)
+            plugin = config_plugin_map.get(conf.plugin_id)
+            config_version = plugin_version_map.get(plugin.plugin_id)
             if not config_version:
-                config_version = conf.plugin.packaged_release_version.config_version
-                self.plugin_release_version[conf.plugin.plugin_id] = config_version
+                logger.error(
+                    f"[CollectConfigList] [need_upgrade] collect config {conf.id} was not found config version."
+                )
+                return False
 
             return conf.deployment_config.plugin_version.config_version < config_version
 
-    def need_upgrade(self, conf):
+    def need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> namedtuple:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
-        is_need_upgrade = self._need_upgrade(conf)
+        is_need_upgrade = self._need_upgrade(conf, config_plugin_map, plugin_version_map)
         conf = self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
-        return is_need_upgrade
+
+        NeedUpgrade = namedtuple("NeedUpgrade", ["is_need_upgrade", "conf"])
+        return NeedUpgrade(is_need_upgrade, conf)
 
     def exists_by_biz(self, bk_biz_id):
         bk_tenant_id = get_request_tenant_id()
@@ -270,10 +276,42 @@ class CollectConfigListResource(Resource):
         if refresh_status:
             bulk_update_collect_config_cache_data.delay(config_data_list)
 
+        plugin_ids = set(config.plugin_id for config in config_data_list)
+        plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
+        config_plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
+
+        # 获取缺少的插件id
+        missing_plugin_ids = plugin_ids - set(config_plugin_map.keys())
+        version_filter = {
+            "bk_tenant_id": bk_tenant_id,
+            "plugin_id__in": missing_plugin_ids,
+            "stage": PluginVersionHistory.Stage.RELEASE,
+            "is_packaged": True,
+        }
+        plugin_version_map = {}
+        if missing_plugin_ids:
+            # 获取到最新的版本
+            versions = PluginVersionHistory.objects.filter(**version_filter).annotate(
+                latest_version=Max("config_version")
+            )
+            plugin_version_map.update({version.plugin_id: version for version in versions})
+            missing_plugin_ids = set(missing_plugin_ids) - set(plugin_version_map.keys())
+
+        # 如果还有缺少的插件id，则去除is_packaged条件再查询一次剩余插件的最新版本
+        if missing_plugin_ids:
+            version_filter.pop("is_packaged")
+            versions = PluginVersionHistory.objects.filter(**version_filter).annotate(
+                latest_version=Max("config_version")
+            )
+            plugin_version_map.update({version.plugin_id: version for version in versions})
+
         search_list = []
+        update_configs = []
         for item in config_data_list:
             status = self.get_status(item)
             space = bk_biz_id_space_dict.get(item.bk_biz_id)
+            need_upgrade = self.need_upgrade(item, config_plugin_map, plugin_version_map)
+            update_configs.append(need_upgrade.conf)
             search_list.append(
                 {
                     "id": item.id,
@@ -287,7 +325,7 @@ class CollectConfigListResource(Resource):
                     "target_node_type": item.deployment_config.target_node_type,
                     "plugin_id": item.plugin_id,
                     "target_nodes_count": len(item.deployment_config.target_nodes),
-                    "need_upgrade": self.need_upgrade(item),
+                    "need_upgrade": need_upgrade.is_need_upgrade,
                     "config_version": item.deployment_config.plugin_version.config_version,
                     "info_version": item.deployment_config.plugin_version.info_version,
                     "error_instance_count": (
@@ -303,6 +341,8 @@ class CollectConfigListResource(Resource):
                     "update_user": item.update_user,
                 }
             )
+        if update_configs:
+            CollectConfigMeta.objects.bulk_update(update_configs, ["cache_data"])
 
         # 排序
         if order:
