@@ -8,10 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections import defaultdict
 import json
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 import requests
 
 from metadata import models
@@ -58,22 +60,36 @@ def push_and_publish_log_space_router(space_type: str, space_id: str):
 
 def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
     """推送并发布es别名"""
-    if not data_label:
+
+    # 拆分data_label，去重
+    data_label_list: list[str] = list(set([dl for dl in data_label.split(",") if dl]))
+    if not data_label_list:
         return
 
+    # 组装查询条件
+    data_label_qs: Q = Q(data_label__contains=data_label_list[0])
+    for data_label in data_label_list[1:]:
+        data_label_qs |= Q(data_label__contains=data_label)
+
+    # 查询结果表
     result_tables = models.ResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_label=data_label, is_deleted=False, is_enable=True
+        data_label_qs, bk_tenant_id=bk_tenant_id, is_deleted=False, is_enable=True
     )
 
-    # 未开启多租户模式，直接推送
-    table_ids = [reformat_table_id(i.table_id) for i in result_tables]
+    data_label_to_table_ids: dict[str, list[str]] = defaultdict(list)
+    for result_table in result_tables:
+        for data_label in result_table.data_label.split(","):
+            if not data_label or data_label not in data_label_list:
+                continue
+            data_label_to_table_ids[data_label].append(reformat_table_id(result_table.table_id))
 
     if settings.ENABLE_MULTI_TENANT_MODE:
         redis_values = {
             f"{data_label}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
+            for data_label, table_ids in data_label_to_table_ids.items()
         }
     else:
-        redis_values = {data_label: json.dumps(table_ids)}
+        redis_values = {data_label: json.dumps(table_ids) for data_label, table_ids in data_label_to_table_ids.items()}
 
     RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
     RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))

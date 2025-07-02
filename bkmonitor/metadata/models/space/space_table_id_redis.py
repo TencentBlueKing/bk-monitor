@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+import itertools
 import json
 import logging
 
@@ -159,16 +160,22 @@ class SpaceTableIDRedis:
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = filter_model_by_in_page(
             model=models.ResultTable,
-            field_op="data_label__in",
+            field_op="data_label__contains",
             filter_data=list(data_labels),
             value_func="values",
             value_field_list=["table_id", "data_label"],
             other_filter={"is_deleted": False, "is_enable": True, "bk_tenant_id": bk_tenant_id},
         )
+
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
-            rt_dl_map.setdefault(data["data_label"], []).append(data["table_id"])
+            # data_label可能存在逗号分割，需要拆分
+            # 部分data_label可能不在data_labels中，需要过滤
+            for data_label in data["data_label"].split(","):
+                if not data_label or data_label not in data_labels:
+                    continue
+                rt_dl_map.setdefault(data_label, []).append(data["table_id"])
 
         # 若开启多租户模式,则data_label和table_id都需要在前面拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -1410,10 +1417,41 @@ class SpaceTableIDRedis:
 
         if table_id_list:
             tids = tids.filter(table_id__in=table_id_list)
-        if data_label_list:
-            tids = tids.filter(data_label__in=data_label_list)
 
-        return [tid["data_label"] for tid in tids if tid["data_label"]]
+        # data_label可能存在逗号分割，需要拆分
+        data_label_set: set[str] = set()
+        if data_label_list:
+            # data_label分割后去重
+            for data_label in data_label_list:
+                if not data_label:
+                    continue
+                data_label_set.update([dl for dl in data_label.split(",") if dl])
+
+            # 如果data_label为空，则直接返回空
+            if not data_label_set:
+                return []
+
+            # 组装查询条件
+            new_data_label_list: list[str] = list(data_label_set)
+            data_label_qs: Q = Q(data_label__contains=new_data_label_list[0])
+            for data_label in new_data_label_list[1:]:
+                data_label_qs |= Q(data_label__contains=data_label)
+
+            tids = tids.filter(data_label_qs)
+
+        # 获取结果表对应的data_label，且data_label可能存在逗号分割
+        # 如果参数传入data_label_list，data_label必须在data_label_set中
+        data_labels = list(
+            itertools.chain(
+                data_label
+                for tid in tids
+                if tid["data_label"]
+                for data_label in tid["data_label"].split(",")
+                if data_label and (not data_label_set or data_label in data_label_set)
+            )
+        )
+
+        return data_labels
 
     def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
         """提取写入到influxdb或vm的结果表数据"""
