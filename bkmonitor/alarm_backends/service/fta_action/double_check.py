@@ -7,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Dict, Type
+from typing import TYPE_CHECKING, ClassVar
 
 from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from constants.action import NoticeWay
@@ -85,7 +86,7 @@ class SuspectedMissingPoints:
 @dataclass
 class DoubleCheckHandler:
     alert: "AlertDocument"
-    double_check_result_handle_map: ClassVar[Dict[str, Type]] = {
+    double_check_result_handle_map: ClassVar[dict[str, type]] = {
         "SUSPECTED_MISSING_POINTS": SuspectedMissingPoints,
     }
 
@@ -93,9 +94,18 @@ class DoubleCheckHandler:
     def tags(self) -> dict:
         return {t["key"]: t["value"] for t in getattr(self.alert.event, "tags", [])}
 
+    @classmethod
+    def is_point_missing(self, alert=None) -> bool:
+        """判断告警是否疑似数据缺失"""
+        if alert is not None:
+            tags = {t["key"]: t["value"] for t in getattr(alert.event, "tags", [])}
+        else:
+            tags = self.tags
+        return DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY in tags
+
     def handle(self, inputs: dict):
         """针对告警二次确认结果做相关处理"""
-        if DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY not in self.tags:
+        if not self.is_point_missing():
             logger.debug("Alert<%s>-<%s> 不需要二次确认处理", self.alert.id, self.alert.alert_name)
             return
 
