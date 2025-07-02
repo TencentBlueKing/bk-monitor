@@ -34,7 +34,7 @@ import GuidePage from '../../components/guide-page/guide-page';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
-import DimensionFilterPanel from '../event-explore/components/dimension-filter-panel';
+import K8sEventExplore from '../event-explore/k8s-event-explore';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
@@ -699,73 +699,78 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             )}
           </K8sNavBar>
         </div>
-        <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
-          {this.clusterLoading ? (
-            <div class='skeleton-element cluster-skeleton' />
-          ) : (
-            <bk-select
-              class='cluster-select'
-              clearable={false}
-              value={this.cluster}
-              searchable
-              onChange={this.handleClusterChange}
-              onToggle={this.handleClusterToggle}
+        {this.scene === SceneEnum.Event ? (
+          <K8sEventExplore />
+        ) : (
+          [
+            <div
+              key='monitor-k8s-new-header'
+              class='monitor-k8s-new-header ____monitor-k8s-new-header'
             >
-              <div
-                class='cluster-select-trigger'
-                slot='trigger'
-              >
-                <span
-                  class='cluster-name'
-                  v-bk-overflow-tips
+              {this.clusterLoading ? (
+                <div class='skeleton-element cluster-skeleton' />
+              ) : (
+                <bk-select
+                  class='cluster-select'
+                  clearable={false}
+                  value={this.cluster}
+                  searchable
+                  onChange={this.handleClusterChange}
+                  onToggle={this.handleClusterToggle}
                 >
-                  {this.$t('集群')}: {this.selectCluster?.name}
-                </span>
-                <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
-              </div>
-              {this.clusterList.map(cluster => (
-                <bk-option
-                  id={cluster.id}
-                  key={cluster.id}
-                  name={cluster.name}
-                />
-              ))}
-            </bk-select>
-          )}
+                  <div
+                    class='cluster-select-trigger'
+                    slot='trigger'
+                  >
+                    <span
+                      class='cluster-name'
+                      v-bk-overflow-tips
+                    >
+                      {this.$t('集群')}: {this.selectCluster?.name}
+                    </span>
+                    <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
+                  </div>
+                  {this.clusterList.map(cluster => (
+                    <bk-option
+                      id={cluster.id}
+                      key={cluster.id}
+                      name={cluster.name}
+                    />
+                  ))}
+                </bk-select>
+              )}
 
-          <div class='filter-header-wrap'>
-            <div class='filter-by-wrap __filter-by__'>
-              <div class='filter-by-title'>{this.$t('过滤条件')}</div>
-              <div class='filter-by-content'>
-                <FilterByCondition
-                  commonParams={this.commonParams}
-                  filterBy={this.filterBy}
-                  onChange={this.handleFilterByChange}
-                />
+              <div class='filter-header-wrap'>
+                <div class='filter-by-wrap __filter-by__'>
+                  <div class='filter-by-title'>{this.$t('过滤条件')}</div>
+                  <div class='filter-by-content'>
+                    <FilterByCondition
+                      commonParams={this.commonParams}
+                      filterBy={this.filterBy}
+                      onChange={this.handleFilterByChange}
+                    />
+                  </div>
+                </div>
+                <div class='filter-by-wrap __group-by__'>
+                  <GroupByCondition
+                    dimensionTotal={this.dimensionTotal}
+                    groupInstance={this.groupInstance}
+                    scene={this.scene}
+                    title={this.$tc('聚合维度')}
+                    onChange={this.handleGroupChecked}
+                  />
+                </div>
               </div>
-            </div>
-            <div class='filter-by-wrap __group-by__'>
-              <GroupByCondition
-                dimensionTotal={this.dimensionTotal}
-                groupInstance={this.groupInstance}
-                scene={this.scene}
-                title={this.$tc('聚合维度')}
-                onChange={this.handleGroupChecked}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            height: `calc(100% - ${this.headerHeight}px)`,
-          }}
-          class='monitor-k8s-new-content'
-        >
-          <div class='content-left'>
-            <K8sLeftPanel>
-              {this.scene !== SceneEnum.Event ? (
-                [
+            </div>,
+            <div
+              key='monitor-k8s-new-content'
+              style={{
+                height: `calc(100% - ${this.headerHeight}px)`,
+              }}
+              class='monitor-k8s-new-content'
+            >
+              <div class='content-left'>
+                <K8sLeftPanel>
                   <K8sDimensionList
                     key='dimension-list'
                     commonParams={this.commonParams as ICommonParams}
@@ -776,7 +781,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                     onDrillDown={this.handleTableGroupChange}
                     onFilterByChange={this.filterByChange}
                     onGroupByChange={this.groupByChange}
-                  />,
+                  />
                   <K8sMetricList
                     key='metric-list'
                     activeMetric={this.activeMetricId}
@@ -786,56 +791,46 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                     metricList={this.metricList}
                     onHandleItemClick={this.handleMetricItemClick}
                     onMetricHiddenChange={this.metricHiddenChange}
-                  />,
-                ]
-              ) : (
-                <DimensionFilterPanel
-                  condition={this.eventCondition}
-                  list={this.fieldList}
-                  listLoading={this.fieldListLoading}
-                  queryString={this.eventQueryString}
-                  // onClose={this.handleCloseDimensionPanel}
-                  onConditionChange={this.handleEventConditionChange}
-                />
-              )}
-            </K8sLeftPanel>
-          </div>
-
-          <div class='content-right'>
-            <div class='content-tab-wrap'>
-              <bk-tab
-                class='k8s-new-tab'
-                active={this.activeTab}
-                type='unborder-card'
-                {...{ on: { 'update:active': this.handleTabChange } }}
-              >
-                {tabList.map(panel => (
-                  <bk-tab-panel
-                    key={panel.id}
-                    label={panel.label}
-                    name={panel.id}
+                  />
+                </K8sLeftPanel>
+              </div>
+              <div class='content-right'>
+                <div class='content-tab-wrap'>
+                  <bk-tab
+                    class='k8s-new-tab'
+                    active={this.activeTab}
+                    type='unborder-card'
+                    {...{ on: { 'update:active': this.handleTabChange } }}
                   >
-                    <div
-                      class='k8s-tab-panel'
-                      slot='label'
-                    >
-                      <i class={['icon-monitor', panel.icon]} />
-                      <span class='panel-name'>{panel.label}</span>
-                    </div>
-                  </bk-tab-panel>
-                ))}
-              </bk-tab>
-            </div>
-            <div
-              style={{
-                background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
-              }}
-              class='content-main-wrap'
-            >
-              {this.tabContentRender()}
-            </div>
-          </div>
-        </div>
+                    {tabList.map(panel => (
+                      <bk-tab-panel
+                        key={panel.id}
+                        label={panel.label}
+                        name={panel.id}
+                      >
+                        <div
+                          class='k8s-tab-panel'
+                          slot='label'
+                        >
+                          <i class={['icon-monitor', panel.icon]} />
+                          <span class='panel-name'>{panel.label}</span>
+                        </div>
+                      </bk-tab-panel>
+                    ))}
+                  </bk-tab>
+                </div>
+                <div
+                  style={{
+                    background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
+                  }}
+                  class='content-main-wrap'
+                >
+                  {this.tabContentRender()}
+                </div>
+              </div>
+            </div>,
+          ]
+        )}
       </div>
     );
   }
