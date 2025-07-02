@@ -134,7 +134,7 @@ def get_table_info_for_influxdb_and_vm(
             table_id=table_id, name="cmdb_level_vm_rt", bk_tenant_id=bk_tenant_id
         ).first()
         if cmdb_level_vm_rt_opts:
-            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.first().value
+            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.value
         else:
             detail["cmdb_level_vm_rt"] = ""
 
@@ -197,7 +197,7 @@ def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = No
             table_id=table_id, name="cmdb_level_vm_rt"
         ).first()
         if cmdb_level_vm_rt_opts:
-            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.first().value
+            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.value
         else:
             detail["cmdb_level_vm_rt"] = ""
 
