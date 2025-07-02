@@ -65,7 +65,7 @@
     position: relative;
     z-index: 999;
     flex: 1;
-    width: 100%;
+    width: 100% !important;
 
     .converge-cycle {
       display: flex;

@@ -372,7 +372,7 @@ export default defineComponent({
               {/* 汇聚周期选择与分级设置 */}
               {!isFold.value && (
                 <div class='converge-cycle'>
-                  <span>{t('汇聚周期')} : </span>
+                  <span>{t('汇聚周期')} : </span> 
                   <bk-select
                     ext-cls='select-custom'
                     value={chartInterval.value}
