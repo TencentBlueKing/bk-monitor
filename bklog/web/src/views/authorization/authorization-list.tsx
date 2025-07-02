@@ -276,6 +276,7 @@ export default class AuthorizationList extends tsc<object> {
   rowData: EditModel | null = null; // 编辑行数据
   emptyStatusType: EmptyStatusType = 'empty';
   visible = false;
+  abortController = undefined;
 
   // // 是否是admin用户
   // get isSuperUser(): boolean {
@@ -476,55 +477,78 @@ export default class AuthorizationList extends tsc<object> {
     this.changeEmptyStatusType();
   }
 
-  async getListData() {
-    this.loading = true;
-    this.pagination.current = 1;
-    let res: [boolean, any];
-    if (this.angleType === 'approval') {
-      res = await this.getApprovalListData();
-    } else {
-      res = await this.getAuthListData();
-    }
-    const [isSuccess, data] = res;
-    if (isSuccess) {
-      this.totalListData = data;
-      this.pagination.count = this.totalListData.length;
-      this.emptyStatusType = 'empty';
-      this.changeEmptyStatusType();
-    } else {
-      this.emptyStatusType = '500';
-      this.totalListData = [];
-      this.pagination.count = 0;
-    }
 
-    this.loading = false;
+  async getListData() {
+    this.abortController?.abort();
+
+    setTimeout(async () => {
+      this.loading = true;
+      this.pagination.current = 1;
+      let res: [boolean, any];
+      this.abortController = new AbortController();
+
+      if (this.angleType === 'approval') {
+        res = await this.getApprovalListData(this.abortController.signal);
+      } else {
+        res = await this.getAuthListData(this.abortController.signal);
+      }
+      const [isSuccess, data] = res;
+      if (isSuccess) {
+        this.totalListData = data;
+        this.pagination.count = this.totalListData.length;
+        this.emptyStatusType = 'empty';
+        this.changeEmptyStatusType();
+      } else {
+        this.emptyStatusType = '500';
+        this.totalListData = [];
+        this.pagination.count = 0;
+      }
+
+      this.loading = false;
+    });
   }
 
   // 获取被授权人，操作实例tab栏的列表数据
-  async getAuthListData(): Promise<[boolean, any]> {
+  async getAuthListData(signal): Promise<[boolean, any]> {
     try {
-      const res = await $http.request('authorization/getExternalPermissionList', {
-        query: {
-          space_uid: this.spaceUid,
-          view_type: this.angleType,
+      const res = await $http.request(
+        'authorization/getExternalPermissionList',
+        {
+          query: {
+            space_uid: this.spaceUid,
+            view_type: this.angleType,
+          },
         },
-      });
+        { signal },
+      );
       return [true, res?.data ?? []];
     } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        console.warn('请求已取消');
+        return [true, []];
+      }
       return [false, []];
     }
   }
 
   // 获取审批记录tab栏的列表数据
-  async getApprovalListData(): Promise<[boolean, any]> {
+  async getApprovalListData(signal): Promise<[boolean, any]> {
     try {
-      const res = await $http.request('authorization/getApplyRecordList', {
-        query: {
-          space_uid: this.spaceUid,
+      const res = await $http.request(
+        'authorization/getApplyRecordList',
+        {
+          query: {
+            space_uid: this.spaceUid,
+          },
         },
-      });
+        { signal },
+      );
       return [true, res?.data ?? []];
     } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        console.warn('请求已取消');
+        return [true, []];
+      }
       return [false, []];
     }
   }
@@ -776,6 +800,7 @@ export default class AuthorizationList extends tsc<object> {
       resources: row.resources || [row.resource_id],
       expire_time: row.expire_time || '',
     };
+
     this.visible = true;
   }
 
@@ -1008,7 +1033,7 @@ export default class AuthorizationList extends tsc<object> {
                 <EmptyStatus
                   slot='empty'
                   emptyType={this.emptyStatusType}
-                  onOperation={this.emptyOperation}
+                  on-operation={this.emptyOperation}
                 ></EmptyStatus>
               </Table>
             </div>
