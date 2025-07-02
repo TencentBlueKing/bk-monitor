@@ -240,7 +240,6 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   beforeMount() {
     const { query } = this.$route;
     if (!query?.prop || !query?.order) {
-      this.setRouteParams({ prop: '', order: null });
       return;
     }
     this.sortContainer.prop = query?.prop as string;

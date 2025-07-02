@@ -821,7 +821,7 @@ class EtlStorage:
         if not key:
             key = field.get("field_name")
         return {
-            "key": "__all_keys__",
+            "key": key,
             "assign_to": key,
             "type": self.get_es_field_type(field),
         }
@@ -834,20 +834,11 @@ class EtlStorage:
         else:
             access_built_in_fields_type_object = [
                 {
-                    "type": "access",
-                    "subtype": "access_obj",
-                    "label": "label60f0af",
-                    "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                    "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
-                    "default_type": "text",
-                    "default_value": "",
-                    "next": {
-                        "type": "assign",
-                        "subtype": "assign_json",
-                        "label": "label2af98b",
-                        "assign": [self._to_bkdata_assign_obj(field)],
-                        "next": None,
-                    },
+                    "type": "assign",
+                    "subtype": "assign_json",
+                    "label": "label2af98b",
+                    "assign": [self._to_bkdata_assign_obj(field)],
+                    "next": None,
                 }
                 for field in built_in_fields_type_object
             ]

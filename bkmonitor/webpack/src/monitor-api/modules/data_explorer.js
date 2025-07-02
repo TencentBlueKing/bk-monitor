@@ -12,6 +12,7 @@ export const eventTimeSeries = request('POST', 'rest/v2/data_explorer/event/time
 export const eventDownloadTopK = request('POST', 'rest/v2/data_explorer/event/download_topk/');
 export const eventStatisticsInfo = request('POST', 'rest/v2/data_explorer/event/statistics_info/');
 export const eventStatisticsGraph = request('POST', 'rest/v2/data_explorer/event/statistics_graph/');
+export const eventTagDetail = request('POST', 'rest/v2/data_explorer/event/tag_detail/');
 export const eventGenerateQueryString = request('POST', 'rest/v2/data_explorer/event/generate_query_string/');
 
 export default {
@@ -27,5 +28,6 @@ export default {
   eventDownloadTopK,
   eventStatisticsInfo,
   eventStatisticsGraph,
+  eventTagDetail,
   eventGenerateQueryString,
 };

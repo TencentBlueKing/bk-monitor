@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import django
 import pytest
 
@@ -83,11 +81,11 @@ class TemInstanceDiscover(InstanceDiscover):
     MAX_COUNT = 2
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestTopoInstance(django.test.TestCase):
     databases = {
-        'default',
-        'monitor_api',
+        "default",
+        "monitor_api",
     }
 
     def test_topo_instance(self):
@@ -107,9 +105,7 @@ class TestTopoInstance(django.test.TestCase):
         assert queryset.count() <= topo_instance.MAX_COUNT
 
         topo_instance.discover(SPAN_DATA_LIST)
-        name = InstanceHandler.get_topo_instance_cache_key(
-            bk_biz_id=BK_BIZ_ID, app_name=APP_NAME
-        )
+        name = InstanceHandler.get_topo_instance_cache_key(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
         cache_data = InstanceHandler().get_cache_data(name)
 
         assert len(cache_data) <= topo_instance.MAX_COUNT

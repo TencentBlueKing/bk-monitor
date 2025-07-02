@@ -21,45 +21,52 @@ from metadata.tests.common_utils import consul_client
 
 # 定义 Mock 的 Redis hgetall 返回值
 redis_value_for_metric_when_cluster_not_exists = {
-    b"bkmonitor_test_result_metric_table": json.dumps(
+    b"kafka": json.dumps(
         {
-            "kafka": {
-                "host": "test.kafka.db",
-                "port": 9092,
-                "auth": None,
-                "topic": "bkm_test_metric_topic",
-                "partitions": 1,
-            },
-            "vm": {
+            "host": "test.kafka.db",
+            "port": 9092,
+            "auth": None,
+            "topic": "bkm_test_metric_topic",
+            "partitions": 1,
+        }
+    ).encode("utf-8"),
+    b"vm": json.dumps(
+        {
+            "vm_test_metric_1": {
                 "namespace": "test_ns",
                 "name": "test_vm",
                 "insert_host": "insert_host.test",
+                "insert_port": 80,
                 "select_host": "select_host.test",
                 "select_port": 80,
-            },
+            }
         }
-    ).encode("utf-8")
+    ).encode("utf-8"),
 }
 
+
 redis_value_for_metric_when_cluster_exists = {
-    b"bkmonitor_test_result_metric_table": json.dumps(
+    b"kafka": json.dumps(
         {
-            "kafka": {
-                "host": "test2.kafka.db",
-                "port": 9092,
-                "auth": None,
-                "topic": "bkm_test2_metric_topic",
-                "partitions": 3,
-            },
-            "vm": {
+            "host": "test2.kafka.db",
+            "port": 9092,
+            "auth": None,
+            "topic": "bkm_test2_metric_topic",
+            "partitions": 3,
+        }
+    ).encode("utf-8"),
+    b"vm": json.dumps(
+        {
+            "vm_test_metric_2": {
                 "namespace": "test_ns",
                 "name": "test_vm",
                 "insert_host": "insert_host.test",
+                "insert_port": 80,
                 "select_host": "select_host.test",
                 "select_port": 80,
-            },
+            }
         }
-    ).encode("utf-8")
+    ).encode("utf-8"),
 }
 
 # 测试数据
@@ -81,19 +88,36 @@ es_info = [
 ]
 
 # Mock redis value
+# redis_value_for_log = {
+#     b"bkmonitor_test_result_log_table": json.dumps(
+#         {
+#             "kafka": {
+#                 "host": "test2.kafka.db",
+#                 "port": 9092,
+#                 "auth": None,
+#                 "topic": "bkm_test_log_topic",
+#                 "partitions": 6,
+#             },
+#             "es": es_info,
+#         }
+#     ).encode("utf-8")
+# }
+
 redis_value_for_log = {
-    b"bkmonitor_test_result_log_table": json.dumps(
+    b"kafka": json.dumps(
         {
-            "kafka": {
-                "host": "test2.kafka.db",
-                "port": 9092,
-                "auth": None,
-                "topic": "bkm_test_log_topic",
-                "partitions": 6,
-            },
-            "es": es_info,
+            "host": "test2.kafka.db",
+            "port": 9092,
+            "auth": None,
+            "topic": "bkm_test_log_topic",
+            "partitions": 6,
         }
-    ).encode("utf-8")
+    ).encode("utf-8"),
+    b"es": json.dumps(
+        {
+            "bkmonitor_test_result_log_table": es_info,
+        }
+    ).encode("utf-8"),
 }
 
 
@@ -152,7 +176,7 @@ def create_or_delete_records(mocker):
     )
     models.AccessVMRecord.objects.create(
         result_table_id="1001_bkmonitor_time_series_50011.__default__",
-        vm_result_table_id="vm_test_metric_1",
+        vm_result_table_id="vm_test_metric_2",
         vm_cluster_id=2,
         bk_base_data_id=50011,
     )
@@ -248,7 +272,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
 
         ds = models.DataSource.objects.get(bk_data_id=50010)
         kafka_cluster_new = models.ClusterInfo.objects.get(domain_name="test.kafka.db")
-        vm_cluster_new = models.ClusterInfo.objects.get(domain_name="select_host.test")
+        vm_cluster_new = models.ClusterInfo.objects.get(domain_name="insert_host.test")
         mq_config = models.KafkaTopicInfo.objects.get(bk_data_id=50010)
         vm_record = models.AccessVMRecord.objects.get(result_table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -264,7 +288,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
 
         ds = models.DataSource.objects.get(bk_data_id=50011)
         kafka_cluster_new = models.ClusterInfo.objects.get(domain_name="test2.kafka.db")
-        vm_cluster_new = models.ClusterInfo.objects.get(domain_name="select_host.test")
+        vm_cluster_new = models.ClusterInfo.objects.get(domain_name="insert_host.test")
         mq_config = models.KafkaTopicInfo.objects.get(bk_data_id=50011)
         vm_record = models.AccessVMRecord.objects.get(result_table_id="1001_bkmonitor_time_series_50011.__default__")
 
