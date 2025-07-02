@@ -81,6 +81,7 @@ interface IListItem {
   isGroupKey?: boolean; // 是否为二级选项
   alias?: string; // 别名， 标签和维度的key 需要有别名
   show?: boolean;
+  isCustomSearch?: boolean; // 是否自定义搜索
 }
 
 enum TypeEnum {
@@ -567,7 +568,47 @@ export default class CommonCondition extends tsc<IProps> {
   @Debounce(300)
   handleSecondSearchChange(v) {
     this.secondSearch = v;
+    if (this.curGroupKey === 'dimensions') {
+      this.handleSelectCustomDimension(v)
+    }
   }
+
+  /* 可选择自定义输入的维度信息 */
+  handleSelectCustomDimension(v) {
+    this.keyListSecond[0]?.isCustomSearch && this.keyListSecond.shift();
+    if (!v.length) return;
+    // 已有匹配规则包含了手动输入的维度信息，不添加自定义维度
+    if (this.tagList.some(item => item.condition?.field === v && item.tags[1]?.alias?.includes('维度'))) return;
+    // 接口获取的维度列表包含了手动输入的维度信息，不添加自定义维度
+    if (this.keyListSecond.some(item => item.id === v)) return;
+    this.keyListSecond.unshift({ id: v, name: v, isCustomSearch: true });
+  }
+
+  // 高亮列表内的搜索内容
+  getSearchNode = (str: string, search: string) => {
+    if (!str || !search) return str;
+    let keyword = search.trim();
+    const len = keyword.length;
+    if (!keyword?.trim().length || !str.toLocaleLowerCase().includes(keyword.toLocaleLowerCase())) return str;
+    const list = [];
+    let lastIndex = -1;
+    keyword = keyword.replace(/([.*/]{1})/gim, '\\$1');
+    str.replace(new RegExp(`${keyword}`, 'igm'), (key, index) => {
+      if (list.length === 0 && index !== 0) {
+        list.push(str.slice(0, index));
+      } else if (lastIndex >= 0) {
+        list.push(str.slice(lastIndex + key.length, index));
+      }
+      list.push(<span class='highlight'>{key}</span>);
+      lastIndex = index;
+      return key;
+    });
+    if (lastIndex >= 0) {
+      list.push(str.slice(lastIndex + len));
+    }
+    return list.length ? list : str;
+  };
+
   /* 删除此条件 */
   handleDelKey() {
     if (this.tagList.length > 1) {
@@ -1506,7 +1547,7 @@ export default class CommonCondition extends tsc<IProps> {
                 <bk-input
                   behavior={'simplicity'}
                   left-icon='bk-icon icon-search'
-                  placeholder={window.i18n.t('输入关键字搜索')}
+                  placeholder={this.$t('输入关键字搜索')}
                   value={this.searchValue}
                   onChange={this.handleSearchChange}
                 />
@@ -1676,7 +1717,7 @@ export default class CommonCondition extends tsc<IProps> {
               <bk-input
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
-                placeholder={window.i18n.t('输入关键字搜索')}
+                placeholder={this.$t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               />
@@ -1697,13 +1738,18 @@ export default class CommonCondition extends tsc<IProps> {
                       }}
                       onMousedown={() => this.handleClickSecondKey(item)}
                     >
-                      <span>{item.name}</span>
+                      {item.isCustomSearch ? (
+                        <span>
+                          {this.$t('直接输入')} "<span class='highlight'>{item.name}</span>"
+                        </span>
+                      ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
+
                     </div>
                   ))}
               </div>
             ) : (
-              <div class='wrap-list no-data'>
-                <div class='list-item'>{window.i18n.t('无选项')}</div>
+              <div class='wrap-list'>
+                <div class='list-item no-data'>{this.$t('无选项')}</div>
               </div>
             )}
           </div>
@@ -1717,7 +1763,7 @@ export default class CommonCondition extends tsc<IProps> {
             <div class='top'>
               <span class='icon-monitor icon-remind' />
               <i18n path='变更当前值将会使 {0}，是否确定变更？'>
-                <span class='blod'>{window.i18n.t('统一设置条件失效')}</span>
+                <span class='blod'>{this.$t('统一设置条件失效')}</span>
               </i18n>
             </div>
             <div class='bottom'>
@@ -1725,13 +1771,13 @@ export default class CommonCondition extends tsc<IProps> {
                 class='btn mr14'
                 onClick={this.handleSettingsPopConfirm}
               >
-                {window.i18n.t('变更')}
+                {this.$t('变更')}
               </span>
               <span
                 class='btn'
                 onClick={this.handleSettingsPopCancel}
               >
-                {window.i18n.t('取消')}
+                {this.$t('取消')}
               </span>
             </div>
           </div>

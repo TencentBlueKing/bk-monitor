@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref } from 'vue';
-import $http from '../../../../api';
+import { computed, ref, set } from 'vue';
+
 import { messageError, messageSuccess } from '@/common/bkmagic';
+
+import $http from '../../../../api';
 export type IndexSetType = 'single' | 'union';
-export type IndexSetTabList = 'single' | 'union' | 'history' | 'favorite';
+export type IndexSetTabList = 'favorite' | 'history' | 'single' | 'union';
 
 export default (props, { emit }) => {
   const historyLoading = ref(false);
@@ -135,7 +137,7 @@ export default (props, { emit }) => {
    * @param type 选中类型： single | union
    * @param id 选中id
    */
-  const handleValueChange = (value: any, type?: 'single' | 'union', id?: string | number) => {
+  const handleValueChange = (value: any, type?: 'single' | 'union', id?: number | string) => {
     unionListValue.value = value;
     emit('value-change', value, type, id);
   };
@@ -238,6 +240,25 @@ export default (props, { emit }) => {
   };
 
   /**
+   *  单选收藏状态设置
+   * @param id  索引集ID
+   * @param is_favorite   是否收藏
+   * @description 该方法用于在单选情况下设置索引集的收藏状态
+   */
+  const setSingleFavorite = (id: string, is_favorite = false) => {
+    const target = props.list.find(item => item.index_set_id === id);
+    if (target) {
+      set(target, 'is_favorite', is_favorite);
+      if (target.parent_node) {
+        const sourceNode = target.parent_node.children.find(child => child.index_set_id === id);
+        if (sourceNode) {
+          set(sourceNode, 'is_favorite', is_favorite);
+        }
+      }
+    }
+  };
+
+  /**
    * 单选取消收藏
    * @param favorite
    * @returns
@@ -277,14 +298,11 @@ export default (props, { emit }) => {
         .then(resp => {
           if (resp.result) {
             if (from === 'single') {
-              favorite.is_favorite = false;
+              setSingleFavorite(favorite.index_set_id, false);
             }
 
             if (from === 'favorite') {
-              const target = singleFavoriteList.value.find(f => f.index_set_id === favorite.index_set_id);
-              if (target) {
-                target.is_favorite = false;
-              }
+              setSingleFavorite(favorite.index_set_id, false);
             }
             return;
           }
@@ -349,11 +367,11 @@ export default (props, { emit }) => {
         },
       })
       .then(() => {
-        item.is_favorite = true;
+        setSingleFavorite(item.index_set_id, true);
       });
   };
 
-  const favoriteIndexSet = (args: string | any) => {
+  const favoriteIndexSet = (args: any | string) => {
     if (props.activeId === 'single') {
       return singleFavorite(args);
     }

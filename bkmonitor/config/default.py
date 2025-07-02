@@ -781,6 +781,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -789,6 +790,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -1009,6 +1011,9 @@ LINUX_PLUGIN_PID_PATH = "/var/run/gse"
 LINUX_PLUGIN_LOG_PATH = "/var/log/gse"
 LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
+
+# 采集配置升级，使用订阅更新模式的业务列表
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
@@ -1350,12 +1355,14 @@ ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
 # AIDEV配置
-MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL = os.getenv("BK_MONITOR_AI_AGENT_BACKEND_SERVICE_BASE_URL")
 AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
 AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
 AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
 AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
 AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
+AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE = 0.3  # 默认温度
+# AIAgent内容生成关键字
+AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True

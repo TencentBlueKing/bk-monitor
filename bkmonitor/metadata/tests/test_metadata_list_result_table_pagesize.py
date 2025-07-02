@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import pytest
 
 from metadata import models
@@ -6,7 +5,7 @@ from metadata.resources import ListResultTableResource
 from metadata.utils.bcs import get_bcs_dataids
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestApiPagesize:
     """
     测试分页功能

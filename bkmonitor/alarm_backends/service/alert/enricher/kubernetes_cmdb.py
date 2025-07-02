@@ -203,7 +203,7 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
             biz_alerts = self.kubernetes_alerts[bk_biz_id]
             for index, result in enumerate(biz_results):
                 alert = biz_alerts[index]
-                if result["code"] != 200 or len(result["target_list"]) == 0:
+                if result["code"] != 200 or len(result.get("target_list", []) or []) == 0:
                     # 没有查到的内容，直接忽略
                     # 如果返回的ip数量为0，直接忽略
                     # 打印一条日志方便查找

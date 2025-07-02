@@ -496,6 +496,16 @@ export default class CheckViewTable extends tsc<object, object> {
               virtual={true}
               on-sort-change={this.sortChange}
             />
+            {/* 底部显示/隐藏统计值 */}
+            <div
+              style={{ bottom: this.isShowStatistical ? '155px' : '0' }}
+              class='table-foot-btn'
+              onClick={() => {
+                this.$emit('toggle', !this.isShowStatistical);
+              }}
+            >
+              <i class={`icon-monitor icon-arrow-${this.isShowStatistical ? 'down' : 'up'} foot-btn`} />
+            </div>
           </TConfigProvider>
         )}
       </div>

@@ -27,6 +27,7 @@ import { Component, InjectReactive, Prop, Provide, Ref } from 'vue-property-deco
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -56,8 +57,7 @@ export default class Service extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
-  @InjectReactive('readonly') readonly readonly: boolean;
-
+  @InjectReactive('readonly') readonly: boolean;
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
@@ -316,15 +316,17 @@ export default class Service extends tsc<object> {
             onTabChange={this.handleUpdateAppName}
             onTitleChange={this.handleTitleChange}
           >
-            <ApmCommonNavBar
-              slot='nav'
-              needBack={false}
-              needShadow={true}
-              positionText={this.positionText}
-              routeList={this.routeList}
-              needCopyLink
-              onNavSelect={this.handleNavSelect}
-            />
+            {globalUrlFeatureMap.APM_SUBMENU && (
+              <ApmCommonNavBar
+                slot='nav'
+                needBack={false}
+                needShadow={true}
+                positionText={this.positionText}
+                routeList={this.routeList}
+                needCopyLink
+                onNavSelect={this.handleNavSelect}
+              />
+            )}
             {!this.readonly && !!this.appName && (
               <div
                 class='service-tools'

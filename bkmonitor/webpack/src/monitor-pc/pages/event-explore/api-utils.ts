@@ -105,9 +105,10 @@ export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
+    const isAborted = requestErrorMessage(err);
     return {
       total: 0,
+      isAborted,
     };
   });
 };
@@ -121,8 +122,8 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
-    return { list: [] };
+    const isAborted = requestErrorMessage(err);
+    return { list: [], isAborted };
   });
 };
 
@@ -143,9 +144,13 @@ export const getEventTimeSeries = (type = APIType.MONITOR) => {
  */
 function requestErrorMessage(err) {
   const message = makeMessage(err.error_details || err.message);
-  if (message && err?.message !== 'canceled') {
+  let isAborted = false;
+  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
     bkMessage(message);
+  } else {
+    isAborted = true;
   }
+  return isAborted;
 }
 
 type ICandidateValueMap = Map<

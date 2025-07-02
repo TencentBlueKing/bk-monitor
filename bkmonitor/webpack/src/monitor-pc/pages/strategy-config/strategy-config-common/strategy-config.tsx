@@ -47,10 +47,12 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import { isEn } from '../../../i18n/lang';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import AuthComponent from '../../../pages/exception-page/auth-component';
 import { downFile } from '../../../utils';
+
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
@@ -1754,13 +1756,17 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 查看相关告警 */
   handleViewRelatedAlerts() {
-    const query = `queryString=${
-      ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale)
-        ? `告警名称 : "${this.popover.data.strategyName}"`
-        : `alert_name : "${this.popover.data.strategyName}"`
-    }`;
-    const timeRange = 'from=now-7d&to=now';
-    window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
+    const { href } = this.$router.resolve({
+      name: 'event-center',
+      query: {
+        queryString: isEn
+          ? `告警名称 : "${this.popover.data.strategyName}"`
+          : `alert_name : "${this.popover.data.strategyName}"`,
+        from: 'now-7d',
+        to: 'now',
+      },
+    });
+    window.open(href, '_blank');
   }
   handleSelectedDataSource(v) {
     this.label.isSelected = Boolean(v.length);
@@ -1898,10 +1904,16 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 跳转到事件中心 */
   handleToEventCenter(item, type = 'NOT_SHIELDED_ABNORMAL') {
-    const url = `${location.origin}${location.pathname}${location.search}#/event-center?queryString=${
-      ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale) ? `策略ID : ${item.id}` : `strategy_id : ${item.id}`
-    }&activeFilterId=${type}&from=now-30d&to=now`;
-    window.open(url);
+    const { href } = this.$router.resolve({
+      name: 'event-center',
+      query: {
+        queryString: isEn ? `strategy_id : ${item.id}` : `策略ID : ${item.id}`,
+        activeFilterId: type,
+        from: 'now-30d',
+        to: 'now',
+      },
+    });
+    window.open(href, '_blank');
   }
   /**
    * @description: 筛选面板勾选change事件
@@ -1964,7 +1976,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   /* 跳转到屏蔽页 */
   handleToAlarmShield(ids: number[]) {
     const queryString = encodeURIComponent(JSON.stringify([{ key: 'id', value: ids }]));
-    window.open(`${location.origin}${location.pathname}${location.search}#/alarm-shield?queryString=${queryString}`);
+    const { href } = this.$router.resolve({
+      name: 'alarm-shield',
+      query: {
+        queryString,
+      },
+    });
+    window.open(href, '_blank');
   }
   handleIpChange(v) {
     this.ipCheckValue = v;
