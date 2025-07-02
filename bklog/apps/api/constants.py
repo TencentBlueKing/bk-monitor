@@ -19,11 +19,5 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-# 获取结果表缓存key
-CACHE_KEY_GET_RESULT_TABLE = "get_result_table"
-# 修改结果表缓存key
-CACHE_KEY_MODIFY_RESULT = "modify_result_table"
-# 结果表起停缓存key
-CACHE_SWITCH_RESULT_TABLE = "switch_result_table"
 # 缓存时间,1小时
 CACHE_TIME = 60 * 60 * 24

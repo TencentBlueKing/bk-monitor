@@ -44,7 +44,6 @@ from requests import Response
 from requests.exceptions import ReadTimeout
 from retrying import RetryError, Retrying
 
-from apps.api.constants import CACHE_KEY_GET_RESULT_TABLE, CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE
 from apps.api.exception import DataAPIException
 from apps.api.modules.utils import add_esb_info_before_request
 from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
@@ -219,7 +218,6 @@ class DataAPI:
         use_superuser=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
-        func_name: str = None,
     ):
         """
         初始化一个请求句柄
@@ -240,7 +238,6 @@ class DataAPI:
         @param {DataApiRetryClass} data_api_retry_cls 超时配置
         @param {string} pagination_style 分页方式
         @param {string} bk_tenant_id 租户ID，可传递一个静态值或者动态的函数
-        @param {string} func_name 网关方法名
         """
         self.url = url
         self.module = module
@@ -273,7 +270,6 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
-        self.func_name = func_name
 
     def __call__(
         self,
@@ -394,11 +390,6 @@ class DataAPI:
 
                 raise DataAPIException(self, _("返回数据格式不正确，结果格式非json."), response=raw_response)
             else:
-                # 清除获取结果表缓存
-                if self.func_name in [CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE]:
-                    if cache_key_get_result_table := self._get_cache(f"get_result_table_{params['table_id']}"):
-                        cache.delete(cache_key_get_result_table)
-
                 # 只有正常返回才会调用 after_request 进行处理
                 if "result" not in response_result:
                     # 说明返回不是蓝鲸标准
@@ -415,9 +406,6 @@ class DataAPI:
 
                 if self.cache_time:
                     self._set_cache(cache_key, response_result)
-                    # 记录获取结果表缓存的key
-                    if self.func_name == CACHE_KEY_GET_RESULT_TABLE:
-                        self._set_cache(f"get_result_table_{params['table_id']}", cache_key)
 
                 response = DataResponse(response_result, request_id)
                 return response
@@ -497,6 +485,10 @@ class DataAPI:
         :return:
         """
         cache.set(cache_key, data, self.cache_time)
+
+    @staticmethod
+    def _delete_cache(cache_key):
+        return cache.delete(cache_key)
 
     def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
         """
