@@ -495,7 +495,7 @@ export default class EventExplore extends tsc<
 
   /** 跳转添加告警策略 */
   handleAddAlertPolicy() {
-    const { data_source_label, data_type_label, table, where } = this.queryConfig;
+    const { data_source_label, data_type_label, table, where, query_string } = this.queryConfig;
     const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id;
     const queryConfigs = [
       {
@@ -509,6 +509,7 @@ export default class EventExplore extends tsc<
         table,
         item: '',
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
+        query_string,
         metrics: [{ alias: 'a', field: field || '', method: 'COUNT' }],
       },
     ];
