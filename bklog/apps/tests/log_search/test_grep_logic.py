@@ -109,46 +109,6 @@ WHERE_CLAUSE_RESULT = [
     "LOWER(log) NOT REGEXP LOWER('xxx')",
 ]
 
-DORIS_QUERY_RESULT = []
-
-GREP_QUERY_PARAMS = {
-    "start_time": 1743669932630,
-    "end_time": 1744274732630,
-    "keyword": None,
-    "addition": [],
-    "grep_query": "egrep d6658",
-    "grep_field": "__ext.container_id",
-    "begin": 2,
-    "size": 10,
-    "sort_list": [["time", "asc"], ["cloudId_alias", "asc"], ["container_id", "desc"]],
-    "alias_settings": [
-        {"field_name": "cloudId_raw", "query_alias": "cloudId_alias", "path_type": "string"},
-        {"field_name": "__ext.container_id", "query_alias": "container_id", "path_type": "string"},
-        {"field_name": "id_raw", "query_alias": "id_alias", "path_type": "string"},
-    ],
-    "alias_mappings": {"cloudId_alias": "cloudId_raw", "container_id": "__ext.container_id", "id_alias": "id_raw"},
-}
-DORIS_RESULT_LIST = [
-    {
-        "thedate": 20250625,
-        "dteventtimestamp": 1750840049000,
-        "dteventtime": "2025-06-25 16:27:29",
-        "localtime": "2025-06-25 16:27:33",
-        "__shard_key__": 29180667007,
-        "_starttime_": "2025-06-25 16:27:29",
-        "_endtime_": "2025-06-25 16:27:29",
-        "bk_host_id": 2149975,
-        "__ext": '{"container_id":"a22b52a367d66582","labels":{"app":"dsa", "io_jobName":"tbuspp_agent"}}',
-        "cloudid": 0,
-        "serverip": "21.35.63",
-        "path": "/proz/logds/ds-8444249584138321_2025.06.25-16..782.log",
-        "gseindex": 113430,
-        "iterationindex": 46,
-        "log": "[2025.06.25-16.27.28:718][804]LogPzPal",
-        "time": 1750840049,
-    }
-]
-
 GREP_PARAMS = [
     {
         "where_clause": "time >= 20250403",

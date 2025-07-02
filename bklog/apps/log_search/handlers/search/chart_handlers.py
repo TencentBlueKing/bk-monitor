@@ -441,7 +441,7 @@ class ChartHandler:
         where_clause += f" LIMIT {size} OFFSET {begin}"
         return where_clause, pattern, ignore_case
 
-    def add_doris_query_trace(self, sql, total_records, time_taken):
+    def add_doris_query_trace(self, sql, total_records=None, time_taken=None):
         """
         添加doris查询的trace记录
         :param sql: 执行的SQL语句
@@ -481,8 +481,13 @@ class SQLChartHandler(ChartHandler):
         if not self.data.support_doris:
             raise IndexSetDorisQueryException()
         parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-        data = self.fetch_query_data(parsed_sql)
-        self.add_doris_query_trace(parsed_sql, data["total_records"], data["time_taken"])
+        trace_params = {"sql": parsed_sql}
+        try:
+            # 执行doris查询
+            data = self.fetch_query_data(parsed_sql)
+            trace_params.update({"total_records": data["total_records"], "time_taken": data["time_taken"]})
+        finally:
+            self.add_doris_query_trace(**trace_params)
         return data
 
     def parse_sql_syntax(self, doris_table_id: str, params: dict):
@@ -612,9 +617,13 @@ class SQLChartHandler(ChartHandler):
             begin=params["begin"],
         )
         sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
-        # 执行doris查询
-        result = self.fetch_query_data(sql)
-        self.add_doris_query_trace(sql, result["total_records"], result["time_taken"])
+        trace_params = {"sql": sql}
+        try:
+            # 执行doris查询
+            result = self.fetch_query_data(sql)
+            trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
+        finally:
+            self.add_doris_query_trace(**trace_params)
         # 添加高亮标记
         log_list = add_highlight_mark(
             data_list=result["list"],

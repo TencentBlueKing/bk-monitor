@@ -168,7 +168,7 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
         if "." in match_field:
-            json_data = json.loads(data_list[0][match_field.split(".")[0]])
+            json_data = json.loads(data[match_field.split(".")[0]])
             tmp_dic = json_data
             keys = match_field.split(".")
             first_key = keys[0]
