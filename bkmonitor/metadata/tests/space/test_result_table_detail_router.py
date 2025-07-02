@@ -111,6 +111,13 @@ def create_or_delete_records(mocker):
         vm_result_table_id="bkm_1001_bkmonitor_time_series_50010",
         bk_base_data_id=50010,
     )
+    models.ResultTableOption.objects.create(
+        table_id='1001_bkmonitor_time_series_50010.__default__',
+        name='cmdb_level_vm_rt',
+        value='bkm_1001_bkmonitor_time_series_50010_cmdb',
+        value_type='string',
+        creator='system'
+    )
 
     models.ClusterInfo.objects.create(
         cluster_name="vm-plat",
@@ -154,6 +161,7 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
         "1001_bkmonitor_time_series_50010.__default__": {
             "vm_rt": "bkm_1001_bkmonitor_time_series_50010",
             "storage_id": 100111,
+            "cmdb_level_vm_rt":"bkm_1001_bkmonitor_time_series_50010_cmdb",
             "cluster_name": "",
             "storage_name": "vm-plat",
             "db": "",
