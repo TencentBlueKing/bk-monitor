@@ -1451,7 +1451,7 @@ class SpaceTableIDRedis:
             )
         )
 
-        return data_labels
+        return list(set(data_labels))
 
     def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
         """提取写入到influxdb或vm的结果表数据"""
