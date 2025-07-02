@@ -110,6 +110,7 @@ export default defineComponent({
     const currentData = deepRef({});
     const currentIds = deepRef([]);
     const currentBizIds = deepRef([]);
+    const disableKey = ['serial-number', 'project', 'category_display'];
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -335,6 +336,7 @@ export default defineComponent({
             strategy: 'fixed',
           },
         },
+        fixed: 'left',
         disabled: true,
         cell: (_, { row: data }) => {
           return (
@@ -361,6 +363,7 @@ export default defineComponent({
         title: t('告警名称'),
         colKey: 'alert_name',
         minWidth: 134,
+        fixed: 'left',
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -368,7 +371,7 @@ export default defineComponent({
         },
         cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity.is_root || data.is_feedback_root;
+          const isRoot = entity?.is_root || data.is_feedback_root;
           return (
             <div
               class='name-column'
@@ -513,6 +516,7 @@ export default defineComponent({
         colKey: 'duration',
         width: 155,
         minWidth: 155,
+        fixed: 'right',
         ellipsis: (_, { row: data }) => {
           return data.duration;
         },
@@ -535,12 +539,12 @@ export default defineComponent({
                 class='operate-panel'
               >
                 <span
-                  class={['operate-panel-item', { 'is-disable': data.entity.is_root }]}
+                  class={['operate-panel-item', { 'is-disable': data.entity?.is_root }]}
                   v-bk-tooltips={{
                     content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
                     trigger: 'hover',
                     delay: 200,
-                    disabled: data.entity.is_root,
+                    disabled: data.entity?.is_root,
                   }}
                   onClick={() => handleRootCauseConfirm(data)}
                 >
@@ -824,6 +828,7 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
+      disableKey,
     };
   },
   render() {
@@ -911,7 +916,9 @@ export default defineComponent({
                     <PrimaryTable
                       key={item.id}
                       bkUiSettings={{
-                        checked: this.columns.map(item => item.colKey),
+                        checked: this.columns
+                          .filter(item => !this.disableKey.includes(item.colKey))
+                          .map(item => item.colKey),
                       }}
                       // autoResize={true}
                       // bordered={true}

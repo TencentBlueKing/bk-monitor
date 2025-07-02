@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, KeepAlive, type PropType, type Ref, defineComponent, inject, ref as deepRef, shallowRef } from 'vue';
+import {
+  computed,
+  KeepAlive,
+  type PropType,
+  type Ref,
+  defineComponent,
+  inject,
+  ref as deepRef,
+  shallowRef,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -64,6 +74,7 @@ export default defineComponent({
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const incidentResults = inject<Ref<object>>('incidentResults');
+    const isShowDiagnosis = inject<Ref<boolean>>('isShowDiagnosis');
     const alertAggregateParams = deepRef({});
     const refNav = deepRef(null);
     const tabList = [
@@ -99,6 +110,15 @@ export default defineComponent({
       const key = tabList.find(item => item.name === active.value).key;
       return incidentResults.value[key];
     });
+    watch(
+      () => isShowDiagnosis.value,
+      val => {
+        if (val) {
+          active.value = 'TroubleShooting';
+        }
+        console.log(val, 'isShowDiagnosis');
+      }
+    );
 
     const handleChange = (name: string) => {
       if (active.value !== name) {

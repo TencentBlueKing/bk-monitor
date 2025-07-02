@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, provide, nextTick, ref as deepRef, onBeforeUnmount, watch } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onMounted,
+  provide,
+  nextTick,
+  ref as deepRef,
+  onBeforeUnmount,
+  watch,
+  shallowRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -114,6 +124,7 @@ export default defineComponent({
     const incidentResultList = deepRef({});
     const incidentResultStatus = deepRef('');
     const timer = deepRef();
+    const isShowDiagnosis = shallowRef(false);
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -122,6 +133,7 @@ export default defineComponent({
     provide('operationsLoading', operationsLoading);
     provide('operationTypeMap', operationTypeMap);
     provide('incidentResults', incidentResultList);
+    provide('isShowDiagnosis', isShowDiagnosis);
     /**
      * @description: 获取告警分析TopN数据
      * @param {*}
@@ -312,10 +324,16 @@ export default defineComponent({
     });
 
     /** 故障分析状态获取接口 */
-    const getIncidentResults = () => {
+    const getIncidentResults = (isInit = false) => {
       incidentResults({ id: props.id }).then(res => {
-        incidentResultStatus.value = res.status;
-        incidentResultList.value = res.panels;
+        incidentResultStatus.value = res.status || 'finished';
+        incidentResultList.value = res.panels || {};
+        /** 第一次请求这个接口的时候去判断是否要切换到故障诊断的Tab */
+        const len = Object.keys(incidentResultList.value).length;
+        if (isInit && len) {
+          const panel = incidentResultList.value.incident_diagnosis.sub_panels || {};
+          isShowDiagnosis.value = Object.values(panel).findIndex(item => item.status === 'finished') > -1;
+        }
       });
     };
     watch(
@@ -332,7 +350,7 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      getIncidentResults();
+      getIncidentResults(true);
       getIncidentDetail();
     });
     onBeforeUnmount(() => {

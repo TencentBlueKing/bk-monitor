@@ -55,9 +55,15 @@ export default defineComponent({
     });
     const activeIndex = shallowRef([0, 1]);
     const childActiveIndex = shallowRef([0]);
+    const subPanels = computed(() => {
+      return props.panelConfig.sub_panels || {};
+    });
     const aiLoading = computed(() => {
-      const { sub_panels } = props.panelConfig;
-      return sub_panels?.summary?.status;
+      return subPanels.value?.summary?.status;
+    });
+
+    const showList = computed(() => {
+      return list.filter(item => subPanels.value?.[item.key]?.enabled);
     });
 
     const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
@@ -130,7 +136,7 @@ export default defineComponent({
       return (
         <div>
           <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
-          {len && (
+          {len > 0 && (
             <Collapse
               class='dimensional-collapse'
               v-model={childActiveIndex.value}
@@ -190,7 +196,9 @@ export default defineComponent({
         const { status, sub_panels } = val;
         let keys = Object.keys(sub_panels);
         if (status === 'running') {
-          keys = Object.keys(sub_panels || {}).filter(key => sub_panels[key].status === 'running');
+          keys = Object.keys(sub_panels || {}).filter(
+            key => sub_panels[key].enabled && sub_panels[key].status === 'running'
+          );
         }
         keys.map(key => {
           getIncidentDiagnosis(key);
@@ -209,6 +217,8 @@ export default defineComponent({
       aiLoading,
       loadingList,
       renderEmpty,
+      showList,
+      subPanels,
     };
   },
   render() {
@@ -219,9 +229,8 @@ export default defineComponent({
       </span>
     );
     const contentSlot = (item: IListItem) => {
-      const { sub_panels } = this.panelConfig;
-      if (sub_panels[item.key]?.status === 'failed') {
-        return this.renderEmpty(sub_panels[item.key]);
+      if (this.subPanels[item.key]?.status === 'failed') {
+        return this.renderEmpty(this.subPanels[item.key]);
       }
       return (
         <Loading
@@ -233,9 +242,8 @@ export default defineComponent({
       );
     };
     const aiCardRender = () => {
-      const { sub_panels } = this.panelConfig;
-      if (sub_panels.summary.status === 'failed') {
-        return this.renderEmpty(sub_panels.summary);
+      if (this.subPanels.summary.status === 'failed') {
+        return this.renderEmpty(this.subPanels.summary);
       }
       return !this.loadingList.summary && <MarkdownView content={this.contentList?.summary} />;
     };
@@ -254,19 +262,21 @@ export default defineComponent({
           />
         </div>
         <div class='trouble-shooting-main'>
-          <div class='ai-card'>
-            <div class='ai-card-title'>
-              <span class='ai-card-title-icon' />
-              {this.t('故障总结')}
+          {this.subPanels.summary?.enabled && (
+            <div class='ai-card'>
+              <div class='ai-card-title'>
+                <span class='ai-card-title-icon' />
+                {this.t('故障总结')}
+              </div>
+              <Loading
+                class={{ 'ai-card-loading': this.loadingList.summary }}
+                color={'#f3f6ff'}
+                loading={this.loadingList.summary}
+              >
+                <div class='ai-card-main'>{aiCardRender()}</div>
+              </Loading>
             </div>
-            <Loading
-              class={{ 'ai-card-loading': this.loadingList.summary }}
-              color={'#f3f6ff'}
-              loading={this.loadingList.summary}
-            >
-              <div class='ai-card-main'>{aiCardRender()}</div>
-            </Loading>
-          </div>
+          )}
           <Collapse
             class='failure-collapse'
             v-model={this.activeIndex}
@@ -275,7 +285,7 @@ export default defineComponent({
               content: item => contentSlot(item),
             }}
             header-icon='right-shape'
-            list={this.list}
+            list={this.showList}
           />
         </div>
       </div>

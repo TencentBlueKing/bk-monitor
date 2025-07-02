@@ -43,7 +43,7 @@ export default defineComponent({
       default: '',
     },
   },
-  setup(props, { emit }) {
+  setup(props) {
     const htmlContent = computed(() => {
       return md.render(props.content);
     });

@@ -101,7 +101,6 @@ export default defineComponent({
           loading.value = false;
           console.log(err);
         });
-      console.log(1, recommendedMetricPanels.value);
     };
     onMounted(() => {
       getIncidentAlertView();
