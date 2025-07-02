@@ -252,9 +252,6 @@ DEFAULT_ETL_CONFIG = "bkdata_clean"
 # 同步清洗最长ttl时间 60*10
 MAX_SYNC_CLEAN_TTL = 600
 
-# 更新结果表key
-CACHE_KEY_UPDATE_RESULT_TABLE = "update_result_table_{}"
-
 # 缓存-集群信息key
 CACHE_KEY_CLUSTER_INFO = "bulk_cluster_info_{}"
 
