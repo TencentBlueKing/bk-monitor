@@ -245,6 +245,7 @@ export default class EventExplore extends tsc<
     }, []);
   }
 
+  // 检索栏是否使用默认常驻设置 如果选择了收藏则使用收藏的常驻设置
   get isDefaultResidentSetting() {
     if (this.currentFavorite?.config?.queryConfig?.result_table_id === this.dataId) {
       return false;
@@ -252,6 +253,7 @@ export default class EventExplore extends tsc<
     return true;
   }
 
+  // 当前选中的收藏项（检索栏使用）
   get selectFavoriteWhere() {
     if (!this.currentFavorite) {
       return null;
@@ -262,6 +264,7 @@ export default class EventExplore extends tsc<
     };
   }
 
+  // 收藏列表数据（检索栏使用）
   get retrievalFilterFavoriteList() {
     return this.favoriteList.reduce((pre, cur) => {
       pre.push(

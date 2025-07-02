@@ -86,6 +86,7 @@ interface IEvent {
 @Component
 export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  // 当前选择的收藏项
   @Prop({ type: Object, default: null }) selectFavorite: ICurrentFavorite;
   @Prop({
     type: Function,
@@ -103,12 +104,15 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: String, default: '' }) queryString: string;
   /** 常驻筛选唯一ID,用于保存常驻筛选配置*/
   @Prop({ type: String, default: '' }) residentSettingOnlyId: string;
+  // 收藏列表 用于语句模式联想搜索
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /* 语句模式hover显示的操作是否显示在下方 */
   // @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
   @Prop({ type: Boolean, default: false }) isShowFavorite: boolean;
+  /* 默认常驻按钮状态 */
   @Prop({ type: Boolean, default: false }) defaultShowResidentBtn: boolean;
+  /* 是否使用默认常驻设置 */
   @Prop({ type: Boolean, default: true }) isDefaultResidentSetting: boolean;
   /* 是否需要常驻设置功能 */
   @Prop({ type: Boolean, default: false }) isShowResident: boolean;
