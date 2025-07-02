@@ -394,6 +394,11 @@ class DataAPI:
 
                 raise DataAPIException(self, _("返回数据格式不正确，结果格式非json."), response=raw_response)
             else:
+                # 清除获取结果表缓存
+                if self.func_name in [CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE]:
+                    if cache_key_get_result_table := self._get_cache(f"get_result_table_{params['table_id']}"):
+                        cache.delete(cache_key_get_result_table)
+
                 # 只有正常返回才会调用 after_request 进行处理
                 if "result" not in response_result:
                     # 说明返回不是蓝鲸标准
@@ -407,13 +412,12 @@ class DataAPI:
                         serializer = self.after_serializer(data=response_result)
                         serializer.is_valid(raise_exception=True)
                         response_result = serializer.validated_data
-                    # 清除缓存
-                    if self.func_name in [CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE]:
-                        if cache_key_get_result_table := self._get_cache(f"get_result_table_{params['table_id']}"):
-                            cache.delete(cache_key_get_result_table)
 
                 if self.cache_time:
                     self._set_cache(cache_key, response_result)
+                    # 记录获取结果表缓存的key
+                    if self.func_name == CACHE_KEY_GET_RESULT_TABLE:
+                        self._set_cache(f"get_result_table_{params['table_id']}", cache_key)
 
                 response = DataResponse(response_result, request_id)
                 return response
@@ -484,9 +488,6 @@ class DataAPI:
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
-        # 记录获取结果表缓存的key
-        if self.func_name == CACHE_KEY_GET_RESULT_TABLE:
-            self._set_cache(f"get_result_table_{params['table_id']}", cache_key)
         return cache_key
 
     def _set_cache(self, cache_key, data):
