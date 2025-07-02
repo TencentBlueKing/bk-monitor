@@ -245,6 +245,41 @@ export default class EventExplore extends tsc<
     }, []);
   }
 
+  get isDefaultResidentSetting() {
+    if (this.currentFavorite?.config?.queryConfig?.result_table_id === this.dataId) {
+      return false;
+    }
+    return true;
+  }
+
+  get selectFavoriteWhere() {
+    if (!this.currentFavorite) {
+      return null;
+    }
+    return {
+      where: this.currentFavorite?.config?.queryConfig?.where || [],
+      commonWhere: this.currentFavorite?.config?.queryConfig?.commonWhere || [],
+    };
+  }
+
+  get retrievalFilterFavoriteList() {
+    return this.favoriteList.reduce((pre, cur) => {
+      pre.push(
+        ...(cur?.favorites?.map(f => ({
+          id: f.id,
+          name: f.name,
+          groupName: cur.name,
+          config: {
+            queryString: f.config?.queryConfig?.query_string || '',
+            where: f.config?.queryConfig?.where || [],
+            commonWhere: f.config?.queryConfig?.commonWhere || [],
+          },
+        })) || [])
+      );
+      return pre;
+    }, []);
+  }
+
   @Watch('refreshImmediate')
   handleRefreshImmediateChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
@@ -573,17 +608,18 @@ export default class EventExplore extends tsc<
             ) : (
               <RetrievalFilter
                 commonWhere={this.commonWhere}
-                dataId={this.dataId}
                 defaultShowResidentBtn={this.defaultShowResidentBtn}
-                favoriteList={this.favoriteList as any}
+                favoriteList={this.retrievalFilterFavoriteList}
                 fields={this.fieldList}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                isDefaultResidentSetting={this.isDefaultResidentSetting}
+                isShowCopy={true}
                 isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
+                isShowResident={true}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
-                selectFavorite={this.currentFavorite}
-                source={this.source}
+                selectFavorite={this.selectFavoriteWhere}
                 where={this.where}
                 onCommonWhereChange={this.handleCommonWhereChange}
                 onCopyWhere={this.handleCopyWhere}
