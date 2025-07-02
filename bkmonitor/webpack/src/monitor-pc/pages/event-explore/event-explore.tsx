@@ -617,17 +617,17 @@ export default class EventExplore extends tsc<
                 {this.$scopedSlots.filterPrepend?.('')}
                 <RetrievalFilter
                   commonWhere={this.commonWhere}
-                  dataId={this.dataId}
                   defaultShowResidentBtn={this.defaultShowResidentBtn}
-                  favoriteList={this.favoriteList as any}
+                  favoriteList={this.retrievalFilterFavoriteList}
                   fields={this.fieldList}
                   filterMode={this.filterMode}
                   getValueFn={this.getRetrievalFilterValueData}
+                  isDefaultResidentSetting={this.isDefaultResidentSetting}
+                  isShowCopy={true}
                   isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
                   queryString={this.queryString}
                   residentSettingOnlyId={this.residentSettingOnlyId}
-                  selectFavorite={this.currentFavorite}
-                  source={this.source}
+                  selectFavorite={this.selectFavoriteWhere}
                   where={this.where}
                   onCommonWhereChange={this.handleCommonWhereChange}
                   onCopyWhere={this.handleCopyWhere}
