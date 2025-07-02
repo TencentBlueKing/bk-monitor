@@ -19,5 +19,5 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-# 缓存时间,1小时
+# 缓存时间,1天
 CACHE_TIME = 60 * 60 * 24
