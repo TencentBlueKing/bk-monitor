@@ -119,7 +119,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           count: 1, // 执行次数，默认设置为 1
           is_enabled: true,
         },
-        skip_delay: 1, // 数据延迟秒数
+        skip_delay: 0, // 数据延迟秒数
       },
     }),
   })
@@ -165,7 +165,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         count: 1, // 执行次数，默认设置为 1
         is_enabled: true,
       },
-      skip_delay: 1, // 数据延迟秒数
+      skip_delay: 0, // 数据延迟秒数
     },
   };
   isShowDetail = false;
@@ -173,7 +173,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   // 数据延迟开关
   enableSkipDelay = false;
   // 数据延迟秒数
-  delayTime = 1;
+  delayTime = 0;
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
