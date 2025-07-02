@@ -262,6 +262,7 @@ export default defineComponent({
                 >
                   {this.calendarList.map(item => (
                     <div
+                      key={item}
                       class={[
                         'item',
                         this.currentDate === item && 'current',

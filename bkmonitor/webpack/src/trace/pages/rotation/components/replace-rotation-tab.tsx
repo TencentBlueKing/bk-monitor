@@ -28,15 +28,13 @@ import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
 import { random } from 'lodash';
+import { RotationSelectTypeEnum } from 'monitor-common/rotation-utils/common';
 
-import { RotationSelectTypeEnum } from '../typings/common';
-import ReplaceRotationTableItem, { type ReplaceItemDataModel } from './replace-rotation-table-item';
+import ReplaceRotationTableItem from './replace-rotation-table-item';
+
+import type { ReplaceDataModel } from 'monitor-common/rotation-utils/typings';
 
 import './replace-rotation-tab.scss';
-
-export interface ReplaceDataModel extends ReplaceItemDataModel {
-  key: number;
-}
 
 export default defineComponent({
   name: 'ReplaceRotationTab',

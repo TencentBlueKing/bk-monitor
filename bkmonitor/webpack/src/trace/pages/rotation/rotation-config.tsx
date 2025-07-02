@@ -32,26 +32,28 @@ import dayjs from 'dayjs';
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
-
-import NavBar from '../../components/nav-bar/nav-bar';
 import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
   setPreviewDataOfServer,
-} from './components/calendar-preview';
-import FixedRotationTab, { type FixedDataModel } from './components/fixed-rotation-tab';
-import FormItem from './components/form-item';
-import ReplaceRotationTab, { type ReplaceDataModel } from './components/replace-rotation-tab';
-import RotationCalendarPreview from './components/rotation-calendar-preview';
-import { RotationTabTypeEnum } from './typings/common';
+} from 'monitor-common/rotation-utils/calendar-preview';
+import { RotationTabTypeEnum } from 'monitor-common/rotation-utils/common';
 import {
   createColorList,
   fixedRotationTransform,
   replaceRotationTransform,
   validFixedRotationData,
   validReplaceRotationData,
-} from './utils';
+} from 'monitor-common/rotation-utils/utils';
+
+import NavBar from '../../components/nav-bar/nav-bar';
+import FixedRotationTab from './components/fixed-rotation-tab';
+import FormItem from './components/form-item';
+import ReplaceRotationTab from './components/replace-rotation-tab';
+import RotationCalendarPreview from './components/rotation-calendar-preview';
+
+import type { FixedDataModel, ReplaceDataModel } from 'monitor-common/rotation-utils/typings';
 
 import './rotation-config.scss';
 

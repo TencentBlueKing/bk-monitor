@@ -28,49 +28,26 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { RotationSelectTypeEnum } from 'monitor-common/rotation-utils/common';
+import { validTimeOverlap } from 'monitor-common/rotation-utils/utils';
 import { isEn } from 'monitor-pc/i18n/lang';
 
 import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
-import { RotationSelectTypeEnum } from '../typings/common';
-import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
 
-import './replace-rotation-table-item.scss';
-type CustomTabType = 'classes' | 'duration';
-type WorkTimeType = 'datetime_range' | 'time_range';
-export interface ReplaceRotationDateModel {
-  key: number;
-  workDays?: number[];
-  workTime: string[][];
-}
-export interface ReplaceRotationUsersModel {
-  groupNumber?: number;
-  groupType: 'auto' | 'specified';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
-}
+import type {
+  CustomTabType,
+  ReplaceItemDataModel,
+  ReplaceRotationDateModel,
+  ReplaceRotationUsersModel,
+  WorkTimeType,
+} from 'monitor-common/rotation-utils/typings';
 
-export interface ReplaceItemDataModel {
-  id?: number;
-  date: {
-    type: RotationSelectTypeEnum;
-    /** 每周、每月：时间范围/起止时间 */
-    workTimeType: WorkTimeType;
-    /** 是否是自定义轮值类型 */
-    isCustom: boolean;
-    /** 自定义：指定时长/指定班次 */
-    customTab: CustomTabType;
-    /** 自定义轮值有效日期 */
-    customWorkDays: number[];
-    /** 单班时长 */
-    periodSettings: { unit: 'day' | 'hour'; duration: number };
-    value: ReplaceRotationDateModel[];
-  };
-  users: ReplaceRotationUsersModel;
-}
+import './replace-rotation-table-item.scss';
 
 export default defineComponent({
   name: 'ReplaceRotationTableItem',
@@ -371,15 +348,18 @@ export default defineComponent({
             class='date-type-select'
             v-model={localValue.date.type}
             clearable={false}
+            filterable={false}
             onChange={handleDateTypeChange}
           >
             <Select.Option
-              label={t('按周')}
-              value={RotationSelectTypeEnum.Weekly}
+              id={RotationSelectTypeEnum.Weekly}
+              key={RotationSelectTypeEnum.Weekly}
+              name={t('按周')}
             />
             <Select.Option
-              label={t('按月')}
-              value={RotationSelectTypeEnum.Monthly}
+              id={RotationSelectTypeEnum.Monthly}
+              key={RotationSelectTypeEnum.Monthly}
+              name={t('按月')}
             />
           </Select>
           {localValue.date.type === RotationSelectTypeEnum.Weekly && (
@@ -432,6 +412,7 @@ export default defineComponent({
             <Select
               v-model={localValue.date.periodSettings.unit}
               clearable={false}
+              filterable={false}
               onChange={handleEmitData}
             >
               {/* <Select.Option
@@ -439,8 +420,8 @@ export default defineComponent({
                 value='hour'
               /> */}
               <Select.Option
-                label={t('天')}
-                value='day'
+                id='day'
+                name={t('天')}
               />
             </Select>
           </FormItem>
