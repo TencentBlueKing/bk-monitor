@@ -123,8 +123,8 @@ export default defineComponent({
     };
 
     // 选中业务项时触发
-    const handleSelected = (item: IListItem, type = 'general') => {
-      emit('handleClickMenuItem', item, type);
+    const handleSelected = (item: IListItem) => {
+      emit('handleClickMenuItem', item);
     };
 
     // 初始化时获取用户配置ID
@@ -135,10 +135,13 @@ export default defineComponent({
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
-        {props.list.length ? (
+        {props.list[0].children.length || props.list[1].children.length ? (
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
+            buffer={200} /* 提前加载200px以外的内容 */
+            item-size={32}
+            items={props.list[0].children}
             scopedSlots={{
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
@@ -148,7 +151,7 @@ export default defineComponent({
                   <div
                     key={item.id || index}
                     class={['list-item', props.theme, { checked: item.space_uid === props.checked }]}
-                    onClick={() => handleSelected(item, 'general')}
+                    onClick={() => handleSelected(item)}
                   >
                     <span class='list-item-left'>
                       <span class='list-item-name'>{item.name}</span>
@@ -201,9 +204,6 @@ export default defineComponent({
                 </div>
               ),
             }}
-            buffer={200} /* 提前加载200px以外的内容 */
-            item-size={32}
-            items={props.list}
           />
         ) : (
           // 无数据时显示异常提示

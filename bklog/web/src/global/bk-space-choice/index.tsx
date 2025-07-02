@@ -53,6 +53,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const BIZ_SELECTOR_COMMON_MAX = 5; // 常用业务缓存最大个数
 
     const store = useStore();
     const route = useRoute();
@@ -72,6 +73,7 @@ export default defineComponent({
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
     const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
+    const commonListIdsLog = ref<number[]>([]); // 常用业务缓存的ID列表
     // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
     const isExternal = computed(() => store.state.isExternal);
@@ -105,6 +107,9 @@ export default defineComponent({
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
+
+      // 获取常用业务缓存
+      commonListIdsLog.value = JSON.parse(localStorage.getItem('commonListIdsLog') || '[]');
     });
 
     // 点击下拉框外内容，收起下拉框
@@ -148,36 +153,86 @@ export default defineComponent({
     });
 
     // 初始化业务列表
-    const generalList = computed(() => {
-      const keywordVal = keyword.value.trim().toLocaleLowerCase();
-      const filteredList = mySpaceList.value.filter(item => {
-        let show = false;
-        if (searchTypeId.value) {
-          show =
-            searchTypeId.value === 'bcs'
-              ? item.space_type_id === 'bkci' && !!item.space_code
-              : item.space_type_id === searchTypeId.value;
-        }
-        if ((show && keywordVal) || (!searchTypeId.value && !show)) {
-          show =
-            item.space_name.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            `${item.bk_biz_id}`.includes(keywordVal) ||
-            `${item.space_code}`.includes(keywordVal);
-        }
-        if (!show) return false;
-        if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
-        return true;
-      });
-      return [
-        {
-          id: 'general',
-          name: t('有权限的'),
-          children: filteredList,
-        },
-      ];
-    });
+    // const groupList = computed(() => {
+    //   const keywordVal = keyword.value.trim().toLocaleLowerCase();
+    //   const generalList = mySpaceList.value.filter(item => {
+    //     let show = false;
+    //     if (searchTypeId.value) {
+    //       show =
+    //         searchTypeId.value === 'bcs'
+    //           ? item.space_type_id === 'bkci' && !!item.space_code
+    //           : item.space_type_id === searchTypeId.value;
+    //     }
+    //     if ((show && keywordVal) || (!searchTypeId.value && !show)) {
+    //       show =
+    //         item.space_name.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+    //         item.py_text.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+    //         item.space_uid.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+    //         `${item.bk_biz_id}`.includes(keywordVal) ||
+    //         `${item.space_code}`.includes(keywordVal);
+    //     }
+    //     if (!show) return false;
+    //     if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
+    //     return true;
+    //   });
+    //   return [
+    //     {
+    //       id: 'general',
+    //       name: t('有权限的'),
+    //       children: generalList,
+    //     },
+    //     {
+    //       id: 'common',
+    //       name: t('常用的'),
+    //       children: [],
+    //     },
+    //   ];
+    // });
+
+    const groupList = computed(() => {
+  const keywordVal = keyword.value.trim().toLocaleLowerCase();
+  // 过滤出有权限且符合搜索条件的业务
+  const filteredList = mySpaceList.value.filter(item => {
+    let show = false;
+    if (searchTypeId.value) {
+      show =
+        searchTypeId.value === 'bcs'
+          ? item.space_type_id === 'bkci' && !!item.space_code
+          : item.space_type_id === searchTypeId.value;
+    }
+    if ((show && keywordVal) || (!searchTypeId.value && !show)) {
+      show =
+        item.space_name.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+        item.py_text.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+        item.space_uid.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
+        `${item.bk_biz_id}`.includes(keywordVal) ||
+        `${item.space_code}`.includes(keywordVal);
+    }
+    if (!show) return false;
+    if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
+    return true;
+  });
+
+  // 常用业务
+  const commonList = filteredList.filter(item => commonListIdsLog.value.includes(Number(item.id)));
+  // 其他业务
+  const generalList = filteredList.filter(item => !commonListIdsLog.value.includes(Number(item.id)));
+
+  console.log('commonList', commonList, 'generalList', generalList);
+
+  return [
+    {
+      id: 'general',
+      name: t('有权限的'),
+      children: generalList,
+    },
+    {
+      id: 'common',
+      name: t('常用的'),
+      children: commonList,
+    },
+  ];
+});
 
     // 点击业务名称时触发，切换下拉框显示并聚焦搜索框
     const handleClickBizSelect = () => {
@@ -270,11 +325,32 @@ export default defineComponent({
         }
         checkSpaceChange(space.space_uid);
         localValue.value = space.space_uid;
+        // 更新常用业务缓存
+        if (space.id) {
+          updateCacheBizId(Number(space.id));
+        }
       } catch (error) {
         console.warn(error);
       } finally {
         showBizList.value = false;
       }
+    };
+
+    // 更新缓存的常用业务ids
+    const updateCacheBizId = (id: number) => {
+      let cacheIds: number[] = [];
+      try {
+        cacheIds = JSON.parse(localStorage.getItem('commonListIdsLog') || '[]');
+      } catch (e) {
+        cacheIds = [];
+      }
+      cacheIds = [id, ...cacheIds.filter(item => item !== id)];  // 将当前id放到第一个，并去重
+      if (cacheIds.length > BIZ_SELECTOR_COMMON_MAX) {
+        cacheIds = cacheIds.slice(0, BIZ_SELECTOR_COMMON_MAX);  // 超过最大长度则裁剪
+      }
+      localStorage.setItem('commonListIdsLog', JSON.stringify(cacheIds));
+      commonListIdsLog.value = cacheIds;
+      // console.log('commonListIdsLog.value', commonListIdsLog.value);
     };
 
     // 点击体验demo按钮
@@ -329,19 +405,15 @@ export default defineComponent({
               style={{ width: `${bizBoxWidth.value}px` }}
               class='biz-list'
             >
-              {generalList.value[0].children.length ? (
-                <List
+              <List
                   canSetDefaultSpace={props.canSetDefaultSpace as boolean}
                   checked={localValue.value}
-                  list={generalList.value[0].children}
+                  list={groupList.value}
                   theme={props.theme as ThemeType}
                   on-HandleClickMenuItem={handleClickMenuItem}
                   on-HandleClickOutSide={handleClickOutSide}
                   on-OpenDialog={openDialog}
-                ></List>
-              ) : (
-                <li class='list-empty'>{t('无匹配的数据')}</li>
-              )}
+              ></List>
             </div>
             {/* 体验DEMO按钮 */}
             <div class='menu-select-extension'>
