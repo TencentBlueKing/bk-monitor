@@ -24,8 +24,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 export enum EDimensionKey {
@@ -184,21 +182,6 @@ export interface ICommonParams {
   scenario: SceneEnum;
   bcs_cluster_id: string;
   timeRange: TimeRangeType;
-}
-
-export interface IEventQueryConfig {
-  data_source_label: string;
-  data_type_label: string;
-  table: string;
-  query_string: string;
-  where: IWhereItem[];
-  group_by: string[];
-  filter_dict: Record<string, any>;
-}
-export interface IEventSceneCommonParams {
-  query_configs: IEventQueryConfig[];
-  start_time: number;
-  end_time: number;
 }
 
 export interface IK8SMetricItem {

@@ -23,18 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 
 import './event-retrieval-layout.scss';
 
+export interface EventRetrievalLayoutProps {
+  defaultShow?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
+  defaultWidth?: number;
+}
+
+interface EventRetrievalLayoutEvents {
+  onShowChange(val: boolean): void;
+}
+
 @Component
-export default class EventRetrievalLayout extends tsc<object> {
+export default class EventRetrievalLayout extends tsc<EventRetrievalLayoutProps, EventRetrievalLayoutEvents> {
+  @Prop({ default: true }) defaultShow: boolean;
+  @Prop({ default: 120 }) minWidth: number;
+  @Prop({ default: 400 }) maxWidth: number;
+  @Prop({ default: 200 }) defaultWidth: number;
+
   isShow = true;
-  maxWidth = 400;
-  minWidth = 120;
   width = 200;
 
   handleDragChange(width: number) {
@@ -47,7 +61,13 @@ export default class EventRetrievalLayout extends tsc<object> {
 
   handleClickShrink(val?: boolean) {
     this.isShow = val ?? !this.isShow;
-    this.width = this.isShow ? 200 : 0;
+    this.width = this.isShow ? this.defaultWidth : 0;
+    this.$emit('onShowChange', this.isShow);
+  }
+
+  mounted() {
+    this.width = this.defaultWidth;
+    this.isShow = this.defaultShow;
   }
 
   render() {

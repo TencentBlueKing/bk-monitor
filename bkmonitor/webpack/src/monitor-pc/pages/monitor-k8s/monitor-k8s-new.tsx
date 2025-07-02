@@ -25,16 +25,15 @@
  */
 import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
-import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
-import DimensionFilterPanel from '../event-explore/components/dimension-filter-panel';
+import K8sEventExplore from '../event-explore/k8s-event-explore';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
@@ -47,14 +46,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import {
-  type IK8SMetricItem,
-  type ICommonParams,
-  K8sNewTabEnum,
-  SceneEnum,
-  EDimensionKey,
-  type IEventSceneCommonParams,
-} from './typings/k8s-new';
+import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 
@@ -201,38 +193,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 公共参数 */
   @ProvideReactive('commonParams')
-  get commonParams(): ICommonParams | IEventSceneCommonParams {
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-
-    if (this.scene === SceneEnum.Event) {
-      return {
-        query_configs: [
-          {
-            data_source_label: 'custom',
-            data_type_label: 'event',
-            table: this.selectCluster?.event_table_id,
-            query_string: this.eventQueryString,
-            where: this.eventCondition,
-            group_by: [],
-            filter_dict: {},
-          },
-        ],
-        start_time: startTime,
-        end_time: endTime,
-      };
-    }
-
-    const commonParams = {
+  get commonParams(): ICommonParams {
+    return {
       scenario: this.scene,
       bcs_cluster_id: this.cluster,
       timeRange: this.timeRange,
-      /** 主动触发监控 */
-      REFRESH_KEY: this.refreshImmediate,
     };
-    return Object.keys(commonParams).reduce((pre, cur) => {
-      if (cur !== 'REFRESH_KEY') pre[cur] = commonParams[cur];
-      return pre;
-    }, {}) as ICommonParams;
   }
 
   get tableCommonParam() {
@@ -314,15 +280,19 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  async created() {
+  created() {
     this.getRouteParams();
-    await this.getClusterList();
-    this.getViewConfig();
+    this.getClusterList();
     this.getScenarioMetricList();
     this.getHideMetrics();
   }
 
   mounted() {
+    this.observerFilterByHeader();
+  }
+
+  observerFilterByHeader() {
+    this.resizeObserver?.disconnect();
     this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const height = entry?.contentRect?.height || 50;
@@ -330,7 +300,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       }
     });
     const el = this.$el.querySelector('.____monitor-k8s-new-header');
-    this.resizeObserver.observe(el);
+    if (el) {
+      this.resizeObserver.observe(el);
+    }
   }
 
   destroyed() {
@@ -387,29 +359,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }));
   }
 
-  async getViewConfig() {
-    if (this.scene !== SceneEnum.Event || !this.selectCluster.event_table_id) return;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const data = await eventViewConfig({
-      data_sources: [
-        {
-          data_source_label: 'custom',
-          data_type_label: 'event',
-          table: this.selectCluster.event_table_id,
-        },
-      ],
-      start_time: startTime,
-      end_time: endTime,
-    }).catch(() => ({ display_fields: [], entities: [], field: [] }));
-    this.fieldList = data.field.map(item => {
-      const pinyinStr = this.$bkToPinyin(item.alias, true, '') || '';
-      return {
-        ...item,
-        pinyinStr,
-      };
-    });
-  }
-
   /** 获取隐藏的指标项 */
   getHideMetrics() {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
@@ -426,19 +375,17 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = value;
     this.initGroupBy();
     this.initFilterBy();
-    if (value === SceneEnum.Event) {
-      this.getViewConfig();
-    } else {
-      this.getScenarioMetricList();
-    }
+    this.getScenarioMetricList();
     this.showCancelDrill = false;
     this.getHideMetrics();
     this.setRouteParams();
+    this.$nextTick(() => {
+      this.observerFilterByHeader();
+    });
   }
 
   handleImmediateRefresh() {
     this.refreshImmediate = random(4);
-    this.getViewConfig();
   }
 
   handleRefreshChange(value: number) {
@@ -454,7 +401,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.timeRange = timeRange;
-    this.getViewConfig();
     this.setRouteParams();
   }
 
@@ -664,6 +610,42 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         );
     }
   }
+
+  renderClusterList() {
+    if (this.clusterLoading) return <div class='skeleton-element cluster-skeleton' />;
+
+    return (
+      <bk-select
+        class='cluster-select'
+        clearable={false}
+        value={this.cluster}
+        searchable
+        onChange={this.handleClusterChange}
+        onToggle={this.handleClusterToggle}
+      >
+        <div
+          class='cluster-select-trigger'
+          slot='trigger'
+        >
+          <span
+            class='cluster-name'
+            v-bk-overflow-tips
+          >
+            {this.$t('集群')}: {this.selectCluster?.name}
+          </span>
+          <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
+        </div>
+        {this.clusterList.map(cluster => (
+          <bk-option
+            id={cluster.id}
+            key={cluster.id}
+            name={cluster.name}
+          />
+        ))}
+      </bk-select>
+    );
+  }
+
   render() {
     if (this.showGuidePage)
       return (
@@ -673,7 +655,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         />
       );
     return (
-      <div class='monitor-k8s-new'>
+      <div class={['monitor-k8s-new', this.scene]}>
         <div class='monitor-k8s-new-nav-bar'>
           <K8sNavBar
             refreshInterval={this.refreshInterval}
@@ -699,73 +681,51 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             )}
           </K8sNavBar>
         </div>
-        <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
-          {this.clusterLoading ? (
-            <div class='skeleton-element cluster-skeleton' />
-          ) : (
-            <bk-select
-              class='cluster-select'
-              clearable={false}
-              value={this.cluster}
-              searchable
-              onChange={this.handleClusterChange}
-              onToggle={this.handleClusterToggle}
+        {this.scene === SceneEnum.Event ? (
+          <K8sEventExplore
+            scopedSlots={{
+              filterPrepend: () => this.renderClusterList(),
+            }}
+            dataId={this.selectCluster?.event_table_id || ''}
+          />
+        ) : (
+          [
+            <div
+              key='monitor-k8s-new-header'
+              class='monitor-k8s-new-header ____monitor-k8s-new-header'
             >
-              <div
-                class='cluster-select-trigger'
-                slot='trigger'
-              >
-                <span
-                  class='cluster-name'
-                  v-bk-overflow-tips
-                >
-                  {this.$t('集群')}: {this.selectCluster?.name}
-                </span>
-                <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
+              {this.renderClusterList()}
+              <div class='filter-header-wrap'>
+                <div class='filter-by-wrap __filter-by__'>
+                  <div class='filter-by-title'>{this.$t('过滤条件')}</div>
+                  <div class='filter-by-content'>
+                    <FilterByCondition
+                      commonParams={this.commonParams}
+                      filterBy={this.filterBy}
+                      onChange={this.handleFilterByChange}
+                    />
+                  </div>
+                </div>
+                <div class='filter-by-wrap __group-by__'>
+                  <GroupByCondition
+                    dimensionTotal={this.dimensionTotal}
+                    groupInstance={this.groupInstance}
+                    scene={this.scene}
+                    title={this.$tc('聚合维度')}
+                    onChange={this.handleGroupChecked}
+                  />
+                </div>
               </div>
-              {this.clusterList.map(cluster => (
-                <bk-option
-                  id={cluster.id}
-                  key={cluster.id}
-                  name={cluster.name}
-                />
-              ))}
-            </bk-select>
-          )}
-
-          <div class='filter-header-wrap'>
-            <div class='filter-by-wrap __filter-by__'>
-              <div class='filter-by-title'>{this.$t('过滤条件')}</div>
-              <div class='filter-by-content'>
-                <FilterByCondition
-                  commonParams={this.commonParams}
-                  filterBy={this.filterBy}
-                  onChange={this.handleFilterByChange}
-                />
-              </div>
-            </div>
-            <div class='filter-by-wrap __group-by__'>
-              <GroupByCondition
-                dimensionTotal={this.dimensionTotal}
-                groupInstance={this.groupInstance}
-                scene={this.scene}
-                title={this.$tc('聚合维度')}
-                onChange={this.handleGroupChecked}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            height: `calc(100% - ${this.headerHeight}px)`,
-          }}
-          class='monitor-k8s-new-content'
-        >
-          <div class='content-left'>
-            <K8sLeftPanel>
-              {this.scene !== SceneEnum.Event ? (
-                [
+            </div>,
+            <div
+              key='monitor-k8s-new-content'
+              style={{
+                height: `calc(100% - ${this.headerHeight}px)`,
+              }}
+              class='monitor-k8s-new-content'
+            >
+              <div class='content-left'>
+                <K8sLeftPanel>
                   <K8sDimensionList
                     key='dimension-list'
                     commonParams={this.commonParams as ICommonParams}
@@ -776,7 +736,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                     onDrillDown={this.handleTableGroupChange}
                     onFilterByChange={this.filterByChange}
                     onGroupByChange={this.groupByChange}
-                  />,
+                  />
                   <K8sMetricList
                     key='metric-list'
                     activeMetric={this.activeMetricId}
@@ -786,56 +746,46 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                     metricList={this.metricList}
                     onHandleItemClick={this.handleMetricItemClick}
                     onMetricHiddenChange={this.metricHiddenChange}
-                  />,
-                ]
-              ) : (
-                <DimensionFilterPanel
-                  condition={this.eventCondition}
-                  list={this.fieldList}
-                  listLoading={this.fieldListLoading}
-                  queryString={this.eventQueryString}
-                  // onClose={this.handleCloseDimensionPanel}
-                  onConditionChange={this.handleEventConditionChange}
-                />
-              )}
-            </K8sLeftPanel>
-          </div>
-
-          <div class='content-right'>
-            <div class='content-tab-wrap'>
-              <bk-tab
-                class='k8s-new-tab'
-                active={this.activeTab}
-                type='unborder-card'
-                {...{ on: { 'update:active': this.handleTabChange } }}
-              >
-                {tabList.map(panel => (
-                  <bk-tab-panel
-                    key={panel.id}
-                    label={panel.label}
-                    name={panel.id}
+                  />
+                </K8sLeftPanel>
+              </div>
+              <div class='content-right'>
+                <div class='content-tab-wrap'>
+                  <bk-tab
+                    class='k8s-new-tab'
+                    active={this.activeTab}
+                    type='unborder-card'
+                    {...{ on: { 'update:active': this.handleTabChange } }}
                   >
-                    <div
-                      class='k8s-tab-panel'
-                      slot='label'
-                    >
-                      <i class={['icon-monitor', panel.icon]} />
-                      <span class='panel-name'>{panel.label}</span>
-                    </div>
-                  </bk-tab-panel>
-                ))}
-              </bk-tab>
-            </div>
-            <div
-              style={{
-                background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
-              }}
-              class='content-main-wrap'
-            >
-              {this.tabContentRender()}
-            </div>
-          </div>
-        </div>
+                    {tabList.map(panel => (
+                      <bk-tab-panel
+                        key={panel.id}
+                        label={panel.label}
+                        name={panel.id}
+                      >
+                        <div
+                          class='k8s-tab-panel'
+                          slot='label'
+                        >
+                          <i class={['icon-monitor', panel.icon]} />
+                          <span class='panel-name'>{panel.label}</span>
+                        </div>
+                      </bk-tab-panel>
+                    ))}
+                  </bk-tab>
+                </div>
+                <div
+                  style={{
+                    background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
+                  }}
+                  class='content-main-wrap'
+                >
+                  {this.tabContentRender()}
+                </div>
+              </div>
+            </div>,
+          ]
+        )}
       </div>
     );
   }
