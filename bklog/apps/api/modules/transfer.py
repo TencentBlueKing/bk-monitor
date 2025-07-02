@@ -28,6 +28,12 @@ from django.utils.translation import gettext_lazy as _
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
+from apps.api.constants import (
+    CACHE_KEY_GET_RESULT_TABLE,
+    CACHE_KEY_MODIFY_RESULT,
+    CACHE_SWITCH_RESULT_TABLE,
+    CACHE_TIME,
+)
 
 
 def get_cluster_info_after(response_result):
@@ -156,6 +162,7 @@ class _TransferApi:
             description=_("修改结果表"),
             before_request=modify_result_table_before,
             bk_tenant_id=biz_to_tenant_getter(),
+            func_name=CACHE_KEY_MODIFY_RESULT,
         )
         self.switch_result_table = DataAPI(
             method="POST",
@@ -164,6 +171,7 @@ class _TransferApi:
             description=_("结果表起停"),
             before_request=add_esb_info_before_request,
             bk_tenant_id=biz_to_tenant_getter(),
+            func_name=CACHE_SWITCH_RESULT_TABLE,
         )
         self.get_label = DataAPI(
             method="GET",
@@ -185,6 +193,8 @@ class _TransferApi:
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
+            cache_time=CACHE_TIME,
+            func_name=CACHE_KEY_GET_RESULT_TABLE,
         )
         self.get_result_table_storage = DataAPI(
             method="GET",

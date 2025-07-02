@@ -44,6 +44,7 @@ from requests import Response
 from requests.exceptions import ReadTimeout
 from retrying import RetryError, Retrying
 
+from apps.api.constants import CACHE_KEY_GET_RESULT_TABLE, CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE
 from apps.api.exception import DataAPIException
 from apps.api.modules.utils import add_esb_info_before_request
 from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
@@ -218,6 +219,7 @@ class DataAPI:
         use_superuser=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
+        func_name: str = None,
     ):
         """
         初始化一个请求句柄
@@ -238,6 +240,7 @@ class DataAPI:
         @param {DataApiRetryClass} data_api_retry_cls 超时配置
         @param {string} pagination_style 分页方式
         @param {string} bk_tenant_id 租户ID，可传递一个静态值或者动态的函数
+        @param {string} func_name 网关方法名
         """
         self.url = url
         self.module = module
@@ -270,6 +273,7 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
+        self.func_name = func_name
 
     def __call__(
         self,
@@ -385,10 +389,7 @@ class DataAPI:
             try:
                 response_result = raw_response.json()
             except Exception:  # pylint: disable=broad-except
-                error_message = "data api response not json format url->[{}] content->[{}]".format(
-                    self.url,
-                    raw_response.text,
-                )
+                error_message = f"data api response not json format url->[{self.url}] content->[{raw_response.text}]"
                 logger.exception(error_message)
 
                 raise DataAPIException(self, _("返回数据格式不正确，结果格式非json."), response=raw_response)
@@ -406,6 +407,10 @@ class DataAPI:
                         serializer = self.after_serializer(data=response_result)
                         serializer.is_valid(raise_exception=True)
                         response_result = serializer.validated_data
+                    # 清除缓存
+                    if self.func_name in [CACHE_KEY_MODIFY_RESULT, CACHE_SWITCH_RESULT_TABLE]:
+                        if cache_key_get_result_table := self._get_cache(f"get_result_table_{params['table_id']}"):
+                            cache.delete(cache_key_get_result_table)
 
                 if self.cache_time:
                     self._set_cache(cache_key, response_result)
@@ -475,12 +480,13 @@ class DataAPI:
         :return:
         """
         # 缓存
-        cache_str = "url_{url}__params_{params}".format(
-            url=self.build_actual_url(params), params=json.dumps(params, cls=LazyEncoder)
-        )
+        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
+        # 记录获取结果表缓存的key
+        if self.func_name == CACHE_KEY_GET_RESULT_TABLE:
+            self._set_cache(f"get_result_table_{params['table_id']}", cache_key)
         return cache_key
 
     def _set_cache(self, cache_key, data):
@@ -909,9 +915,7 @@ class BaseApi:
             module_path, module_name = self.__module__.rsplit(".", 1)  # pylint: disable=unused-variable
             class_name = self.__class__.__name__
 
-            module_str = "apps.api.sites.{run_ver}.{mod}.{api}".format(
-                run_ver=settings.RUN_VER, mod=module_name, api=class_name
-            )
+            module_str = f"apps.api.sites.{settings.RUN_VER}.{module_name}.{class_name}"
             try:
                 mod = import_string(module_str)()
                 attr = getattr(mod, item)
@@ -939,7 +943,7 @@ class PassThroughAPI(DataAPI):
                 is_supported = True
                 break
         if not is_supported:
-            logger.error("【API ERROR】%s 暂不支持透传" % sub_url)
+            logger.error(f"【API ERROR】{sub_url} 暂不支持透传")
             raise PermissionError(
                 _("非法请求，模块【{module}】，方法【{method}】，接口【{sub_url}】").format(
                     module=module, method=method, sub_url=sub_url
