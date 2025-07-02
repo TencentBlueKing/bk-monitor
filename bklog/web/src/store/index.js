@@ -857,7 +857,7 @@ const store = new Vuex.Store({
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
 
-      if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
+      // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
       const {
@@ -1710,7 +1710,7 @@ const store = new Vuex.Store({
 
     changeShowUnionSource({ commit, dispatch, state }) {
       commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
-      dispatch('showShowUnionSource', { keepLastTime: false });
+      // dispatch('showShowUnionSource', { keepLastTime: false });
     },
 
     /** 日志来源显隐操作 */

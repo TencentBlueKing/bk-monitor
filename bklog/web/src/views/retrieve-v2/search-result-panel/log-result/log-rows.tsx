@@ -52,6 +52,7 @@ import {
   ROW_INDEX,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
+  ROW_SOURCE
 } from './log-row-attributes';
 import RowRender from './row-render';
 import ScrollTop from '../../components/scroll-top/index';
@@ -128,7 +129,7 @@ export default defineComponent({
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
-
+    const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -368,6 +369,31 @@ export default defineComponent({
                 style={{ color: '#4D4F56', fontSize: '9px' }}
                 class='bk-icon icon-play-shape'
               ></i>
+            </span>
+          );
+        },
+      },
+      {
+        field: '',
+        key: ROW_SOURCE,
+        title: '日志来源',
+        width: 230,
+        align: 'left',
+        resize: false,
+        fixed: 'left',
+        disabled: !indexSetOperatorConfig.value?.isShowSourceField || !indexSetType.value,
+        renderBodyCell: ({ row }) => {
+          const name = unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
+          ''
+          const hanldeSoureClick = event => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          };
+          console.log(name)
+          return (
+            <span onClick={hanldeSoureClick}>
+             {name}  
             </span>
           );
         },
@@ -823,7 +849,7 @@ export default defineComponent({
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => (
+            {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => (
               <LogCell
                 key={column.key}
                 width={column.width}
@@ -853,7 +879,7 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-          {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => {
+          {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => {
             const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
             const cellStyle = {
               width,
