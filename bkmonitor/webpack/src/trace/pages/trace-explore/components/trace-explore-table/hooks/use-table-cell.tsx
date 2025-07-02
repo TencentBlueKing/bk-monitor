@@ -38,7 +38,7 @@ import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
   type GetTableCellRenderValue,
-  type TableCellRender,
+  type TableCellRenderer,
 } from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -49,20 +49,21 @@ export interface UseTableCellOptions {
   /** 是否启用单元格文本省略号 */
   cellEllipsisClass?: string;
   /** 自定义单元格渲染策略对象集合 */
-  customCellRenderMap?: Record<string, TableCellRender>;
+  customCellRenderMap?: Record<string, TableCellRenderer>;
 }
 export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderMap }: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
   /** 不同类型单元格渲染策略对象集合 */
-  let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRender> = {};
+  let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRenderer> =
+    {};
 
   /**
    * @description 初始化单元格渲染策略
    *
    */
   function initCellRenderHandleMap() {
-    const defaultCellRenderHandleMap: Record<ExploreTableColumnTypeEnum, TableCellRender> = {
+    const defaultCellRenderHandleMap: Record<ExploreTableColumnTypeEnum, TableCellRenderer> = {
       [ExploreTableColumnTypeEnum.TAGS]: tagsColumnFormatter,
       [ExploreTableColumnTypeEnum.CLICK]: clickColumnFormatter,
       [ExploreTableColumnTypeEnum.PREFIX_ICON]: iconColumnFormatter,

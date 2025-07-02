@@ -29,12 +29,11 @@ import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-n
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
 
-/** 表格单元格渲染类型 */
 /**
  * 通用表格单元格渲染类型
  * column 允许为 BaseTableColumn 或 ExploreTableColumn，row 为 any
  */
-export type TableCellRender<T extends BaseTableColumn = BaseTableColumn<any, any>> = (
+export type TableCellRenderer<T extends BaseTableColumn<any, any> = BaseTableColumn<any, any>> = (
   row: any,
   column: T
 ) => SlotReturnValue;
@@ -49,13 +48,13 @@ export interface BaseTableColumn<K extends string = string, U extends Record<str
   /** 单元格是否开启溢出省略弹出 popover 功能 */
   cellEllipsis?: boolean;
   /** 单元格后置插槽（tag类型列暂未支持） */
-  suffixSlot?: TableCellRender;
+  suffixSlot?: TableCellRenderer;
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
   clickCallback?: (row, column: BaseTableColumn<any, any>, event: MouseEvent) => void;
   /** 自定义单元格渲染 */
-  cellRenderer?: TableCellRender;
+  cellRenderer?: TableCellRenderer;
 }
 
 export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = ExploreTableColumnTypeEnum> =
@@ -79,7 +78,7 @@ export interface BaseTableCellRenderValueType {
   }[];
   [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
     alias: string;
-    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
+    prefixIcon: string | TableCellRenderer<ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>>;
   };
   [ExploreTableColumnTypeEnum.LINK]: {
     alias: string;

@@ -32,7 +32,10 @@ import TableSkeleton from '../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 
-import type { BaseTableColumn, TableCellRender } from '../../../../trace-explore/components/trace-explore-table/typing';
+import type {
+  BaseTableColumn,
+  TableCellRenderer,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { TableEmpty, TableRenderer } from '../../../typings';
 import type { CheckboxGroupValue, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
@@ -108,9 +111,9 @@ export default defineComponent({
     lastFullRow: {
       type: Function as PropType<TableRenderer>,
     },
-    /** 表格单元格自定义渲染集合 key => customerRenderType,  value => TableCellRender */
+    /** 表格单元格自定义渲染集合 key => customerRenderType,  value => TableCellRenderer */
     customCellRenderMap: {
-      type: Object as PropType<Record<string, TableCellRender>>,
+      type: Object as PropType<Record<string, TableCellRenderer>>,
     },
   },
   emits: {
