@@ -70,6 +70,7 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
       return {
         ...item,
         value,
+        isOpen: false,
         options: [],
         loading: false,
         scrollLoading: false,
@@ -116,6 +117,7 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
     renderOptions(item);
   }
   async function handleOpen(item: ICascadeData, val) {
+    item.isOpen = val;
     if (val) {
       setLoading(item, true);
       const pagination = {
@@ -133,6 +135,7 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
       });
       renderOptions(item);
     } else {
+      setIsOpen(item, val);
       allOptions.set(item.id, {
         pagination: {
           page: 1,
@@ -166,6 +169,7 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
     for (const val of localValue.value) {
       if (val.id === item.id) {
         val.loading = loading;
+        break;
       }
     }
     triggerRef(localValue);
@@ -174,6 +178,16 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
     for (const val of localValue.value) {
       if (val.id === item.id) {
         val.scrollLoading = loading;
+        break;
+      }
+    }
+    triggerRef(localValue);
+  }
+  function setIsOpen(item: ICascadeData, isOpen = false) {
+    for (const val of localValue.value) {
+      if (val.id === item.id) {
+        val.isOpen = isOpen;
+        break;
       }
     }
     triggerRef(localValue);

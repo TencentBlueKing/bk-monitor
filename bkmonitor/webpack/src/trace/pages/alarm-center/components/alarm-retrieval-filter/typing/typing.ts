@@ -50,5 +50,6 @@ export type ICascadeData = ICascadeItem & {
   value: TVal[];
   loading: boolean;
   scrollLoading: boolean;
+  isOpen: boolean;
   options: { id: TVal; name: TVal }[];
 };

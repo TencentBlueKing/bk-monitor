@@ -82,7 +82,7 @@ export default defineComponent({
         <div class='trigger-top-wrap'>{this.$slots?.top?.()}</div>
         <div class='trigger-bottom-wrap'>
           <span class='bottom-text'>{this.$slots?.bottom?.()}</span>
-          <div class='down-btn'>
+          <div class={['down-btn', { active: this.active }]}>
             <span class='icon-monitor icon-mc-triangle-down' />
           </div>
         </div>
