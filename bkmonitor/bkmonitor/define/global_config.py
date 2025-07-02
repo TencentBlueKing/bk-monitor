@@ -151,6 +151,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label="是否开启全局告警屏蔽", default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
+        ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label="是否开启数据平台指标缓存", default=True)),
         (
@@ -423,10 +424,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
-        ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
+        ("INITIALIZED_TENANT_LIST", slz.ListField(label="已经初始化的租户列表", default=["system"])),
         # RUM 配置
-        ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
-        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
+        ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
+        ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
     ]
 )
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import copy
 
 import pytest
 from django.db.models import QuerySet
+
 from monitor_web.tests.utils import equal_value
 from monitor_web.uptime_check.resources import (
     UptimeCheckCardResource,
@@ -21,7 +20,7 @@ from monitor_web.uptime_check.resources import (
 )
 
 
-class MockUptimeCheckTask(object):
+class MockUptimeCheckTask:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
@@ -32,7 +31,7 @@ class MockUptimeCheckTask(object):
         return 1
 
 
-class MockUptimeCheckGroup(object):
+class MockUptimeCheckGroup:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
@@ -244,7 +243,7 @@ TASK_LIST_RESULT_DATA = [
 ]
 
 
-class MockRequest(object):
+class MockRequest:
     def __init__(self, method, params=None):
         params = params or {}
         if method.upper() == "GET":
@@ -254,13 +253,13 @@ class MockRequest(object):
             self.data = params
 
 
-class MockUptimeCheckCardQuerySet(object):
+class MockUptimeCheckCardQuerySet:
     def filter(self):
         pass
 
 
-@pytest.mark.django_db
-class TestTaskList(object):
+@pytest.mark.django_db(databases="__all__")
+class TestTaskList:
     # def test_list(self, mocker):
     #     from monitor_web.uptime_check.views import UptimeCheckTaskViewSet
     #
