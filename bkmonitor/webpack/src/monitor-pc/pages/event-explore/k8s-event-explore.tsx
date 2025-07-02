@@ -24,22 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ECondition, EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
+import { EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
 import { APIType } from './api-utils';
 import EventExplore from './event-explore';
-import { ExploreSourceTypeEnum, type IFormData } from './typing';
+
+import type { IFormData } from './typing';
 
 import './apm-event-explore.scss';
-const APM_EVENT_DATA_ID = 'builtin';
+
+interface K8sEventExploreProps {
+  dataId: string;
+}
+
 @Component
-export default class ApmEventExplore extends tsc<object> {
+export default class K8sEventExplore extends tsc<
+  K8sEventExploreProps,
+  object,
+  {
+    filterPrepend?: string;
+  }
+> {
+  @Prop({ type: String, required: true }) dataId!: string;
+
   dataTypeLabel = 'event';
   dataSourceLabel = 'custom';
-  /** 数据Id */
-  dataId = '';
   /** 数据ID列表 */
   dataIdList = [];
   /** 查询语句 */
@@ -50,15 +61,8 @@ export default class ApmEventExplore extends tsc<object> {
   commonWhere: IWhereItem[] = [];
   /** 是否展示常驻筛选 */
   showResidentBtn = false;
-  /** 维度列表 */
-  group_by: IFormData['group_by'] = [];
-  /** 过滤条件 */
-  filter_dict: IFormData['filter_dict'] = {};
-  /** 用于 日志 和 事件关键字切换 换成查询 */
-  cacheQuery = null;
-  filterMode = EMode.ui;
 
-  eventSourceType = [ExploreSourceTypeEnum.ALL];
+  filterMode = EMode.ui;
 
   created() {
     this.getRouteParams();
@@ -72,22 +76,13 @@ export default class ApmEventExplore extends tsc<object> {
         const [
           {
             data: {
-              query_configs: [
-                { data_type_label, where, query_string: queryString, group_by: groupBy, filter_dict: filterDict },
-              ],
+              query_configs: [{ data_type_label, where, query_string: queryString }],
             },
           },
         ] = targetsList;
         this.dataTypeLabel = data_type_label;
         this.where = where || [];
-        const hasSource = this.where.find(item => item.key === 'source');
-        if (hasSource) {
-          this.where = this.where.filter(item => item.key !== 'source');
-          this.eventSourceType = hasSource.value as ExploreSourceTypeEnum[];
-        }
         this.queryString = queryString || '';
-        this.group_by = groupBy || [];
-        this.filter_dict = filterDict || {};
         this.filterMode = (
           [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
         ) as EMode;
@@ -101,9 +96,6 @@ export default class ApmEventExplore extends tsc<object> {
 
   setRouteParams(otherQuery = {}) {
     const where = [...this.where];
-    if (!this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) {
-      where.push({ key: 'source', method: 'eq', condition: ECondition.and, value: this.eventSourceType });
-    }
     const query = {
       ...this.$route.query,
       targets: JSON.stringify([
@@ -116,8 +108,6 @@ export default class ApmEventExplore extends tsc<object> {
                 data_source_label: this.dataSourceLabel,
                 where,
                 query_string: this.queryString,
-                group_by: this.group_by,
-                filter_dict: this.filter_dict,
               },
             ],
           },
@@ -152,10 +142,6 @@ export default class ApmEventExplore extends tsc<object> {
     this.queryString = queryString;
     this.setRouteParams();
   }
-  handleFilterChange(filter_dict: IFormData['filter_dict']) {
-    this.filter_dict = filter_dict;
-    this.setRouteParams();
-  }
   /** 常驻筛选项修改 */
   handleCommonWhereChange(where: IWhereItem[]) {
     this.commonWhere = where;
@@ -168,32 +154,25 @@ export default class ApmEventExplore extends tsc<object> {
     this.setRouteParams();
   }
 
-  handleEventSourceTypeChange(eventSourceType: ExploreSourceTypeEnum[]) {
-    this.eventSourceType = eventSourceType;
-    this.setRouteParams();
-  }
-
   render() {
     return (
       <EventExplore
         class={'apm-event-explore'}
+        defaultLayoutConfig={{
+          defaultWidth: 280,
+        }}
         commonWhere={this.commonWhere}
-        dataId={APM_EVENT_DATA_ID}
-        dataSourceLabel={'custom'}
-        defaultShowResidentBtn={this.showResidentBtn}
-        eventSourceType={this.eventSourceType}
-        filter_dict={this.filter_dict}
+        dataId={this.dataId}
+        dataSourceLabel={this.dataSourceLabel}
+        dataTypeLabel={this.dataTypeLabel}
         filterMode={this.filterMode}
-        group_by={this.group_by}
         queryString={this.queryString}
-        source={APIType.APM}
+        scopedSlots={this.$scopedSlots}
+        source={APIType.MONITOR}
         where={this.where}
-        onCommonWhereChange={this.handleCommonWhereChange}
-        onEventSourceTypeChange={this.handleEventSourceTypeChange}
         onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
         onSetRouteParams={this.setRouteParams}
-        onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />
     );

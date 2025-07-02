@@ -23,6 +23,11 @@
       height: 100%;
       padding: 8px;
 
+      .retrieval-filter-container {
+        display: flex;
+        align-items: center;
+      }
+
       .filter-skeleton {
         height: 48px;
       }

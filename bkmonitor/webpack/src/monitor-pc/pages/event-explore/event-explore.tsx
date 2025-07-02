@@ -44,7 +44,7 @@ import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { APIType, getEventViewConfig, RetrievalFilterCandidateValue } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
-import EventRetrievalLayout from './components/event-retrieval-layout';
+import EventRetrievalLayout, { type EventRetrievalLayoutProps } from './components/event-retrieval-layout';
 import EventSourceSelect from './components/event-source-select';
 import {
   type ConditionChangeEvent,
@@ -79,6 +79,7 @@ interface IProps {
   defaultShowResidentBtn?: boolean;
   eventSourceType?: ExploreSourceTypeEnum[];
   hideFeatures?: HideFeatures;
+  defaultLayoutConfig?: EventRetrievalLayoutProps;
 }
 
 interface IEvent {
@@ -99,6 +100,7 @@ export default class EventExplore extends tsc<
   {
     favorite?: string;
     header?: string;
+    filterPrepend?: string;
   }
 > {
   // /** 来源 */
@@ -126,6 +128,8 @@ export default class EventExplore extends tsc<
   @Prop({ default: () => [], type: Array }) favoriteList: IFavList.favGroupList[];
   @Prop({ default: null, type: Object }) currentFavorite: IFavList.favList;
   @Prop({ default: false, type: Boolean }) defaultShowResidentBtn: boolean;
+  /** 拖拽布局默认配置 */
+  @Prop({ default: () => ({}) }) defaultLayoutConfig: EventRetrievalLayoutProps;
 
   // 数据时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -609,36 +613,39 @@ export default class EventExplore extends tsc<
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (
-              <RetrievalFilter
-                commonWhere={this.commonWhere}
-                defaultShowResidentBtn={this.defaultShowResidentBtn}
-                favoriteList={this.retrievalFilterFavoriteList}
-                fields={this.fieldList}
-                filterMode={this.filterMode}
-                getValueFn={this.getRetrievalFilterValueData}
-                isDefaultResidentSetting={this.isDefaultResidentSetting}
-                isShowCopy={true}
-                isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
-                isShowResident={true}
-                queryString={this.queryString}
-                residentSettingOnlyId={this.residentSettingOnlyId}
-                selectFavorite={this.selectFavoriteWhere}
-                where={this.where}
-                onCommonWhereChange={this.handleCommonWhereChange}
-                onCopyWhere={this.handleCopyWhere}
-                onFavorite={this.handleFavorite}
-                onModeChange={this.handleModeChange}
-                onQueryStringChange={this.handleQueryStringChange}
-                onQueryStringInputChange={this.handleQueryStringInputChange}
-                onSearch={this.updateQueryConfig}
-                onShowResidentBtnChange={this.handleShowResidentBtnChange}
-                onWhereChange={this.handleWhereChange}
-              />
+              <div class='retrieval-filter-container'>
+                {this.$scopedSlots.filterPrepend?.('')}
+                <RetrievalFilter
+                  commonWhere={this.commonWhere}
+                  defaultShowResidentBtn={this.defaultShowResidentBtn}
+                  favoriteList={this.retrievalFilterFavoriteList}
+                  fields={this.fieldList}
+                  filterMode={this.filterMode}
+                  getValueFn={this.getRetrievalFilterValueData}
+                  isDefaultResidentSetting={this.isDefaultResidentSetting}
+                  isShowCopy={true}
+                  isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
+                  queryString={this.queryString}
+                  residentSettingOnlyId={this.residentSettingOnlyId}
+                  selectFavorite={this.selectFavoriteWhere}
+                  where={this.where}
+                  onCommonWhereChange={this.handleCommonWhereChange}
+                  onCopyWhere={this.handleCopyWhere}
+                  onFavorite={this.handleFavorite}
+                  onModeChange={this.handleModeChange}
+                  onQueryStringChange={this.handleQueryStringChange}
+                  onQueryStringInputChange={this.handleQueryStringInputChange}
+                  onSearch={this.updateQueryConfig}
+                  onShowResidentBtnChange={this.handleShowResidentBtnChange}
+                  onWhereChange={this.handleWhereChange}
+                />
+              </div>
             )}
 
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'
+              {...{ props: this.defaultLayoutConfig }}
             >
               <div
                 class='dimension-filter-panel'
