@@ -24,15 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
-import { SPACE_TYPE_MAP } from '@/store/constant';
-import useStore from '../../hooks/use-store';
-import { useRouter, useRoute } from 'vue-router/composables';
 import { useNavMenu } from '@/hooks/use-nav-menu';
-import UserConfigMixin from '../../mixins/userStoreConfig';
-import * as authorityMap from '../../common/authority-map';
+import { SPACE_TYPE_MAP } from '@/store/constant';
 import { debounce } from 'throttle-debounce';
+import { useRouter, useRoute } from 'vue-router/composables';
+
+import * as authorityMap from '../../common/authority-map';
+import useStore from '../../hooks/use-store';
+import UserConfigMixin from '../../mixins/userStoreConfig';
 import List from './list';
+
 import './index.scss';
 
 const userConfigMixin = new UserConfigMixin();
@@ -55,7 +58,7 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
     const navMenu = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
-    
+
     const mySpaceList = navMenu.mySpaceList;
     const checkSpaceChange = navMenu.checkSpaceChange;
     const spaceBgColor = ref('#3799BA');
@@ -69,7 +72,7 @@ export default defineComponent({
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
     const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
-    const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
+    // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
@@ -197,12 +200,12 @@ export default defineComponent({
     // 打开设置/取消默认弹窗
     const openDialog = (data: any, isSetDefault: boolean) => {
       showDialog.value = true;
-      defaultSpace.value = null;// 先清空再赋值，确保弹窗能正确响应
+      defaultSpace.value = null; // 先清空再赋值，确保弹窗能正确响应
       setTimeout(() => {
         defaultSpace.value = data;
         isSetBizIdDefault.value = isSetDefault;
-      })
-    }
+      });
+    };
 
     // 设置/取消默认业务
     const handleDefaultId = async () => {
@@ -210,7 +213,7 @@ export default defineComponent({
       // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'
       const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
       userConfigMixin
-        .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, defaultBizIdApiId.value || 0)
+        .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, '')
         .then(result => {
           if (result) {
             store.commit('SET_APP_STATE', {
@@ -282,79 +285,81 @@ export default defineComponent({
 
     // 下拉框内容渲染
     const dropdownContent = () => {
-      return props.isExpand && (
-        <div
-          class='menu-select-list'
-          style={{ display: showBizList.value ? 'flex' : 'none' }}
-        >
-          {/* 搜索框 */}
-          <bk-input
-            ref={menuSearchInput}
-            class='menu-select-search'
-            clearable={false}
-            placeholder={t('搜索')}
-            value={keyword.value}
-            left-icon='bk-icon icon-search'
-            onChange={handleBizSearchDebounce}
-            onClear={() => handleBizSearchDebounce('')}
-          />
-          {/* 空间列表 */}
-          {showSpaceTypeIdList.value && (
-            <ul
-              id='space-type-ul'
-              class='space-type-list'
-            >
-              {spaceTypeIdList.value.map((item: any) => (
-                <li
-                  style={{
-                    ...item.styles,
-                    borderColor: item.id === searchTypeId.value ? item.styles.color : 'transparent',
-                  }}
-                  class='space-type-item'
-                  key={item.id}
-                  onClick={() => handleSearchType(item.id)}
-                >
-                  {item.name}
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* 业务列表 */}
+      return (
+        props.isExpand && (
           <div
-            ref={bizListRef}
-            style={{ width: `${bizBoxWidth.value}px` }}
-            class='biz-list'
+            style={{ display: showBizList.value ? 'flex' : 'none' }}
+            class='menu-select-list'
           >
-            {generalList.value[0].children.length ? (
-              <List
-                canSetDefaultSpace={props.canSetDefaultSpace as boolean}
-                checked={localValue.value}
-                list={generalList.value[0].children}
-                theme={props.theme as ThemeType}
-                on-HandleClickOutSide={handleClickOutSide}
-                on-HandleClickMenuItem={handleClickMenuItem}
-                on-OpenDialog={openDialog}
-              ></List>
-            ) : (
-              <li class='list-empty'>{t('无匹配的数据')}</li>
-            )}
-          </div>
-          {/* 体验DEMO按钮 */}
-          <div class='menu-select-extension'>
-            {!isExternal.value && demoUid.value && (
-              <div
-                class='menu-select-extension-item'
-                onMousedown={e => {
-                  e.stopPropagation();
-                  experienceDemo();
-                }}
+            {/* 搜索框 */}
+            <bk-input
+              ref={menuSearchInput}
+              class='menu-select-search'
+              clearable={false}
+              left-icon='bk-icon icon-search'
+              placeholder={t('搜索')}
+              value={keyword.value}
+              onChange={handleBizSearchDebounce}
+              onClear={() => handleBizSearchDebounce('')}
+            />
+            {/* 空间列表 */}
+            {showSpaceTypeIdList.value && (
+              <ul
+                id='space-type-ul'
+                class='space-type-list'
               >
-                <span class='icon bklog-icon bklog-app-store'></span>
-                {t('体验DEMO')}
-              </div>
+                {spaceTypeIdList.value.map((item: any) => (
+                  <li
+                    key={item.id}
+                    style={{
+                      ...item.styles,
+                      borderColor: item.id === searchTypeId.value ? item.styles.color : 'transparent',
+                    }}
+                    class='space-type-item'
+                    onClick={() => handleSearchType(item.id)}
+                  >
+                    {item.name}
+                  </li>
+                ))}
+              </ul>
             )}
+            {/* 业务列表 */}
+            <div
+              ref={bizListRef}
+              style={{ width: `${bizBoxWidth.value}px` }}
+              class='biz-list'
+            >
+              {generalList.value[0].children.length ? (
+                <List
+                  canSetDefaultSpace={props.canSetDefaultSpace as boolean}
+                  checked={localValue.value}
+                  list={generalList.value[0].children}
+                  theme={props.theme as ThemeType}
+                  on-HandleClickMenuItem={handleClickMenuItem}
+                  on-HandleClickOutSide={handleClickOutSide}
+                  on-OpenDialog={openDialog}
+                ></List>
+              ) : (
+                <li class='list-empty'>{t('无匹配的数据')}</li>
+              )}
+            </div>
+            {/* 体验DEMO按钮 */}
+            <div class='menu-select-extension'>
+              {!isExternal.value && demoUid.value && (
+                <div
+                  class='menu-select-extension-item'
+                  onMousedown={e => {
+                    e.stopPropagation();
+                    experienceDemo();
+                  }}
+                >
+                  <span class='icon bklog-icon bklog-app-store'></span>
+                  {t('体验DEMO')}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )
       );
     };
 
@@ -392,8 +397,8 @@ export default defineComponent({
             ext-cls='confirm-dialog__set-default'
             footer-position='center'
             mask-close={false}
-            value={showDialog.value}
             transfer={true}
+            value={showDialog.value}
           >
             <div class='confirm-dialog__hd'>
               {isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}

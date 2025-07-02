@@ -25,13 +25,15 @@
  */
 import { defineComponent, ref, computed } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
-import useStore from '../../hooks/use-store';
-import UserConfigMixin from '../../mixins/userStoreConfig';
-import { SPACE_TYPE_MAP } from '../../store/constant';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
-import './list.scss';
 
-const userConfigMixin = new UserConfigMixin();
+import useStore from '../../hooks/use-store';
+// import UserConfigMixin from '../../mixins/userStoreConfig';
+import { SPACE_TYPE_MAP } from '../../store/constant';
+
+import './list.scss';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+
+// const userConfigMixin = new UserConfigMixin();
 
 export enum ETagsType {
   BCS = 'bcs',
@@ -61,7 +63,7 @@ export interface IListItem {
 
 export type ThemeType = 'dark' | 'light';
 
-const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
+// const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 
 export default defineComponent({
   name: 'BizList',
@@ -90,23 +92,23 @@ export default defineComponent({
     const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
-    const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
+    // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
     // 获取用户配置的默认业务ID
-    const getUserConfigId = () => {
-      userConfigMixin
-        .handleGetUserConfig(DEFAULT_BIZ_ID)
-        .then((res: number) => {
-          if (res) {
-            store.commit('SET_APP_STATE', {
-              defaultBizIdApiId: userConfigMixin.storeId,
-            });
-          }
-        })
-        .catch(e => {
-          console.log(e);
-        });
-    };
+    // const getUserConfigId = () => {
+    //   userConfigMixin
+    //     .handleGetUserConfig(DEFAULT_BIZ_ID)
+    //     .then((res: number) => {
+    //       if (res) {
+    //         store.commit('SET_APP_STATE', {
+    //           defaultBizIdApiId: userConfigMixin.storeId,
+    //         });
+    //       }
+    //     })
+    //     .catch(e => {
+    //       console.log(e);
+    //     });
+    // };
 
     // 点击设置/取消默认
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {
@@ -115,8 +117,8 @@ export default defineComponent({
       setTimeout(() => {
         defaultSpace.value = data;
         isSetBizIdDefault.value = isSetDefault;
-        emit('openDialog', defaultSpace.value, isSetBizIdDefault.value);  // 打开弹窗
-        emit('handleClickOutSide');  // 关闭下拉框
+        emit('openDialog', defaultSpace.value, isSetBizIdDefault.value); // 打开弹窗
+        emit('handleClickOutSide'); // 关闭下拉框
       });
     };
 
@@ -126,9 +128,9 @@ export default defineComponent({
     };
 
     // 初始化时获取用户配置ID
-    if (!defaultBizIdApiId.value) {
-      getUserConfigId();
-    }
+    // if (!defaultBizIdApiId.value) {
+    //   getUserConfigId();
+    // }
 
     // 渲染函数
     return () => (
@@ -137,9 +139,6 @@ export default defineComponent({
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
-            items={props.list}
-            item-size={32}
-            buffer={200}  /* 提前加载200px以外的内容 */
             scopedSlots={{
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
@@ -154,8 +153,8 @@ export default defineComponent({
                     <span class='list-item-left'>
                       <span class='list-item-name'>{item.name}</span>
                       <span class={['list-item-id', props.theme]}>
-                        {/* 显示业务ID或空间ID */}
-                        ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
+                        {/* 显示业务ID或空间ID */}(
+                        {item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                       {/* 如果当前业务是默认业务，显示“默认”标签 */}
                       {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
@@ -202,6 +201,9 @@ export default defineComponent({
                 </div>
               ),
             }}
+            buffer={200} /* 提前加载200px以外的内容 */
+            item-size={32}
+            items={props.list}
           />
         ) : (
           // 无数据时显示异常提示
