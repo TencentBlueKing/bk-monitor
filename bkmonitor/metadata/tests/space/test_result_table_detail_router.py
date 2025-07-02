@@ -161,7 +161,7 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
         "1001_bkmonitor_time_series_50010.__default__": {
             "vm_rt": "bkm_1001_bkmonitor_time_series_50010",
             "storage_id": 100111,
-            "cmdb_level_vm_rt":"bkm_1001_bkmonitor_time_series_50010_cmdb",
+            "cmdb_level_vm_rt": "bkm_1001_bkmonitor_time_series_50010_cmdb",
             "cluster_name": "",
             "storage_name": "vm-plat",
             "db": "",
