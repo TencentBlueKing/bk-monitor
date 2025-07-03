@@ -8,21 +8,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
 
 from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.service.space_redis import (
-    push_and_publish_es_aliases,
-    push_and_publish_log_space_router,
-    push_and_publish_es_table_id,
     push_and_publish_doris_table_id_detail,
+    push_and_publish_es_aliases,
+    push_and_publish_es_table_id,
+    push_and_publish_log_space_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,10 +45,13 @@ class ParamsSerializer(serializers.Serializer):
 
 
 class BaseLogRouter(Resource):
-    def create_or_update_options(self, table_id: str, options: list[dict]):
+    def create_or_update_options(self, bk_tenant_id: str, table_id: str, options: list[dict]):
         """创建或者更新结果表 option"""
         # 查询结果表下的option
-        exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
+        exist_objs = {
+            obj.name: obj
+            for obj in models.ResultTableOption.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        }
         need_update_objs, need_add_objs = [], []
         update_fields = set()
 
@@ -67,7 +72,9 @@ class BaseLogRouter(Resource):
                 if need_update:
                     need_update_objs.append(exist_obj)
             else:
-                need_add_objs.append(models.ResultTableOption(table_id=table_id, **dict(option)))
+                need_add_objs.append(
+                    models.ResultTableOption(bk_tenant_id=bk_tenant_id, table_id=table_id, **dict(option))
+                )
 
         # 批量创建
         if need_add_objs:
@@ -75,7 +82,7 @@ class BaseLogRouter(Resource):
         # 批量更新
         if need_update_objs:
             models.ResultTableOption.objects.bulk_update(
-                need_update_objs, update_fields, batch_size=BULK_UPDATE_BATCH_SIZE
+                need_update_objs, list(update_fields), batch_size=BULK_UPDATE_BATCH_SIZE
             )
 
 
@@ -93,26 +100,34 @@ class CreateEsRouter(BaseLogRouter):
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
 
     def perform_request(self, data: OrderedDict):
+        space = models.Space.objects.get(
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+        )
+        bk_tenant_id = space.bk_tenant_id
+
         # 创建结果表和ES存储记录
-        biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
         need_create_index = data.get("need_create_index", True)
         # 创建结果表
         with atomic(config.DATABASE_CONNECTION_NAME):
             models.ResultTable.objects.create(
+                bk_tenant_id=bk_tenant_id,
                 table_id=data["table_id"],
                 table_name_zh=data["table_id"],
                 is_custom_table=True,
                 default_storage=models.ClusterInfo.TYPE_ES,
                 creator="system",
-                bk_biz_id=biz_id,
+                bk_biz_id=space.get_bk_biz_id(),
                 data_label=data.get("data_label") or "",
             )
             # 创建结果表 option
             if data["options"]:
-                self.create_or_update_options(data["table_id"], data["options"])
+                self.create_or_update_options(
+                    bk_tenant_id=bk_tenant_id, table_id=data["table_id"], options=data["options"]
+                )
             # 创建es存储记录
             models.ESStorage.create_table(
-                data["table_id"],
+                bk_tenant_id=bk_tenant_id,
+                table_id=data["table_id"],
                 is_sync_db=False,
                 cluster_id=data.get("cluster_id"),
                 enable_create_index=False,
@@ -123,7 +138,7 @@ class CreateEsRouter(BaseLogRouter):
         # 推送空间数据
         push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
         # 推送别名到结果表数据
-        push_and_publish_es_aliases(data_label=data["data_label"])
+        push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
 
 
 class CreateDorisRouter(BaseLogRouter):
@@ -139,33 +154,41 @@ class CreateDorisRouter(BaseLogRouter):
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
-    def perform_request(self, data: OrderedDict):
+    def perform_request(self, data: dict):
+        space = models.Space.objects.get(
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+        )
+        bk_tenant_id = space.bk_tenant_id
+
         # 创建结果表和存储记录
-        biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
         logger.info(
             "CreateDorisRouter: try to create doris router,table_id->[%s],bkbase_table_id->[%s],bk_biz_id->[%s]",
             data["table_id"],
             data.get("bkbase_table_id"),
-            biz_id,
+            space.get_bk_biz_id(),
         )
 
         # 创建结果表
         with atomic(config.DATABASE_CONNECTION_NAME):
             models.ResultTable.objects.create(
+                bk_tenant_id=bk_tenant_id,
                 table_id=data["table_id"],
                 table_name_zh=data["table_id"],
                 is_custom_table=True,
                 default_storage=models.ClusterInfo.TYPE_DORIS,
                 creator="system",
-                bk_biz_id=biz_id,
+                bk_biz_id=space.get_bk_biz_id(),
                 data_label=data.get("data_label", ""),
             )
             # 创建结果表 option
             if data["options"]:
-                self.create_or_update_options(data["table_id"], data["options"])
+                self.create_or_update_options(
+                    bk_tenant_id=bk_tenant_id, table_id=data["table_id"], options=data["options"]
+                )
 
             # 创建doris存储记录
             models.DorisStorage.create_table(
+                bk_tenant_id=bk_tenant_id,
                 table_id=data["table_id"],
                 is_sync_db=False,
                 source_type=data.get("source_type"),
@@ -175,9 +198,8 @@ class CreateDorisRouter(BaseLogRouter):
             )
 
         logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
-
         # 推送路由 空间路由+结果表详情路由
-        push_and_publish_doris_table_id_detail(table_id=data["table_id"])
+        push_and_publish_doris_table_id_detail(bk_tenant_id=bk_tenant_id, table_id=data["table_id"])
         push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
 
         logger.info("CreateDorisRouter: push doris datalink router success")
@@ -195,15 +217,17 @@ class UpdateEsRouter(BaseLogRouter):
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
 
     def perform_request(self, data: OrderedDict):
+        bk_tenant_id = get_request_tenant_id()
+
         # 查询结果表存在
         table_id = data["table_id"]
         try:
-            result_table = models.ResultTable.objects.get(table_id=table_id)
+            result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         except models.ResultTable.DoesNotExist:
             raise ValidationError("Result table not found")
         # 查询es存储记录
         try:
-            es_storage = models.ESStorage.objects.get(table_id=table_id)
+            es_storage = models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         except models.ESStorage.DoesNotExist:
             raise ValidationError("ES storage not found")
         # 因为可以重复执行，这里可以不设置事务
@@ -230,14 +254,19 @@ class UpdateEsRouter(BaseLogRouter):
             es_storage.save(update_fields=update_es_fields)
         # 更新options
         if data.get("options"):
-            self.create_or_update_options(table_id, data["options"])
+            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
             need_refresh_table_id_detail = True
-        options = list(models.ResultTableOption.objects.filter(table_id=table_id).values("name", "value", "value_type"))
+        options = list(
+            models.ResultTableOption.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values(
+                "name", "value", "value_type"
+            )
+        )
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
-            push_and_publish_es_aliases(data_label=data["data_label"])
+            push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
         if need_refresh_table_id_detail:
             push_and_publish_es_table_id(
+                bk_tenant_id=result_table.bk_tenant_id,
                 table_id=table_id,
                 index_set=es_storage.index_set,
                 source_type=es_storage.source_type,
@@ -258,9 +287,14 @@ class UpdateDorisRouter(BaseLogRouter):
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
     def perform_request(self, data: OrderedDict):
+        space = models.Space.objects.get(
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+        )
+        bk_tenant_id = space.bk_tenant_id
+
         table_id = data["table_id"]
-        doris_storage = models.DorisStorage.objects.get(table_id=table_id)
-        result_table = models.ResultTable.objects.get(table_id=table_id)
+        doris_storage = models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         logger.info("UpdateDorisRouter: try to update doris router for table_id->[%s]", table_id)
 
         update_doris_fields = []
@@ -292,7 +326,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
         # 更新options
         if data.get("options"):
-            self.create_or_update_options(table_id, data["options"])
+            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
             need_refresh_table_id_detail = True
 
         logger.info(
@@ -301,7 +335,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
         if need_refresh_table_id_detail:
             # 推送结果表详情路由
-            push_and_publish_doris_table_id_detail(table_id=table_id)
+            push_and_publish_doris_table_id_detail(bk_tenant_id=result_table.bk_tenant_id, table_id=table_id)
 
         logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
 
@@ -326,15 +360,41 @@ class CreateOrUpdateLogRouter(Resource):
             default=models.ClusterInfo.TYPE_ES,
         )
 
-    def perform_request(self, validated_request_data):
+        class QueryAliasSettingSerializer(serializers.Serializer):
+            field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
+            query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
+
+        query_alias_settings = QueryAliasSettingSerializer(
+            required=False, label="查询别名设置", default=list, many=True
+        )
+
+    def perform_request(self, validated_request_data: dict) -> None:
+        space = models.Space.objects.get(
+            space_type_id=validated_request_data["space_type"],
+            space_id=validated_request_data["space_id"],
+            bk_tenant_id=get_request_tenant_id(),
+        )
+        bk_tenant_id: str = space.bk_tenant_id
+
         # 根据结果表判断是创建或更新
-        table_id = validated_request_data["table_id"]
-        tableObj = self.get_table_id(table_id)
+        table_id: str = validated_request_data["table_id"]
+        tableObj = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+
         logger.info(
             "CreateOrUpdateLogRouter: try to create or update log router for table id->[%s],with storage_type->[%s]",
             table_id,
             validated_request_data["storage_type"],
         )
+
+        # 更新查询别名
+        if validated_request_data.get("query_alias_settings"):
+            operator = get_request_username() or "system"
+            models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                table_id=table_id,
+                query_alias_settings=validated_request_data["query_alias_settings"],
+                operator=operator,
+                bk_tenant_id=bk_tenant_id,
+            )
 
         # 定义创建器和更新器的映射
         create_router_map = {
@@ -358,10 +418,3 @@ class CreateOrUpdateLogRouter(Resource):
             router_class().request(validated_request_data)
         else:
             raise ValueError(f"Unsupported storage type: {validated_request_data['storage_type']}")
-
-    def get_table_id(self, table_id: str) -> models.ResultTable | None:
-        """检测结果表是否存在"""
-        try:
-            return models.ResultTable.objects.get(table_id=table_id)
-        except models.ResultTable.DoesNotExist:
-            return None

@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +20,7 @@ from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
 
-base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
+base_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -28,6 +28,20 @@ def create_or_delete_records(mocker):
     """
     创建或删除测试数据
     """
+    delete_consul_config = mocker.patch(
+        "metadata.models.data_source.DataSource.delete_consul_config", return_value=True
+    )
+    delete_consul_config.start()
+
+    models.Space.objects.all().delete()
+    models.SpaceDataSource.objects.all().delete()
+    models.SpaceResource.objects.all().delete()
+    models.SpaceTypeToResultTableFilterAlias.objects.all().delete()
+    models.DataSource.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+    models.ESStorage.objects.all().delete()
+
     # ---------------------空间数据--------------------- #
     models.Space.objects.create(
         space_type_id="bkcc",
@@ -174,6 +188,7 @@ def create_or_delete_records(mocker):
     models.SpaceDataSource.objects.all().delete()
     models.SpaceResource.objects.all().delete()
     models.SpaceTypeToResultTableFilterAlias.objects.all().delete()
+    delete_consul_config.stop()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -185,11 +200,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
-            expected = (
-                '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},'
-                '"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},'
-                '"bkm_1_record_rule.__default__":{"filters":[]}}'
-            )
+            expected = '{"1001_bklog.stdout|system":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__|system":{"filters":[{"dimensions.bk_biz_id":"1"}]},"bkm_1_record_rule.__default__|system":{"filters":[]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             # 获取实际的调用参数
@@ -198,8 +209,32 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             actual_mapping = args[1]
 
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
+            actual_json = actual_mapping["bkcc__1|system"]
+            assert json.loads(actual_json) == json.loads(expected)
+
+            mock_publish.assert_called_once_with(
+                "bkmonitorv3:spaces:space_to_result_table:channel",
+                ["bkcc__1|system"],
+            )
+
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            settings.ENABLE_MULTI_TENANT_MODE = False
+            client = SpaceTableIDRedis()
+            client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
+
+            expected = (
+                '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},'
+                '"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},'
+                '"bkm_1_record_rule.__default__":{"filters":[]}}'
+            )
+            args, kwargs = mock_hmset_to_redis.call_args
+            actual_redis_key = args[0]
+            actual_mapping = args[1]
+
+            assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
             actual_json = actual_mapping["bkcc__1"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            assert json.loads(actual_json) == json.loads(expected)
 
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
@@ -216,31 +251,20 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
-            expected = (
-                '{"system.cpu_detail":{"filters":[{"bk_biz_id":"1"}]},"system.cpu_summary":{"filters":[{'
-                '"bk_biz_id":"1"}]},"system.disk":{"filters":[{"bk_biz_id":"1"}]},"system.env":{"filters":[{'
-                '"bk_biz_id":"1"}]},"system.inode":{"filters":[{"bk_biz_id":"1"}]},"system.io":{"filters":[{'
-                '"bk_biz_id":"1"}]},"system.load":{"filters":[{"bk_biz_id":"1"}]},"system.mem":{"filters":[{'
-                '"bk_biz_id":"1"}]},"system.net":{"filters":[{"bk_biz_id":"1"}]},"system.netstat":{'
-                '"filters":[{"bk_biz_id":"1"}]},"system.proc":{"filters":[{"bk_biz_id":"1"}]},'
-                '"system.proc_port":{"filters":[{"bk_biz_id":"1"}]},"system.swap":{"filters":[{'
-                '"bk_biz_id":"1"}]},"custom_report_aggate.base":{"filters":[{'
-                '"dimensions.bk_biz_id":"-10000"}]},'
-                '"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]}}'
-            )
+            expected = '{"custom_report_aggate.base|system":{"filters":[{"dimensions.bk_biz_id":"-10000"}]},"bkm_statistics.base|system":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1|system":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2|system":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3|system":{"filters":[{"biz_id":"-10000"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
             actual_redis_key = args[0]
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
-            actual_json = actual_mapping["bkci__bkmonitor"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            actual_json = actual_mapping["bkci__bkmonitor|system"]
+            assert json.loads(actual_json) == json.loads(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["bkci__bkmonitor"],
+                ["bkci__bkmonitor|system"],
             )
 
 
@@ -253,24 +277,20 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
-            expected = (
-                '{"custom_report_aggate.base":{"filters":[{'
-                '"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{'
-                '"dimensions.bk_biz_id":"-10008"}]}}'
-            )
+            expected = '{"custom_report_aggate.base|system":{"filters":[{"bk_biz_id":"-10008"}]},"bkm_statistics.base|system":{"filters":[{"dimensions.bk_biz_id":"-10008"}]},"apm_global.precalculate_storage_1|system":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_2|system":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_3|system":{"filters":[{"biz_id":"-10008"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
             actual_redis_key = args[0]
             actual_mapping = args[1]
             assert actual_redis_key == "bkmonitorv3:spaces:space_to_result_table"
-            actual_json = actual_mapping["bksaas__monitor_saas"]
-            assert json.dumps(actual_json) == json.dumps(expected)
+            actual_json = actual_mapping["bksaas__monitor_saas|system"]
+            assert json.loads(actual_json) == json.loads(expected)
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
                 "bkmonitorv3:spaces:space_to_result_table:channel",
-                ["bksaas__monitor_saas"],
+                ["bksaas__monitor_saas|system"],
             )
 
 

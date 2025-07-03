@@ -327,14 +327,6 @@ class DataAPI:
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
-        # 请求前的参数清洗处理
-        if self.before_request is not None:
-            params = self.before_request(params)
-
-        # 是否有默认返回，调试阶段可用
-        if self.default_return_value is not None:
-            return DataResponse(self.default_return_value, request_id)
-
         # 缓存
         with ignored(Exception):
             cache_key = self._build_cache_key(params)
@@ -343,6 +335,14 @@ class DataAPI:
                 if result is not None:
                     # 有缓存时返回
                     return DataResponse(result, request_id)
+
+        # 请求前的参数清洗处理
+        if self.before_request is not None:
+            params = self.before_request(params)
+
+        # 是否有默认返回，调试阶段可用
+        if self.default_return_value is not None:
+            return DataResponse(self.default_return_value, request_id)
 
         response = None
         error_message = ""
@@ -385,10 +385,7 @@ class DataAPI:
             try:
                 response_result = raw_response.json()
             except Exception:  # pylint: disable=broad-except
-                error_message = "data api response not json format url->[{}] content->[{}]".format(
-                    self.url,
-                    raw_response.text,
-                )
+                error_message = f"data api response not json format url->[{self.url}] content->[{raw_response.text}]"
                 logger.exception(error_message)
 
                 raise DataAPIException(self, _("返回数据格式不正确，结果格式非json."), response=raw_response)
@@ -475,9 +472,7 @@ class DataAPI:
         :return:
         """
         # 缓存
-        cache_str = "url_{url}__params_{params}".format(
-            url=self.build_actual_url(params), params=json.dumps(params, cls=LazyEncoder)
-        )
+        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
@@ -490,6 +485,10 @@ class DataAPI:
         :return:
         """
         cache.set(cache_key, data, self.cache_time)
+
+    @staticmethod
+    def _delete_cache(cache_key):
+        return cache.delete(cache_key)
 
     def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
         """
@@ -909,9 +908,7 @@ class BaseApi:
             module_path, module_name = self.__module__.rsplit(".", 1)  # pylint: disable=unused-variable
             class_name = self.__class__.__name__
 
-            module_str = "apps.api.sites.{run_ver}.{mod}.{api}".format(
-                run_ver=settings.RUN_VER, mod=module_name, api=class_name
-            )
+            module_str = f"apps.api.sites.{settings.RUN_VER}.{module_name}.{class_name}"
             try:
                 mod = import_string(module_str)()
                 attr = getattr(mod, item)
@@ -939,7 +936,7 @@ class PassThroughAPI(DataAPI):
                 is_supported = True
                 break
         if not is_supported:
-            logger.error("【API ERROR】%s 暂不支持透传" % sub_url)
+            logger.error(f"【API ERROR】{sub_url} 暂不支持透传")
             raise PermissionError(
                 _("非法请求，模块【{module}】，方法【{method}】，接口【{sub_url}】").format(
                     module=module, method=method, sub_url=sub_url
