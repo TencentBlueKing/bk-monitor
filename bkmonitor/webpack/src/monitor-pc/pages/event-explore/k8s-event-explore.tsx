@@ -33,7 +33,7 @@ import EventExplore from './event-explore';
 
 import type { IFormData } from './typing';
 
-import './apm-event-explore.scss';
+import './k8s-event-explore.scss';
 
 interface K8sEventExploreProps {
   dataId: string;
@@ -157,7 +157,7 @@ export default class K8sEventExplore extends tsc<
   render() {
     return (
       <EventExplore
-        class={'apm-event-explore'}
+        class={'k8s-event-explore'}
         defaultLayoutConfig={{
           defaultWidth: 280,
         }}
@@ -166,6 +166,7 @@ export default class K8sEventExplore extends tsc<
         dataSourceLabel={this.dataSourceLabel}
         dataTypeLabel={this.dataTypeLabel}
         filterMode={this.filterMode}
+        isK8sEvent={true}
         queryString={this.queryString}
         scopedSlots={this.$scopedSlots}
         source={APIType.MONITOR}

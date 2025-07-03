@@ -80,6 +80,7 @@ interface IProps {
   eventSourceType?: ExploreSourceTypeEnum[];
   hideFeatures?: HideFeatures;
   defaultLayoutConfig?: EventRetrievalLayoutProps;
+  isK8sEvent?: boolean;
 }
 
 interface IEvent {
@@ -130,6 +131,8 @@ export default class EventExplore extends tsc<
   @Prop({ default: false, type: Boolean }) defaultShowResidentBtn: boolean;
   /** 拖拽布局默认配置 */
   @Prop({ default: () => ({}) }) defaultLayoutConfig: EventRetrievalLayoutProps;
+  /* 是否为容器监控事件场景 */
+  @Prop({ default: false, type: Boolean }) isK8sEvent: boolean;
 
   // 数据时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -616,6 +619,9 @@ export default class EventExplore extends tsc<
               <div class='retrieval-filter-container'>
                 {this.$scopedSlots.filterPrepend?.('')}
                 <RetrievalFilter
+                  isShowFavorite={
+                    !this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR && !this.isK8sEvent
+                  }
                   commonWhere={this.commonWhere}
                   defaultShowResidentBtn={this.defaultShowResidentBtn}
                   favoriteList={this.retrievalFilterFavoriteList}
@@ -623,8 +629,8 @@ export default class EventExplore extends tsc<
                   filterMode={this.filterMode}
                   getValueFn={this.getRetrievalFilterValueData}
                   isDefaultResidentSetting={this.isDefaultResidentSetting}
-                  isShowCopy={true}
-                  isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
+                  isShowCopy={!this.isK8sEvent}
+                  isShowResident={!this.isK8sEvent}
                   queryString={this.queryString}
                   residentSettingOnlyId={this.residentSettingOnlyId}
                   selectFavorite={this.selectFavoriteWhere}
