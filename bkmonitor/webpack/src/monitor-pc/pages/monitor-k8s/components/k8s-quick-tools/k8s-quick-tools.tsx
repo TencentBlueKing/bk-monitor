@@ -24,17 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Prop, Component, Emit, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
+import { Prop, Component, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
-import { dimensionSceneMap } from '../../k8s-dimension';
+import { DimensionSceneMap, SceneAliasMap } from '../../k8s-dimension';
 
 import type { SceneEnum } from '../../typings/k8s-new';
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
+import './k8s-quick-tools.scss';
+
 interface K8sQuickToolsProps {
+  scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   groupByField: K8sTableColumnResourceKey;
   /** 点击工具栏时的数据值 */
@@ -43,20 +46,22 @@ interface K8sQuickToolsProps {
   filters: string[];
   /** 是否启用下钻功能 */
   enableDrillDown: boolean;
+  /** 是否开启 添加/移除 筛选项 功能 */
+  enableFilter: boolean;
 }
 
 interface K8sQuickToolsEmits {
   /** 下钻事件 */
-  drillDown: (item: K8sTableGroupByEvent) => void;
+  onDrillDown: (item: K8sTableGroupByEvent) => void;
   /** 筛选事件 */
-  filterChange: (filterValue: string, groupByField: K8sTableColumnResourceKey, isSelect: boolean) => void;
+  onFilterChange: (filterValue: string, groupByField: K8sTableColumnResourceKey, isSelect: boolean) => void;
   /** 场景切换事件 */
-  sceneChange: (value: string) => void;
+  onSceneChange: (value: string) => void;
 }
+@Component
 export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickToolsEmits> {
-  /** 场景下拉菜单 dom 实例 */
-  @Ref('sceneRef') sceneRef: any;
-
+  /** 当前所在场景 */
+  @Prop({ type: String }) scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   @Prop({ type: String }) groupByField!: K8sTableColumnResourceKey;
   /** 点击工具栏时的数据值 */
@@ -68,6 +73,10 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   /** 是否开启 添加/移除 筛选项 功能 */
   @Prop({ type: Boolean, default: true }) enableFilter: boolean;
 
+  /** 场景下拉菜单 dom 实例 */
+  @Ref('sceneRef') sceneRef: any;
+
+  /** popover 实例 */
   popoverInstance = null;
 
   /** 添加/移除 筛选项工具icon配置 */
@@ -85,7 +94,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
 
   /** 场景下拉菜单列表数据 */
   get sceneMenuList() {
-    const sceneList = (dimensionSceneMap[this.groupByField] || []).filter(v => v !== this.groupByField);
+    const sceneList = (DimensionSceneMap[this.groupByField] || []).filter(v => v !== this.scene);
     return sceneList;
   }
 
@@ -123,10 +132,13 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   async handlePopoverShow(e) {
     this.popoverInstance = this.$bkPopover(e.target, {
       content: this.sceneRef,
+      maxWidth: 'none',
+      animateFill: false,
       trigger: 'click',
       placement: 'bottom-start',
-      theme: 'light common-monitor',
+      theme: 'light common-monitor k8s-scene-popover',
       arrow: false,
+      distance: 4,
       interactive: true,
       followCursor: false,
       onHidden: () => {
@@ -155,7 +167,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
               class='menu-item'
               onClick={() => this.handleSceneChange(scene)}
             >
-              {scene}
+              {SceneAliasMap[scene]}
             </li>
           ))}
         </ul>
@@ -166,6 +178,17 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   render() {
     return (
       <div class='k8s-quick-tools'>
+        {this.enableFilter ? (
+          <div
+            class='tool-item filter-tool'
+            v-bk-tooltips={{ content: this.$t(this.filterToolConfig.text), interactive: false }}
+          >
+            <i
+              class={this.filterToolConfig.className}
+              onClick={this.handleFilterChange}
+            />
+          </div>
+        ) : null}
         {this.enableDrillDown ? (
           <K8sDimensionDrillDown
             class='tool-item drill-down-tool'
@@ -174,20 +197,13 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
             onHandleDrillDown={this.handleDrillDown}
           />
         ) : null}
-        {this.enableFilter ? (
-          <div class='tool-item filter-tool'>
-            <i
-              class={this.filterToolConfig.className}
-              v-bk-tooltips={{ content: this.$t(this.filterToolConfig.text), interactive: false }}
-              onClick={this.handleFilterChange}
-            />
-          </div>
-        ) : null}
         {this.sceneMenuList?.length ? (
-          <div class={`tool-item scene-tool ${this.popoverInstance ? 'active' : ''}`}>
+          <div
+            class={`tool-item scene-tool ${this.popoverInstance ? 'active' : ''}`}
+            v-bk-tooltips={{ content: this.$t('查看该对象的其他场景'), interactive: false }}
+          >
             <i
               class='icon-monitor icon-switch'
-              v-bk-tooltips={{ content: this.$t('查看该对象的其他场景'), interactive: false }}
               onClick={this.handlePopoverShow}
             />
           </div>

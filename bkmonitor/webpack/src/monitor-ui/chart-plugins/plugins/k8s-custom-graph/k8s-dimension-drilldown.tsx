@@ -91,7 +91,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
     if (!this.drillDownList?.length) {
       return 'none';
     }
-    return 'block';
+    return 'flex';
   }
 
   async handleDrillDown(id: number | string, e: Event) {
@@ -135,7 +135,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
     return (
       <div
         style={{ display: this.disabledDownDrill }}
-        class='k8s-dimension-drillDown'
+        class={`k8s-dimension-drillDown ${this.disabledDownDrill === 'none' ? 'hidden' : ''}`}
       >
         <div
           class={{

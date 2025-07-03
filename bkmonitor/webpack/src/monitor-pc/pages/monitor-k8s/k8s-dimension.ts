@@ -41,6 +41,16 @@ import type {
   K8sTableSortContainer,
 } from './components/k8s-table-new/k8s-table-new';
 
+/** 场景别名映射表 */
+export const SceneAliasMap = {
+  [SceneEnum.Performance]: window.i18n.t('性能'),
+  [SceneEnum.Network]: window.i18n.t('网络'),
+  [SceneEnum.Capacity]: window.i18n.t('容量'),
+  [SceneEnum.Event]: window.i18n.t('事件'),
+  [SceneEnum.Storage]: window.i18n.t('存储'),
+  [SceneEnum.Cost]: window.i18n.t('成本'),
+};
+
 export const sceneDimensionMap = {
   [SceneEnum.Performance]: [
     EDimensionKey.namespace,
@@ -56,7 +66,7 @@ export const sceneDimensionMap = {
  * 转换后的维度-场景映射表
  * 结构: {维度: 场景数组}
  */
-export const dimensionSceneMap = Object.entries(sceneDimensionMap).reduce(
+export const DimensionSceneMap = Object.entries(sceneDimensionMap).reduce(
   (acc, [scene, dimensions]) => {
     for (const dimension of dimensions) {
       if (!acc[dimension]) {
