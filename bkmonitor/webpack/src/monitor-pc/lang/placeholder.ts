@@ -329,7 +329,6 @@ export default {
   请输入需要翻译的内容: 'Please enter the content to be translated',
   请选择语言: 'Please select the language',
   待翻译文本: 'Text to be translated',
-  内容: 'Content',
   解释: 'Explanation',
   翻译: 'Translation',
 };
