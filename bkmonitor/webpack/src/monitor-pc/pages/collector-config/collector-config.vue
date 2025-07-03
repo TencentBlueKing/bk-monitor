@@ -209,7 +209,10 @@
                 <template v-else-if="column.prop === 'updateUser'">
                   <div class="col-update-log">
                     <div class="col-update-log-label">
-                      {{ scope.row.updateUser || '--' }}
+                      <template v-if="scope.row.updateUser">
+                        <bk-user-display-name :user-id="scope.row.updateUser" />
+                      </template>
+                      <template v-else> '--' </template>
                     </div>
                     <div>{{ scope.row.updateTime || '--' }}</div>
                   </div>

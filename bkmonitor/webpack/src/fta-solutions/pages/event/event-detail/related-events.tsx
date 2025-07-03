@@ -211,7 +211,19 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{row?.assignee?.join(',') || '--'}</span>,
+          formatter: (row: IEventItem) => (
+            <span>
+              {row?.assignee?.length
+                ? row?.assignee.map((v, index, arr) => [
+                    <bk-user-display-name
+                      key={`user-display-${v}`}
+                      user-id={v}
+                    />,
+                    index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
+                  ])
+                : '--'}
+            </span>
+          ),
         },
       },
       {
@@ -233,13 +245,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   allowHTML: true,
                 }}
               >
-                {tags.slice(0, 2).map(item => [
-                  <span
-                    key={'tags-item'}
-                    class='tags-item'
-                  >{`${item.key}: ${item.value}`}</span>,
-                  <br key={2} />,
-                ])}
+                {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
               </span>
             ) : (
               '--'
@@ -527,7 +533,18 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         children: [
-          { title: this.$t('负责人'), content: child?.assignee?.join(',') || '--' },
+          {
+            title: this.$t('负责人'),
+            content: child?.assignee?.length
+              ? child?.assignee.map((v, index, arr) => [
+                  <bk-user-display-name
+                    key={`user-display-${v}`}
+                    user-id={v}
+                  />,
+                  index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
+                ])
+              : '--',
+          },
           { title: this.$t('平台事件ID'), content: child.id },
         ],
       },

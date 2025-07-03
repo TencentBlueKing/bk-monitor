@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, watch } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Tag, Select } from 'bkui-vue';
+import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
 
+import UserDisplayNameTags from '../../../components/collapse-tags/user-display-name-tags';
 import { useTagsOverflow } from './tags-utils';
 
 import type { ICurrentISnapshot, IIncident } from '../types';
 
-// import TagShow from './tag-show';
 import './failure-tags.scss';
 
 export default defineComponent({
@@ -48,19 +49,17 @@ export default defineComponent({
       '--animation-timeline': 0.5,
       '--animation-delay': 0.2,
     };
-    const isHover = ref<boolean>(false);
-    const isShow = ref<boolean>(false);
-    const selectCollapseTagsStatus = ref<boolean>(!isHover.value);
+    const isHover = shallowRef<boolean>(false);
+    const isShow = shallowRef<boolean>(false);
+    const selectCollapseTagsStatus = shallowRef<boolean>(!isHover.value);
     let selectDelayTimer: any = null;
-    const failureTags = ref<HTMLDivElement>();
-    const tagsRefs = ref([]);
-    const collapseTagRef = ref();
-    const itemMainRefs = ref([]);
+    const failureTags = shallowRef<HTMLDivElement>();
+    const tagsRefs = shallowRef([]);
+    const collapseTagRef = shallowRef();
+    const itemMainRefs = shallowRef([]);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const incidentDetailData = computed(() => {
-      return incidentDetail.value;
-    });
+    const incidentDetailData = computed(() => incidentDetail.value);
     const failureTagsShowStates = computed(() => (isHover.value ? 'failure-tags-show-all' : 'failure-tags-show-omit'));
     const failureTagsPostionsStates = computed(() =>
       isShow.value ? 'failure-tags-positons-relative' : 'failure-tags-positions-absolute'
@@ -79,6 +78,7 @@ export default defineComponent({
     const handleToSpan = () => {
       emit('toSpan');
     };
+
     const renderList = [
       {
         label: t('影响空间'),
@@ -193,17 +193,11 @@ export default defineComponent({
       {
         label: t('故障负责人'),
         renderFn: () => {
-          const list = incidentDetailData.value?.assignees || [];
-          return list.length === 0 ? (
-            <span class='empty-text'>--</span>
-          ) : (
-            <Select
+          return (
+            <UserDisplayNameTags
               class='principal-tag'
-              clearable={false}
-              collapseTags={selectCollapseTagsStatus.value}
-              modelValue={list}
-              multipleMode='tag'
-              disabled
+              data={incidentDetailData.value?.assignees}
+              enableEllipsis={selectCollapseTagsStatus.value}
             />
           );
         },
@@ -224,16 +218,16 @@ export default defineComponent({
       }
     };
     const expandCollapseHandleDebounced = debounce(expandCollapseHandle, 300);
-    const expandIsHoverHandle = () => {
+    const expandIsHoverHandle = (v: boolean) => {
       if (isShow.value) return;
-      isHover.value = !isHover.value;
+      isHover.value = v;
     };
 
     // 由于使用了组件库中的下拉框，在进行动画效果无法使用css处理保证同步，
     // 所以使用js 定时器来控制
     watch(isHover, val => {
+      clearTimeout(selectDelayTimer);
       if (!val) {
-        clearTimeout(selectDelayTimer);
         selectDelayTimer = setTimeout(
           () => {
             selectCollapseTagsStatus.value = !val;
@@ -285,8 +279,8 @@ export default defineComponent({
         <div class='failure-tags-container'>
           <div
             class='failure-tags-main'
-            onMouseenter={this.expandIsHoverHandle}
-            onMouseleave={this.expandIsHoverHandle}
+            onMouseenter={() => this.expandIsHoverHandle(true)}
+            onMouseleave={() => this.expandIsHoverHandle(false)}
           >
             {this.playLoading && <div class='failure-tags-loading' />}
             {this.renderList.map((item, index) => (
