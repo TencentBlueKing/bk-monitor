@@ -19,15 +19,17 @@
         >
         <span
           class="field-value"
+          :data-with-intersection="true"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
+          v-html="item.formatter.value"
         ></span>
       </span>
     </template>
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount } from 'vue';
 
   // @ts-ignore
   import { parseTableRowData } from '@/common/util';
@@ -56,11 +58,16 @@
       type: Boolean,
       default: true,
     },
+    isIntersection: {
+      type: Boolean,
+      default: false,
+    },
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
+  const isResolved = ref(props.isIntersection);
 
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const fieldList = computed(() => {
@@ -140,13 +147,25 @@
   const debounceUpdate = debounce(() => {
     updateRootFieldOperator(rootList.value, depth.value);
     setEditor(depth.value);
+    isResolved.value = true;
     setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
-  }, 100);
+  }, 120);
+
+  watch(
+    () => [props.isIntersection],
+    () => {
+      if (props.isIntersection && !isResolved.value) {
+        debounceUpdate();
+      }
+    },
+  );
 
   watch(
     () => [formatCounter.value],
     () => {
-      debounceUpdate();
+      if (isResolved.value) {
+        debounceUpdate();
+      }
     },
     {
       immediate: true,
@@ -199,6 +218,13 @@
         word-break: break-all;
       }
 
+      [data-with-intersection] {
+        font-family: var(--bklog-v3-row-ctx-font);
+        font-size: var(--table-fount-size);
+        color: var(--table-fount-color);
+        white-space: pre-wrap;
+      }
+
       &:not(:first-child) {
         margin-top: 1px;
       }
@@ -226,13 +252,13 @@
       }
 
       mark {
+        background-color: rgb(250, 238, 177);
         &.valid-text {
           white-space: pre-wrap;
         }
       }
 
       .valid-text {
-        padding: 2px 0;
         :hover {
           color: #3a84ff;
           cursor: pointer;
@@ -272,12 +298,9 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 2px 0;
 
         &.focus-text,
         &:hover {
-          // background-color: #cddffe;
-          // border-radius: 2px;
           color: #3a84ff;
         }
       }
@@ -318,7 +341,6 @@
     }
 
     mark {
-      padding: 0 2px;
       border-radius: 2px;
     }
   }
@@ -339,7 +361,6 @@
 
       .valid-text {
         cursor: pointer;
-        padding: 2px 0;
         white-space: pre-wrap;
 
         &.focus-text,

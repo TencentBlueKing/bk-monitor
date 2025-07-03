@@ -888,7 +888,7 @@ class TimeSeriesDataSource(DataSource):
         index_set_id = query_config.get("index_set_id")
 
         return cls(
-            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+            bk_tenant_id=kwargs.get("bk_tenant_id") or bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
             table=query_config.get("result_table_id", ""),
             metrics=metrics,
@@ -1279,6 +1279,8 @@ class BkMonitorTimeSeriesDataSource(TimeSeriesDataSource):
         group_by: list[str] | None = None,
         **kwargs,
     ):
+        # ！！！cmdb level 数据查询路由逻辑！！！
+
         if settings.IS_ACCESS_BK_DATA and cls.is_cmdb_level_query(
             where=agg_condition, filter_dict=where, group_by=group_by
         ):

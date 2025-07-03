@@ -857,7 +857,7 @@ const store = new Vuex.Store({
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
 
-      if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
+      // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
       const {
@@ -1710,27 +1710,27 @@ const store = new Vuex.Store({
 
     changeShowUnionSource({ commit, dispatch, state }) {
       commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
-      dispatch('showShowUnionSource', { keepLastTime: false });
+      // dispatch('showShowUnionSource', { keepLastTime: false });
     },
 
     /** 日志来源显隐操作 */
-    showShowUnionSource({ state }, { keepLastTime = false }) {
-      // 非联合查询 或者清空了所有字段 不走逻辑
-      if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
-      const isExist = state.visibleFields.some(item => item.tag === 'union-source');
-      // 保持之前的逻辑
-      if (keepLastTime) {
-        const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
-        if (isExist) {
-          !isShowSourceField && state.visibleFields.shift();
-        } else {
-          isShowSourceField && state.visibleFields.unshift(logSourceField());
-        }
-        return;
-      }
+    // showShowUnionSource({ state }, { keepLastTime = false }) {
+    //   // 非联合查询 或者清空了所有字段 不走逻辑
+    //   if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
+    //   const isExist = state.visibleFields.some(item => item.tag === 'union-source');
+    //   // 保持之前的逻辑
+    //   if (keepLastTime) {
+    //     const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
+    //     if (isExist) {
+    //       !isShowSourceField && state.visibleFields.shift();
+    //     } else {
+    //       isShowSourceField && state.visibleFields.unshift(logSourceField());
+    //     }
+    //     return;
+    //   }
 
-      isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
-    },
+    //   isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
+    // },
     requestSearchTotal({ state, getters }) {
       state.searchTotal = 0;
       const start_time = Math.floor(getters.retrieveParams.start_time);

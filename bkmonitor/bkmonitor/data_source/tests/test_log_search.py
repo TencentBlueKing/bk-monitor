@@ -14,9 +14,6 @@ from bkmonitor.data_source.handler import DataQueryHandler
 
 
 class TestLogSearch:
-    def __init__(self) -> None:
-        self.q_obj = DataQueryHandler("bk_log_search", "time_series")
-
     def setup_method(self, method):
         self.q_obj = DataQueryHandler("bk_log_search", "time_series")
         print("before {}: {}".format(method, self.q_obj), file=sys.stderr)  # noqa

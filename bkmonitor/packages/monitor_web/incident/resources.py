@@ -64,9 +64,11 @@ class IncidentBaseResource(Resource):
     def get_snapshot_alerts(cls, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
         alert_ids = snapshot.get_related_alert_ids()
         if "bk_biz_ids" not in kwargs:
-            kwargs["bk_biz_ids"] = list(
-                map(lambda x: int(x), snapshot.incident_snapshot_content["rca_summary"]["bk_biz_ids"])
+            bk_biz_ids = list(
+                map(lambda x: int(x), snapshot.incident_snapshot_content.get("rca_summary", {}).get("bk_biz_ids", []))
             )
+            if bk_biz_ids:
+                kwargs["bk_biz_ids"] = bk_biz_ids
         return cls.get_alerts_by_alert_ids(alert_ids, **kwargs)
 
     @classmethod
@@ -952,9 +954,14 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
             }
 
         for alert in alerts:
-            alert["entity"] = snapshot.alert_entity_mapping[alert["id"]].entity.to_src_dict()
-            is_root = alert["entity"]["is_root"]
-            is_feedback_root = getattr(incident.feedback, "incident_root", None) == alert["entity"]["entity_id"]
+            alert_with_entity = snapshot.alert_entity_mapping.get(alert["id"])
+            alert["entity"] = alert_with_entity.entity.to_src_dict() if alert_with_entity else None
+            is_root = alert["entity"]["is_root"] if alert["entity"] else False
+            is_feedback_root = (
+                getattr(incident.feedback, "incident_root", None) == alert["entity"]["entity_id"]
+                if alert["entity"]
+                else False
+            )
 
             aggregate_layer_results = aggregate_results
             for aggregate_by in aggregate_bys:
@@ -972,7 +979,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
                         "level_name": agg_dim.value,
                         "count": 1,
                         "children": {},
-                        "related_entities": [alert["entity"]["entity_id"]],
+                        "related_entities": [alert["entity"]["entity_id"]] if alert["entity"] else [],
                         "alert_ids": [str(alert["id"])],
                         "is_root": is_root,
                         "is_feedback_root": is_feedback_root,
@@ -1002,7 +1009,10 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
 
                     # 其他依赖配置
                     aggregate_layer_results[aggregate_by_value]["count"] += 1
-                    aggregate_layer_results[aggregate_by_value]["related_entities"].append(alert["entity"]["entity_id"])
+                    if alert["entity"]:
+                        aggregate_layer_results[aggregate_by_value]["related_entities"].append(
+                            alert["entity"]["entity_id"]
+                        )
                     aggregate_layer_results[aggregate_by_value]["alert_ids"].append(str(alert["id"]))
                     aggregate_layer_results[aggregate_by_value]["is_root"] = (
                         aggregate_layer_results[aggregate_by_value]["is_root"] or is_root
@@ -1289,6 +1299,8 @@ class IncidentAlertListResource(IncidentBaseResource):
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
+                if alert_entity
+                else False
             )
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
@@ -1329,7 +1341,9 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
-                getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
+                (getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id)
+                if alert_entity
+                else False
             )
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
@@ -1400,6 +1414,7 @@ class IncidentResultsResource(IncidentBaseResource):
         # 去除前面的时间戳
         incident_id = str(validated_request_data["id"])[10:]
         diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        topology_enabled = diagnosis_results.get("topology_enabled", False)
         sub_panel_status = {"status": None, "enabled": None, "sub_panels": {}}
         for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
             sub_panel_status["sub_panels"][sub_panel_name] = {
@@ -1420,7 +1435,7 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": "finished",
                 },
                 "incident_topology": {  # 故障拓扑tab
-                    "enabled": True,
+                    "enabled": topology_enabled,
                     "status": "finished",
                 },
                 "incident_alerts": {  # 故障告警tab
@@ -1453,14 +1468,14 @@ class IncidentResultsResource(IncidentBaseResource):
             incident_results["status"] = "finished"
         elif any(
             [
-                panel_properties.get("status") == "failed"
+                panel_properties.get("status") == "running"
                 for panel_properties in incident_results[sub_key].values()
                 if panel_properties.get("enabled")
             ]
         ):
-            incident_results["status"] = "failed"
-        else:
             incident_results["status"] = "running"
+        else:
+            incident_results["status"] = "failed"
 
 
 class IncidentDiagnosisResource(IncidentBaseResource):

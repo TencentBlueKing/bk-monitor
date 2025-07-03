@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import functools
+import json
 import operator
 from io import BytesIO
 from typing import Any
@@ -161,20 +162,44 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
     :param pattern: 高亮内容的正则表达式
     :param ignore_case: 是否忽略大小写
     """
-    if not data_list or not match_field or not pattern or match_field not in data_list[0]:
+    if not data_list or not match_field or not pattern or ("." not in match_field and match_field not in data_list[0]):
         return data_list
 
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
-        value = data[match_field]
-        if not isinstance(value, str):
-            value = str(value)
-        data[match_field] = re.sub(
-            pattern,
-            lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
-            value,
-            flags=re.I if ignore_case else 0,
-        )
+        if "." in match_field:
+            json_data = json.loads(data[match_field.split(".")[0]])
+            tmp_dic = json_data
+            keys = match_field.split(".")
+            first_key = keys[0]
+            last_key = keys[-1]
+            for key in keys[1:]:
+                if isinstance(json_data, dict) and key in json_data:
+                    if key == last_key:
+                        value = json_data[last_key]
+                    else:
+                        json_data = json_data[key]
+                else:
+                    continue
+            if not isinstance(value, str):
+                value = str(value)
+            json_data[last_key] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
+            data[first_key] = json.dumps(tmp_dic)
+        else:
+            value = data[match_field]
+            if not isinstance(value, str):
+                value = str(value)
+            data[match_field] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
 
     return data_list
 
