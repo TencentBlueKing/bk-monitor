@@ -31,7 +31,7 @@ export const USER_GROUP_TYPE = new Set(['userGroup', 'group']);
 export const getUserComponentConfig = (): ConfigOptions => {
   if (window.enable_multi_tenant_mode) {
     return {
-      tenantId: 'system',
+      tenantId: window.bk_tenant_id,
       apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,
       cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
       emptyText: '--',
