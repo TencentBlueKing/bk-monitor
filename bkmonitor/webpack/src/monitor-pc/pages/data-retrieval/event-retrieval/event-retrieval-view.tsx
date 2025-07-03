@@ -29,7 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { toPng } from 'html-to-image';
 import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
-import { Debounce, deepClone, random, getUrlParam } from 'monitor-common/utils/utils';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import BackTop from '../../../components/back-top/back-top';
@@ -361,8 +362,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: needMenu相关处理
    */
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.needMenu = `${needMenu}` !== 'false';
+    this.needMenu = globalUrlFeatureMap.NEED_MENU;
     !this.needMenu && this.handleMergeUrlColumns();
     this.handleNeedMenuChange();
   }

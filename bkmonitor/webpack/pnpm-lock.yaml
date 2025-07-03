@@ -344,8 +344,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.12
-        version: 1.1.0-beta.12(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.1.0-beta.13
+        version: 1.1.0-beta.13(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -359,8 +359,8 @@ importers:
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.46
-        version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)
+        specifier: 2.0.0-beta.48
+        version: 2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -610,8 +610,8 @@ importers:
         specifier: 0.0.29-beta.10
         version: 0.0.29-beta.10(@blueking/bkui-library@0.0.0-beta.6)
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.46
-        version: 2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
+        specifier: 2.0.0-beta.48
+        version: 2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -1501,8 +1501,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.12':
-    resolution: {integrity: sha512-cxz+sUWvuHqZTM9K2ZuBD715emU2Urf0RTS+eeZpr46upaBRUKb1C4U3yU6SWVl8fK5oos3T0QaQathulzbLVQ==}
+  '@blueking/ai-blueking@1.1.0-beta.13':
+    resolution: {integrity: sha512-jZYS8RRtIx3tYoyjGV9YEewKkdTKrLuxhRfKpASOgUZLZbTF3yM7kdSCCLpF9ptV8JRTKDHseIXdpw69/azEaA==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -1549,8 +1549,8 @@ packages:
   '@blueking/bkui-library@0.0.0-beta.6':
     resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
 
-  '@blueking/date-picker@2.0.0-beta.46':
-    resolution: {integrity: sha512-Xerwov/AStqwuxX9HvOOb9368vz7nRb4TE5U/l71mUWMc3PpThCN+JOV4ufSK+fhMQ+bMzxKjmY5UMa2DcEeIw==}
+  '@blueking/date-picker@2.0.0-beta.48':
+    resolution: {integrity: sha512-w7bKluSr1KOrq8ZvqAoscbgrzn69BDFkuBKu/VB2qJVTMV1yk76kys89jA/rf/gf6mZqG7YXUiv1f6uIuSNaOQ==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
@@ -9709,7 +9709,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.12(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.1.0-beta.13(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.1.11(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
@@ -9915,14 +9915,14 @@ snapshots:
     dependencies:
       '@vue/runtime-dom': 3.5.15
 
-  '@blueking/date-picker@2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)':
+  '@blueking/date-picker@2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
       bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16)
       dayjs: 1.11.13
       vue: 2.7.16
 
-  '@blueking/date-picker@2.0.0-beta.46(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))':
+  '@blueking/date-picker@2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3))

@@ -2110,7 +2110,7 @@ class SearchHandler:
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
-        if self.index_set and self.index_set.max_analyzed_offset:
+        if self.index_set and self.index_set.max_analyzed_offset and not self.using_clustering_proxy:
             highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:

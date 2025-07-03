@@ -44,6 +44,49 @@ export default class AiBluekingWrapper extends tsc<object> {
   get message() {
     return aiWhaleStore.message;
   }
+  get shortcuts() {
+    return [
+      {
+        id: 'explanation',
+        name: this.$t('解释'),
+        icon: 'bkai-help',
+        components: [
+          {
+            type: 'textarea',
+            key: 'content',
+            name: this.$t('内容'),
+            fillBack: true,
+            placeholder: this.$t('请输入需要解释的内容'),
+          },
+        ],
+      },
+      {
+        id: 'translate',
+        name: this.$t('翻译'),
+        icon: 'bkai-translate',
+        components: [
+          {
+            type: 'textarea',
+            key: 'content',
+            name: this.$t('待翻译文本'),
+            fillBack: true,
+            placeholder: this.$t('请输入需要翻译的内容'),
+          },
+          {
+            type: 'select',
+            key: 'language',
+            name: this.$t('语言'),
+            placeholder: this.$t('请选择语言'),
+            default: 'english',
+            options: [
+              { label: 'English', value: 'english' },
+              { label: '中文', value: 'chinese' },
+            ],
+          },
+        ],
+      },
+    ];
+  }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
     if (newVal) {
@@ -65,10 +108,10 @@ export default class AiBluekingWrapper extends tsc<object> {
       <div class='ai-blueking-wrapper'>
         <AIBlueking
           ref='aiBlueking'
-          enablePopup={false}
+          enablePopup={true}
           hideNimbus={true}
           prompts={[]}
-          shortcuts={[]}
+          shortcuts={this.shortcuts}
           url={this.apiUrl}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
