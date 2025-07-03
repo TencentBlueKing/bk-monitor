@@ -91,6 +91,20 @@
         padding: 4px 12px;
         line-height: 22px;
 
+        mark {
+          background-color: rgb(250, 238, 177);
+        }
+
+        .bklog-v3-column-placeholder {
+          word-break: break-all;
+          display: inline-block;
+          overflow: hidden;
+          font-family: var(--bklog-v3-row-ctx-font);
+          font-size: var(--table-fount-size);
+          max-height: var(--max-height);
+          line-height: 20px;
+        }
+
         &.left,
         &.right {
           align-self: stretch;
