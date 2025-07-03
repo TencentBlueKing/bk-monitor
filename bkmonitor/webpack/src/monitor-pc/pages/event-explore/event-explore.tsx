@@ -496,7 +496,7 @@ export default class EventExplore extends tsc<
   /** 跳转添加告警策略 */
   handleAddAlertPolicy() {
     const { data_source_label, data_type_label, table, where, query_string } = this.queryConfig;
-    const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id;
+    const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id || '';
     const queryConfigs = [
       {
         data_source_label,
@@ -510,19 +510,22 @@ export default class EventExplore extends tsc<
         item: '',
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
-        metrics: [{ alias: 'a', field: field || '', method: 'COUNT' }],
+        metrics: [{ alias: 'a', field, method: 'COUNT' }],
       },
     ];
     const queryData = {
       expression: 'a',
       query_configs: queryConfigs,
     };
-    const { href } = this.$router.resolve({
+    let { href } = this.$router.resolve({
       name: 'strategy-config-add',
       query: {
         data: JSON.stringify(queryData),
       }
     });
+    if (this.source === APIType.APM) {
+      href = href.replace('#/?', '#/strategy-config/add/?');
+    }
     window.open(href, '_blank');
   }
 
