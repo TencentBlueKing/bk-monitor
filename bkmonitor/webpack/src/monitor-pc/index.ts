@@ -42,6 +42,7 @@ import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/util
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import './common/global-login';
+import { userDisplayNameConfigure } from './common/user-display-name';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -101,6 +102,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        userDisplayNameConfigure();
         // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
