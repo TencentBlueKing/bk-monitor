@@ -42,6 +42,7 @@ import {
   type K8sSortType,
   K8sTableColumnKeysEnum,
   type K8sTableMetricKeys,
+  type SceneEnum,
 } from '../../typings/k8s-new';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import K8sQuickTools from '../k8s-quick-tools/k8s-quick-tools';
@@ -189,6 +190,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
+  @Inject({ from: 'onSceneChange', default: () => null }) readonly onSceneChange: (scene: SceneEnum) => void;
   @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
     id: string,
     groupId: K8sTableColumnResourceKey,
@@ -1058,17 +1060,20 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           ) : (
             <span class='col-item-label'>{text}</span>
           )}
-          <K8sQuickTools
-            class='table-col-tools'
-            enableDrillDown={column.k8s_group}
-            enableFilter={column.k8s_filter}
-            filters={this.filterBy?.[column.id] || []}
-            filterValue={text}
-            groupByField={column.id}
-            scene={this.filterCommonParams?.scenario}
-            onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
-            onFilterChange={this.onFilterChange}
-          />
+          {this.isListTab ? (
+            <K8sQuickTools
+              class='table-col-tools'
+              enableDrillDown={column.k8s_group}
+              enableFilter={column.k8s_filter}
+              filters={this.filterBy?.[column.id] || []}
+              filterValue={text}
+              groupByField={column.id}
+              scene={this.filterCommonParams?.scenario}
+              onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
+              onFilterChange={this.onFilterChange}
+              onSceneChange={this.onSceneChange}
+            />
+          ) : null}
         </div>
       );
     };

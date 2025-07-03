@@ -123,7 +123,10 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
    * @description 切换场景
    *
    */
-  handleSceneChange(scene: SceneEnum) {}
+  handleSceneChange(scene: SceneEnum) {
+    this.handlePopoverHide();
+    this.$emit('sceneChange', scene);
+  }
 
   /**
    * @description 场景选择下拉菜单 popover 显示
@@ -142,12 +145,17 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
       interactive: true,
       followCursor: false,
       onHidden: () => {
-        this.popoverInstance?.destroy?.();
-        this.popoverInstance = null;
+        this.handlePopoverHide();
       },
     });
     await this.$nextTick();
     this.popoverInstance?.show(100);
+  }
+
+  handlePopoverHide() {
+    this.popoverInstance?.hide();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
   }
 
   /**
