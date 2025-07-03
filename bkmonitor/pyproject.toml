@@ -73,7 +73,7 @@ dependencies = [
     "prometheus-client==0.17.1",
     "protobuf==3.19.5",
     "psutil==6.1.1",
-    "pycryptodome==3.18",
+    "pycryptodome==3.23.0",
     "pyinstrument==4.6.2",
     "pymysql==1.1.1",
     "pypinyin==0.53.0",
