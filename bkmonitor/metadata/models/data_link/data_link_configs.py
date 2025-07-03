@@ -152,7 +152,6 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        # labels = {"bk_biz_id": self.bk_biz_id}
         return utils.compose_config(
             tpl=tpl,
             render_params={
