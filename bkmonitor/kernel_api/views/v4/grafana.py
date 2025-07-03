@@ -1,5 +1,6 @@
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.grafana import KernelUnifyQueryRawResource, KernelGraphUnifyQueryResource
 
 
 class GrafanaViewSet(ResourceViewSet):
@@ -16,10 +17,10 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.grafana.get_variable_field, endpoint="get_variable_field"),
         ResourceRoute("POST", resource.grafana.time_series_metric_level, endpoint="time_series/metric_level"),
         ResourceRoute(
-            "POST", resource.grafana.graph_unify_query, endpoint="time_series/unify_query", content_encoding="gzip"
+            "POST", KernelGraphUnifyQueryResource(), endpoint="time_series/unify_query", content_encoding="gzip"
         ),
         ResourceRoute(
-            "POST", resource.grafana.unify_query_raw, endpoint="time_series/unify_query_raw", content_encoding="gzip"
+            "POST", KernelUnifyQueryRawResource(), endpoint="time_series/unify_query_raw", content_encoding="gzip"
         ),
         ResourceRoute("POST", resource.grafana.graph_promql_query, endpoint="graph_promql_query"),
         ResourceRoute(

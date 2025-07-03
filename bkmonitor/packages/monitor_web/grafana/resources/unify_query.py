@@ -566,6 +566,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         null_as_zero = serializers.BooleanField(label="是否将空值转换为0", required=False, default=False)
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
+        with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
 
         @classmethod
         def to_str(cls, value):
@@ -887,6 +888,7 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 数据预处理
         points = TimeCompareProcessor.process_origin_data(params, points)
+        metrics = metrics if params["with_metric"] else []
         return {
             "series": points,
             "metrics": metrics,
