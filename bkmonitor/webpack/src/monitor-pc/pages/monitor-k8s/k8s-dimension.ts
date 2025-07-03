@@ -53,6 +53,24 @@ export const sceneDimensionMap = {
 };
 
 /**
+ * 转换后的维度-场景映射表
+ * 结构: {维度: 场景数组}
+ */
+export const dimensionSceneMap = Object.entries(sceneDimensionMap).reduce(
+  (acc, [scene, dimensions]) => {
+    for (const dimension of dimensions) {
+      if (!acc[dimension]) {
+        acc[dimension] = [];
+      }
+      acc[dimension].push(scene as SceneEnum);
+    }
+    return acc;
+  },
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  {} as Record<EDimensionKey, SceneEnum[]>
+);
+
+/**
  * k8s维度列表基类
  */
 export abstract class K8sDimensionBase {
