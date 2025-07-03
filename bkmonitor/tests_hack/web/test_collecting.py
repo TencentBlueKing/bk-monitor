@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+from django.db.models import Q
 
 from monitor_web.models.plugin import (
     PluginVersionHistory,
@@ -12,17 +13,40 @@ from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVer
 from monitor_web.collecting.resources.backend import CollectConfigListResource
 from bkmonitor.utils.request import get_request_tenant_id
 
-
-pytestmark = pytest.mark.django_db(databases=["default", "monitor_api"])
+pytestmark = pytest.mark.django_db()
 
 BK_TENANT_ID = get_request_tenant_id()
-PLUGIN_ID = "test_plugin"
 BK_BIZ_ID = 2
 
 
 @pytest.fixture(autouse=True, scope="module")
-def prepare_database():
-    pass
+def prepare_data():
+    # 创建初始插件
+    create_collect("cpu_usage", "采集CPU使用率")
+    create_collect("memory_usage", "采集内存使用率")
+    create_collect("disk_usage", "采集磁盘使用率")
+    create_collect("net_usage", "采集网络使用率")
+
+    # 升级插件
+    upgrade_plugin("cpu_usage", 2, 2)  # CPU使用率升级到2版本
+    upgrade_collect_config(plugin_id="cpu_usage")  # 升级配置
+
+    upgrade_plugin("cpu_usage", 3, 3)  # CPU使用率升级到3版本
+    upgrade_collect_config(plugin_id="cpu_usage")
+
+    upgrade_plugin("cpu_usage", 4, 4)  # CPU使用率升级到4版本
+    upgrade_collect_config(plugin_id="cpu_usage")
+
+    upgrade_plugin("memory_usage", 2, 2)  # 内存使用率升级到2版本
+    upgrade_collect_config("memory_usage")
+
+    yield
+    CollectConfigMeta.objects.all().delete()
+    CollectorPluginMeta.objects.all().delete()
+    DeploymentConfigVersion.objects.all().delete()
+    CollectorPluginInfo.objects.all().delete()
+    PluginVersionHistory.objects.all().delete()
+    CollectorPluginConfig.objects.all().delete()
 
 
 def perform_fun_in_dict(target_dict: dict, fun_args_map: dict | list):
@@ -95,12 +119,12 @@ def create_plugin_version_history(plugin_id: str, **kwargs):
     return instance
 
 
-def create_collect_plugin_meta(
-    plugin_id: str = PLUGIN_ID, plugin_version: PluginVersionHistory = None, **kwargs
-) -> dict:
+def create_collect_plugin_meta(plugin_id: str, plugin_version: PluginVersionHistory = None, **kwargs) -> dict:
     """
     创建插件元数据
     """
+
+    assert CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists()
 
     plugin_version = plugin_version or create_plugin_version_history(plugin_id)
     # 确保关联的插件ID一致
@@ -144,10 +168,12 @@ def create_deployment_config_version(plugin_version: PluginVersionHistory, confi
     return DeploymentConfigVersion.objects.create(**deployment_config_version)
 
 
-def create_collect_config_meta(plugin_id, collect_plugin: CollectorPluginMeta = None, **kwargs):
+def create_collect_config_meta(plugin_id, name, collect_plugin: CollectorPluginMeta = None, **kwargs):
     """
     创建采集元数据
     """
+
+    assert CollectConfigMeta.objects.filter(Q(plugin_id=plugin_id) | Q(name=name)).exists()
 
     if collect_plugin is None:
         collect_plugin = create_collect_plugin_meta(plugin_id)
@@ -160,7 +186,7 @@ def create_collect_config_meta(plugin_id, collect_plugin: CollectorPluginMeta = 
     collect_config = {
         "bk_tenant_id": BK_TENANT_ID,
         "bk_biz_id": 2,
-        "name": "测试采集",
+        "name": name,
         "collect_type": "Script",
         "plugin_id": plugin_id,
         "target_object_type": "SERVICE",
@@ -183,12 +209,35 @@ def create_collect_config_meta(plugin_id, collect_plugin: CollectorPluginMeta = 
     return CollectConfigMeta.objects.create(**collect_config)
 
 
-def create_collect(plugin_id: str = PLUGIN_ID):
+def create_collect(plugin_id: str, name):
     """
     创建采集
     :return:
     """
-    return create_collect_config_meta(plugin_id)
+    return create_collect_config_meta(plugin_id, name)
+
+
+def upgrade_plugin(plugin_id, info_version: int, config_version: int):
+    """
+    升级插件
+    """
+    plugin_versions = PluginVersionHistory.objects.filter(plugin=plugin_id)
+    max_info_version = max(set(plugin_versions.values_list("info_version", flat=True)))
+    max_config_version = max(set(plugin_versions.values_list("config_version", flat=True)))
+    assert info_version > max_info_version
+    assert config_version > max_config_version
+
+    create_plugin_version_history(plugin_id=plugin_id, info_version=info_version, config_version=config_version)
+
+
+def upgrade_collect_config(plugin_id):
+    """
+    升级采集配置
+    """
+    last_plugin_version = PluginVersionHistory.objects.filter(plugin_id=plugin_id).last()
+
+    config_meta_id = CollectConfigMeta.objects.filter(plugin_id=plugin_id).last().id
+    create_deployment_config_version(last_plugin_version, config_meta_id)
 
 
 @pytest.fixture
@@ -212,9 +261,7 @@ def mock_query_data_source():
 
 
 class TestCollectConfigList:
-    def test_collect_config_list(self):
-        create_collect()
-
+    def test_collect_config_list(self, mock_list_spaces, mock_query_data_source):
         config_list = CollectConfigListResource().perform_request(
             {"bk_biz_id": 2, "refresh_status": False, "order": "-create_time", "search": {}, "page": 1, "limit": 50}
         )
