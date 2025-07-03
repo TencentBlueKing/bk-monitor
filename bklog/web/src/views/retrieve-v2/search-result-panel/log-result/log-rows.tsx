@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, set } from 'vue';
 
 import {
   parseTableRowData,
@@ -50,6 +50,7 @@ import {
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
+  ROW_IS_IN_SECTION,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
   ROW_SOURCE
@@ -161,6 +162,7 @@ export default defineComponent({
             arr.push({
               item: tableList.value[i],
               [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+              [ROW_IS_IN_SECTION]: tableList.value[i][ROW_IS_IN_SECTION] || false,
             });
           }
 
@@ -226,13 +228,14 @@ export default defineComponent({
           minWidth: '100%',
           width: '100%',
           resize: false,
-          renderBodyCell: ({ row }) => {
+          renderBodyCell: ({ row, options }) => {
             return (
               <JsonFormatter
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 formatJson={formatJson.value}
                 jsonValue={row}
+                isIntersection={options[ROW_IS_IN_SECTION]}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               ></JsonFormatter>
             );
@@ -252,17 +255,19 @@ export default defineComponent({
         resize: true,
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
+          const content = getTableColumnContent(row, field);
           return (
-            // @ts-ignore
             <TableColumn
-              content={getTableColumnContent(row, field)}
-              field={field}
-              formatJson={config[ROW_F_JSON]}
-              row={row}
-              onIcon-click={(type, content, isLink, depth, isNestedField) =>
-                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
-              }
-            ></TableColumn>
+                content={content}
+                field={field}
+                formatJson={config[ROW_F_JSON]}
+                row={row}
+                onIcon-click={(type, content, isLink, depth, isNestedField) =>
+                  handleIconClick(type, content, field, row, isLink, depth, isNestedField)
+                }
+              ></TableColumn>
+      
+            // @ts-ignore
           );
         },
         renderHeaderCell: () => {
@@ -288,7 +293,7 @@ export default defineComponent({
       };
     };
 
-    const setColWidth = (col, w = '100%') => {
+    const setColWidth = (col) => {
       col.minWidth = col.width - 4;
       col.width = '100%';
     };
@@ -870,7 +875,21 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    const renderRowCells = (row, rowIndex) => {
+    const getColumnWidth = column => {
+      if (typeof column.width === 'number') {
+        return {
+          width: `${column.width}px`,
+          minWidth: `${column.width}px`,
+          maxWidth: `${column.width}px`,
+        };
+      }
+      return {
+        width: column.width,
+        minWidth: `${column.minWidth ?? 80}px`,
+      };
+    };
+
+    const renderRowCells = (row, rowIndex, options) => {
       const { expand } = tableRowConfig.get(row).value;
 
       return [
@@ -879,22 +898,16 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-          {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => {
-            const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
-            const cellStyle = {
-              width,
-              minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
-            };
-            if (typeof column.minWidth === 'number' && column.width < column.minWidth) {
-              cellStyle.minWidth = `${column.width}px`;
-            }
+        {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => {
+            const cellStyle = getColumnWidth(column);
+
             return (
               <div
                 key={`${rowIndex}-${column.key}`}
                 style={cellStyle}
                 class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
               >
-                {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
+                {column.renderBodyCell?.({ row, column, rowIndex, options }, h) ?? column.title}
               </div>
             );
           })}
@@ -912,8 +925,11 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
+            on-row-visible={(isIntersect: boolean) => {
+              set(tableList.value[rowIndex], ROW_IS_IN_SECTION, isIntersect);
+            }}
           >
-            {renderRowCells(row.item, rowIndex)}
+            {renderRowCells(row.item, rowIndex, tableList.value[rowIndex])}
           </RowRender>,
         ];
       });
