@@ -167,11 +167,11 @@ export default defineComponent({
               1: elements[1],
             };
             const processedContentArray = replacePlaceholders(template, replacements);
-            const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
+            // const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
             return (
               <span
                 class={['item-info']}
-                title={tips.join('')}
+                // title={tips.join('')}
               >
                 {/* biome-ignore lint/correctness/useJsxKeyInIterable: <explanation> */}
                 {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
