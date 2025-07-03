@@ -19,8 +19,9 @@ from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.utils import translation
 from django.utils.translation import ugettext as _
-from jinja2 import Environment, Undefined
+from jinja2 import Undefined
 from jinja2.compiler import CodeGenerator
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from markupsafe import Markup
 
 try:
