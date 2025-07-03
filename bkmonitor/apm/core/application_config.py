@@ -14,7 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
-import jinja2
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from kubernetes import client
 from opentelemetry import trace
@@ -99,8 +99,7 @@ class ApplicationConfig(BkCollectorConfig):
                         continue
 
                     application_config_context = self.get_application_config()
-                    tpl = jinja2.Template(application_tpl)
-                    application_config = tpl.render(application_config_context)
+                    application_config = Environment().from_string(application_tpl).render(application_config_context)
                     self.deploy_to_k8s(cluster_id, application_config)
 
                     s.set_status(trace.StatusCode.OK)
@@ -556,11 +555,7 @@ class ApplicationConfig(BkCollectorConfig):
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector="component={},template=false,type={},source={}".format(
-                BkCollectorComp.LABEL_COMPONENT_VALUE,
-                BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
-                BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
-            ),
+            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG},source={BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG}",
         )
         sec = find_secrets_in_boundary(secrets, self._application.id)
         if sec is None:
