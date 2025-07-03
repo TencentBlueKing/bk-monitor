@@ -5,6 +5,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 .alarm-detail-table {
   --td-bg-color-secondarycontainer: #fafbfd;
 }
+.alarm-detail-loading {
+  z-index: 50;
+}
 
 .tag-column-popover {
   padding: 3px 8px !important;
@@ -165,7 +168,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        width: 100%;
+        max-width: 100%;
         padding: 0 15px;
         margin: 0 -15px;
         background-color: #f0f1f5;

@@ -538,23 +538,25 @@ export default defineComponent({
                 }}
                 class='operate-panel'
               >
-                <span
-                  class={['operate-panel-item', { 'is-disable': data.entity?.is_root }]}
-                  v-bk-tooltips={{
-                    content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
-                    trigger: 'hover',
-                    delay: 200,
-                    disabled: data.entity?.is_root,
-                  }}
-                  onClick={() => handleRootCauseConfirm(data)}
-                >
-                  <i
-                    class={[
-                      'icon-monitor',
-                      !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
-                    ]}
-                  />
-                </span>
+                {!!data.entity && (
+                  <span
+                    class={['operate-panel-item', { 'is-disable': data.entity?.is_root }]}
+                    v-bk-tooltips={{
+                      content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
+                      trigger: 'hover',
+                      delay: 200,
+                      disabled: data.entity?.is_root,
+                    }}
+                    onClick={() => handleRootCauseConfirm(data)}
+                  >
+                    <i
+                      class={[
+                        'icon-monitor',
+                        !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
+                      ]}
+                    />
+                  </span>
+                )}
                 <span
                   class='operate-panel-item'
                   v-bk-tooltips={{ content: t('告警分派'), delay: 200, appendTo: 'parent' }}
@@ -671,7 +673,7 @@ export default defineComponent({
           renderType: 'auto',
           padding: 0,
           offset: 10,
-          zIndex: 10,
+          zIndex: 100,
           disableTeleport: false,
           autoPlacement: false,
           autoVisibility: false,
@@ -835,7 +837,10 @@ export default defineComponent({
     const alertData = this.alertData.filter(item => item.alerts.length > 0);
     return (
       <>
-        <Loading loading={this.tableLoading}>
+        <Loading
+          class='alarm-detail-loading'
+          loading={this.tableLoading}
+        >
           <div class='alarm-detail bk-scroll-y'>
             {/* {this.alertIdsData?.label && (
               <Tag

@@ -213,16 +213,18 @@ export default defineComponent({
     );
     const handleToPanel = (key: string) => {
       const id = `panel-${key}`;
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
       if (key !== 'summary') {
         const idx = list.findIndex(item => item.key === key);
         if (idx > -1 && !activeIndex.value.includes(idx)) {
           activeIndex.value = [...activeIndex.value, idx];
         }
       }
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
     };
     onMounted(() => {
       activeIndex.value = list.map((_, idx) => idx);
@@ -276,7 +278,6 @@ export default defineComponent({
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
           <Dropdown
-            placement='bottom-end'
             v-slots={{
               default: () => (
                 <span
@@ -292,7 +293,7 @@ export default defineComponent({
               content: () => {
                 return (
                   <Dropdown.DropdownMenu>
-                    {[...this.aiConfig, ...this.list].map(item => (
+                    {[...this.aiConfig, ...this.showList].map(item => (
                       <Dropdown.DropdownItem
                         key={item.key}
                         extCls='text-active'
@@ -309,6 +310,7 @@ export default defineComponent({
               extCls: 'collapse-handle-popover',
               clickContentAutoHide: true,
             }}
+            placement='bottom-end'
             trigger='click'
           />
         </div>
