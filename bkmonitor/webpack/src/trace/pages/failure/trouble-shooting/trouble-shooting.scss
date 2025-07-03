@@ -2,46 +2,40 @@
   width: 100%;
   height: 100%;
   background: #f3f6fa;
+  position: relative;
+
   .trouble-shooting-header {
     width: 100%;
-    height: 42px;
-    line-height: 42px;
-    padding: 0 15px;
-    background: #ffffff;
-    box-shadow: 0 2px 4px 0 #00000014;
-    font-size: 14px;
-    color: #313238;
     position: relative;
-    .icon-btn {
+    padding-right: 8px;
+    text-align: right;
+    height: 10px;
+    z-index: 1;
+    .collapse-handle-btn {
       display: inline-block;
-      position: absolute;
-      right: 15px;
-      top: 9px;
-      width: 24px;
-      height: 24px;
-      line-height: 24px;
+      width: 28px;
+      height: 28px;
       text-align: center;
+      line-height: 28px;
+      background: #ffffff;
+      box-shadow: 0 2px 4px 0 #0000001f;
+      border-radius: 2px;
       cursor: pointer;
       &:hover {
-        background: #eaebf0;
-        border-radius: 2px;
+        color: #3a84ff;
+        background: #f0f5ff;
       }
     }
-    .header-bg {
-      position: absolute;
-      right: 22px;
-      display: inline-block;
-      width: 230px;
-      height: 42px;
-      background-image: url('../../../static/img/failure/ai-title-bg.png');
-      background-size: cover;
-      opacity: 0.9;
+    .text-active {
+      &:hover {
+        background: #f5f7fa;
+      }
     }
   }
   .trouble-shooting-main {
     width: 100%;
-    height: calc(100% - 28px);
-    padding: 15px 15px 5px;
+    height: calc(100% - 10px);
+    padding: 5px 15px;
     overflow: auto;
     .blue-txt {
       color: #3a84ff;

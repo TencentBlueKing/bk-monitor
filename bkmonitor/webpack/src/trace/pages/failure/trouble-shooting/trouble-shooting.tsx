@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, watch, reactive } from 'vue';
+import { computed, defineComponent, shallowRef, watch, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import { Collapse, Exception, Loading } from 'bkui-vue';
+import { Collapse, Exception, Loading, Dropdown } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 
 import MarkdownView from './markdown-view';
@@ -53,7 +53,7 @@ export default defineComponent({
     const loadingList = reactive({
       summary: false,
     });
-    const activeIndex = shallowRef([0, 1]);
+    const activeIndex = shallowRef([]);
     const childActiveIndex = shallowRef([0]);
     const subPanels = computed(() => {
       return props.panelConfig.sub_panels || {};
@@ -166,18 +166,23 @@ export default defineComponent({
         key: 'suggestion',
         icon: 'icon-chulijilu',
         render: renderDisposal,
+        id: 'panel-suggestion',
       },
       {
         name: t('告警异常维度分析'),
         key: 'anomaly_analysis',
         icon: 'icon-dimension-line',
         render: renderDimensional,
+        id: 'panel-anomaly_analysis',
       },
     ]);
-    const handleToggleAll = () => {
-      isAllCollapsed.value = !isAllCollapsed.value;
-      activeIndex.value = isAllCollapsed.value ? list.map((_, ind) => ind) : [];
-    };
+    const aiConfig = reactive([
+      {
+        name: t('故障总结'),
+        key: 'summary',
+        id: 'panel-summary',
+      },
+    ]);
 
     const getIncidentDiagnosis = (key: string) => {
       loadingList[key] = true;
@@ -206,24 +211,44 @@ export default defineComponent({
       },
       { deep: true, immediate: true }
     );
+    const handleToPanel = (key: string) => {
+      const id = `panel-${key}`;
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (key !== 'summary') {
+        const idx = list.findIndex(item => item.key === key);
+        if (idx > -1 && !activeIndex.value.includes(idx)) {
+          activeIndex.value = [...activeIndex.value, idx];
+        }
+      }
+    };
+    onMounted(() => {
+      activeIndex.value = list.map((_, idx) => idx);
+    });
 
     return {
       t,
       activeIndex,
       list,
       isAllCollapsed,
-      handleToggleAll,
       contentList,
       aiLoading,
       loadingList,
       renderEmpty,
       showList,
       subPanels,
+      aiConfig,
+      handleToPanel,
     };
   },
   render() {
     const titleSlot = (item: IListItem) => (
-      <span class='collapse-item-title'>
+      <span
+        id={`panel-${item.key}`}
+        class='collapse-item-title'
+      >
         <i class={`icon-monitor ${item.icon} title-icon-circle`} />
         <span class='field-name'>{item.name}</span>
       </span>
@@ -250,20 +275,49 @@ export default defineComponent({
     return (
       <div class='failure-trouble-shooting'>
         <div class='trouble-shooting-header'>
-          {this.t('诊断分析')}
-          <span class='header-bg' />
-          <i
-            class={`icon-monitor icon-${this.isAllCollapsed ? 'zhankai2' : 'shouqi3'} icon-btn`}
-            v-bk-tooltips={{
-              content: this.isAllCollapsed ? this.t('全部收起') : this.t('全部展开'),
-              placements: ['top'],
+          <Dropdown
+            placement='bottom-end'
+            v-slots={{
+              default: () => (
+                <span
+                  class='collapse-handle-btn'
+                  v-bk-tooltips={{
+                    content: this.t('快速定位'),
+                    placements: ['top'],
+                  }}
+                >
+                  <i class='icon-monitor icon-a-Contentmulu' />
+                </span>
+              ),
+              content: () => {
+                return (
+                  <Dropdown.DropdownMenu>
+                    {[...this.aiConfig, ...this.list].map(item => (
+                      <Dropdown.DropdownItem
+                        key={item.key}
+                        extCls='text-active'
+                        onClick={() => this.handleToPanel(item.key)}
+                      >
+                        {item.name}
+                      </Dropdown.DropdownItem>
+                    ))}
+                  </Dropdown.DropdownMenu>
+                );
+              },
             }}
-            onClick={this.handleToggleAll}
+            popoverOptions={{
+              extCls: 'collapse-handle-popover',
+              clickContentAutoHide: true,
+            }}
+            trigger='click'
           />
         </div>
         <div class='trouble-shooting-main'>
           {this.subPanels.summary?.enabled && (
-            <div class='ai-card'>
+            <div
+              id='panel-summary'
+              class='ai-card'
+            >
               <div class='ai-card-title'>
                 <span class='ai-card-title-icon' />
                 {this.t('故障总结')}

@@ -92,6 +92,10 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    alertList: {
+      type: Object as () => IAlertObj,
+      default: () => ({}),
+    },
   },
   emits: ['refresh', 'changeSelectNode'],
   setup(props, { emit }) {
@@ -150,7 +154,7 @@ export default defineComponent({
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
-      alertIdsObject.value = {};
+      // alertIdsObject.value = {};
     };
     const playingHandle = status => {
       playLoading.value = status;
@@ -176,13 +180,19 @@ export default defineComponent({
     watch(
       () => currentNodeData.value,
       () => {
-        handleChangeActive(FailureContentTabView.FAILURE_TOPO);
+        incidentResults.value.incident_topology?.enabled && handleChangeActive(FailureContentTabView.FAILURE_TOPO);
       }
     );
     watch(
       () => showTabList.value,
       list => {
         active.value = list[0]?.name || FailureContentTabView.FAILURE_VIEW;
+      }
+    );
+    watch(
+      () => props.alertList,
+      val => {
+        alertIdsObject.value = val;
       }
     );
 

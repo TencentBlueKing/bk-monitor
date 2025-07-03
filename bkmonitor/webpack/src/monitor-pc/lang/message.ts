@@ -526,4 +526,6 @@ export default {
   暂无故障总结: 'No fault summary',
   处置建议: 'Disposal suggestion',
   个告警: ' alarms',
+  '维度：': 'Dimension:',
+  快速定位: 'Quick location',
 };

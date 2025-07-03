@@ -116,7 +116,6 @@ export default defineComponent({
         if (val) {
           active.value = 'TroubleShooting';
         }
-        console.log(val, 'isShowDiagnosis');
       }
     );
 
@@ -125,8 +124,18 @@ export default defineComponent({
         active.value = name;
       }
     };
+    const formatAlertObj = (ids, data) => {
+      const len = ids.length;
+      const name = data.alert_name;
+      return {
+        ids: `告警ID: ${ids.join(' OR 告警ID: ')}`,
+        label: `${name} 等共 ${len} 个告警`,
+      };
+    };
     const nodeClick = item => {
-      emit('nodeClick', item);
+      const { alert_ids, alert_example } = item;
+      const alertObj = formatAlertObj(alert_ids, alert_example);
+      emit('nodeClick', item, alertObj);
     };
     const filterSearch = data => {
       alertAggregateParams.value = data;
@@ -184,13 +193,8 @@ export default defineComponent({
     };
     /** 跳转到告警tab */
     const goAlertList = list => {
-      const len = list.length;
       const alertIds = list.map(item => item.id);
-      const name = list[0]?.alert_name;
-      const alertObj = {
-        ids: `告警ID: ${alertIds.join(' OR 告警ID: ')}`,
-        label: `${name} 等共 ${len} 个告警`,
-      };
+      const alertObj = formatAlertObj(alertIds, list[0]);
       emit('alertList', alertObj);
     };
     return {
@@ -214,7 +218,6 @@ export default defineComponent({
     };
   },
   render() {
-    // console.log(this.currentTabConfig, 'currentTabConfig');
     const Component = this.tabList.find(item => item.name === this.active).component;
     return (
       <div class='failure-nav'>

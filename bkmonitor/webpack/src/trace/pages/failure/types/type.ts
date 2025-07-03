@@ -507,7 +507,7 @@ export interface IAlert {
   name: string;
   level_name: string;
   count: number;
-  related_entities: string[];
+  related_entities: IAlertData[];
   children: IAlert[];
   alert_ids: string[];
   is_root: boolean;

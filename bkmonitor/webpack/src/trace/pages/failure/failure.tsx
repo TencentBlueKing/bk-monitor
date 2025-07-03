@@ -47,7 +47,7 @@ import {
   incidentResults,
 } from 'monitor-api/modules/incident';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
-
+import type { IAlertObj, IAlert, IAlertData } from './types';
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
@@ -110,7 +110,7 @@ export default defineComponent({
     const valueMap = deepRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
     const analyzeTagList = deepRef([]);
     const tagInfo = deepRef<ITagInfoType>({});
-    const currentNode = deepRef([] as string[]);
+    const currentNode = deepRef([] as IAlertData[]);
     const filterSearch = deepRef<IFilterSearch>({});
     const alertAggregateData = deepRef([]);
     const operationsLoading = deepRef(false);
@@ -125,6 +125,7 @@ export default defineComponent({
     const incidentResultStatus = deepRef('');
     const timer = deepRef();
     const isShowDiagnosis = shallowRef(false);
+    const currentAlertList = deepRef({});
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -356,8 +357,9 @@ export default defineComponent({
     onBeforeUnmount(() => {
       timer.value && clearInterval(timer.value);
     });
-    const nodeClick = item => {
+    const nodeClick = (item: IAlert, alertObj: IAlertObj) => {
       currentNode.value = [];
+      currentAlertList.value = alertObj;
       nextTick(() => {
         currentNode.value = item.related_entities || item;
       });
@@ -416,6 +418,7 @@ export default defineComponent({
       topoNodeId,
       changeTab,
       goAlertList,
+      currentAlertList,
     };
   },
   render() {
@@ -458,6 +461,7 @@ export default defineComponent({
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
                 onRefresh={this.refresh}
+                alertList={this.currentAlertList}
               />
             ),
           }}
