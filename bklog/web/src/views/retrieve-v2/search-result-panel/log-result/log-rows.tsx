@@ -383,17 +383,17 @@ export default defineComponent({
         fixed: 'left',
         disabled: !indexSetOperatorConfig.value?.isShowSourceField || !indexSetType.value,
         renderBodyCell: ({ row }) => {
-          const name = unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
+          const indeSetName = unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
           ''
           const hanldeSoureClick = event => {
             event.stopPropagation();
             event.preventDefault();
             event.stopImmediatePropagation();
           };
-          console.log(name)
+          
           return (
             <span onClick={hanldeSoureClick}>
-             {name}  
+             {indeSetName}  
             </span>
           );
         },
