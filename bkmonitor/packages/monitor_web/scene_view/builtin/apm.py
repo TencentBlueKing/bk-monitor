@@ -42,15 +42,23 @@ logger = logging.getLogger(__name__)
 
 
 def discover_config_from_node_or_none(node: dict[str, Any]) -> dict[str, Any] | None:
-    predicate_systems: list[str] = [
-        meta["name"] for meta in node.get("system") or [] if meta.get("name") == metric_group.GroupEnum.TRPC
-    ]
-    if not predicate_systems:
-        logger.info("[apm][discover_config_from_node_or_none] system not fount: node -> %s", node)
+    is_trpc: bool = False
+    rpc_system: str = metric_group.GroupEnum.TRPC
+    for meta in node.get("system") or []:
+        if meta.get("name") == metric_group.GroupEnum.TRPC:
+            is_trpc = True
+        extra_data: dict[str, Any] = meta.get("extra_data") or {}
+        if extra_data.get("rpc_system"):
+            rpc_system = extra_data["rpc_system"]
+            break
+
+    if not is_trpc:
+        logger.info("[apm][discover_config_from_node_or_none] system not found: node -> %s", node)
         return None
 
+    # G 和 Tars 框架的指标类型为 Gauge。
     temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-        Vendor.has_sdk(node.get("sdk"), Vendor.G)
+        Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
     ]
     logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
     return MetricTemporality.get_metric_config(temporality)

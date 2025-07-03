@@ -280,6 +280,7 @@
         }
 
         .time-result {
+          padding-left: 5px;
           .total-count {
             color: #f00;
           }

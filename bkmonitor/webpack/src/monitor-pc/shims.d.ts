@@ -152,6 +152,12 @@ declare global {
      * 灰度业务是否开启故障事件中心
      */
     enable_aiops_event_center_biz_list?: number[];
+    // 多租户用户中心接口地址
+    bk_user_web_api_url?: string;
+    // 多租户用户中心是否开启
+    enable_multi_tenant_mode?: boolean;
+    // 多租户租户id
+    bk_tenant_id?: string;
     // ai小鲸鱼 api base url
     ai_xiao_jing_base_url?: string;
   }
@@ -188,6 +194,17 @@ declare global {
         true
       >;
       'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
+      'bk-user-display-name': base.CombinedTsxComponentAttrs<
+        | {
+            user_id: string;
+          }
+        | base.KnownAttrs,
+        object,
+        object,
+        object,
+        object,
+        false
+      >;
     }
   }
 }
