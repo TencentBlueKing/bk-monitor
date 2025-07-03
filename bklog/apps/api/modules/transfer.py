@@ -122,13 +122,8 @@ def modify_result_table_after(params):
     @param params:
     @return:
     """
-    # 构建get_result_table的请求参数
-    table_id = params["data"]["table_id"]
-    params = add_esb_info_before_request({"table_id": table_id})
-    if "appenv" in params:
-        del params["appenv"]
     # 清除获取结果表的缓存
-    cache_key = Transfer.get_result_table._build_cache_key(params)
+    cache_key = Transfer.get_result_table._build_cache_key({"table_id": params["data"]["table_id"]})
     Transfer.get_result_table._delete_cache(cache_key)
 
 

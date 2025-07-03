@@ -328,14 +328,6 @@ class DataAPI:
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
-        # 请求前的参数清洗处理
-        if self.before_request is not None:
-            params = self.before_request(params)
-
-        # 是否有默认返回，调试阶段可用
-        if self.default_return_value is not None:
-            return DataResponse(self.default_return_value, request_id)
-
         # 缓存
         with ignored(Exception):
             cache_key = self._build_cache_key(params)
@@ -344,6 +336,14 @@ class DataAPI:
                 if result is not None:
                     # 有缓存时返回
                     return DataResponse(result, request_id)
+
+        # 请求前的参数清洗处理
+        if self.before_request is not None:
+            params = self.before_request(params)
+
+        # 是否有默认返回，调试阶段可用
+        if self.default_return_value is not None:
+            return DataResponse(self.default_return_value, request_id)
 
         response = None
         error_message = ""
@@ -473,8 +473,6 @@ class DataAPI:
         :return:
         """
         params = copy.deepcopy(params)
-        if "appenv" in params:
-            del params["appenv"]
         # 缓存
         cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
         hash_md5 = hashlib.new("md5")
