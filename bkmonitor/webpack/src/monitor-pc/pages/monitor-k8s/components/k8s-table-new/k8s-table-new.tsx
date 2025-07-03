@@ -30,7 +30,6 @@ import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -43,8 +42,10 @@ import {
   type K8sSortType,
   K8sTableColumnKeysEnum,
   type K8sTableMetricKeys,
+  type SceneEnum,
 } from '../../typings/k8s-new';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
+import K8sQuickTools from '../k8s-quick-tools/k8s-quick-tools';
 import K8sConvergeSelect from './k8s-converge-select';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
@@ -189,6 +190,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
+  @Inject({ from: 'onSceneChange', default: () => null }) readonly onSceneChange: (scene: SceneEnum) => void;
   @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
     id: string,
     groupId: K8sTableColumnResourceKey,
@@ -1040,52 +1042,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   /**
-   * @description 表格列 filter icon 渲染配置方法
-   * @param {K8sTableRow} row
-   * @param {K8sTableColumn} column
-   */
-  filterIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>, row: K8sTableRow) {
-    if (!column.k8s_filter) {
-      return null;
-    }
-    const resourceValue = K8sTableNew.getResourcesTextRowValue(row, column);
-    if (resourceValue) {
-      const groupItem = this.filterBy?.[column.id];
-      const hasFilter = groupItem?.includes(resourceValue);
-      const elAttr = hasFilter
-        ? { className: ['selected'], text: '移除该筛选项' }
-        : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
-      return (
-        <i
-          class={elAttr.className}
-          v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
-          onClick={() => this.onFilterChange(resourceValue, column.id, !hasFilter)}
-        />
-      );
-    }
-    return null;
-  }
-
-  /**
-   * @description 表格列 group icon 渲染配置方法
-   * @param {K8sTableRow} row
-   * @param {K8sTableColumn} column
-   */
-  groupIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>, row: K8sTableRow) {
-    if (!column.k8s_group) {
-      return null;
-    }
-    const filterById = K8sTableNew.getResourcesTextRowValue(row, column);
-    return (
-      <K8sDimensionDrillDown
-        dimension={column.id}
-        value={column.id}
-        onHandleDrillDown={v => this.onDrillDown({ ...(v as DrillDownEvent), filterById }, true)}
-      />
-    );
-  }
-
-  /**
    * @description K8sTableColumnTypeEnum.RESOURCES_TEXT 类型表格列文本渲染方法
    * @param {K8sTableColumn} column
    */
@@ -1104,10 +1060,20 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           ) : (
             <span class='col-item-label'>{text}</span>
           )}
-          <div class='col-item-operate'>
-            {this.filterIconFormatter(column, row)}
-            {this.groupIconFormatter(column, row)}
-          </div>
+          {this.isListTab ? (
+            <K8sQuickTools
+              class='table-col-tools'
+              enableDrillDown={column.k8s_group}
+              enableFilter={column.k8s_filter}
+              filters={this.filterBy?.[column.id] || []}
+              filterValue={text}
+              groupByField={column.id}
+              scene={this.filterCommonParams?.scenario}
+              onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
+              onFilterChange={this.onFilterChange}
+              onSceneChange={this.onSceneChange}
+            />
+          ) : null}
         </div>
       );
     };

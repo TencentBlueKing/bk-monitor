@@ -160,6 +160,8 @@ export enum SceneEnum {
   Network = 'network',
   Capacity = 'capacity',
   Event = 'event',
+  Storage = 'storage',
+  Cost = 'cost',
 }
 
 export interface GroupListItem<T = string> {
