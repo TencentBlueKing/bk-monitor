@@ -293,21 +293,25 @@ class SpaceTableIDRedis:
             return
         logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
 
-    def _compose_doris_table_id_detail(self, table_id_list: list[str] | None = None) -> dict[str, dict]:
+    def _compose_doris_table_id_detail(
+        self, bk_tenant_id: str, table_id_list: list[str] | None = None
+    ) -> dict[str, dict]:
         """组装doris结果表的详情"""
         logger.info(
             "_compose_doris_table_id_detail:start to compose doris table_id detail data,table_id_list->[%s]",
             table_id_list,
         )
         if table_id_list:
-            doris_records = models.DorisStorage.objects.filter(table_id__in=table_id_list)
-            data_label_map = models.ResultTable.objects.filter(table_id__in=table_id_list).values(
+            doris_records = models.DorisStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
+            data_label_map = models.ResultTable.objects.filter(
+                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
+            ).values("table_id", "data_label")
+        else:
+            doris_records = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+            tids = list(doris_records.values_list("table_id", flat=True))
+            data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "data_label"
             )
-        else:
-            doris_records = models.DorisStorage.objects.all()
-            tids = list(doris_records.values_list("table_id", flat=True))
-            data_label_map = models.ResultTable.objects.filter(table_id__in=tids).values("table_id", "data_label")
 
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
 
@@ -340,7 +344,7 @@ class SpaceTableIDRedis:
 
         _table_id_detail = {}
         try:
-            _table_id_detail.update(self._compose_doris_table_id_detail(table_id_list))
+            _table_id_detail.update(self._compose_doris_table_id_detail(bk_tenant_id, table_id_list))
 
             if _table_id_detail:
                 logger.info(
@@ -411,7 +415,9 @@ class SpaceTableIDRedis:
             "push_doris_table_id_detail: push doris_table_detail for table_id_list->[%s] successfully", table_id_list
         )
 
-    def _compose_bkbase_table_id_detail(self, table_id_list: list[str] | None = None) -> dict[str, dict]:
+    def _compose_bkbase_table_id_detail(
+        self, bk_tenant_id: str, table_id_list: list[str] | None = None
+    ) -> dict[str, dict]:
         """
         组装计算平台结果表详情
         """
@@ -425,7 +431,7 @@ class SpaceTableIDRedis:
 
         data = {}
         table_id_list = list(bkbase_rt_records.values_list("table_id", flat=True))
-        all_fields = self._compose_table_id_fields(table_ids=set(table_id_list))
+        all_fields = self._compose_table_id_fields(bk_tenant_id=bk_tenant_id, table_ids=set(table_id_list))
         for record in bkbase_rt_records:
             # table_id: 2_bkbase_test_metric.__default__ 在计算平台实际的物理表为 2_bkbase_test_metric
             db = record.table_id.split(".")[0]  # 计算平台实际的物理表名为二段式的第一部分
@@ -455,7 +461,9 @@ class SpaceTableIDRedis:
 
         _table_id_detail: dict[str, dict] = {}
         try:
-            _table_id_detail.update(self._compose_bkbase_table_id_detail(table_id_list))
+            _table_id_detail.update(
+                self._compose_bkbase_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=table_id_list)
+            )
 
             if _table_id_detail:
                 logger.info(
@@ -532,7 +540,7 @@ class SpaceTableIDRedis:
         table_id_list: list | None = None,
         is_publish: bool | None = False,
         include_es_table_ids: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
     ):
         """推送结果表的详细信息"""
         logger.info(
@@ -589,7 +597,7 @@ class SpaceTableIDRedis:
             table_ids, _table_list, table_id_data_id, bk_tenant_id=bk_tenant_id
         )
 
-        table_id_cluster_id = get_table_id_cluster_id(table_ids, bk_tenant_id=bk_tenant_id)
+        table_id_cluster_id = get_table_id_cluster_id(table_id_list=table_ids, bk_tenant_id=bk_tenant_id)
         # 再追加上结果表的指标数据、集群 ID、类型
         table_id_fields = self._compose_table_id_fields(
             table_ids=set(table_id_detail.keys()), bk_tenant_id=bk_tenant_id
@@ -721,7 +729,7 @@ class SpaceTableIDRedis:
             return {}
 
     def _compose_es_table_id_detail(
-        self, table_id_list: list[str] | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
+        self, table_id_list: list[str] | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID
     ) -> dict[str, dict]:
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
@@ -1554,9 +1562,7 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(
-        self, table_ids: set | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
-    ) -> dict:
+    def _compose_table_id_fields(self, table_ids: set | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
         """组装结果表对应的指标数据"""
         logger.info(
             "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",

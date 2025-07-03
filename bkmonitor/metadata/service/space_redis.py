@@ -185,7 +185,7 @@ def push_and_publish_doris_table_id_detail(
 
     try:
         result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-        doris_storage = models.DorisStorage.objects.get(table_id=table_id)
+        doris_storage = models.DorisStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except Exception as e:
         logger.error(
             "push_and_publish_doris_table_id_detail: table_id->[%s] get result table or doris storage "
