@@ -34,6 +34,7 @@ def create_or_delete_records(mocker):
 
     # Space
     models.Space.objects.create(
+        bk_tenant_id="riot",
         space_type_id="bkcc",
         space_id=2,
         space_code="2_space",
@@ -43,6 +44,7 @@ def create_or_delete_records(mocker):
     # Doris结果表
     # ResultTable
     models.ResultTable.objects.create(
+        bk_tenant_id="riot",
         table_id="2_bklog.test_doris_non_exists",
         bk_biz_id=2,
         is_custom_table=False,
@@ -52,6 +54,7 @@ def create_or_delete_records(mocker):
 
     # DorisStorage
     models.DorisStorage.objects.create(
+        bk_tenant_id="riot",
         bkbase_table_id="2_bklog_pure_doris,2_bklog_doris_log",
         storage_cluster_id=10034,
         index_set="2_bklog_pure_doris,2_bklog_doris_log",
@@ -61,6 +64,7 @@ def create_or_delete_records(mocker):
 
     # 计算平台结果表
     models.ResultTable.objects.create(
+        bk_tenant_id="riot",
         table_id="2_bkbase_metric_agg.__default__",
         bk_biz_id=2,
         is_custom_table=False,
@@ -69,6 +73,7 @@ def create_or_delete_records(mocker):
     )
 
     models.ResultTableField.objects.create(
+        bk_tenant_id="riot",
         table_id="2_bkbase_metric_agg.__default__",
         field_name="metric_a",
         field_type="long",
@@ -78,6 +83,7 @@ def create_or_delete_records(mocker):
         creator="system",
     )
     models.ResultTableField.objects.create(
+        bk_tenant_id="riot",
         table_id="2_bkbase_metric_agg.__default__",
         field_name="metric_b",
         field_type="long",
@@ -87,6 +93,7 @@ def create_or_delete_records(mocker):
         creator="system",
     )
     models.ResultTableField.objects.create(
+        bk_tenant_id="riot",
         table_id="2_bkbase_metric_agg.__default__",
         field_name="dimension_c",
         field_type="long",
@@ -106,17 +113,19 @@ def create_or_delete_records(mocker):
         storage_cluster_id=100111,
     )
     models.AccessVMRecord.objects.create(
+        bk_tenant_id="riot",
         result_table_id="1001_bkmonitor_time_series_50010.__default__",
         vm_cluster_id=100111,
         vm_result_table_id="bkm_1001_bkmonitor_time_series_50010",
         bk_base_data_id=50010,
     )
     models.ResultTableOption.objects.create(
-        table_id='1001_bkmonitor_time_series_50010.__default__',
-        name='cmdb_level_vm_rt',
-        value='bkm_1001_bkmonitor_time_series_50010_cmdb',
-        value_type='string',
-        creator='system'
+        bk_tenant_id="riot",
+        table_id="1001_bkmonitor_time_series_50010.__default__",
+        name="cmdb_level_vm_rt",
+        value="bkm_1001_bkmonitor_time_series_50010_cmdb",
+        value_type="string",
+        creator="system",
     )
 
     models.ClusterInfo.objects.create(
@@ -149,7 +158,7 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
 
     # 旧版方式
     old_way_table_id_detail_res = get_table_info_for_influxdb_and_vm(
-        table_id_list=["1001_bkmonitor_time_series_50010.__default__"]
+        bk_tenant_id="riot", table_id_list=["1001_bkmonitor_time_series_50010.__default__"]
     )
 
     # 新版方式
@@ -186,8 +195,8 @@ def test_push_doris_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
             )
             expected_rt_detail_router = {
-                "riot|2_bklog.test_doris_non_exists": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+                "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839|riot"}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -198,7 +207,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bklog.test_doris_non_exists"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_non_exists|riot"]),
                 ]
             )
 
@@ -217,10 +226,10 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bkbase_metric_agg.__default__"], is_publish=True
             )
             expected_rt_detail_router = {
-                "riot|2_bkbase_metric_agg.__default__": '{"db":"2_bkbase_metric_agg",'
+                "2_bkbase_metric_agg.__default__|riot": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
-                '"data_label":"bkbase_rt_meta_metric",'
+                '"data_label":"bkbase_rt_meta_metric|riot",'
                 '"fields":["metric_a","metric_b"]}'
             }
 
@@ -232,7 +241,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
 
             mock_publish.assert_has_calls(
                 [
-                    call("bkmonitorv3:spaces:result_table_detail:channel", ["riot|2_bkbase_metric_agg.__default__"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bkbase_metric_agg.__default__|riot"]),
                 ]
             )
 
