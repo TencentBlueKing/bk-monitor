@@ -352,6 +352,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @description 获取场景指标列表
    */
   async getScenarioMetricList() {
+    this.metricList = [];
     if (this.scene === SceneEnum.Event) return;
     this.metricLoading = true;
     const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
