@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
-from apps.api.constants import CACHE_TIME
+from apps.api.constants import CACHE_TIME_ONE_DAY
 
 
 def get_cluster_info_after(response_result):
@@ -125,6 +125,8 @@ def modify_result_table_after(params):
     # 构建get_result_table的请求参数
     table_id = params["data"]["table_id"]
     params = add_esb_info_before_request({"table_id": table_id})
+    if "appenv" in params:
+        del params["appenv"]
     # 清除获取结果表的缓存
     cache_key = Transfer.get_result_table._build_cache_key(params)
     Transfer.get_result_table._delete_cache(cache_key)
@@ -202,7 +204,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
-            cache_time=CACHE_TIME,
+            cache_time=CACHE_TIME_ONE_DAY,
         )
         self.get_result_table_storage = DataAPI(
             method="GET",

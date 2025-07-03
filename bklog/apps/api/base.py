@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import hashlib
 import json
 import math
@@ -471,6 +472,9 @@ class DataAPI:
         :param params:
         :return:
         """
+        params = copy.deepcopy(params)
+        if "appenv" in params:
+            del params["appenv"]
         # 缓存
         cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
         hash_md5 = hashlib.new("md5")
