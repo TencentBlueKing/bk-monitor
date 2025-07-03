@@ -30,7 +30,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
+export type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
 interface IMonitorDragProps {
   minWidth?: number;
   maxWidth?: number;

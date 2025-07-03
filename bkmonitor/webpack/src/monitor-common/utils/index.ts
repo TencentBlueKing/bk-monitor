@@ -261,6 +261,26 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
   return 'Unknown';
 };
 
+/**
+ * URL解码并转化
+ * @param str 需要解析的字符串
+ * @param defaultValue 默认值
+ * @returns 解析后的值
+ */
+export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
+  let result: T;
+  try {
+    result = JSON.parse(str);
+  } catch {
+    try {
+      result = JSON.parse(decodeURIComponent(str));
+    } catch {
+      result = defaultValue;
+    }
+  }
+  return result || defaultValue;
+}
+
 export * from './colorHelpers';
 export * from './constant';
 export * from './equal';

@@ -25,8 +25,9 @@
  */
 import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
+import { EMode } from '@/components/retrieval-filter/utils';
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
-import { random } from 'monitor-common/utils';
+import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -49,6 +50,7 @@ import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
 import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { IWhere } from './typings';
 
 import './monitor-k8s-new.scss';
 
@@ -133,12 +135,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   resizeObserver = null;
   headerHeight = 102;
-
-  /** 事件场景 字段列表 */
-  fieldList = [];
-  eventCondition = [];
+  /** 事件场景字段 */
+  eventWhere = [];
   eventQueryString = '';
-  fieldListLoading = false;
+  eventFilterMode = EMode.ui;
+
+  /** 各场景缓存数据 */
+  cacheMap = new Map<string, Record<string, any>>();
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -361,6 +364,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 获取隐藏的指标项 */
   getHideMetrics() {
+    if (this.scene !== SceneEnum.Event) return;
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       if (this.scene === SceneEnum.Network && !res) {
         /** 网络场景初始化，默认隐藏丢包量指标 */
@@ -371,14 +375,41 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     });
   }
 
+  /** 场景切换 */
   handleSceneChange(value: SceneEnum) {
+    const cache = this.cacheMap.get(`${this.cluster}_${value}`);
+    if (this.scene !== SceneEnum.Event) {
+      this.cacheMap.set(`${this.cluster}_${this.scene}`, {
+        groupBy: JSON.parse(JSON.stringify(this.groupInstance.groupFilters)),
+        filterBy: JSON.parse(JSON.stringify(this.filterBy)),
+      });
+    } else {
+      this.cacheMap.set(`${this.cluster}_${this.scene}`, {
+        where: JSON.parse(JSON.stringify(this.eventWhere)),
+        queryString: this.eventQueryString,
+        filterMode: this.eventFilterMode,
+      });
+    }
     this.scene = value;
-    this.initGroupBy();
-    this.initFilterBy();
-    this.getScenarioMetricList();
-    this.showCancelDrill = false;
-    this.getHideMetrics();
+    if (value !== SceneEnum.Event) {
+      if (cache) {
+        this.groupInstance.setGroupFilters(cache.groupBy);
+        this.filterBy = cache.filterBy;
+      } else {
+        this.initGroupBy();
+        this.initFilterBy();
+      }
+      this.getScenarioMetricList();
+      this.getHideMetrics();
+    } else {
+      if (cache) {
+        this.eventWhere = cache.where;
+        this.eventQueryString = cache.queryString;
+        this.eventFilterMode = cache.filterMode;
+      }
+    }
     this.setRouteParams();
+    this.showCancelDrill = false;
     this.$nextTick(() => {
       this.observerFilterByHeader();
     });
@@ -476,7 +507,23 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }, 3000);
   }
 
-  handleEventConditionChange() {}
+  /** 事件场景 过滤模式切换 */
+  handleEventFilterModeChange(filterMode: EMode.ui) {
+    this.eventFilterMode = filterMode;
+    this.setRouteParams();
+  }
+
+  /** 事件场景Where条件变更 */
+  handleEventWhereChange(where: IWhere[]) {
+    this.eventWhere = where;
+    this.setRouteParams();
+  }
+
+  /** 事件场景queryString修改 */
+  handleEventQueryStringChange(queryString: string) {
+    this.eventQueryString = queryString;
+    this.setRouteParams();
+  }
 
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
@@ -538,37 +585,59 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       cluster = '',
       scene = SceneEnum.Performance,
       activeTab = K8sNewTabEnum.LIST,
+      eventWhere,
+      eventQueryString,
+      eventFilterMode,
     } = this.$route.query || {};
+
     this.timeRange = [from as string, to as string];
     this.refreshInterval = Number(refreshInterval);
     this.cluster = cluster as string;
     this.scene = scene as SceneEnum;
-    this.activeTab = activeTab as K8sNewTabEnum;
-    this.initGroupBy();
-    if (groupBy && Array.isArray(JSON.parse(groupBy as string))) {
-      this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
-    }
-    if (!filterBy) {
-      this.initFilterBy();
+    if (scene === SceneEnum.Event) {
+      this.eventFilterMode = (eventFilterMode as EMode) || EMode.ui;
+      this.eventWhere = tryURLDecodeParse(eventWhere as string, []);
+      this.eventQueryString = (eventQueryString as string) || '';
     } else {
-      this.filterBy = JSON.parse(filterBy as string);
+      this.activeTab = activeTab as K8sNewTabEnum;
+      this.initGroupBy();
+      if (groupBy) {
+        this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
+      }
+      if (!filterBy) {
+        this.initFilterBy();
+      } else {
+        this.filterBy = tryURLDecodeParse(filterBy as string, {});
+      }
     }
   }
 
   setRouteParams(otherQuery = {}) {
-    const query = {
-      ...this.$route.query,
+    const commonQuery = {
       sceneId: 'kubernetes',
       from: this.timeRange[0],
       to: this.timeRange[1],
       refreshInterval: String(this.refreshInterval),
+      scene: this.scene,
+      cluster: this.cluster,
+    };
+
+    const notEventQuery = {
+      ...commonQuery,
       filterBy: JSON.stringify(this.filterBy),
       groupBy: JSON.stringify(this.groupInstance.groupFilters),
-      cluster: this.cluster,
-      scene: this.scene,
       activeTab: this.activeTab,
       ...otherQuery,
     };
+
+    const eventQuery = {
+      ...commonQuery,
+      eventWhere: JSON.stringify(this.eventWhere),
+      eventQueryString: this.eventQueryString,
+      eventFilterMode: this.eventFilterMode,
+      ...otherQuery,
+    };
+    const query = this.scene === SceneEnum.Event ? eventQuery : notEventQuery;
 
     const targetRoute = this.$router.resolve({
       query,
@@ -687,6 +756,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               filterPrepend: () => this.renderClusterList(),
             }}
             dataId={this.selectCluster?.event_table_id || ''}
+            filterMode={this.eventFilterMode}
+            queryString={this.eventQueryString}
+            where={this.eventWhere}
+            onFilterModeChange={this.handleEventFilterModeChange}
+            onQueryStringChange={this.handleEventQueryStringChange}
+            onSetRouteParams={this.setRouteParams}
+            onWhereChange={this.handleEventWhereChange}
           />
         ) : (
           [
