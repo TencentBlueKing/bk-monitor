@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
 from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
 from constants.alert import AlertAssignSeverity
@@ -49,7 +50,7 @@ class UpgradeConfigSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         self.initial_data = data
-        return super(UpgradeConfigSerializer, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
     def validate_user_groups(self, value):
         if self.initial_data.get("is_enabled") and not value:
@@ -64,7 +65,7 @@ class UpgradeConfigSerializer(serializers.Serializer):
 
 class UpgradeConfigField(serializers.JSONField):
     def run_validators(self, value):
-        super(UpgradeConfigField, self).run_validators(value)
+        super().run_validators(value)
         if value:
             upgrade_slz = UpgradeConfigSerializer(data=value)
             upgrade_slz.is_valid(raise_exception=True)
@@ -82,7 +83,9 @@ class AssignActionSerializer(serializers.Serializer):
 class BaseAlertAssignRuleSlz(serializers.Serializer):
     id = serializers.IntegerField(label="主键ID", required=False)
     is_enabled = serializers.BooleanField(label="是否生效", required=False, default=False)
-    user_groups = serializers.ListField(label="告警组", child=serializers.IntegerField(), required=True, allow_empty=False)
+    user_groups = serializers.ListField(
+        label="告警组", child=serializers.IntegerField(), required=True, allow_empty=False
+    )
     conditions = serializers.ListField(label="分派条件", child=ConditionSerializer(), required=True, allow_empty=False)
     actions = serializers.ListField(label="分派动作", child=AssignActionSerializer(), required=False)
     alert_severity = serializers.ChoiceField(
@@ -135,10 +138,13 @@ class AssignGroupSlz(serializers.ModelSerializer):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     priority = serializers.IntegerField(label="优先级", default=0)
     settings = serializers.JSONField(label="属性配置", default={}, required=False)
+    # 新增最后更新人和最后更新时间字段
+    updater = serializers.CharField(label="最后更新人", read_only=True)
+    updated_at = serializers.DateTimeField(label="最后更新时间", read_only=True)
 
     class Meta:
         model = AlertAssignGroup
-        fields = ("id", "name", "bk_biz_id", "priority", "settings", "source")
+        fields = ("id", "name", "bk_biz_id", "priority", "settings", "source", "updater", "updated_at")
 
     def validate_priority(self, value):
         query_result = AlertAssignGroup.objects.filter(
@@ -166,10 +172,10 @@ class AssignGroupSlz(serializers.ModelSerializer):
         if self.instance and self.instance == DATALINK_SOURCE:
             # 数据链路内置策略无法修改
             raise ValidationError(detail="Edit datalink builtin rules is forbidden")
-        return super(AssignGroupSlz, self).validate(attrs)
+        return super().validate(attrs)
 
     def to_representation(self, instance):
-        data = super(AssignGroupSlz, self).to_representation(instance)
+        data = super().to_representation(instance)
         data["edit_allowed"] = False if instance.source == DATALINK_SOURCE else True
         return data
 
@@ -183,7 +189,7 @@ class BatchAssignRulesSlz(serializers.Serializer):
 
     def to_internal_value(self, data):
         self.initial_data = data
-        internal_data = super(BatchAssignRulesSlz, self).to_internal_value(data)
+        internal_data = super().to_internal_value(data)
         for rule in internal_data["rules"]:
             rule.update(
                 {
@@ -254,18 +260,23 @@ class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
         new_rules = []
         existed_rules = []
         group_id = validated_data.get("assign_group_id")
+        request = get_request(peaceful=True)
+        updater = request.user.username if request and hasattr(request, "user") else "admin"
+
         if group_id:
             group = AlertAssignGroup.objects.get(id=group_id)
             group.name = validated_data["name"]
             group.priority = validated_data["priority"]
             group.hash = ""
             group.snippet = ""
-            group.save()
+            group.updater = updater  # 更新最后更新人
+            group.save()  # 自动更新updated_at
         else:
             group = AlertAssignGroup.objects.create(
                 name=validated_data["name"],
                 priority=validated_data["priority"],
                 bk_biz_id=validated_data["bk_biz_id"],
+                updater=updater,  # 设置最后更新人
             )
             group_id = group.id
 
