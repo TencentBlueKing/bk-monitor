@@ -1200,11 +1200,12 @@ export default class CommonCondition extends tsc<IProps> {
           const hasLineBreak = /\r\n|\n|\r/.test(this.inputValue);
           if (hasLineBreak) {
             const inputValueArr = this.inputValue.split(/\r\n|\n|\r/).filter(v => !!v && !curValues.includes(v));
-            this.tagList[index].condition.value.push(...inputValueArr);
+            const valueArr = Array.from(new Set(inputValueArr));
+            this.tagList[index].condition.value.push(...valueArr);
             this.tagList[index].tags.splice(
               tagIndex,
               0,
-              ...inputValueArr.map(v => {
+              ...valueArr.map(v => {
                 const valueItem = values.find(vItem => vItem.id === v);
                 return {
                   id: valueItem?.id || v,
@@ -1222,7 +1223,6 @@ export default class CommonCondition extends tsc<IProps> {
               type: TypeEnum.value,
             });
           }
-
           if (this.tagList[index].condition.value.includes(nullOption.id)) {
             /* 清除空选项 */
             const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
