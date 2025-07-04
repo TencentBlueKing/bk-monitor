@@ -56,5 +56,18 @@
         }
       }
     }
+
+    .event-explore-view-wrapper {
+      padding-right: 16px;
+      margin-right: -16px;
+      background: #f5f7fa !important;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #1919291f;
+
+      .event-explore-chart-wrapper,
+      .event-explore-table-wrapper {
+        background-color: #fff;
+      }
+    }
   }
 }
