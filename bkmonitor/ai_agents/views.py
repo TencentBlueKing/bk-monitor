@@ -26,14 +26,18 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class AgentViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+class AIAgentsPermissionMixin:
+    """业务权限控制Mixin"""
 
+    def get_permissions(self):
+        return [BusinessActionPermission(ActionEnum.VIEW_BUSINESS)]
+
+
+class AgentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [ResourceRoute("GET", GetAgentInfoResource, endpoint="info")]
 
 
-class SessionViewSet(ResourceViewSet):
+class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     def get_permissions(self):
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
@@ -44,7 +48,7 @@ class SessionViewSet(ResourceViewSet):
     ]
 
 
-class SessionContentViewSet(ResourceViewSet):
+class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     def get_permissions(self):
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
@@ -57,7 +61,7 @@ class SessionContentViewSet(ResourceViewSet):
     ]
 
 
-class ChatCompletionViewSet(ResourceViewSet):
+class ChatCompletionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     def get_permissions(self):
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
