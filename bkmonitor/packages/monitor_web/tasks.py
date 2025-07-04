@@ -60,7 +60,6 @@ from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_global_user, set_local_username
-from monitor.utils import db_safe_wrapper
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -1566,13 +1565,15 @@ def bulk_update_collect_config_cache_data(config_data_list):
             "total_instance_count": subscription_status_data.get("total_instance_count", 0),
         }
         if config.cache_data != cache_data or config.operation_result != operation_result:
-            config.cache_data = cache_data
+            if not config.cache_data:
+                config.cache_data = {}
+            config.cache_data.update(cache_data)
             config.operation_result = operation_result
             updated_configs.append(config)
 
-    collector_plugins = CollectorPluginMeta.objects.filter(plugin_id__in=[config.plugin_id for config in config_data_list]).values(
-        "plugin_id", "plugin_type"
-    )
+    collector_plugins = CollectorPluginMeta.objects.filter(
+        plugin_id__in=[config.plugin_id for config in config_data_list]
+    ).values("plugin_id", "plugin_type")
 
     plugin_id_type_map = {plugin["plugin_id"]: plugin["plugin_type"] for plugin in collector_plugins}
     # 更新k8s插件采集配置的状态
@@ -1611,7 +1612,9 @@ def bulk_update_collect_config_cache_data(config_data_list):
             "total_instance_count": total_count,
         }
         if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-            collect_config.cache_data = cache_data
+            if not collect_config.cache_data:
+                collect_config.cache_data = {}
+            collect_config.cache_data.update(cache_data)
             collect_config.operation_result = operation_result
             updated_configs.append(collect_config)
 

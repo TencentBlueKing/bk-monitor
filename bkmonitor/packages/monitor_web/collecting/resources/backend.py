@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 from copy import copy
 from typing import Any
-from collections import namedtuple
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -126,10 +125,14 @@ class CollectConfigListResource(Resource):
         conf.cache_data[field] = value
         return conf
 
-    def get_status(self, conf):
+    def get_status(self, conf) -> dict:
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
         status_key = conf.deployment_config.subscription_id
-        if self.realtime_data and self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
+        if (
+            self.realtime_data
+            and self.realtime_data.get(status_key)
+            and self.realtime_data.get(status_key).get("is_auto_deploying")
+        ):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,
                 "task_status": TaskStatus.AUTO_DEPLOYING,
@@ -138,9 +141,8 @@ class CollectConfigListResource(Resource):
         else:
             status = {"config_status": conf.config_status, "task_status": conf.task_status, "running_tasks": []}
 
-        conf = self.update_cache_data_item(conf, "status", conf.config_status)
-        conf = self.update_cache_data_item(conf, "task_status", conf.task_status)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
+        self.update_cache_data_item(conf, "status", conf.config_status)
+        self.update_cache_data_item(conf, "task_status", conf.task_status)
         return status
 
     def _need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
@@ -159,14 +161,12 @@ class CollectConfigListResource(Resource):
 
             return conf.deployment_config.plugin_version.config_version < config_version
 
-    def need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> namedtuple:
+    def need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
         is_need_upgrade = self._need_upgrade(conf, config_plugin_map, plugin_version_map)
-        conf = self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
-
-        NeedUpgrade = namedtuple("NeedUpgrade", ["is_need_upgrade", "conf"])
-        return NeedUpgrade(is_need_upgrade, conf)
+        self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
+        return is_need_upgrade
 
     def exists_by_biz(self, bk_biz_id):
         bk_tenant_id = get_request_tenant_id()
@@ -273,9 +273,6 @@ class CollectConfigListResource(Resource):
         else:
             config_data_list = list(config_list)
 
-        if refresh_status:
-            bulk_update_collect_config_cache_data.delay(config_data_list)
-
         plugin_ids = set(config.plugin_id for config in config_data_list)
         plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
         config_plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
@@ -310,8 +307,8 @@ class CollectConfigListResource(Resource):
         for item in config_data_list:
             status = self.get_status(item)
             space = bk_biz_id_space_dict.get(item.bk_biz_id)
-            need_upgrade = self.need_upgrade(item, config_plugin_map, plugin_version_map)
-            update_configs.append(need_upgrade.conf)
+            is_need_upgrade = self.need_upgrade(item, config_plugin_map, plugin_version_map)
+            update_configs.append(item)
             search_list.append(
                 {
                     "id": item.id,
@@ -325,7 +322,7 @@ class CollectConfigListResource(Resource):
                     "target_node_type": item.deployment_config.target_node_type,
                     "plugin_id": item.plugin_id,
                     "target_nodes_count": len(item.deployment_config.target_nodes),
-                    "need_upgrade": need_upgrade.is_need_upgrade,
+                    "need_upgrade": is_need_upgrade,
                     "config_version": item.deployment_config.plugin_version.config_version,
                     "info_version": item.deployment_config.plugin_version.info_version,
                     "error_instance_count": (
@@ -341,8 +338,12 @@ class CollectConfigListResource(Resource):
                     "update_user": item.update_user,
                 }
             )
+
         if update_configs:
             CollectConfigMeta.objects.bulk_update(update_configs, ["cache_data"])
+
+        if refresh_status:
+            bulk_update_collect_config_cache_data.delay(config_data_list)
 
         # 排序
         if order:
