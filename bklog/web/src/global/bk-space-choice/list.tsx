@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, onMounted } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 
 import useStore from '../../hooks/use-store';
@@ -59,6 +59,8 @@ export interface IListItem {
   children?: IListItem[];
   is_hidden_tag?: boolean;
   space_uid?: string;
+  type?: string;
+  commonListLength?: number; // 用于标识常用业务列表的长度
 }
 
 export type ThemeType = 'dark' | 'light';
@@ -85,6 +87,10 @@ export default defineComponent({
       default: 'dark',
       validator: (val: string) => ['dark', 'light'].includes(val),
     },
+    commonList: {
+      type: Array as () => IListItem[],
+      default: () => [],
+    }
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
@@ -135,29 +141,29 @@ export default defineComponent({
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
-        {props.list[0].children.length || props.list[1].children.length ? (
+        {props.list.length>0 ? (
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
             buffer={200} /* 提前加载200px以外的内容 */
             item-size={32}
-            items={props.list[0].children}
+            items={props.list}
             scopedSlots={{
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
                   key={item.id || item.name + index}
-                  class={['list-group', props.theme, { 'no-name': !item.name }]}
+                  class={['list-group', props.theme]}
                 >
                   <div
                     key={item.id || index}
-                    class={['list-item', props.theme, { checked: item.space_uid === props.checked }]}
+                    class={[item.type === 'group-title' ? 'list-group-title' : 'list-item', props.theme, { checked: item.space_uid === props.checked }, (props.commonList.length>0 && index===props.commonList.length) ? 'last-common-item' : '']}
                     onClick={() => handleSelected(item)}
                   >
                     <span class='list-item-left'>
                       <span class='list-item-name'>{item.name}</span>
                       <span class={['list-item-id', props.theme]}>
-                        {/* 显示业务ID或空间ID */}(
-                        {item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
+                        {/* 显示业务ID或空间ID */}
+                        {item.type != 'group-title' ? (item.space_type_id === ETagsType.BKCC ? `(#${item.id})` : `(${item.space_id})` || `(${item.space_code})`): ''}
                       </span>
                       {/* 如果当前业务是默认业务，显示“默认”标签 */}
                       {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
