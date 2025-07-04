@@ -100,11 +100,12 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
     if (this.drillDownList.length === 1) {
       this.handleDrillDownChange(this.drillDownList[0]);
     } else {
-      this.popoverInstance = this.$bkPopover(e.target, {
+      this.popoverInstance = this.$bkPopover(e.currentTarget, {
         content: this.menuRef,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor',
+        distance: 6,
         arrow: false,
         interactive: true,
         followCursor: false,
