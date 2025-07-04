@@ -32,6 +32,7 @@ import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
 import AlarmTable from './components/alarm-table/alarm-table';
+import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
@@ -98,6 +99,9 @@ export default defineComponent({
               default: () => {
                 return (
                   <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
+                    <div class='chart-trend'>
+                      <AlarmTrendChart />
+                    </div>
                     <div class='alarm-analysis'>
                       <AlarmAnalysis />
                     </div>

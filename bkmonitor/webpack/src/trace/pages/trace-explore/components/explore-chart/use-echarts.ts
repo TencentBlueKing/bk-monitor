@@ -24,12 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, watch } from 'vue';
+import { inject, type MaybeRef, type Ref, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { useTraceExploreStore } from '@/store/modules/explore';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
@@ -37,6 +35,7 @@ import { arraysEqual } from 'monitor-common/utils/equal';
 import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
@@ -46,9 +45,13 @@ import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
-  $api: Record<string, () => Promise<any>>
+  $api: Record<string, () => Promise<any>>,
+  params: Record<string, any>,
+  formatterSeriesData = res => res
 ) => {
-  const traceStore = useTraceExploreStore();
+  const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
+  const refreshImmediate = inject('refreshImmediate');
+
   const cancelTokens = [];
   const loading = shallowRef(false);
   const options = shallowRef();
@@ -68,22 +71,23 @@ export const useEcharts = (
     loading.value = true;
     metricList.value = [];
     targets.value = [];
-    const [startTime, endTime] = handleTransformToTimestamp(traceStore.timeRange);
+    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
     const promiseList = get(panel).targets.map(target => {
       return $api[target.apiModule]
         [target.apiFunc](
           {
             ...target.data,
+            ...params,
             start_time: startTime,
             end_time: endTime,
-            app_name: traceStore.appName,
           },
           {
             cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
             needMessage: false,
           }
         )
-        .then(({ series, metrics, query_config }) => {
+        .then(res => {
+          const { series, metrics, query_config } = formatterSeriesData(res);
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
@@ -149,6 +153,7 @@ export const useEcharts = (
       }
       const unitFormatter = getValueFormat(data.unit);
       seriesData.push({
+        ...data,
         name: data.alias || data.target || '',
         data: list,
         xAxisIndex: xAxisIndex,
@@ -389,7 +394,7 @@ export const useEcharts = (
     };
   };
   watch(
-    [() => traceStore.timeRange, () => traceStore.refreshImmediate, panel],
+    [timeRange, refreshImmediate, panel, params],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();

@@ -1,3 +1,5 @@
+import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,7 +29,7 @@ export interface DataPoint {
   [index: number]: number;
 }
 
-export interface SeriesItem {
+export interface SeriesItem extends MonitorEchartOptions {
   dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
   target?: string;
   metric_field?: string;
