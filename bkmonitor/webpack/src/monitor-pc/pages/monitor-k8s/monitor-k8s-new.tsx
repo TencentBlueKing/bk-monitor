@@ -394,11 +394,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
     this.scene = value;
     if (value !== SceneEnum.Event) {
+      this.initGroupBy();
       if (cache) {
         this.groupInstance.setGroupFilters(cache.groupBy);
         this.filterBy = cache.filterBy;
       } else {
-        this.initGroupBy();
         this.initFilterBy();
       }
       this.getScenarioMetricList();
