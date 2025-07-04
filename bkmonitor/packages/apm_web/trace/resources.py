@@ -17,11 +17,14 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
-from apm_web.trace.constants import OperatorEnum
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
     TraceHandler,
+)
+from apm_web.handlers.trace_handler.dimension_statistics import (
+    DimensionStatisticsAPIHandler,
+    HistogramNiceNumberGenerator,
 )
 from apm_web.handlers.trace_handler.query import (
     QueryHandler,
@@ -31,6 +34,7 @@ from apm_web.handlers.trace_handler.query import (
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
+from apm_web.trace.constants import OperatorEnum
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -46,12 +50,12 @@ from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
+    OperatorGroupRelation,
     OtlpKey,
     PreCalculateSpecificField,
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
-    OperatorGroupRelation,
 )
 from core.drf_resource import Resource, api
 from core.drf_resource.exceptions import CustomException
@@ -59,7 +63,6 @@ from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
 from monitor_web.statistics.v2.query import unify_query_count
-from apm_web.handlers.trace_handler.dimension_statistics import DimensionStatisticsAPIHandler
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
@@ -1352,6 +1355,18 @@ class TraceFieldStatisticsGraphResource(Resource):
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
     def perform_request(self, validated_data):
+        field_info = validated_data["field"]
+        if field_info["field_name"] in {"elapsed_time", "trace_duration"}:
+            field_info_values = field_info["values"]
+            min_value, max_value, _, interval_num = field_info_values[:4]
+            min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.redefine_interval_info(
+                min_value, max_value, interval_num
+            )
+            field_info_values[0], field_info_values[1], field_info_values[3] = (
+                int(min_value),
+                int(max_value),
+                interval_num,
+            )
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
