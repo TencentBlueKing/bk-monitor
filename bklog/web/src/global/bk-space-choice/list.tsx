@@ -73,6 +73,7 @@ export default defineComponent({
     checked: {
       type: [Number, String],
       default: undefined,
+      required: true, // 强制要求传递
     },
     canSetDefaultSpace: {
       type: Boolean,
@@ -90,7 +91,7 @@ export default defineComponent({
     commonList: {
       type: Array as () => IListItem[],
       default: () => [],
-    }
+    },
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
@@ -141,13 +142,13 @@ export default defineComponent({
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
-        {props.list.length>0 ? (
+        {props.list.length > 0 ? (
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
             buffer={200} /* 提前加载200px以外的内容 */
+            items={Array.isArray(props.list) ? props.list : []}
             item-size={32}
-            items={props.list}
             scopedSlots={{
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
@@ -156,14 +157,23 @@ export default defineComponent({
                 >
                   <div
                     key={item.id || index}
-                    class={[item.type === 'group-title' ? 'list-group-title' : 'list-item', props.theme, { checked: item.space_uid === props.checked }, (props.commonList.length>0 && index===props.commonList.length) ? 'last-common-item' : '']}
+                    class={[
+                      item.type === 'group-title' ? 'list-group-title' : 'list-item',
+                      props.theme,
+                      { checked: item.space_uid === props.checked },
+                      props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
+                    ]}
                     onClick={() => handleSelected(item)}
                   >
                     <span class='list-item-left'>
                       <span class='list-item-name'>{item.name}</span>
                       <span class={['list-item-id', props.theme]}>
                         {/* 显示业务ID或空间ID */}
-                        {item.type != 'group-title' ? (item.space_type_id === ETagsType.BKCC ? `(#${item.id})` : `(${item.space_id})` || `(${item.space_code})`): ''}
+                        {item.type != 'group-title'
+                          ? item.space_type_id === ETagsType.BKCC
+                            ? `(#${item.id})`
+                            : `(${item.space_id})` || `(${item.space_code})`
+                          : ''}
                       </span>
                       {/* 如果当前业务是默认业务，显示“默认”标签 */}
                       {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
