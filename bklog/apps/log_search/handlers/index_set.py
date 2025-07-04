@@ -1617,6 +1617,7 @@ class BaseIndexSetHandler:
                     },
                 ],
             }
+            multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             for obj in objs:
                 request_params.update(
@@ -1626,7 +1627,12 @@ class BaseIndexSetHandler:
                         "storage_cluster_id": obj.storage_cluster_id,
                     }
                 )
-                TransferApi.create_or_update_log_router(request_params)
+                multi_execute_func.append(
+                    result_key=obj.result_table_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params=request_params,
+                )
+            multi_execute_func.run()
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
         return True
