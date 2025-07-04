@@ -183,8 +183,9 @@ class CalendarManager:
 
         print("添加完成")
         print(f"total len:{len(calendar_items)}")
-        print(f"working_items: len:{len(working_items)}")
-        print(f"holiday_items: len:{len(holiday_items)}")
+        print(f"工作日 len:{len(working_items)}")
+        print(f"节假日 len:{len([i for i in holiday_items if i.name != '调休'])}")
+        print(f"调休日 len:{len([i for i in holiday_items if i.name == '调休'])}")
 
     def list_system_calendars(self):
         system_calendars = (
@@ -243,8 +244,9 @@ class Command(BaseCommand):
     目的: 维护内置两个日历事项: 法定节假日和工作日
 
     使用方法:
-    - python manage.py default_calendar_sync
-    - python manage.py default_calendar_sync create --name "工作日历" --light_color "#FFFFFF" --deep_color "#000000"
+    - 查看日历列表 `python manage.py default_calendar_sync list`
+    - 添加日历 `python manage.py default_calendar_sync create_calendar --name test2 --deep_color 3A84FF  --light_color E1ECFF`
+    - 添加日历事项 `python manage.py default_calendar_sync create_calendar_items`
     """
 
     def handle(self, *args, **options):
