@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-
-from django.db.models import Q
+from django.db.models import Q, Model
 
 from monitor_web.models.plugin import (
     PluginVersionHistory,
@@ -10,18 +9,26 @@ from monitor_web.models.plugin import (
     CollectorPluginMeta,
 )
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
-from monitor_web.collecting.resources.backend import CollectConfigListResource
 from bkmonitor.utils.request import get_request_tenant_id
+from monitor_web.collecting.deploy.k8s import K8sInstaller
 
-pytestmark = pytest.mark.django_db()
+pytestmark = pytest.mark.django_db
 
 BK_TENANT_ID = get_request_tenant_id()
 BK_BIZ_ID = 2
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.mark.order(1)
+@pytest.fixture(autouse=True)
 def prepare_data():
-    # 创建初始插件
+    CollectConfigMeta.objects.all().delete()
+    CollectorPluginMeta.objects.all().delete()
+    DeploymentConfigVersion.objects.all().delete()
+    CollectorPluginInfo.objects.all().delete()
+    PluginVersionHistory.objects.all().delete()
+    CollectorPluginConfig.objects.all().delete()
+
+    # 创建Script插件
     create_collect("cpu_usage", "采集CPU使用率")
     create_collect("memory_usage", "采集内存使用率")
     create_collect("disk_usage", "采集磁盘使用率")
@@ -40,13 +47,31 @@ def prepare_data():
     upgrade_plugin("memory_usage", 2, 2)  # 内存使用率升级到2版本
     upgrade_collect_config("memory_usage")
 
-    yield
-    CollectConfigMeta.objects.all().delete()
-    CollectorPluginMeta.objects.all().delete()
-    DeploymentConfigVersion.objects.all().delete()
-    CollectorPluginInfo.objects.all().delete()
-    PluginVersionHistory.objects.all().delete()
-    CollectorPluginConfig.objects.all().delete()
+    # 创建K8s采集配置
+    plugin_id = "k8s_cpu_load"
+    create_collect(
+        plugin_id,
+        "k8sCPU负载",
+        collect_plugin=create_collect_plugin_meta(plugin_id, plugin_type="K8S"),
+        collect_type="K8S",
+    )
+    upgrade_plugin(plugin_id, 2, 2)
+
+    plugin_id = "k8s_memory_load"
+    create_collect(
+        plugin_id,
+        "k8s内存负载",
+        collect_plugin=create_collect_plugin_meta(plugin_id, plugin_type="K8S"),
+        collect_type="K8S",
+    )
+    upgrade_plugin(plugin_id, 2, 2)
+
+
+@pytest.fixture(autouse=True)
+def mock_collect_config_meta():
+    new_attr = property(lambda self: f"{self.plugin_id}_{self.name}")
+    with patch.object(CollectConfigMeta, "label_info", new=new_attr):
+        yield
 
 
 def perform_fun_in_dict(target_dict: dict, fun_args_map: dict | list):
@@ -58,6 +83,8 @@ def perform_fun_in_dict(target_dict: dict, fun_args_map: dict | list):
     assert isinstance(fun_args_map, dict)
     for key, args in fun_args_map.items():
         assert key in target_dict
+        if isinstance(target_dict[key], Model):
+            continue
         assert callable(target_dict[key])
         target_dict[key] = target_dict[key](**args)
 
@@ -89,8 +116,8 @@ def create_collect_plugin_info(**kwargs):
 
 def create_plugin_config(**kwargs):
     plugin_config = {
-        "config_json": "",
-        "collector_json": "",
+        "config_json": {},
+        "collector_json": {},
         "is_support_remote": False,
     }
     update_dict(plugin_config, kwargs)
@@ -124,7 +151,7 @@ def create_collect_plugin_meta(plugin_id: str, plugin_version: PluginVersionHist
     创建插件元数据
     """
 
-    assert CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists()
+    assert not CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists()
 
     plugin_version = plugin_version or create_plugin_version_history(plugin_id)
     # 确保关联的插件ID一致
@@ -155,10 +182,10 @@ def create_deployment_config_version(plugin_version: PluginVersionHistory, confi
         "plugin_version": plugin_version,
         "parent_id": None,
         "config_meta_id": config_meta_id,
-        "subscription_id": 0,
+        "subscription_id": config_meta_id,
         "target_node_type": "",
-        "params": None,
-        "target_nodes": None,
+        "params": {},
+        "target_nodes": [],
         "remote_collecting_host": None,
         "task_ids": None,
     }
@@ -173,7 +200,7 @@ def create_collect_config_meta(plugin_id, name, collect_plugin: CollectorPluginM
     创建采集元数据
     """
 
-    assert CollectConfigMeta.objects.filter(Q(plugin_id=plugin_id) | Q(name=name)).exists()
+    assert not CollectConfigMeta.objects.filter(Q(plugin_id=plugin_id) | Q(name=name)).exists()
 
     if collect_plugin is None:
         collect_plugin = create_collect_plugin_meta(plugin_id)
@@ -191,9 +218,9 @@ def create_collect_config_meta(plugin_id, name, collect_plugin: CollectorPluginM
         "plugin_id": plugin_id,
         "target_object_type": "SERVICE",
         "deployment_config": create_deployment_config_version,
-        "cache_data": "",
+        "cache_data": {"total_instance_count": 10},
         "last_operation": "CREATE",
-        "operation_result": "SUCCESS",
+        "operation_result": "DEPLOYING",
         "label": "",
     }
     update_dict(
@@ -209,19 +236,19 @@ def create_collect_config_meta(plugin_id, name, collect_plugin: CollectorPluginM
     return CollectConfigMeta.objects.create(**collect_config)
 
 
-def create_collect(plugin_id: str, name):
+def create_collect(*args, **kwargs):
     """
     创建采集
     :return:
     """
-    return create_collect_config_meta(plugin_id, name)
+    return create_collect_config_meta(*args, **kwargs)
 
 
 def upgrade_plugin(plugin_id, info_version: int, config_version: int):
     """
     升级插件
     """
-    plugin_versions = PluginVersionHistory.objects.filter(plugin=plugin_id)
+    plugin_versions = PluginVersionHistory.objects.filter(plugin_id=plugin_id)
     max_info_version = max(set(plugin_versions.values_list("info_version", flat=True)))
     max_config_version = max(set(plugin_versions.values_list("config_version", flat=True)))
     assert info_version > max_info_version
@@ -240,19 +267,20 @@ def upgrade_collect_config(plugin_id):
     create_deployment_config_version(last_plugin_version, config_meta_id)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_list_spaces():
-    # from bkm_space.api import SpaceApi
     with patch("bkm_space.api.SpaceApi.list_spaces") as list_spaces:
         space = MagicMock()
         space.bk_biz_id = BK_BIZ_ID
+        space.space_name = "test_space"
+        space.type_name = "test_type"
         list_spaces.return_value = [space]
         yield list_spaces
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_query_data_source():
-    with patch("api.metadata.query_data_source_by_space_uid") as query_data_source:
+    with patch("core.drf_resource.api.metadata.query_data_source_by_space_uid") as query_data_source:
         global_plugins = CollectorPluginMeta.objects.all().values("plugin_id", "plugin_type")
         query_data_source.return_value = [
             {"data_name": f"{plugin['plugin_id']}_{plugin['plugin_type']}".lower() for plugin in global_plugins}
@@ -260,12 +288,111 @@ def mock_query_data_source():
         yield query_data_source
 
 
+# @pytest.fixture()
+# def mock_fetch_sub_statistics():
+#     with patch("monitor_web.collecting.utils.fetch_sub_statistics") as fetch_sub_statistics:
+#         subscription_id_config_map = {config.id: config for config in CollectConfigMeta.objects.exclude(plugin_id__icontains="k8s")}
+#         statistics_data = []
+#
+#         for subscription_id in subscription_id_config_map:
+#             statistics_data.append({"subscription_id": subscription_id, "status": []})
+#         fetch_sub_statistics.return_value = subscription_id_config_map, statistics_data
+#         yield
+
+
+@pytest.mark.order(2)
+@pytest.fixture()
+def mock_fetch_subscription_statistic():
+    with patch("core.drf_resource.api.node_man.fetch_subscription_statistic.bulk_request") as fetch:
+        config_ids = (
+            CollectConfigMeta.objects.exclude(plugin_id__icontains="k8s")
+            .select_related("deployment_config")
+            .values_list("deployment_config__subscription_id", flat=True)
+        )
+        statistics_data = [{"subscription_id": _id, "status": []} for _id in config_ids]
+        fetch.return_value = [statistics_data]
+        yield
+
+
+@pytest.fixture()
+def mock_k8s_install_status():
+    with patch.object(
+        K8sInstaller,
+        "status",
+        new=lambda self: (
+            [
+                {
+                    "child": [
+                        {
+                            "instance_id": "default",
+                            "instance_name": "公共采集集群",
+                            "status": "FAILED",
+                            "plugin_version": self.collect_config.deployment_config.plugin_version.version,
+                            "log": "",
+                            "action": "",
+                            "steps": {},
+                        }
+                    ],
+                    "node_path": "集群",
+                    "label_name": "",
+                    "is_label": False,
+                }
+            ]
+        ),
+    ):
+        yield
+
+
 class TestCollectConfigList:
-    def test_collect_config_list(self, mock_list_spaces, mock_query_data_source):
-        config_list = CollectConfigListResource().perform_request(
-            {"bk_biz_id": 2, "refresh_status": False, "order": "-create_time", "search": {}, "page": 1, "limit": 50}
+    def test_collect_config_list(
+        self, mock_list_spaces, mock_query_data_source, mock_fetch_subscription_statistic, mock_k8s_install_status
+    ):
+        from monitor_web.collecting.resources.backend import CollectConfigListResource
+
+        operation_results = CollectConfigMeta.objects.values_list("operation_result", flat=True)
+        assert all(result == "DEPLOYING" for result in operation_results)
+
+        config_list_instance = CollectConfigListResource()
+        config_list = config_list_instance.perform_request(
+            {"bk_biz_id": 2, "refresh_status": True, "order": "-create_time", "search": {}, "page": 1, "limit": 50}
         )
 
-        print(config_list)
+        for config in config_list["config_list"]:
+            config.pop("update_time")
+            config.pop("id")
 
-        print("test_collect_config_list")
+        config_list["config_list"] = sorted(config_list["config_list"], key=lambda x: x["name"])
+        assert len(config_list["config_list"]) == 6
+        assert config_list["total"] == 6
+
+        not_k8s_plugin_ids = ("cpu_usage", "memory_usage", "disk_usage", "net_usage")
+        operation_results = CollectConfigMeta.objects.filter(plugin_id__in=not_k8s_plugin_ids).values_list(
+            "operation_result", flat=True
+        )
+        assert len(operation_results) == len(not_k8s_plugin_ids)
+        assert all(result == "SUCCESS" for result in operation_results)
+
+        k8s_plugin_ids = ("k8s_cpu_load", "k8s_memory_load")
+        operation_results = CollectConfigMeta.objects.filter(plugin_id__in=k8s_plugin_ids).values_list(
+            "operation_result", flat=True
+        )
+        assert len(operation_results) == len(k8s_plugin_ids)
+        assert all(result == "FAILED" for result in operation_results)
+
+        assert CollectConfigMeta.objects.get(plugin_id="cpu_usage").plugin.packaged_release_version.config_version == 4
+        assert (
+            CollectConfigMeta.objects.get(plugin_id="memory_usage").plugin.packaged_release_version.config_version == 2
+        )
+        assert CollectConfigMeta.objects.get(plugin_id="disk_usage").plugin.packaged_release_version.config_version == 1
+        assert CollectConfigMeta.objects.get(plugin_id="net_usage").plugin.packaged_release_version.config_version == 1
+        assert (
+            CollectConfigMeta.objects.get(plugin_id="k8s_cpu_load").plugin.packaged_release_version.config_version == 2
+        )
+        assert (
+            CollectConfigMeta.objects.get(plugin_id="k8s_memory_load").plugin.packaged_release_version.config_version
+            == 2
+        )
+
+        import json
+
+        print(json.dumps(config_list, ensure_ascii=False))
