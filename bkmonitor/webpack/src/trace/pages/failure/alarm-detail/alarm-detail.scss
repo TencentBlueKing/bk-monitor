@@ -6,7 +6,10 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   --td-bg-color-secondarycontainer: #fafbfd;
 }
 .alarm-detail-loading {
-  z-index: 50;
+  .bk-loading-indicator,
+  .bk-loading-mask {
+    z-index: 50 !important;
+  }
 }
 
 .tag-column-popover {

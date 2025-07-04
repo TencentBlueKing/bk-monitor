@@ -385,7 +385,7 @@ export default defineComponent({
       topoNodeId.value = nodeId;
     };
     const handleChangeSpace = (space: string[]) => {
-      bkzIds.value = space;
+      bkzIds.value = space || [window.bk_biz_id];
     };
     const changeTab = () => {
       refContent.value?.handleChangeActive('FailureView');

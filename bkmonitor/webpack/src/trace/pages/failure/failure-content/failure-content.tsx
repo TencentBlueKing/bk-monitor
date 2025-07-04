@@ -45,6 +45,7 @@ import FailureMenu from '../failure-menu/failure-menu';
 // import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
+import { replaceSpecialCondition } from '../utils';
 
 import type { IAlert, IAlertObj, IFilterSearch, IIncident, IIncidentOperation } from '../types';
 
@@ -199,11 +200,6 @@ export default defineComponent({
     const handleChangeSelectNode = (nodeId: string) => {
       emit('changeSelectNode', nodeId);
     };
-    const replaceSpecialCondition = (qs: string) => {
-      // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
-      const regExp = new RegExp(`${t('通知人')}\\s*:\\s*(""|'')`, 'gi');
-      return qs.replace(regExp, `NOT ${t('通知人')} : *`);
-    };
     // 触发拓扑中跳转到span的事件
     const handleRootToSpan = () => {
       failureTopo.value?.handleRootToSpan();
@@ -224,7 +220,7 @@ export default defineComponent({
     const handleQueryStringChange = async (v: string) => {
       const isChange = alertIdsObject.value?.ids ? v !== alertIdsObject.value.ids : true;
       if (isChange) {
-        alertIdsObject.value = v;
+        alertIdsObject.value = { ids: v };
         searchValidate.value = await handleValidateQueryString();
       }
     };

@@ -42,13 +42,19 @@ import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
-import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
+import {
+  feedbackIncidentRoot,
+  incidentAlertList,
+  incidentRecordOperation,
+  incidentValidateQueryString,
+} from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
+import { replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -175,6 +181,8 @@ export default defineComponent({
     const tableToolList = deepRef([]);
     const enableCreateChatGroup = deepRef((window as any).enable_create_chat_group || false);
     const alertIdsData = deepRef(props.alertIdsObject);
+    const alarmDetailRef = deepRef(null);
+    const alarmDetailHeight = deepRef(0);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
@@ -743,7 +751,7 @@ export default defineComponent({
     const quickShieldChange = (v: boolean) => {
       dialog.quickShield.show = v;
     };
-    const handleGetTable = async () => {
+    const handleGetTable = () => {
       tableLoading.value = true;
       const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
@@ -751,14 +759,24 @@ export default defineComponent({
         id: incidentId.value,
         query_string: queryString,
       };
-      const data = await incidentAlertList(params);
+      incidentAlertList(params)
+        .then(res => {
+          tableLoading.value = false;
+          alertData.value = res;
+        })
+        .catch(() => {
+          tableLoading.value = false;
+          alertData.value = [];
+        });
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
-      tableLoading.value = false;
-      alertData.value = data;
+
       // const list = alertData.value.find(item => item.alerts.length > 0);
       // collapseId.value = list ? list.id : '';n
     };
     onMounted(() => {
+      if (alarmDetailRef.value) {
+        alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
+      }
       props.searchValidate && handleGetTable();
       document.body.addEventListener('click', handleHideMoreOperate);
     });
@@ -787,9 +805,15 @@ export default defineComponent({
     };
     watch(
       () => props.alertIdsObject,
-      val => {
+      async val => {
         alertIdsData.value = val;
-        props.searchValidate && handleGetTable();
+        const validate = await incidentValidateQueryString(
+          { query_string: replaceSpecialCondition(alertIdsData.value?.ids), search_type: 'incident' },
+          { needMessage: false, needRes: true }
+        )
+          .then(res => res.result)
+          .catch(() => false);
+        validate && handleGetTable();
       },
       { deep: true }
     );
@@ -831,6 +855,8 @@ export default defineComponent({
       currentBizIds,
       refresh,
       disableKey,
+      alarmDetailRef,
+      alarmDetailHeight,
     };
   },
   render() {
@@ -841,7 +867,10 @@ export default defineComponent({
           class='alarm-detail-loading'
           loading={this.tableLoading}
         >
-          <div class='alarm-detail bk-scroll-y'>
+          <div
+            ref='alarmDetailRef'
+            class='alarm-detail bk-scroll-y'
+          >
             {/* {this.alertIdsData?.label && (
               <Tag
                 style={{ marginBottom: '10px' }}
@@ -929,7 +958,7 @@ export default defineComponent({
                       // bordered={true}
                       columns={this.columns}
                       data={item.alerts}
-                      max-height={616}
+                      maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
                       tooltip-config={{ showAll: false }}
                       onRowMouseenter={this.handleEnter}
                       onRowMouseleave={() => {

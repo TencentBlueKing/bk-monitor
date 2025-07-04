@@ -230,22 +230,20 @@ export default defineComponent({
           onChange={this.handleChange}
         />
         <div class='failure-nav-main'>
-          <KeepAlive>
-            <Component
-              ref='refNav'
-              panelConfig={this.currentTabConfig}
-              tagInfo={this.$props.tagInfo}
-              topoNodeId={this.$props.topoNodeId}
-              onChangeSpace={this.handleSpace}
-              onChangeTab={this.changeTab}
-              onChooseOperation={this.chooseOperation}
-              onFilterSearch={this.filterSearch}
-              onNodeClick={this.nodeClick}
-              onNodeExpand={this.nodeExpand}
-              onTreeScroll={this.treeScroll}
-              onAlertList={this.goAlertList}
-            />
-          </KeepAlive>
+          <Component
+            ref='refNav'
+            panelConfig={this.currentTabConfig}
+            tagInfo={this.$props.tagInfo}
+            topoNodeId={this.$props.topoNodeId}
+            onAlertList={this.goAlertList}
+            onChangeSpace={this.handleSpace}
+            onChangeTab={this.changeTab}
+            onChooseOperation={this.chooseOperation}
+            onFilterSearch={this.filterSearch}
+            onNodeClick={this.nodeClick}
+            onNodeExpand={this.nodeExpand}
+            onTreeScroll={this.treeScroll}
+          />
         </div>
       </div>
     );

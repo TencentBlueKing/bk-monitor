@@ -50,8 +50,10 @@ export default defineComponent({
     const { t } = useI18n();
     const handleSearchRef = ref(null);
     const username = ref<IUserName>({
-      id: window.user_name || window.username,
-      name: t('我处理'),
+      // id: window.user_name || window.username,
+      // name: t('我处理'),
+      id: 'all',
+      name: t('全部'),
     });
 
     const refreshTree = () => {
