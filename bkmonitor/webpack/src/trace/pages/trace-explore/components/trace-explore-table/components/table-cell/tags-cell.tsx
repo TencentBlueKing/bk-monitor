@@ -27,8 +27,11 @@
 import { defineComponent, useTemplateRef, type PropType, computed } from 'vue';
 import { shallowRef } from 'vue';
 
+import { Tag } from 'bkui-vue';
+
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';
 import { useTagsEllipsis } from '../../hooks/use-tag-ellipsis';
+import CollapseTags from './collapse-tags';
 
 import type { ExploreTableColumn, ExploreTableColumnTypeEnum, GetTableCellRenderValue } from '../../typing';
 
@@ -94,46 +97,45 @@ export default defineComponent({
   },
   render() {
     return (
-      <div
-        ref='tagContainerRef'
+      <CollapseTags
         class='explore-col explore-tags-col'
-      >
-        {this.tags?.map?.((tag, index) => (
-          <div
-            key={tag.alias}
-            ref={el => {
-              this.tagsRef[index] = el as Element;
-            }}
-            style={{
-              '--tag-color': tag.tagColor || DEFAULT_TAG_COLOR.tagColor,
-              '--tag-bg-color': tag.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
-              display: index > this.canShowIndex ? 'none' : '',
-            }}
-            class='tag-item'
-          >
-            <span
-              class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-              data-col-id={this.colId}
-              data-index={index}
-              data-row-id={this.rowId}
+        v-slots={{
+          customTag: (tag, index) => (
+            <Tag
+              key={index}
+              style={{
+                '--tag-color': tag.tagColor || DEFAULT_TAG_COLOR.tagColor,
+                '--tag-bg-color': tag.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+              }}
             >
-              {tag.alias}
-            </span>
-          </div>
-        ))}
-        <div
-          ref='collapseTagRef'
-          style={{
-            '--tag-color': DEFAULT_TAG_COLOR.tagColor,
-            '--tag-bg-color': DEFAULT_TAG_COLOR.tagBgColor,
-            visibility: this.showCollapseTag ? 'visible' : 'hidden',
-          }}
-          class='tag-item collapse-tag'
-          v-bk-tooltips={{ content: this.tipContent, placement: 'top', disabled: !this.showCollapseTag }}
-        >
-          <span> +{this.tagTotal - this.canShowIndex - 1}</span>
-        </div>
-      </div>
+              {{
+                default: () => (
+                  <span
+                    class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                    data-col-id={this.colId}
+                    data-index={index}
+                    data-row-id={this.rowId}
+                  >
+                    {tag.alias}
+                  </span>
+                ),
+              }}
+            </Tag>
+            // <div
+            //   key={tag.alias}
+            //   style={{
+            //     '--tag-color': tag.tagColor || DEFAULT_TAG_COLOR.tagColor,
+            //     '--tag-bg-color': tag.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+            //   }}
+            //   class='bk-tag tag-item'
+            // >
+
+            // </div>
+          ),
+        }}
+        data={this.tags}
+        ellipsisTip={ellipsisTags => ellipsisTags.map(tag => tag.alias).join('，')}
+      />
     );
   },
 });
