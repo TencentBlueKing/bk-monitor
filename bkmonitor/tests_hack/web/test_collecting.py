@@ -11,11 +11,26 @@ from monitor_web.models.plugin import (
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.collecting.deploy.k8s import K8sInstaller
+from celery import current_app as app
 
 pytestmark = pytest.mark.django_db
 
 BK_TENANT_ID = get_request_tenant_id()
 BK_BIZ_ID = 2
+
+
+# 重置celery配置
+@pytest.fixture(autouse=True, scope="module")
+def reset_celery_config():
+    origin_config = app.conf
+    # celery总是使用同步
+    app.conf.update(
+        task_always_eager=True,  # 同步执行所有任务
+        task_eager_propagates=True  # 同步时异常直接抛出
+    )
+
+    yield
+    app.conf = origin_config
 
 
 @pytest.mark.order(1)
@@ -317,35 +332,35 @@ def mock_fetch_subscription_statistic():
 @pytest.fixture()
 def mock_k8s_install_status():
     with patch.object(
-        K8sInstaller,
-        "status",
-        new=lambda self: (
-            [
-                {
-                    "child": [
+            K8sInstaller,
+            "status",
+            new=lambda self: (
+                    [
                         {
-                            "instance_id": "default",
-                            "instance_name": "公共采集集群",
-                            "status": "FAILED",
-                            "plugin_version": self.collect_config.deployment_config.plugin_version.version,
-                            "log": "",
-                            "action": "",
-                            "steps": {},
+                            "child": [
+                                {
+                                    "instance_id": "default",
+                                    "instance_name": "公共采集集群",
+                                    "status": "FAILED",
+                                    "plugin_version": self.collect_config.deployment_config.plugin_version.version,
+                                    "log": "",
+                                    "action": "",
+                                    "steps": {},
+                                }
+                            ],
+                            "node_path": "集群",
+                            "label_name": "",
+                            "is_label": False,
                         }
-                    ],
-                    "node_path": "集群",
-                    "label_name": "",
-                    "is_label": False,
-                }
-            ]
-        ),
+                    ]
+            ),
     ):
         yield
 
 
 class TestCollectConfigList:
     def test_collect_config_list(
-        self, mock_list_spaces, mock_query_data_source, mock_fetch_subscription_statistic, mock_k8s_install_status
+            self, mock_list_spaces, mock_query_data_source, mock_fetch_subscription_statistic, mock_k8s_install_status
     ):
         from monitor_web.collecting.resources.backend import CollectConfigListResource
 
@@ -381,16 +396,19 @@ class TestCollectConfigList:
 
         assert CollectConfigMeta.objects.get(plugin_id="cpu_usage").plugin.packaged_release_version.config_version == 4
         assert (
-            CollectConfigMeta.objects.get(plugin_id="memory_usage").plugin.packaged_release_version.config_version == 2
+                CollectConfigMeta.objects.get(
+                    plugin_id="memory_usage").plugin.packaged_release_version.config_version == 2
         )
         assert CollectConfigMeta.objects.get(plugin_id="disk_usage").plugin.packaged_release_version.config_version == 1
         assert CollectConfigMeta.objects.get(plugin_id="net_usage").plugin.packaged_release_version.config_version == 1
         assert (
-            CollectConfigMeta.objects.get(plugin_id="k8s_cpu_load").plugin.packaged_release_version.config_version == 2
+                CollectConfigMeta.objects.get(
+                    plugin_id="k8s_cpu_load").plugin.packaged_release_version.config_version == 2
         )
         assert (
-            CollectConfigMeta.objects.get(plugin_id="k8s_memory_load").plugin.packaged_release_version.config_version
-            == 2
+                CollectConfigMeta.objects.get(
+                    plugin_id="k8s_memory_load").plugin.packaged_release_version.config_version
+                == 2
         )
 
         import json

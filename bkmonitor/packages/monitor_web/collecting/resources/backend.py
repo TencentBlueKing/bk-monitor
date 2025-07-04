@@ -129,7 +129,7 @@ class CollectConfigListResource(Resource):
     def get_status(self, conf):
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
         status_key = conf.deployment_config.subscription_id
-        if self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
+        if self.realtime_data and self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,
                 "task_status": TaskStatus.AUTO_DEPLOYING,

@@ -1528,7 +1528,6 @@ def migrate_all_panels_task(bk_biz_id, org_id):
 
 
 @shared_task(ignore_result=True)
-@db_safe_wrapper
 def bulk_update_collect_config_cache_data(config_data_list):
     """
     获取节点管理订阅实时状态
@@ -1571,7 +1570,7 @@ def bulk_update_collect_config_cache_data(config_data_list):
             config.operation_result = operation_result
             updated_configs.append(config)
 
-    collector_plugins = CollectorPluginMeta.objects.filter(id__in=[config.id for config in config_data_list]).values(
+    collector_plugins = CollectorPluginMeta.objects.filter(plugin_id__in=[config.plugin_id for config in config_data_list]).values(
         "plugin_id", "plugin_type"
     )
 
