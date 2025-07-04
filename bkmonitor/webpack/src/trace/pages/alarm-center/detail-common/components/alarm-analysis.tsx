@@ -123,7 +123,7 @@ export default defineComponent({
       },
       {
         name: t('可疑日志'),
-        icon: 'icon-dimension-line',
+        icon: 'icon-a-logrizhi',
         list: dimensional.slice(0, 1),
         slots: {
           title: () => (
