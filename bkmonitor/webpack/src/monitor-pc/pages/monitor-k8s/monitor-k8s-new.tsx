@@ -377,7 +377,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /** 场景切换 */
-  @Provide('onSceneChange')
   handleSceneChange(value: SceneEnum) {
     const cache = this.cacheMap.get(`${this.cluster}_${value}`);
     if (this.scene !== SceneEnum.Event) {

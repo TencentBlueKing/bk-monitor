@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
-import { DimensionSceneMap, SceneAliasMap } from '../../k8s-dimension';
+import { DimensionSceneMap, K8sGroupDimension, SceneAliasMap } from '../../k8s-dimension';
 
 import type { SceneEnum } from '../../typings/k8s-new';
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
@@ -55,8 +55,6 @@ interface K8sQuickToolsEmits {
   onDrillDown: (groupByEvent: K8sTableGroupByEvent) => void;
   /** 筛选事件 */
   onFilterChange: (filterValue: string, groupByField: K8sTableColumnResourceKey, isSelect: boolean) => void;
-  /** 场景切换事件 */
-  onSceneChange: (scene: SceneEnum, groupByEvent: K8sTableGroupByEvent) => void;
 }
 @Component
 export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickToolsEmits> {
@@ -120,16 +118,26 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   }
 
   /**
-   * @description 切换场景
+   * @description 切换场景(新开页实现)
+   * @param {SceneEnum} targetScene 想要切换到的目标场景
    *
    */
-  handleSceneChange(scene: SceneEnum) {
-    this.handlePopoverHide();
-    this.$emit('sceneChange', scene, {
-      id: this.groupByField,
-      dimension: this.groupByField,
-      filterById: this.filterValue,
+  handleNewK8sPage(targetScene: SceneEnum) {
+    const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
+    const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
+    targetPageGroupInstance.addGroupFilter(this.groupByField);
+
+    const query = {
+      ...rest,
+      filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
+      groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
+      scene: targetScene,
+    };
+    const targetRoute = this.$router.resolve({
+      query,
     });
+    this.handlePopoverHide();
+    window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
 
   /**
@@ -180,7 +188,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
             <li
               key={scene}
               class='menu-item'
-              onClick={() => this.handleSceneChange(scene)}
+              onClick={() => this.handleNewK8sPage(scene)}
             >
               {SceneAliasMap[scene]}
             </li>
