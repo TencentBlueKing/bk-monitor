@@ -21,19 +21,21 @@ from ai_agents.resources.resources import (
     CreateChatCompletionResource,
     BatchDeleteSessionContentResource,
 )
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class AgentViewSet(ResourceViewSet):
     def get_permissions(self):
-        return []
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [ResourceRoute("GET", GetAgentInfoResource, endpoint="info")]
 
 
 class SessionViewSet(ResourceViewSet):
     def get_permissions(self):
-        return []
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionResource),
@@ -44,7 +46,7 @@ class SessionViewSet(ResourceViewSet):
 
 class SessionContentViewSet(ResourceViewSet):
     def get_permissions(self):
-        return []
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionContentResource),
@@ -57,6 +59,6 @@ class SessionContentViewSet(ResourceViewSet):
 
 class ChatCompletionViewSet(ResourceViewSet):
     def get_permissions(self):
-        return []
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [ResourceRoute("POST", CreateChatCompletionResource)]
