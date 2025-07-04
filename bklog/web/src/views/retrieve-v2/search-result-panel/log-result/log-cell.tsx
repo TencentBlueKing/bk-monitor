@@ -41,6 +41,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    customStyle: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   setup(props, { slots, emit }) {
     const cellStyle = computed(() => {
@@ -68,7 +72,7 @@ export default defineComponent({
       return (
         <div
           ref={refRoot}
-          style={cellStyle.value}
+          style={{ ...cellStyle.value, ...props.customStyle }}
         >
           {slots.default?.()}
         </div>
