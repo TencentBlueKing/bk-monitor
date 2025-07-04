@@ -46,7 +46,8 @@ for _setting in dir(_module):
 ROOT_URLCONF = "urls"
 
 INSTALLED_APPS = locals().get("INSTALLED_APPS", tuple())
-INSTALLED_APPS += (
+INSTALLED_APPS = list(INSTALLED_APPS)
+INSTALLED_APPS += [
     "django_celery_beat",
     "django_celery_results",
     "django_elasticsearch_dsl",
@@ -75,7 +76,12 @@ INSTALLED_APPS += (
     "apigw_manager",
     "bk_notice_sdk",
     "ai_agents",
-)
+]
+# 主要是用于适配saas 相关的单元测试。
+# 运行单元测试时会报apm_web相关的出错误，所以这里进行剔除，以免报错。
+if os.getenv("DJANGO_CONF_MODULE") == "conf.web.development.community":
+    INSTALLED_APPS.remove("apm_web")
+    INSTALLED_APPS = tuple(INSTALLED_APPS)
 
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
 ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
