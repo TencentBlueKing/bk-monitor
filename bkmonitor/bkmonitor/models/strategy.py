@@ -494,7 +494,7 @@ class UserGroup(AbstractRecordModel):
     snippet = models.TextField("配置片段", default="", blank=True, null=True)
 
     # 新增字段：是否命中第一个轮值规则即可
-    hit_first_duty = models.BooleanField("是否命中第一个轮值规则即可", default=False)
+    hit_first_duty = models.BooleanField("是否命中第一个轮值规则即可", default=True)
 
     class Meta:
         verbose_name = "告警处理组配置"

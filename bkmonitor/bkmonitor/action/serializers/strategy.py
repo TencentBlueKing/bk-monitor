@@ -621,7 +621,7 @@ class UserGroupSlz(serializers.ModelSerializer):
     desc = serializers.CharField(required=False, default="", allow_blank=True)
 
     # 新增字段：是否命中第一个轮值规则即可
-    hit_first_duty = serializers.BooleanField(required=False, default=False)
+    hit_first_duty = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = UserGroup
