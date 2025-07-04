@@ -322,6 +322,7 @@ def update_metric_list_by_biz(bk_biz_id):
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
 
     source_type_use_biz = [
         "BKDATA",
