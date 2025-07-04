@@ -47,6 +47,10 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
 ] as const;
 
 export const AlarmStatusIconMap = {
+  ABNORMAL: {
+    icon: 'icon-mind-fill',
+    iconColor: '#F59789',
+  },
   NOT_SHIELDED_ABNORMAL: {
     icon: 'icon-mind-fill',
     iconColor: '#F59789',
@@ -58,6 +62,10 @@ export const AlarmStatusIconMap = {
   RECOVERED: {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
+  },
+  CLOSED: {
+    icon: '',
+    iconColor: '#DCDEE5',
   },
 };
 

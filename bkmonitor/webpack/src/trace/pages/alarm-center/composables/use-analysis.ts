@@ -53,10 +53,9 @@ export function useAlarmAnalysis() {
   const analysisFields = computed(() => alarmStore.alarmService.analysisFields);
   // 告警、故障、处理记录 字段名称映射
   const analysisFieldsMap = computed(() => alarmStore.alarmService.analysisFieldsMap);
+  const storageAnalysisKey = computed(() => alarmStore.alarmService.storageAnalysisKey);
   // 告警、故障、处理记录 展示的告警分析设置项
-  const analysisSettings = useStorage<string[]>(alarmStore.alarmService.storageAnalysisKey, [
-    ...alarmStore.alarmService.analysisFields,
-  ]);
+  const analysisSettings = useStorage<string[]>(storageAnalysisKey, [...alarmStore.alarmService.analysisFields]);
 
   const effectFunc = () => {
     analysisFieldTopNLoading.value = true;
