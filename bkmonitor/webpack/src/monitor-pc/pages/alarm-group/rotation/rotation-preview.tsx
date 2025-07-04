@@ -336,7 +336,12 @@ export default class RotationPreview extends tsc<IProps> {
                           style={{ color: duty.color }}
                           class='user-content'
                         >
-                          <span>{duty.users.map(u => u.name || u.id).join(',')}</span>
+                          <span>
+                            {duty.users.map((u, index, arr) => [
+                              u.name ? <bk-user-display-name user-id={u.name} /> : u.id || '--',
+                              index !== arr.length - 1 && ',',
+                            ])}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -393,7 +398,14 @@ export default class RotationPreview extends tsc<IProps> {
                   class='content-item'
                 >
                   <span class='item-left'>{`${item.startTime} ～ ${item.endTime}`}</span>
-                  <span class='item-right'>{item.users}</span>
+                  <span class='item-right'>
+                    {item.users
+                      .split('、')
+                      .map((user, index, arr) => [
+                        <bk-user-display-name user-id={user} />,
+                        index !== arr.length - 1 && '、',
+                      ])}
+                  </span>
                 </div>
               ))
             ) : (

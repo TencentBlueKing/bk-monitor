@@ -106,9 +106,14 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=10)
     offset = serializers.IntegerField(label="偏移量", required=False, default=0)
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    sort = serializers.ListSerializer(
+        label="排序字段", required=False, child=serializers.CharField(), default=[], allow_empty=True
+    )
 
     def validate(self, attrs):
         EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
+        # 默认按时间降序
+        attrs["sort"] = attrs.get("sort") or ["-time"]
         return attrs
 
 
