@@ -23,9 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const asignWindowField = (data: Record<string, any>, isLowerCase = true) => {
-  Object.assign(
-    window,
-    ...Object.entries(data).map(([key, value]) => ({ [isLowerCase ? key.toLowerCase() : key]: value }))
-  );
+import UserDisplayName, { type ConfigOptions } from '@blueking/bk-user-display-name';
+
+/** 判断 item 是否为用户组 */
+export const USER_GROUP_TYPE = new Set(['userGroup', 'group']);
+
+export const getUserComponentConfig = (): ConfigOptions => {
+  if (window.enable_multi_tenant_mode) {
+    return {
+      tenantId: window.bk_tenant_id,
+      apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,
+      cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
+      emptyText: '--',
+    };
+  }
+  return {
+    tenantId: '',
+    apiBaseUrl: `${window.site_url}rest/v2/commons/user/list_users/`,
+    cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
+    emptyText: '--',
+  };
 };
+export const userDisplayNameConfigure = () => {
+  UserDisplayName.configure(getUserComponentConfig());
+};
+
+let BkUserDisplayNameInstance: Readonly<UserDisplayName>;
+
+export const getBkUserDisplayNameInstance = () => {
+  if (!BkUserDisplayNameInstance) {
+    // 跨 shadow dom 直接运行会报错
+    if (window.__POWERED_BY_BK_WEWEB__) {
+      const cls = customElements.get('bk-user-display-name') as any;
+      BkUserDisplayNameInstance = Object.freeze(new cls());
+    } else {
+      BkUserDisplayNameInstance = Object.freeze(new UserDisplayName());
+    }
+  }
+  return BkUserDisplayNameInstance;
+};
+
+export const getUserCache = () => UserDisplayName.userCache;
+
+export default UserDisplayName;

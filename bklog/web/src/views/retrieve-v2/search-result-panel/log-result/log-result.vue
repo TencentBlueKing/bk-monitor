@@ -48,6 +48,7 @@
         :log-params="logDialog.data"
         :target-fields="targetFields"
         :title="logDialog.title"
+        :indexSetId="logDialog.indexSetId"
         @close-dialog="hideDialog"
         @toggle-screen-full="toggleScreenFull"
       />
@@ -57,6 +58,7 @@
         :retrieve-params="retrieveParams"
         :target-fields="targetFields"
         :title="logDialog.title"
+        :indexSetId="logDialog.indexSetId"
         @close-dialog="hideDialog"
         @toggle-screen-full="toggleScreenFull"
       />
@@ -110,6 +112,7 @@
           headerPosition: 'left',
           fullscreen: true,
           data: {},
+          indexSetId: '',
         },
       };
     },
@@ -119,12 +122,13 @@
         this.$el.querySelector('.ai-active')?.classList.remove('ai-active');
       },
       // 打开实时日志或上下文弹窗
-      openLogDialog(row, type) {
+      openLogDialog(row, type , indexSetId) {
         this.logDialog.data = row;
         this.logDialog.type = type;
         this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
         this.logDialog.visible = true;
         this.logDialog.fullscreen = true;
+        this.logDialog.indexSetId = indexSetId;
       },
       openWebConsole(row) {
         // (('cluster', 'container_id'),
@@ -180,17 +184,19 @@
           const contextFields = config.contextAndRealtime.extra?.context_fields;
           const timeField = this.$store.state.indexFieldInfo.time_field;
           const dialogNewParams = {};
-          const { targetFields, sortFields } = config.indexSetValue;
-          const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+          const { targetFields = [], sortFields = [] } = config.indexSetValue;
+
+          // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
 
           Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
           // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-          if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-            fieldParamsKey.forEach(field => {
-              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-            });
-          } else if (Array.isArray(contextFields) && contextFields.length) {
+          // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
+          //   fieldParamsKey.forEach(field => {
+          //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
+          //   });
+          // } else 
+          if (Array.isArray(contextFields) && contextFields.length) {
             // 传参配置指定字段
             contextFields.push(timeField);
             contextFields.forEach(field => {
@@ -203,8 +209,7 @@
           } else {
             Object.assign(dialogNewParams, row);
           }
-
-          this.openLogDialog(dialogNewParams, event);
+          this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
         } else if (event === 'webConsole') this.openWebConsole(row);
         else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
       },

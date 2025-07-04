@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
@@ -82,9 +83,9 @@ def create_statistics_data_flow(table_id, agg_interval):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_full_cmdb_level_data_flow(table_id):
+def create_full_cmdb_level_data_flow(table_id, bk_tenant_id=DEFAULT_TENANT_ID):
     try:
-        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id)
+        bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except models.BkDataStorage.DoesNotExist:
         raise Exception(_("数据({})未接入到计算平台，请先接入后再试").format(table_id))
 
@@ -119,8 +120,10 @@ def create_es_storage_index(table_id):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name):
-    models.ESStorage.objects.get(table_id=table_id).delete_all_snapshot(target_snapshot_repository_name)
+def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).delete_all_snapshot(
+        target_snapshot_repository_name
+    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -396,9 +399,7 @@ def _manage_es_storage(es_storage):
         logger.info(f"manage_es_storage:es_storage->[{es_storage.table_id}] cron task success")
     except RetryError as e:
         logger.error(
-            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
-                es_storage.table_id, e.__cause__
-            )
+            f"manage_es_storage:es_storage index lifecycle failed,table_id->{es_storage.table_id},error->{e.__cause__}"
         )
         logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
@@ -450,15 +451,17 @@ def push_and_publish_space_router(
         space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     else:
         # NOTE: 现阶段仅针对 bkcc 类型做处理
-        space_type = SpaceTypes.BKCC.value
-        space_ids = models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
-        # 拼装数据
-        space_list = [{"space_type": space_type, "space_id": space_id} for space_id in space_ids]
+        spaces = list(models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value))
         # 使用线程处理
-        bulk_handle(multi_push_space_table_ids, space_list)
+        bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list, is_publish=False), spaces)
 
         # 通知到使用方
-        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        push_redis_keys = []
+        for space in spaces:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+            else:
+                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     # 更新数据
@@ -466,21 +469,6 @@ def push_and_publish_space_router(
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
-
-
-def multi_push_space_table_ids(space_list: list[dict]):
-    """批量推送数据"""
-    logger.info("start to multi push space table ids")
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    space_client = SpaceTableIDRedis()
-    for space in space_list:
-        try:
-            space_client.push_space_table_ids(space_type=space["space_type"], space_id=space["space_id"])
-        except Exception as e:
-            logger.error("push space to redis error, %s", e)
-
-    logger.info("multi push space table ids successfully")
 
 
 def _access_bkdata_vm(
@@ -880,6 +868,11 @@ def bulk_create_fed_data_link(sub_clusters):
 def sync_bkbase_v4_metadata(key):
     """
     同步计算平台元数据信息至Metadata
+    Redis中的数据格式
+    redis_key
+        kafka: {}
+        vm: {rt1:{},rt2:{},rt3:{}}
+        es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
@@ -908,8 +901,7 @@ def sync_bkbase_v4_metadata(key):
     bkbase_metadata_dict = {
         key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
     }
-    bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
-    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
+    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata_dict)
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
@@ -926,7 +918,7 @@ def sync_bkbase_v4_metadata(key):
         return
 
     # 处理 Kafka 信息
-    kafka_info = bkbase_metadata.get("kafka")
+    kafka_info = bkbase_metadata_dict.get("kafka")
     if kafka_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -938,23 +930,26 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get("es")
+    es_info = bkbase_metadata_dict.get("es")
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
             )
-            sync_es_metadata(es_info, table_id)
+            # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
+            # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
+            es_info_value = next(iter(es_info.values()))
+            sync_es_metadata(es_info_value, table_id)
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
-    vm_info = bkbase_metadata.get("vm")
+    vm_info = bkbase_metadata_dict.get("vm")
     if vm_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
             )
-            sync_vm_metadata(vm_info, table_id)
+            sync_vm_metadata(vm_info)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
 
     cost_time = time.time() - start_time

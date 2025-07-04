@@ -33,7 +33,8 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
@@ -222,7 +222,7 @@ class HostHandler:
                     res.append(i)
                     host_ids.append(i["bk_host_id"])
             except Exception as e:  # pylint: disable=broad-except
-                logger.info("batch_list_application_hosts, {}".format(e))
+                logger.info(f"batch_list_application_hosts, {e}")
 
         hosts_cache.set_value(cache_key, res)
         return res
@@ -317,7 +317,7 @@ class HostHandler:
             },
         }
         response = list_biz_hosts(params)
-        if response.get("count"):
+        if response and response.get("count"):
             for i in response["info"]:
                 ip = i.get("bk_host_innerip") or i.get("bk_host_innerip_v6")
                 res.append(

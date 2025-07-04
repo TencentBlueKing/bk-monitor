@@ -12,7 +12,7 @@
   import useFieldEgges from './use-field-egges';
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
-  import { getCommonFilterAddition, getCommonFilterFieldsList } from '../../../store/helper';
+  import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE } from '../../../store/store.type';
 
   const { $t } = useLocale();
@@ -31,23 +31,11 @@
     commonFilterAddition.value = getCommonFilterAddition(store.state);
   };
 
-  let resetTimer = null;
 
   watch(
     () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
     () => {
-      const additionValue = JSON.parse(localStorage.getItem('commonFilterAddition'));
-
-      // 增加延迟执行，避免页面跳转 indexId 清空再次赋值导致的错误清理
-      resetTimer && clearTimeout(resetTimer);
-      resetTimer = setTimeout(() => {
-        // indexId 变化时清除无效缓存
-        if (additionValue?.indexId !== store.state.indexId) {
-          localStorage.removeItem('commonFilterAddition');
-        }
-
-        setCommonFilterAddition();
-      }, 300);
+      setCommonFilterAddition();
     },
     { immediate: true, deep: true },
   );
@@ -115,13 +103,7 @@
       }
     });
 
-    localStorage.setItem(
-      'commonFilterAddition',
-      JSON.stringify({
-        indexId: store.state.indexId,
-        value: commonFilterAddition.value,
-      }),
-    );
+    setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
 
     store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
 

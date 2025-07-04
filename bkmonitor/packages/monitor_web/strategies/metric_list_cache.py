@@ -961,7 +961,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
         try:
-            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id)
+            bcs_clusters = api.kubernetes.fetch_k8s_cluster_list(
+                bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
+            )
         except (requests.exceptions.ConnectionError, BKAPIError) as err:
             logger.exception(f"[CustomEventCacheManager] fetch bcs_clusters error: {err}")
             # bcs 未就绪，不影响自定义事件
@@ -1276,13 +1278,18 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         )
         if plugin_data.exists():
             # 获取全部的插件下的 ts 数据
-            plugin_ts_result = api.metadata.query_time_series_group.request.refresh(bk_biz_id=0)
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
-            for result in plugin_ts_result:
-                result["bk_biz_id"] = self.bk_biz_id
-                if result["time_series_group_name"] not in db_name_list:
+            for name in db_name_list:
+                # 插件默认都是全局数据
+                group_list = api.metadata.query_time_series_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
+                )
+                if not group_list:
                     continue
-                self.ts_db_name.append(result["time_series_group_name"])
+                self.ts_db_name.append(name)
+                result = group_list[0]
+                # 将业务id设置为当前业务id
+                result["bk_biz_id"] = self.bk_biz_id
                 yield result
 
         # 插件类指标

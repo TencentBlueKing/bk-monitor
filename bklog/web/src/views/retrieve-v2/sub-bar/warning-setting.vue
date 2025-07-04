@@ -33,7 +33,7 @@
                 class="selector-owner"
                 v-if="active === 'mission'"
               >
-                {{ $t('我的')}}
+                {{ $t('我的') }}
                 <bk-switcher
                   class="selector-owner-switch"
                   size="small"
@@ -224,7 +224,8 @@
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
   import { BK_LOG_STORAGE } from '../../../store/store.type';
-  // import label from '../../../language/lang/en/label';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+
   const { t } = useLocale();
   const store = useStore();
 
@@ -523,21 +524,22 @@
             }),
             keyword: query_string,
           };
-          resolveCommonParams(params);
-          resolveQueryParams(params, true).then(res => {
-            if (res) {
-              store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-              store.commit('updateIndexItemParams', {
-                start_time: startTime,
-                end_time: endTime,
-                datePickerValue: [startTime, endTime],
-              });
-              setTimeout(() => {
+          resolveCommonParams(params).then(() => {
+            resolveQueryParams(params, true).then(res => {
+              if (res) {
+                store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+                store.commit('updateIndexItemParams', {
+                  start_time: startTime,
+                  end_time: endTime,
+                  datePickerValue: [startTime, endTime],
+                });
                 store.dispatch('requestIndexSetQuery', { isPagination: false });
+                RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
                 PopInstanceUtilInstance.hide();
-              });
-            }
+              }
+            });
           });
+
           return;
         }
 

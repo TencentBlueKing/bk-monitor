@@ -154,6 +154,7 @@ export default defineComponent({
               start_time: queryParams?.start_time || '',
               end_time: queryParams?.end_time || '',
               mode: queryParams?.mode || '',
+              sort: queryParams?.sort || [],
             }}
             deep={5}
           />

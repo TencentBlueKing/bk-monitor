@@ -12,6 +12,7 @@ from aidev_agent.services.chat import ExecuteKwargs
 from django.http import StreamingHttpResponse
 
 from ai_agents.services.agent_instance import AgentInstanceBuilder
+from ai_agents.services.command_handler import CommandProcessor
 from core.drf_resource import Resource
 from rest_framework import serializers
 from ai_agents.services.api_client import AidevApiClientBuilder
@@ -50,7 +51,7 @@ class CreateChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session(json=validated_request_data)
-        return res["data"]
+        return res
 
 
 class RetrieveChatSessionResource(Resource):
@@ -70,7 +71,7 @@ class RetrieveChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
-        return res["data"]
+        return res
 
 
 class DestroyChatSessionResource(Resource):
@@ -90,7 +91,7 @@ class DestroyChatSessionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session(path_params={"session_code": session_code})
-        return res["data"]
+        return res
 
 
 # -------------------- 会话内容管理 -------------------- #
@@ -105,16 +106,35 @@ class CreateChatSessionContentResource(Resource):
         content = serializers.CharField(label="内容", required=True)
         property = serializers.DictField(label="属性", required=False)
 
+    def __init__(self):
+        super().__init__()
+        self.command_processor = CommandProcessor()
+
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
+        property_data = validated_request_data.get("property", {})
 
-        logger.info("CreateChatSessionContentResource: try to create content with session_code->[%s]", session_code)
+        logger.info(
+            "CreateChatSessionContentResource: try to create content with session_code->[%s],property->[%s]",
+            session_code,
+            property_data,
+        )
+
+        # 快捷指令
+        try:
+            command_data = property_data.get("extra")
+            if command_data.get("command"):
+                logger.info("CreateChatSessionContentResource: try to process command->[%s]", command_data)
+                processed_content = self.command_processor.process_command(command_data)
+                validated_request_data["content"] = processed_content
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("CreateChatSessionContentResource: process command error->[%s]", e)
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.create_chat_session_content(json=validated_request_data)
-        return res["data"]
+        return res
 
 
 class GetChatSessionContentsResource(Resource):
@@ -133,7 +153,7 @@ class GetChatSessionContentsResource(Resource):
         )
         res = api_client.api.get_chat_session_contents(params={"session_code": session_code})
 
-        return res["data"]
+        return res
 
 
 class DestroyChatSessionContentResource(Resource):
@@ -150,7 +170,28 @@ class DestroyChatSessionContentResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.destroy_chat_session_content(path_params={"id": id})
-        return res["data"]
+        return res
+
+
+class BatchDeleteSessionContentResource(Resource):
+    """
+    批量删除对话(根据id列表)
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.ListField(label="内容ID列表", required=True)
+
+    def perform_request(self, validated_request_data):
+        logger.info(
+            "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
+        )
+
+        api_client = AidevApiClientBuilder.get_client(
+            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+        )
+
+        res = api_client.api.batch_delete_chat_session_content(json=validated_request_data)
+        return res
 
 
 class UpdateChatSessionContentResource(Resource):
@@ -174,7 +215,7 @@ class UpdateChatSessionContentResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.update_chat_session_content(path_params={"id": id}, json=validated_request_data)
-        return res["data"]
+        return res
 
 
 # -------------------- Agent管理 -------------------- #
@@ -195,7 +236,7 @@ class GetAgentInfoResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
         res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
-        return res["data"]
+        return res
 
 
 # -------------------- 对话交互 -------------------- #
@@ -223,24 +264,24 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
     # 检查 ExecuteKwargs 解析是否正确
     try:
         validated_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
-        logger.info(f"Validated execute_kwargs: {validated_kwargs}")
+        logger.info(f"CreateChatCompletionResource: Validated execute_kwargs: {validated_kwargs}")
     except Exception as e:
-        logger.error(f"ExecuteKwargs validation failed: {e}")
+        logger.error(f"CreateChatCompletionResource: ExecuteKwargs validation failed: {e}")
         raise
 
     def streaming_generator():
         try:
             for chunk in agent_instance.execute(validated_kwargs):
-                logger.info(f"Yielding chunk: {chunk}")
+                logger.info(f"CreateChatCompletionResource: Yielding chunk: {chunk}")
                 yield chunk
-        except Exception as e:
-            logger.error(f"Error in streaming generator: {e}")
+                logger.info(f"CreateChatCompletionResource: Yielded chunk: {chunk}")
+        except Exception as error:
+            logger.error(f"CreateChatCompletionResource: Error in streaming generator: {error}")
             raise
 
     return StreamingResponseWrapper(streaming_generator())
 
 
-# POST /app/ai_agents/chat/chat_completion
 class CreateChatCompletionResource(Resource):
     """
     创建模型对话 流式
@@ -255,17 +296,26 @@ class CreateChatCompletionResource(Resource):
         session_code = validated_request_data.get("session_code")
         execute_kwargs = validated_request_data["execute_kwargs"]
         agent_code = validated_request_data.get("agent_code")
+        logger.info(
+            "CreateChatCompletionResource: try to create chat completion with session_code->[%s], agent_code->[%s]",
+            session_code,
+            agent_code,
+        )
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
 
+        # 传递默认智能体 agent_code 保持和session的创建者一致
         agent_instance = AgentInstanceBuilder.build_agent_instance_by_session(
             session_code=session_code, api_client=api_client, agent_code=agent_code
         )
 
         # 根据流式配置执行
         if execute_kwargs.get("stream", False):
+            logger.info(
+                "CreateChatCompletionResource: stream is true, start streaming,session_code->[%s]", session_code
+            )
             streaming_wrapper = _handle_streaming_response(agent_instance, execute_kwargs)
             return streaming_wrapper.as_streaming_response()
         return None

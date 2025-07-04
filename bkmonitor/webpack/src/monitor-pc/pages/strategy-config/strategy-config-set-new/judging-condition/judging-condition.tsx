@@ -179,6 +179,9 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   }
 
   get isNoDataDisable() {
+    if (this.editMode === 'Source') {
+      return false;
+    }
     return !(this.metricData.length && ['time_series', 'log'].includes(this.metricData[0]?.data_type_label));
   }
 

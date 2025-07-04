@@ -231,7 +231,7 @@ class AddNullDataProcessor:
             last_datapoint_timestamp = None
             for timestamp in range(start_time, end_time, interval):
                 if time_to_value[timestamp] is None:
-                    if not time_alignment:
+                    if params.get("null_as_zero"):
                         # 补 0 代替补 Null
                         row["datapoints"].append([0, timestamp])
                         last_datapoint_timestamp = timestamp
@@ -563,8 +563,10 @@ class UnifyQueryRawResource(ApiAuthResource):
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
         time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
+        null_as_zero = serializers.BooleanField(label="是否将空值转换为0", required=False, default=False)
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
+        with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
 
         @classmethod
         def to_str(cls, value):
@@ -886,6 +888,7 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 数据预处理
         points = TimeCompareProcessor.process_origin_data(params, points)
+        metrics = metrics if params["with_metric"] else []
         return {
             "series": points,
             "metrics": metrics,

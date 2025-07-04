@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict
+from typing import Any
+from collections.abc import Generator
 
 from django.db import models
 from django.utils import timezone
@@ -200,11 +201,23 @@ class BCSContainer(BCSBase, BCSBaseResources):
         return columns
 
     @staticmethod
-    def load_list_from_api(params):
+    def load_list_from_api(params: dict[str, Any]) -> Generator["BCSContainer", Any, None]:
+        """
+        从API获取Container列表
+
+        Args:
+            params: 请求参数
+                bk_tenant_id: 租户ID
+                bk_biz_id: 业务ID
+                bcs_cluster_id: 集群ID
+        """
+        bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         bk_biz_id = params["bk_biz_id"]
 
-        for c in api.kubernetes.fetch_k8s_container_list_by_cluster(bcs_cluster_id=bcs_cluster_id):
+        for c in api.kubernetes.fetch_k8s_container_list_by_cluster(
+            bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id
+        ):
             bcs_cluster_id = c.get("bcs_cluster_id")
             bcs_container = BCSContainer()
             bcs_container.bk_biz_id = bk_biz_id
@@ -270,7 +283,7 @@ class BCSContainer(BCSBase, BCSBaseResources):
 
     @classmethod
     def update_usage_resource_and_monitor_status(
-        cls, bk_biz_id: int, bcs_cluster_id: str, models: BCSBase, usages: Dict, monitor_status_map: Dict
+        cls, bk_biz_id: int, bcs_cluster_id: str, models: BCSBase, usages: dict, monitor_status_map: dict
     ) -> None:
         # 获得已存在的记录
         old_unique_hash_map = {

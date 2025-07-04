@@ -243,6 +243,27 @@ const requestGrepResult = {
   method: 'post',
 };
 
+const createOrUpdateToken = {
+  url: '/share/create_or_update_token/',
+  method: 'post',
+};
+
+const getShareParams = {
+  url: 'share/get_share_params/',
+  method: 'get',
+};
+
+/**
+ * @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
+ * @apiDescription 根据 bk_data_id 获取采集项和索引集信息的接口
+ * @apiName query_by_dataid
+ * @apiSuccessExample {json} 成功返回:
+ */
+const getIndexSetDataByDataId = {
+  url: '/index_set/query_by_dataid/',
+  method: 'get',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -292,4 +313,7 @@ export {
   getProxyHost,
   requestGrepResult,
   unionExportAsync,
+  createOrUpdateToken,
+  getShareParams,
+  getIndexSetDataByDataId,
 };

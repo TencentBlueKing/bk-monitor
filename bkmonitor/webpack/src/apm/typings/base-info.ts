@@ -26,6 +26,7 @@
 import type { TranslateResult } from 'vue-i18n';
 export enum RelationEventType {
   K8s = 'k8s_event',
+  pipeline = 'cicd_event',
   System = 'system_event',
 }
 export interface IBaseParams {

@@ -268,6 +268,7 @@ export default {
   插件无需再次注册: 'No need to be registered again',
   当前无需填写变量: 'No variables',
   先打开无数据功能: 'First turn on the no data function',
+  先打开功能: 'First turn on the function',
   近5分钟无数据上报: 'No data reported in the last 5 minutes',
   暂无告警事件产生: 'No alarm events have been generated',
   无数据告警未开启: 'No-Data alert not set up',
@@ -521,4 +522,5 @@ export default {
   异常比例: 'Exception ratio',
   成功覆盖当前收藏: 'Successfully covered the current collection',
   批量移动成功: 'Batch move successful',
+  批量编辑成功: 'Batch edit successful',
 };
