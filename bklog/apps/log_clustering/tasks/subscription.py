@@ -31,7 +31,8 @@ from celery.task import periodic_task
 from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import ugettext_lazy as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import CmsiApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
