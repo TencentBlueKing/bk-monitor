@@ -30,7 +30,7 @@ class AIAgentsPermissionMixin:
     """业务权限控制Mixin"""
 
     def get_permissions(self):
-        return [BusinessActionPermission(ActionEnum.VIEW_BUSINESS)]
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
 
 class AgentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
@@ -38,9 +38,6 @@ class AgentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
 
 
 class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
-
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionResource),
         ResourceRoute("GET", RetrieveChatSessionResource),
@@ -49,9 +46,6 @@ class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
 
 
 class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
-
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionContentResource),
         ResourceRoute("GET", GetChatSessionContentsResource),
@@ -62,7 +56,4 @@ class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
 
 
 class ChatCompletionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
-
     resource_routes = [ResourceRoute("POST", CreateChatCompletionResource)]
