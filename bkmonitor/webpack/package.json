@@ -12,7 +12,7 @@
     "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
     "biome:check": "biome check --write ./src",
     "change:modules": "node ./webpack/change-modules-code.js",
-    "prod": "pnpm i && run-s build",
+    "prod": "pnpm i && pnpm run build",
     "trace:dev": "nodemon --exec \"bkmonitor-cli dev -t\"",
     "trace:build": "bkmonitor-cli build -t",
     "mobile:dev": "nodemon --exec \"bkmonitor-cli dev -m\"",
