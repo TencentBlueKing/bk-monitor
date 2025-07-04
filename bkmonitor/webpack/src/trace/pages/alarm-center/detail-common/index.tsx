@@ -32,8 +32,8 @@ import { Tab, Loading } from 'bkui-vue';
 import { alertDetail } from 'monitor-api/modules/alert';
 
 import AlarmAlert from './components/alarm-alert';
+import AlarmAnalysis from './components/alarm-analysis';
 import AlarmInfo from './components/alarm-info';
-import DiagnosticAnalysis from './components/diagnostic-analysis';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
@@ -91,6 +91,7 @@ export default defineComponent({
     ];
 
     const isLoading = shallowRef(false);
+    const isFixed = shallowRef(false);
     const currentPanel = shallowRef(panelTabList[0].name);
     const alterDetailData = shallowRef<IAlert>();
 
@@ -132,6 +133,12 @@ export default defineComponent({
         immediate: true,
       }
     );
+    /** 固定诊断分析 */
+    const handleFixed = (val: boolean) => {
+      isFixed.value = val;
+    };
+    /** 关闭诊断分析 */
+    const handleClose = () => {};
 
     return () => (
       <Loading loading={isLoading.value}>
@@ -155,7 +162,11 @@ export default defineComponent({
             <panelCom.value />
           </div>
           <div class='alarm-center-detail-diagnostic'>
-            <DiagnosticAnalysis />
+            <AlarmAnalysis
+              isFixed={false}
+              onClose={handleClose}
+              onFixed={handleFixed}
+            />
           </div>
         </div>
       </Loading>

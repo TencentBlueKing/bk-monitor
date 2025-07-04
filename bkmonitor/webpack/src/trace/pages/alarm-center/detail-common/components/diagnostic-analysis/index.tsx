@@ -27,9 +27,9 @@ import { defineComponent, type PropType, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import AICard from './ai-card';
-import ContentCollapse from './content-collapse';
 import DiagnosticCollapse from './diagnostic-collapse';
-import { aiContent, dimensional } from './mockData';
+
+import type { IPanelItem } from '../../typeing';
 
 import './index.scss';
 
@@ -37,53 +37,31 @@ export default defineComponent({
   name: 'DiagnosticAnalysis',
   props: {
     id: String as PropType<string>,
+    panels: Array as PropType<IPanelItem[]>,
+    aiConfig: Object as PropType<any>,
+    aiTitle: String as PropType<string>,
+    isFixed: {
+      type: Boolean as PropType<boolean>,
+      default: false,
+    },
   },
-  setup(props) {
+  emits: ['close', 'fixed'],
+  setup(props, { emit, slots }) {
     const { t } = useI18n();
     const isAllCollapsed = shallowRef(true);
     const activeIndex = shallowRef([0, 1]);
-    const isFixed = false;
-    const list = [
-      {
-        name: t('可疑维度'),
-        icon: 'icon-dimension-line',
-        render: () => (
-          <ContentCollapse
-            label={'经过 维度下钻 分析，发现以下可疑维度（组合）：'}
-            list={dimensional}
-          />
-        ),
-      },
-      {
-        name: t('可疑调用链'),
-        icon: 'icon-Tracing',
-        render: () => <ContentCollapse list={dimensional} />,
-      },
-      {
-        name: t('可疑日志'),
-        icon: 'icon-dimension-line',
-        render: () => <ContentCollapse list={dimensional} />,
-      },
-      {
-        name: t('可疑事件'),
-        icon: 'icon-shijianjiansuo',
-        render: () => (
-          <ContentCollapse
-            label={'通过分析告警产生前 1 小时时间窗口事件，可疑事件为：'}
-            list={dimensional}
-          />
-        ),
-      },
-      {
-        name: t('相关性指标'),
-        icon: 'icon-zhibiaojiansuo',
-        render: () => <ContentCollapse list={dimensional} />,
-      },
-    ];
-    const aiConfig = aiContent;
+    /** 展开/收起全部 */
     const handleToggleAll = () => {
       isAllCollapsed.value = !isAllCollapsed.value;
-      activeIndex.value = isAllCollapsed.value ? list.map((_, ind) => ind) : [];
+      activeIndex.value = isAllCollapsed.value ? props.panels.map((_, ind) => ind) : [];
+    };
+    /** 关闭 */
+    const handleClose = () => {
+      emit('close');
+    };
+    /** 固定 */
+    const handleFixed = () => {
+      emit('fixed', !props.isFixed);
     };
     return () => (
       <div class='alarm-center-detail-diagnostic-analysis'>
@@ -100,11 +78,12 @@ export default defineComponent({
               onClick={handleToggleAll}
             />
             <i
-              class={`icon-monitor icon-a-${isFixed ? 'pinnedtuding' : 'pintuding'} icon-btn`}
+              class={`icon-monitor icon-a-${props.isFixed ? 'pinnedtuding' : 'pintuding'} icon-btn`}
               v-bk-tooltips={{
-                content: isFixed ? t('取消固定') : t('固定在界面上'),
+                content: props.isFixed ? t('取消固定') : t('固定在界面上'),
                 placements: ['top'],
               }}
+              onClick={handleFixed}
             />
             <i
               class='icon-monitor icon-mc-close icon-btn'
@@ -112,17 +91,21 @@ export default defineComponent({
                 content: t('关闭'),
                 placements: ['top'],
               }}
+              onClick={handleClose}
             />
           </span>
         </div>
         <div class='diagnostic-analysis-main'>
           <AICard
-            content={aiConfig}
-            title={`${t('诊断概率：')}85%`}
+            v-slots={{
+              default: () => slots.aiDefault?.(),
+            }}
+            content={props.aiConfig}
+            title={props.aiTitle}
           />
           <DiagnosticCollapse
             activeIndex={activeIndex.value}
-            list={list}
+            list={props.panels}
           />
         </div>
       </div>

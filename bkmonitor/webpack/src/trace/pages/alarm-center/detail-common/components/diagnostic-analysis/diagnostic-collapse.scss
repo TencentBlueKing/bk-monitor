@@ -49,74 +49,9 @@
       }
     }
     .bk-collapse-content {
-      padding: 0 16px;
+      padding: 0 16px 8px;
       color: #4d4f56;
       font-size: 12px;
-    }
-    .dimensional-collapse {
-      margin-top: 8px;
-      .bk-collapse-item {
-        background: #ffffff;
-        border: 1px solid #eaebf0;
-        border-radius: 2px;
-        .bk-collapse-header {
-          height: 26px;
-          line-height: 26px;
-          background: #eaebf0;
-          border-radius: 2px 2px 0 0;
-          .bk-collapse-title {
-            font-size: 12px;
-            color: #313238;
-            font-weight: normal;
-          }
-          .bk-collapse-icon {
-            top: 4px;
-            svg {
-              font-size: 18px;
-            }
-          }
-        }
-      }
-      .dimensional-title {
-        display: inline-block;
-        width: 100%;
-        margin-left: -6px;
-        position: relative;
-        .red-font {
-          font-size: 12px;
-          color: #c12626;
-          position: absolute;
-          right: -10px;
-        }
-      }
-      .dimensional-content {
-        display: block;
-        width: 100%;
-        .dimensional-content-item {
-          display: block;
-          width: 100%;
-          line-height: 24px;
-          padding: 2px 16px;
-          &:nth-child(2n) {
-            background: #f8fafd;
-          }
-          .item-label {
-            display: inline-block;
-            width: 80px;
-            text-align: left;
-            color: #757880;
-          }
-        }
-        .content-title {
-          display: block;
-          width: 100%;
-          padding: 4px 14px;
-          background: #eaebf0;
-        }
-      }
-      .bk-collapse-content {
-        padding: 0;
-      }
     }
   }
 }

@@ -25,7 +25,9 @@
  */
 import { defineComponent, type PropType } from 'vue';
 
-import { Collapse } from 'bkui-vue';
+import { Collapse, Loading } from 'bkui-vue';
+
+import ContentCollapse from './content-collapse';
 
 import './diagnostic-collapse.scss';
 export default defineComponent({
@@ -41,7 +43,18 @@ export default defineComponent({
         <span class='field-name'>{item.name}</span>
       </span>
     );
-    const contentSlot = item => item?.render();
+    const contentSlot = item => (
+      <Loading loading={false}>
+        {item?.render ? (
+          item.render(item)
+        ) : (
+          <ContentCollapse
+            v-slots={item.slots}
+            list={item.list}
+          />
+        )}
+      </Loading>
+    );
     return () => (
       <div class='diagnostic-collapse-box'>
         <Collapse

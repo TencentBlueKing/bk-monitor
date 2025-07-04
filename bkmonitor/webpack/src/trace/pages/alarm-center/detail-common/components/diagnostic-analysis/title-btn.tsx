@@ -26,46 +26,44 @@
 import { defineComponent, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Collapse } from 'bkui-vue';
-
-import './content-collapse.scss';
+import './title-btn.scss';
 
 export default defineComponent({
-  name: 'ContentCollapse',
+  name: 'TitleBtn',
   props: {
-    list: Array as PropType<any[]>,
-    activeIndex: Array as PropType<string[]>,
+    title: String as PropType<string>,
+    icon: {
+      type: String as PropType<string>,
+      default: 'icon-chakan',
+    },
+    linkTxt: String as PropType<string>,
+    handle: Function as PropType<() => void>,
+    isLinkRight: {
+      type: Boolean as PropType<boolean>,
+      default: true,
+    },
+    isPoint: {
+      type: Boolean as PropType<boolean>,
+      default: false,
+    },
   },
-  setup(props, { slots }) {
+  setup(props) {
     const { t } = useI18n();
-    // 定义标题和内容的插槽
-    const dimensionalTitleSlot = item => {
-      if (slots?.title) {
-        return slots.title(item);
-      }
-      return (
-        <span class='dimensional-title'>
-          {item.name}
-          <span class='red-font'>
-            {t('异常程度')} {item.percentage}
-          </span>
-        </span>
-      );
-    };
-    // 定义内容的插槽
-    const dimensionalContentSlot = item => <span class='dimensional-content'>{slots?.default?.(item)}</span>;
     return () => (
-      <div class='dimensional-content-box'>
-        {slots?.label && <span class='dimensional-box-label'>{slots?.label?.()}</span>}
-        <Collapse
-          class='dimensional-collapse'
-          v-model={props.activeIndex}
-          v-slots={{
-            default: item => dimensionalTitleSlot(item),
-            content: item => dimensionalContentSlot(item),
-          }}
-          list={props.list}
-        />
+      <div class='title-btn-box'>
+        <span
+          class={`title-btn-box-txt ${props.isPoint ? 'red-txt' : ''}`}
+          title={props.title}
+        >
+          {props.title}
+        </span>
+        <span
+          class={`title-btn-box-link ${props.isLinkRight ? 'right-link' : ''}`}
+          onClick={props.handle}
+        >
+          <i class={`icon-monitor ${props.icon} link-icon`} />
+          {props.linkTxt || t('分析详情')}
+        </span>
       </div>
     );
   },

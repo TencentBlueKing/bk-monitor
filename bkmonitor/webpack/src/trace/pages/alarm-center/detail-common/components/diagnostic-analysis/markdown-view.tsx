@@ -23,50 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { defineComponent, computed } from 'vue';
 
-import { Collapse } from 'bkui-vue';
+import hljs from 'highlight.js';
+import MarkdownIt from 'markdown-it';
 
-import './content-collapse.scss';
+import './markdown-view.scss';
+import 'highlight.js/styles/github.css';
+
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  highlight: (str, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return `<pre><code class="hljs">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
+      } catch (__) {}
+    }
+    return `<pre><code class="hljs">${md.utils.escapeHtml(str)}</code></pre>`;
+  },
+});
 
 export default defineComponent({
-  name: 'ContentCollapse',
+  name: 'MarkdownView',
   props: {
-    list: Array as PropType<any[]>,
-    activeIndex: Array as PropType<string[]>,
+    content: {
+      type: String,
+      default: '',
+    },
   },
-  setup(props, { slots }) {
-    const { t } = useI18n();
-    // 定义标题和内容的插槽
-    const dimensionalTitleSlot = item => {
-      if (slots?.title) {
-        return slots.title(item);
-      }
-      return (
-        <span class='dimensional-title'>
-          {item.name}
-          <span class='red-font'>
-            {t('异常程度')} {item.percentage}
-          </span>
-        </span>
-      );
+  setup(props) {
+    const htmlContent = computed(() => {
+      return md.render(props.content);
+    });
+    return {
+      htmlContent,
     };
-    // 定义内容的插槽
-    const dimensionalContentSlot = item => <span class='dimensional-content'>{slots?.default?.(item)}</span>;
-    return () => (
-      <div class='dimensional-content-box'>
-        {slots?.label && <span class='dimensional-box-label'>{slots?.label?.()}</span>}
-        <Collapse
-          class='dimensional-collapse'
-          v-model={props.activeIndex}
-          v-slots={{
-            default: item => dimensionalTitleSlot(item),
-            content: item => dimensionalContentSlot(item),
-          }}
-          list={props.list}
-        />
-      </div>
+  },
+
+  render() {
+    return (
+      <div
+        class='markdown-view-box'
+        innerHTML={this.htmlContent}
+      />
     );
   },
 });

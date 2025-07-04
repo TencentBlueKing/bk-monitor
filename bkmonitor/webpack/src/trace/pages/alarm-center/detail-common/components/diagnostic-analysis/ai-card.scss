@@ -47,26 +47,5 @@
     color: #4d4f56;
     font-size: 12px;
     padding: 0 16px;
-    .ai-card-item {
-      display: flex;
-      margin-bottom: 8px;
-      &:last-child {
-        margin-bottom: 0;
-      }
-      .item-title {
-        display: inline-block;
-        width: 65px;
-        text-align: right;
-        color: #757880;
-      }
-      .item-label {
-        flex: 1;
-        color: #313238;
-      }
-      .link {
-        cursor: pointer;
-        color: #3a84ff;
-      }
-    }
   }
 }

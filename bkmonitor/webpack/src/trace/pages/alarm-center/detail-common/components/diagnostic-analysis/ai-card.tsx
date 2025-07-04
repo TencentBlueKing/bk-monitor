@@ -25,32 +25,24 @@
  */
 import { defineComponent, type PropType } from 'vue';
 
+import MarkdownView from './markdown-view';
+
 import './ai-card.scss';
 
 export default defineComponent({
   name: 'AICard',
   props: {
     title: String as PropType<string>,
-    content: Object,
+    content: String as PropType<string>,
   },
-  setup(props) {
+  setup(props, { slots }) {
     return () => (
       <div class='diagnostic-analysis-ai-card'>
         <div class='ai-card-title'>
           <span class='ai-card-title-icon' />
           {props.title}
         </div>
-        <div class='ai-card-main'>
-          {props.content?.map(item => (
-            <div
-              key={item.key}
-              class='ai-card-item'
-            >
-              <span class='item-title'>{item.title}：</span>
-              <span class={['item-label', { link: item.link }]}>{item.label}</span>
-            </div>
-          ))}
-        </div>
+        <div class='ai-card-main'>{slots?.default ? slots?.default?.() : <MarkdownView content={props.content} />}</div>
       </div>
     );
   },

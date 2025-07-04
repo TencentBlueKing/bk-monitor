@@ -51,5 +51,13 @@
     height: calc(100% - 42px);
     padding: 12px 15px;
     overflow: auto;
+    .red-txt {
+      color: #c12626;
+    }
+    .link {
+      cursor: pointer;
+      color: #3a84ff;
+      margin: 0 5px;
+    }
   }
 }
