@@ -2,6 +2,7 @@
   <div
     ref="refJsonFormatterCell"
     :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    :style="rootElementStyle"
   >
     <template v-for="item in rootList">
       <span
@@ -22,17 +23,25 @@
           :data-with-intersection="true"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-          v-html="item.formatter.value"
+          v-html="item.formatter.stringValue"
         ></span>
+      </span>
+    </template>
+    <template v-if="showMoreTextAction && hasScrollY">
+      <span
+        class="btn-more-action"
+        @click="handleClickMore"
+      >
+        {{ btnText }}
       </span>
     </template>
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 
   // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
+  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -41,9 +50,11 @@
   import { BK_LOG_STORAGE } from '../store/store.type';
   import { debounce } from 'lodash';
   import JSONBig from 'json-bigint';
+  import useLocale from '@/hooks/use-locale';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
+  const { $t } = useLocale();
 
   const props = defineProps({
     jsonValue: {
@@ -62,14 +73,54 @@
       type: Boolean,
       default: false,
     },
+    limitRow: {
+      type: [Number, String, null],
+      default: 3,
+    },
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
   const isResolved = ref(props.isIntersection);
+  const showAllText = ref(false);
+  const hasScrollY = ref(false);
 
+  const isFormatDateField = computed(() => store.state.isFormatDate);
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+  const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+  const isCurrentCellExpandText = computed(() => {
+    if (isLimitExpandText.value) {
+      return true;
+    }
+
+    return showAllText.value;
+  });
+
+  const rootElementStyle = computed(() => {
+    if (props.formatJson) {
+      return {
+        maxHeight: undefined,
+      };
+    }
+
+    if (isCurrentCellExpandText.value) {
+      return {
+        maxHeight: '50vh',
+      };
+    }
+
+    if (typeof props.limitRow === 'number') {
+      return {
+        maxHeight: `${20 * props.limitRow}px`,
+      };
+    }
+
+    return {
+      maxHeight: undefined,
+    };
+  });
+
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
       return props.fields;
@@ -77,6 +128,28 @@
 
     return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
   });
+
+  const showMoreTextAction = computed(() => {
+    if (typeof props.limitRow === 'number' && !props.formatJson && !isLimitExpandText.value) {
+      return true;
+    }
+
+    return false;
+  });
+
+  const btnText = computed(() => {
+    if (showAllText.value) {
+      return ` ...${$t('收起')}`;
+    }
+
+    return ` ...${$t('更多')}`;
+  });
+
+  const handleClickMore = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    showAllText.value = !showAllText.value;
+  };
 
   const onSegmentClick = args => {
     emit('menu-click', args);
@@ -105,25 +178,66 @@
     return val;
   };
 
+  const getDateFieldValue = (field, content) => {
+    if (isFormatDateField.value) {
+      const formatFn = {
+        date: formatDate,
+        date_nanos: formatDateNanos,
+      };
+
+      if (formatFn[field.field_type]) {
+        if (/^<mark>(\d+)<\/mark>$/i.test(content)) {
+          return content.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
+            return `<mark>${formatFn[field.field_type](Number(p1))}</mark>`;
+          });
+        }
+
+        return formatFn[field.field_type](Number(content)) || content || '--';
+      }
+    }
+
+    return content;
+  };
+
   const getFieldValue = field => {
     if (props.formatJson) {
       if (typeof props.jsonValue === 'string') {
-        return convertToObject(props.jsonValue);
+        return [convertToObject(props.jsonValue), props.jsonValue];
       }
 
-      return convertToObject(parseTableRowData(props.jsonValue, field.field_name));
+      const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+      return [convertToObject(fieldValue), fieldValue];
     }
 
-    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue, field.field_name) : props.jsonValue;
+    if (typeof props.jsonValue === 'object') {
+      const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+      return [fieldValue, fieldValue];
+    }
+
+    return [props.jsonValue, props.jsonValue];
+  };
+
+  const getCellRender = (val: unknown) => {
+    if (typeof val === 'object') {
+      try {
+        return JSON.stringify(val, null, 2);
+      } catch (e) {
+        console.warn(`JSON.stringify error: ${e.name}: ${e.message}; `, e);
+        return String(val);
+      }
+    }
+
+    return val;
   };
 
   const getFieldFormatter = field => {
-    const objValue = getFieldValue(field);
+    const [objValue, val] = getFieldValue(field);
 
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
-      value: objValue,
+      value: getDateFieldValue(field, objValue),
+      stringValue: getDateFieldValue(field, getCellRender(val)),
       field,
     };
   };
@@ -148,8 +262,21 @@
     updateRootFieldOperator(rootList.value, depth.value);
     setEditor(depth.value);
     isResolved.value = true;
-    setTimeout(() => RetrieveHelper.highlightElement(refJsonFormatterCell.value));
+    setTimeout(() => {
+      RetrieveHelper.highlightElement(refJsonFormatterCell.value);
+      setIsOverflowY();
+    });
   }, 120);
+
+  const setIsOverflowY = () => {
+    if (refJsonFormatterCell.value) {
+      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
+      hasScrollY.value = scrollHeight > offsetHeight;
+      return;
+    }
+
+    hasScrollY.value = false;
+  };
 
   watch(
     () => [props.isIntersection],
@@ -179,6 +306,10 @@
     },
   );
 
+  onMounted(() => {
+    setIsOverflowY();
+  });
+
   onBeforeUnmount(() => {
     destroy();
   });
@@ -187,6 +318,7 @@
   @import '../global/json-view/index.scss';
 
   .bklog-json-formatter-root {
+    position: relative;
     width: 100%;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
@@ -208,6 +340,19 @@
         content-visibility: auto;
         contain-intrinsic-size: 0 60px; /* 预估初始高度 */
       }
+    }
+
+    mark {
+      border-radius: 2px;
+    }
+
+    .btn-more-action {
+      position: absolute;
+      right: 6px;
+      bottom: 0px;
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: #fff;
     }
 
     .bklog-root-field {
@@ -235,11 +380,11 @@
         .black-mark {
           width: max-content;
           padding: 2px 2px;
+          font-family: var(--bklog-v3-row-tag-font);
+          font-weight: 500;
           color: #16171a;
           background-color: #ebeef5;
           border-radius: 2px;
-          font-weight: 500;
-          font-family: var(--bklog-v3-row-tag-font);
         }
 
         &::after {
@@ -253,6 +398,7 @@
 
       mark {
         background-color: rgb(250, 238, 177);
+
         &.valid-text {
           white-space: pre-wrap;
         }
@@ -271,11 +417,12 @@
         .field-value {
           max-height: 50vh;
           overflow: auto;
-          will-change: transform;
           transform: translateZ(0); /* 强制开启GPU加速 */
+          will-change: transform;
         }
       }
     }
+
     .segment-content {
       font-family: var(--bklog-v3-row-ctx-font);
       font-size: var(--table-fount-size);
@@ -339,10 +486,6 @@
         }
       }
     }
-
-    mark {
-      border-radius: 2px;
-    }
   }
 </style>
 <style lang="scss">
@@ -360,8 +503,8 @@
       }
 
       .valid-text {
-        cursor: pointer;
         white-space: pre-wrap;
+        cursor: pointer;
 
         &.focus-text,
         &:hover {
