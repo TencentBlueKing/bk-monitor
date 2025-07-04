@@ -16,7 +16,20 @@
   }
 
   &.event {
-    .cluster-select,.cluster-select-trigger {
+    display: flex;
+    flex-direction: column;
+
+    .monitor-k8s-new-nav-bar {
+      flex-shrink: 0;
+    }
+
+    .k8s-event-explore {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .cluster-select,
+    .cluster-select-trigger {
       width: 280px;
     }
   }
