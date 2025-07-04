@@ -1,0 +1,63 @@
+.alarm-center-detail-diagnostic-analysis {
+  width: 100%;
+  height: 100%;
+  background: #f3f6fa;
+  .diagnostic-analysis-title {
+    width: 100%;
+    height: 42px;
+    line-height: 42px;
+    background: #f6f8fc;
+    padding: 0 15px;
+    font-size: 14px;
+    color: #313238;
+    box-shadow: 0 2px 4px 0 #00000014;
+    position: relative;
+    .header-bg {
+      position: absolute;
+      right: 22px;
+      display: inline-block;
+      width: 230px;
+      height: 42px;
+      background-image: url('../../../../../static/img/ai-title-bg.png');
+      background-size: cover;
+    }
+    .diagnostic-analysis-title-btn {
+      position: absolute;
+      top: 9px;
+      right: 15px;
+      display: flex;
+      justify-content: center;
+      .icon-mc-close {
+        font-size: 20px;
+      }
+      .icon-btn {
+        color: #4d4f56;
+        margin-left: 5px;
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        cursor: pointer;
+        &:hover {
+          background: #eaebf0;
+          border-radius: 2px;
+        }
+      }
+    }
+  }
+  .diagnostic-analysis-main {
+    width: 100%;
+    height: calc(100% - 42px);
+    padding: 12px 15px;
+    overflow: auto;
+    .red-txt {
+      color: #c12626;
+    }
+    .link {
+      cursor: pointer;
+      color: #3a84ff;
+      margin: 0 5px;
+    }
+  }
+}

@@ -1,9 +1,18 @@
 .alarm-center-detail-box {
   background: #fff;
-
+  height: 100%;
+  flex: 1;
   .panel-tab {
     .bk-tab-content {
       display: none;
     }
+  }
+}
+.alarm-center-detail-new {
+  display: flex;
+  height: calc(100vh - 52px);
+  .alarm-center-detail-diagnostic {
+    width: 480px;
+    height: 100%;
   }
 }

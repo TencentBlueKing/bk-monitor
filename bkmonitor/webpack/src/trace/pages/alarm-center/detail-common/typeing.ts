@@ -118,3 +118,14 @@ export interface IAlert {
   target_type: string;
   update_time: number;
 }
+export interface IPanelItem {
+  name?: string;
+  content?: string;
+  message?: string;
+  data?: {
+    key: string;
+    value: string;
+    label: string;
+  }[];
+  icon?: string;
+}
