@@ -1361,40 +1361,25 @@ class IndexSetHandler(APIModel):
         }
 
     def update_alias_settings(self, query_alias_settings):
-        index_set_names = []
-        # log_index_set_data_objs = LogIndexSetData.objects.filter(index_set_id=self.data.index_set_id)
-        # print("log_index_set_data_objs", log_index_set_data_objs)
-        # if log_index_set_data_objs:
-        #     # 多索引集情景,索引集别名的配置应用到所有的子索引上
-        #     print("多索引集情景")
-        #     indexes = []
-        #     for log_index_set_data_obj in log_index_set_data_objs:
-        #         indexes.append({"result_table_id": log_index_set_data_obj.result_table_id})
-        #         index_set_ids.append(log_index_set_data_obj.index_set_id)
-        #     LogIndexSet.objects.filter(index_set_id__in=index_set_ids).update(query_alias_settings=query_alias_settings)
-        # else:
-        #     # 单索引集情景
-        #     print("单索引集情景")
-        #     try:
-        #         collect_config = CollectorConfig.objects.get(collector_config_id=self.data.collector_config_id)
-        #     except CollectorConfig.DoesNotExist:
-        #         raise CollectorConfigNotExistException()
-        #     indexes = [{"result_table_id": collect_config.table_id}]
-        #     index_set_ids.append(self.data.index_set_id)
-        #
-        # print("index_set_ids", index_set_ids)
-        # LogIndexSet.objects.filter(index_set_id__in=index_set_ids).update(query_alias_settings=query_alias_settings)
-        #
-        # request_params = {
-        #     "table_id": self.get_rt_id(self.data.index_set_id, self.data.collector_config_id, indexes),
-        #     "query_alias_settings": query_alias_settings,
-        # }
-        # try:
-        #     TransferApi.create_or_update_log_router(request_params)
-        # except Exception as e:
-        #     print("e", e)
-        #     logger.exception("create or update index set(%s) es router failed：%s", self.data.index_set_id, e)
-        return {"index_set_ids": index_set_names}
+        self.data.query_alias_settings = query_alias_settings
+        self.data.save()
+        multi_execute_func = MultiExecuteFunc()
+        try:
+            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            for obj in objs:
+                multi_execute_func.append(
+                    result_key=obj.result_table_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params={
+                        "table_id": f"bklog_index_set_{self.index_set_id}_{obj.result_table_id.replace('.', '_')}.__default__",
+                        "query_alias_settings": query_alias_settings,
+                    },
+                )
+            multi_execute_func.run()
+        except Exception as e:
+            print("e", e)
+            logger.exception("create or update index set(%s) es router failed：%s", self.data.index_set_id, e)
+        return {"index_set_id": self.index_set_id}
 
     @staticmethod
     def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
