@@ -4,7 +4,7 @@ from core.drf_resource import api
 
 
 class HistogramNiceNumberGenerator:
-    """nice number生成器"""
+    """使用 nice number 重新构建分桶大小和数量"""
 
     # fmt: off
     HistogramBucketSizes = [
@@ -27,20 +27,28 @@ class HistogramNiceNumberGenerator:
         1e+7,  2e+7,  2.5e+7,  4e+7,  5e+7,
         1e+8,  2e+8,  2.5e+8,  4e+8,  5e+8,
         1e+9,  2e+9,  2.5e+9,  4e+9,  5e+9,
+        1e+10,  2e+10,  2.5e+10,  4e+10,  5e+10,
+        1e+11,  2e+11,  2.5e+11,  4e+11,  5e+11,
+        1e+12,  2e+12,  2.5e+12,  4e+12,  5e+12,
+        1e+13,  2e+13,  2.5e+13,  4e+13,  5e+13,
+        1e+14,  2e+14,  2.5e+14,  4e+14,  5e+14,
+        1e+15,  2e+15,  2.5e+15,  4e+15,  5e+15,
     ]
     # fmt: on
     @classmethod
-    def calculate_bucket_size(
+    def redefine_interval_info(
         cls, min_value: float | int, max_value: float | int, num_buckets: int
-    ) -> tuple[float | int, float | int, float | int]:
-        """计算bucket size"""
+    ) -> tuple[float | int, float | int, float | int, int]:
+        """重新计算最小值边界，最大值边界，桶大小和桶数量"""
+
         target_size = (max_value - min_value) / num_buckets
         for bucket_size in cls.HistogramBucketSizes:
             if bucket_size >= target_size:
-                min_x = min_value // bucket_size * bucket_size
+                min_x = math.floor(min_value / bucket_size) * bucket_size
                 max_x = math.ceil(max_value / bucket_size) * bucket_size
-                return min_x, max_x, bucket_size
-        return min_value, max_value, target_size
+                num_buckets = int((max_x - min_x) // bucket_size)
+                return min_x, max_x, bucket_size, num_buckets
+        return min_value, max_value, target_size, num_buckets
 
 
 class DimensionStatisticsAPIHandler:

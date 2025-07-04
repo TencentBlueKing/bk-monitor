@@ -1356,13 +1356,17 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
-        if field_info["field_name"] == "elapsed_time":
-            min_value, max_value, distinct_count, interval_num = field_info["values"][:4]
-            min_value, max_value, bucket_size = HistogramNiceNumberGenerator.calculate_bucket_size(
+        if field_info["field_name"] in {"elapsed_time", "trace_duration"}:
+            field_info_values = field_info["values"]
+            min_value, max_value, _, interval_num = field_info_values[:4]
+            min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.redefine_interval_info(
                 min_value, max_value, interval_num
             )
-            interval_num = (max_value - min_value) // bucket_size
-            field_info[:3] = min_value, max_value, interval_num
+            field_info_values[0], field_info_values[1], field_info_values[3] = (
+                int(min_value),
+                int(max_value),
+                interval_num,
+            )
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
