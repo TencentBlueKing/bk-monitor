@@ -179,7 +179,8 @@ class CalendarManager:
 
         # CalendarItemModel.objects.bulk_create(calendar_items)
         for item in calendar_items:
-            item.save()
+            if not CalendarItemModel.objects.filter(calendar_id=item.calendar_id, start_time=item.start_time):
+                item.save()
 
         print("添加完成")
         print(f"total len:{len(calendar_items)}")
