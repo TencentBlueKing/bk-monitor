@@ -24,32 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-/**
- * @description alarm-module-selector.tsx
- */
-export interface ICascadeItem {
-  id: string;
-  name: string;
-}
-export interface IModuleListItem {
-  id: string;
-  name: string;
-  children?: IModuleListItem[];
-  cascade?: ICascadeItem[];
-}
+import { onScopeDispose, shallowRef, watchEffect } from 'vue';
 
-/**
- * @description module-cascade-selector.tsx
- */
-type TVal = number | string;
-export interface ICascadeValue {
-  key: string;
-  value: TVal[];
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+
+import type { CommonCondition, QuickFilterItem } from '../typings';
+
+export function useQuickFilter() {
+  const alarmStore = useAlarmCenterStore();
+  const quickFilterList = shallowRef<QuickFilterItem[]>([]);
+  const quickFilterLoading = shallowRef(false);
+  const effectFunc = () => {
+    quickFilterLoading.value = true;
+    alarmStore.alarmService
+      .getQuickFilterList(alarmStore.commonFilterParams)
+      .then(quickFilter => {
+        quickFilterList.value = quickFilter;
+      })
+      .finally(() => {
+        quickFilterLoading.value = false;
+      });
+  };
+  watchEffect(effectFunc);
+  const updateQuickFilterValue = (value: CommonCondition[]) => {
+    alarmStore.quickFilterValue = value;
+  };
+  onScopeDispose(() => {
+    quickFilterList.value = [];
+    quickFilterLoading.value = false;
+  });
+  return {
+    quickFilterList,
+    quickFilterLoading,
+    quickFilterValue: alarmStore.quickFilterValue,
+    updateQuickFilterValue,
+  };
 }
-export type ICascadeData = ICascadeItem & {
-  value: TVal[];
-  loading: boolean;
-  scrollLoading: boolean;
-  isOpen: boolean;
-  options: { id: TVal; name: TVal }[];
-};

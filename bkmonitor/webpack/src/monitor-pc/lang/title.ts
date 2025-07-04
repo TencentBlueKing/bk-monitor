@@ -66,6 +66,7 @@ export default {
   数据采样: 'Data Sampling',
   数据量趋势: 'Data Volume Trend',
   告警策略: 'Alert Rules',
+  '告警 ID': 'Alert ID',
   查询设置: 'Query Settings',
   分享链接: 'Copy Link',
   数据来源: 'Data Source',
@@ -191,4 +192,7 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
+  快捷筛选: 'Quick filter',
+  告警分析设置: 'Alarm Analysis Settings',
+  与我相关: 'Related to me',
 };

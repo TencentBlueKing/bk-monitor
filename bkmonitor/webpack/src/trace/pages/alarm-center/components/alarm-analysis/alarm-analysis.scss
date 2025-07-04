@@ -39,7 +39,7 @@
   .collapse-content {
     display: flex;
     flex-wrap: wrap;
-    padding: 0 16px;
+    padding: 0 16px 4px;
 
     .panel-item {
       flex: 1;
@@ -102,6 +102,26 @@
       }
     }
   }
+
+  .skeleton-wrap {
+    display: flex;
+    flex-wrap: wrap;
+
+    .skeleton-panel-item {
+      flex: 0 0 20%;
+      height: 208px;
+      padding: 6px 8px 4px 12px;
+
+      .skeleton-element {
+        height: 26px;
+        margin-bottom: 8px;
+
+        &.title {
+          width: 80px;
+        }
+      }
+    }
+  }
 }
 
 .alarm-analysis-slider {
@@ -113,6 +133,10 @@
     .alarm-analysis-title {
       display: flex;
       align-items: center;
+
+      .count {
+        margin: 0 4px;
+      }
 
       .icon-mc-copy {
         margin-left: 8px;

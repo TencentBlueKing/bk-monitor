@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { isEn } from '@/i18n/i18n';
 import { listAlertTags } from 'monitor-api/modules/alert';
-import { getCookie } from 'monitor-common/utils';
 
 import { AlarmType } from '../typings';
 
@@ -40,12 +40,14 @@ import type {
   IncidentTableItem,
   TableColumnItem,
 } from '../typings';
+import type { IFilterField } from '@/components/retrieval-filter/typing';
 
 export abstract class AlarmService<S = AlarmType> {
   isEn = false;
+  abstract readonly storageAnalysisKey: string;
   abstract readonly storageKey: string;
   constructor(public scenes: S = AlarmType.ALERT as S) {
-    this.isEn = getCookie('blueking_language') === 'en';
+    this.isEn = isEn;
   }
   /**
    * @description: 所有表格列配置 类型继承自 @tdesign/table 的 TableCol 类型
@@ -55,6 +57,14 @@ export abstract class AlarmService<S = AlarmType> {
    * @description: 告警分析字段列表
    */
   abstract get analysisFields(): string[];
+  /**
+   * @description: 告警分析字段映射
+   */
+  abstract get analysisFieldsMap(): Record<string, string>;
+  /**
+   * @description: UI 模式检索字段列表
+   */
+  abstract get filterFields(): IFilterField[];
   // /**
   //  * @description: 默认表格列字段
   //  */
@@ -78,7 +88,8 @@ export abstract class AlarmService<S = AlarmType> {
    * @param {boolean} isAll 是否获取全部数据
    */
   abstract getAnalysisTopNData(
-    params: Partial<CommonFilterParams>
+    params: Partial<CommonFilterParams> & { fields: string[] },
+    isAll?: boolean
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>>;
 
   /**
@@ -94,4 +105,10 @@ export abstract class AlarmService<S = AlarmType> {
    * @param {Partial<CommonFilterParams>} params
    */
   abstract getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]>;
+  /**
+   * @description 获取检索值数据
+   * @param params
+   * @param config
+   */
+  abstract getRetrievalFilterValues(params: Partial<CommonFilterParams>, config?: Record<string, any>);
 }

@@ -29,31 +29,45 @@ import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-n
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
 
+/**
+ * 通用表格单元格渲染类型
+ * column 允许为 BaseTableColumn 或 ExploreTableColumn，row 为 any
+ */
+export type TableCellRenderer<T extends BaseTableColumn<any, any> = BaseTableColumn<any, any>> = (
+  row: any,
+  column: T
+) => SlotReturnValue;
+
 /** trace检索 表格列配置类型 */
-export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
-  extends PrimaryTableCol {
+export interface BaseTableColumn<K extends string = string, U extends Record<string, any> = Record<string, any>>
+  extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
   /** 字段类型 */
-  renderType?: T;
+  renderType?: K;
   /** 列描述(popover形式展现) **/
   headerDescription?: string;
+  /** 单元格是否开启溢出省略弹出 popover 功能 */
+  cellEllipsis?: boolean;
   /** 单元格后置插槽（tag类型列暂未支持） */
-  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
+  suffixSlot?: TableCellRenderer;
   /** 需要自定义定义 渲染值 时可用 */
-  getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
+  getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
+  clickCallback?: (row, column: BaseTableColumn<any, any>, event: MouseEvent) => void;
+  /** 自定义单元格渲染 */
+  cellRenderer?: TableCellRenderer;
 }
+
+export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = ExploreTableColumnTypeEnum> =
+  BaseTableColumn<T, BaseTableCellRenderValueType>;
 
 /**
  * @description 获取 table表格列 渲染值类型 (默认为字符串)
  *
  */
-export type GetTableCellRenderValue<T> = T extends keyof TableCellRenderValueType
-  ? TableCellRenderValueType[T]
-  : string;
+export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U ? U[K] : string;
 
 /**  trace检索 table表格不同类型列 渲染值类型映射表 */
-export interface TableCellRenderValueType {
+export interface BaseTableCellRenderValueType {
   [ExploreTableColumnTypeEnum.DURATION]: number;
   [ExploreTableColumnTypeEnum.TIME]: number;
   [ExploreTableColumnTypeEnum.TAGS]: {
@@ -64,7 +78,7 @@ export interface TableCellRenderValueType {
   }[];
   [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
     alias: string;
-    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
+    prefixIcon: string | TableCellRenderer<ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>>;
   };
   [ExploreTableColumnTypeEnum.LINK]: {
     alias: string;

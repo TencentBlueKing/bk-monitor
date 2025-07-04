@@ -23,3 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { TableCol } from '@blueking/tdesign-ui';
+import type { SlotReturnValue } from 'tdesign-vue-next';
+
+// 表格列字段
+export type TableColumnItem<T = any> = TableCol<T> & {
+  is_default?: boolean; // 是否为默认列
+};
+
+/** 表格通用渲染函数类型 */
+export type TableRenderer<T = undefined> = (props?: T) => SlotReturnValue;
+
+export interface TableEmptyProps {
+  type: 'empty' | 'search-empty';
+  emptyText: string;
+}
+
+/** commonTable Empty 属性类型 */
+export type TableEmpty = TableEmptyProps | TableRenderer;

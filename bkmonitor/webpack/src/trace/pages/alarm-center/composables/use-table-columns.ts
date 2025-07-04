@@ -24,32 +24,52 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, toValue } from 'vue';
+import { computed } from 'vue';
 
-import { type MaybeRef, useStorage } from '@vueuse/core';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { useStorage } from '@vueuse/core';
 
-import type { AlarmService } from '../services/base';
-import type { TableColumnItem } from '../typings';
+import { MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID, type TableColumnItem } from '../typings';
 
-export function useAlarmTableColumns(alarmService: MaybeRef<AlarmService>) {
+import type { BkUiSettings } from '@blueking/tdesign-ui';
+/** 业务名称/空间名称 字段 */
+const BK_BIZ_NAME_FIELD = 'bk_biz_name';
+export function useAlarmTableColumns() {
+  const alarmStore = useAlarmCenterStore();
   const defaultTableFields = computed(() => {
-    return toValue(alarmService)
-      .allTableColumns.filter(item => item.is_default)
-      .map(item => item.colKey);
+    return alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey);
   });
-  const storageColumns = useStorage<string[]>(toValue(alarmService).storageKey, [...defaultTableFields.value]);
+
+  // 不通过 computed 计算属性过渡会无法正确收集到响应式Effect，导致storageKey 变更时无法触发 useStorage 的响应式逻辑
+  const storageKey = computed(() => alarmStore.alarmService.storageKey);
+  const storageColumns = useStorage<string[]>(storageKey, [...defaultTableFields.value]);
 
   const tableColumns = computed<TableColumnItem[]>(() => {
-    return storageColumns.value.map(item => {
-      const column = toValue(alarmService).allTableColumns.find(col => col.colKey === item);
-      return {
-        ...column,
-      };
-    });
+    return storageColumns.value
+      .map(field => {
+        if (
+          field === BK_BIZ_NAME_FIELD &&
+          alarmStore.bizIds.length < 2 &&
+          ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(alarmStore.bizIds[0])
+        ) {
+          return undefined;
+        }
+        const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === field);
+        return {
+          ...column,
+        };
+      })
+      .filter(Boolean);
   });
-
+  const allTableFields = computed<BkUiSettings['fields']>(() => {
+    return alarmStore.alarmService.allTableColumns.map(item => ({
+      label: item.title.toString(),
+      field: item.colKey,
+    }));
+  });
   return {
     storageColumns,
     tableColumns,
+    allTableFields,
   };
 }

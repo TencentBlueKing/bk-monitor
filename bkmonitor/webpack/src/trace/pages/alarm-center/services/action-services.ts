@@ -38,107 +38,114 @@ import type {
   QuickFilterItem,
   TableColumnItem,
 } from '../typings';
+import type { IFilterField } from '@/components/retrieval-filter/typing';
+const ACTION_TABLE_COLUMNS = [
+  {
+    colKey: 'id',
+    title: window.i18n.t('ID'),
+    is_default: true,
+    width: 160,
+  },
+  {
+    colKey: 'create_time',
+    title: window.i18n.t('开始时间'),
+    is_default: true,
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'action_name',
+    title: window.i18n.t('套餐名称'),
+    is_default: true,
+    width: 180,
+    sorter: true,
+    ellipsis: true,
+  },
+  {
+    colKey: 'action_plugin_type_display',
+    title: window.i18n.t('套餐类型'),
+    is_default: false,
+    width: 100,
+    sorter: true,
+  },
+  {
+    colKey: 'operate_target_string',
+    title: window.i18n.t('执行对象'),
+    is_default: false,
+    width: 120,
+    ellipsis: true,
+  },
+  {
+    colKey: 'operator',
+    title: window.i18n.t('负责人'),
+    is_default: true,
+    width: 220,
+  },
+  {
+    colKey: 'alert_count',
+    title: window.i18n.t('触发告警数'),
+    is_default: true,
+    width: 120,
+  },
+  {
+    colKey: 'converge_count',
+    title: window.i18n.t('防御告警数'),
+    is_default: true,
+    width: 120,
+  },
+  {
+    colKey: 'end_time',
+    title: window.i18n.t('结束时间'),
+    is_default: false,
+    width: 150,
+    sorter: true,
+  },
+  {
+    colKey: 'duration',
+    title: window.i18n.t('处理时长'),
+    is_default: false,
+    width: 80,
+    sorter: true,
+  },
+  {
+    colKey: 'status',
+    title: window.i18n.t('执行状态'),
+    is_default: true,
+    width: 100,
+    sorter: true,
+  },
+  {
+    colKey: 'content',
+    title: window.i18n.t('具体内容'),
+    is_default: true,
+    ellipsis: true,
+  },
+] as const;
 
+export const ACTION_FILTER_FIELDS: IFilterField[] = [];
+export const ACTION_STORAGE_KEY = '__ACTION_EVENT_COLUMN__';
 export class ActionService extends AlarmService<AlarmType.ACTION> {
-  readonly storageKey = '__ACTION_EVENT_COLUMN__';
+  readonly storageAnalysisKey = '__ACTION_ANALYZE_STORAGE_KEY__';
+  readonly storageKey = ACTION_STORAGE_KEY;
   get allTableColumns(): TableColumnItem[] {
-    return [
-      {
-        colKey: 'id',
-        title: window.i18n.t('ID'),
-        is_default: true,
-        align: 'left',
-        width: 160,
-      },
-      {
-        colKey: 'create_time',
-        title: window.i18n.t('开始时间'),
-        is_default: true,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'action_name',
-        title: window.i18n.t('套餐名称'),
-        is_default: true,
-        align: 'left',
-        width: 180,
-        sorter: true,
-        ellipsis: true,
-      },
-      {
-        colKey: 'action_plugin_type_display',
-        title: window.i18n.t('套餐类型'),
-        is_default: false,
-        align: 'left',
-        width: 100,
-        sorter: true,
-      },
-      {
-        colKey: 'operate_target_string',
-        title: window.i18n.t('执行对象'),
-        is_default: false,
-        align: 'left',
-        width: 120,
-        ellipsis: true,
-      },
-      {
-        colKey: 'operator',
-        title: window.i18n.t('负责人'),
-        is_default: true,
-        align: 'left',
-        width: 220,
-      },
-      {
-        colKey: 'alert_count',
-        title: window.i18n.t('触发告警数'),
-        is_default: true,
-        align: 'left',
-        width: 120,
-      },
-      {
-        colKey: 'converge_count',
-        title: window.i18n.t('防御告警数'),
-        is_default: true,
-        align: 'left',
-        width: 120,
-      },
-      {
-        colKey: 'end_time',
-        title: window.i18n.t('结束时间'),
-        is_default: false,
-        align: 'left',
-        width: 150,
-        sorter: true,
-      },
-      {
-        colKey: 'duration',
-        title: window.i18n.t('处理时长'),
-        is_default: false,
-        align: 'left',
-        width: 80,
-        sorter: true,
-      },
-      {
-        colKey: 'status',
-        title: window.i18n.t('执行状态'),
-        is_default: true,
-        align: 'left',
-        width: 100,
-        sorter: true,
-      },
-      {
-        colKey: 'content',
-        title: window.i18n.t('具体内容'),
-        is_default: true,
-        align: 'left',
-        ellipsis: true,
-      },
-    ];
+    return [...ACTION_TABLE_COLUMNS];
   }
   get analysisFields(): string[] {
     return ['action_name', 'action_plugin_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
+  }
+  get analysisFieldsMap(): Record<string, string> {
+    return {
+      action_name: window.i18n.t('套餐名称'),
+      strategy_name: window.i18n.t('策略名称'),
+      operator: window.i18n.t('负责人'),
+      duration: window.i18n.t('处理时长'),
+      action_plugin_type: window.i18n.t('套餐类型'),
+      operate_target_string: window.i18n.t('执行对象'),
+    };
+  }
+
+  get filterFields(): IFilterField[] {
+    return [...ACTION_FILTER_FIELDS];
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
@@ -158,10 +165,17 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       ...params,
       show_overview: false, // 是否展示概览
       show_aggs: false, // 是否展示聚合
-    }).catch(() => ({
-      total: 0,
-      data: [],
-    }));
+    })
+      .then(({ actions, total }) => {
+        return {
+          total,
+          data: actions || [],
+        };
+      })
+      .catch(() => ({
+        total: 0,
+        data: [],
+      }));
     console.info('ActionService getFilterTableList', data, '==========');
     return data;
   }
@@ -182,6 +196,18 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       })
       .catch(() => []);
     console.info('ActionService getQuickFilterList', data, '==========');
+    return data;
+  }
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await actionTopN(
+      {
+        ...params,
+      },
+      config
+    ).catch(() => ({
+      doc_count: 0,
+      fields: [],
+    }));
     return data;
   }
 }

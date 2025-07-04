@@ -30,7 +30,7 @@ import { shallowRef } from 'vue';
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';
 import { useTagsEllipsis } from '../../hooks/use-tag-ellipsis';
 
-import type { ExploreTableColumn, ExploreTableColumnTypeEnum, TableCellRenderValueType } from '../../typing';
+import type { ExploreTableColumn, ExploreTableColumnTypeEnum, GetTableCellRenderValue } from '../../typing';
 
 import './tags-cell.scss';
 
@@ -45,7 +45,7 @@ export default defineComponent({
       type: Object as PropType<ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>>,
     },
     tags: {
-      type: Object as PropType<TableCellRenderValueType[ExploreTableColumnTypeEnum.TAGS]>,
+      type: Object as PropType<GetTableCellRenderValue<ExploreTableColumnTypeEnum.TAGS>>,
     },
     colId: {
       type: String,

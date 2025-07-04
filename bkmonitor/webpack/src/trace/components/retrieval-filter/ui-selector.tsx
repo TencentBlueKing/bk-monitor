@@ -33,9 +33,9 @@ import tippy from 'tippy.js';
 import { isEn } from '../../i18n/i18n';
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
-import { ECondition, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { ECondition, EFieldType, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
+import { getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
 import 'tippy.js/dist/tippy.css';
@@ -248,10 +248,11 @@ export default defineComponent({
     }
     function handleEnter() {
       if (inputValue.value) {
+        const allItem = props.fields.find(item => item.type === EFieldType.all);
         localValue.value.push({
           key: {
-            id: '*',
-            name: t('全文'),
+            id: allItem?.name || '*',
+            name: allItem?.alias || t('全文'),
           },
           value: [{ id: inputValue.value, name: inputValue.value }],
           method: { id: EMethod.include, name: t('包含') },
@@ -300,6 +301,17 @@ export default defineComponent({
       hideInput();
     }
 
+    function getIsDuration(id: string) {
+      let isDuration = false;
+      for (const item of props.fields) {
+        if (item.name === id) {
+          isDuration = item.type === EFieldType.duration;
+          break;
+        }
+      }
+      return isDuration;
+    }
+
     return {
       inputValue,
       showSelector,
@@ -316,6 +328,7 @@ export default defineComponent({
       handleHideTag,
       handleUpdateTag,
       handleClickComponent,
+      getIsDuration,
       t,
     };
   },
@@ -341,7 +354,7 @@ export default defineComponent({
             onUpdate={event => this.handleUpdateTag(event, index)}
           >
             {{
-              value: DURATION_KEYS.includes(item.key.id)
+              value: this.getIsDuration(item.key.id)
                 ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
                 : undefined,
             }}

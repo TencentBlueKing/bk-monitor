@@ -24,19 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, shallowRef } from 'vue';
+import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
-import { checkAllowed } from 'monitor-api/modules/iam';
-import { random } from 'monitor-common/utils/utils';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
 import SpaceSelector from '../../../../components/space-select/space-selector';
-import { useAppStore } from '../../../../store/modules/app';
-import { AlarmType } from '../../typings';
 import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
+import { useAlarmFilter } from './hooks/use-alarm-filter';
+import { useSpaceSelect } from './hooks/use-space-select';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
 
@@ -44,74 +40,75 @@ import './alarm-retrieval-filter.scss';
 
 export default defineComponent({
   name: 'AlarmRetrievalFilter',
-  props: {
-    searchType: {
-      type: String,
-      default: 'alert',
-    },
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n();
-    const appStore = useAppStore();
-    const alarmStore = useAlarmCenterStore();
-    const bizId = computed(() => {
-      return appStore.bizId;
-    });
-    const isIncident = computed(() => {
-      return props.searchType === AlarmType.INCIDENT;
-    });
-    const bizList = computed(() => {
-      return appStore.bizList;
-    });
 
-    const localBizIds = shallowRef(alarmStore.bizIds);
-    const allowedBizList = shallowRef([]);
+    const { localBizIds, bizId, isIncident, bizList, handleBizIdsChange, handleCheckAllowedByIds } = useSpaceSelect();
 
-    /**
-     * @description: 通过业务id 获取无权限申请url
-     * @param {string} bizIds 业务id
-     * @return {*}
-     */
-    async function handleCheckAllowedByIds(values?: (number | string)[]) {
-      let allowedBizIdList = [];
-      if (!values?.length) {
-        allowedBizIdList = allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
-      }
-      if (!allowedBizIdList?.length) return;
-      const applyObj = await checkAllowed({
-        action_ids: [
-          'view_business_v2',
-          'manage_event_v2',
-          'manage_downtime_v2',
-          'view_event_v2',
-          'view_host_v2',
-          'view_rule_v2',
-        ],
-        resources: allowedBizIdList.map(id => ({ id, type: 'space' })),
-      });
-      if (applyObj?.apply_url) {
-        window.open(applyObj?.apply_url, random(10));
-      }
-    }
-
-    function handleBizIdsChange(v: number[]) {
-      localBizIds.value = v;
-      alarmStore.bizIds = v;
-    }
+    const {
+      fields,
+      condition,
+      queryString,
+      residentSettingOnlyId,
+      filterMode,
+      residentCondition,
+      showAlarmModule,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      getRetrievalFilterValueData,
+      handleResidentConditionChange,
+      handleQuery,
+    } = useAlarmFilter();
 
     return {
       bizId,
       isIncident,
       localBizIds,
       bizList,
+      fields,
+      condition,
+      queryString,
+      residentSettingOnlyId,
+      filterMode,
+      residentCondition,
+      showAlarmModule,
       t,
       handleCheckAllowedByIds,
       handleBizIdsChange,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      getRetrievalFilterValueData,
+      handleResidentConditionChange,
+      handleQuery,
     };
   },
   render() {
     return (
-      <RetrievalFilter class='alarm-center__alarm-retrieval-filter-component'>
+      <RetrievalFilter
+        class='alarm-center__alarm-retrieval-filter-component'
+        changeWhereFormatter={where => {
+          return where.map(w => ({
+            key: w.key,
+            method: w.method,
+            value: w.value,
+            condition: w.condition,
+          }));
+        }}
+        commonWhere={this.residentCondition}
+        fields={this.fields}
+        filterMode={this.filterMode}
+        getValueFn={this.getRetrievalFilterValueData}
+        queryString={this.queryString}
+        residentSettingOnlyId={this.residentSettingOnlyId}
+        where={this.condition}
+        onCommonWhereChange={this.handleResidentConditionChange}
+        onModeChange={this.handleFilterModeChange}
+        onQueryStringChange={this.handleQueryStringChange}
+        onSearch={this.handleQuery}
+        onWhereChange={this.handleConditionChange}
+      >
         {{
           default: () => (
             <>
@@ -158,7 +155,7 @@ export default defineComponent({
                   ),
                 }}
               </SpaceSelector>
-              <AlarmModuleSelector />
+              {this.showAlarmModule && <AlarmModuleSelector />}
             </>
           ),
         }}

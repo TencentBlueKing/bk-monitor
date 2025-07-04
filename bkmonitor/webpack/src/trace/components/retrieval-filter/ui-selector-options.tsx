@@ -47,7 +47,6 @@ import {
 } from './typing';
 import {
   DEFAULT_GROUP_RELATION,
-  DURATION_KEYS,
   EXISTS_KEYS,
   fieldTypeMap,
   GROUP_RELATION_KEY,
@@ -123,11 +122,15 @@ export default defineComponent({
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
-      return DURATION_KEYS.includes(checkedItem.value?.name);
+      return checkedItem.value.type === EFieldType.duration;
     });
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
       return NOT_VALUE_METHODS.includes(method.value);
+    });
+    /* 是否选择了全文检索或者同类型的输入形式 */
+    const isTextarea = computed(() => {
+      return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -246,7 +249,7 @@ export default defineComponent({
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
-      if (checkedItem.value.name === '*') {
+      if (isTextarea.value) {
         queryString.value = value[0]?.id || '';
       } else {
         if (cacheCheckedName.value !== item.name) {
@@ -269,9 +272,9 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if (checkedItem.value.name === '*' && queryString.value) {
+      if (isTextarea.value && queryString.value) {
         const value: IFilterItem = {
-          key: { id: checkedItem.value.name, name: t('全文') },
+          key: { id: checkedItem.value?.name || '*', name: checkedItem.value?.alias || t('全文') },
           method: { id: EMethod.include, name: t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
@@ -531,6 +534,7 @@ export default defineComponent({
       timeConsumingValue,
       notValueOfMethod,
       isDurationKey,
+      isTextarea,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -548,7 +552,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*') {
+      if (this.isTextarea) {
         return [
           <div
             key={'all'}

@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, shallowRef, watchEffect, toValue, onScopeDispose } from 'vue';
+import { shallowRef, watchEffect, onScopeDispose } from 'vue';
 
-import type { AlarmService } from '../services/base';
-import type { ActionTableItem, AlertTableItem, CommonFilterParams, IncidentTableItem } from '../typings';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, alarmService: MaybeRef<AlarmService>) {
+import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
+
+export function useAlarmTable() {
+  const alarmStore = useAlarmCenterStore();
   // 分页参数
   const pageSize = shallowRef(10);
   // 当前页
@@ -37,15 +39,18 @@ export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, ala
   const total = shallowRef(0);
   // 数据
   const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem)[]>([]);
+  // 排序
+  const ordering = shallowRef('');
   // 是否加载中
   const loading = shallowRef(false);
 
   const effectFunc = async () => {
     loading.value = true;
-    const res = await toValue(alarmService).getFilterTableList<ActionTableItem | AlertTableItem | IncidentTableItem>({
-      ...toValue(params),
+    const res = await alarmStore.alarmService.getFilterTableList({
+      ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
       page: page.value,
+      ordering: ordering.value ? [ordering.value] : [],
     });
     total.value = res.total;
     data.value = res.data;
@@ -58,6 +63,7 @@ export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, ala
     total.value = 0;
     data.value = [];
     loading.value = false;
+    ordering.value = '';
   });
   return {
     pageSize,
@@ -65,8 +71,6 @@ export function useAlarmTable(params: MaybeRef<Partial<CommonFilterParams>>, ala
     total,
     data,
     loading,
-    refresh: () => {
-      effectFunc();
-    },
+    ordering,
   };
 }

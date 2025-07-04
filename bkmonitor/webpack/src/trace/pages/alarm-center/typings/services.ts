@@ -1,5 +1,3 @@
-import type { TableCol } from '@blueking/tdesign-ui/.';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,11 @@ import type { TableCol } from '@blueking/tdesign-ui/.';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { ACTION_STORAGE_KEY } from '../services/action-services';
+import type { ALERT_STORAGE_KEY } from '../services/alert-services';
+import type { INCIDENT_STORAGE_KEY } from '../services/incident-services';
+
 export type CommonCondition = {
   key: string;
   value: string[];
@@ -50,6 +53,8 @@ export type QuickFilterItem = {
   name: string;
   count?: number;
   icon?: string;
+  textColor?: string;
+  iconColor?: string;
   children?: QuickFilterItem[];
 };
 
@@ -416,7 +421,8 @@ export type AnalysisFieldAggItem = {
   buckets: AnalysisBucket[]; // 分桶明细
 };
 
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
-};
+export type AnalysisListItemBucket = { percent: number } & AnalysisBucket;
+
+export type AnalysisListItem = { name: string; buckets: AnalysisListItemBucket[] } & AnalysisFieldAggItem;
+
+export type AlarmStorageKey = typeof ACTION_STORAGE_KEY | typeof ALERT_STORAGE_KEY | typeof INCIDENT_STORAGE_KEY;

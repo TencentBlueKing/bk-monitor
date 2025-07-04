@@ -24,27 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref as deepRef, shallowRef, watch, watchEffect } from 'vue';
+import { computed, ref as deepRef, shallowRef, watch } from 'vue';
 import { onScopeDispose } from 'vue';
 import { customRef } from 'vue';
 
-import { useAlarmTable } from '@/pages/alarm-center/composables/use-alarm-table';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
+import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
+import { EMode } from '../../components/retrieval-filter/typing';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { AlarmType } from '../../pages/alarm-center/typings';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
-import type {
-  CommonCondition,
-  QuickFilterItem,
-  FilterTableResponse,
-  ActionTableItem,
-  AlertTableItem,
-  IncidentTableItem,
-} from '@/pages/alarm-center/typings';
+import type { CommonCondition } from '@/pages/alarm-center/typings';
+const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export interface IAlarmCenterState {
   timeRange: TimeRangeType; // 时间范围
@@ -67,32 +62,26 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const bizIds = deepRef([-1]);
   // 上层搜索条件
   const conditions = deepRef<CommonCondition[]>([]);
+  // 常驻筛选条件
+  const residentCondition = deepRef<CommonCondition[]>([]);
   // 快速过滤条件
   const quickFilterValue = deepRef<CommonCondition[]>([]);
 
   const queryString = shallowRef('');
-  // 快速过滤条件loading
-  const quickFilterLoading = shallowRef(false);
-  // 维度分析loading
-  const analysisDimensionLoading = shallowRef(false);
+  // 检索栏模式
+  const filterMode = shallowRef(EMode.ui);
 
-  const cacheMap = shallowRef<
-    Map<
-      AlarmType,
-      {
-        conditions?: CommonCondition[];
-        queryString?: string;
-      }
-    >
-  >(new Map());
+  const refreshId = shallowRef(random(4));
+
+  const cacheMap: Map<
+    AlarmType,
+    {
+      conditions?: CommonCondition[];
+      queryString?: string;
+    }
+  > = new Map();
 
   const alarmService = shallowRef<AlarmService<AlarmType>>();
-  const quickFilterList = shallowRef<QuickFilterItem[]>([]);
-  const filterTableList = shallowRef<FilterTableResponse<ActionTableItem | AlertTableItem | IncidentTableItem>>({
-    total: 0,
-    data: [],
-  });
-  const analysisDimensionFields = shallowRef<Omit<QuickFilterItem, 'children'>[]>([]);
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -102,33 +91,31 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     };
   });
   const commonFilterParams = computed(() => {
-    return {
+    const statusQuickFilter = [];
+    const otherQuickFilter = [];
+    /** 与我相关和状态两种快捷筛选条件需要特殊处理 */
+    for (const filter of quickFilterValue.value) {
+      if (filter.key !== 'MINE' && filter.key !== 'STATUS') {
+        otherQuickFilter.push(filter);
+      } else {
+        statusQuickFilter.push(...filter.value);
+      }
+    }
+    const params = {
       bk_biz_ids: bizIds.value,
-      conditions: [...conditions.value, ...quickFilterValue.value],
-      query_string: queryString.value,
+      conditions: [
+        ...(filterMode.value === EMode.ui ? [...conditions.value, ...residentCondition.value] : []),
+        ...otherQuickFilter,
+      ],
+      query_string: filterMode.value === EMode.queryString ? queryString.value : '',
+      status: statusQuickFilter,
       ...timeRangeTimestamp.value,
+      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
+    // 用于主动触发 依赖副作用 更新
+    delete params[REFRESH_EFFECT_KEY];
+    return params;
   });
-  const effectFunc = async () => {
-    quickFilterLoading.value = true;
-    analysisDimensionLoading.value = true;
-    alarmService.value
-      .getQuickFilterList(commonFilterParams.value)
-      .then(quickFilter => {
-        quickFilterList.value = quickFilter;
-      })
-      .finally(() => {
-        quickFilterLoading.value = false;
-      });
-    alarmService.value
-      .getAnalysisDimensionFields(commonFilterParams.value)
-      .then(analysisDimension => {
-        analysisDimensionFields.value = analysisDimension;
-      })
-      .finally(() => {
-        analysisDimensionLoading.value = false;
-      });
-  };
   const refreshInterval = customRef((track, trigger) => {
     let timer: ReturnType<typeof setInterval>;
     return {
@@ -143,8 +130,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
         if (value > 0) {
           timer = setInterval(
             () => {
-              effectFunc();
-              refreshTableData();
+              effectRefresh();
             },
             Math.max(value, 1000 * 60)
           );
@@ -157,12 +143,12 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   watch(
     alarmType,
     () => {
-      cacheMap.value.set(alarmType.value, {
+      cacheMap.set(alarmType.value, {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
         queryString: JSON.parse(JSON.stringify(queryString.value)),
       });
       alarmService.value = AlarmServiceFactory(alarmType.value);
-      const cache = cacheMap.value.get(alarmType.value);
+      const cache = cacheMap.get(alarmType.value);
       if (cache) {
         conditions.value = cache.conditions;
         queryString.value = cache.queryString;
@@ -173,28 +159,14 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     }
   );
 
-  watchEffect(effectFunc);
+  const effectRefresh = () => {
+    refreshId.value = random(4);
+  };
   watch(refreshImmediate, () => {
-    effectFunc();
-    refreshTableData();
+    effectRefresh();
   });
 
-  const {
-    pageSize,
-    page,
-    total,
-    data,
-    loading: tableLoading,
-    refresh: refreshTableData,
-  } = useAlarmTable(commonFilterParams, alarmService);
-
   onScopeDispose(() => {
-    quickFilterList.value = [];
-    filterTableList.value = {
-      total: 0,
-      data: [],
-    };
-    analysisDimensionFields.value = [];
     alarmService.value = undefined;
     bizIds.value = [+window.bk_biz_id];
     conditions.value = [];
@@ -203,14 +175,10 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';
-    quickFilterLoading.value = false;
-    analysisDimensionLoading.value = false;
     quickFilterValue.value = [];
-    cacheMap.value.clear();
+    cacheMap.clear();
   });
   return {
-    quickFilterLoading,
-    analysisDimensionLoading,
     timeRange,
     timezone,
     refreshInterval,
@@ -222,14 +190,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     commonFilterParams,
     timeRangeTimestamp,
     alarmService,
-    quickFilterList,
-    filterTableList,
-    analysisDimensionFields,
-    pageSize,
-    page,
-    total,
-    data,
-    tableLoading,
     quickFilterValue,
+    filterMode,
+    residentCondition,
   };
 });

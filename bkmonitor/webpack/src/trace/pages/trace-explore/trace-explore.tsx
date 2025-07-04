@@ -55,6 +55,8 @@ import {
 } from '../../components/retrieval-filter/typing';
 import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
+  DURATION_KEYS,
+  INPUT_TAG_KEYS,
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
   SPAN_NOT_SUPPORT_ENUM_KEYS,
@@ -133,6 +135,15 @@ export default defineComponent({
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
     });
     const retrievalFields = computed(() => {
+      function getType(item) {
+        if (DURATION_KEYS.includes(item.name)) {
+          return EFieldType.duration;
+        }
+        if (INPUT_TAG_KEYS.includes(item.name)) {
+          return EFieldType.input;
+        }
+        return item.type;
+      }
       return (fieldList.value as any[])
         .filter(item => item?.is_searched)
         .map(item => ({
@@ -140,6 +151,7 @@ export default defineComponent({
           isEnableOptions: notSupportEnumKeys.value.includes(item.name)
             ? false
             : !!item?.is_dimensions || item?.type === EFieldType.boolean,
+          type: getType(item),
           methods:
             item?.supported_operations?.map(s => ({
               ...s,

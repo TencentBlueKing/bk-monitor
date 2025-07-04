@@ -31,17 +31,86 @@ export enum AlarmType {
   INCIDENT = 'incident',
 }
 
-export const alarmTypeMap = [
+export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),
-    value: 'alert',
+    value: AlarmType.ALERT,
   },
   {
     label: window.i18n.t('故障'),
-    value: 'incident',
+    value: AlarmType.INCIDENT,
   },
   {
     label: window.i18n.t('处理记录'),
-    value: 'action',
+    value: AlarmType.ACTION,
   },
 ] as const;
+
+export const AlarmStatusIconMap = {
+  ABNORMAL: {
+    icon: 'icon-mind-fill',
+    iconColor: '#F59789',
+  },
+  NOT_SHIELDED_ABNORMAL: {
+    icon: 'icon-mind-fill',
+    iconColor: '#F59789',
+  },
+  SHIELDED_ABNORMAL: {
+    icon: 'icon-menu-shield',
+    iconColor: '#F8B64F',
+  },
+  RECOVERED: {
+    icon: 'icon-mc-check-fill',
+    iconColor: '#6FC5BF',
+  },
+  CLOSED: {
+    icon: '',
+    iconColor: '#DCDEE5',
+  },
+};
+
+export const AlarmLevelIconMap = {
+  1: {
+    icon: 'rect',
+    iconColor: '#E71818',
+    textColor: '#E71818',
+  },
+  2: {
+    icon: 'rect',
+    iconColor: '#E38B02',
+    textColor: '#E38B02',
+  },
+  3: {
+    icon: 'rect',
+    iconColor: '#3A84FF',
+    textColor: '#3A84FF',
+  },
+};
+
+export const EventStatusMap = {
+  ABNORMAL: {
+    tagColor: '#EA3536',
+    tagBgColor: '#FEEBEA',
+    alias: window.i18n.t('未恢复'),
+    value: 'ABNORMAL',
+  },
+  RECOVERED: {
+    tagColor: '#14A568',
+    bgColor: '#E4FAF0',
+    name: window.i18n.t('已恢复'),
+    value: 'RECOVERED',
+  },
+  CLOSED: {
+    tagColor: '#63656E',
+    tagBgColor: '#F0F1F5',
+    alias: window.i18n.t('已失效'),
+    value: 'CLOSED',
+  },
+};
+
+/** 我有权限的业务ID */
+export const MY_AUTH_BIZ_ID = -1;
+/** 我有告警的业务ID */
+export const MY_ALARM_BIZ_ID = -2;
+/** 内容滚动元素类名 */
+export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';

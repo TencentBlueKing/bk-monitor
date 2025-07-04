@@ -47,6 +47,7 @@ export default defineComponent({
     const wrapRef = useTemplateRef('wrapRef');
 
     let popInstance = null;
+    const showPop = shallowRef(false);
 
     const { searchValue, searchModuleList } = useModuleSelect();
     const curOption = shallowRef<IModuleListItem>(null);
@@ -75,10 +76,12 @@ export default defineComponent({
         maxWidth: 'none',
       });
       popInstance?.show?.();
+      showPop.value = true;
     }
     function handlePopHidden() {
       popInstance?.hide();
       popInstance?.destroy?.();
+      showPop.value = false;
     }
 
     function handleSearchChange(val: string) {
@@ -94,6 +97,7 @@ export default defineComponent({
       searchValue,
       searchModuleList,
       curOption,
+      showPop,
       handleDebounceSearchChange,
       handleClick,
       handleSelectModule,
@@ -104,6 +108,7 @@ export default defineComponent({
     return (
       <>
         <SelectorTrigger
+          active={this.showPop}
           click={this.handleClick}
           defaultWidth={102}
           hasRightSplit={true}

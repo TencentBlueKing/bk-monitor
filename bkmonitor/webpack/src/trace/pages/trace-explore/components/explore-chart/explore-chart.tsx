@@ -25,17 +25,12 @@
  */
 import { computed, defineComponent, useTemplateRef, watch, type PropType } from 'vue';
 import { getCurrentInstance } from 'vue';
+import { shallowRef } from 'vue';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
 import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 import ChartTitle from '../../../../plugins/components/chart-title';
-// import { useTraceExploreStore } from '@/store/modules/explore';
-
-import { shallowRef } from 'vue';
-
-import { useTraceExploreStore } from '@/store/modules/explore';
-
 import CommonLegend from '../../../../plugins/components/common-legend';
 import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
@@ -52,22 +47,34 @@ export default defineComponent({
       type: Object as PropType<PanelModel>,
       required: true,
     },
+    showTitle: {
+      type: Boolean,
+      default: true,
+    },
+    formatterData: {
+      type: Function as PropType<(val) => any>,
+      default: res => res,
+    },
+    params: {
+      type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
   },
-  setup(props) {
-    const store = useTraceExploreStore();
+  emits: ['dataZoomChange'],
+  setup(props, { emit }) {
     const { t } = useI18n();
-    // const panelModels = shallowRef<PanelModel[]>([]);
-    // const dashboardId = random(10);
-    // const traceStore = useTraceExploreStore();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
+
     const { options, loading, metricList, targets, series } = useEcharts(
       panel,
       chartRef,
-      instance.appContext.config.globalProperties.$api
+      instance.appContext.config.globalProperties.$api,
+      props.params,
+      props.formatterData
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -98,7 +105,7 @@ export default defineComponent({
       if (!startTime) {
         startTime = xAxisData[0];
       }
-      store.updateTimeRange([startTime, endTime]);
+      emit('dataZoomChange', [startTime, endTime]);
     };
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
@@ -141,7 +148,7 @@ export default defineComponent({
         ref='chart'
         class='explore-chart'
       >
-        {this.panel && (
+        {this.panel && this.showTitle && (
           <ChartTitle
             class='draggable-handle'
             dragging={this.panel.dragging}

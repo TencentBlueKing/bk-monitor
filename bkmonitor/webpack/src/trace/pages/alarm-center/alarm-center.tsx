@@ -23,31 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { shallowRef } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
-import AlarmAnalysis from './components/alarm-analysis';
+import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
+import AlarmTable from './components/alarm-table/alarm-table';
+import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
 import QuickFiltering from './components/quick-filtering';
+import { useAlarmTable } from './composables/use-alarm-table';
+import { useQuickFilter } from './composables/use-quick-filter';
+import { useAlarmTableColumns } from './composables/use-table-columns';
+import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type CommonCondition } from './typings';
 
 import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
     const alarmStore = useAlarmCenterStore();
+    const { quickFilterList, quickFilterLoading } = useQuickFilter();
+    const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
+    const { tableColumns: tableSourceColumns, storageColumns, allTableFields } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
 
+    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+      alarmStore.quickFilterValue = filterValue;
+    };
+
     return {
-      alarmStore,
+      quickFilterList,
+      quickFilterLoading,
       isCollapsed,
+      data,
+      loading,
+      total,
+      page,
+      pageSize,
+      ordering,
+      tableSourceColumns,
+      storageColumns,
+      allTableFields,
+      alarmStore,
+      handleFilterValueChange,
       updateIsCollapsed,
     };
   },
@@ -56,24 +80,56 @@ export default defineComponent({
       <div class='alarm-center'>
         <AlarmCenterHeader class='alarm-center-header' />
         <AlarmRetrievalFilter class='alarm-center-filters' />
-        <div class='alarm-center-content'>
+        <div class='alarm-center-main'>
           <TraceExploreLayout
             v-slots={{
               aside: () => {
                 return (
                   <div class='quick-filtering'>
                     <QuickFiltering
-                      groupList={this.alarmStore.quickFilterList}
+                      filterList={this.quickFilterList}
+                      filterValue={this.alarmStore.quickFilterValue}
+                      loading={this.quickFilterLoading}
                       onClose={this.updateIsCollapsed}
+                      onUpdate:filterValue={this.handleFilterValueChange}
                     />
                   </div>
                 );
               },
               default: () => {
                 return (
-                  <div class='filter-content'>
+                  <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
+                    <div class='chart-trend'>
+                      <AlarmTrendChart />
+                    </div>
                     <div class='alarm-analysis'>
                       <AlarmAnalysis />
+                    </div>
+                    <div class='alarm-center-table'>
+                      <AlarmTable
+                        // @ts-ignore
+                        allTableFields={this.allTableFields}
+                        columns={this.tableSourceColumns}
+                        currentPage={this.page}
+                        data={this.data}
+                        displayColFields={this.storageColumns}
+                        loading={this.loading}
+                        pageSize={this.pageSize}
+                        sort={this.ordering}
+                        total={this.total}
+                        onCurrentPageChange={page => {
+                          this.page = page;
+                        }}
+                        onDisplayColFieldsChange={displayColFields => {
+                          this.storageColumns = displayColFields;
+                        }}
+                        onPageSizeChange={pageSize => {
+                          this.pageSize = pageSize;
+                        }}
+                        onSortChange={sort => {
+                          this.ordering = sort as string;
+                        }}
+                      />
                     </div>
                   </div>
                 );
