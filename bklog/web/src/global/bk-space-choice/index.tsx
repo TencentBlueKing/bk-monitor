@@ -53,6 +53,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const BIZ_SELECTOR_COMMON_MAX = 5; // 常用业务缓存最大个数
 
     const store = useStore();
     const route = useRoute();
@@ -72,6 +73,9 @@ export default defineComponent({
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
     const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
+    const commonListIdsLog = ref<number[]>([]); // 常用业务缓存的ID列表
+    const commonList = ref<any[]>([]); // 常用业务列表
+    const generalList = ref<any[]>([]); // 有权限的业务列表
     // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
 
     const isExternal = computed(() => store.state.isExternal);
@@ -105,6 +109,9 @@ export default defineComponent({
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
+
+      // 获取常用业务缓存
+      commonListIdsLog.value = JSON.parse(localStorage.getItem('commonListIdsLog') || '[]');
     });
 
     // 点击下拉框外内容，收起下拉框
@@ -148,8 +155,9 @@ export default defineComponent({
     });
 
     // 初始化业务列表
-    const generalList = computed(() => {
+    const groupList = computed(() => {
       const keywordVal = keyword.value.trim().toLocaleLowerCase();
+      // 过滤出有权限且符合搜索条件的业务
       const filteredList = mySpaceList.value.filter(item => {
         let show = false;
         if (searchTypeId.value) {
@@ -170,13 +178,27 @@ export default defineComponent({
         if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
         return true;
       });
-      return [
-        {
-          id: 'general',
-          name: t('有权限的'),
-          children: filteredList,
-        },
-      ];
+
+      // 有权限业务
+      generalList.value = filteredList.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
+      // 常用业务
+      commonList.value = commonListIdsLog.value.map(id => filteredList.find(item => Number(item.id) === id)).filter(Boolean) || [];
+
+      if(commonList.value.length > 0){
+        return [
+          {
+            id: '__group_common__',
+            name: '常用的',
+            type: 'group-title',
+          } as any,
+          ...commonList.value,
+          ...generalList.value
+        ]
+      }else {
+        return [
+          ...generalList.value
+        ]
+      }
     });
 
     // 点击业务名称时触发，切换下拉框显示并聚焦搜索框
@@ -270,11 +292,37 @@ export default defineComponent({
         }
         checkSpaceChange(space.space_uid);
         localValue.value = space.space_uid;
+        // 更新常用业务缓存
+        if (space.id) {
+          updateCacheBizId(Number(space.id));
+        }
       } catch (error) {
         console.warn(error);
       } finally {
         showBizList.value = false;
       }
+    };
+
+    // 更新缓存的常用业务ids
+    const updateCacheBizId = (id: number) => {
+      const cacheKey = 'commonListIdsLog';
+      const maxLen = BIZ_SELECTOR_COMMON_MAX;
+      let cacheIds: number[] = [];
+      try {
+        cacheIds = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+      } catch {
+        cacheIds = [];
+      }
+      // 移除已存在的 id
+      cacheIds = cacheIds.filter(item => item != id);
+      // 将当前 id 插入第一位
+      cacheIds.unshift(id);
+      // 超过最大长度则移除最后一位
+      if (cacheIds.length > maxLen) {
+        cacheIds = cacheIds.slice(0, maxLen);
+      }
+      localStorage.setItem(cacheKey, JSON.stringify(cacheIds));
+      commonListIdsLog.value = cacheIds;
     };
 
     // 点击体验demo按钮
@@ -329,19 +377,16 @@ export default defineComponent({
               style={{ width: `${bizBoxWidth.value}px` }}
               class='biz-list'
             >
-              {generalList.value[0].children.length ? (
-                <List
-                  canSetDefaultSpace={props.canSetDefaultSpace as boolean}
-                  checked={localValue.value}
-                  list={generalList.value[0].children}
-                  theme={props.theme as ThemeType}
-                  on-HandleClickMenuItem={handleClickMenuItem}
-                  on-HandleClickOutSide={handleClickOutSide}
-                  on-OpenDialog={openDialog}
-                ></List>
-              ) : (
-                <li class='list-empty'>{t('无匹配的数据')}</li>
-              )}
+              <List
+                canSetDefaultSpace={props.canSetDefaultSpace as boolean}
+                checked={localValue.value}
+                list={groupList.value}
+                theme={props.theme as ThemeType}
+                commonList={commonList.value}
+                on-HandleClickMenuItem={handleClickMenuItem}
+                on-HandleClickOutSide={handleClickOutSide}
+                on-OpenDialog={openDialog}
+              ></List>
             </div>
             {/* 体验DEMO按钮 */}
             <div class='menu-select-extension'>

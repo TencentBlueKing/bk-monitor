@@ -16,6 +16,7 @@
   }
 
   .list-scroller {
+    // border: 2px red solid;
     height: 240px;
     overflow-y: auto;
 
@@ -38,19 +39,14 @@
   .list-group {
     position: relative;
 
-    &.no-name:not(:first-child) {
-      padding-top: 9px;
-
-      &::before {
-        display: initial;
-      }
-    }
-
-    .list-group-name {
+    .list-group-title{
+      font-size: 12px;
       height: 32px;
       padding: 0 12px;
       line-height: 32px;
-      color: #979ba5;
+      color: #66768e;
+      // 设置不可点击
+      pointer-events: none;
     }
 
     &::before {
@@ -66,10 +62,6 @@
     &.dark {
       &::before {
         border-top-color: $border-dark;
-      }
-
-      .list-group-name {
-        color: #66768e;
       }
     }
   }
@@ -120,6 +112,19 @@
       &:hover {
         color: #3a84ff;
       }
+    }
+  }
+
+  .last-common-item {
+    &::after {
+      content: '';
+      position: absolute;
+      left: 12px;
+      right: 9px;
+      bottom: 0;
+      height: 1px;
+      background: #434e68;
+      pointer-events: none;
     }
   }
 
