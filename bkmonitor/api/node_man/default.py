@@ -28,7 +28,7 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
     TIMEOUT = 300
 
     base_url_statement = None
-    base_url = settings.BKNODEMAN_API_BASE_URL or "%s/api/c/compapi/v2/nodeman/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.BKNODEMAN_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/nodeman/"
 
     # 模块名
     module_name = "node_man"
@@ -677,10 +677,6 @@ class BatchTaskResultResource(Resource):
 class IpchooserHostDetailResource(NodeManAPIGWResource):
     action = "core/api/ipchooser_host/details/"
     method = "POST"
-
-    @property
-    def bk_username(self):
-        return settings.COMMON_USERNAME
 
     class RequestSerializer(serializers.Serializer):
         class HostSerializer(serializers.Serializer):

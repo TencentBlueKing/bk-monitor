@@ -18,6 +18,7 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import get_admin_username
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -86,6 +87,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
             pool.apply_async(
                 api.node_man.ipchooser_host_detail,
                 kwds={
+                    "bk_username": get_admin_username(bk_biz_id=bk_biz_id),
                     "host_list": host_list[index : index + 1000],
                     "scope_list": scope_list,
                     "agent_realtime_state": True,

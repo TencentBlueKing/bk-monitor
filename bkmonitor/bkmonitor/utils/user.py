@@ -47,13 +47,24 @@ def set_local_username(username):
     local.username = username
 
 
-@lru_cache(maxsize=100)
-def get_admin_username(bk_tenant_id: str) -> str | None:
+@lru_cache(maxsize=1000)
+def get_admin_username(bk_tenant_id: str | None = None, bk_biz_id: int | None = None) -> str | None:
+    from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return getattr(settings, "COMMON_USERNAME", None)
 
+    # 如果未传入租户ID，则根据业务ID获取租户ID
+    if not bk_tenant_id and bk_biz_id:
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
+    # 如果租户ID为空，则抛出异常
+    if not bk_tenant_id:
+        raise ValueError(_("get_admin_username: 获取租户ID失败, bk_tenant_id: {bk_tenant_id}, bk_biz_id: {bk_biz_id}"))
+
     from core.drf_resource import api
 
+    # 获取管理员用户
     result = api.bk_login.batch_lookup_virtual_user(
         bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups="bk_admin", bk_username="admin"
     )
