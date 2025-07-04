@@ -26,10 +26,10 @@
 <template>
   <bk-dialog
     width="850"
-    :value="conf.isShow"
     :show-footer="false"
-    @input="close"
+    :value="conf.isShow"
     @after-leave="handleAfterLeaveChange"
+    @input="close"
   >
     <div class="host-header">
       <div class="host-header-title">
@@ -39,25 +39,25 @@
     <div class="host-body">
       <bk-input
         ref="selectInput"
-        v-model.trim="keyword"
         class="body-search"
+        v-model.trim="keyword"
         :placeholder="$t('输入')"
-        clearable
         right-icon="bk-icon icon-search"
+        clearable
         @input="handleKeywordChange"
       />
       <div
-        v-bkloading="{ isLoading: isLoading }"
         class="body-table"
+        v-bkloading="{ isLoading: isLoading }"
       >
         <bk-table
           ref="hostTableRef"
           class="select-host-table-wrap"
+          :data="tableData"
           :height="313"
+          :row-class-name="getRowClassName"
           :virtual-render="tableData.length ? true : false"
           highlight-current-row
-          :data="tableData"
-          :row-class-name="getRowClassName"
           @row-click="handleRowClick"
         >
           <empty-status
@@ -70,9 +70,9 @@
             prop="ip"
           />
           <bk-table-column
-            show-overflow-tooltip
             label="IPv6"
             prop="ipv6"
+            show-overflow-tooltip
           />
           <bk-table-column
             :label="$t('系统')"
@@ -80,16 +80,7 @@
           />
           <bk-table-column :label="$t('Agent状态')">
             <template slot-scope="scope">
-              <span
-                v-bk-tooltips="{
-                  content: `${scope.row.agentStatusName}${$t('不能进行调试')}`,
-                  boundary: 'window',
-                  disabled: scope.row.agentStatus === 0,
-                  allowHTML: false,
-                }"
-                :class="scope.row.agentStatus === 0 ? 'success' : 'error'"
-                >{{ scope.row.agentStatusName }}</span
-              >
+              <span :class="scope.row.agentStatus === 0 ? 'success' : 'error'">{{ scope.row.agentStatusName }}</span>
             </template>
           </bk-table-column>
           <bk-table-column
@@ -265,14 +256,14 @@ export default {
      * @desc 处理表格行点击事件
      */
     handleRowClick(row) {
-      if (row.agentStatus !== 0) {
-        this.$bkMessage({
-          theme: 'warning',
-          message: this.$t('无法选择Agent状态异常的服务器'),
-        });
-        this.$refs.hostTableRef.setCurrentRow();
-        return;
-      }
+      // if (row.agentStatus !== 0) {
+      //   this.$bkMessage({
+      //     theme: 'warning',
+      //     message: this.$t('无法选择Agent状态异常的服务器'),
+      //   });
+      //   this.$refs.hostTableRef.setCurrentRow();
+      //   return;
+      // }
       this.$emit('confirm', { ...this.host, ...row, osType: this.host.osType, osName: this.host.osType });
       this.close();
     },
