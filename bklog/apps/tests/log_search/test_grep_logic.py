@@ -126,10 +126,10 @@ GREP_PARAMS = [
     },
 ]
 
-GREP_QUERY_RESULT = {
+GREP_QUERY_RESULT = [
     "time >= 20250403 AND id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
     "time >= 20250403 AND CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
-}
+]
 
 HIGHLIGHT_PARAMS = [
     {
