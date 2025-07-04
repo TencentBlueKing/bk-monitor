@@ -259,6 +259,7 @@ class Command(BaseCommand):
                 deep_color = options["deep_color"]
                 classify = options["classify"]
                 calendar_manager.create_calendar(name, light_color, deep_color, classify)
+                print("添加成功")
                 calendar_manager.list_system_calendars()
             case "create_calendar_item":
                 year = options["year"]
