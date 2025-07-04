@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -37,6 +36,9 @@ class AlertAssignGroup(AbstractRecordModel):
     hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
     snippet = models.TextField("配置片段", default="", blank=True, null=True)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32, null=True, blank=True)
+    # 新增最后更新人和最后更新时间字段
+    updater = models.CharField("最后更新人", max_length=32, default="", blank=True)
+    updated_at = models.DateTimeField("最后更新时间", auto_now=True)
 
     def __str__(self):
         return f"{self.name}-{self.priority}"
@@ -67,7 +69,9 @@ class AlertAssignRule(models.Model):
     is_enabled = models.BooleanField("是否启用", default=False)
 
     # 告警级别重置，如果为空，表示保留
-    alert_severity = models.IntegerField("告警级别", choices=[(1, "致命"), (2, "预警"), (3, "提醒"), (0, "保持")], default=0)
+    alert_severity = models.IntegerField(
+        "告警级别", choices=[(1, "致命"), (2, "预警"), (3, "提醒"), (0, "保持")], default=0
+    )
     additional_tags = models.JSONField("标签", default=list)
 
     def __str__(self):

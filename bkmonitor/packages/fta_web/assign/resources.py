@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import logging
 from collections import defaultdict
@@ -23,6 +23,7 @@ from bkmonitor.action.serializers import (
     BatchAssignRulesSlz,
     BatchSaveAssignRulesSlz,
 )
+from bkmonitor.utils.request import get_request
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.common_utils import count_md5
@@ -45,6 +46,9 @@ class BatchUpdateResource(Resource, metaclass=abc.ABCMeta):
         new_rules = []
         existed_rules = []
         group_id = validated_request_data["assign_group_id"]
+        request = get_request(peaceful=True)
+        updater = request.user.username if request and hasattr(request, "user") else "admin"
+
         for rule in validated_request_data["rules"]:
             rule_id = rule.pop("id", None)
             if rule_id:
@@ -70,7 +74,8 @@ class BatchUpdateResource(Resource, metaclass=abc.ABCMeta):
         group.settings = validated_request_data.get("settings", {})
         group.hash = ""
         group.snippet = ""
-        group.save()
+        group.updater = updater  # 更新最后更新人
+        group.save()  # 自动更新updated_at
         return {
             "bk_biz_id": validated_request_data["bk_biz_id"],
             "assign_group_id": group_id,
