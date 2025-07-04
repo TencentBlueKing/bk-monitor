@@ -1010,6 +1010,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
   }
 
+  handleSceneChangeByQuickTools(scene: SceneEnum, groupByEvent: K8sTableGroupByEvent) {
+    this.onSceneChange(scene);
+    this.onDrillDown(groupByEvent, false);
+  }
+
   /**
    * @description 表格列 header 渲染配置方法
    */
@@ -1071,7 +1076,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               scene={this.filterCommonParams?.scenario}
               onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
               onFilterChange={this.onFilterChange}
-              onSceneChange={this.onSceneChange}
+              onSceneChange={this.handleSceneChangeByQuickTools}
             />
           ) : null}
         </div>
