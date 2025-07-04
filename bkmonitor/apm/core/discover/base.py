@@ -27,6 +27,7 @@ from apm.constants import DiscoverRuleType
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
 from core.drf_resource.exceptions import CustomException
@@ -156,6 +157,7 @@ class DiscoverBase(ABC):
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         self.app_name = app_name
 
     @property
