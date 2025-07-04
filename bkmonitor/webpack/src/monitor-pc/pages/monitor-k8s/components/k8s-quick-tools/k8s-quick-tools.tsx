@@ -52,11 +52,11 @@ interface K8sQuickToolsProps {
 
 interface K8sQuickToolsEmits {
   /** 下钻事件 */
-  onDrillDown: (item: K8sTableGroupByEvent) => void;
+  onDrillDown: (groupByEvent: K8sTableGroupByEvent) => void;
   /** 筛选事件 */
   onFilterChange: (filterValue: string, groupByField: K8sTableColumnResourceKey, isSelect: boolean) => void;
   /** 场景切换事件 */
-  onSceneChange: (value: string) => void;
+  onSceneChange: (scene: SceneEnum, groupByEvent: K8sTableGroupByEvent) => void;
 }
 @Component
 export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickToolsEmits> {
@@ -125,15 +125,22 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
    */
   handleSceneChange(scene: SceneEnum) {
     this.handlePopoverHide();
-    this.$emit('sceneChange', scene);
+    this.$emit('sceneChange', scene, {
+      id: this.groupByField,
+      dimension: this.groupByField,
+      filterById: this.filterValue,
+    });
   }
 
   /**
    * @description 场景选择下拉菜单 popover 显示
    *
    */
-  async handlePopoverShow(e) {
-    this.popoverInstance = this.$bkPopover(e.target, {
+  async handlePopoverShow(e: MouseEvent) {
+    if (this.popoverInstance) {
+      return;
+    }
+    this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.sceneRef,
       maxWidth: 'none',
       animateFill: false,
