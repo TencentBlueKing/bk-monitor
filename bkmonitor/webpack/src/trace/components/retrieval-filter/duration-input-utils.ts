@@ -74,6 +74,7 @@ export function parseDuration(timeStr: string, baseUnit = 'μs'): number {
   let unitMap: Record<string, number> = {
     ns: 0.001,
     μs: 1,
+    us: 1,
     ms: 1000,
     s: 1000000,
     m: 60000000,
@@ -84,6 +85,7 @@ export function parseDuration(timeStr: string, baseUnit = 'μs'): number {
     unitMap = {
       ns: 0.000001,
       μs: 0.001,
+      us: 0.001,
       ms: 1,
       s: 1000,
       m: 60000,
@@ -93,7 +95,7 @@ export function parseDuration(timeStr: string, baseUnit = 'μs'): number {
   }
 
   // 匹配数字和单位，如 "1.5s" -> ["1.5", "s"]
-  const match = timeStr.match(/^([\d.]+)(ns|μs|ms|s|m|h|d)$/);
+  const match = timeStr.match(/^([\d.]+)(ns|μs|us|ms|s|m|h|d)$/);
   if (!match) return 0;
 
   const value = Number.parseFloat(match[1]);
@@ -107,9 +109,12 @@ export function parseDuration(timeStr: string, baseUnit = 'μs'): number {
  * @param str - 要检查的字符串
  * @returns 是否为有效时间格式
  */
-export function isValidTimeFormat(str: string): boolean {
+export function isValidTimeFormat(str: string, baseUnit = 'μs'): boolean {
   // 正则解释：
   // ^[\d.]+ - 以数字或小数点开头（至少一个）
   // (ns|μs|ms|s|m|h|d)$ - 以指定单位结尾
-  return /^[\d.]+(ns|μs|ms|s|m|h|d)$/.test(str);
+  if (['μs', 'us'].includes(baseUnit)) {
+    return /^[\d.]+(μs|us|ms|s|m|h|d)$/.test(str);
+  }
+  return /^[\d.]+(ns|μs|us|ms|s|m|h|d)$/.test(str);
 }

@@ -182,7 +182,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                ns, μs, ms, s, m, h, d
+                μs/us, ms, s, m, h, d
               </div>
             ),
           }}
@@ -190,7 +190,7 @@ export default defineComponent({
           <Input
             v-model={this.startInput}
             autoWidth={true}
-            placeholder={'0ns'}
+            placeholder={'0μs'}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleStartInputChange}
             onEnter={this.handleStartInputChange}
@@ -213,7 +213,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                ns, μs, ms, s, m, h, d
+                μs/us, ms, s, m, h, d
               </div>
             ),
           }}
