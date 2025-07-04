@@ -194,6 +194,8 @@ class TestGrepLogic(TestCase):
         instance = ChartHandler.get_instance(index_set_id=1, mode="sql")
         for grep_param, grep_query_result in zip(GREP_PARAMS, GREP_QUERY_RESULT):
             result, _, _ = instance.add_grep_condition(**grep_param)
+            print(result)
+            print(grep_query_result)
             self.assertEqual(result, grep_query_result)
 
     def test_add_highlight_mark(self):
