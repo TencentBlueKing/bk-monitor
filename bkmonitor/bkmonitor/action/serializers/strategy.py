@@ -620,6 +620,9 @@ class UserGroupSlz(serializers.ModelSerializer):
     mention_list = serializers.ListField(child=UserSerializer(), required=False)
     desc = serializers.CharField(required=False, default="", allow_blank=True)
 
+    # 新增字段：是否命中第一个轮值规则即可
+    hit_first_duty = serializers.BooleanField(required=False, default=False)
+
     class Meta:
         model = UserGroup
         fields = (
@@ -705,23 +708,27 @@ class UserGroupSlz(serializers.ModelSerializer):
         for group in groups:
             if not group.need_duty:
                 continue
+            users = []
             for duty_rule_id in group.duty_rules:
                 rule_plans = group_rule_users.get(f"{group.id}-{duty_rule_id}", [])
                 if not rule_plans:
                     # 如果没有获取到plan, 继续
                     continue
-                users = []
+                rule_users = []
                 for plan in rule_plans:
                     if not plan["is_active"]:
                         # 如果当前plan未激活，直接返回
                         continue
                     for user in plan["users"]:
-                        if user not in users:
-                            users.append(user)
-                if users:
-                    # 命中到规则对应的用户，终止轮值规则的循环
-                    group_user_mappings[group.id] = users
-                    break
+                        if user not in rule_users:
+                            rule_users.append(user)
+                if rule_users:
+                    users.extend(rule_users)
+                    # 如果配置了命中第一个轮值规则即可，则终止轮值规则的循环
+                    if group.hit_first_duty_rule_only:
+                        break
+            if users:
+                group_user_mappings[group.id] = users
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
