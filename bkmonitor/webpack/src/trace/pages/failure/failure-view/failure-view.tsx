@@ -78,18 +78,12 @@ export default defineComponent({
       },
       { deep: true }
     );
-    watch(
-      () => bkzIds.value,
-      () => {
-        getIncidentAlertView();
-      }
-    );
     const getIncidentAlertView = () => {
       loading.value = true;
       const queryString =
         typeof props.alertIdsObject === 'object' ? props.alertIdsObject?.ids || '' : props.alertIdsObject;
       incidentAlertView({
-        bk_biz_ids: bkzIds.value || [],
+        bk_biz_ids: bkzIds.value.length > 0 ? bkzIds.value : [window.bk_biz_id],
         id: incidentId.value,
         query_string: queryString,
       })
