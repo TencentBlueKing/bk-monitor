@@ -15,7 +15,7 @@ from typing import Any
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
@@ -36,25 +36,25 @@ from core.errors.collecting import (
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.collecting.constant import (
     COLLECT_TYPE_CHOICES,
-    CollectStatus,
     OperationResult,
     OperationType,
     Status,
     TaskStatus,
 )
 from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.utils import get_subs_status_data
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
     DeploymentConfigVersion,
+    PluginVersionHistory,
 )
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
-from monitor_web.tasks import append_metric_list_cache
+from monitor_web.tasks import append_metric_list_cache, bulk_update_collect_config_cache_data
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class CollectConfigListResource(Resource):
 
     def __init__(self):
         super().__init__()
-        self.realtime_data = {}  # 采集配置实时数据结果
+        self.realtime_data: dict | None = None  # 采集配置实时数据结果
         self.service_type_data = {}  # 服务分类数据
         self.plugin_release_version = {}  # 插件最新版本，用于检查采集配置是否需要升级
         self.bk_biz_id = None
@@ -80,102 +80,24 @@ class CollectConfigListResource(Resource):
         page = serializers.IntegerField(required=False, default=1, label="页数")
         limit = serializers.IntegerField(required=False, default=10, label="大小")
 
-    def get_realtime_data(self, config_data_list):
+    def update_realtime_data(self, config_data_list: list[CollectConfigMeta]):
         """
-        获取节点管理订阅实时状态
+        更新实时状态数据
         :param config_data_list: 采集配置数据列表
-        :return: self.realtime_data
         """
+        if not self.realtime_data:
+            self.realtime_data = {}
 
-        subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
-        updated_configs = []
+        subscription_status_data = get_subs_status_data(config_data_list)
 
-        # 节点管理返回的状态数量
-        for subscription_status in statistics_data:
-            status_number = {}
-            for status_result in subscription_status.get("status", []):
-                status_number[status_result["status"]] = status_result["count"]
-
-            error_count = status_number.get(CollectStatus.FAILED, 0)
-            total_count = subscription_status.get("instances", 0)
-            pending_count = status_number.get(CollectStatus.PENDING, 0)
-            running_count = status_number.get(CollectStatus.RUNNING, 0)
-            subscription_status_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-                "pending_instance_count": pending_count,
-                "running_instance_count": running_count,
-            }
-            self.realtime_data.update({subscription_status["subscription_id"]: subscription_status_data})
-
-            # 更新任务状态
-            config = subscription_id_config_map[subscription_status["subscription_id"]]
-            if not config:
-                continue
-            if error_count == 0:
-                operation_result = OperationResult.SUCCESS
-            elif error_count == total_count:
-                operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
-            else:
-                operation_result = OperationResult.WARNING
-
-            # 更新缓存
-            cache_data = {
-                "error_instance_count": subscription_status_data.get("error_instance_count", 0),
-                "total_instance_count": subscription_status_data.get("total_instance_count", 0),
-            }
-            if config.cache_data != cache_data or config.operation_result != operation_result:
-                config.cache_data = cache_data
-                config.operation_result = operation_result
-                updated_configs.append(config)
-
-        # 更新k8s插件采集配置的状态
-        for collect_config in config_data_list:
-            # 跳过非k8s插件
-            if collect_config.plugin.plugin_type != PluginType.K8S:
-                continue
-
-            if collect_config.operation_result not in [OperationResult.PREPARING, OperationResult.DEPLOYING]:
-                continue
-
-            error_count, total_count, pending_count, running_count = 0, 0, 0, 0
-            installer = get_collect_installer(collect_config)
-            for node in installer.status():
-                for instance in node["child"]:
-                    if instance["status"] == CollectStatus.RUNNING:
-                        running_count += 1
-                    elif instance["status"] == CollectStatus.PENDING:
-                        pending_count += 1
-                    elif instance["status"] in [CollectStatus.FAILED, CollectStatus.UNKNOWN]:
-                        error_count += 1
-                    total_count += 1
-
-            if error_count == total_count:
-                operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
-            elif error_count == 0:
-                operation_result = OperationResult.SUCCESS
-            else:
-                operation_result = OperationResult.WARNING
-
-            # 更新缓存
-            cache_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-            }
-            if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-                collect_config.cache_data = cache_data
-                collect_config.operation_result = operation_result
-                updated_configs.append(collect_config)
-
-        CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
+        self.realtime_data.update(subscription_status_data.status_map)
 
     def update_cache_data(self, config: CollectConfigMeta):
         # 更新采集配置的缓存数据（总数、异常数）
         subscription_id = config.deployment_config.subscription_id
+        if not self.realtime_data or subscription_id not in self.realtime_data:
+            self.update_realtime_data([config])
+
         realtime_data = self.realtime_data.get(subscription_id)
         if not realtime_data:
             return
@@ -203,10 +125,14 @@ class CollectConfigListResource(Resource):
         conf.cache_data[field] = value
         return conf
 
-    def get_status(self, conf):
+    def get_status(self, conf) -> dict:
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
         status_key = conf.deployment_config.subscription_id
-        if self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
+        if (
+                self.realtime_data
+                and self.realtime_data.get(status_key)
+                and self.realtime_data.get(status_key).get("is_auto_deploying")
+        ):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,
                 "task_status": TaskStatus.AUTO_DEPLOYING,
@@ -215,30 +141,31 @@ class CollectConfigListResource(Resource):
         else:
             status = {"config_status": conf.config_status, "task_status": conf.task_status, "running_tasks": []}
 
-        conf = self.update_cache_data_item(conf, "status", conf.config_status)
-        conf = self.update_cache_data_item(conf, "task_status", conf.task_status)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
+        self.update_cache_data_item(conf, "status", conf.config_status)
+        self.update_cache_data_item(conf, "task_status", conf.task_status)
         return status
 
-    def _need_upgrade(self, conf):
+    def _need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
         if conf.task_status == TaskStatus.STOPPED or conf.get_cache_data("total_instance_count", 0) == 0:
             return False
         else:
-            config_version = self.plugin_release_version.get(conf.plugin.plugin_id)
+            plugin = config_plugin_map.get(conf.plugin_id)
+            config_version = plugin_version_map.get(plugin.plugin_id)
             if not config_version:
-                config_version = conf.plugin.packaged_release_version.config_version
-                self.plugin_release_version[conf.plugin.plugin_id] = config_version
+                logger.error(
+                    f"[CollectConfigList] [need_upgrade] collect config {conf.id} was not found config version."
+                )
+                return False
 
             return conf.deployment_config.plugin_version.config_version < config_version
 
-    def need_upgrade(self, conf):
+    def need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
-        is_need_upgrade = self._need_upgrade(conf)
-        conf = self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
+        is_need_upgrade = self._need_upgrade(conf, config_plugin_map, plugin_version_map)
+        self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
         return is_need_upgrade
 
     def exists_by_biz(self, bk_biz_id):
@@ -346,17 +273,41 @@ class CollectConfigListResource(Resource):
         else:
             config_data_list = list(config_list)
 
-        if refresh_status:
-            try:
-                self.get_realtime_data(config_data_list)
-            except Exception:
-                # 尝试实时获取，获取失败就用缓存数据
-                pass
+        plugin_ids = set(config.plugin_id for config in config_data_list)
+        plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
+        config_plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
+
+        version_filter = {
+            "bk_tenant_id": bk_tenant_id,
+            "plugin_id__in": plugin_ids,
+            "stage": PluginVersionHistory.Stage.RELEASE,
+            "is_packaged": True,
+        }
+        # 批量获取到最新的版本
+        group_by = ["bk_tenant_id", "plugin_id", "stage", "is_packaged"]
+        versions = PluginVersionHistory.objects.filter(**version_filter).values(*group_by).annotate(
+            latest_version=Max("config_version")
+        ).values("plugin_id", "latest_version").order_by()
+        plugin_version_map = {version["plugin_id"]: version["latest_version"] for version in versions}
+        missing_plugin_ids = plugin_ids - set(plugin_version_map.keys())
+
+        # 如果还有缺少的插件id，则去除is_packaged条件再查询一次剩余插件的最新版本
+        if missing_plugin_ids:
+            version_filter["plugin_id__in"] = missing_plugin_ids
+            version_filter.pop("is_packaged")
+            group_by.remove("is_packaged")
+            versions = PluginVersionHistory.objects.filter(**version_filter).values(*group_by).annotate(
+                latest_version=Max("config_version")
+            ).values("plugin_id", "latest_version").order_by()
+            plugin_version_map.update({version["plugin_id"]: version["latest_version"] for version in versions})
 
         search_list = []
+        update_configs = []
         for item in config_data_list:
             status = self.get_status(item)
             space = bk_biz_id_space_dict.get(item.bk_biz_id)
+            is_need_upgrade = self.need_upgrade(item, config_plugin_map, plugin_version_map)
+            update_configs.append(item)
             search_list.append(
                 {
                     "id": item.id,
@@ -370,7 +321,7 @@ class CollectConfigListResource(Resource):
                     "target_node_type": item.deployment_config.target_node_type,
                     "plugin_id": item.plugin_id,
                     "target_nodes_count": len(item.deployment_config.target_nodes),
-                    "need_upgrade": self.need_upgrade(item),
+                    "need_upgrade": is_need_upgrade,
                     "config_version": item.deployment_config.plugin_version.config_version,
                     "info_version": item.deployment_config.plugin_version.info_version,
                     "error_instance_count": (
@@ -386,6 +337,12 @@ class CollectConfigListResource(Resource):
                     "update_user": item.update_user,
                 }
             )
+
+        if update_configs:
+            CollectConfigMeta.objects.bulk_update(update_configs, ["cache_data"])
+
+        if refresh_status:
+            bulk_update_collect_config_cache_data.delay(config_data_list)
 
         # 排序
         if order:
@@ -443,8 +400,8 @@ class CollectConfigDetailResource(Resource):
 
         # 请求IP选择器接口，获取采集目标
         if (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
         ):
             target_result = resource.commons.get_host_instance_by_ip(
                 {
@@ -454,8 +411,8 @@ class CollectConfigDetailResource(Resource):
                 }
             )
         elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
         ):
             node_list = []
             for item in collect_config_meta.deployment_config.target_nodes:
@@ -487,8 +444,8 @@ class CollectConfigDetailResource(Resource):
                 item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                 target_result.append(item)
         elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
         ):
             bk_inst_ids = []
             for item in collect_config_meta.deployment_config.target_nodes:
@@ -631,8 +588,8 @@ class CloneCollectConfigResource(Resource):
         # 获取采集配置
         data = resource.collecting.collect_config_detail(data)
         if (
-            data["collect_type"] == CollectConfigMeta.CollectType.LOG
-            or data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP
+                data["collect_type"] == CollectConfigMeta.CollectType.LOG
+                or data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP
         ):
             #  判断重名
             new_name = name = data["name"] + "_copy"
@@ -1049,7 +1006,7 @@ class SaveCollectConfigResource(Resource):
             # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
             # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
             # 这两种情况要替换为实际值（默认值兜底）
-            if isinstance(received_password, (type(None), bool)):
+            if isinstance(received_password, type(None) | bool):
                 default_password = param["default"]
                 actual_password = deployment_params[param_mode].get(param_name, default_password)
                 data["params"][param_mode][param_name] = actual_password

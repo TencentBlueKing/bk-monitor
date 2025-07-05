@@ -1,5 +1,6 @@
 import json
 from urllib import parse
+from django.db import close_old_connections
 
 
 def get_query_params(url):
@@ -39,3 +40,15 @@ def update_task_config(config):
             "insecure_skip_verify": config.pop("insecure_skip_verify", False),
         }
     return config
+
+
+def db_safe_wrapper(func):
+    """数据库连接安全装饰器"""
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            close_old_connections()
+
+    return wrapper
