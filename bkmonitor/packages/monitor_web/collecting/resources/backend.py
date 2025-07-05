@@ -129,9 +129,9 @@ class CollectConfigListResource(Resource):
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
         status_key = conf.deployment_config.subscription_id
         if (
-            self.realtime_data
-            and self.realtime_data.get(status_key)
-            and self.realtime_data.get(status_key).get("is_auto_deploying")
+                self.realtime_data
+                and self.realtime_data.get(status_key)
+                and self.realtime_data.get(status_key).get("is_auto_deploying")
         ):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,
@@ -277,30 +277,29 @@ class CollectConfigListResource(Resource):
         plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
         config_plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
 
-        # 获取缺少的插件id
-        missing_plugin_ids = plugin_ids - set(config_plugin_map.keys())
         version_filter = {
             "bk_tenant_id": bk_tenant_id,
-            "plugin_id__in": missing_plugin_ids,
+            "plugin_id__in": plugin_ids,
             "stage": PluginVersionHistory.Stage.RELEASE,
             "is_packaged": True,
         }
-        plugin_version_map = {}
-        if missing_plugin_ids:
-            # 获取到最新的版本
-            versions = PluginVersionHistory.objects.filter(**version_filter).annotate(
-                latest_version=Max("config_version")
-            )
-            plugin_version_map.update({version.plugin_id: version for version in versions})
-            missing_plugin_ids = set(missing_plugin_ids) - set(plugin_version_map.keys())
+        # 批量获取到最新的版本
+        group_by = ["bk_tenant_id", "plugin_id", "stage", "is_packaged"]
+        versions = PluginVersionHistory.objects.filter(**version_filter).values(*group_by).annotate(
+            latest_version=Max("config_version")
+        ).values("plugin_id", "latest_version").order_by()
+        plugin_version_map = {version["plugin_id"]: version["latest_version"] for version in versions}
+        missing_plugin_ids = plugin_ids - set(plugin_version_map.keys())
 
         # 如果还有缺少的插件id，则去除is_packaged条件再查询一次剩余插件的最新版本
         if missing_plugin_ids:
+            version_filter["plugin_id__in"] = missing_plugin_ids
             version_filter.pop("is_packaged")
-            versions = PluginVersionHistory.objects.filter(**version_filter).annotate(
+            group_by.remove("is_packaged")
+            versions = PluginVersionHistory.objects.filter(**version_filter).values(*group_by).annotate(
                 latest_version=Max("config_version")
-            )
-            plugin_version_map.update({version.plugin_id: version for version in versions})
+            ).values("plugin_id", "latest_version").order_by()
+            plugin_version_map.update({version["plugin_id"]: version["latest_version"] for version in versions})
 
         search_list = []
         update_configs = []
@@ -401,8 +400,8 @@ class CollectConfigDetailResource(Resource):
 
         # 请求IP选择器接口，获取采集目标
         if (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
         ):
             target_result = resource.commons.get_host_instance_by_ip(
                 {
@@ -412,8 +411,8 @@ class CollectConfigDetailResource(Resource):
                 }
             )
         elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
         ):
             node_list = []
             for item in collect_config_meta.deployment_config.target_nodes:
@@ -445,8 +444,8 @@ class CollectConfigDetailResource(Resource):
                 item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                 target_result.append(item)
         elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
         ):
             bk_inst_ids = []
             for item in collect_config_meta.deployment_config.target_nodes:
@@ -589,8 +588,8 @@ class CloneCollectConfigResource(Resource):
         # 获取采集配置
         data = resource.collecting.collect_config_detail(data)
         if (
-            data["collect_type"] == CollectConfigMeta.CollectType.LOG
-            or data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP
+                data["collect_type"] == CollectConfigMeta.CollectType.LOG
+                or data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP
         ):
             #  判断重名
             new_name = name = data["name"] + "_copy"

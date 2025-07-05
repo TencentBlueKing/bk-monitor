@@ -62,7 +62,7 @@ INSTALLED_APPS += [
     "monitor",
     "monitor_api",
     "monitor_web",
-    "apm_web",
+    # "apm_web",
     "apm_ebpf",
     "apm",
     "weixin.core",

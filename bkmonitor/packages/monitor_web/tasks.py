@@ -139,9 +139,9 @@ def run_init_builtin(bk_biz_id):
         run_build_in(int(bk_biz_id), mode="k8s")
 
         if (
-                settings.ENABLE_DEFAULT_STRATEGY
-                and int(bk_biz_id) > 0
-                and not ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists()
+            settings.ENABLE_DEFAULT_STRATEGY
+            and int(bk_biz_id) > 0
+            and not ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists()
         ):
             logger.warning("[run_init_builtin] home run_init_builtin_action_config: bk_biz_id -> %s", bk_biz_id)
             # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
@@ -289,7 +289,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num: (offset + 1) * biz_num]:
+    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
             # 非容器平台项目，不需要缓存容器指标：
@@ -448,13 +448,13 @@ def update_failure_shield_content():
 
 @shared_task(ignore_result=True, queue="celery_resource")
 def import_config(
-        username,
-        bk_biz_id,
-        history_instance,
-        collect_config_list,
-        strategy_config_list,
-        view_config_list,
-        is_overwrite_mode=False,
+    username,
+    bk_biz_id,
+    history_instance,
+    collect_config_list,
+    strategy_config_list,
+    view_config_list,
+    is_overwrite_mode=False,
 ):
     """
     批量导入采集配置、策略配置、视图配置
@@ -481,9 +481,8 @@ def import_config(
     import_strategy(bk_biz_id, history_instance, strategy_config_list, is_overwrite_mode)
     import_view(bk_biz_id, view_config_list, is_overwrite_mode)
     if (
-            ImportDetail.objects.filter(history_id=history_instance.id,
-                                        import_status=ImportDetailStatus.IMPORTING).count()
-            == 0
+        ImportDetail.objects.filter(history_id=history_instance.id, import_status=ImportDetailStatus.IMPORTING).count()
+        == 0
     ):
         history_instance.status = ImportHistoryStatus.IMPORTED
         history_instance.save()
@@ -1451,8 +1450,8 @@ def update_metric_json_from_ts_group():
         for collector_plugin in queryset:
             # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
             if (
-                    not collector_plugin.current_version.info.enable_field_blacklist
-                    or not collector_plugin.should_refresh_metric_json(timeout=5 * 60)
+                not collector_plugin.current_version.info.enable_field_blacklist
+                or not collector_plugin.should_refresh_metric_json(timeout=5 * 60)
             ):
                 continue
             executor.submit(update_metric, collector_plugin)
@@ -1530,13 +1529,25 @@ def migrate_all_panels_task(bk_biz_id, org_id):
 @shared_task(ignore_result=True)
 def bulk_update_collect_config_cache_data(config_data_list):
     """
-    获取节点管理订阅实时状态
+    批量更新节点管理订阅实时状态
     :param config_data_list: 采集配置数据列表
     :return: self.realtime_data
     """
 
     from monitor_web.collecting.deploy import get_collect_installer
     from monitor_web.models import CollectConfigMeta
+
+    def update_cache_data(_collect_config, _cache_data) -> bool:
+        if _collect_config.cache_data != _cache_data or _collect_config.operation_result != operation_result:
+            if not isinstance(_collect_config.cache_data, dict):
+                _collect_config.cache_data = {}
+            _collect_config.cache_data.update(_cache_data)
+            _collect_config.operation_result = operation_result
+            _collect_config.cache_data.update(
+                {"status": _collect_config.config_status, "task_status": _collect_config.task_status}
+            )
+            return True
+        return False
 
     updated_configs = []
 
@@ -1548,7 +1559,7 @@ def bulk_update_collect_config_cache_data(config_data_list):
         pending_count = subscription_status_data.get("pending_instance_count", 0)
         running_count = subscription_status_data.get("running_instance_count", 0)
 
-        config = subscription_id_config_map[subscription_id]
+        config: CollectConfigMeta = subscription_id_config_map[subscription_id]
         if not config:
             continue
         if error_count == 0:
@@ -1565,11 +1576,7 @@ def bulk_update_collect_config_cache_data(config_data_list):
             "error_instance_count": subscription_status_data.get("error_instance_count", 0),
             "total_instance_count": subscription_status_data.get("total_instance_count", 0),
         }
-        if config.cache_data != cache_data or config.operation_result != operation_result:
-            if not isinstance(config.cache_data, dict):
-                config.cache_data = {}
-            config.cache_data.update(cache_data)
-            config.operation_result = operation_result
+        if update_cache_data(config, cache_data):
             updated_configs.append(config)
 
     collector_plugins = CollectorPluginMeta.objects.filter(
@@ -1612,11 +1619,6 @@ def bulk_update_collect_config_cache_data(config_data_list):
             "error_instance_count": error_count,
             "total_instance_count": total_count,
         }
-        if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-            if not isinstance(collect_config.cache_data, dict):
-                collect_config.cache_data = {}
-            collect_config.cache_data.update(cache_data)
-            collect_config.operation_result = operation_result
+        if update_cache_data(collect_config, cache_data):
             updated_configs.append(collect_config)
-
     CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])

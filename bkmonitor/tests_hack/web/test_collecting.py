@@ -1,6 +1,8 @@
 import pytest
+import json
 from unittest.mock import patch, MagicMock
 from django.db.models import Q, Model
+from rest_framework.serializers import ModelSerializer
 
 from monitor_web.models.plugin import (
     PluginVersionHistory,
@@ -26,7 +28,7 @@ def reset_celery_config():
     # celery总是使用同步
     app.conf.update(
         task_always_eager=True,  # 同步执行所有任务
-        task_eager_propagates=True  # 同步时异常直接抛出
+        task_eager_propagates=True,  # 同步时异常直接抛出
     )
 
     yield
@@ -56,7 +58,7 @@ def prepare_data():
     upgrade_plugin("cpu_usage", 3, 3)  # CPU使用率升级到3版本
     upgrade_collect_config(plugin_id="cpu_usage")
 
-    upgrade_plugin("cpu_usage", 4, 4)  # CPU使用率升级到4版本
+    upgrade_plugin("cpu_usage", 4, 4, is_packaged=True)  # CPU使用率升级到4版本,并设为已打包
     upgrade_collect_config(plugin_id="cpu_usage")
 
     upgrade_plugin("memory_usage", 2, 2)  # 内存使用率升级到2版本
@@ -79,7 +81,7 @@ def prepare_data():
         collect_plugin=create_collect_plugin_meta(plugin_id, plugin_type="K8S"),
         collect_type="K8S",
     )
-    upgrade_plugin(plugin_id, 2, 2)
+    upgrade_plugin(plugin_id, 2, 2, is_packaged=True)
 
 
 @pytest.fixture(autouse=True)
@@ -259,7 +261,7 @@ def create_collect(*args, **kwargs):
     return create_collect_config_meta(*args, **kwargs)
 
 
-def upgrade_plugin(plugin_id, info_version: int, config_version: int):
+def upgrade_plugin(plugin_id, info_version: int, config_version: int, **kwargs):
     """
     升级插件
     """
@@ -269,7 +271,8 @@ def upgrade_plugin(plugin_id, info_version: int, config_version: int):
     assert info_version > max_info_version
     assert config_version > max_config_version
 
-    create_plugin_version_history(plugin_id=plugin_id, info_version=info_version, config_version=config_version)
+    create_plugin_version_history(plugin_id=plugin_id, info_version=info_version, config_version=config_version,
+                                  **kwargs)
 
 
 def upgrade_collect_config(plugin_id):
@@ -303,18 +306,6 @@ def mock_query_data_source():
         yield query_data_source
 
 
-# @pytest.fixture()
-# def mock_fetch_sub_statistics():
-#     with patch("monitor_web.collecting.utils.fetch_sub_statistics") as fetch_sub_statistics:
-#         subscription_id_config_map = {config.id: config for config in CollectConfigMeta.objects.exclude(plugin_id__icontains="k8s")}
-#         statistics_data = []
-#
-#         for subscription_id in subscription_id_config_map:
-#             statistics_data.append({"subscription_id": subscription_id, "status": []})
-#         fetch_sub_statistics.return_value = subscription_id_config_map, statistics_data
-#         yield
-
-
 @pytest.mark.order(2)
 @pytest.fixture()
 def mock_fetch_subscription_statistic():
@@ -324,7 +315,7 @@ def mock_fetch_subscription_statistic():
             .select_related("deployment_config")
             .values_list("deployment_config__subscription_id", flat=True)
         )
-        statistics_data = [{"subscription_id": _id, "status": []} for _id in config_ids]
+        statistics_data = [{"subscription_id": _id, "status": [], "instances": 10} for _id in config_ids]
         fetch.return_value = [statistics_data]
         yield
 
@@ -356,6 +347,18 @@ def mock_k8s_install_status():
             ),
     ):
         yield
+
+
+class CollectConfigMetaSerializer(ModelSerializer):
+    class Meta:
+        model = CollectConfigMeta
+        exclude = ["id", "update_time", "create_time", "deployment_config"]
+
+    def to_representation(self, instance: CollectConfigMeta):
+        cache_data = instance.cache_data
+        keys = list(cache_data.keys())
+        instance.cache_data = {key: cache_data[key] for key in sorted(keys)}
+        return super().to_representation(instance)
 
 
 class TestCollectConfigList:
@@ -399,18 +402,30 @@ class TestCollectConfigList:
                 CollectConfigMeta.objects.get(
                     plugin_id="memory_usage").plugin.packaged_release_version.config_version == 2
         )
-        assert CollectConfigMeta.objects.get(plugin_id="disk_usage").plugin.packaged_release_version.config_version == 1
-        assert CollectConfigMeta.objects.get(plugin_id="net_usage").plugin.packaged_release_version.config_version == 1
-        assert (
-                CollectConfigMeta.objects.get(
-                    plugin_id="k8s_cpu_load").plugin.packaged_release_version.config_version == 2
-        )
-        assert (
-                CollectConfigMeta.objects.get(
-                    plugin_id="k8s_memory_load").plugin.packaged_release_version.config_version
-                == 2
-        )
 
-        import json
+        configs = CollectConfigMeta.objects.filter(plugin_id__in=["disk_usage", "net_usage"])
+        assert all(c.plugin.packaged_release_version.config_version == 1 for c in configs)
 
-        print(json.dumps(config_list, ensure_ascii=False))
+        configs = CollectConfigMeta.objects.filter(plugin_id__in=["k8s_cpu_load", "k8s_memory_load"])
+        assert all(c.plugin.packaged_release_version.config_version == 2 for c in configs)
+
+        cache_data = {'error_instance_count': 0, 'need_upgrade': True, 'status': 'STARTED',
+                      'task_status': 'SUCCESS', 'total_instance_count': 10}
+
+        configs = CollectConfigMeta.objects.filter(plugin_id__in=["memory_usage", "cpu_usage"])
+        assert all(c.cache_data == cache_data for c in configs)
+
+        configs = CollectConfigMeta.objects.filter(plugin_id__in=["net_usage", "disk_usage"])
+        cache_data["need_upgrade"] = False
+        assert all(c.cache_data == cache_data for c in configs)
+
+        configs = CollectConfigMeta.objects.filter(plugin_id__in=["k8s_memory_load", "k8s_cpu_load"])
+        assert all(
+            c.cache_data == {'error_instance_count': 1, 'need_upgrade': True, 'status': 'STARTED',
+                             'task_status': 'FAILED', 'total_instance_count': 1}
+            for c in configs)
+
+        collect_configs = CollectConfigMeta.objects.all()
+        serializer = CollectConfigMetaSerializer(collect_configs, many=True)
+
+        print(json.dumps(serializer.data, ensure_ascii=False))
