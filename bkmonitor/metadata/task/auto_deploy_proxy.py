@@ -219,8 +219,8 @@ class AutoDeployProxy:
             return
 
         # 遍历所有租户，自动部署插件
-        for tenant in api.bk_login.get_tenants():
-            cls._refresh(tenant["bk_tenant_id"], plugin_name)
+        for tenant in api.bk_login.list_tenant():
+            cls._refresh(tenant["id"], plugin_name)
 
 
 def main():
