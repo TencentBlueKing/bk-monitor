@@ -26,7 +26,6 @@ from apm.constants import (
     ConfigTypes,
     DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
-from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
 from apm.models import (
     ApdexConfig,
@@ -42,6 +41,7 @@ from apm.models import (
     SubscriptionConfig,
 )
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from constants.apm import BkCollectorComp
 from core.drf_resource import api

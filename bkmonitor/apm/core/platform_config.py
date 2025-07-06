@@ -24,11 +24,11 @@ from apm.constants import (
     DEFAULT_PLATFORM_LICENSE_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
-from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
 from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from constants.apm import BkCollectorComp, SpanKindKey
 from core.drf_resource import api
