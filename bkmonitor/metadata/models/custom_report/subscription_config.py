@@ -12,6 +12,7 @@ import logging
 from collections import defaultdict
 from itertools import chain
 from operator import methodcaller
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -21,6 +22,7 @@ from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
+from metadata.models.custom_report.log import LogGroup
 from utils.redis_client import RedisClient
 
 logger = logging.getLogger("metadata")
@@ -471,7 +473,7 @@ class LogSubscriptionConfig(models.Model):
     PLUGIN_LOG_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
     @classmethod
-    def get_target_hosts(cls):
+    def get_target_hosts(cls) -> list[dict[str, Any]]:
         """
         查询云区域下所有的Proxy机器列表
         """
@@ -494,11 +496,10 @@ class LogSubscriptionConfig(models.Model):
                     target_hosts.append(
                         {"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0}
                     )
-
         return target_hosts
 
     @classmethod
-    def refresh(cls, log_group) -> None:
+    def refresh(cls, log_group: "LogGroup") -> None:
         """
         Refresh Config
         """
@@ -510,52 +511,35 @@ class LogSubscriptionConfig(models.Model):
             return
 
         # Initial Config
-        log_config = cls.get_log_config(log_group)
+        log_config = {
+            "bk_data_token": log_group.get_bk_data_token(),
+            "bk_biz_id": log_group.bk_biz_id,
+            "bk_app_name": log_group.log_group_name,
+            "qps_config": {
+                "name": "rate_limiter/token_bucket",
+                "type": "token_bucket",
+                "qps": log_group.max_rate if log_group.max_rate > 0 else LOG_REPORT_MAX_QPS,
+            },
+        }
 
         # Deploy Config
         try:
-            cls.deploy(log_group, log_config, bk_host_ids)
+            cls.deploy(log_group=log_group, platform_config=log_config, bk_host_ids=bk_host_ids)
         except Exception:
             logger.exception("auto deploy bk-collector log config error")
 
     @classmethod
-    def get_log_config(cls, log_group) -> dict:
-        """
-        Get Log Config
-        """
-
-        return {
-            "bk_data_token": log_group.get_bk_data_token(),
-            "bk_biz_id": log_group.bk_biz_id,
-            "bk_app_name": log_group.log_group_name,
-            "qps_config": cls.get_qps_config(log_group),
-        }
-
-    @classmethod
-    def get_qps_config(cls, log_group) -> dict:
-        """
-        Log QPS
-        """
-
-        return {
-            "name": "rate_limiter/token_bucket",
-            "type": "token_bucket",
-            "qps": log_group.max_rate if log_group.max_rate > 0 else LOG_REPORT_MAX_QPS,
-        }
-
-    @classmethod
-    def deploy(cls, log_group, platform_config, bk_host_ids) -> None:
+    def deploy(cls, log_group: "LogGroup", platform_config: dict, bk_host_ids: list[dict[str, Any]]) -> None:
         """
         Deploy Custom Log Config
         """
         # Build Subscription Params
-        scope = {
-            "object_type": "HOST",
-            "node_type": "INSTANCE",
-            "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
-        }
         subscription_params = {
-            "scope": scope,
+            "scope": {
+                "object_type": "HOST",
+                "node_type": "INSTANCE",
+                "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
+            },
             "steps": [
                 {
                     "id": cls.PLUGIN_NAME,
@@ -571,41 +555,38 @@ class LogSubscriptionConfig(models.Model):
         }
 
         log_subscription = cls.objects.filter(bk_biz_id=log_group.bk_biz_id, log_name=log_group.log_group_name)
-        if log_subscription.exists():
-            try:
-                logger.info("custom log config subscription task already exists.")
-                sub_config_obj = log_subscription.first()
-                subscription_params["subscription_id"] = sub_config_obj.subscription_id
-                subscription_params["run_immediately"] = True
+        sub_config_obj = log_subscription.first()
 
-                old_subscription_params_md5 = count_md5(sub_config_obj.config)
-                new_subscription_params_md5 = count_md5(subscription_params)
-                if old_subscription_params_md5 != new_subscription_params_md5:
-                    logger.info("custom log config subscription task config has changed, update it.")
-                    result = api.node_man.update_subscription(subscription_params)
-                    logger.info(f"update custom log config subscription successful, result:{result}")
-                    log_subscription.update(config=subscription_params)
-                return sub_config_obj.subscription_id
-            except Exception as e:
-                logger.exception(f"update custom log config subscription error:{e}, params:{subscription_params}")
+        if sub_config_obj:
+            logger.info("custom log config subscription task already exists.")
+            subscription_params["subscription_id"] = sub_config_obj.subscription_id
+            subscription_params["run_immediately"] = True
+
+            old_subscription_params_md5 = count_md5(sub_config_obj.config)
+            new_subscription_params_md5 = count_md5(subscription_params)
+            if old_subscription_params_md5 != new_subscription_params_md5:
+                logger.info("custom log config subscription task config has changed, update it.")
+                result = api.node_man.update_subscription(bk_tenant_id=log_group.bk_tenant_id, **subscription_params)
+                logger.info(f"update custom log config subscription successful, result:{result}")
+                log_subscription.update(config=subscription_params)
+            return sub_config_obj.subscription_id
         else:
-            try:
-                logger.info("custom log config subscription task not exists, create it.")
-                result = api.node_man.create_subscription(subscription_params)
-                logger.info(f"create custom log config subscription successful, result:{result}")
+            logger.info("custom log config subscription task not exists, create it.")
+            result = api.node_man.create_subscription(bk_tenant_id=log_group.bk_tenant_id, **subscription_params)
+            logger.info(f"create custom log config subscription successful, result:{result}")
 
-                # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
-                subscription_id = result["subscription_id"]
-                LogSubscriptionConfig.objects.create(
-                    bk_biz_id=log_group.bk_biz_id,
-                    log_name=log_group.log_group_name,
-                    config=subscription_params,
-                    subscription_id=subscription_id,
-                )
+            # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
+            subscription_id = result["subscription_id"]
+            LogSubscriptionConfig.objects.create(
+                bk_biz_id=log_group.bk_biz_id,
+                log_name=log_group.log_group_name,
+                config=subscription_params,
+                subscription_id=subscription_id,
+            )
 
-                result = api.node_man.run_subscription(
-                    subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
-                )
-                logger.info(f"run custom log config subscription result:{result}")
-            except Exception as e:
-                logger.exception(f"create custom log config subscription error{e}, params:{subscription_params}")
+            result = api.node_man.run_subscription(
+                bk_tenant_id=log_group.bk_tenant_id,
+                subscription_id=subscription_id,
+                actions={cls.PLUGIN_NAME: "INSTALL"},
+            )
+            logger.info(f"run custom log config subscription result:{result}")
