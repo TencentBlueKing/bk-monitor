@@ -28,7 +28,7 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
     TIMEOUT = 300
 
     base_url_statement = None
-    base_url = settings.BKNODEMAN_API_BASE_URL or "%s/api/c/compapi/v2/nodeman/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.BKNODEMAN_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/nodeman/"
 
     # 模块名
     module_name = "node_man"
@@ -59,7 +59,12 @@ class RenderConfigTemplateResource(NodeManAPIGWResource):
     渲染配置模板
     """
 
-    action = "plugin_render_config_template/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/render_config_template/"
+        return "plugin_render_config_template/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -80,7 +85,12 @@ class StartDebugResource(NodeManAPIGWResource):
     启动插件调试
     """
 
-    action = "plugin_start_debug/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/start_debug/"
+        return "plugin_start_debug/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -99,7 +109,12 @@ class QueryDebugResource(NodeManAPIGWResource):
     查询调试结果
     """
 
-    action = "plugin_query_debug/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/query_debug/"
+        return "plugin_query_debug/"
+
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -119,7 +134,12 @@ class StopDebugResource(NodeManAPIGWResource):
     停止插件调试
     """
 
-    action = "plugin_stop_debug/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/stop_debug/"
+        return "plugin_stop_debug/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -152,7 +172,12 @@ class UploadCosResource(NodeManAPIGWResource):
     上传COS插件包
     """
 
-    action = "/backend/api/plugin/upload/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/upload/"
+        return "/backend/api/plugin/upload/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -166,7 +191,12 @@ class RegisterPackageResource(NodeManAPIGWResource):
     注册插件包
     """
 
-    action = "plugin_create_register_task/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/create_register_task/"
+        return "plugin_create_register_task/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -182,7 +212,12 @@ class QueryRegisterTaskResource(NodeManAPIGWResource):
     查询注册任务
     """
 
-    action = "plugin_query_register_task/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/query_register_task/"
+        return "plugin_query_register_task/"
+
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -198,7 +233,12 @@ class PluginInfoResource(NodeManAPIGWResource):
     查询插件信息
     """
 
-    action = "plugin_info/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/info/"
+        return "plugin_info/"
+
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -207,7 +247,12 @@ class PluginInfoResource(NodeManAPIGWResource):
 
 
 class CreateConfigTemplateResource(NodeManAPIGWResource):
-    action = "plugin_create_config_template/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/create_config_template/"
+        return "plugin_create_config_template/"
+
     method = "POST"
 
     """
@@ -237,7 +282,12 @@ class CreateConfigTemplateResource(NodeManAPIGWResource):
 
 
 class ReleasePluginResource(NodeManAPIGWResource):
-    action = "plugin_release/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/release/"
+        return "plugin_release/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -247,7 +297,12 @@ class ReleasePluginResource(NodeManAPIGWResource):
 
 
 class ReleaseConfigResource(NodeManAPIGWResource):
-    action = "plugin_release_config_template/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/release_config_template/"
+        return "plugin_release_config_template/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -258,7 +313,12 @@ class ReleaseConfigResource(NodeManAPIGWResource):
 
 
 class ExportRawPackageResource(NodeManAPIGWResource):
-    action = "plugin_create_export_task/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/create_export_task/"
+        return "plugin_create_export_task/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -273,7 +333,12 @@ class ExportRawPackageResource(NodeManAPIGWResource):
 
 
 class ExportQueryTaskResource(NodeManAPIGWResource):
-    action = "plugin_query_export_task/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/query_export_task/"
+        return "plugin_query_export_task/"
+
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
@@ -281,7 +346,12 @@ class ExportQueryTaskResource(NodeManAPIGWResource):
 
 
 class DeletePluginResource(NodeManAPIGWResource):
-    action = "plugin_delete/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/plugin/delete/"
+        return "plugin_delete/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -289,7 +359,12 @@ class DeletePluginResource(NodeManAPIGWResource):
 
 
 class CreateSubscriptionResource(NodeManAPIGWResource):
-    action = "subscription_create/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/create/"
+        return "subscription_create/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -319,7 +394,12 @@ class CreateSubscriptionResource(NodeManAPIGWResource):
 
 
 class SubscriptionInfoResource(NodeManAPIGWResource):
-    action = "subscription_info/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/info/"
+        return "subscription_info/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -327,7 +407,12 @@ class SubscriptionInfoResource(NodeManAPIGWResource):
 
 
 class UpdateSubscriptionResource(NodeManAPIGWResource):
-    action = "subscription_update/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/update/"
+        return "subscription_update/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -356,7 +441,12 @@ class UpdateSubscriptionResource(NodeManAPIGWResource):
 
 
 class DeleteSubscriptionResource(NodeManAPIGWResource):
-    action = "subscription_delete/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/delete/"
+        return "subscription_delete/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -364,7 +454,12 @@ class DeleteSubscriptionResource(NodeManAPIGWResource):
 
 
 class RunSubscriptionResource(NodeManAPIGWResource):
-    action = "subscription_run/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/run/"
+        return "subscription_run/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -379,7 +474,12 @@ class RunSubscriptionResource(NodeManAPIGWResource):
 
 
 class RetrySubscriptionResource(NodeManAPIGWResource):
-    action = "backend/api/subscription/retry/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/retry/"
+        return "backend/api/subscription/retry/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -390,7 +490,12 @@ class RetrySubscriptionResource(NodeManAPIGWResource):
 class RevokeSubscriptionResource(NodeManAPIGWResource):
     # 注意，此处由于节点管理1.3没有revoke接口，调用的是 节点管理2.0 的revoke接口
     # 因此 action 链接与其他接口的不一致，修改时请按照 节点管理2.0 esb yaml 中相应的接口链接进行调整
-    action = "backend/api/subscription/revoke/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/revoke/"
+        return "backend/api/subscription/revoke/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -399,7 +504,12 @@ class RevokeSubscriptionResource(NodeManAPIGWResource):
 
 
 class TaskResultResource(NodeManAPIGWResource):
-    action = "subscription_task_result/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/task_result/"
+        return "subscription_task_result/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -413,7 +523,12 @@ class TaskResultResource(NodeManAPIGWResource):
 
 
 class SwitchSubscriptionResource(NodeManAPIGWResource):
-    action = "subscription_switch/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/switch/"
+        return "subscription_switch/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -422,7 +537,12 @@ class SwitchSubscriptionResource(NodeManAPIGWResource):
 
 
 class SubscriptionInstanceStatusResource(NodeManAPIGWResource):
-    action = "subscription_instance_status/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/instance_status/"
+        return "subscription_instance_status/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -437,7 +557,12 @@ class SubscriptionInstanceStatusResource(NodeManAPIGWResource):
 
 
 class TaskResultDetailResource(NodeManAPIGWResource):
-    action = "subscription_task_result_detail/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/task_result_detail/"
+        return "subscription_task_result_detail/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -513,7 +638,12 @@ class GetProxiesResource(NodeManAPIGWResource):
     【节点管理2.0】查询云区域下的proxy列表
     """
 
-    action = "api/host/proxies/"
+    @property
+    def action(self):
+        if not settings.BKNODEMAN_API_BASE_URL:
+            return "system/api/host/proxies/"
+        return "api/host/proxies/"
+
     method = "GET"
     backend_cache_type = CacheType.NODE_MAN
 
@@ -526,7 +656,12 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
     【节点管理2.0】通过业务查询业务所使用的所有云区域下的ProxyIP
     """
 
-    action = "api/host/biz_proxies/"
+    @property
+    def action(self):
+        if not settings.BKNODEMAN_API_BASE_URL:
+            return "system/api/host/biz_proxies/"
+        return "api/host/biz_proxies/"
+
     method = "GET"
     backend_cache_type = CacheType.NODE_MAN
 
@@ -556,7 +691,12 @@ class PluginOperate(NodeManAPIGWResource):
     【节点管理2.0】插件管理接口
     """
 
-    action = "api/plugin/operate/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/api/plugin/operate/"
+        return "api/plugin/operate/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -581,7 +721,12 @@ class PluginSearch(NodeManAPIGWResource):
     【节点管理2.0】插件查询接口
     """
 
-    action = "api/plugin/search/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/api/plugin/search/"
+        return "api/plugin/search/"
+
     method = "POST"
     # 用1min缓存，缓解短时间批量请求
     backend_cache_type = CacheType.SCENE_VIEW
@@ -615,7 +760,12 @@ class CheckTaskReady(NodeManAPIGWResource):
     检测任务是否初始化完成
     """
 
-    action = "backend/api/subscription/check_task_ready/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/check_task_ready/"
+        return "backend/api/subscription/check_task_ready/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -628,7 +778,12 @@ class FetchSubscriptionStatistic(NodeManAPIGWResource):
     获取统计信息
     """
 
-    action = "backend/api/subscription/statistic/"
+    @property
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/backend/api/subscription/statistic/"
+        return "backend/api/subscription/statistic/"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -675,12 +830,13 @@ class BatchTaskResultResource(Resource):
 
 
 class IpchooserHostDetailResource(NodeManAPIGWResource):
-    action = "core/api/ipchooser_host/details/"
-    method = "POST"
-
     @property
-    def bk_username(self):
-        return settings.COMMON_USERNAME
+    def action(self):
+        if settings.BKNODEMAN_API_BASE_URL:
+            return "system/core/api/ipchooser_host/details/"
+        return "core/api/ipchooser_host/details/"
+
+    method = "POST"
 
     class RequestSerializer(serializers.Serializer):
         class HostSerializer(serializers.Serializer):
