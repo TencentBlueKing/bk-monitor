@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 
 from django.apps.config import AppConfig
@@ -39,7 +39,7 @@ except Exception:  # pylint: disable=broad-except
 
 
 def migrate_iam(sender, **kwargs):
-    if Permission.get_iam_client().in_compatibility_mode():
+    if Permission.get_iam_client(settings.DEFAULT_TENANT_ID).in_compatibility_mode():
         # 存量部署存在V1的操作时，需要跑该配置将V1操作改名，避免与新名称发生冲突
         IAMMigrator("legacy.json").migrate()
     IAMMigrator("initial.json").migrate()
