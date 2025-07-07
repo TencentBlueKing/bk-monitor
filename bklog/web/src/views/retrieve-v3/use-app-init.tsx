@@ -175,6 +175,13 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      exception_msg: '',
+      is_error: false,
+    });
+
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {

@@ -143,7 +143,6 @@ export default class IndexImportModal extends tsc<IProps> {
       })
       .then(res => {
         const { data } = res;
-
         if (data?.length) {
           this.collectList = data.map(item => {
             const {
@@ -155,7 +154,13 @@ export default class IndexImportModal extends tsc<IProps> {
               params,
               bk_data_id,
             } = item;
-            const { paths } = JSON.parse(this.pythonDictString(params));
+            let paths = [];
+            try {
+              const value = JSON.parse(this.pythonDictString(params));
+              paths = value?.paths ?? [];
+            } catch (e) {
+              console.error(e);
+            }
             return {
               bk_data_id,
               collector_config_id,
