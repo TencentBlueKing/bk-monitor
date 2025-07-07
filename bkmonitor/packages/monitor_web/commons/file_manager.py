@@ -180,7 +180,7 @@ class PluginFileManager(BaseFileManager):
     @classmethod
     def extract_file(cls, file_data, file_path):
         with tarfile.open(fileobj=file_data, mode="r:gz") as tar:
-            tar.extractall(file_path, filter='data')
+            tar.extractall(file_path)
         return file_path
 
     @classmethod

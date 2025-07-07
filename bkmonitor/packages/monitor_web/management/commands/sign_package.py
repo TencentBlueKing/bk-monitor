@@ -58,7 +58,7 @@ class Command(BaseCommand):
         with open(src_path, "rb") as tar_obj:
             with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
                 print("Package unzip in tmp path: {}".format(tmp_dir))
-                tar.extractall(tmp_dir, filter='data')
+                tar.extractall(tmp_dir)
                 filename_list = tar.getnames()
 
         # 2. 解析 meta.yaml

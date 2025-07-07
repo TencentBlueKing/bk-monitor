@@ -135,7 +135,7 @@ class ConfigMigrator:
             tar = tarfile.open(path_or_file, "r:gz")
         else:
             tar = tarfile.open(fileobj=path_or_file, mode="r:gz")
-        tar.extractall(path=tempdir.name, filter='data')
+        tar.extractall(path=tempdir.name)
         tar.close()
 
         cur = self.connect.cursor()
