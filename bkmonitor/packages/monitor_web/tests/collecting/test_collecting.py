@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import os
 
-import mock
+from unittest import mock
 from django.test import TestCase
 
 from bkmonitor.utils.local import local
@@ -28,8 +26,28 @@ from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVer
 from monitor_web.models.custom_report import CustomEventGroup, CustomEventItem
 from monitor_web.models.plugin import CollectorPluginMeta
 
+from packages.monitor_web.collecting.resources.backend import SaveCollectConfigResource
+from unittest.mock import patch
 
-class Base(object):
+PLUGIN_ID = "plugin_01"
+
+DATA = {
+    "name": "name626",
+    "bk_biz_id": 2,
+    "collect_type": "Script",
+    "target_object_type": "HOST",
+    "target_node_type": "INSTANCE",
+    "plugin_id": PLUGIN_ID,
+    "target_nodes": [{"bk_host_id": 54}, {"bk_host_id": 587}],
+    "remote_collecting_host": None,
+    "params": {"collector": {"period": 60, "timeout": 60}, "plugin": {}},
+    "label": "os",
+    "operation": "EDIT",
+    "metric_relabel_configs": [],
+}
+
+
+class Base:
     pass
 
 
@@ -87,8 +105,30 @@ class TestCollectingViewSet(TestCase):
 
         mock_api.side_effect = mock_request
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_file", "test.json")
-        with open(file_path, "r") as fp:
+        with open(file_path) as fp:
             post_data = json.load(fp)
         local.current_request = request
         content = resource.collecting.save_collect_config.request(post_data)
-        self.assert_(content["deployment_id"], DeploymentConfigVersion.objects.last().pk)
+        self.assertTrue(content["deployment_id"], DeploymentConfigVersion.objects.last().pk)
+
+
+class TestSaveCollectConfigResource(TestCase):
+    @patch("monitor_web.collecting.deploy.node_man.NodeManInstaller._release_package", return_value=None)
+    @patch("monitor_web.collecting.deploy.node_man.NodeManInstaller._deploy", return_value="")
+    def test_perform_request(self, mock_deploy, mock_release_package):
+        CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
+        plugin_config = CollectorPluginConfig.objects.create()
+        plugin_info = CollectorPluginInfo.objects.create()
+        PluginVersionHistory.objects.create(
+            config_version=1,
+            info_version=1,
+            config_id=plugin_config.id,
+            info_id=plugin_info.id,
+            stage="release",
+            plugin_id=PLUGIN_ID,
+            bk_tenant_id="system",
+        )
+
+        SaveCollectConfigResource().perform_request(data=DATA)
+        items = DeploymentConfigVersion.objects.filter()
+        self.assertTrue(items.exists())

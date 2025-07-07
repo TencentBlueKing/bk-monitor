@@ -73,7 +73,7 @@ class TestReportCreateOrUpdateResource(TestCase):
 
     def test_perform_request(self):
         ReportCreateOrUpdateResource().perform_request(VALIDATED_REQUEST_DATA)
-        item = ReportContents.objects.filter(bk_tenant_id=BK_TENANT_ID)
+        item = ReportContents.objects.filter(bk_tenant_id=BK_TENANT_ID).first()
         self.assertIsNotNone(item)
 
         item = ReportItems.objects.filter(bk_tenant_id=BK_TENANT_ID).first()
