@@ -109,6 +109,7 @@ class QueryDataLinkInfoResource(Resource):
 
             res = {
                 "ds_infos": ds_infos,
+                "etl_infos": etl_infos,
                 "rt_infos": rt_infos,
                 "es_storage_infos": es_storage_infos,
                 "bkbase_infos": bkbase_infos,
@@ -135,7 +136,6 @@ class QueryDataLinkInfoResource(Resource):
                 )
                 res.update(
                     {
-                        "etl_infos": etl_infos,
                         "authorized_space_uids": authorized_space_uids,
                         "expired_metrics": expired_metrics,
                         "rt_detail_router": time_series_rt_detail_infos,

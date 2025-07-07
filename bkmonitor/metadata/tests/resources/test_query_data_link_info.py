@@ -69,8 +69,8 @@ def test_basic_info_query(mocker, mock_data_source):
     assert "rt_infos" in result_data
     assert "es_storage_infos" in result_data
     assert "bkbase_infos" in result_data
+    assert "etl_infos" in result_data
     # 验证不包含的信息
-    assert "etl_infos" not in result_data
     assert "authorized_space_uids" not in result_data
     assert "expired_metrics" not in result_data
     assert "rt_detail_router" not in result_data
