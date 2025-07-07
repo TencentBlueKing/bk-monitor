@@ -140,9 +140,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   eventQueryString = '';
   eventFilterMode = EMode.ui;
 
-  /** 各场景缓存数据 */
-  cacheMap = new Map<string, Record<string, any>>();
-
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
@@ -378,37 +375,26 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 场景切换 */
   handleSceneChange(value: SceneEnum) {
-    const cache = this.cacheMap.get(`${this.cluster}_${value}`);
-    if (this.scene !== SceneEnum.Event) {
-      this.cacheMap.set(`${this.cluster}_${this.scene}`, {
-        groupBy: JSON.parse(JSON.stringify(this.groupInstance.groupFilters)),
-        filterBy: JSON.parse(JSON.stringify(this.filterBy)),
-      });
-    } else {
-      this.cacheMap.set(`${this.cluster}_${this.scene}`, {
-        where: JSON.parse(JSON.stringify(this.eventWhere)),
-        queryString: this.eventQueryString,
-        filterMode: this.eventFilterMode,
-      });
-    }
+    const oldScene = this.scene;
     this.scene = value;
-    if (value !== SceneEnum.Event) {
+    /** 非事件场景之间切换，对filterBy和groupBy查询条件取交集 */
+    if (oldScene !== SceneEnum.Event && value !== SceneEnum.Event) {
+      this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
+        if (Object.prototype.hasOwnProperty.call(this.filterBy, cur)) {
+          pre[cur] = this.filterBy[cur];
+        } else {
+          pre[cur] = [];
+        }
+        return pre;
+      }, {});
+      const groupBy = this.groupFilters.filter(item => this.sceneDimensionList.includes(item));
       this.initGroupBy();
-      if (cache) {
-        this.groupInstance.setGroupFilters(cache.groupBy);
-        this.filterBy = cache.filterBy;
-      } else {
-        this.initFilterBy();
-      }
-      this.getScenarioMetricList();
-      this.getHideMetrics();
+      if (groupBy.length) this.groupInstance.setGroupFilters(groupBy);
     } else {
-      if (cache) {
-        this.eventWhere = cache.where;
-        this.eventQueryString = cache.queryString;
-        this.eventFilterMode = cache.filterMode;
-      }
+      this.initFilterBy();
+      this.initGroupBy();
     }
+    this.getScenarioMetricList();
     this.setRouteParams();
     this.showCancelDrill = false;
     this.$nextTick(() => {
@@ -528,6 +514,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
+    this.eventWhere = [];
+    this.eventQueryString = '';
     this.initFilterBy();
     this.groupInstance.initGroupFilter();
     this.showCancelDrill = false;
@@ -586,19 +574,31 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       cluster = '',
       scene = SceneEnum.Performance,
       activeTab = K8sNewTabEnum.LIST,
-      eventWhere,
-      eventQueryString,
-      eventFilterMode,
+      targets,
+      filterMode,
     } = this.$route.query || {};
-
     this.timeRange = [from as string, to as string];
     this.refreshInterval = Number(refreshInterval);
     this.cluster = cluster as string;
     this.scene = scene as SceneEnum;
     if (scene === SceneEnum.Event) {
-      this.eventFilterMode = (eventFilterMode as EMode) || EMode.ui;
-      this.eventWhere = tryURLDecodeParse(eventWhere as string, []);
-      this.eventQueryString = (eventQueryString as string) || '';
+      if (targets) {
+        const targetsList = tryURLDecodeParse(targets as string, []);
+        const [
+          {
+            data: {
+              query_configs: [{ where, query_string: queryString }],
+            },
+          },
+        ] = targetsList;
+        this.eventFilterMode = (filterMode as EMode) || EMode.ui;
+        this.eventWhere = where || [];
+        this.eventQueryString = queryString || '';
+      } else {
+        this.eventWhere = [];
+        this.eventQueryString = '';
+        this.eventFilterMode = EMode.ui;
+      }
     } else {
       this.activeTab = activeTab as K8sNewTabEnum;
       this.initGroupBy();
@@ -622,7 +622,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       scene: this.scene,
       cluster: this.cluster,
     };
-
+    /** 非事件场景参数 */
     const notEventQuery = {
       ...commonQuery,
       filterBy: JSON.stringify(this.filterBy),
@@ -630,12 +630,23 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       activeTab: this.activeTab,
       ...otherQuery,
     };
-
+    /** 事件场景参数 */
     const eventQuery = {
       ...commonQuery,
-      eventWhere: JSON.stringify(this.eventWhere),
-      eventQueryString: this.eventQueryString,
-      eventFilterMode: this.eventFilterMode,
+      /** 因存在内部跳转功能，所以使用事件检索URL格式 */
+      targets: JSON.stringify([
+        {
+          data: {
+            query_configs: [
+              {
+                where: this.eventWhere,
+                query_string: this.eventQueryString,
+              },
+            ],
+          },
+        },
+      ]),
+      filterMode: this.eventFilterMode,
       ...otherQuery,
     };
     const query = this.scene === SceneEnum.Event ? eventQuery : notEventQuery;

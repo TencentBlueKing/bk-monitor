@@ -156,11 +156,17 @@ export type K8sTableMetricKeys =
 export type K8sSortType = '' | 'asc' | 'desc';
 
 export enum SceneEnum {
+  /** 性能 */
   Performance = 'performance',
+  /** 网络 */
   Network = 'network',
+  /** 容量 */
   Capacity = 'capacity',
+  /** 事件 */
   Event = 'event',
+  /** 存储 */
   Storage = 'storage',
+  /** 成本 */
   Cost = 'cost',
 }
 
