@@ -298,6 +298,7 @@ export default {
   '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}':
     'You currently have {count} space permissions, grayscale is not enabled yet, please contact {link}',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
+  无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
   '当前被监控的服务运行正常，无告警产生': 'The monitored service is running normally without any alarms.',
   '监控对象不一致，无法添加统一监控目标': 'Inconsistent monitoring objects, cannot add unified monitoring targets',

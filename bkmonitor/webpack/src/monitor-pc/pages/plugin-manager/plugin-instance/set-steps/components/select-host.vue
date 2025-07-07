@@ -265,6 +265,14 @@ export default {
      * @desc 处理表格行点击事件
      */
     handleRowClick(row) {
+      if (row.agentStatus !== 0) {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('无法选择Agent状态异常的服务器'),
+        });
+        this.$refs.hostTableRef.setCurrentRow();
+        return;
+      }
       this.$emit('confirm', { ...this.host, ...row, osType: this.host.osType, osName: this.host.osType });
       this.close();
     },
