@@ -65,12 +65,18 @@ class CustomReportSubscription(models.Model):
         unique_together = (("bk_biz_id", "bk_data_id"),)
         db_table = "custom_report_subscription_config_v2"
 
+    # 上报协议与配置文件模板名称的映射关系
+    SUB_CONFIG_MAP = {
+        "json": "bk-collector-report-v2.conf",
+        "prometheus": "bk-collector-application.conf",
+    }
+
     @classmethod
     def create_subscription(
         cls,
         bk_tenant_id: str,
         bk_biz_id: int,
-        items: list[tuple[dict, str] | dict],
+        data_id_configs: list[tuple[dict[str, Any], str]],
         bk_host_ids: list[int],
         op_type: str = "add",
     ):
@@ -92,14 +98,7 @@ class CustomReportSubscription(models.Model):
             bk_biz_id,
             bk_host_ids,
         )
-        for item in items:
-            # bk-collector 默认自定义事件，和json的自定义指标使用bk-collector-report-v2.conf
-            sub_config_name = "bk-collector-report-v2.conf"
-
-            if isinstance(item, tuple):
-                # 自定义指标，对应json和Prometheus 两种格式
-                item, sub_config_name = item
-
+        for item, sub_config_name in data_id_configs:
             subscription_params = {
                 "scope": {
                     "object_type": "HOST",
@@ -151,11 +150,6 @@ class CustomReportSubscription(models.Model):
         """
         获取业务下自定义上报配置
         """
-        # 0. 定义不同上报格式对应配置文件模板关系
-        SUB_CONFIG_MAP = {
-            "json": "bk-collector-report-v2.conf",
-            "prometheus": "bk-collector-application.conf",
-        }
         # 1. 从数据库查询到bk_biz_id到自定义上报配置的数据
         result = (
             query_set.extra(
@@ -183,7 +177,6 @@ class CustomReportSubscription(models.Model):
             if max_future_time_offset < 0:
                 max_future_time_offset = MAX_FUTURE_TIME_OFFSET
             protocol = cls.get_protocol(r["bk_data_id"])
-            sub_config_name = SUB_CONFIG_MAP[protocol]
             # 根据格式决定使用那种配置
             if protocol == "json":
                 # json格式: bk-collector-report-v2.conf
@@ -239,11 +232,8 @@ class CustomReportSubscription(models.Model):
                         "qps": max_rate,
                     },
                 }
-            data_id_config: tuple[dict[str, Any], str] = (item, sub_config_name)
-
-            biz_id_to_data_id_config.setdefault(r["bk_biz_id"], []).append(
-                data_id_config,
-            )
+            data_id_config: tuple[dict[str, Any], str] = (item, cls.SUB_CONFIG_MAP[protocol])
+            biz_id_to_data_id_config.setdefault(r["bk_biz_id"], []).append(data_id_config)
         return biz_id_to_data_id_config
 
     @classmethod
@@ -297,7 +287,7 @@ class CustomReportSubscription(models.Model):
         bk_tenant_id: str,
         bk_biz_id: int,
         op_type: str,
-        data_id_configs: list[tuple[dict, str] | dict],
+        data_id_configs: list[tuple[dict[str, Any], str]],
     ):
         """
         刷新指定业务ID的collector自定义上报配置
@@ -335,7 +325,7 @@ class CustomReportSubscription(models.Model):
         cls.create_subscription(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            items=data_id_configs,
+            data_id_configs=data_id_configs,
             bk_host_ids=proxy_host_ids,
             op_type=op_type,
         )
@@ -386,7 +376,9 @@ class CustomReportSubscription(models.Model):
         for bk_biz_id in bk_biz_ids:
             # 0业务下发全部配置，其他业务下发指定业务配置
             if bk_biz_id == 0:
-                data_id_configs = list(chain(*list(biz_id_to_data_id_config.values())))
+                data_id_configs: list[tuple[dict[str, Any], str]] = list(
+                    chain(*list(biz_id_to_data_id_config.values()))
+                )
             else:
                 data_id_configs = biz_id_to_data_id_config.get(bk_biz_id, [])
 
