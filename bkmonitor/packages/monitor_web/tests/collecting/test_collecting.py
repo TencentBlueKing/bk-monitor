@@ -113,11 +113,15 @@ class TestCollectingViewSet(TestCase):
 
 
 class TestSaveCollectConfigResource(TestCase):
-    @patch("monitor_web.collecting.deploy.node_man.NodeManInstaller._release_package", return_value=None)
-    @patch("monitor_web.collecting.deploy.node_man.NodeManInstaller._deploy", return_value="")
-    def test_perform_request(self, mock_deploy, mock_release_package):
+    @patch("core.drf_resource.api.node_man.release_plugin", return_value="")
+    @patch("core.drf_resource.api.node_man.create_config_template", return_value="")
+    @patch("core.drf_resource.api.node_man.plugin_info", return_value=[{"md5": ""}])
+    @patch("core.drf_resource.api.node_man.register_package", return_value={"job_id": 1})
+    @patch("core.drf_resource.api.node_man.query_register_task", return_value={"message": "", "is_finish": 1})
+    @patch("core.drf_resource.api.node_man.upload", return_value={"name": "name_01"})
+    def test_perform_request(self, mock_1, mock_2, mock_3, mock_4, mock_5, mock_6):
         CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
-        plugin_config = CollectorPluginConfig.objects.create()
+        plugin_config = CollectorPluginConfig.objects.create(config_json=[])
         plugin_info = CollectorPluginInfo.objects.create()
         PluginVersionHistory.objects.create(
             config_version=1,
