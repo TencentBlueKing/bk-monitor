@@ -824,6 +824,7 @@
             item.field_type = 'string';
             item.previous_type = 'string';
           }
+          this.validateInput(item)
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
@@ -1025,6 +1026,7 @@
         });
       },
       checkFieldNameItem(row) {
+        this.validateInput(row)
         if (row.alias_name) {
           return;
         }
@@ -1326,6 +1328,23 @@
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
+      // 不满足特定正则表达式时添加双引号，并且确保已经添加过的不会再重复添加
+      validateInput(row) {
+        if(!row.field_name || this.extractMethod !== 'bk_log_json'){
+          return
+        }
+        const quotedPattern = /^".*"$/;
+        // 定义正则，用于检测字段名称的合法性
+        const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+
+        if (!quotedPattern.test(row.field_name)) {
+          // 如果未被引号包裹
+          if (!validFieldPattern.test(row.field_name)) {
+            // 且不符合字段名称的合法性
+            row.field_name = `"${row.field_name}"`; // 则添加引号
+          }
+        }
+    }
     },
   };
 </script>
