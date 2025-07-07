@@ -57,7 +57,7 @@ export default defineComponent({
     const grepQuery = ref((route.query.grep_query as string) ?? '');
     const grepRequestResult: Ref<GrepRequestResult> = ref({
       offset: 0,
-      is_loading: false,
+      is_loading: true,
       list: [],
       has_more: true,
       is_error: false,
