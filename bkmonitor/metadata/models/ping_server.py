@@ -44,7 +44,7 @@ class PingServerSubscriptionConfig(models.Model):
     class Meta:
         verbose_name = "PingServer下发订阅配置"
         verbose_name_plural = "PingServer下发订阅配置"
-        unique_together = (("bk_host_id", "bk_cloud_id", "ip", "plugin_name"),)
+        unique_together = (("bk_host_id", "bk_cloud_id", "ip", "plugin_name", "bk_tenant_id"),)
 
     @classmethod
     def create_subscription(cls, bk_tenant_id: str, bk_cloud_id: int, items, target_hosts, plugin_name: str):
