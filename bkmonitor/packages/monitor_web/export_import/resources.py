@@ -702,16 +702,12 @@ class UploadPackageResource(Resource):
 
     def un_tar_package(self):
         file_instance = self.file_manager.file_obj
-        t = None
         try:
             with tarfile.open(fileobj=file_instance.file_data.file) as t:
                 safe_extract(t, path=self.parse_path)
         except Exception as e:
             logger.exception("压缩包解压失败: {}".format(e))
             raise UploadPackageError({"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")})
-        finally:
-            if t is not None:
-                t.close()
         if not any(list([x in os.listdir(self.parse_path) for x in DIRECTORY_LIST])):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
