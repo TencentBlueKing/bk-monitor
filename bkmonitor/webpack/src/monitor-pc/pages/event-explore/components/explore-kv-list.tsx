@@ -31,6 +31,8 @@ import { isHttpUrl } from 'monitor-common/regex/url';
 import { copyText } from 'monitor-common/utils';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
+import { SceneAliasMap } from '../../monitor-k8s/k8s-dimension';
+import { SceneEnum } from '../../monitor-k8s/typings/k8s-new';
 import { APIType } from '../api-utils';
 import {
   KVSplitEnum,
@@ -81,8 +83,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
 
-  @Ref('menu') menuRef: HTMLUListElement;
+  @Ref('menuRef') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
+  /** 场景下拉菜单 dom 实例 */
+  @Ref('sceneRef') sceneRef: any;
 
   menuList = [
     {
@@ -112,9 +116,19 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       suffixRender: this.menuItemSuffixRender({ hasClick: false }),
       onClick: this.handleNewExplorePage,
     },
+    {
+      id: 'other-scene',
+      name: this.$t('查看该对象的其他场景'),
+      icon: 'icon-switch',
+      suffixRender: () => <i class={'icon-monitor icon-arrow-right '} />,
+      onClick: this.handleScenePopoverShow,
+    },
   ];
   showStatisticsPopover = false;
+  /** 一级 popover 实例(条件菜单/维度统计面板) */
   popoverInstance = null;
+  /** 二级 popover 实例(切换场景菜单) */
+  childrenPopoverInstance = null;
   fieldTarget: KVFieldList = null;
   /** 当前激活触发弹出 popover 的列或者激活的分词下标 */
   activeColumnOrIndex: 'key' | 'value' | number = null;
@@ -146,6 +160,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     }
   }
 
+  /**
+   * @description 一级 popover 显示
+   *
+   */
   async handlePopoverShow(e: MouseEvent) {
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
       content: this.menuRef,
@@ -159,17 +177,19 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       distance: 4,
       offset: '-2, 0',
       onHidden: () => {
-        this.popoverInstance?.destroy?.();
-        this.popoverInstance = null;
-        this.fieldTarget = null;
-        this.activeColumnOrIndex = null;
+        this.handlePopoverHide();
       },
     });
     await this.$nextTick();
     this.popoverInstance?.show(100);
   }
 
+  /**
+   * @description 一级 popover 隐藏
+   *
+   */
   handlePopoverHide(resetFieldTarget = true) {
+    this.handleScenePopoverHide();
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
@@ -259,6 +279,39 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description 二级 popover (场景菜单)显示
+   *
+   */
+  async handleScenePopoverShow(e: MouseEvent) {
+    this.childrenPopoverInstance = this.$bkPopover(e.currentTarget, {
+      content: this.sceneRef,
+      trigger: 'click',
+      placement: 'right-start',
+      theme: 'light common-monitor event-to-k8s-scene-popover',
+      arrow: false,
+      interactive: true,
+      boundary: 'viewport',
+      distance: 4,
+      offset: '-2, 0',
+      onHidden: () => {
+        this.handleScenePopoverHide();
+      },
+    });
+    await this.$nextTick();
+    this.childrenPopoverInstance?.show(100);
+  }
+
+  /**
+   * @description 二级 popover (场景菜单)隐藏
+   *
+   */
+  handleScenePopoverHide() {
+    this.childrenPopoverInstance?.hide?.();
+    this.childrenPopoverInstance?.destroy?.();
+    this.childrenPopoverInstance = null;
+  }
+
+  /**
    * @description 获取当前激活menu 弹窗popover的 value
    * 由于存在分词，所以 fieldTarget 的 value 并不一定是最终激活的 value
    */
@@ -270,6 +323,30 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     return value?.[this.activeColumnOrIndex]?.value;
   }
 
+  /**
+   * @description 切换场景(新开页跳转至k8s容器监控实现)
+   * @param {SceneEnum} targetScene 想要切换到的目标场景
+   *
+   */
+  handleNewK8sPage(targetScene: SceneEnum) {
+    console.log('================ targetScene ================', targetScene);
+    this.handlePopoverHide();
+    // const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
+    // const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
+    // targetPageGroupInstance.addGroupFilter(this.groupByField);
+
+    // const query = {
+    //   ...rest,
+    //   filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
+    //   groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
+    //   scene: targetScene,
+    // };
+    // const targetRoute = this.$router.resolve({
+    //   query,
+    // });
+    // this.handlePopoverHide();
+    // window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
+  }
   /**
    * @description 处理复制事件
    *
@@ -485,7 +562,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     return (
       <div style='display: none'>
         <ul
-          ref='menu'
+          ref='menuRef'
           class='explore-kv-list-menu'
         >
           {this.menuList.map(item => (
@@ -494,9 +571,34 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
               class='menu-item'
               onClick={item.onClick}
             >
-              <i class={`icon-monitor ${item.icon}`} />
+              <i class={`prefix-icon icon-monitor ${item.icon}`} />
               <span>{item.name}</span>
               <div class='item-suffix'>{item?.suffixRender?.()}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  /**
+   * @description 场景 下拉菜单渲染
+   *
+   */
+  sceneMenuListRender() {
+    return (
+      <div style='display: none'>
+        <ul
+          ref='sceneRef'
+          class='scene-list-menu'
+        >
+          {[SceneEnum.Performance, SceneEnum.Capacity].map(scene => (
+            <li
+              key={scene}
+              class='menu-item'
+              onClick={() => this.handleNewK8sPage(scene)}
+            >
+              {SceneAliasMap[scene]}
             </li>
           ))}
         </ul>
@@ -563,6 +665,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
           </div>
         ))}
         {this.menuPopoverRender()}
+        {this.sceneMenuListRender()}
         {this.statisticsPopoverRender()}
       </div>
     );
