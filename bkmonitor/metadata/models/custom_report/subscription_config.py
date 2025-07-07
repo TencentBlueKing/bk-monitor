@@ -11,8 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import defaultdict
 from itertools import chain
-from operator import methodcaller
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from django.conf import settings
 from django.db import models
@@ -31,6 +30,11 @@ MAX_REQ_LENGTH = 500 * 1024  # 最大请求Body大小，500KB
 MAX_REQ_THROUGHPUT = 4000  # 最大的请求数(单位：秒)
 MAX_DATA_ID_THROUGHPUT = 1000  # 单个dataid最大的上报频率(条/min)、在bk-collector模式下，是 条/秒
 MAX_FUTURE_TIME_OFFSET = 3600  # 支持的最大未来时间，超过这个偏移值，则丢弃
+
+
+if TYPE_CHECKING:
+    from metadata.models.custom_report.event import EventGroup
+    from metadata.models.custom_report.time_series import TimeSeriesGroup
 
 
 class CustomReportSubscriptionConfig(models.Model):
@@ -137,7 +141,13 @@ class CustomReportSubscription(models.Model):
         return CustomTSGroupCacheManager.get(bk_data_id) or "json"
 
     @classmethod
-    def get_custom_config(cls, query_set, group_table_name: str, data_source_table_name: str, datatype: str = "event"):
+    def get_custom_config(
+        cls,
+        query_set: models.QuerySet[EventGroup | TimeSeriesGroup],
+        group_table_name: str,
+        data_source_table_name: str,
+        datatype: Literal["event", "time_series"] = "event",
+    ) -> dict[int, list[tuple[dict[str, Any], str]]]:
         """
         获取业务下自定义上报配置
         """
@@ -156,7 +166,7 @@ class CustomReportSubscription(models.Model):
             .values("bk_biz_id", "bk_data_id", "token", "max_rate", "max_future_time_offset")
             .distinct()
         )
-        biz_id_to_data_id_config = {}
+        biz_id_to_data_id_config: dict[int, list[tuple[dict[str, Any], str]]] = {}
         if not result:
             logger.info("no custom report config in database")
             return biz_id_to_data_id_config
@@ -172,17 +182,6 @@ class CustomReportSubscription(models.Model):
             max_future_time_offset = int(r.get("max_future_time_offset", MAX_FUTURE_TIME_OFFSET))
             if max_future_time_offset < 0:
                 max_future_time_offset = MAX_FUTURE_TIME_OFFSET
-            # 后续版本计划移除
-            # bkmonitorproxy插件
-            # bkmonitorproxy_report.conf
-            data_id_config = {
-                "dataid": r["bk_data_id"],
-                "datatype": datatype,
-                "version": "v2",
-                "access_token": r["token"],
-                "max_rate": max_rate,
-                "max_future_time_offset": max_future_time_offset,
-            }
             protocol = cls.get_protocol(r["bk_data_id"])
             sub_config_name = SUB_CONFIG_MAP[protocol]
             # 根据格式决定使用那种配置
@@ -240,7 +239,7 @@ class CustomReportSubscription(models.Model):
                         "qps": max_rate,
                     },
                 }
-                data_id_config = (item, sub_config_name)
+            data_id_config: tuple[dict[str, Any], str] = (item, sub_config_name)
 
             biz_id_to_data_id_config.setdefault(r["bk_biz_id"], []).append(
                 data_id_config,
@@ -248,7 +247,9 @@ class CustomReportSubscription(models.Model):
         return biz_id_to_data_id_config
 
     @classmethod
-    def get_custom_event_config(cls, bk_tenant_id: str, bk_biz_id=None):
+    def get_custom_event_config(
+        cls, bk_tenant_id: str, bk_biz_id: int | None = None
+    ) -> dict[int, list[tuple[dict[str, Any], str]]]:
         """
         获取业务下自定义事件配置
         """
@@ -266,7 +267,9 @@ class CustomReportSubscription(models.Model):
         return cls.get_custom_config(qs, event_group_table_name, data_source_table_name, "event")
 
     @classmethod
-    def get_custom_time_series_config(cls, bk_tenant_id: str, bk_biz_id=None):
+    def get_custom_time_series_config(
+        cls, bk_tenant_id: str, bk_biz_id: int | None = None
+    ) -> dict[int, list[tuple[dict[str, Any], str]]]:
         """
         获取业务下自定义指标配置
         """
@@ -361,13 +364,9 @@ class CustomReportSubscription(models.Model):
         biz_id_to_data_id_config: dict[int, list[tuple[dict, str]]] = defaultdict(list)
         custom_event_config = cls.get_custom_event_config(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         custom_time_series_config = cls.get_custom_time_series_config(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-        dict_items_list = []
-        if custom_event_config is not None:
-            dict_items_list.append(custom_event_config)
-        if custom_time_series_config is not None:
-            dict_items_list.append(custom_time_series_config)
-        dict_items = map(methodcaller("items"), dict_items_list)
-        for k, v in chain.from_iterable(dict_items):
+
+        # 合并自定义事件和指标配置
+        for k, v in chain(custom_event_config.items(), custom_time_series_config.items()):
             biz_id_to_data_id_config[k].extend(v)
 
         # 判断是否下发全部业务配置
