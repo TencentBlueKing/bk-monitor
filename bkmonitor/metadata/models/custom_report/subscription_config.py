@@ -331,7 +331,7 @@ class CustomReportSubscription(models.Model):
         )
 
     @classmethod
-    def refresh_collector_custom_conf(cls, bk_tenant_id: str, bk_biz_id=None, op_type="add"):
+    def refresh_collector_custom_conf(cls, bk_tenant_id: str, bk_biz_id: int | None = None, op_type: str = "add"):
         """
         指定业务ID更新，或者更新全量业务
 
