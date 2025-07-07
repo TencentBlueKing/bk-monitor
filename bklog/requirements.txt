@@ -49,6 +49,7 @@ certifi==2024.2.2
 chardet==3.0.4
 curlify==2.2.1
 idna==2.9
+bk-iam==2.0.3
 
 # audit
 bk-audit==1.2.2
