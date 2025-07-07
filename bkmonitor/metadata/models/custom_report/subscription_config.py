@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 from django.conf import settings
 from django.db import models
@@ -143,7 +143,7 @@ class CustomReportSubscription(models.Model):
     @classmethod
     def get_custom_config(
         cls,
-        query_set: models.QuerySet[EventGroup | TimeSeriesGroup],
+        query_set: models.QuerySet[Union["EventGroup", "TimeSeriesGroup"]],
         group_table_name: str,
         data_source_table_name: str,
         datatype: Literal["event", "time_series"] = "event",
