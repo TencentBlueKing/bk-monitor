@@ -8,41 +8,26 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Generator
 from datetime import date, datetime, timedelta
+from enum import Enum
+from typing import Any
 
+import pytz
 import requests
 from django.core.management.base import BaseCommand
-from pydantic import BaseModel
 
-from calendars.models import DEFAULT_TENANT_ID, CalendarItemModel, CalendarModel
-
-
-class CalendarItemCreate(BaseModel):
-    name: str
-    start_time: datetime
-    end_time: datetime
-    repeat: dict = {}
-    calendar_id: int
+from calendars.models import CalendarItemModel, CalendarModel
+from constants.common import DEFAULT_TENANT_ID
 
 
-def get_next_year() -> int:
+class DateType(Enum):
     """
-    获取下一个年份
+    日期类型
     """
-    return datetime.now().year + 1
 
-
-def generate_year_days(year: int) -> list[str]:
-    start_date = date(year, 1, 1)
-    end_date = date(year + 1, 1, 1)
-
-    dates = []
-    current_date = start_date
-    while current_date < end_date:
-        dates.append(current_date.strftime("%Y-%m-%d"))
-        current_date += timedelta(days=1)
-
-    return dates
+    WORKDAY = "workday"
+    HOLIDAY = "holiday"
 
 
 class CalendarManager:
@@ -71,170 +56,216 @@ class CalendarManager:
     全天-双休-节假日=工作日
     """
 
-    def get_holiday_data(self, year: int) -> list[dict]:
+    timezone = pytz.timezone("Asia/Shanghai")
+
+    def get_holiday_data(self, year: int) -> list[dict[str, Any]]:
         """
         获取节假日数据
+        {
+            "days": [
+                {
+                    "name": "元旦",
+                    "date": "2025-01-01",
+                    "isOffDay": true
+                },
+                {
+                    "name": "春节",
+                    "date": "2025-01-26",
+                    "isOffDay": false
+                },
+                {
+                    "name": "春节",
+                    "date": "2025-01-28",
+                    "isOffDay": true
+                }
+            ]
+        }
 
         数据来源: https://github.com/NateScarlet/holiday-cn
         """
         url = f"https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/{year}.json"
         response = requests.get(url)
-
         if response.status_code == 200:
             content = response.json()
             return content["days"]
+        raise ValueError(f"获取节假日数据失败，状态码: {response.status_code}, 错误信息: {response.text}")
 
-        return []
+    @staticmethod
+    def is_weekend(date: date) -> bool:
+        """
+        判断是否为周末
+        """
+        return date.weekday() + 1 in [6, 7]
 
-    def generate_calendar_items(self, days: list[CalendarItemCreate]) -> list[CalendarItemModel]:
-        items = []
+    @staticmethod
+    def generate_year_days(year: int) -> Generator[date, None, None]:
+        """
+        生成一年中的所有日期
+        """
+        start_date = date(year, 1, 1)
+        end_date = date(year + 1, 1, 1)
 
-        for day in days:
-            start_time = int(day.start_time.timestamp())
-            end_time = int(day.end_time.replace(hour=23, minute=59, second=59, microsecond=0).timestamp())
+        current_date = start_date
+        while current_date < end_date:
+            yield current_date
+            current_date += timedelta(days=1)
 
-            items.append(
-                CalendarItemModel(
-                    **{
-                        "bk_tenant_id": DEFAULT_TENANT_ID,
-                        "name": day.name,
-                        "calendar_id": day.calendar_id,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "repeat": day.repeat,
-                    }
-                )
-            )
+    def get_calendar_ranges(self, year: int) -> list[tuple[date, date, str, DateType]]:
+        """
+        获取节假日与工作日的时间分段
+        :param year: 年份
+        :return: 时间分段列表，包含开始日期、结束日期、范围名称、日期类型
+        [
+            (date(2025, 1, 1), date(2025, 1, 1), "元旦", DateType.HOLIDAY),
+            (date(2025, 1, 2), date(2025, 1, 5), "元旦(补班)", DateType.WORKDAY),
+            (date(2025, 1, 6), date(2025, 1, 6), "周末", DateType.HOLIDAY),
+            (date(2025, 1, 7), date(2025, 1, 7), "工作日", DateType.WORKDAY),
+            ...
+        ]
+        """
 
-        return items
-
-    def get_days(
-        self,
-        holiday_data: list[dict],
-        holiday_calendar_id: int,
-        working_calendar_id: int,
-    ) -> list[CalendarItemModel]:
-        calendar_item_create_list = []
-        for day_item in holiday_data:
-            day_name = day_item["name"]
-            day_date = datetime.strptime(day_item["date"], "%Y-%m-%d").replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-            is_off_day: bool = day_item["isOffDay"]
-
-            day_name = day_name if is_off_day else "调休"
-            calendar_id = holiday_calendar_id if is_off_day else working_calendar_id
-            calendar_item_create_list.append(
-                CalendarItemCreate(
-                    name=day_name,
-                    start_time=day_date,
-                    end_time=day_date.replace(hour=23, minute=59, second=59),
-                    repeat={},
-                    calendar_id=calendar_id,
-                )
-            )
-
-        calendar_items: list[CalendarItemModel] = self.generate_calendar_items(calendar_item_create_list)
-
-        return calendar_items
-
-    def create_calendar_item(self, year: int, holiday_calendar_id: int, working_calendar_id: int):
+        # 获取节假日数据
         holiday_data = self.get_holiday_data(year)
+        holiday_map: dict[str, dict[str, Any]] = {}
+        for holiday in holiday_data:
+            holiday_map[holiday["date"]] = holiday
 
-        # 获取节假日和周末调休的日期
-        holiday_items: list[CalendarItemModel] = self.get_days(holiday_data, holiday_calendar_id, working_calendar_id)
-        holiday_map = {}
-        for day in holiday_items:
-            if day.start_time is None:
-                print(day)
-            start_date = datetime.fromtimestamp(day.start_time).strftime("%Y-%m-%d")
-            holiday_map[start_date] = day
+        # 遍历一年
+        calendar_ranges: list[tuple[date, date, str, DateType]] = []
+        range_name: str = ""
+        start_date: date | None = None
+        date_type: DateType = DateType.HOLIDAY
+        for today in self.generate_year_days(year):
+            # 判断是否为节假日/补办/周末/工作日
+            today_str = today.strftime("%Y-%m-%d")
+            if today_str in holiday_map:
+                # 节假日信息，包含是否为补班
+                if not holiday_map[today_str]["isOffDay"]:
+                    today_range_name = holiday_map[today_str]["name"] + "(补班)"
+                    today_date_type = DateType.WORKDAY
+                else:
+                    today_range_name = holiday_map[today_str]["name"]
+                    today_date_type = DateType.HOLIDAY
+            elif self.is_weekend(today):
+                today_range_name = "周末"
+                today_date_type = DateType.HOLIDAY
+            else:
+                today_range_name = "工作日"
+                today_date_type = DateType.WORKDAY
 
-        # 获取剩余工作日
-        working_items: list[CalendarItemModel] = []
-        working_items_create: list[CalendarItemCreate] = []
-        # 计算方式: 常规工作日 = 全年 - (节假日 + 调休日) - 周末
-        # 所有工作日 = 常规工作日 + 调休日
-        for current_date in generate_year_days(year):
-            # 跳过节假日和因节假日调休的周末
-            if holiday_map.get(current_date):
+            # 如果是第一天，则设置开始日期和范围名称
+            if start_date is None:
+                start_date = today
+                range_name = today_range_name
+                date_type = today_date_type
                 continue
 
-            current_date = datetime.strptime(current_date, "%Y-%m-%d")
+            # 如果是最后一天，则直接记录
+            if today == date(year, 12, 31):
+                calendar_ranges.append((start_date, today, range_name, date_type))
+                break
 
-            # 排除周末
-            if current_date.weekday() + 1 in [6, 7]:
+            # 如果当前日期与上一个日期相同，则不记录
+            if range_name == today_range_name:
                 continue
 
-            working_items_create.append(
-                CalendarItemCreate(
-                    name="工作日", start_time=current_date, end_time=current_date, calendar_id=working_calendar_id
+            # 如果当前日期与上一个日期不同，则进行分段记录，并重新设置开始日期和范围名称
+            yesterday = today - timedelta(days=1)
+            calendar_ranges.append((start_date, yesterday, range_name, date_type))
+            start_date = today
+            range_name = today_range_name
+            date_type = today_date_type
+        return calendar_ranges
+
+    def create_or_update_calendar(self, bk_tenant_id: str, calendar_name: str) -> int:
+        """
+        创建或更新日历
+        """
+        calendar = CalendarModel.objects.filter(name=calendar_name, bk_tenant_id=bk_tenant_id).first()
+        if calendar:
+            return calendar.pk
+        else:
+            calendar = CalendarModel.objects.create(
+                name=calendar_name,
+                classify="default",
+                bk_tenant_id=bk_tenant_id,
+            )
+            return calendar.pk
+
+    def create_calendar_item(
+        self,
+        bk_tenant_id: str,
+        year: int,
+        holiday_calendar_name: str,
+        working_calendar_name: str,
+    ):
+        # 创建日历
+        holiday_calendar_id = self.create_or_update_calendar(
+            bk_tenant_id=bk_tenant_id, calendar_name=holiday_calendar_name
+        )
+        working_calendar_id = self.create_or_update_calendar(
+            bk_tenant_id=bk_tenant_id, calendar_name=working_calendar_name
+        )
+
+        # 清理重复的日历事项
+        CalendarItemModel.objects.filter(
+            calendar_id__in=[holiday_calendar_id, working_calendar_id],
+            start_time__gte=self.timezone.localize(
+                datetime.combine(
+                    date=date(year, 1, 1),
+                    time=datetime.min.time(),
+                )
+            ).timestamp(),
+            end_time__lte=self.timezone.localize(
+                datetime.combine(
+                    date=date(year, 12, 31),
+                    time=datetime.max.time(),
+                )
+            ).timestamp(),
+            bk_tenant_id=bk_tenant_id,
+        ).delete()
+
+        # 获取节假日和工作日的时间分段
+        calendar_ranges = self.get_calendar_ranges(year)
+
+        # 遍历时间分段，生成日历事项
+        calendar_items: list[CalendarItemModel] = []
+        for start_date, end_date, range_name, date_type in calendar_ranges:
+            calendar_items.append(
+                CalendarItemModel(
+                    name=range_name,
+                    start_time=self.timezone.localize(
+                        datetime.combine(
+                            date=start_date,
+                            time=datetime.min.time(),
+                        )
+                    ).timestamp(),
+                    end_time=self.timezone.localize(
+                        datetime.combine(
+                            date=end_date,
+                            time=datetime.max.time(),
+                        )
+                    ).timestamp(),
+                    repeat={},
+                    calendar_id=holiday_calendar_id if date_type == DateType.HOLIDAY else working_calendar_id,
+                    bk_tenant_id=bk_tenant_id,
                 )
             )
 
-        working_items = self.generate_calendar_items(working_items_create)
+        # 批量创建日历事项
+        CalendarItemModel.objects.bulk_create(calendar_items)
 
-        # 批量创建
-        calendar_items = working_items + holiday_items
-
-        # CalendarItemModel.objects.bulk_create(calendar_items)
-        for item in calendar_items:
-            if not CalendarItemModel.objects.filter(calendar_id=item.calendar_id, start_time=item.start_time):
-                item.save()
-
-        print("添加完成")
-        print(f"total len:{len(calendar_items)}")
-        print(f"工作日 len:{len(working_items)}")
-        print(f"节假日 len:{len([i for i in holiday_items if i.name != '调休'])}")
-        print(f"调休日 len:{len([i for i in holiday_items if i.name == '调休'])}")
-
-    def list_system_calendars(self):
+    def list_system_calendars(self, bk_tenant_id: str):
         system_calendars = (
             CalendarModel.objects.filter(
                 classify="default",
-                bk_tenant_id=DEFAULT_TENANT_ID,
+                bk_tenant_id=bk_tenant_id,
             )
             .order_by("id")
             .values_list("id", "name")
         )
         for cal_id, cal_name in system_calendars:
             print(f"ID: {cal_id} - 名称: {cal_name}")
-
-    def create_calendar(self, name, light_color, deep_color, classify):
-        """添加日历"""
-        # 校验字段
-        # required_fields = ["name", "light_color", "deep_color"]
-        # if not all(options[field] for field in required_fields):
-        #     missing = [field for field in required_fields if not options[field]]
-        #     self.stdout.write(self.style.ERROR(f"缺少必填参数: {', '.join(missing)}"))
-        #     return
-
-        # 校验是否存在同名
-        if self._cheack_calendar_exist(name=name):
-            return
-
-        # 添加日历
-        calendar = CalendarModel.objects.create(
-            name=name,
-            light_color=f"#{light_color}",
-            deep_color=f"#{deep_color}",
-            classify=classify,
-            bk_tenant_id=DEFAULT_TENANT_ID,
-        )
-
-        return calendar.to_json()
-
-    def _cheack_calendar_exist(self, name: str = None, id: int = None) -> bool:
-        if name:
-            calendar = CalendarModel.objects.filter(name=name).first()
-        elif id:
-            calendar = CalendarModel.objects.filter(id=id).first()
-
-        if calendar:
-            print(f"日历保存失败，日历({calendar.name} -- ID： {calendar.id})已存在")
-            return True
-
-        return False
 
 
 class Command(BaseCommand):
@@ -245,9 +276,8 @@ class Command(BaseCommand):
     目的: 维护内置两个日历事项: 法定节假日和工作日
 
     使用方法:
-    - 查看日历列表 `python manage.py default_calendar_sync list`
-    - 添加日历 `python manage.py default_calendar_sync create_calendar --name test2 --deep_color 3A84FF  --light_color E1ECFF`
-    - 添加日历事项 `python manage.py default_calendar_sync create_calendar_items`
+    - python manage.py default_calendar_sync list
+    - python manage.py default_calendar_sync create_calendar_item --holiday_calendar "节假日(不告警)" --working_calendar "工作日(不告警)" --year 2025
     """
 
     def handle(self, *args, **options):
@@ -255,22 +285,16 @@ class Command(BaseCommand):
         calendar_manager = CalendarManager()
         match subcommand:
             case "list":
-                calendar_manager.list_system_calendars()
-            case "create_calendar":
-                name = options["name"]
-                light_color = options["light_color"]
-                deep_color = options["deep_color"]
-                classify = options["classify"]
-                calendar_manager.create_calendar(name, light_color, deep_color, classify)
-                print("添加成功")
-                calendar_manager.list_system_calendars()
+                calendar_manager.list_system_calendars(bk_tenant_id=options["bk_tenant_id"])
             case "create_calendar_item":
-                year = options["year"]
-                holiday_calendar_id = options["holiday_calendar_id"]
-                working_calendar_id = options["working_calendar_id"]
-                calendar_manager.create_calendar_item(year, holiday_calendar_id, working_calendar_id)
-            # case _:
-            #     pass
+                calendar_manager.create_calendar_item(
+                    bk_tenant_id=options["bk_tenant_id"],
+                    year=options["year"],
+                    holiday_calendar_name=options["holiday_calendar"],
+                    working_calendar_name=options["working_calendar"],
+                )
+            case _:
+                raise ValueError(f"无效的子命令: {subcommand}")
 
     def add_arguments(self, parser):
         # 主命令参数
@@ -278,20 +302,10 @@ class Command(BaseCommand):
 
         # 添加日历item
         create_calendar_item_parser = subparsers.add_parser("create_calendar_item", help="创建日历事项")
-        create_calendar_item_parser.add_argument("--holiday_calendar_id", type=int, help="节假日ID", required=True)
-        create_calendar_item_parser.add_argument("--working_calendar_id", type=int, help="工作日ID", required=True)
-        create_calendar_item_parser.add_argument(
-            "--year", type=int, help="年份", required=True, default=get_next_year()
-        )
+        create_calendar_item_parser.add_argument("--bk_tenant_id", type=str, help="租户ID", default=DEFAULT_TENANT_ID)
+        create_calendar_item_parser.add_argument("--holiday_calendar", type=str, help="节假日日历名称", required=True)
+        create_calendar_item_parser.add_argument("--working_calendar", type=str, help="工作日日历名称", required=True)
+        create_calendar_item_parser.add_argument("--year", type=int, help="年份", required=True)
 
         # 查看日历
-        subparsers.add_parser("list", help="查看日历")
-
-        # 创建日历
-        create_calendar_parser = subparsers.add_parser("create_calendar", help="创建日历")
-        create_calendar_parser.add_argument("--name", type=str, help="日历名称", required=True)
-        create_calendar_parser.add_argument("--light_color", type=str, help="日历浅色底色 e.g.: E1ECFF", required=True)
-        create_calendar_parser.add_argument("--deep_color", type=str, help="日历深色底色 e.g.: 3A84FF", required=True)
-        create_calendar_parser.add_argument(
-            "--classify", type=str, help="日历分类", default="default", required=False, choices=["default", "custom"]
-        )
+        subparsers.add_parser("list", help="查看内置日历")
