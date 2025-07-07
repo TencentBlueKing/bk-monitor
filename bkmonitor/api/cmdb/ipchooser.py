@@ -10,8 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from bkm_ipchooser.api import AbstractBkApi
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.user import get_admin_username
-from bkmonitor.utils.request import get_request_tenant_id
 
 from . import client
 
@@ -53,8 +51,6 @@ class IpChooserApi(AbstractBkApi):
     def get_agent_status(params: dict = None):
         from core.drf_resource import api
 
-        params = params.copy()
-        params["bk_username"] = get_admin_username(bk_tenant_id=get_request_tenant_id())
         return api.node_man.ipchooser_host_detail(params)
 
     @staticmethod

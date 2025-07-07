@@ -1,7 +1,6 @@
 import logging
 
 from bkm_ipchooser.constants import ScopeType
-from bkmonitor.utils.user import get_admin_username
 from core.drf_resource import api
 
 logger = logging.getLogger("bkm_ipchooser")
@@ -21,7 +20,6 @@ def fill_agent_status(cc_hosts: list[dict], bk_biz_id: int) -> list[dict]:
     scope_list = [{"scope_type": ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
     # 添加no_request参数, 多线程调用时，保证用户信息不漏传
     request_params = {
-        "bk_username": get_admin_username(bk_biz_id=bk_biz_id),
         "no_request": True,
         "host_list": host_list,
         "scope_list": scope_list,
