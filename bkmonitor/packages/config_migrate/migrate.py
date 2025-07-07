@@ -25,6 +25,7 @@ from django.core.files import File
 from bkmonitor.as_code.parse import import_code_config
 from bkmonitor.as_code.parse_yaml import StrategyConfigParser
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.tar import safe_extract
 from constants.action import ActionSignal
 from core.drf_resource import api, resource
 from monitor_web.models import (
@@ -135,7 +136,7 @@ class ConfigMigrator:
             tar = tarfile.open(path_or_file, "r:gz")
         else:
             tar = tarfile.open(fileobj=path_or_file, mode="r:gz")
-        tar.extractall(path=tempdir.name)
+        safe_extract(tar, path=tempdir.name)
         tar.close()
 
         cur = self.connect.cursor()

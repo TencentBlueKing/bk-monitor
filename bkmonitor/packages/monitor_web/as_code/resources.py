@@ -57,6 +57,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.tar import safe_extract
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
@@ -553,7 +554,7 @@ class ImportConfigFileResource(Resource):
                     zip_file.extractall(temp_path)
             else:
                 with tarfile.open(fileobj=file.file) as tar:
-                    tar.extractall(temp_path)
+                    safe_extract(tar, temp_path)
 
             temp_path = os.path.join(temp_path, "configs/")
 

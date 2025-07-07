@@ -35,6 +35,7 @@ from six.moves import map
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
+from bkmonitor.utils.tar import safe_extract
 from constants.result_table import (
     RT_RESERVED_WORD_EXACT,
     RT_RESERVED_WORD_FUZZY,
@@ -417,7 +418,7 @@ class PluginImportResource(Resource):
     def un_tar_gz_file(self, tar_obj):
         # 解压文件到临时目录
         with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
-            tar.extractall(self.tmp_path)
+            safe_extract(tar, self.tmp_path)
             self.filename_list = tar.getnames()
 
     def get_plugin(self):

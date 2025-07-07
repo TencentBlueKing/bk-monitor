@@ -18,12 +18,13 @@ import tempfile
 import yaml
 from django.core.management import BaseCommand
 from django.utils.translation import ugettext as _
+
+from bkmonitor.utils.tar import safe_extract
+from core.errors.plugin import PluginParseError
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.signature import load_plugin_signature_manager
-
-from core.errors.plugin import PluginParseError
 
 
 class Command(BaseCommand):
@@ -58,7 +59,7 @@ class Command(BaseCommand):
         with open(src_path, "rb") as tar_obj:
             with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
                 print("Package unzip in tmp path: {}".format(tmp_dir))
-                tar.extractall(tmp_dir)
+                safe_extract(tar, tmp_dir)
                 filename_list = tar.getnames()
 
         # 2. 解析 meta.yaml
