@@ -70,7 +70,7 @@ export default defineComponent({
       <span class='dimensional-title'>
         {item.name || `异常维度（组合）${item.$index + 1}`}
         <span class='red-font'>
-          {t('异常程度')} {(item?.score || 0).toFixed(2) * 100}%
+          {t('可疑程度')} {(item?.score || 0).toFixed(2) * 100}%
         </span>
       </span>
     );

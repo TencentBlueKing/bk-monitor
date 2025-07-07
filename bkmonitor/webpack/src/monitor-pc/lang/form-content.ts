@@ -167,7 +167,7 @@ export default {
   'P95 耗时': 'P95 time',
   请求量少: 'Fewer requests',
   请求量多: 'More requests',
-  异常程度: 'Abnormality',
+  可疑程度: 'Suspicious degree',
   诊断分析: 'Diagnosis analysis',
   故障总结: 'Incident summary',
   告警异常维度分析: 'Alarm abnormal dimension analysis',
