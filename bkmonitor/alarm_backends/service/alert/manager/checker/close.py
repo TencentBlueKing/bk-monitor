@@ -321,7 +321,7 @@ class CloseStatusChecker(BaseChecker):
             bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event.get("bk_cloud_id", "")
             host = None
             if ip and bk_cloud_id != "":
-                host = HostManager.get(ip, bk_cloud_id)
+                host = HostManager.get(bk_tenant_id=alert.bk_tenant_id, ip=ip, bk_cloud_id=int(bk_cloud_id))
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
                 # 需要考虑一个问题，如何判断缓存未刷新的情况
@@ -343,7 +343,9 @@ class CloseStatusChecker(BaseChecker):
             target_dimensions["bk_target_service_instance_id"] = bk_service_instance_id = alert.top_event[
                 "bk_service_instance_id"
             ]
-            service_instance = ServiceInstanceManager.get(target_dimensions["bk_target_service_instance_id"])
+            service_instance = ServiceInstanceManager.get(
+                bk_tenant_id=alert.bk_tenant_id, service_instance_id=target_dimensions["bk_target_service_instance_id"]
+            )
 
             if not service_instance:
                 # 如果服务实例在缓存中不存在，则直接恢复告警
