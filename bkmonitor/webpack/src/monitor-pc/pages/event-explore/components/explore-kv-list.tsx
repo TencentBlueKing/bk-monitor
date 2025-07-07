@@ -32,11 +32,16 @@ import { copyText } from 'monitor-common/utils';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { APIType } from '../api-utils';
+import {
+  KVSplitEnum,
+  type ConditionChangeEvent,
+  type DimensionType,
+  type ExploreEntitiesItem,
+  type KVSplitItem,
+} from '../typing';
 import { ExploreObserver, type ExploreSubject } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
-
-import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem, KVSplitItem } from '../typing';
 
 import './explore-kv-list.scss';
 
@@ -181,12 +186,29 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    */
   handleValueTextClick(e: MouseEvent, item: KVFieldList, activeIndex?: number) {
     const currentName = this.fieldTarget?.name;
+    const currentColumnOrIndex = this.activeColumnOrIndex;
     if (this.popoverInstance) {
       this.handlePopoverHide();
     }
-    if (!item.canClick || currentName === item.name) {
+    if (!item.canClick) {
       return;
     }
+    // 判断当前触发节点是否是分词中的分词符号，如果是则不触发打开menu操作
+    if ((item?.value?.[activeIndex] as KVSplitItem)?.type === KVSplitEnum.SEGMENTS) {
+      return;
+    }
+    // 判断是否是同一个 key 触发
+    if (currentName === item.name) {
+      // 判断 value 是分词还是字符串，字符串则本次点击为接关闭popover menu菜单操作
+      if (!Array.isArray(item?.value)) {
+        return;
+      }
+      // 为分词则判断触发索引是否和之前一样，一样则本次点击为接关闭popover menu菜单操作
+      if (activeIndex === currentColumnOrIndex) {
+        return;
+      }
+    }
+
     this.fieldTarget = item;
     this.activeColumnOrIndex = activeIndex ?? 'value';
 
