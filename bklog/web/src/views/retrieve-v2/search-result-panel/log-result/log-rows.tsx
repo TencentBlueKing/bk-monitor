@@ -236,7 +236,7 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 formatJson={formatJson.value}
-                isIntersection={options[ROW_IS_IN_SECTION]}
+                isIntersection={options?.[ROW_IS_IN_SECTION] ?? true}
                 jsonValue={row}
                 limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
