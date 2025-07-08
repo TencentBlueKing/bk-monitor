@@ -331,7 +331,7 @@ export default defineComponent({
               >
                 <div class='ai-card-main'>
                   {aiCardRender()}
-                  {this.subPanels.summary.status === 'failed' && <span class='ai-bot-bg' />}
+                  {this.subPanels.summary.status !== 'failed' && <span class='ai-bot-bg' />}
                 </div>
               </Loading>
             </div>
