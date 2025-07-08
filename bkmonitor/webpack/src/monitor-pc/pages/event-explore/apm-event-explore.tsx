@@ -78,7 +78,7 @@ export default class ApmEventExplore extends tsc<object> {
             },
           },
         ] = targetsList;
-        this.dataTypeLabel = data_type_label;
+        this.dataTypeLabel = data_type_label || 'event';
         this.where = where || [];
         const hasSource = this.where.find(item => item.key === 'source');
         if (hasSource) {

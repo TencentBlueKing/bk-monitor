@@ -647,6 +647,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         },
       ]),
       filterMode: this.eventFilterMode,
+      prop: this.$route.query?.prop || '',
+      order: this.$route.query?.order || '',
       ...otherQuery,
     };
     const query = this.scene === SceneEnum.Event ? eventQuery : notEventQuery;
