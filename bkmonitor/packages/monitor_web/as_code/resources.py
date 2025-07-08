@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import os
@@ -17,7 +17,7 @@ import tempfile
 import zipfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 from urllib.parse import urljoin
 
 import arrow
@@ -139,7 +139,7 @@ class ExportConfigResource(Resource):
         with_id = serializers.BooleanField(label="带上ID", default=False)
 
     @classmethod
-    def transform_configs(cls, parser, configs: List[Dict], with_id: bool, lock_filename: bool):
+    def transform_configs(cls, parser, configs: list[dict], with_id: bool, lock_filename: bool):
         """
         配置转换为as_code格式
         """
@@ -164,8 +164,8 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_rules(
-        cls, bk_biz_id: int, rule_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
-    ) -> Iterable[Tuple[str, str, str]]:
+        cls, bk_biz_id: int, rule_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+    ) -> Iterable[tuple[str, str, str]]:
         """
         导出策略配置
         """
@@ -194,7 +194,7 @@ class ExportConfigResource(Resource):
             set_template["name"]: {"bk_obj_id": "SET_TEMPLATE", "bk_inst_id": set_template["id"]}
             for set_template in api.cmdb.get_dynamic_query(bk_biz_id=bk_biz_id, dynamic_type="SET_TEMPLATE")["children"]
         }
-        dynamic_groups: Dict[str, Dict] = {
+        dynamic_groups: dict[str, dict] = {
             dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
             for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
         }
@@ -232,7 +232,7 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_notice_groups(
-        cls, bk_biz_id: int, notice_group_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+        cls, bk_biz_id: int, notice_group_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
     ):
         """
         导出告警组配置
@@ -261,14 +261,14 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_duties(
-        cls, bk_biz_id: int, duty_rules: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+        cls, bk_biz_id: int, duty_rules: list[int] | None, with_id: bool = False, lock_filename: bool = False
     ):
         """
         导出告警组配置
         """
         # 如果action_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
         duty_rule_queryset = DutyRule.objects.filter(bk_biz_id=bk_biz_id)
-        if duty_rules is []:
+        if duty_rules == []:
             # 如果duty rule为一个空列表，表示没有需要导出的
             return
         if duty_rules:
@@ -285,7 +285,7 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_actions(
-        cls, bk_biz_id: int, action_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
+        cls, bk_biz_id: int, action_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
     ):
         """
         导出自愈套餐配置
@@ -307,7 +307,7 @@ class ExportConfigResource(Resource):
         yield from cls.transform_configs(parser, action_configs, with_id, lock_filename)
 
     @classmethod
-    def export_dashboard(cls, bk_biz_id: int, dashboard_uids: Optional[List[str]], external: bool = False):
+    def export_dashboard(cls, bk_biz_id: int, dashboard_uids: list[str] | None, external: bool = False):
         """
         导出grafana仪表盘配置
         """
@@ -356,8 +356,8 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_assign_groups(
-        cls, bk_biz_id: int, assign_group_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
-    ) -> Iterable[Tuple[str, str, str]]:
+        cls, bk_biz_id: int, assign_group_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+    ) -> Iterable[tuple[str, str, str]]:
         """
         导出策略配置
         """
@@ -450,7 +450,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
     @classmethod
     def create_tarfile(
-        cls, configs: Dict[str, Iterable[Tuple[str, str, str]]], config_stats_info: Dict[str, int]
+        cls, configs: dict[str, Iterable[tuple[str, str, str]]], config_stats_info: dict[str, int]
     ) -> str:
         """
         生成配置压缩包
@@ -536,7 +536,9 @@ class ExportConfigFileResource(ExportConfigResource):
 
         # 压缩包制作
         config_stats_info = defaultdict(int)
-        tarfile_path = self.create_tarfile(configs, config_stats_info)  # 传入config_stats_info 在里面的生成器中统计不同config的数量
+        tarfile_path = self.create_tarfile(
+            configs, config_stats_info
+        )  # 传入config_stats_info 在里面的生成器中统计不同config的数量
         path = f"as_code/export/{bk_biz_id}-{arrow.get().strftime('%Y%m%d%H%M%S')}.tar.gz"
         with open(tarfile_path, "rb") as f:
             default_storage.save(path, f)
@@ -601,33 +603,22 @@ class ImportConfigFileResource(Resource):
     @step(state="DECOMPRESSION", message=_lazy("解压中..."))
     def decompression_and_read(self, file: File):
         """
-        解压文件并读取配置
+        直接读取压缩包中的文件内容而不解压
         """
-        with tempfile.TemporaryDirectory() as temp_path:
-            # 解压文件
-            if file.name.endswith(".zip"):
-                with zipfile.ZipFile(file.file, "r") as zip_file:
-                    zip_file.extractall(temp_path)
-            else:
-                with tarfile.open(fileobj=file.file) as tar:
-                    tar.extractall(temp_path, filter='data')
-
-            temp_path = os.path.join(temp_path, "configs/")
-
-            # 读取文件
-            configs = {}
-            for path, dirs, filenames in os.walk(temp_path):
-                if not filenames:
-                    continue
-                path = str(path)
-                relative_path = path[len(temp_path) :]
-                for filename in filenames:
-                    filename = str(filename)
-                    if not filename.endswith((".yaml", ".yml", ".json")):
-                        continue
-                    f = open(os.path.join(path, filename))
-                    configs[f"{relative_path}/{filename}"] = f.read()
-                    f.close()
+        configs = {}
+        if file.name.endswith(".zip"):
+            with zipfile.ZipFile(file.file, "r") as zip_file:
+                for file_info in zip_file.infolist():
+                    if file_info.filename.endswith((".yaml", ".yml", ".json")):
+                        with zip_file.open(file_info) as f:
+                            configs[file_info.filename] = f.read().decode("utf-8")
+        else:
+            with tarfile.open(fileobj=file.file) as tar:
+                for member in tar.getmembers():
+                    if member.name.endswith((".yaml", ".yml", ".json")):
+                        f = tar.extractfile(member)
+                        if f:
+                            configs[member.name] = f.read().decode("utf-8")
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
