@@ -24,7 +24,7 @@
     "@babel/helper-module-imports": "7.24.7",
     "@babel/runtime": "7.26.10",
     "@blueking/ai-blueking": "0.3.29",
-    "@blueking/bkmonitor-cli": "^7.0.0-beta.4",
+    "@blueking/bkmonitor-cli": "^7.0.1",
     "@blueking/bkui-library": "0.0.0-beta.5",
     "@blueking/date-picker": "^2.0.0-beta.48",
     "@blueking/fork-resize-detector": "0.0.2",
@@ -138,7 +138,13 @@
   },
   "overrides": {
     "semver": "7.6.0",
-    "postcss": "8.4.38"
+    "postcss": "8.4.38",
+    "braces": "3.0.3"
+  },
+  "resolutions": {
+    "semver": "7.6.0",
+    "postcss": "8.4.38",
+    "braces": "3.0.3"
   },
   "engines": {
     "node": ">= 18"
