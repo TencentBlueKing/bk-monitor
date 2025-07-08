@@ -290,16 +290,33 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
+      if (totalCount.value <= 0 || isFold.value) return;
+
       logChartCancel?.();  // 取消上一次未完成的趋势图请求
       setChartData(null, null, true);  // 清空图表数据, 重置为初始状态
 
-      runningTimer && clearTimeout(runningTimer);
+      runningTimer && clearTimeout(runningTimer);  // 清理上一次的定时器
+
+      // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(() => {
         finishPolling.value = false;
         isStart.value = false;
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);  // 开始拉取新一轮趋势数据
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);  
       });
     };
+
+    // 监听总条数数量，自动刷新趋势图（只监听一次）
+    let initLoadedTrend = false;
+    watch(
+      () => totalCount.value,
+      (val) => {
+        if (!initLoadedTrend && val > 0 && !isFold.value) {
+          loadTrendData();
+          initLoadedTrend = true;
+        }
+      },
+      { immediate: true }
+    );
 
     onMounted(() => {
       // 初始化折叠状态
@@ -307,9 +324,6 @@ export default defineComponent({
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
-
-      // 挂载时自动拉去数据，避免热重载时数据丢失
-      loadTrendData();
 
       // 监听检索相关事件，自动刷新趋势图
       RetrieveHelper.on(
