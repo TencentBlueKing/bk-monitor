@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import shutil
-import tarfile
 import time
 from collections import namedtuple
 from distutils.version import StrictVersion
@@ -32,6 +31,7 @@ from django.utils.translation import ugettext_lazy as _lazy
 from rest_framework import serializers
 from six.moves import map
 
+from bkmonitor.utils import tarfile
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer

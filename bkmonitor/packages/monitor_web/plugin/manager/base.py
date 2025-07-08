@@ -17,7 +17,6 @@ import logging
 import os
 import shutil
 import stat
-import tarfile
 import time
 from functools import partial
 from uuid import uuid4
@@ -31,7 +30,7 @@ from django.template import engines
 from django.utils.translation import ugettext as _
 from six.moves import map
 
-from bkmonitor.utils import time_tools
+from bkmonitor.utils import tarfile, time_tools
 from bkmonitor.utils.serializers import MetricJsonSerializer
 from core.drf_resource import api
 from core.errors.api import BKAPIError

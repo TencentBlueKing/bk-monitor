@@ -13,12 +13,12 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import os
 import shutil
-import tarfile
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import ugettext as _
 
+from bkmonitor.utils import tarfile
 from monitor_web.models.file import UploadedFileInfo
 from monitor_web.models.plugin import CollectorPluginMeta
 
