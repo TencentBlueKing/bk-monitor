@@ -1379,14 +1379,6 @@ class IndexSetHandler(APIModel):
             logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
         return {"index_set_id": self.index_set_id}
 
-    @staticmethod
-    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
-        if clustered_rt:
-            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
-        if collector_config_id:
-            return ",".join([index["result_table_id"] for index in indexes])
-        return f"bklog_index_set_{str(index_set_id)}.__default__"
-
 
 class BaseIndexSetHandler:
     scenario_id = None
