@@ -495,12 +495,6 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
-            if query_alias_settings := log_index_set_obj.query_alias_settings:
-                alias_dict = {}
-                for item in query_alias_settings:
-                    alias_dict[item["query_alias"]] = {"type": "alias", "path": item["field_name"]}
-                if alias_dict:
-                    collector_config.update({"alias_settings": alias_dict})
         return collector_config
 
     def custom_update(

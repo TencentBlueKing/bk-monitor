@@ -54,7 +54,6 @@ class TransferEtlHandler(EtlHandler):
         sort_fields=None,
         target_fields=None,
         username="",
-        alias_settings=None,
         total_shards_per_node=None,
         *args,
         **kwargs,
@@ -143,7 +142,6 @@ class TransferEtlHandler(EtlHandler):
             username=username,
             sort_fields=sort_fields,
             target_fields=target_fields,
-            alias_settings=alias_settings,
         )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次

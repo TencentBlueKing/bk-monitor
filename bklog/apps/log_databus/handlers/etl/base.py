@@ -309,7 +309,6 @@ class EtlHandler:
         username="",
         sort_fields=None,
         target_fields=None,
-        alias_settings=None,
     ):
         """
         创建索引集
@@ -338,7 +337,6 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
-                alias_settings=alias_settings,
             )
         else:
             if not view_roles:
@@ -355,7 +353,6 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
-                alias_settings=alias_settings,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config
