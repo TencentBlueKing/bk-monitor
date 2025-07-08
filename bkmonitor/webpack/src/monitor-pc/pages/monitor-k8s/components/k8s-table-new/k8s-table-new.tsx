@@ -37,6 +37,7 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
+  type ITableCommonParams,
   K8sConvergeTypeEnum,
   K8sNewTabEnum,
   type K8sSortType,
@@ -128,8 +129,6 @@ interface K8sTableNewProps {
   activeTab: K8sNewTabEnum;
   /** GroupBy 选择器选中数据类实例 */
   groupInstance: K8sGroupDimension;
-  /** 筛选 Filter By 过滤项 */
-  filterBy: Record<string, string[]>;
   /** 获取资源列表公共请求参数 */
   filterCommonParams: Record<string, any>;
   metricList: IK8SMetricItem[];
@@ -175,10 +174,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
   /** GroupBy 选择器选中数据类实例 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
-  /** FilterBy 选择器选中数据 */
-  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
   /** 获取资源列表公共请求参数 */
-  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: ITableCommonParams;
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   // 刷新间隔 - monitor-k8s-new 传入
@@ -331,6 +328,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   get tableHasScrollLoading() {
     return this.tableViewData?.length !== this.tableDataTotal;
+  }
+
+  get filterBy() {
+    return this.filterCommonParams?.filter_dict || {};
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -1043,10 +1044,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {this.isListTab ? (
             <K8sQuickTools
               class='table-col-tools'
-              filterBy={this.filterBy}
+              filterCommonParams={this.filterCommonParams}
               filterValue={text}
               groupByField={column.id}
-              scene={this.filterCommonParams?.scenario}
               onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
               onFilterChange={this.onFilterChange}
             />

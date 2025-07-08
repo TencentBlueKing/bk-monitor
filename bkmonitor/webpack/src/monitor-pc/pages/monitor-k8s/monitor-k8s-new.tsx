@@ -47,7 +47,15 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
+import {
+  type IK8SMetricItem,
+  type ICommonParams,
+  K8sNewTabEnum,
+  SceneEnum,
+  EDimensionKey,
+  type ITableCommonParams,
+  type IFilterCommonParams,
+} from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IWhere } from './typings';
@@ -201,14 +209,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     };
   }
 
-  get tableCommonParam() {
+  get tableCommonParam(): ITableCommonParams {
     return {
       ...this.commonParams,
       filter_dict: Object.fromEntries(Object.entries(this.filterBy).filter(([, v]) => v?.length)),
     };
   }
 
-  get filterCommonParams() {
+  get filterCommonParams(): IFilterCommonParams {
     return {
       ...this.tableCommonParam,
       resource_type: this.groupInstance.groupFilters.at(-1),
@@ -683,7 +691,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         return (
           <K8sTableNew
             activeTab={this.activeTab}
-            filterBy={this.filterBy}
             filterCommonParams={this.tableCommonParam}
             groupInstance={this.groupInstance}
             hideMetrics={this.resultHideMetrics}

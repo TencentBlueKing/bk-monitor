@@ -37,13 +37,12 @@ import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } 
 import './k8s-quick-tools.scss';
 
 interface K8sQuickToolsProps {
-  scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   groupByField: K8sTableColumnResourceKey;
   /** 需要 添加/移除 到筛选项中的值 */
   filterValue: string;
-  /** 当前筛选过滤中已存在的过滤值 filterBy数据 */
-  filterBy: Record<string, string[]>;
+  /** 公共参数 */
+  filterCommonParams: { scenario: SceneEnum; filter_dict: Record<string, string[]>; [key: string]: any };
 }
 
 interface K8sQuickToolsEmits {
@@ -54,14 +53,12 @@ interface K8sQuickToolsEmits {
 }
 @Component
 export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickToolsEmits> {
-  /** 当前所在场景 */
-  @Prop({ type: String }) scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   @Prop({ type: String }) groupByField!: K8sTableColumnResourceKey;
   /** 需要 添加/移除 到筛选项中的值 */
   @Prop({ type: String }) filterValue!: string;
   /** 当前筛选过滤中已存在的过滤值 filterBy数据 */
-  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
+  @Prop({ type: Object }) filterCommonParams: K8sQuickToolsProps['filterCommonParams'];
 
   /** 场景下拉菜单 dom 实例 */
   @Ref('sceneRef') sceneRef: any;
@@ -69,10 +66,14 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   /** popover 实例 */
   popoverInstance = null;
 
+  get filters() {
+    return this.filterCommonParams?.filter_dict?.[this.groupByField] || [];
+  }
+
   /** 添加/移除 筛选项工具icon配置 */
   get filterToolConfig() {
     // 当前数据值已在筛选项中
-    const filters = this.filterBy[this.groupByField] || [];
+    const filters = this.filters;
     const hasFilter = filters?.includes?.(this.filterValue);
     const elAttr = hasFilter
       ? { className: ['selected'], text: '移除该筛选项' }
@@ -85,7 +86,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
 
   /** 场景下拉菜单列表数据 */
   get sceneMenuList() {
-    const sceneList = (DimensionSceneMap[this.groupByField] || []).filter(v => v !== this.scene);
+    const sceneList = (DimensionSceneMap[this.groupByField] || []).filter(v => v !== this.filterCommonParams.scenario);
     return sceneList;
   }
 
