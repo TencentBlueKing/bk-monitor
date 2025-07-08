@@ -48,10 +48,17 @@ export interface UseTableCellOptions {
   rowKeyField: MaybeRef<string>;
   /** 是否启用单元格文本省略号 */
   cellEllipsisClass?: string;
+  /** 默认单元格数据取值逻辑 */
+  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
   /** 自定义单元格渲染策略对象集合 */
   customCellRenderMap?: Record<string, TableCellRenderer>;
 }
-export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderMap }: UseTableCellOptions) {
+export function useTableCell({
+  rowKeyField,
+  cellEllipsisClass,
+  customCellRenderMap,
+  customDefaultGetRenderValue,
+}: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
   /** 不同类型单元格渲染策略对象集合 */
@@ -108,14 +115,8 @@ export function useTableCell({ rowKeyField, cellEllipsisClass, customCellRenderM
     row,
     column: ExploreTableColumn<T>
   ): GetTableCellRenderValue<T> {
-    const defaultGetRenderValue = row => {
-      const alias = row?.[column.colKey];
-      if (typeof alias !== 'object' || alias == null) {
-        return alias;
-      }
-      return JSON.stringify(alias);
-    };
-    const getRenderValue = column?.getRenderValue || defaultGetRenderValue;
+    const defaultGetRenderValue = row => row?.[column.colKey];
+    const getRenderValue = column?.getRenderValue || customDefaultGetRenderValue || defaultGetRenderValue;
     return getRenderValue(row, column);
   }
 

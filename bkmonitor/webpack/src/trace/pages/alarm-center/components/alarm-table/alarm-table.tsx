@@ -151,15 +151,12 @@ export default defineComponent({
         },
         appointee: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
-          getRenderValue: convertStringArrayToTags,
         },
         assignee: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
-          getRenderValue: convertStringArrayToTags,
         },
         follower: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
-          getRenderValue: convertStringArrayToTags,
         },
         strategy_name: {
           renderType: ExploreTableColumnTypeEnum.LINK,
@@ -167,7 +164,6 @@ export default defineComponent({
         },
         labels: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
-          getRenderValue: convertStringArrayToTags,
         },
         status: {
           renderType: ExploreTableColumnTypeEnum.TAGS,

@@ -64,18 +64,20 @@ export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = E
  * @description 获取 table表格列 渲染值类型 (默认为字符串)
  *
  */
-export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U ? U[K] : string;
+export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U ? U[K] : string | string[];
+
+export interface TagCellItem {
+  alias: string;
+  value: string;
+  tagColor?: string;
+  tagBgColor?: string;
+}
 
 /**  trace检索 table表格不同类型列 渲染值类型映射表 */
 export interface BaseTableCellRenderValueType {
   [ExploreTableColumnTypeEnum.DURATION]: number;
   [ExploreTableColumnTypeEnum.TIME]: number;
-  [ExploreTableColumnTypeEnum.TAGS]: {
-    alias: string;
-    value: string;
-    tagColor: string;
-    tagBgColor: string;
-  }[];
+  [ExploreTableColumnTypeEnum.TAGS]: string[] | TagCellItem[];
   [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
     alias: string;
     prefixIcon: string | TableCellRenderer<ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>>;
