@@ -49,7 +49,7 @@ class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionContentResource),
         ResourceRoute("GET", GetChatSessionContentsResource),
-        ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="session_code"),
+        ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="id"),
         ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
         ResourceRoute("POST", BatchDeleteSessionContentResource, endpoint="batch_delete"),
     ]

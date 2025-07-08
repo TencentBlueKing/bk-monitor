@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -149,15 +150,24 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         plugin_infos = api.node_man.plugin_info(name="bk-collector")
         version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
         max_version = get_max_version(default_version, version_str_list)
+
         if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
-            models.CustomReportSubscription.refresh_collector_custom_conf(bk_biz_id, "bk-collector")
+            if bk_biz_id is not None:
+                bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
+            else:
+                bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+
+            for bk_tenant_id in bk_tenant_ids:
+                models.CustomReportSubscription.refresh_collector_custom_conf(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+                )
         else:
             logger.info(
                 f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本"
                 f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
             )
     except Exception as e:  # noqa
-        logger.exception("refresh custom report config to colletor error: %s" % e)
+        logger.exception(f"refresh custom report config to collector error: {e}")
 
 
 # 用于定时任务的包装函数，加锁防止任务重叠
@@ -297,7 +307,7 @@ def check_custom_event_group_sleep():
         task_name="check_custom_event_group_sleep", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-    logger.info("check_custom_event_group_sleep:end, cost_time->[%s] seconds" % cost_time)
+    logger.info(f"check_custom_event_group_sleep:end, cost_time->[{cost_time}] seconds")
 
 
 def report_custom_metrics():

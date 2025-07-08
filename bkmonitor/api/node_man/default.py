@@ -640,7 +640,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if not settings.BKNODEMAN_API_BASE_URL:
+        if settings.BKNODEMAN_API_BASE_URL:
             return "system/api/host/proxies/"
         return "api/host/proxies/"
 
@@ -658,7 +658,7 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if not settings.BKNODEMAN_API_BASE_URL:
+        if settings.BKNODEMAN_API_BASE_URL:
             return "system/api/host/biz_proxies/"
         return "api/host/biz_proxies/"
 
