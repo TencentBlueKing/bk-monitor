@@ -94,7 +94,7 @@ export default defineComponent({
     }
 
     function handleAddCustomTime() {
-      const regular = /^([1-9][0-9]*)+(m|h|d|w|M|y)$/;
+      const regular = /^([1-9][0-9]+)+(m|h|d|w|M|y)$/;
       const str = customTimeVal.value.trim();
       if (regular.test(str)) {
         handleAddCustom(str);
