@@ -324,7 +324,12 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   getFollowerInfo() {
     return (
       <span class='follower-info'>
-        <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
+        {this.basicInfo?.follower?.length
+          ? this.basicInfo?.follower.map((v, index, arr) => [
+              <bk-user-display-name user-id={v} />,
+              index !== arr.length - 1 ? <span>{','}</span> : null,
+            ])
+          : '--'}
         {!!this.basicInfo?.follower?.length && !!this.bkCollectConfigId && (
           <span
             class='fenxiang-btn'
@@ -472,7 +477,12 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           },
           {
             title: this.$t('负责人'),
-            content: appointee?.join(',') || '--',
+            content: appointee?.length
+              ? appointee.map((v, index, arr) => [
+                  <bk-user-display-name user-id={v} />,
+                  index !== arr.length - 1 ? <span>{','}</span> : null,
+                ])
+              : '--',
           },
         ],
       },

@@ -8,8 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
-
 import pytest
 
 from metadata.models.space import ds_rt
@@ -55,11 +53,11 @@ def test_compose_es_table_id_detail(create_and_delete_record):
     client = SpaceTableIDRedis()
     data = client._compose_es_table_id_detail()
 
-    log_data = json.loads(data[DEFAULT_LOG_ES_TABLE_ID])
+    log_data = data[DEFAULT_LOG_ES_TABLE_ID]
     assert log_data["db"] == DEFAULT_LOG_ES_TABLE_ID.split(".")[0]
 
     assert f"{DEFAULT_EVENT_ES_TABLE_ID}" in data
-    event_data = json.loads(data[f"{DEFAULT_EVENT_ES_TABLE_ID}"])
+    event_data = data[f"{DEFAULT_EVENT_ES_TABLE_ID}"]
     assert event_data["db"] == DEFAULT_EVENT_ES_TABLE_ID
 
     # 校验必要 key 存在

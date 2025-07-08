@@ -249,7 +249,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
 
     def update_metric(_source_type: str, bk_biz_id: int | None = None):
         try:
-            SOURCE_TYPE[_source_type](bk_tenant_id, bk_biz_id).run(delay=True)
+            SOURCE_TYPE[_source_type](bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
         except BaseException as e:
             logger.exception(
                 "Failed to update metric list(%s) for (%s)",
@@ -321,6 +321,9 @@ def update_metric_list_by_biz(bk_biz_id):
     from monitor.models import ApplicationConfig
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+
     source_type_use_biz = [
         "BKDATA",
         "LOGTIMESERIES",
@@ -344,9 +347,8 @@ def update_metric_list_by_biz(bk_biz_id):
                     continue
                 start = time.time()
                 logger.info(f"update metric list({source_type}) by biz({bk_biz_id})")
-                source(bk_biz_id).run(delay=False)
+                source(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=False)
                 logger.info(f"update metric list({source_type}) succeed in {time.time() - start}")
-
         except BaseException as e:
             logger.exception("Failed to update metric list(%s) for (%s)", source_type, e)
 
