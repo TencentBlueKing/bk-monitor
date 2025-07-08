@@ -2052,6 +2052,7 @@ class QueryFieldStatisticsInfoResource(Resource):
                     StatisticsProperty.AVG.value,
                 ]
             )
+        statistics_properties = set(statistics_properties) - set(validated_data["exclude_property"])
 
         statistics_info = {}
         run_threads(
@@ -2122,16 +2123,20 @@ class QueryFieldStatisticsInfoResource(Resource):
             processed_statistics_info[statistics_property] = value
 
         # 计算百分比
-        processed_statistics_info["field_percent"] = (
-            round(
-                statistics_info[StatisticsProperty.FIELD_COUNT.value]
-                / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
-                * 100,
-                2,
+        if (
+            StatisticsProperty.FIELD_COUNT.value in statistics_info
+            and StatisticsProperty.TOTAL_COUNT.value in statistics_info
+        ):
+            processed_statistics_info["field_percent"] = (
+                round(
+                    statistics_info[StatisticsProperty.FIELD_COUNT.value]
+                    / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+                    * 100,
+                    2,
+                )
+                if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
+                else 0
             )
-            if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
-            else 0
-        )
         return processed_statistics_info
 
 

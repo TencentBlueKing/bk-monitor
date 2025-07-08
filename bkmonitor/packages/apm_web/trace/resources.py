@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
+from apm.constants import StatisticsProperty
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
@@ -1346,6 +1347,14 @@ class TraceFieldStatisticsInfoResource(Resource):
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_data):
+        PreCalculateSpecificField.TRACE_DURATION
+        if validated_data["field"]["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
+            validated_data["exclude_property"] = [
+                StatisticsProperty.AVG.value,
+                StatisticsProperty.MEDIAN.value,
+                StatisticsProperty.TOTAL_COUNT.value,
+                StatisticsProperty.FIELD_COUNT.value,
+            ]
         return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
@@ -1356,7 +1365,7 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
-        if field_info["field_name"] in {"elapsed_time", "trace_duration"}:
+        if field_info["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
             field_info_values = field_info["values"]
             min_value, max_value, _, interval_num = field_info_values[:4]
             min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.redefine_interval_info(
