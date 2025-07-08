@@ -67,14 +67,14 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializers import FilterSerializer as TraceFilterSerializer
 from apm.serializers import (
+    TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
-    TraceFieldStatisticsGraphRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
-
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -93,7 +93,6 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
-from apm.serializers import FilterSerializer as TraceFilterSerializer
 
 logger = logging.getLogger("apm")
 
@@ -2128,7 +2127,7 @@ class QueryFieldStatisticsInfoResource(Resource):
             and StatisticsProperty.TOTAL_COUNT.value in statistics_info
         ):
             processed_statistics_info["field_percent"] = (
-                round(
+                format_percent(
                     statistics_info[StatisticsProperty.FIELD_COUNT.value]
                     / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
                     * 100,

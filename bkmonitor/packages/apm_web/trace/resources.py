@@ -1347,10 +1347,8 @@ class TraceFieldStatisticsInfoResource(Resource):
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_data):
-        PreCalculateSpecificField.TRACE_DURATION
         if validated_data["field"]["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
             validated_data["exclude_property"] = [
-                StatisticsProperty.AVG.value,
                 StatisticsProperty.MEDIAN.value,
                 StatisticsProperty.TOTAL_COUNT.value,
                 StatisticsProperty.FIELD_COUNT.value,
@@ -1368,7 +1366,7 @@ class TraceFieldStatisticsGraphResource(Resource):
         if field_info["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
             field_info_values = field_info["values"]
             min_value, max_value, _, interval_num = field_info_values[:4]
-            min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.redefine_interval_info(
+            min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.align_histogram_bounds(
                 min_value, max_value, interval_num
             )
             field_info_values[0], field_info_values[1], field_info_values[3] = (

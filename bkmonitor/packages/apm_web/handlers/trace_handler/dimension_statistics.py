@@ -1,3 +1,4 @@
+import bisect
 import math
 
 from core.drf_resource import api
@@ -7,7 +8,8 @@ class HistogramNiceNumberGenerator:
     """使用 nice number 重新构建分桶大小和数量"""
 
     # fmt: off
-    HistogramBucketSizes = [
+    # 有序的桶大小列表
+    _HISTOGRAM_BUCKET_SIZES = [
         1e-9,  2e-9,  2.5e-9,  4e-9,  5e-9,
         1e-8,  2e-8,  2.5e-8,  4e-8,  5e-8,
         1e-7,  2e-7,  2.5e-7,  4e-7,  5e-7,
@@ -36,19 +38,21 @@ class HistogramNiceNumberGenerator:
     ]
     # fmt: on
     @classmethod
-    def redefine_interval_info(
+    def align_histogram_bounds(
         cls, min_value: float | int, max_value: float | int, num_buckets: int
     ) -> tuple[float | int, float | int, float | int, int]:
         """重新计算最小值边界，最大值边界，桶大小和桶数量"""
 
         target_size = (max_value - min_value) / num_buckets
-        for bucket_size in cls.HistogramBucketSizes:
-            if bucket_size >= target_size:
-                min_x = math.floor(min_value / bucket_size) * bucket_size
-                max_x = math.ceil(max_value / bucket_size) * bucket_size
-                num_buckets = int((max_x - min_x) // bucket_size)
-                return min_x, max_x, bucket_size, num_buckets
-        return min_value, max_value, target_size, num_buckets
+        bucket_size_index = bisect.bisect_left(cls._HISTOGRAM_BUCKET_SIZES, target_size)
+        bucket_size_index = bucket_size_index if bucket_size_index != len(cls._HISTOGRAM_BUCKET_SIZES) else -1
+
+        bucket_size = cls._HISTOGRAM_BUCKET_SIZES[bucket_size_index]
+        min_x = math.floor(min_value / bucket_size) * bucket_size
+        max_x = math.ceil(max_value / bucket_size) * bucket_size
+        num_buckets = int((max_x - min_x) // bucket_size)
+
+        return min_x, max_x, bucket_size, num_buckets
 
 
 class DimensionStatisticsAPIHandler:
