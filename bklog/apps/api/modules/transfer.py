@@ -125,6 +125,7 @@ def modify_result_table_after(params):
     # 清除获取结果表的缓存
     cache_key = Transfer.get_result_table._build_cache_key({"table_id": params["data"]["table_id"]})
     Transfer.get_result_table._delete_cache(cache_key)
+    return params
 
 
 class _TransferApi:
