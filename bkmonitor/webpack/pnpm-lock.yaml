@@ -5,7 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@blueking/user-selector>vue': v2-latest
   bk-magic-vue: 2.5.10-beta.5
   eslint: ^9.28.0
   monaco-editor: 0.44.0
@@ -345,8 +344,14 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.13
-        version: 1.1.0-beta.13(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.1.0-beta.14
+        version: 1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+      '@blueking/bk-user-display-name':
+        specifier: 1.0.3-beta.5
+        version: 1.0.3-beta.5
+      '@blueking/bk-user-selector':
+        specifier: 0.0.29-beta.10
+        version: 0.0.29-beta.10(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
         specifier: 0.0.35-beta.7
         version: 0.0.35-beta.7
@@ -377,9 +382,6 @@ importers:
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(vue@2.7.16)
-      '@blueking/user-selector':
-        specifier: ^1.0.14
-        version: 1.0.14
       '@prometheus-io/lezer-promql':
         specifier: 0.51.2
         version: 0.51.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
@@ -601,6 +603,12 @@ importers:
       '@antv/g6':
         specifier: ^4.8.25
         version: 4.8.25
+      '@blueking/bk-user-display-name':
+        specifier: 1.0.3-beta.3
+        version: 1.0.3-beta.3
+      '@blueking/bk-user-selector':
+        specifier: 0.0.29-beta.10
+        version: 0.0.29-beta.10(@blueking/bkui-library@0.0.0-beta.6)
       '@blueking/date-picker':
         specifier: 2.0.0-beta.48
         version: 2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@3.5.15(typescript@5.8.3)))(dayjs@1.11.13)(vue@3.5.15(typescript@5.8.3))
@@ -1493,8 +1501,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.13':
-    resolution: {integrity: sha512-jZYS8RRtIx3tYoyjGV9YEewKkdTKrLuxhRfKpASOgUZLZbTF3yM7kdSCCLpF9ptV8JRTKDHseIXdpw69/azEaA==}
+  '@blueking/ai-blueking@1.1.0-beta.14':
+    resolution: {integrity: sha512-CUVu1Xn6mgNalBLJwiunoSxiKU+Rk7WmBc10wk72mZu+lyhpEs4Qvqy8N6k3mKzE35AumcuDS9VHWZ31AKETrg==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -1513,6 +1521,18 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
+
+  '@blueking/bk-user-display-name@1.0.3-beta.3':
+    resolution: {integrity: sha512-6SKMombzfE23vHZCN8E++yh1CSDPVrCgi1hpgwNKD+xppepDNv35EDTc2y8iq1XmAomJptVPM3CxrqO8Wz7Jxg==}
+
+  '@blueking/bk-user-display-name@1.0.3-beta.5':
+    resolution: {integrity: sha512-Qzlu8rf5hbi7/p72+oJacZ38WNcN6MMsIbhfH9NNNZ1jAUZgwHC2dX8P5c839ugkP1TvNvQ90uALfIPfgcjf3A==}
+
+  '@blueking/bk-user-selector@0.0.29-beta.10':
+    resolution: {integrity: sha512-LHJdByQGrPqdhr6iy5/K1eyb58xgP9sxYsK0V2ePoRJcE8jgGZs58y8aeudilWUAC+Ncmd4rw9L/Tqa64kpN8Q==}
+    engines: {node: '>=18.16.0'}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
 
   '@blueking/bk-weweb@0.0.35-beta.7':
     resolution: {integrity: sha512-kaRlM71vXwF97KxMe0tx2HCq3phN3m+heJPyXqu4YsYLne3OgG/JQjFVZaUvonxZ0cJTdt/2orW5HEz3XRXFFQ==}
@@ -1596,9 +1616,6 @@ packages:
     resolution: {integrity: sha512-fUlQTUQ8251/2zCF1en1kuK3gml9nZoXFQVFml2tVT6YTg7LYn8OvwgUah5byhvJ2OfqDlYiE4GdOU11s81hqA==}
     peerDependencies:
       vue: ^3
-
-  '@blueking/user-selector@1.0.14':
-    resolution: {integrity: sha512-P2ksMb6kipY+yQ49SI8IMb6JIiurWDkK3fHSXTLWn23O5q0zlN7GM+Edv9IfeG8gqK7q5LrDH+H8lQVoviUPoA==}
 
   '@braintree/sanitize-url@6.0.4':
     resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
@@ -1953,9 +1970,6 @@ packages:
   '@humanwhocodes/retry@0.4.2':
     resolution: {integrity: sha512-xeO57FpIu4p1Ri3Jq/EXq4ClRm86dVF2z/+kvFnyqVYRavTZmaFaUBbWCOuuTh0o/g7DSsk6kc2vrS4Vl5oPOQ==}
     engines: {node: '>=18.18'}
-
-  '@icon-cool/bk-icon-bk-biz-components@0.0.4':
-    resolution: {integrity: sha512-6RnPbu3urilXn6AP+vIyN5tabqGCTyzUrAGZzeR0Stw4TfJbha+4hvj0GOR7pmbG3Jd5DAXeGONP2I3LUELb0A==}
 
   '@interactjs/actions@1.10.27':
     resolution: {integrity: sha512-FCRg5KwB+stkPcAMx/Cn0fgGP6p4LyMX9S/Upcn/W+hpYme31bPi54PCqmOebzz6myTthN6zFf9jMyLOqtI/gg==}
@@ -5711,9 +5725,6 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
-
-  lodash.throttle@4.1.1:
-    resolution: {integrity: sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==}
 
   lodash.truncate@4.4.2:
     resolution: {integrity: sha512-jttmRe7bRse52OsWIMDLaXxWqRAmtIUccAQ3garviCqJjafXOfNMO0yMfNpdD6zbGaTU0P5Nz7e7gAT6cKmJRw==}
@@ -9698,7 +9709,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.13(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.1.11(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
@@ -9738,6 +9749,22 @@ snapshots:
       elkjs: 0.8.2
       vue: 2.7.16
       web-worker: 1.5.0
+
+  '@blueking/bk-user-display-name@1.0.3-beta.3': {}
+
+  '@blueking/bk-user-display-name@1.0.3-beta.5': {}
+
+  '@blueking/bk-user-selector@0.0.29-beta.10(@blueking/bkui-library@0.0.0-beta.4)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      lodash: 4.17.21
+      sortablejs: 1.15.6
+
+  '@blueking/bk-user-selector@0.0.29-beta.10(@blueking/bkui-library@0.0.0-beta.6)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      lodash: 4.17.21
+      sortablejs: 1.15.6
 
   '@blueking/bk-weweb@0.0.35-beta.7': {}
 
@@ -10005,12 +10032,6 @@ snapshots:
       tinycolor2: 1.6.0
       validator: 13.15.0
       vue: 3.5.15(typescript@5.8.3)
-
-  '@blueking/user-selector@1.0.14':
-    dependencies:
-      '@icon-cool/bk-icon-bk-biz-components': 0.0.4
-      lodash.throttle: 4.1.1
-      tippy.js: 6.3.7
 
   '@braintree/sanitize-url@6.0.4': {}
 
@@ -10356,8 +10377,6 @@ snapshots:
   '@humanwhocodes/retry@0.3.1': {}
 
   '@humanwhocodes/retry@0.4.2': {}
-
-  '@icon-cool/bk-icon-bk-biz-components@0.0.4': {}
 
   '@interactjs/actions@1.10.27(@interactjs/core@1.10.27(@interactjs/utils@1.10.27))(@interactjs/utils@1.10.27)':
     dependencies:
@@ -14445,8 +14464,6 @@ snapshots:
   lodash.memoize@4.1.2: {}
 
   lodash.merge@4.6.2: {}
-
-  lodash.throttle@4.1.1: {}
 
   lodash.truncate@4.4.2: {}
 

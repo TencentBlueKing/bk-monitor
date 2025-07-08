@@ -47,13 +47,14 @@ def set_local_username(username):
     local.username = username
 
 
-@lru_cache(maxsize=100)
+@lru_cache(maxsize=1000)
 def get_admin_username(bk_tenant_id: str) -> str | None:
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return getattr(settings, "COMMON_USERNAME", None)
 
     from core.drf_resource import api
 
+    # 获取管理员用户
     result = api.bk_login.batch_lookup_virtual_user(
         bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups="bk_admin", bk_username="admin"
     )

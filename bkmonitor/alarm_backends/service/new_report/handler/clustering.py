@@ -18,7 +18,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils.translation import gettext as _
-from jinja2 import Template
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -310,7 +310,7 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         if not render_params:
             logger.exception(f"render_params {render_params} is None.")
-        title_template = Template(render_params["title"])
+        title_template = Environment().from_string(render_params["title"])
         render_params["title"] = title_template.render(**render_params)
         render_params["mail_template_path"] = self.mail_template_path
         render_params["wechat_template_path"] = self.wechat_template_path

@@ -18,10 +18,10 @@
     > div {
       height: 40px;
       font-size: 12px;
+      font-size: 12px;
       line-height: 40px;
       color: #979ba5;
       color: #979ba5;
-      font-size: 12px;
     }
   }
 
@@ -68,6 +68,7 @@
 
       min-width: 100%;
       height: 100%;
+      will-change: contents;
 
       &.is-pending {
         position: relative;
@@ -90,6 +91,20 @@
         align-self: flex-start;
         padding: 4px 12px;
         line-height: 22px;
+
+        mark {
+          background-color: rgb(250, 238, 177);
+        }
+
+        .bklog-v3-column-placeholder {
+          display: inline-block;
+          max-height: var(--max-height);
+          overflow: hidden;
+          font-family: var(--bklog-v3-row-ctx-font);
+          font-size: var(--table-fount-size);
+          line-height: 20px;
+          word-break: break-all;
+        }
 
         &.left,
         &.right {
@@ -288,7 +303,7 @@
     .expand-view-wrapper {
       position: sticky;
       left: 0;
-      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 22px);
+      width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 38px);
       border-top: 1px solid #dfe0e5;
 
       .view-content {
@@ -335,17 +350,17 @@
 
       .bklog-list-row {
         z-index: 1;
-        padding: 0;
         width: 100%;
+        padding: 0;
       }
 
       &::before {
-        content: '';
-        min-width: 3.09px;
-        height: 100%;
-        background-color: #fafbfd;
         position: sticky;
         left: 0;
+        min-width: 3.09px;
+        height: 100%;
+        content: '';
+        background-color: #fafbfd;
       }
     }
 
