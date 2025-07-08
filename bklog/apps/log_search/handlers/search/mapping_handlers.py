@@ -861,7 +861,7 @@ class MappingHandlers:
                         }
                     )
 
-                # 添加别名信息   # TODO 需要修改
+                # 添加别名信息
                 if a_field_name in alias_dict:
                     _field["query_alias"] = alias_dict[a_field_name]
 

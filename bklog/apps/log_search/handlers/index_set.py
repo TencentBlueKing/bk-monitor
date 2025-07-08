@@ -1371,12 +1371,12 @@ class IndexSetHandler(APIModel):
                         "query_alias_settings": query_alias_settings,
                         "space_type": self.data.space_uid.split("__")[0],
                         "space_id": self.data.space_uid.split("__")[-1],
-                        "data_label": f"bklog_index_set_{self.data.index_set_id}",
+                        "data_label": f"bklog_index_set_{self.index_set_id}",
                     },
                 )
             multi_execute_func.run()
         except Exception as e:
-            logger.exception("create or update index set(%s) es router failed：%s", self.data.index_set_id, e)
+            logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
         return {"index_set_id": self.index_set_id}
 
     @staticmethod

@@ -73,6 +73,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
+    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -2075,9 +2076,5 @@ class SearchViewSet(APIViewSet):
 
     @detail_route(methods=["POST"], url_path="alias_settings")
     def alias_settings(self, request, index_set_id):
-        from apps.log_search.serializers import AliasSettingsSerializer
-
         params = self.params_valid(AliasSettingsSerializer)
-        result = IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"])
-        # 返回更新的索引集id
-        return Response(result)
+        return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
