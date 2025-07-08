@@ -2126,16 +2126,11 @@ class QueryFieldStatisticsInfoResource(Resource):
             StatisticsProperty.FIELD_COUNT.value in statistics_info
             and StatisticsProperty.TOTAL_COUNT.value in statistics_info
         ):
-            processed_statistics_info["field_percent"] = (
-                format_percent(
-                    statistics_info[StatisticsProperty.FIELD_COUNT.value]
-                    / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
-                    * 100,
-                    2,
-                )
-                if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
-                else 0
-            )
+            field_percent = 0
+            total_count = statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+            if total_count > 0:
+                field_percent = statistics_info[StatisticsProperty.FIELD_COUNT.value] / total_count * 100
+            processed_statistics_info["field_percent"] = format_percent(field_percent, 3, 3, 3)
         return processed_statistics_info
 
 
