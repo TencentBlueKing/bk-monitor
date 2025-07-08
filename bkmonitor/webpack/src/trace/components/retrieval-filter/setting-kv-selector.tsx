@@ -27,10 +27,10 @@
 import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import { promiseTimeout, useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
-import tippy, { sticky } from 'tippy.js';
 
 import AutoWidthInput from './auto-width-input';
 import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';
@@ -164,8 +164,8 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
@@ -175,7 +175,6 @@ export default defineComponent({
         interactive: true,
         offset: [0, 4],
         sticky: 'reference',
-        plugins: [sticky],
         onHidden: () => {
           destroyPopoverInstance();
         },

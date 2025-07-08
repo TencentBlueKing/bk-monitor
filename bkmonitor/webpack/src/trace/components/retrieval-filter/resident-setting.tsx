@@ -26,8 +26,7 @@
 
 import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-
-import tippy from 'tippy.js';
+import { useTippy } from 'vue-tippy';
 
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
@@ -48,7 +47,6 @@ import {
 import { defaultWhereItem, EXISTS_KEYS } from './utils';
 
 import './resident-setting.scss';
-import 'tippy.js/dist/tippy.css';
 
 export interface IResidentSetting {
   field: IFilterField;
@@ -145,8 +143,8 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
