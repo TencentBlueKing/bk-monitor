@@ -38,8 +38,6 @@ RUN python -m venv venv \
 && rm -rf /app/requirements.txt \
 && /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5 -i https://mirrors.tencent.com/pypi/simple/
 
-# patch tarfile, shutil
-COPY ./patches/patch_lib/ /usr/local/lib/python3.6/
 
 # build frontend
 COPY ./webpack /app/webpack
@@ -92,5 +90,8 @@ WORKDIR /app/code
 # set python env
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# patch tarfile, shutil
+COPY /app/code/patches/patch_lib/ /usr/local/lib/python3.6/
 
 CMD python manage.py runserver 0.0.0.0:80
