@@ -700,7 +700,7 @@ class UploadPackageResource(Resource):
         file_instance = self.file_manager.file_obj
         try:
             t = tarfile.open(fileobj=file_instance.file_data.file)
-            t.extractall(path=self.parse_path)
+            t.extractall(path=self.parse_path, filter='data')
         except Exception as e:
             logger.exception("压缩包解压失败: {}".format(e))
             raise UploadPackageError({"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")})
