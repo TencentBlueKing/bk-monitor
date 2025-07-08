@@ -38,6 +38,9 @@ RUN python -m venv venv \
 && rm -rf /app/requirements.txt \
 && /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5 -i https://mirrors.tencent.com/pypi/simple/
 
+# patch tarfile, shutil
+COPY ./patches/patch_lib/ /usr/local/lib/python3.6/
+
 # build frontend
 COPY ./webpack /app/webpack
 RUN if [ "${build_frontend}" = true ] ; then \

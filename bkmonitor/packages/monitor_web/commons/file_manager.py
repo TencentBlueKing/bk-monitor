@@ -19,7 +19,6 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import ugettext as _
 
-from bkmonitor.utils.tar import safe_extract
 from monitor_web.models.file import UploadedFileInfo
 from monitor_web.models.plugin import CollectorPluginMeta
 
@@ -181,7 +180,7 @@ class PluginFileManager(BaseFileManager):
     @classmethod
     def extract_file(cls, file_data, file_path):
         with tarfile.open(fileobj=file_data, mode="r:gz") as tar:
-            safe_extract(tar, file_path)
+            tar.extractall(file_path, filter='data')
         return file_path
 
     @classmethod
