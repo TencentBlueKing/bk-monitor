@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import os.path
 import re
+import tarfile
 import tempfile
 import time
 from collections import defaultdict
@@ -24,7 +25,6 @@ from django.core.files import File
 from bkmonitor.as_code.parse import import_code_config
 from bkmonitor.as_code.parse_yaml import StrategyConfigParser
 from bkmonitor.strategy.new_strategy import Strategy
-from bkmonitor.utils import tarfile
 from constants.action import ActionSignal
 from core.drf_resource import api, resource
 from monitor_web.models import (

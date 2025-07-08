@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import base64
 import os
+import tarfile
 from uuid import uuid4
 
 import yaml
@@ -17,7 +18,6 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
-from bkmonitor.utils import tarfile
 from core.errors.event_plugin import PluginParseError
 
 

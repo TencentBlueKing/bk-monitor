@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import shutil
+import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
@@ -56,7 +57,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
-from bkmonitor.utils import tarfile
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
