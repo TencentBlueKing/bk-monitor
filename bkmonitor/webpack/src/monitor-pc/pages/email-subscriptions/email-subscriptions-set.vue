@@ -933,6 +933,8 @@ export default class SubscriptionsSet extends Vue {
         if (this.contentType === 'view') {
           params.reportContents.forEach(content => {
             content.graphs = content.graphs.map(chart => chart.id);
+            content.width = Number(content.width);
+            content.height = Number(content.height);
           });
         }
         if (this.contentType === 'full') {
@@ -943,7 +945,7 @@ export default class SubscriptionsSet extends Vue {
               contentTitle,
               rowPicturesNum,
               graphs: [`${curBizId}-${curGrafana}-*`],
-              width,
+              width: Number(width),
             };
           });
         }

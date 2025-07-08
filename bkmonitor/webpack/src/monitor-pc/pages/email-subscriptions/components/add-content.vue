@@ -178,7 +178,7 @@
             <bk-input
               class="img-size-input single"
               v-model="formData.width"
-              :max="2000"
+              :max="4000"
               :min="1"
               :placeholder="`${$t('高度自适应，宽度最大值为')}4000`"
               type="number"
