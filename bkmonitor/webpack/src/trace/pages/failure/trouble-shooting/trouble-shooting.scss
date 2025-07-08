@@ -56,7 +56,9 @@
       box-shadow: 0 2px 4px 0 #1919290d;
       margin-bottom: 10px;
       position: relative;
-      background: #f3f6ff;
+      background-image: linear-gradient(169deg, #eaefff 8%, #ffffff 75%);
+      box-shadow: 0 2px 4px 0 #1919290d;
+      border-radius: 2px;
       &::before {
         content: '';
         position: absolute;
@@ -66,7 +68,7 @@
         bottom: 0;
         border-radius: 4px;
         padding: 1px;
-        background: linear-gradient(139deg, #7a9efd, #ca85ee);
+        background: linear-gradient(139deg, rgba(122, 158, 253, 0.3), rgba(202, 133, 238, 0.4));
         -webkit-mask:
           linear-gradient(#fff 0 0) content-box,
           linear-gradient(#fff 0 0);
@@ -101,6 +103,17 @@
         padding: 0 16px;
         max-height: 360px;
         overflow: auto;
+        position: relative;
+        .ai-bot-bg {
+          display: inline-block;
+          width: 150px;
+          height: 150px;
+          background-image: url('../../../static/img/ai-bot-bg.svg');
+          background-size: cover;
+          position: absolute;
+          bottom: -30px;
+          right: 0;
+        }
       }
     }
     .failure-collapse {

@@ -329,7 +329,10 @@ export default defineComponent({
                 color={'#f3f6ff'}
                 loading={this.loadingList.summary}
               >
-                <div class='ai-card-main'>{aiCardRender()}</div>
+                <div class='ai-card-main'>
+                  {aiCardRender()}
+                  {this.subPanels.summary.status === 'failed' && <span class='ai-bot-bg' />}
+                </div>
               </Loading>
             </div>
           )}

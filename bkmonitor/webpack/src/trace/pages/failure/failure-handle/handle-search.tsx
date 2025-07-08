@@ -152,7 +152,7 @@ export default defineComponent({
       const params = {
         id: incidentId.value,
         aggregate_bys: aggregateBys.value,
-        bk_biz_ids: bkzIds.value.length > 0 ? bkzIds.value : [window.bk_biz_id],
+        bk_biz_ids: bkzIds.value,
         query_string: queryString.value,
       };
       props.username.id !== 'all' && Object.assign(params, { username: props.username.id });
@@ -335,8 +335,15 @@ export default defineComponent({
       const scrollTop = e.target?.scrollTop;
       emit('treeScroll', scrollTop);
     };
+    watch(
+      () => bkzIds.value,
+      val => {
+        val.length > 0 && getIncidentAlertAggregate();
+      },
+      { immediate: true }
+    );
     onMounted(() => {
-      getIncidentAlertAggregate();
+      // getIncidentAlertAggregate();
       cacheAggregateData.value = JSON.parse(JSON.stringify(aggregateBys.value));
       nextTick(() => {
         treeRef.value?.addEventListener('scroll', scrollChange, true);

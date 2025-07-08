@@ -93,7 +93,7 @@ export default defineComponent({
       incidentAlertAggregate({
         id: incidentId.value,
         aggregate_bys: [],
-        bk_biz_ids: [window.bk_biz_id],
+        bk_biz_ids: [-1],
       })
         .then(res => {
           alertAggregateData.value = res;
