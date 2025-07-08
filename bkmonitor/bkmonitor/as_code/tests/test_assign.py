@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 import yaml
 from django.test import TestCase
@@ -18,7 +18,7 @@ from bkmonitor.as_code.parse_yaml import AssignGroupRuleParser
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule, DutyArrange, UserGroup
 
 TestCase.databases = {"default", "monitor_api"}
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
 
@@ -31,7 +31,7 @@ def setup():
 
 
 def test_assign_parse():
-    with open(f"{DATA_PATH}assign/normal_assign.yaml", "r") as f:
+    with open(f"{DATA_PATH}assign/normal_assign.yaml") as f:
         code_config = yaml.safe_load(f.read())
     notice_group_ids = {"日常运维": 1}
     action_ids = {"test": 23}
@@ -54,7 +54,7 @@ def test_assign_parse():
 
 
 def test_convert_assign(setup):
-    with open(f"{DATA_PATH}assign/normal_assign.yaml", "r") as f:
+    with open(f"{DATA_PATH}assign/normal_assign.yaml") as f:
         code_config = yaml.safe_load(f.read())
     notice_group_ids = {"日常运维": 1, "开发": 2}
     action_ids = {"test": 23}
@@ -79,7 +79,7 @@ def test_convert_assign(setup):
 
 
 def test_convert_assign_error(setup):
-    with open(f"{DATA_PATH}assign/normal_assign.yaml", "r") as f:
+    with open(f"{DATA_PATH}assign/normal_assign.yaml") as f:
         code_config = yaml.safe_load(f.read())
     notice_group_ids = {"日常运维": 1, "开发": 2}
     action_ids = {"test111": 23}
@@ -103,43 +103,43 @@ def test_assign_unparse():
     """
 
     rule_config = {
-        'name': '分派测试',
-        'priority': 1,
+        "name": "分派测试",
+        "priority": 1,
         "id": 123,
-        'rules': [
+        "rules": [
             {
-                'user_groups': [1],
-                'enabled': True,
-                'conditions': [{'field': 'bcs_cluster_id', 'value': ['123'], 'method': 'eq', 'condition': 'and'}],
-                'actions': [
+                "user_groups": [1],
+                "enabled": True,
+                "conditions": [{"field": "bcs_cluster_id", "value": ["123"], "method": "eq", "condition": "and"}],
+                "actions": [
                     {
-                        'action_type': 'notice',
-                        'is_enabled': False,
-                        'upgrade_config': {'user_groups': [1], 'upgrade_interval': 1440, 'is_enabled': True},
+                        "action_type": "notice",
+                        "is_enabled": False,
+                        "upgrade_config": {"user_groups": [1], "upgrade_interval": 1440, "is_enabled": True},
                     },
-                    {'action_type': 'itsm', 'is_enabled': True, 'action_id': 23},
+                    {"action_type": "itsm", "is_enabled": True, "action_id": 23},
                 ],
-                'alert_severity': 1,
-                'additional_tags': [{'key': 'key1', 'value': '123value'}],
-                'id': 0,
-                'is_enabled': True,
+                "alert_severity": 1,
+                "additional_tags": [{"key": "key1", "value": "123value"}],
+                "id": 0,
+                "is_enabled": True,
             },
             {
-                'user_groups': [1],
-                'enabled': True,
-                'conditions': [{'field': 'bcs_cluster_id', 'value': ['123'], 'method': 'eq', 'condition': 'and'}],
-                'actions': [
+                "user_groups": [1],
+                "enabled": True,
+                "conditions": [{"field": "bcs_cluster_id", "value": ["123"], "method": "eq", "condition": "and"}],
+                "actions": [
                     {
-                        'action_type': 'notice',
-                        'is_enabled': True,
-                        'upgrade_config': {'user_groups': [1], 'upgrade_interval': 1440, 'is_enabled': True},
+                        "action_type": "notice",
+                        "is_enabled": True,
+                        "upgrade_config": {"user_groups": [1], "upgrade_interval": 1440, "is_enabled": True},
                     },
-                    {'action_type': 'itsm', 'is_enabled': True, 'action_id': 23},
+                    {"action_type": "itsm", "is_enabled": True, "action_id": 23},
                 ],
-                'alert_severity': 1,
-                'additional_tags': [{'key': 'key1', 'value': '123value'}],
-                'id': 0,
-                'is_enabled': True,
+                "alert_severity": 1,
+                "additional_tags": [{"key": "key1", "value": "123value"}],
+                "id": 0,
+                "is_enabled": True,
             },
         ],
     }

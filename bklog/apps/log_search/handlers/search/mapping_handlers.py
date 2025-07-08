@@ -897,12 +897,29 @@ class MappingHandlers:
         try:
             all_field_list = list()
             all_field_set = set()
+
+            multi_execute_func = MultiExecuteFunc()
+
             for index in indices:
-                data: dict = TransferApi.get_result_table({"table_id": index})
+                multi_execute_func.append(
+                    result_key=f"get_result_table_{index}",
+                    func=TransferApi.get_result_table,
+                    params={"params": {"table_id": index}},
+                    multi_func_params=True,
+                )
+
+            multi_result = multi_execute_func.run()
+
+            for index in indices:
+                data = multi_result.get(f"get_result_table_{index}")
+                if not data:
+                    continue
+
                 for field_info in data["field_list"]:
                     if field_info["field_name"] not in all_field_set:
                         all_field_set.add(field_info["field_name"])
                         all_field_list.append(field_info)
+
             return all_field_list
         except Exception:  # pylint: disable=broad-except
             return []

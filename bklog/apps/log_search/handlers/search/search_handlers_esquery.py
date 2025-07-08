@@ -36,6 +36,7 @@ from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
@@ -420,6 +421,7 @@ class SearchHandler:
         }
 
         if is_union_search:
+            result_dict["config"].append(self.analyze_fields(field_result))
             return result_dict
 
         for fields_config in [
@@ -476,6 +478,7 @@ class SearchHandler:
                     "index_set_id": int(self.index_set_id),
                     "bk_data_id": int(collector_config.bk_data_id),
                     "bk_biz_id": collector_config.bk_biz_id,
+                    "related_bk_biz_id": get_non_bkcc_space_related_bkcc_biz_id(collector_config.bk_biz_id),
                 }
                 if self.start_time and self.end_time:
                     params["start_time"] = self.start_time
@@ -1241,7 +1244,7 @@ class SearchHandler:
 
         with open(file_path, "a+", encoding="utf-8") as f:
             for content in content_generator():
-                f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
+                f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
         return file_path
 
     def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
@@ -1328,11 +1331,7 @@ class SearchHandler:
             project_code = space.space_id
         url = (
             settings.BCS_WEB_CONSOLE_DOMAIN
-            + "/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id}/?container_id={container_id}".format(
-                project_code=project_code,
-                cluster_id=cluster_id.upper(),
-                container_id=container_id,
-            )
+            + f"/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id.upper()}/?container_id={container_id}"
         )
         return url
 
@@ -2111,7 +2110,7 @@ class SearchHandler:
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
-        if self.index_set and self.index_set.max_analyzed_offset:
+        if self.index_set and self.index_set.max_analyzed_offset and not self.using_clustering_proxy:
             highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:
@@ -2368,7 +2367,7 @@ class SearchHandler:
                         if father:
                             _key = f"{father}.{key}"
                         else:
-                            _key = "%s" % key
+                            _key = f"{key}"
                     if _key:
                         self._update_result_fields(_key, _item[key])
 
@@ -2514,7 +2513,7 @@ class SearchHandler:
                         if fater:
                             _key = f"{fater}.{key}"
                         else:
-                            _key = "%s" % key
+                            _key = f"{key}"
                     if _key:
                         a_context: str = f"{_key}: {_item[key]}"
                         new_log_context_list.append(a_context)
@@ -2722,6 +2721,7 @@ class UnionSearchHandler:
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
                 search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
+                search_dict["custom_indices"] = union_config.get("custom_indices", "")
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 
@@ -3050,11 +3050,19 @@ class UnionSearchHandler:
         union_time_fields = set()
         union_time_fields_type = set()
         union_time_fields_unit = set()
+        context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
         for index_set_id in index_set_ids:
             result = multi_result[f"union_search_fields_{index_set_id}"]
             fields = result["fields"]
             fields_info[index_set_id] = fields
             display_fields = result["display_fields"]
+            result_config = result["config"][0]
+            if result_config["is_active"]:
+                context_and_realtime_config["is_active"] = True
+            extra = result_config["extra"]
+            extra.update({"index_set_id": index_set_id})
+            context_and_realtime_config["extra"].append(extra)
+
             for field_info in fields:
                 field_name = field_info["field_name"]
                 field_type = field_info["field_type"]
@@ -3133,10 +3141,9 @@ class UnionSearchHandler:
             obj = self.get_or_create_default_config(
                 index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
             )
-
         ret = {
             "config_id": obj.id,
-            "config": self.get_fields_config(),
+            "config": self.get_fields_config(context_and_realtime_config),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -3175,17 +3182,17 @@ class UnionSearchHandler:
         return obj
 
     @staticmethod
-    def get_fields_config():
+    def get_fields_config(context_and_realtime_config: dict):
         return [
             {"name": "bcs_web_console", "is_active": False},
             {"name": "trace", "is_active": False},
-            {"name": "context_and_realtime", "is_active": False},
             {"name": "bkmonitor", "is_active": False},
             {"name": "async_export", "is_active": False},
             {"name": "ip_topo_switch", "is_active": False},
             {"name": "apm_relation", "is_active": False},
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
+            context_and_realtime_config,
         ]
 
     @property

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -27,7 +26,7 @@ from .conftest import (
     DEFAULT_VM_NAME,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def test_compose_data_id_config():
@@ -50,7 +49,7 @@ def test_compose_vm_table_id_config():
 
     # 确认key存在
     assert set(content["spec"].keys()) == {"alias", "bizId", "dataType", "description", "maintainers"}
-    assert type(content["spec"]["maintainers"]) == list
+    assert isinstance(content["spec"]["maintainers"], list)
 
 
 def test_compose_vm_storage_binding(create_and_delete_data_link):
@@ -74,7 +73,7 @@ def test_compose_vm_storage_binding(create_and_delete_data_link):
     assert content["spec"]["storage"]["name"] == DEFAULT_VM_NAME
     assert content["spec"]["storage"]["namespace"] == settings.DEFAULT_VM_DATA_LINK_NAMESPACE
 
-    assert type(content["spec"]["maintainers"]) == list
+    assert isinstance(content["spec"]["maintainers"], list)
 
 
 def test_compose_vm_databus_config():
@@ -86,7 +85,7 @@ def test_compose_vm_databus_config():
 
     # 确认key存在及上下游链路类型及名称
     assert set(content["spec"].keys()) == {"maintainers", "sinks", "sources", "transforms"}
-    assert type(content["spec"]["maintainers"]) == list
+    assert isinstance(content["spec"]["maintainers"], list)
     spec = content["spec"]
     assert spec["sinks"][0]["kind"] == DataLinkKind.VMSTORAGEBINDING.value
     assert spec["sinks"][0]["name"] == DEFAULT_NAME

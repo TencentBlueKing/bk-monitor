@@ -33,7 +33,7 @@ import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
 import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
+import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import { bkUiMessage } from './common/message';
@@ -43,12 +43,13 @@ import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/user-display-name';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
-import { asignWindowField } from 'monitor-common/utils/asign-window';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
@@ -66,6 +67,8 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     $Message: bkUiMessage,
     $authorityStore: useAuthorityStore(),
   } as any;
+  // 微前端模式下，主动卸载当前 vue 实例
+  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.unmount());
 } else {
   Api.model
     .enhancedContext({
@@ -74,7 +77,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      asignWindowField(data);
+      assignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
@@ -96,7 +99,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          asignWindowField(data);
+          assignWindowField(data);
         });
     })
     .catch(e => console.error(e))

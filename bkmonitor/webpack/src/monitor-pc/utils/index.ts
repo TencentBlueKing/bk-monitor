@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
 import type { IOption } from '../pages/monitor-k8s/typings';
-import type { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import type { IMetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -400,7 +400,7 @@ export function allSpaceRegex(value: string) {
 export function validateExpression(expression: string) {
   // 使用正则表达式验证表达式结构是否合法
   const structureCheck =
-    /^(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\))(\s*[\+\-*/%^]\s*(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\)))*\s*$/.test(
+    /^([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\))([\+\-*/%^]\s*([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\)))*$/.test(
       expression
     );
   if (!structureCheck) {

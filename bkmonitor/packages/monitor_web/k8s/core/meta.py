@@ -13,6 +13,7 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import (
     BCSCluster,
     BCSContainer,
@@ -23,7 +24,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 
 
@@ -228,9 +229,25 @@ class K8sResourceMeta:
         if self.filter is not None:
             return
         self.filter = FilterCollection(self)
-        # 默认范围，业务-集群
+        # 默认范围，集群
         self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
-        # self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+
+        """
+        针对共享集群进行判断, 如果是共享集群，则需要获取集群下的所有命名空间
+        cluster_info： { bcs_cluster_id: {"namespace_list": [], "cluster_type": BcsClusterType}}
+        """
+        space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        cluster_info: dict[str, dict] = api.kubernetes.get_cluster_info_from_bcs_space(
+            {"bk_biz_id": self.bk_biz_id, "space_uid": space_uid, "shard_only": True}
+        )
+
+        if self.bcs_cluster_id in cluster_info and not isinstance(self, K8sNodeMeta, K8sClusterMeta, K8sNamespaceMeta):
+            namespaces = cluster_info[self.bcs_cluster_id].get("namespace_list")
+            self.filter.add(load_resource_filter("namespace", namespaces))
+        # 不再添加业务id 过滤，有集群过滤即可。
+        # else:
+        #     self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
+
         # 默认过滤 container_name!="POD"
         self.filter.add(load_resource_filter("container_exclude", ""))
 
@@ -946,7 +963,7 @@ class NameSpace(dict):
 
     @property
     def objects(self):
-        return BCSWorkload.objects.values(*self.columns)
+        return BCSPod.objects.values(*self.columns)
 
     def __getattr__(self, item):
         if item in self:

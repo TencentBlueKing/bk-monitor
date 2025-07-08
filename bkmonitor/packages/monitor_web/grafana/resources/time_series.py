@@ -31,6 +31,7 @@ from bkmonitor.models import (
     MetricListCache,
 )
 from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import (
     DATA_CATEGORY,
     GRAPH_MAX_SLIMIT,
@@ -215,7 +216,9 @@ class TimeSeriesMetric(Resource):
         """
         指标查询
         """
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[params["bk_biz_id"], 0])
+        metrics = MetricListCache.objects.filter(
+            bk_biz_id__in=[params["bk_biz_id"], 0], bk_tenant_id=get_request_tenant_id()
+        )
 
         # 过滤指标对象
         if params["result_table_label"]:
@@ -681,6 +684,7 @@ class GetVariableValue(Resource):
                 data_label=params.get("data_label", ""),
                 metric_field=params["metric_field"],
                 bk_biz_id__in=[0, bk_biz_id],
+                bk_tenant_id=get_request_tenant_id(),
             ).first()
             if metric:
                 data_source_label = metric.data_source_label
@@ -703,6 +707,7 @@ class GetVariableValue(Resource):
                     data_source_label=DataSourceLabel.BK_LOG_SEARCH,
                     result_table_id=params["result_table_id"],
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=get_request_tenant_id(),
                 ).first()
                 if metric:
                     index_set_id = metric.extend_fields.get("index_set_id")
@@ -899,7 +904,7 @@ class GetVariableValue(Resource):
                 result.append({"label": id_to_names.get(str(v), value), "value": value})
         elif dimension_field == "bcs_cluster_id":
             # 显示集群名称
-            cluster_infos = api.kubernetes.fetch_k8s_cluster_list()
+            cluster_infos = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=get_request_tenant_id())
             cluster_id_to_name = {cluster["bcs_cluster_id"]: cluster["name"] for cluster in cluster_infos}
             result = []
             for v in sorted(dimensions):

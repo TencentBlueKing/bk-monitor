@@ -26,8 +26,11 @@
       width: fit-content;
       max-width: 120px;
       overflow: hidden;
-      line-height: 30px;
       text-overflow: ellipsis;
+      font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+      font-weight: 600;
+      line-height: 30px;
+      color: #313238;
       white-space: nowrap;
     }
 
@@ -152,8 +155,8 @@
       }
 
       .expand-btn {
-        transition: all 0.3s;
         transform: rotate(180deg);
+        transition: all 0.3s;
       }
     }
   }
@@ -189,10 +192,10 @@
       height: 32px;
       padding: 0 8px;
       overflow: hidden;
+      text-overflow: ellipsis;
       font-size: 12px;
       line-height: 32px;
       color: #4d4f56;
-      text-overflow: ellipsis;
       white-space: nowrap;
       cursor: pointer;
 

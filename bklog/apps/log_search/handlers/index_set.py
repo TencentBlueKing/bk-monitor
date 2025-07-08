@@ -80,6 +80,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
     BaseSearchIndexSetException,
+    DataIDNotExistException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -1378,6 +1379,24 @@ class IndexSetHandler(APIModel):
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
         return {"index_set_id": self.index_set_id}
+
+    @classmethod
+    def query_by_bk_data_id(cls, bk_data_id):
+        collector_config = CollectorConfig.objects.filter(bk_data_id=bk_data_id).first()
+        if not collector_config:
+            raise DataIDNotExistException(DataIDNotExistException.MESSAGE.format(bk_data_id=bk_data_id))
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=collector_config.index_set_id).first()
+        if not index_set_obj:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
+        return {
+            "index_set_id": index_set_obj.index_set_id,
+            "index_set_name": index_set_obj.index_set_name,
+            "space_uid": index_set_obj.space_uid,
+            "collector_config_id": collector_config.collector_config_id,
+            "collector_config_name": collector_config.collector_config_name,
+        }
 
 
 class BaseIndexSetHandler:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,18 +7,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 import pytest
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
+from metadata import config
 from metadata.task.config_refresh import clean_datasource_from_consul
 from metadata.tests.conftest import HashConsulMocker
-from metadata import config
 
 from .conftest import DEFAULT_BK_DATA_ID, DEFAULT_TRANSFER_CLUSTER_ID
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def test_clean_datasource(create_and_delete_record, mocker):
@@ -33,14 +33,15 @@ def test_clean_datasource(create_and_delete_record, mocker):
 
     mocker.patch("metadata.utils.consul_tools.HashConsul", return_value=mock_hash_consul)
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=mock_redis_client())
-    
+
     clean_datasource_from_consul()
 
     # 判断数据是否存在
     assert mock_hash_consul.get(deleted_path)[1] is None
-    assert json.loads(
-        mock_hash_consul.get(f"{key_tmpl}{DEFAULT_BK_DATA_ID}")[1]["Value"]
-    )["bk_data_id"] == DEFAULT_BK_DATA_ID
+    assert (
+        json.loads(mock_hash_consul.get(f"{key_tmpl}{DEFAULT_BK_DATA_ID}")[1]["Value"])["bk_data_id"]
+        == DEFAULT_BK_DATA_ID
+    )
 
 
 def test_clean_transfer_cluster(create_and_delete_record, mocker):
@@ -60,7 +61,7 @@ def test_clean_transfer_cluster(create_and_delete_record, mocker):
     # 判断数据是否存在
     assert mock_hash_consul.list(f"{config.CONSUL_PATH}/v1/not-used-transfer")[1] is None
     assert mock_hash_consul.get(deleted_path)[1] is None
-    assert json.loads(
-        mock_hash_consul.get(f"{key_tmpl}{DEFAULT_BK_DATA_ID}")[1]["Value"]
-    )["bk_data_id"] == DEFAULT_BK_DATA_ID
-
+    assert (
+        json.loads(mock_hash_consul.get(f"{key_tmpl}{DEFAULT_BK_DATA_ID}")[1]["Value"])["bk_data_id"]
+        == DEFAULT_BK_DATA_ID
+    )

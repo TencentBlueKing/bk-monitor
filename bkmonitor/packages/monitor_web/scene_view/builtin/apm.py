@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import caches
@@ -29,6 +29,7 @@ from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -40,16 +41,24 @@ from monitor_web.scene_view.builtin.utils import gen_string_md5
 logger = logging.getLogger(__name__)
 
 
-def discover_config_from_node_or_none(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    predicate_systems: List[str] = [
-        meta["name"] for meta in node.get("system") or [] if meta.get("name") == metric_group.GroupEnum.TRPC
-    ]
-    if not predicate_systems:
-        logger.info("[apm][discover_config_from_node_or_none] system not fount: node -> %s", node)
+def discover_config_from_node_or_none(node: dict[str, Any]) -> dict[str, Any] | None:
+    is_trpc: bool = False
+    rpc_system: str = metric_group.GroupEnum.TRPC
+    for meta in node.get("system") or []:
+        if meta.get("name") == metric_group.GroupEnum.TRPC:
+            is_trpc = True
+        extra_data: dict[str, Any] = meta.get("extra_data") or {}
+        if extra_data.get("rpc_system"):
+            rpc_system = extra_data["rpc_system"]
+            break
+
+    if not is_trpc:
+        logger.info("[apm][discover_config_from_node_or_none] system not found: node -> %s", node)
         return None
 
+    # G 和 Tars 框架的指标类型为 Gauge。
     temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-        Vendor.has_sdk(node.get("sdk"), Vendor.G)
+        Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
     ]
     logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
     return MetricTemporality.get_metric_config(temporality)
@@ -57,12 +66,13 @@ def discover_config_from_node_or_none(node: Dict[str, Any]) -> Optional[Dict[str
 
 def discover_config_from_metric_or_none(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
-) -> Optional[Dict[str, Any]]:
-    metric_fields: List[str] = [
+) -> dict[str, Any] | None:
+    metric_fields: list[str] = [
         metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
         metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
     ]
     metric_exists: bool = MetricListCache.objects.filter(
+        bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
         result_table_id=table_id,
         data_source_label=DataSourceLabel.CUSTOM,
         data_type_label=DataTypeLabel.TIME_SERIES,
@@ -78,7 +88,7 @@ def discover_config_from_metric_or_none(
     def _get_server_config():
         discover_result["server_config"] = group.get_server_config(server=service_name)
 
-    discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
+    discover_result: dict[str, dict[str, Any] | list[str]] = {}
     group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
         metric_group.GroupEnum.TRPC, bk_biz_id, app_name
     )
@@ -101,7 +111,7 @@ def discover_config_from_metric_or_none(
 @using_cache(CacheType.APM(60 * 2))
 def discover_caller_callee(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
-) -> Dict[str, Union[Dict[str, Any], List[str]]]:
+) -> dict[str, dict[str, Any] | list[str]]:
     """RPC 服务发现
     页面请求顺序：get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
     :param bk_biz_id: 业务 ID
@@ -110,8 +120,8 @@ def discover_caller_callee(
     :param service_name: 服务名称
     :return:
     """
-    discover_result: Dict[str, Union[Dict[str, Any], bool]] = {"exists": False}
-    node: Optional[Dict[str, Any]] = None
+    discover_result: dict[str, dict[str, Any] | bool] = {"exists": False}
+    node: dict[str, Any] | None = None
     try:
         # Q：为什么不直接传具体的 service_name?
         # A：方便串行复用 LRU Cache。
@@ -127,7 +137,7 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: Optional[Dict[str, Any]] = discover_config_from_node_or_none(
+    server_config: dict[str, Any] | None = discover_config_from_node_or_none(
         node
     ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
@@ -157,7 +167,7 @@ def discover_caller_callee(
 
 class ApmBuiltinProcessor(BuiltinProcessor):
     SCENE_ID = "apm"
-    builtin_views: Dict = None
+    builtin_views: dict = None
     _lock: threading.Lock = threading.Lock()
 
     filenames = [
@@ -209,7 +219,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     # 只需要列表信息时，需要进一步进行渲染的 Tab
     # 列表只关注需要展示哪些 Tab，可以跳过具体的 view_config 生成逻辑，以加快页面渲染
-    NEED_RENDER_IF_ONLY_SIMPLE_INFO: List[str] = [
+    NEED_RENDER_IF_ONLY_SIMPLE_INFO: list[str] = [
         # 调用分析页面需要另外判断是否展示，不直接跳过
         "apm_service-service-default-caller_callee",
     ]
@@ -226,7 +236,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if cls.builtin_views:
                 return
 
-            builtin_views: Dict[str, Dict[str, Any]] = {
+            builtin_views: dict[str, dict[str, Any]] = {
                 filename: cls._read_builtin_view_config(filename) for filename in cls.filenames
             }
             # 一次性赋值以确保原子性。
@@ -239,8 +249,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def create_or_update_view(
-        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: Dict
-    ) -> Optional[SceneViewModel]:
+        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: dict
+    ) -> SceneViewModel | None:
         view = SceneViewModel.objects.get(bk_biz_id=bk_biz_id, scene_id=scene_id, type=view_type, id=view_id)
         if "order" in view_config:
             view.order = view_config["order"]
@@ -248,7 +258,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view
 
     @classmethod
-    def get_view_config(cls, view: SceneViewModel, params: Dict = None, *args, **kwargs) -> Dict:
+    def get_view_config(cls, view: SceneViewModel, params: dict = None, *args, **kwargs) -> dict:
         """APM下不需要区分视图的type类型(overview/detail)"""
         # 根据params类型判断是什么类型 找不到则使用default
         cls.load_builtin_views()
@@ -363,7 +373,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
-            discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
+            discover_result: dict[str, dict[str, Any] | list[str]] = discover_caller_callee(
                 bk_biz_id, app_name, table_id, params["service_name"]
             )
             # 探测服务，存在再展示页面
@@ -372,7 +382,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
                 return view_config
 
-            server_config: Dict[str, Any] = discover_result["server_config"]
+            server_config: dict[str, Any] = discover_result["server_config"]
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
@@ -386,10 +396,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             ret_code_as_exception: bool = server_config.get("ret_code_as_exception", False)
             if ret_code_as_exception:
-                success_rate_panel_data: Dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
+                success_rate_panel_data: dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
                     "targets"
                 ][0]["data"]
-                code_condition: Dict[str, Any] = {
+                code_condition: dict[str, Any] = {
                     "key": "code",
                     "method": "eq",
                     "value": ["0", "ret_0"],
@@ -432,6 +442,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             metric_panel_template = group_panel_template["panels"].pop(0)
 
             metric_queryset = MetricListCache.objects.filter(
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
                 result_table_id=result_table_id,
                 data_source_label=DataSourceLabel.CUSTOM,
                 data_type_label=DataTypeLabel.TIME_SERIES,
@@ -446,8 +457,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             view_variables = {}
             if not view_switches.get("only_dimension", False):
-                server_config: Dict[str, Any] = MetricTemporality.get_metric_config(MetricTemporality.DELTA)
-                discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
+                server_config: dict[str, Any] = MetricTemporality.get_metric_config(MetricTemporality.DELTA)
+                discover_result: dict[str, dict[str, Any] | list[str]] = discover_caller_callee(
                     bk_biz_id, app_name, result_table_id, params["service_name"]
                 )
                 if discover_result["exists"]:
@@ -605,7 +616,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     def _multi_replace_variables(cls, replace_config, variables_mapping):
         replace_content = json.dumps(replace_config)
         for var_name, var_value in variables_mapping.items():
-            replace_content = replace_content.replace("${{{}}}".format(var_name), str(var_value))
+            replace_content = replace_content.replace(f"${{{var_name}}}", str(var_value))
         return json.loads(replace_content)
 
     @classmethod
@@ -615,7 +626,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return json.loads(content.replace(target, str(value)))
 
     @classmethod
-    def _add_functions(cls, view_config: Dict[str, Any], functions: List[Dict[str, Any]]):
+    def _add_functions(cls, view_config: dict[str, Any], functions: list[dict[str, Any]]):
         for panel in (
             (view_config.get("overview_panels") or [])
             + (view_config.get("extra_panels") or [])
@@ -719,7 +730,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         cls.load_builtin_views()
 
         builtin_view_ids = {v.split("-", 1)[-1] for v in cls.builtin_views if v.startswith(f"{scene_id}-")}
-        existed_view_ids: Set[str] = {v.id for v in existed_views}
+        existed_view_ids: set[str] = {v.id for v in existed_views}
         create_view_ids = builtin_view_ids - existed_view_ids
         new_views = []
         for view_id in create_view_ids:
@@ -929,7 +940,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return True
 
     @classmethod
-    def list_view_list(cls, scene_id, views: List[SceneViewModel], params):
+    def list_view_list(cls, scene_id, views: list[SceneViewModel], params):
         """
         对于APM服务 需要根据不同类型返回不同的图表配置
         """

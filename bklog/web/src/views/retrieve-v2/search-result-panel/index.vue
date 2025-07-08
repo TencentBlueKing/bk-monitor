@@ -2,25 +2,32 @@
   import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import { throttle } from 'lodash';
+  import { getCommonFilterAdditionWithValues } from '@/store/helper'
 
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
-  import { throttle } from 'lodash';
-
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
-  import FieldFilter from './field-filter';
-  import LogClustering from './log-clustering/index';
+  // #else
+  // #code const SearchResultChart = () => null;
   // #endif
 
+  // #if MONITOR_APP !== 'trace'
+  import FieldFilter from './field-filter';
   // #else
-  // #code const SearchResultChart = defineComponent(() => h('div'));
-  // #code const FieldFilter = defineComponent(() => h('div'));
-  // #code const LogClustering = defineComponent(() => h('div'));
+  // #code const FieldFilter = () => null;
   // #endif
+
+  // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
+  import LogClustering from './log-clustering/index';
+  // #else
+  // #code const LogClustering = () => null;
+  // #endif
+
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import LogResult from './log-result/index';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -46,7 +53,19 @@
   const heightNum = ref();
 
   const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
-  const isShowFieldStatistics = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show);
+  const isShowFieldStatistics = computed(() => {
+    if(window.__IS_MONITOR_TRACE__) {
+      return false;
+    }
+    return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show
+  });
+
+  const retrieveParamsWithCommonAddition = computed(() => {
+    return {
+      ...retrieveParams.value,
+      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)]
+    }
+  })
 
   RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
@@ -117,7 +136,6 @@
     <template v-else>
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
-          :value="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
@@ -131,8 +149,9 @@
             onWidthChange: handleFilterWidthChange,
           }"
           v-show="isOriginShow"
-          :width="fieldFilterWidth"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
+          :value="isShowFieldStatistics"
+          :width="fieldFilterWidth"
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
@@ -141,8 +160,8 @@
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
-          :class="RetrieveHelper.randomTrendGraphClassName"
           v-show="isOriginShow"
+          :class="RetrieveHelper.randomTrendGraphClassName"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"
           @toggle-change="handleToggleChange"
@@ -156,14 +175,14 @@
           <LogResult
             v-if="isOriginShow"
             :queue-status="queueStatus"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             :total-count="totalCount"
           />
           <LogClustering
             v-if="activeTab === 'clustering'"
             :active-tab="activeTab"
             :height="heightNum"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             @show-change="handleUpdateActiveTab"
           />
         </keep-alive>

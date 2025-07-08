@@ -40,7 +40,6 @@ for (const [name, val] of Object.entries(traceData)) {
   const item = list.find(set => set.name === name && set.value === value);
   if (!item) {
     let path = name;
-    console.info(name);
     if (path.includes('@')) {
       path = name.replace(/^@[^/]*\//gim, '');
     }

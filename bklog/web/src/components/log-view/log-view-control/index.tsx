@@ -27,7 +27,6 @@
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-const { $i18n } = window.mainComponent;
 import './index.scss';
 
 interface IProps {
@@ -54,7 +53,7 @@ export default class LogViewControl extends tsc<IProps> {
           light: '#E1ECFF',
         },
       ],
-      name: $i18n.t('默认定位'),
+      name: window.mainComponent.$t('默认定位'),
     },
     {
       color: [
@@ -63,7 +62,7 @@ export default class LogViewControl extends tsc<IProps> {
           light: '#FFE8C3',
         },
       ],
-      name: $i18n.t('上下文命中'),
+      name: window.mainComponent.$t('上下文命中'),
     },
     {
       color: [
@@ -72,11 +71,11 @@ export default class LogViewControl extends tsc<IProps> {
           light: '#2DCB56',
         },
       ],
-      name: $i18n.t('新增'),
+      name: window.mainComponent.$t('新增'),
     },
     {
       color: [],
-      name: $i18n.t('高亮'),
+      name: window.mainComponent.$t('高亮'),
     },
   ];
 

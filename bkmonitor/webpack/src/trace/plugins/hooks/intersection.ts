@@ -29,7 +29,7 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
   let intersectionObserver: IntersectionObserver | null = null;
   // 是否在视窗内
   function isInViewPort() {
-    const { top, bottom } = el.value.getBoundingClientRect();
+    const { top, bottom } = el.value?.getBoundingClientRect() || { top: 0, bottom: 0 };
     return (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
   }
   // 注册Intersection监听
@@ -38,11 +38,11 @@ export function useChartIntersection(el: Ref<HTMLDivElement>, getPanelData: (...
       unregisterObserver();
     }
     intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+      for (const entry of entries) {
         if (intersectionObserver && entry.intersectionRatio > 0) {
           getPanelData(...params);
         }
-      });
+      }
     });
     intersectionObserver.observe(el.value);
   }

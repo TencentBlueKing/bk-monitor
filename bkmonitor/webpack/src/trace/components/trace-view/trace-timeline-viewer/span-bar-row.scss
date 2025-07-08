@@ -158,6 +158,15 @@
       background: transparent;
     }
 
+    &.show-kind-icon {
+      padding-left: 8px;
+
+      .kind-icon {
+        margin-right: 5px;
+        font-size: 14px;
+      }
+    }
+
     &:focus {
       text-decoration: none;
     }
@@ -410,8 +419,8 @@
   background: #000000cc;
 
   .span-row-content-popover {
-    max-width: 500px;
     min-width: 102px;
+    max-width: 500px;
     padding: 12px;
     font-size: 12px;
 
@@ -420,19 +429,20 @@
       font-weight: 700;
       line-height: 16px;
       color: #ffffff;
+
       .icon-mc-copy {
-        cursor: pointer;
-        color: #699df4;
         margin-left: 4px;
+        color: #699df4;
+        cursor: pointer;
       }
     }
 
     &-main {
+      line-height: 20px;
+      color: #f0f1f5;
       word-break: break-all;
       word-wrap: break-word;
       white-space: normal;
-      color: #f0f1f5;
-      line-height: 20px;
     }
   }
 }

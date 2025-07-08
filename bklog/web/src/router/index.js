@@ -282,16 +282,28 @@ const MaskingList = () =>
 const MonitorApmLog = () =>
   import(
     /* webpackChunkName: 'monitor-apm-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
 // #if MONITOR_APP === 'trace'
 const MonitorTraceLog = () =>
   import(
     /* webpackChunkName: 'monitor-trace-log' */
-    '@/views/retrieve-v2/monitor/monitor.vue'
+    '@/views/retrieve-v3/monitor/monitor.tsx'
   );
 // #endif
+
+const ShareLink = () =>
+  import(
+    /* webpackChunkName: 'share-link' */
+    '@/views/share/index.tsx'
+  );
+
+const DataIdUrl = () =>
+  import(
+    /* webpackChunkName: 'data-id-url' */
+    '@/views/data-id-url/index.tsx'
+  );
 
 const getRoutes = (spaceId, bkBizId, externalMenu) => {
   const getDefRouteName = () => {
@@ -1085,6 +1097,24 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
       name: 'playground',
       component: playground,
     },
+    {
+      path: '/share/:linkId?',
+      name: 'share',
+      component: ShareLink,
+      meta: {
+        title: '分享链接',
+        navId: 'share',
+      },
+    },
+    {
+      path: '/data_id/:id?',
+      name: 'data_id',
+      component: DataIdUrl,
+      meta: {
+        title: '根据 bk_data_id 获取采集项和索引集信息',
+        navId: 'data_id',
+      },
+    },
     // #if MONITOR_APP === 'apm'
     {
       path: '/monitor-apm-log/:indexId?',
@@ -1178,13 +1208,20 @@ export default (spaceId, bkBizId, externalMenu) => {
     }
   });
 
+  let stringifyExternalMenu = '[]';
+  try {
+    stringifyExternalMenu = JSON.stringify(externalMenu);
+  } catch (e) {
+    console.warn('externalMenu JSON.stringify error', e);
+  }
+
   router.afterEach(to => {
     if (to.name === 'exception') return;
     reportLogStore.reportRouteLog({
       route_id: to.name,
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
-      external_menu: externalMenu,
+      external_menu: stringifyExternalMenu,
     });
   });
 

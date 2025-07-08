@@ -90,6 +90,7 @@ interface ITraceFavoriteConfig {
     start_time: string;
     end_time: string;
     mode: string;
+    sort?: string[];
   };
 }
 

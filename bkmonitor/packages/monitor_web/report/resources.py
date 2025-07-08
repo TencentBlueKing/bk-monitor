@@ -404,6 +404,8 @@ class ReportCreateOrUpdateResource(Resource):
                             content_details=content["content_details"],
                             row_pictures_num=content["row_pictures_num"],
                             graphs=content["graphs"],
+                            width=content["width"],
+                            height=content["height"],
                             bk_tenant_id=bk_tenant_id,
                         )
                     )

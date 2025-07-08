@@ -327,14 +327,6 @@ class DataAPI:
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
-        # 请求前的参数清洗处理
-        if self.before_request is not None:
-            params = self.before_request(params)
-
-        # 是否有默认返回，调试阶段可用
-        if self.default_return_value is not None:
-            return DataResponse(self.default_return_value, request_id)
-
         # 缓存
         with ignored(Exception):
             cache_key = self._build_cache_key(params)
@@ -343,6 +335,14 @@ class DataAPI:
                 if result is not None:
                     # 有缓存时返回
                     return DataResponse(result, request_id)
+
+        # 请求前的参数清洗处理
+        if self.before_request is not None:
+            params = self.before_request(params)
+
+        # 是否有默认返回，调试阶段可用
+        if self.default_return_value is not None:
+            return DataResponse(self.default_return_value, request_id)
 
         response = None
         error_message = ""
@@ -485,6 +485,10 @@ class DataAPI:
         :return:
         """
         cache.set(cache_key, data, self.cache_time)
+
+    @staticmethod
+    def _delete_cache(cache_key):
+        return cache.delete(cache_key)
 
     def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
         """

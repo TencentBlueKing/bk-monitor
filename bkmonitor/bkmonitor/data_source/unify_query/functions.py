@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -18,7 +18,7 @@ from core.errors.bkmonitor.data_source import (
     FunctionNotSupportedError,
 )
 
-_ParamsValue = Union[int, str, float]
+_ParamsValue = int | str | float
 
 
 @dataclass
@@ -27,7 +27,7 @@ class AggMethod:
     method: str
     name: str
     description: str
-    vargs_list: List[any] = None
+    vargs_list: list[Any] | None = None
     position: int = 0
 
 
@@ -41,8 +41,8 @@ class Params:
     name: str
     description: str
     type: str
-    default: Optional[_ParamsValue]
-    shortlist: List[_ParamsValue]
+    default: _ParamsValue | None
+    shortlist: list[_ParamsValue]
     required: bool = True
 
 
@@ -55,7 +55,7 @@ class Function:
     id: str
     name: str
     description: str
-    params: List[Params]
+    params: list[Params]
     position: int = 0
     time_aggregation: bool = False
     with_dimensions: bool = False
@@ -75,7 +75,7 @@ class FunctionCategory:
     description: str
 
 
-CpAggMethods: Dict[str, AggMethod] = dict(
+CpAggMethods: dict[str, AggMethod] = dict(
     cp50=AggMethod(
         id="cp50",
         method="quantile",
@@ -172,7 +172,9 @@ Functions = dict(
     irate=Function(
         id="irate",
         name="irate",
-        description=_lazy("每秒平均增长率(按周期内最后两个点计算，仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"),
+        description=_lazy(
+            "每秒平均增长率(按周期内最后两个点计算，仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"
+        ),
         time_aggregation=True,
         params=[
             Params(
@@ -298,7 +300,9 @@ Functions = dict(
         support_expression=True,
         position=1,
         category="sort",
-        params=[Params(id="k", name="k", default=5, description=_lazy("最大的k个维度"), shortlist=[1, 3, 5, 10], type="int")],
+        params=[
+            Params(id="k", name="k", default=5, description=_lazy("最大的k个维度"), shortlist=[1, 3, 5, 10], type="int")
+        ],
     ),
     bottomk=Function(
         id="bottomk",
@@ -307,7 +311,9 @@ Functions = dict(
         support_expression=True,
         position=1,
         category="sort",
-        params=[Params(id="k", name="k", default=5, description=_lazy("最小的k个维度"), shortlist=[1, 3, 5, 10], type="int")],
+        params=[
+            Params(id="k", name="k", default=5, description=_lazy("最小的k个维度"), shortlist=[1, 3, 5, 10], type="int")
+        ],
     ),
     # 普通函数
     abs=Function(
@@ -317,10 +323,20 @@ Functions = dict(
         id="ceil", name="ceil", description=_lazy("向上取整"), support_expression=True, params=[], category="arithmetic"
     ),
     floor=Function(
-        id="floor", name="floor", description=_lazy("向下取整"), support_expression=True, params=[], category="arithmetic"
+        id="floor",
+        name="floor",
+        description=_lazy("向下取整"),
+        support_expression=True,
+        params=[],
+        category="arithmetic",
     ),
     round=Function(
-        id="round", name="round", description=_lazy("四舍五入"), support_expression=True, params=[], category="arithmetic"
+        id="round",
+        name="round",
+        description=_lazy("四舍五入"),
+        support_expression=True,
+        params=[],
+        category="arithmetic",
     ),
     ln=Function(
         id="ln",
@@ -474,11 +490,14 @@ def add_expression_functions(expression, functions):
     for func in functions:
         func_name = func["id"]
         func_params = func["params"]
-        if func_name not in Functions and func_name not in GrafanaFunctions:
-            raise FunctionNotFoundError(func_name=func_name)
+
         function = Functions.get(func_name, GrafanaFunctions.get(func_name))
+        if function is None:
+            raise FunctionNotFoundError(func_name=func_name)
+
         if not function.support_expression:
             raise FunctionNotSupportedError(func_name=func_name)
+
         if func_params:
             func_params = ",".join([str(params["value"]) for params in func_params])
             if function.position == 0:

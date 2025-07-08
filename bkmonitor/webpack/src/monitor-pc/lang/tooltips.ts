@@ -327,4 +327,5 @@ export default {
   '新版事件检索尚未完全覆盖旧版功能，如需可切换到旧版查看':
     'New version event search has not fully covered the old version features yet. If needed, you can switch to the old version to view them',
   布尔: 'Boolean',
+  请先勾选告警组: 'Please check the alarm group first',
 };

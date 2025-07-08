@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import List, Optional
 
 from django.utils.translation import gettext as _
 
@@ -58,7 +56,7 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
     def check_before_set_cache(self) -> bool:
         return True
 
-    def get_notice_group(self, config_type: Optional[str] = None) -> List:
+    def get_notice_group(self, config_type: str | None = None) -> list:
         """获得告警通知组 ."""
         notice_group_ids = self.notice_group_cache.get(config_type)
         if not notice_group_ids:
@@ -67,12 +65,13 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
             self.notice_group_cache[config_type] = notice_group_ids
         return notice_group_ids
 
-    def load_strategies(self, strategies: List) -> List:
+    def load_strategies(self, strategies: list) -> list:
         """加载默认告警策略 ."""
         # 查询监控内置的主机指标
         metrics = []
         metrics.extend(
             MetricListCache.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
                 result_table_label__in=["os", "host_process"],
                 data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
                 related_id="system",
@@ -80,6 +79,7 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
         )
         metrics.extend(
             MetricListCache.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
                 result_table_label__in=["os", "host_process"],
                 data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
                 data_type_label=DataTypeLabel.EVENT,

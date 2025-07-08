@@ -37,6 +37,8 @@ export default {
   '基于维度{0},当前策略异常告警达到比例{1}%才进行发送通知。':
     'Based on dimension {0}, notifications are sent only when the proportion of abnormal alarms in the current rule reaches {1}%. ',
   '当{0}分钟内执行{1}次时，防御动作{2}': 'When executed {1} times within {0} minutes, defense action {2}',
+  '当首次异常时间超过{0}分钟时不执行该套餐': 'Do not execute this plan if the first abnormal time exceeds {0} minute',
+  只能填写大于0的值: 'Only values greater than 0 can be filled in',
   '较前{0}个时间点的{1}{2}时触发告警': 'The alarm is triggered at {1}{2} earlier than {0} time points',
   '较前{0}天同一时刻绝对值的{1}{2}时触发告警':
     'The alarm is triggered when the absolute value is {1}{2} higher than the same time on the previous {0} day.',

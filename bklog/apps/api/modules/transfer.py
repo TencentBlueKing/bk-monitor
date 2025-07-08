@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
+from apps.api.constants import CACHE_TIME_ONE_DAY
 
 
 def get_cluster_info_after(response_result):
@@ -115,6 +116,18 @@ def modify_result_table_before(params):
     return params
 
 
+def modify_result_table_after(params):
+    """
+    modify_result_table_after
+    @param params:
+    @return:
+    """
+    # 清除获取结果表的缓存
+    cache_key = Transfer.get_result_table._build_cache_key({"table_id": params["data"]["table_id"]})
+    Transfer.get_result_table._delete_cache(cache_key)
+    return params
+
+
 class _TransferApi:
     MODULE = _("Metadata元数据")
 
@@ -133,14 +146,7 @@ class _TransferApi:
             description=_("修改数据源"),
             before_request=add_esb_info_before_request,
         )
-        self.modify_datasource_result_table = DataAPI(
-            method="POST",
-            url=self._build_url("modify_datasource_result_table/", "metadata_modify_datasource_result_table/"),
-            module=self.MODULE,
-            description=_("修改数据源与结果表的关系"),
-            before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(),
-        )
+
         self.create_result_table = DataAPI(
             method="POST",
             url=self._build_url("create_result_table/", "metadata_create_result_table/"),
@@ -162,6 +168,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改结果表"),
             before_request=modify_result_table_before,
+            after_request=modify_result_table_after,
             bk_tenant_id=biz_to_tenant_getter(),
         )
         self.switch_result_table = DataAPI(
@@ -170,6 +177,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("结果表起停"),
             before_request=add_esb_info_before_request,
+            after_request=modify_result_table_after,
             bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_label = DataAPI(
@@ -192,6 +200,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
+            cache_time=CACHE_TIME_ONE_DAY,
         )
         self.get_result_table_storage = DataAPI(
             method="GET",

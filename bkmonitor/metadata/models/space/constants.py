@@ -77,13 +77,6 @@ SPACE_TO_RESULT_TABLE_KEY = os.environ.get(
 SPACE_TO_RESULT_TABLE_CHANNEL = os.environ.get(
     "SPACE_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:space_to_result_table:channel"
 )
-# 指标关联的结果表
-FIELD_TO_RESULT_TABLE_KEY = os.environ.get(
-    "FIELD_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table"
-)
-FIELD_TO_RESULT_TABLE_CHANNEL = os.environ.get(
-    "FIELD_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table:channel"
-)
 # 数据标签关联的结果表
 DATA_LABEL_TO_RESULT_TABLE_KEY = os.environ.get(
     "DATA_LABEL_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:data_label_to_result_table"

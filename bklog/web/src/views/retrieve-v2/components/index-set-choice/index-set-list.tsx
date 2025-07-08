@@ -69,6 +69,8 @@ export default defineComponent({
       name: '',
     });
 
+    const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
+
     const listNodeOpenManager = ref({});
     const disableList = ref([]);
 
@@ -256,7 +258,7 @@ export default defineComponent({
                 disableList.value.push(id);
               } else {
                 // 如果是非选中，从 disableList 中移除
-                const index = disableList.value.findIndex(v => (v = id));
+                const index = disableList.value.findIndex(v => (v === id));
                 if (index >= 0) {
                   disableList.value.splice(index, 1);
                 }
@@ -518,7 +520,8 @@ export default defineComponent({
                   {$t('清空选择')}
                 </span>
               </div>
-              <BklogPopover
+              { 
+                !isMonitorComponent && <BklogPopover
                 trigger='click'
                 ref={refFavoriteGroup}
                 {...{
@@ -566,6 +569,7 @@ export default defineComponent({
                 ></span>
                 <span style='font-size: 12px;color: #3A84FF;'>{$t('收藏该组合')}</span>
               </BklogPopover>
+            }
             </div>
             <div class='row-item-list'>
               {valueList.value.map((item: any) => (
@@ -621,7 +625,7 @@ export default defineComponent({
           <div class='bklog-v3-search-input'>
             <bk-input
               clearable
-              placeholder='请输入 索引集、采集项 搜索'
+              placeholder={$t('请输入 索引集、采集项 搜索')}
               right-icon="'bk-icon icon-search'"
               style='width: 650px; margin-right: 12px;'
               value={searchText.value}
@@ -634,7 +638,7 @@ export default defineComponent({
               on-change={handleHiddenEmptyItemChange}
             >
               <span class='hidden-empty-icon'></span>
-              <span>隐藏无数据</span>
+              <span>{$t('隐藏无数据')}</span>
             </bk-checkbox>
           </div>
           <div class={['bklog-v3-tag-list', { 'is-empty': indexSetTagList.value.length === 0 }]}>

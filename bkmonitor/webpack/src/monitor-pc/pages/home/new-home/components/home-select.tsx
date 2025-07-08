@@ -134,12 +134,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.updateWidth();
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('blur', this.handleHiddenPopover);
     window.addEventListener('resize', this.updateWidth);
     bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
+    window.removeEventListener('blur', this.handleHiddenPopover);
     bus.$off('handle-keyup-nav', this.handleKeyupNav);
   }
   /** 按下'/'，搜索框自动聚焦 */
@@ -777,7 +779,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       });
       return;
     }
-    console.info(item, this.searchList[parentIndex], this.highlightedIndex, '+++++++');
     reportLogStore.reportHomeSearchLog({
       type,
       name: groupName,

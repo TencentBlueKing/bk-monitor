@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /*
@@ -43,6 +42,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
+import DOMPurify from 'dompurify';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -53,7 +53,6 @@ import {
   IndexSetQueryResult,
   IndexFieldInfo,
   IndexItem,
-  logSourceField,
   indexSetClusteringData,
   getDefaultRetrieveParams,
   getStorageOptions,
@@ -64,7 +63,7 @@ import globals from './globals';
 import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
-import { BK_LOG_STORAGE } from './store.type.ts';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
@@ -242,10 +241,11 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
-        search_mode,
         sort_list,
         format,
       } = state.indexItem;
+
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -352,7 +352,7 @@ const store = new Vuex.Store({
             state.indexItem[key].splice(
               0,
               state.indexItem[key].length,
-              ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+              ...(payload?.[key] ?? []).filter(v => v !== '' && v !== null && v !== undefined),
             );
           } else {
             if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
@@ -436,7 +436,21 @@ const store = new Vuex.Store({
     },
 
     updateIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, payload ?? {});
+      Object.keys(payload ?? {}).forEach(key => {
+        if (Array.isArray(payload[key]) && Array.isArray(state.indexSetQueryResult[key])) {
+          if (Object.isFrozen(state.indexSetQueryResult[key])) {
+            state.indexSetQueryResult[key] = undefined;
+            set(state.indexSetQueryResult, key, []);
+          } else {
+            state.indexSetQueryResult[key].length = 0;
+            state.indexSetQueryResult[key] = [];
+          }
+
+          state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
+        } else {
+          set(state.indexSetQueryResult, key, payload[key]);
+        }
+      });
     },
 
     updateIndexItemParams(state, payload) {
@@ -843,7 +857,7 @@ const store = new Vuex.Store({
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
 
-      if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
+      // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
       const {
@@ -1084,7 +1098,6 @@ const store = new Vuex.Store({
     requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
@@ -1256,7 +1269,6 @@ const store = new Vuex.Store({
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
         sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
       };
-
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
@@ -1525,7 +1537,7 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode = state.indexItem.search_mode;
+      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
@@ -1567,6 +1579,10 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
+        if (isVirtualObjNode && textType === 'object') {
+          mappingKey = textMappingKey;
+        }
+
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1586,7 +1602,7 @@ const store = new Vuex.Store({
 
       const formatJsonString = formatResult => {
         if (typeof formatResult === 'string') {
-          return formatResult.replace(/"/g, '\\"');
+          return DOMPurify.sanitize(formatResult);
         }
 
         return formatResult;
@@ -1643,10 +1659,10 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
             } else {
-              const mapOperator = getAdditionMappingOperator({ field, operator, value });
               newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
             }
           }
@@ -1692,29 +1708,10 @@ const store = new Vuex.Store({
       return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
     },
 
-    changeShowUnionSource({ commit, dispatch, state }) {
+    changeShowUnionSource({ commit, state }) {
       commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
-      dispatch('showShowUnionSource', { keepLastTime: false });
     },
 
-    /** 日志来源显隐操作 */
-    showShowUnionSource({ state }, { keepLastTime = false }) {
-      // 非联合查询 或者清空了所有字段 不走逻辑
-      if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
-      const isExist = state.visibleFields.some(item => item.tag === 'union-source');
-      // 保持之前的逻辑
-      if (keepLastTime) {
-        const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
-        if (isExist) {
-          !isShowSourceField && state.visibleFields.shift();
-        } else {
-          isShowSourceField && state.visibleFields.unshift(logSourceField());
-        }
-        return;
-      }
-
-      isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
-    },
     requestSearchTotal({ state, getters }) {
       state.searchTotal = 0;
       const start_time = Math.floor(getters.retrieveParams.start_time);

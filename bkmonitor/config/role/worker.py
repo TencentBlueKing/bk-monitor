@@ -57,6 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
+    "ai_agents",
 )
 
 # 系统名称
@@ -165,6 +166,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.k8s_bk_collector_discover_cron", "*/15 * * * *", "global"),
     # apm 定时检查预计算任务是否正常执行 每15分钟触发
     ("apm.task.tasks.bmw_task_cron", "*/15 * * * *", "global"),
+    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每6分钟执行一次
+    ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -179,7 +182,6 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
         # bcs资源数据状态同步
-        # TODO: 调整好后再开启
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_workload_resource", "*/15 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_service_resource", "*/15 * * * *", "global"),
@@ -240,8 +242,8 @@ DEFAULT_CRONTAB += [
     # 上报自采集指标--每分钟一次
     ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
     # bcs信息刷新
-    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
+    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # BkBase信息同步,一小时一次
     ("metadata.task.bkbase.sync_bkbase_cluster_info", "0 */1 * * *", "global"),
@@ -277,8 +279,6 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
     # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
     ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
-    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每天3点半执行一次
-    ("metadata.task.sync_space.refresh_bkcc_space_name", "30 3 * * *", "global"),
     # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
     # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
     # 删除数据库中已经不存在的数据源

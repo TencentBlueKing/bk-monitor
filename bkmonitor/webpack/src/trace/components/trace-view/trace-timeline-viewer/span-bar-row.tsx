@@ -288,6 +288,14 @@ export default defineComponent({
       longLabel = `${label ? `${label} | ` : ''}${labelDetail}`;
       hintSide = 'left';
     }
+    const kindIcons = {
+      1: 'icon-nei',
+      2: 'icon-bei',
+      3: 'icon-zhu',
+      4: 'icon-zhu',
+      5: 'icon-bei',
+    };
+    const isShowKindIcon = !isVirtual && source !== 'ebpf' && !!kindIcons?.[kind];
 
     return (
       <TimelineRow
@@ -363,11 +371,17 @@ export default defineComponent({
                 />
                 <a
                   style={{ borderColor: color }}
-                  class={`span-name ${isDetailExpanded ? 'is-detail-expanded' : ''}`}
+                  class={`span-name ${isDetailExpanded ? 'is-detail-expanded' : ''} ${isShowKindIcon ? 'show-kind-icon' : ''}`}
                   aria-checked={isDetailExpanded}
                   role='switch'
                   tabindex={0}
                 >
+                  {isShowKindIcon && (
+                    <span
+                      style={{ color: color }}
+                      class={`${kindIcons[kind]} icon-monitor kind-icon`}
+                    />
+                  )}
                   {showErrorIcon && (
                     <Popover
                       key={label}

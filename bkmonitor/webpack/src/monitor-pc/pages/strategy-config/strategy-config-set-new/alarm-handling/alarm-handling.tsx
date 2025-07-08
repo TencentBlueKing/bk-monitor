@@ -71,6 +71,7 @@ export interface IValue {
       count: number; // 执行次数，默认设置为 1
       is_enabled?: boolean; // 是否启用
     };
+    skip_delay: number; // 数据延迟秒数
   };
   signal?: string[];
 }
@@ -80,6 +81,7 @@ export interface IAllDefense {
   name: string;
   description?: string;
 }
+
 interface IAlarmHandlingNewProps {
   value?: IValue;
   allDefense?: IAllDefense[]; // 防御动作列表
@@ -88,11 +90,17 @@ interface IAlarmHandlingNewProps {
   strategyId?: number | string;
   extCls?: string;
   isSimple?: boolean; // 简洁模式(无预览，无回填)
+  list?: signalOptionsItem[];
 }
 
 interface IAlarmHandlingNewEvent {
   onChange?: IValue;
-  onAddMeal?: void;
+  onAddMeal?: () => void;
+}
+
+interface signalOptionsItem {
+  id: string;
+  name: string;
 }
 
 @Component({
@@ -111,6 +119,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           count: 1, // 执行次数，默认设置为 1
           is_enabled: true,
         },
+        skip_delay: 0, // 数据延迟秒数
       },
     }),
   })
@@ -121,6 +130,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: '', type: String }) extCls: string;
   @Prop({ default: false, type: Boolean }) isSimple: boolean;
+  @Prop({ type: Array, default: () => [] }) list: signalOptionsItem[];
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -140,6 +150,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
     return this.allAction.filter(item => item.id !== 'notice');
   }
 
+  // 延迟时间校验的状态
+  get isSkipDelayValid() {
+    return this.enableSkipDelay && this.data.options.skip_delay <= 0;
+  }
+
   data: IValue = {
     config_id: 0,
     user_groups: [],
@@ -150,9 +165,15 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         count: 1, // 执行次数，默认设置为 1
         is_enabled: true,
       },
+      skip_delay: 0, // 数据延迟秒数
     },
   };
   isShowDetail = false;
+
+  // 数据延迟开关
+  enableSkipDelay = false;
+  // 数据延迟秒数
+  delayTime = 0;
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
@@ -161,6 +182,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   @Emit('change')
   handleChange() {
     return this.data;
+  }
+
+  mounted() {
+    this.delayTime = this.data.options.skip_delay;
+    this.enableSkipDelay = this.data.options.skip_delay > 0;
   }
 
   // 切换套餐
@@ -173,6 +199,32 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   }
   handleClearConfigId() {
     this.data.config_id = 0;
+    this.handleChange();
+  }
+
+  // 数据延迟switch
+  handleSwitchDelay(isSwitchOn: boolean) {
+    if (!isSwitchOn) {
+      // 关闭状态 输入的分钟数不变，但提交给后端0分钟
+      this.data.options.skip_delay = 0;
+      // this.delayTime = 0;
+      this.handleChange();
+      return;
+    }
+    this.handleDelayChange(this.delayTime);
+  }
+
+  handleDelayChange(v) {
+    // const regex = /^(?!0$)(0*[1-9][0-9]*|[1-9][0-9]*)$/正整数
+    // 允许小数
+    const regex = /^(?!0(\.0+)?$)(\d+|\d*\.\d+)$/;
+    if (!regex.test(v)) {
+      // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开，用于父组件校验不通过；0表示关闭可通过
+      this.data.options.skip_delay = this.enableSkipDelay ? -1 : 0;
+      this.handleChange();
+      return;
+    }
+    this.data.options.skip_delay = v;
     this.handleChange();
   }
 
@@ -330,7 +382,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 this.allDefense[0]?.description ||
                 ''
               }
-              type='translate'
+              type='explanation'
             />{' '}
             <span class='tip-text'>
               {this.defenseTips[this.data.options.converge_config.converge_func] ||
@@ -339,6 +391,50 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
             </span>
           </div>
         )}
+        {this.data.options.converge_config.is_enabled && this.data.signal.includes(this.list[0].id) && (
+          <CommonItem
+            class='no-label skip-delay'
+            title=''
+          >
+            <bk-switcher
+              class='converge-config-option'
+              v-model={this.enableSkipDelay}
+              disabled={this.readonly}
+              size='small'
+              theme='primary'
+              on-change={this.handleSwitchDelay}
+            />
+            <i18n
+              class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
+              path='当首次异常时间超过{0}分钟时不执行该套餐'
+            >
+              {!this.readonly ? (
+                <bk-input
+                  class='small-input'
+                  v-model={this.delayTime}
+                  v-bk-tooltips={
+                    !this.enableSkipDelay
+                      ? { content: this.$t('先打开功能'), showOnInit: false, placements: ['top'] }
+                      : { disabled: true }
+                  }
+                  behavior='simplicity'
+                  disabled={!this.enableSkipDelay}
+                  inputStyle={{ borderBottomColor: this.isSkipDelayValid ? '#ea3636' : '#c4c6cc' }}
+                  min={0}
+                  readonly={this.readonly || !this.enableSkipDelay}
+                  showControls={false}
+                  size='small'
+                  type='number'
+                  on-change={this.handleDelayChange}
+                />
+              ) : (
+                <span>{`${this.delayTime}`}</span>
+              )}
+            </i18n>
+            {this.isSkipDelayValid && <span class='error-tips'>{this.$t('只能填写大于0的值')}</span>}
+          </CommonItem>
+        )}
+
         <SetMealDeail
           id={this.data.config_id}
           v-model={this.isShowDetail}

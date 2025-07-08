@@ -34,7 +34,7 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 import { shortcuts } from '../time-range/utils';
 import MiddleOmitted from './middle-omitted';
 
-import type { INavItem } from '@/pages/monitor-k8s/typings';
+import type { INavItem } from '../../pages/monitor-k8s/typings';
 
 import './history-share-manage.scss';
 
@@ -198,7 +198,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     const { query, path } = this.$route;
     /* 页面路径 */
     const pathFn = str => {
-      if (!!str) {
+      if (str) {
         return `  /  ${str}`;
       }
       return '';
@@ -246,7 +246,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     const data = await getShareTokenList({
       type: this.typeMap[this.$route.name] ?? query.sceneId,
       filter_params: filterParams,
-      scene_params: !!query?.dashboardId
+      scene_params: query?.dashboardId
         ? { sceneType: query.sceneType, sceneId: query.sceneId, dashboardId: query.dashboardId }
         : undefined,
     }).catch(() => []);
@@ -255,7 +255,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       link: `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/share/${item.token || ''}`,
       accessCount: item.access_info?.total || 0,
       isCheck: false,
-      expireTimeStr: !!item.params_info?.[0]?.expire_period
+      expireTimeStr: item.params_info?.[0]?.expire_period
         ? periodStrFormat(item.params_info?.[0]?.expire_period)
         : formNowStrFormat(dayjs.tz(item.create_time).from(dayjs.tz(Number(item.expire_time) * 1000), true)),
     }));
@@ -357,7 +357,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     this.handlePopoerHidden();
     const timeRangeItem = row.params_info.find(item => item.name === 'time_range');
     if (timeRangeItem) {
-      const range = !!timeRangeItem?.default_time_range?.length
+      const range = timeRangeItem?.default_time_range?.length
         ? timeRangeItem.default_time_range
         : [timeRangeItem.start_time * 1000, timeRangeItem.end_time * 1000];
       const timeRangeStr =
@@ -564,7 +564,7 @@ export default class HistoryShareManage extends tsc<IProps> {
               <span class='content link'>
                 <a
                   href={this.shareUrl}
-                  rel='noreferrer'
+                  rel='noopener noreferrer'
                   target='_blank'
                 >
                   {this.shareUrl}

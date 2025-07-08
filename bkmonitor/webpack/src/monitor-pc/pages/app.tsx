@@ -33,7 +33,7 @@ import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
-import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
+import { docCookies, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import OverseasLogo from '../components/overseas-logo/overseas-logo';
@@ -63,6 +63,7 @@ import './app.scss';
 import '@blueking/notice-component-vue2/dist/style.css';
 import GlobalConfigMixin from '../mixins/globalConfig';
 import aiWhaleStore from '../store/modules/ai-whale';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -124,7 +125,7 @@ export default class App extends tsc<object> {
   // 全局设置弹窗
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToggle') === 'true';
-  @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   routeViewKey = random(10);
   // 是否显示AI智能助手
   get enableAiAssistant() {
@@ -264,7 +265,7 @@ export default class App extends tsc<object> {
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     this.getGlobalConfig();
-    this.getAiUserConfig();
+    aiWhaleStore.setEnableAiAssistantAction();
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -333,9 +334,9 @@ export default class App extends tsc<object> {
   }
   // 设置是否需要menu
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.readonly = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
-    this.needMenu = `${needMenu}` !== 'false' && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
+    this.readonly = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
+    this.needMenu =
+      globalUrlFeatureMap.NEED_MENU && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
   }
   handleGotoPage(name: string) {
     this.$router.push({ name });
@@ -707,9 +708,6 @@ export default class App extends tsc<object> {
   // 获取配置
   async getGlobalConfig() {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
-  }
-  async getAiUserConfig() {
-    aiWhaleStore.setEnableAiAssistantAction();
   }
 
   render() {

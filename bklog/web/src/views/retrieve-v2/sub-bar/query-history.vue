@@ -49,6 +49,7 @@
                   {{ item.query_string }}
                 </div>
                 <BookmarkPop
+                v-if="!isMonitorComponent"
                 :sql="item.query_string"
                 :addition="item.params.addition"
                 searchMode='sql'
@@ -62,7 +63,7 @@
             v-else
             class="list-item not-history"
           >
-            {{ this.$t('暂无历史记录') }}
+            {{ $t('暂无历史记录') }}
           </li>
         </ul>
       </div>
@@ -71,7 +72,11 @@
 </template>
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  // #else
+  // #code const BookmarkPop = () => null;
+  // #endif
   import dayjs from 'dayjs';
   export default {
     data() {
@@ -81,11 +86,15 @@
         popoverInstance: null,
         historyRecords: [],
         searchInput: "",
-        bookmarkPopRefsShow: false
+        bookmarkPopRefsShow: false,
+        isMonitorComponent: false
       };
     },
     components:{
       BookmarkPop
+    },
+    mounted(){
+      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     computed: {
       isUnionSearch() {
@@ -124,8 +133,8 @@
         return textMap[searchMode] || '';
       },
       getContent(item){
-        return `<div><div>检索时间：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
-                <div>语句：${item.query_string}</div></div>`
+        return `<div><div>${this.$t('检索时间')}：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss')}</div>
+                <div>${this.$t('语句')}：${item.query_string}</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();

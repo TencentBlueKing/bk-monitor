@@ -1008,7 +1008,9 @@ export default defineComponent({
         case 'Host':
           return spanDetailQueryStore.queryData?.bk_host_id ? t('主机监控') : '';
         case 'Log':
-          return spanDetailQueryStore.queryData?.indexId ? t('日志检索') : '';
+          return spanDetailQueryStore.queryData?.indexId || spanDetailQueryStore.queryData.unionList
+            ? t('日志检索')
+            : '';
         case 'Profiling':
           return spanId.value ? t('Profiling检索') : '';
       }
@@ -1049,9 +1051,7 @@ export default defineComponent({
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
             ...result.overview_panels[0],
@@ -1065,6 +1065,7 @@ export default defineComponent({
           };
         }
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Host') {
         const result = await getSceneView(
@@ -1120,9 +1121,14 @@ export default defineComponent({
     const handleQuickJump = () => {
       switch (activeTab.value) {
         case 'Log': {
-          if (!spanDetailQueryStore.queryData?.indexId) return;
-          const { indexId, start_time, end_time, addition } = spanDetailQueryStore.queryData;
-          const url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+          if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
+          const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+          let url = '';
+          if (unionList) {
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}&unionList=${unionList}`;
+          } else {
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+          }
           window.open(url, '_blank');
           return;
         }
@@ -1268,7 +1274,7 @@ export default defineComponent({
                 [
                   <div
                     key='header'
-                    class='header'
+                    class='details-header'
                   >
                     {props.withSideSlider ? (
                       <div class='title'>
@@ -1283,7 +1289,7 @@ export default defineComponent({
                     ) : (
                       titleInfoElem()
                     )}
-                    <div class='others'>
+                    <div class='details-others'>
                       {info.header.others.map((item, index) => (
                         <span
                           key={index}
