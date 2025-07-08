@@ -25,7 +25,7 @@
  */
 
 import { isEn } from '@/i18n/i18n';
-import { listAlertTags } from 'monitor-api/modules/alert';
+import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert';
 
 import { AlarmType } from '../typings';
 
@@ -39,6 +39,8 @@ import type {
   FilterTableResponse,
   IncidentTableItem,
   TableColumnItem,
+  AlertEventCountResult,
+  AlertExtendInfoResult,
 } from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 
@@ -65,6 +67,29 @@ export abstract class AlarmService<S = AlarmType> {
    * @description: UI 模式检索字段列表
    */
   abstract get filterFields(): IFilterField[];
+  /**
+   * @description: 获取告警表格数据关联的事件数和关联告警信息
+   */
+  async getAlterRelevance(data: (ActionTableItem | AlertTableItem | IncidentTableItem)[]): Promise<{
+    event_count: AlertEventCountResult;
+    extend_info: AlertExtendInfoResult;
+  }> {
+    if (this.scenes !== AlarmType.ALERT) {
+      return {
+        event_count: {},
+        extend_info: {},
+      };
+    }
+    const params = { ids: data.map(item => item.id) };
+    const eventCountPromise = alertEventCount(params).catch(() => {}) as Promise<Record<string, number>>;
+    const relateInfosPromise = alertRelatedInfo(params).catch(() => {});
+
+    const [eventCount, extendInfo] = (await Promise.allSettled([eventCountPromise, relateInfosPromise])) as [
+      PromiseFulfilledResult<AlertEventCountResult>,
+      PromiseFulfilledResult<AlertExtendInfoResult>,
+    ];
+    return { event_count: eventCount.value, extend_info: extendInfo.value };
+  }
   // /**
   //  * @description: 默认表格列字段
   //  */

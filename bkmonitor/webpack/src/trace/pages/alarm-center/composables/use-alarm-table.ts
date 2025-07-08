@@ -52,6 +52,17 @@ export function useAlarmTable() {
       page: page.value,
       ordering: ordering.value ? [ordering.value] : [],
     });
+    // 获取告警关联事件数 和 关联告警信息
+    await alarmStore.alarmService.getAlterRelevance(res.data).then(({ event_count, extend_info }) => {
+      if (!Object.keys(event_count)?.length && !Object.keys(extend_info)?.length) {
+        return;
+      }
+      for (const item of res.data as AlertTableItem[]) {
+        item.event_count = event_count?.[item.id];
+        item.extend_info = extend_info?.[item.id];
+      }
+    });
+
     total.value = res.total;
     data.value = res.data;
     loading.value = false;

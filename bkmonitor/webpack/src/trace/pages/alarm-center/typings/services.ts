@@ -58,6 +58,15 @@ export type QuickFilterItem = {
   children?: QuickFilterItem[];
 };
 
+/** 告警 -- 关联事件数接口返回数据类型 */
+export type AlertEventCountResult = Record<string, number>;
+export interface AlertExtendInfoItem {
+  data_label: string;
+  result_table_id: string;
+}
+/** 告警 -- 关联告警信息接口返回数据类型 */
+export type AlertExtendInfoResult = Record<string, AlertExtendInfoItem>;
+
 /**
  * 告警 table 数据
  */
@@ -128,6 +137,8 @@ export type AlertTableItem = {
   ack_operator: string;
   shield_operator: string[];
   bk_biz_name: string;
+  event_count?: number;
+  extend_info?: AlertExtendInfoItem;
 };
 
 /**
