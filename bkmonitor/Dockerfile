@@ -92,6 +92,6 @@ ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # patch tarfile, shutil
-COPY /app/code/patches/patch_lib/ /usr/local/lib/python3.6/
+COPY --from=builder /app/code/patches/patch_lib/ /usr/local/lib/python3.6/
 
 CMD python manage.py runserver 0.0.0.0:80
