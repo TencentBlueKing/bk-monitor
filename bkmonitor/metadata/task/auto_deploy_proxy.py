@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,25 +7,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
-from typing import List
 
 from django.conf import settings
 
 from bkmonitor.utils.version import get_max_version
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("metadata")
 
 
-class ProcStatus(object):
+class ProcStatus:
     NOT_REGISTED = 0
     RUNNING = 1
     TERMINATED = 2
 
 
-class AutoDeployProxy(object):
+class AutoDeployProxy:
     """
     Auto Deploy Proxy(bkmonitorproxy), include first deploy, upgrade
     """
@@ -34,13 +34,23 @@ class AutoDeployProxy(object):
     VERSION_PATTERN = re.compile(r"[vV]?(\d+\.){1,5}\d+$")
 
     @classmethod
-    def deploy_proxy(cls, plugin_name: str, plugin_version: str, bk_cloud_id: int, bk_host_ids: List[int]):
+    def deploy_proxy(
+        cls, bk_tenant_id: str, plugin_name: str, plugin_version: str, bk_cloud_id: int, bk_host_ids: list[int]
+    ):
+        """
+        在指定云区域的指定主机上部署插件
+        :param bk_tenant_id: 租户ID
+        :param plugin_name: 插件名称
+        :param plugin_version: 插件版本
+        :param bk_cloud_id: 云区域ID
+        :param bk_host_ids: 主机ID列表
+        """
         logger.info(
             f"update proxy on bk_cloud_id({bk_cloud_id}), get host_ids->[{','.join([str(h) for h in bk_host_ids])}]"
         )
         # 查询当前版本
         params = {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-        plugin_info_list = api.node_man.plugin_search(params)["list"]
+        plugin_info_list = api.node_man.plugin_search(bk_tenant_id=bk_tenant_id, **params)["list"]
         logger.info("get plugin info from nodeman -> [%s]", str(plugin_info_list))
         deploy_host_list = []
         for plugin_info in plugin_info_list:
@@ -69,20 +79,24 @@ class AutoDeployProxy(object):
             bk_host_id=deploy_host_list,
         )
         try:
-            result = api.node_man.plugin_operate(**params)
-            message = "update ({}) to version({}) success with result({}), Please see detail in bk_nodeman SaaS".format(
-                plugin_name, plugin_version, result
-            )
+            result = api.node_man.plugin_operate(bk_tenant_id=bk_tenant_id, **params)
+            message = f"update ({plugin_name}) to version({plugin_version}) success with result({result}), Please see detail in bk_nodeman SaaS"
             logger.info(message)
         except Exception as e:  # noqa
-            raise Exception("update ({}) error:{}, params:{}".format(plugin_name, e, params))
+            raise Exception(f"update ({plugin_name}) error:{e}, params:{params}")
 
         logger.info("refresh bk_cloud_id->[%s] proxy success", bk_cloud_id)
 
     @classmethod
-    def get_proxy_hosts_by_cloud(cls, bk_cloud_id: int) -> List[int]:
+    def get_proxy_hosts_by_cloud(cls, bk_tenant_id: str, bk_cloud_id: int) -> list[int]:
+        """
+        获取指定云区域下的代理主机列表
+        :param bk_tenant_id: 租户ID
+        :param bk_cloud_id: 云区域ID
+        :return: 代理主机列表
+        """
         bk_host_ids = []
-        proxies = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
+        proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         logger.info("bk_cloud_id->[%d] has %d proxies", bk_cloud_id, len(proxies))
         # 获取全体proxy主机列表
         for proxy in proxies:
@@ -93,21 +107,40 @@ class AutoDeployProxy(object):
         return bk_host_ids
 
     @classmethod
-    def deploy_with_cloud_id(cls, plugin_name, plugin_version, bk_cloud_id):
-        bk_host_ids = cls.get_proxy_hosts_by_cloud(bk_cloud_id)
+    def deploy_with_cloud_id(cls, bk_tenant_id: str, plugin_name: str, plugin_version: str, bk_cloud_id: int):
+        """
+        在指定云区域下部署插件
+        :param bk_tenant_id: 租户ID
+        :param plugin_name: 插件名称
+        :param plugin_version: 插件版本
+        :param bk_cloud_id: 云区域ID
+        """
+        bk_host_ids = cls.get_proxy_hosts_by_cloud(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         if len(bk_host_ids) == 0:
             logger.info("bk_cloud_id->[%s] has no proxy host, skip it", bk_cloud_id)
             return
 
-        cls.deploy_proxy(plugin_name, plugin_version, bk_cloud_id, bk_host_ids)
+        cls.deploy_proxy(
+            bk_tenant_id=bk_tenant_id,
+            plugin_name=plugin_name,
+            plugin_version=plugin_version,
+            bk_cloud_id=bk_cloud_id,
+            bk_host_ids=bk_host_ids,
+        )
 
     @classmethod
-    def deploy_direct_area_proxy(cls, plugin_name, plugin_version):
+    def deploy_direct_area_proxy(cls, bk_tenant_id: str, plugin_name: str, plugin_version: str):
+        """
+        在直连区域下部署插件
+        :param bk_tenant_id: 租户ID
+        :param plugin_name: 插件名称
+        :param plugin_version: 插件版本
+        """
         proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
         if not proxy_ips:
             logger.info("no proxy host in direct area, skip it")
             return
-        hosts = api.cmdb.get_host_without_biz(ips=proxy_ips)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=proxy_ips)["hosts"]
         hosts = [h for h in hosts if h["bk_cloud_id"] == 0]
         bk_host_ids = [h.bk_host_id for h in hosts]
 
@@ -115,43 +148,79 @@ class AutoDeployProxy(object):
             logger.info("no proxy host in direct area, skip it")
             return
 
-        cls.deploy_proxy(plugin_name, plugin_version, 0, bk_host_ids)
+        cls.deploy_proxy(
+            bk_tenant_id=bk_tenant_id,
+            plugin_name=plugin_name,
+            plugin_version=plugin_version,
+            bk_cloud_id=0,
+            bk_host_ids=bk_host_ids,
+        )
 
     @classmethod
-    def find_latest_version(cls, plugin_name):
+    def find_latest_version(cls, bk_tenant_id: str, plugin_name: str) -> str:
+        """
+        从节点管理获取插件的最新版本
+        :param bk_tenant_id: 租户ID
+        :param plugin_name: 插件名称
+        :return: 最新版本
+        """
         default_version = "0.0.0"
-        plugin_infos = api.node_man.plugin_info(name=plugin_name)
+        plugin_infos = api.node_man.plugin_info(name=plugin_name, bk_tenant_id=bk_tenant_id)
         version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
         return get_max_version(default_version, version_str_list)
 
     @classmethod
-    def refresh(cls, plugin_name):
-        if not settings.IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER:
-            logger.info("auto deploy custom report server is closed. do nothing.")
-            return
+    def _refresh(cls, bk_tenant_id: str, plugin_name: str):
+        """
+        自动部署单个租户下的插件
+        :param bk_tenant_id: 租户ID
+        :param plugin_name: 插件名称
+        """
 
-        plugin_latest_version = cls.find_latest_version(plugin_name=plugin_name)
-        logger.info("find {} version {} from bk_nodeman, start auto deploy.".format(plugin_name, plugin_latest_version))
+        # 获取插件的最新版本
+        plugin_latest_version = cls.find_latest_version(bk_tenant_id=bk_tenant_id, plugin_name=plugin_name)
+        logger.info(f"find {plugin_name} version {plugin_latest_version} from bk_nodeman, start auto deploy.")
 
         # 云区域
-        cloud_infos = api.cmdb.search_cloud_area()
+        cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
         for cloud_info in cloud_infos:
             bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
             if int(bk_cloud_id) == 0:
                 continue
 
             try:
-                cls.deploy_with_cloud_id(plugin_name, plugin_latest_version, bk_cloud_id)
-            except Exception as e:
-                logger.exception(
-                    "Auto deploy {} error, with bk_cloud_id({}), error({}).".format(plugin_name, bk_cloud_id, e)
+                cls.deploy_with_cloud_id(
+                    bk_tenant_id=bk_tenant_id,
+                    plugin_name=plugin_name,
+                    plugin_version=plugin_latest_version,
+                    bk_cloud_id=bk_cloud_id,
                 )
+            except Exception as e:
+                logger.exception(f"Auto deploy {plugin_name} error, with bk_cloud_id({bk_cloud_id}), error({e}).")
 
-        # 直连区域
-        try:
-            cls.deploy_direct_area_proxy(plugin_name, plugin_latest_version)
-        except Exception as e:
-            logger.exception("Auto deploy {} error, with direct area, error({}).".format(plugin_name, e))
+        # 仅在默认租户下部署直连区域
+        if bk_tenant_id == DEFAULT_TENANT_ID:
+            try:
+                cls.deploy_direct_area_proxy(
+                    bk_tenant_id=bk_tenant_id, plugin_name=plugin_name, plugin_version=plugin_latest_version
+                )
+            except Exception as e:
+                logger.exception(f"Auto deploy {plugin_name} error, with direct area, error({e}).")
+
+    @classmethod
+    def refresh(cls, plugin_name: str) -> None:
+        """
+        自动部署插件
+        :param plugin_name: 插件名称
+        """
+        # 如果关闭自动部署，则直接返回
+        if not settings.IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER:
+            logger.info("auto deploy custom report server is closed. do nothing.")
+            return
+
+        # 遍历所有租户，自动部署插件
+        for tenant in api.bk_login.list_tenant():
+            cls._refresh(bk_tenant_id=tenant["id"], plugin_name=plugin_name)
 
 
 def main():
