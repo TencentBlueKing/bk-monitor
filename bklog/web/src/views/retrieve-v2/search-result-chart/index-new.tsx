@@ -79,7 +79,6 @@ export default defineComponent({
     let logChartCancel: any = null;  // 取消请求的方法
     let runningInterval = 'auto';  // 当前实际使用的 interval
     let isInit = true;  // 是否为首次请求
-    let sumCount = 0;  // 累计总数
     let runningTimer: any = null;  // 定时器
 
     // 监听store中interval变化，自动同步到chartInterval
@@ -126,12 +125,7 @@ export default defineComponent({
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
 
     // 总条数和耗时
-    const totalCount = computed(() => {
-      if (store.state.searchTotal > 0) {
-        return store.state.searchTotal;
-      }
-      return store.state.retrieve.trendDataCount;
-    });
+    const totalCount = computed(() => store.state.searchTotal);
     const tookTime = computed(() => Number.parseFloat(store.state.tookTime).toFixed(0));
 
     // 汇聚周期选项
@@ -198,12 +192,10 @@ export default defineComponent({
       if (!isStart.value) {
         // 首次请求，初始化状态
         isInit = true;
-        sumCount = 0;
         pollingEndTime = endTimeStamp;
         pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
         isStart.value = true;
         store.commit('retrieve/updateTrendDataLoading', true);
-        store.commit('retrieve/updateTrendDataCount', 0);
         const { interval } = initChartData();
         runningInterval = interval;
       } else {
@@ -270,9 +262,8 @@ export default defineComponent({
           )
           .then(res => {
             if (res?.data) {
-              sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
+              setChartData(res?.data?.aggs, queryData.group_field, isInit);
               isInit = false;
-              store.commit('retrieve/updateTrendDataCount', sumCount);
             }
             if (!res?.result || requestInterval === 0) {
               isStart.value = false;
