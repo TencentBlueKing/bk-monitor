@@ -167,7 +167,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
                 f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
             )
     except Exception as e:  # noqa
-        logger.exception(f"refresh custom report config to colletor error: {e}")
+        logger.exception(f"refresh custom report config to collector error: {e}")
 
 
 # 用于定时任务的包装函数，加锁防止任务重叠
