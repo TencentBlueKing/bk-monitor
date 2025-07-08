@@ -964,3 +964,31 @@ def sync_bkbase_v4_metadata(key):
         bk_data_id,
         cost_time,
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def process_gse_delivery(message_id: str, bk_agent_id: str, content: str, received_at: str):
+    """
+    Celery异步任务--处理GSE投递的数据
+    """
+    try:
+        content_data = json.loads(content)  # 解析Content，Content内容为采集器与Metadata约定的协议
+        if content_data["type"] == "fetch/host/dataid":
+            logger.info("process_gse_delivery: start to fetch host dataid")
+            # _process_fetch_host_dataid()
+
+            # 根据Content和bk_agent_id确定业务ID
+
+            # 根据业务ID和对应的用途,确认关联的数据源
+
+            # 回调GSE接口,告知DataId
+
+    except Exception as e:
+        logger.error(
+            "process_gse_delivery: message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,error:%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+            e,
+        )

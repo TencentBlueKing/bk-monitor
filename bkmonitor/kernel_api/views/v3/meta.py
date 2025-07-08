@@ -500,3 +500,7 @@ class SyncBkBaseRtMetaByBizIdViewSet(MetaViewSet):
 
 class ListBkBaseRtInfoByBizIdViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBkBaseRtInfoByBizIdResource)]
+
+
+class GseDeliveryViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GseDeliveryResource)]
