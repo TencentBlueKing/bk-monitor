@@ -40,14 +40,10 @@ interface K8sQuickToolsProps {
   scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   groupByField: K8sTableColumnResourceKey;
-  /** 点击工具栏时的数据值 */
+  /** 需要 添加/移除 到筛选项中的值 */
   filterValue: string;
-  /** 当前filterBy筛选数据中所在维度的筛选项数据 */
-  filters: string[];
-  /** 是否启用下钻功能 */
-  enableDrillDown?: boolean;
-  /** 是否开启 添加/移除 筛选项 功能 */
-  enableFilter?: boolean;
+  /** 当前筛选过滤中已存在的过滤值 filterBy数据 */
+  filterBy: Record<string, string[]>;
 }
 
 interface K8sQuickToolsEmits {
@@ -62,14 +58,10 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   @Prop({ type: String }) scene: SceneEnum;
   /** 激活工具栏时数据所在维度 */
   @Prop({ type: String }) groupByField!: K8sTableColumnResourceKey;
-  /** 点击工具栏时的数据值 */
+  /** 需要 添加/移除 到筛选项中的值 */
   @Prop({ type: String }) filterValue!: string;
-  /** 当前filterBy筛选数据中所在维度的筛选项数据 */
-  @Prop({ type: Array, default: () => [] }) filters: string[];
-  /** 是否启用下钻功能 */
-  @Prop({ type: Boolean, default: true }) enableDrillDown!: boolean;
-  /** 是否开启 添加/移除 筛选项 功能 */
-  @Prop({ type: Boolean, default: true }) enableFilter: boolean;
+  /** 当前筛选过滤中已存在的过滤值 filterBy数据 */
+  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
 
   /** 场景下拉菜单 dom 实例 */
   @Ref('sceneRef') sceneRef: any;
@@ -80,7 +72,8 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   /** 添加/移除 筛选项工具icon配置 */
   get filterToolConfig() {
     // 当前数据值已在筛选项中
-    const hasFilter = this.filters?.includes?.(this.filterValue);
+    const filters = this.filterBy[this.groupByField] || [];
+    const hasFilter = filters?.includes?.(this.filterValue);
     const elAttr = hasFilter
       ? { className: ['selected'], text: '移除该筛选项' }
       : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
@@ -201,25 +194,22 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps, K8sQuickTools
   render() {
     return (
       <div class='k8s-quick-tools'>
-        {this.enableFilter ? (
-          <div
-            class='tool-item filter-tool'
-            v-bk-tooltips={{ content: this.$t(this.filterToolConfig.text), interactive: false }}
-          >
-            <i
-              class={this.filterToolConfig.className}
-              onClick={this.handleFilterChange}
-            />
-          </div>
-        ) : null}
-        {this.enableDrillDown ? (
-          <K8sDimensionDrillDown
-            class='tool-item drill-down-tool'
-            dimension={this.groupByField}
-            value={this.groupByField}
-            onHandleDrillDown={this.handleDrillDown}
+        <div
+          class='tool-item filter-tool'
+          v-bk-tooltips={{ content: this.$t(this.filterToolConfig.text), interactive: false }}
+        >
+          <i
+            class={this.filterToolConfig.className}
+            onClick={this.handleFilterChange}
           />
-        ) : null}
+        </div>
+        <K8sDimensionDrillDown
+          class='tool-item drill-down-tool'
+          dimension={this.groupByField}
+          value={this.groupByField}
+          onHandleDrillDown={this.handleDrillDown}
+        />
+        )
         {this.sceneMenuList?.length ? (
           <div
             class={`tool-item scene-tool ${this.popoverInstance ? 'active' : ''}`}

@@ -87,10 +87,6 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   fixed?: boolean;
   /** 表头对齐方式 */
   header_align?: 'center' | 'left' | 'right';
-  /** 是否开启 添加/移除 筛选项 icon */
-  k8s_filter?: boolean;
-  /** 是否开启 下钻 icon */
-  k8s_group?: boolean;
   /** 表格列自定义渲染方法 */
   renderHeader?: (column: K8sTableColumn<K8sTableColumnKeysEnum>) => any;
   /** 自定义获取值逻辑函数 */
@@ -452,8 +448,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [WORKLOAD_KIND]: {
         id: WORKLOAD_KIND,
@@ -470,8 +464,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
         getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
       },
       [NAMESPACE]: {
@@ -480,8 +472,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [CONTAINER]: {
         id: CONTAINER,
@@ -490,8 +480,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [INGRESS]: {
         id: INGRESS,
@@ -500,8 +488,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [SERVICE]: {
         id: SERVICE,
@@ -510,8 +496,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [NODE]: {
         id: NODE,
@@ -520,8 +504,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
     };
   }
@@ -1061,9 +1043,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {this.isListTab ? (
             <K8sQuickTools
               class='table-col-tools'
-              enableDrillDown={column.k8s_group}
-              enableFilter={column.k8s_filter}
-              filters={this.filterBy?.[column.id] || []}
+              filterBy={this.filterBy}
               filterValue={text}
               groupByField={column.id}
               scene={this.filterCommonParams?.scenario}
