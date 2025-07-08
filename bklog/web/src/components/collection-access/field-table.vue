@@ -788,7 +788,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = JSON.parse(JSON.stringify(this.fields)); // option指向地址bug
+        const copyFields = deepClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,

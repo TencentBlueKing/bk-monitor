@@ -2067,6 +2067,11 @@
             if (res.data && res.data.fields) {
               const dataFields = res.data.fields;
               dataFields.forEach(item => {
+                item.field_name = JSON.stringify(item.field_name)
+                if (typeof item.field_name === 'string') {
+                  // 对于字符串类型，JSON.stringify的结果是两端有双引号的
+                   item.field_name = item.field_name.slice(1, -1);
+                }
                 item.verdict = this.judgeNumber(item);
               });
               const fields = this.formData.fields;
