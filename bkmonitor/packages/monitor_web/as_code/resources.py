@@ -615,10 +615,13 @@ class ImportConfigFileResource(Resource):
         else:
             with tarfile.open(fileobj=file.file) as tar:
                 for member in tar.getmembers():
+                    if not member.name.startswith("./configs/"):
+                        continue
+                    config_name = member.name[len("./configs/") :]
                     if member.name.endswith((".yaml", ".yml", ".json")):
                         f = tar.extractfile(member)
                         if f:
-                            configs[member.name] = f.read().decode("utf-8")
+                            configs[config_name] = f.read().decode("utf-8")
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
