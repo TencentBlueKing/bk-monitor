@@ -89,47 +89,32 @@ request.user = Base()
 request.user.tenant_id = "system"
 
 
-class TestCreatePluginResource(TestCase):
-    def test_perform_request(self):
+class TestPlugin(TestCase):
+    @patch("core.drf_resource.api.metadata.create_time_series_group", return_value="")
+    @patch("core.drf_resource.api.node_man.release_plugin", return_value="")
+    @patch("core.drf_resource.api.node_man.create_config_template", return_value="")
+    @patch("core.drf_resource.api.node_man.plugin_info", return_value=[{"md5": ""}])
+    @patch("core.drf_resource.api.node_man.register_package", return_value={"job_id": 1})
+    @patch("core.drf_resource.api.node_man.query_register_task", return_value={"message": "", "is_finish": 1})
+    @patch("core.drf_resource.api.node_man.upload", return_value={"name": "name_01"})
+    def test_create_register_release(self, mock_1, mock_2, mock_3, mock_4, mock_5, mock_6, mock_7):
+        # 指标插件创建
         creat_plugin = CreatePluginResource()
         validated_request_data = creat_plugin.validate_request_data(VALIDATED_REQUEST_DATA)
         params = creat_plugin.perform_request(validated_request_data)
         params.pop("signature")
         self.assertEqual(params, RESULT)
 
-        item = CollectorPluginMeta.objects.filter(plugin_id=PLUGIN_ID).first()
-        self.assertIsNotNone(item)
-
+        plugin_meta_item = CollectorPluginMeta.objects.filter(plugin_id=PLUGIN_ID).first()
+        self.assertIsNotNone(plugin_meta_item)
         version_his = PluginVersionHistory.objects.filter(plugin_id=PLUGIN_ID).first()
         self.assertIsNotNone(version_his)
-
         item = CollectorPluginInfo.objects.filter(id=version_his.info_id).first()
         self.assertIsNotNone(item)
-
         item = CollectorPluginConfig.objects.filter(id=version_his.config_id).first()
         self.assertIsNotNone(item)
 
-
-class TestPluginRegisterResource111111(TestCase):
-    @patch("core.drf_resource.api.node_man.create_config_template", return_value="")
-    @patch("core.drf_resource.api.node_man.plugin_info", return_value=[{"md5": ""}])
-    @patch("core.drf_resource.api.node_man.register_package", return_value={"job_id": 1})
-    @patch("core.drf_resource.api.node_man.query_register_task", return_value={"message": "", "is_finish": 1})
-    @patch("core.drf_resource.api.node_man.upload", return_value={"name": "name_01"})
-    def test_perform_request(self, mock_1, mock_2, mock_3, mock_4, mock_5):
-        CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
-        plugin_config = CollectorPluginConfig.objects.create(config_json=[])
-        plugin_info = CollectorPluginInfo.objects.create()
-        PluginVersionHistory.objects.create(
-            is_packaged=False,
-            config_version=1,
-            info_version=1,
-            config_id=plugin_config.id,
-            info_id=plugin_info.id,
-            plugin_id=PLUGIN_ID,
-            bk_tenant_id="system",
-        )
-
+        # 指标插件注册
         PluginRegisterResource().perform_request(REGISTER_VALIDATED_REQUEST_DATA)
         version = PluginVersionHistory.objects.filter(
             bk_tenant_id="system",
@@ -137,24 +122,7 @@ class TestPluginRegisterResource111111(TestCase):
         ).first()
         self.assertTrue(version.is_packaged)
 
-
-class TestCollectorPluginViewSet(TestCase):
-    @patch("core.drf_resource.api.metadata.create_time_series_group", return_value="")
-    @patch("core.drf_resource.api.node_man.release_plugin", return_value="")
-    def test_release(self, mock_release_plugin, mock_create_time_series_group):
-        plugin_meta = CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
-        plugin_config = CollectorPluginConfig.objects.create(config_json=[])
-        plugin_info = CollectorPluginInfo.objects.create()
-        PluginVersionHistory.objects.create(
-            stage="DEBUG",
-            is_packaged=1,
-            config_version=1,
-            info_version=1,
-            config_id=plugin_config.id,
-            info_id=plugin_info.id,
-            plugin_id=PLUGIN_ID,
-            bk_tenant_id="system",
-        )
+        # 指标插件release接口
         deployment_ver = DeploymentConfigVersion.objects.create(
             target_node_type="INSTANCE",
             plugin_version_id=1,
@@ -167,7 +135,7 @@ class TestCollectorPluginViewSet(TestCase):
             target_object_type="HOST",
             last_operation="CREATE",
             operation_result="SUCCESS",
-            plugin_id=plugin_meta.plugin_id,
+            plugin_id=plugin_meta_item.plugin_id,
             deployment_config=deployment_ver,
         )
 
