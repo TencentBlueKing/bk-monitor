@@ -24,6 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type K8sTableColumnResourceKey } from '../components/k8s-table-new/k8s-table-new';
+
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 export enum EDimensionKey {
@@ -190,6 +192,15 @@ export interface ICommonParams {
   scenario: SceneEnum;
   bcs_cluster_id: string;
   timeRange: TimeRangeType;
+}
+
+export interface ITableCommonParams extends ICommonParams {
+  filter_dict: Record<string, string[]>;
+}
+
+export interface IFilterCommonParams extends ITableCommonParams {
+  resource_type: K8sTableColumnResourceKey;
+  with_history: boolean;
 }
 
 export interface IK8SMetricItem {
