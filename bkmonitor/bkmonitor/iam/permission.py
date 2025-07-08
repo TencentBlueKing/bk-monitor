@@ -101,7 +101,7 @@ class Permission:
                 # 后台设置
                 from bkmonitor.utils.user import get_local_username
 
-                self.username = get_local_username()
+                self.username = get_local_username() or request.user.username
                 if self.username is None:
                     raise ValueError("must provide `username` or `request` param to init")
                 self.bk_tenant_id = DEFAULT_TENANT_ID
