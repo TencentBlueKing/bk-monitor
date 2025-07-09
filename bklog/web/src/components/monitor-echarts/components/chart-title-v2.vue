@@ -106,6 +106,7 @@
 
 <script lang="ts">
   import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+  import useStore from '@/hooks/use-store';
 
   import { formatNumberWithRegex } from '../../../common/util';
 
@@ -113,6 +114,8 @@
   import BklogPopover from '../../bklog-popover';
   import GradeOption from './grade-option';
   import RetrieveHelper, { RetrieveEvent } from '../../../views/retrieve-helper';
+
+  const store = useStore();
 
   @Component({
     name: 'chart-title-v2',
@@ -126,7 +129,7 @@
     @Prop({ default: '' }) title: string;
     @Prop({ default: '' }) subtitle: string;
     @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+    @Prop({ default: store.state.storage.chartIsFold }) isFold: boolean;
     @Prop({ default: true }) loading: boolean;
     @Prop({ default: true }) isEmptyChart: boolean;
     @Prop({ required: true }) totalCount: number;

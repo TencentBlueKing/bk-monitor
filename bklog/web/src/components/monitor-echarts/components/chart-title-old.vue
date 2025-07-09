@@ -73,8 +73,12 @@
 
 <script lang="ts">
   import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+  import useStore from '@/hooks/use-store';
+
 
   import ChartMenu from './chart-menu.vue';
+
+  const store = useStore();
 
   @Component({
     name: 'chart-title',
@@ -86,7 +90,7 @@
     @Prop({ default: '' }) title: string;
     @Prop({ default: '' }) subtitle: string;
     @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+    @Prop({ default: store.state.storage.chartIsFold }) isFold: boolean;
     @Prop({ default: true }) loading: boolean;
     @Ref('chartTitle') chartTitleRef: HTMLDivElement;
     private showMenu = false;

@@ -83,7 +83,7 @@
 
   const toggleExpand = val => {
     isFold.value = val;
-    localStorage.setItem('chartIsFold', val);
+    store.commit('updateChartIsFold', val);
     nextTick(() => {
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });
@@ -102,7 +102,7 @@
   };
 
   onMounted(() => {
-    isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'true');
+    isFold.value = store.state.storage.chartIsFold;
     nextTick(() => {
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });

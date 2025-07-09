@@ -146,7 +146,7 @@ export default defineComponent({
     // 切换折叠状态
     const toggleExpand = (val: boolean) => {
       isFold.value = val;
-      localStorage.setItem('chartIsFold', JSON.stringify(val));
+      store.commit('updateChartIsFold', val);
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
@@ -250,7 +250,7 @@ export default defineComponent({
       const gen = seriesDataGenerator(startTimeStamp, endTimeStamp);
 
       // 初始化图表
-      const { interval } = initChartData();
+      const { interval } = initChartData();  // 获取趋势图的分段数
       runningInterval = interval;
 
       function nextStep(genResult?) {
@@ -354,7 +354,7 @@ export default defineComponent({
 
     onMounted(() => {
       // 初始化折叠状态
-      isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
+      isFold.value = store.state.storage.chartIsFold;
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });

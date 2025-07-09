@@ -107,8 +107,10 @@
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
   import { mapGetters } from 'vuex';
+  import useStore from '@/hooks/use-store';
 
   const CancelToken = axios.CancelToken;
+  const store = useStore();
 
   export default {
     components: {
@@ -134,7 +136,7 @@
       return {
         timeRange: [],
         timer: null,
-        isFold: localStorage.getItem('chartIsFold') === 'true',
+        isFold: store.state.storage.chartIsFold,
         intervalArr: [
           { id: 'auto', name: 'auto' },
           { id: '1m', name: '1 min' },
@@ -420,7 +422,7 @@
       },
       toggleExpand(isFold) {
         this.isFold = isFold;
-        localStorage.setItem('chartIsFold', isFold);
+        store.commit('updateChartIsFold', isFold);
         this.$refs.chartRef.handleToggleExpand(isFold);
       },
       handleMoreToolItemSet(event) {
