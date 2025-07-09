@@ -29,8 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { bulkUpdateUserGroup } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
-import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
-import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
 import { getDefaultUserGroupListSync } from '../../../components/user-selector/user-group';
 import UserSelector from '../../../components/user-selector/user-selector';
