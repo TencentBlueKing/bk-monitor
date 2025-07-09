@@ -16,8 +16,8 @@ import tarfile
 import tempfile
 import zipfile
 from collections import defaultdict
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 from urllib.parse import urljoin
 
 import arrow
@@ -600,31 +600,55 @@ class ImportConfigFileResource(Resource):
             params={"app": app, "overwrite": overwrite},
         )
 
+    @staticmethod
+    def parse_config_file_name(file_name: str) -> str | None:
+        """
+        解析配置文件名
+        """
+        # 判断路径前缀
+        if file_name.startswith("./configs/"):
+            file_name = file_name[len("./configs/") :]
+        elif file_name.startswith("configs/"):
+            file_name = file_name[len("configs/") :]
+        else:
+            return None
+
+        # 判断文件后缀
+        if file_name.endswith((".yaml", ".yml", ".json")):
+            return file_name
+
     @step(state="DECOMPRESSION", message=_lazy("解压中..."))
     def decompression_and_read(self, file: File):
         """
         直接读取压缩包中的文件内容而不解压
         """
+        if not file.name:
+            raise serializers.ValidationError(_("文件名不能为空"))
+
         configs = {}
         if file.name.endswith(".zip"):
             with zipfile.ZipFile(file.file, "r") as zip_file:
                 for file_info in zip_file.infolist():
-                    if not file_info.filename.startswith("./configs/"):
+                    config_name = self.parse_config_file_name(file_info.filename)
+                    if not config_name:
                         continue
-                    config_name = file_info.filename[len("./configs/") :]
-                    if file_info.filename.endswith((".yaml", ".yml", ".json")):
-                        with zip_file.open(file_info) as f:
-                            configs[config_name] = f.read().decode("utf-8")
-        else:
+                    with zip_file.open(file_info) as f:
+                        configs[config_name] = f.read().decode("utf-8")
+        elif file.name.endswith((".tar.gz", ".tgz")):
             with tarfile.open(fileobj=file.file) as tar:
                 for member in tar.getmembers():
-                    if not member.name.startswith("./configs/"):
+                    # 判断是否是文件
+                    if not member.isfile():
                         continue
-                    config_name = member.name[len("./configs/") :]
-                    if member.name.endswith((".yaml", ".yml", ".json")):
-                        f = tar.extractfile(member)
-                        if f:
-                            configs[config_name] = f.read().decode("utf-8")
+
+                    config_name = self.parse_config_file_name(member.name)
+                    if not config_name:
+                        continue
+                    f = tar.extractfile(member)
+                    if f:
+                        configs[config_name] = f.read().decode("utf-8")
+        else:
+            raise serializers.ValidationError(_("文件格式错误，仅支持zip、tar.gz、tgz格式"))
         return configs
 
     @step(state="IMPORT", message=_lazy("配置导入中..."))
