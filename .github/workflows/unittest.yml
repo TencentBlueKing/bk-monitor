@@ -1,5 +1,8 @@
 name: "[BKLog] Backend Test"
 
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: bklog
