@@ -2068,8 +2068,8 @@
               const dataFields = res.data.fields;
               const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
               dataFields.forEach(item => {
-                if(item.field_name && !validFieldPattern.test(item.field_name)){
-                  item.field_name = JSON.stringify(item.field_name)
+                if (item.field_name && !validFieldPattern.test(item.field_name)) {
+                  item.field_name = JSON.stringify(item.field_name);
                 }
                 item.verdict = this.judgeNumber(item);
               });
@@ -2734,7 +2734,7 @@
       %flex-box {
         display: flex;
         align-items: center;
-        justify-content: start;
+        justify-content: flex-start;
       }
 
       .select-title {

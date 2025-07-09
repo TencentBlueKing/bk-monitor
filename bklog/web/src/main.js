@@ -49,6 +49,8 @@ import './static/style.css';
 import './static/font-face/index.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
+import './tailwind.css';
+
 import { BK_LOG_STORAGE } from './store/store.type';
 
 Vue.prototype.$renderHeader = renderHeader;
@@ -80,7 +82,7 @@ const mountedVueInstance = () => {
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     let externalMenu = [];
-     if (window.IS_EXTERNAL && space) {
+    if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
       store.commit('updateExternalMenu', externalMenu);
     }

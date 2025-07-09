@@ -426,7 +426,7 @@
     .dialog-bars {
       position: relative;
       display: flex;
-      align-items: start;
+      align-items: flex-start;
       justify-content: space-between;
 
       .dialog-bar {

@@ -19,7 +19,7 @@
 
 .grep-cli-left {
   display: flex;
-  align-items: start;
+  align-items: flex-start;
   width: calc(100% - 370px);
   border-radius: 2px;
   min-height: 40px;

@@ -505,7 +505,7 @@
 
       .controls {
         display: flex;
-        align-items: start;
+        align-items: flex-start;
 
         .control-icon {
           display: flex;

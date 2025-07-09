@@ -383,7 +383,7 @@
   .kv-list-wrapper {
     .log-item {
       display: flex;
-      align-items: start;
+      align-items: flex-start;
 
       .field-label {
         display: flex;
