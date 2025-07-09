@@ -32,6 +32,8 @@ import { getReceiver } from 'monitor-api/modules/notice_group';
 import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
+import { getDefaultUserGroupListSync } from '../../../components/user-selector/user-group';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { type OperationType, OperationTypeMap } from './utils';
 
 import './batch-operation-dialog.scss';

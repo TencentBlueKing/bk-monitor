@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getAlarmConfig, updateAlarmConfig } from 'monitor-api/modules/healthz';
 import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
+import UserSelector from '../../components/user-selector/user-selector';
+
 import './healthz-alarm.scss';
 
 @Component

@@ -100,7 +100,7 @@ export default defineComponent({
             scene='part'
             type='search-empty'
           >
-            {getExceptionMessage()}
+            <span style='font-size: 12px;'>{getExceptionMessage()}</span>
           </bk-exception>
         );
       }
@@ -137,7 +137,7 @@ export default defineComponent({
           class='cli-result-line'
         >
           {isLoadingValue.value && props.grepRequestResult.list.length > 0 && (
-            <div style={{ minHeight: '64px', fontSize: '18px', padding: '20px' }}>loading...</div>
+            <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}>loading...</div>
           )}
         </div>
         <ScrollTop></ScrollTop>

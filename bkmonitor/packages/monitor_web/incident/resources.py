@@ -1411,23 +1411,10 @@ class IncidentResultsResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        # 去除前面的时间戳
-        incident_id = str(validated_request_data["id"])[10:]
-        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
-        topology_enabled = diagnosis_results.get("topology_enabled", False)
-        sub_panel_status = {"status": None, "enabled": None, "sub_panels": {}}
-        for sub_panel_name, sub_panel in diagnosis_results.get("sub_panels", {}).items():
-            sub_panel_status["sub_panels"][sub_panel_name] = {
-                "status": sub_panel["status"],
-                "message": sub_panel["message"] if sub_panel.get("message") else "",
-                "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
-            }
-        self.set_upper_status(sub_panel_status, sub_key="sub_panels")
-
         incident_results = {
             "panels": {
                 "incident_handlers": {  # 故障处理tab
-                    "enabled": True,  # 是否展示该tab
+                    "enabled": True,
                     "status": "finished",
                 },
                 "incident_operations": {  # 故障流转tab
@@ -1435,17 +1422,36 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": "finished",
                 },
                 "incident_topology": {  # 故障拓扑tab
-                    "enabled": topology_enabled,
+                    "enabled": True,
                     "status": "finished",
                 },
                 "incident_alerts": {  # 故障告警tab
                     "enabled": True,
                     "status": "finished",
                 },
-                "incident_diagnosis": sub_panel_status,
+                "incident_diagnosis": {"enabled": False, "status": None},
             },
             "status": None,
         }
+
+        # 去除前面的时间戳
+        incident_id = str(validated_request_data["id"])[10:]
+        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+
+        if "incident_diagnosis" in raw_results and isinstance(raw_results["incident_diagnosis"], dict):
+            diagnosis_result = {"status": None, "enabled": None, "sub_panels": {}}
+            for sub_panel_name, sub_panel in raw_results["incident_diagnosis"].get("sub_panels", {}).items():
+                diagnosis_result["sub_panels"][sub_panel_name] = {
+                    "status": sub_panel["status"],
+                    "message": sub_panel["message"] if sub_panel.get("message") else "",
+                    "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
+                }
+            self.set_upper_status(diagnosis_result, sub_key="sub_panels")
+            incident_results["panels"]["incident_diagnosis"] = diagnosis_result
+
+        if "incident_topology" in raw_results and isinstance(raw_results["incident_topology"], dict):
+            topology_result = raw_results["incident_topology"]
+            incident_results["panels"]["incident_topology"] = topology_result
 
         self.set_upper_status(incident_results, sub_key="panels")
 
@@ -1485,15 +1491,15 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         sub_panel = serializers.CharField(required=False, default="summary")
 
     def perform_request(self, validated_request_data: dict) -> dict:
+        panel = validated_request_data.get("panel", "incident_diagnosis")
         sub_panel = validated_request_data.get("sub_panel")
         incident_id = str(validated_request_data["id"])[10:]
         bk_biz_id = int(validated_request_data["bk_biz_id"])
-        diagnosis_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
-        raw_content = diagnosis_results.get("sub_panels", {}).get(sub_panel, {}).get("content")
+        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content", [])
         if sub_panel == "anomaly_analysis":
             content = []
-            drill_results = raw_content.get("dimension_drill_result", [])
-            for drill_result in drill_results:
+            for drill_result in raw_content:
                 alerts = (
                     self.get_alerts_by_alert_ids(drill_result["alert_ids"], bk_biz_ids=[bk_biz_id])
                     if drill_result.get("alert_ids")

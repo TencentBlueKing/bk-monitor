@@ -25,13 +25,7 @@
  */
 import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, set } from 'vue';
 
-import {
-  parseTableRowData,
-  formatDateNanos,
-  formatDate,
-  setDefaultTableWidth,
-  TABLE_LOG_FIELDS_SORT_REGULAR,
-} from '@/common/util';
+import { formatDateNanos, formatDate, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -39,9 +33,14 @@ import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
+import ScrollTop from '../../components/scroll-top/index';
+import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
+import LogResultException from './log-result-exception';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
@@ -53,18 +52,12 @@ import {
   ROW_IS_IN_SECTION,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
-  ROW_SOURCE
+  ROW_SOURCE,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollTop from '../../components/scroll-top/index';
 import ScrollXBar from './scroll-x-bar';
-import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
-import LogResultException from './log-result-exception';
-import { BK_LOG_STORAGE } from '../../../../store/store.type';
-import useTextAction from '../../hooks/use-text-action';
 
 import './log-rows.scss';
 
@@ -217,7 +210,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
-            return <span class='time-field'>{getOriginTimeShow(row[timeField.value])}</span>;
+            return h(
+              'span',
+              {
+                class: 'time-field',
+                domProps: {
+                  innerHTML: formatDateValue(row[timeField.value], timeFieldType.value),
+                },
+              },
+              [],
+            );
           },
         },
         {
@@ -234,8 +236,9 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 formatJson={formatJson.value}
+                isIntersection={options?.[ROW_IS_IN_SECTION] ?? true}
                 jsonValue={row}
-                isIntersection={options[ROW_IS_IN_SECTION]}
+                limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               ></JsonFormatter>
             );
@@ -253,21 +256,16 @@ export default defineComponent({
         minWidth: field.minWidth,
         align: 'top',
         resize: true,
-        renderBodyCell: ({ row }) => {
-          const config: RowConfig = tableRowConfig.get(row).value;
-          const content = getTableColumnContent(row, field);
+        renderBodyCell: ({ row, options }) => {
           return (
-            <TableColumn
-                content={content}
-                field={field}
-                formatJson={config[ROW_F_JSON]}
-                row={row}
-                onIcon-click={(type, content, isLink, depth, isNestedField) =>
-                  handleIconClick(type, content, field, row, isLink, depth, isNestedField)
-                }
-              ></TableColumn>
-      
-            // @ts-ignore
+            <JsonFormatter
+              class='bklog-column-wrapper'
+              fields={field}
+              formatJson={formatJson.value}
+              isIntersection={options[ROW_IS_IN_SECTION]}
+              jsonValue={row}
+              onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
+            ></JsonFormatter>
           );
         },
         renderHeaderCell: () => {
@@ -293,7 +291,7 @@ export default defineComponent({
       };
     };
 
-    const setColWidth = (col) => {
+    const setColWidth = col => {
       col.minWidth = col.width - 4;
       col.width = '100%';
     };
@@ -388,19 +386,16 @@ export default defineComponent({
         fixed: 'left',
         disabled: !indexSetOperatorConfig.value?.isShowSourceField || !indexSetType.value,
         renderBodyCell: ({ row }) => {
-          const indeSetName = unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
-          ''
+          const indeSetName =
+            unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
+            '';
           const hanldeSoureClick = event => {
             event.stopPropagation();
             event.preventDefault();
             event.stopImmediatePropagation();
           };
-          
-          return (
-            <span onClick={hanldeSoureClick}>
-             {indeSetName}  
-            </span>
-          );
+
+          return <span onClick={hanldeSoureClick}>{indeSetName}</span>;
         },
       },
       {
@@ -467,30 +462,24 @@ export default defineComponent({
       ];
     });
 
-    const getTableColumnContent = (row, field) => {
-      // 日志来源 展示来源的索引集名称
-      if (field?.tag === 'union-source') {
-        return (
-          unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
-          ''
-        );
-      }
-      return parseTableRowData(row, field.field_name, field.field_type, false);
-    };
+    const formatDateValue = (data, field_type, regMatchFn?) => {
+      const formatFn = {
+        date: formatDate,
+        date_nanos: formatDateNanos,
+      };
 
-    const formatDateValue = (data, field_type) => {
-      if (field_type === 'date') {
-        return formatDate(Number(data)) || data;
-      }
-      // 处理纳秒精度的UTC时间格式
-      if (field_type === 'date_nanos') {
-        return formatDateNanos(data);
+      if (formatFn[field_type]) {
+        if (/^<mark>(\d+)<\/mark>$/i.test(data)) {
+          return data.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
+            return regMatchFn?.(formatFn[field_type](Number(p1))) ?? `<mark>${formatFn[field_type](Number(p1))}</mark>`;
+          });
+        }
+
+        if (/^\d+$/.test(data)) {
+          return formatFn[field_type](Number(data)) || data || '--';
+        }
       }
       return data;
-    };
-
-    const getOriginTimeShow = data => {
-      return formatDateValue(data, timeFieldType.value);
     };
 
     const { handleOperation } = useTextAction(emit, 'origin');
@@ -501,9 +490,14 @@ export default defineComponent({
     };
 
     // 替换原有的handleMenuClick
-    const handleMenuClick = (option, isLink) => {
+    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      const timeTypes = ['date', 'date_nanos'];
+
       handleOperation(option.operation, {
-        value: option.value,
+        ...option,
+        value: timeTypes.includes(fieldOption?.field.field_type ?? null)
+          ? `${fieldOption?.row[fieldOption?.field.field_name]}`.replace(/<\/?mark>/gim, '')
+          : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
         isLink,
@@ -616,9 +610,7 @@ export default defineComponent({
     watch(
       () => [tableShowRowIndex.value],
       () => {
-        setTimeout(() => {
-          computeRect();
-        });
+        computeRect();
       },
     );
 
@@ -640,9 +632,7 @@ export default defineComponent({
         scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
 
-        setTimeout(() => {
-          computeRect();
-        });
+        computeRect();
       },
     );
 
@@ -848,24 +838,36 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
+      const columnLength = allColumns.value.length;
+      let hasFullWidth = false;
+
       return (
         <div
           ref={refTableHead}
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => (
-              <LogCell
-                key={column.key}
-                width={column.width}
-                class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
-                minWidth={column.minWidth > 0 ? column.minWidth : column.width}
-                resize={column.resize}
-                onResize-width={w => handleColumnWidthChange(w, column)}
-              >
-                {column.renderHeaderCell?.({ column }, h) ?? column.title}
-              </LogCell>
-            ))}
+            {allColumns.value.map((column, index) => {
+              const cellStyle = getColumnWidth(
+                column,
+                !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
+              );
+              hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
+
+              return (
+                <LogCell
+                  key={column.key}
+                  width={column.width}
+                  class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
+                  customStyle={cellStyle}
+                  minWidth={column.minWidth > 0 ? column.minWidth : column.width}
+                  resize={column.resize}
+                  onResize-width={w => handleColumnWidthChange(w, column)}
+                >
+                  {column.renderHeaderCell?.({ column }, h) ?? column.title}
+                </LogCell>
+              );
+            })}
           </div>
         </div>
       );
@@ -875,7 +877,14 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
-    const getColumnWidth = column => {
+    const getColumnWidth = (column, fullWidth = false) => {
+      if (fullWidth) {
+        return {
+          width: '100%',
+          minWidth: `${Math.max(column.minWidth, column.width)}px`,
+        };
+      }
+
       if (typeof column.width === 'number') {
         return {
           width: `${column.width}px`,
@@ -889,8 +898,14 @@ export default defineComponent({
       };
     };
 
+    const allColumns = computed(() =>
+      [...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled),
+    );
+
     const renderRowCells = (row, rowIndex, options) => {
       const { expand } = tableRowConfig.get(row).value;
+      const columnLength = allColumns.value.length;
+      let hasFullWidth = false;
 
       return [
         <div
@@ -898,8 +913,12 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-        {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled).map(column => {
-            const cellStyle = getColumnWidth(column);
+          {allColumns.value.map((column, index) => {
+            const cellStyle = getColumnWidth(
+              column,
+              !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
+            );
+            hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
 
             return (
               <div
@@ -1022,8 +1041,8 @@ export default defineComponent({
     const getExceptionRender = () => {
       return (
         <LogResultException
-          type={exceptionType.value}
           message={exceptionMsg.value}
+          type={exceptionType.value}
         ></LogResultException>
       );
     };

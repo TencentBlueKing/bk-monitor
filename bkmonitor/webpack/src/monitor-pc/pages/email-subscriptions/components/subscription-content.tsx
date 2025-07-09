@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone } from 'monitor-common/utils/utils';
+import { deepClone, Debounce } from 'monitor-common/utils/utils';
 import { Sortable } from 'sortablejs';
 
 import './subscription-content.scss';
@@ -42,6 +42,8 @@ interface ITableData {
   curBizId?: string;
   curGrafana?: string;
   curGrafanaName?: string;
+  width?: number;
+  height?: number;
 }
 interface ISubscriptionContent {
   data: {
@@ -114,6 +116,13 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   handleTypeChange(type: string) {
     return type;
   }
+
+  @Debounce(300)
+  @Emit('imgInputChange')
+  handleInputChange(index, inputVal, isHeightInput = false) {
+    return { index, inputVal, isHeightInput }
+  }
+
   created() {
     this.$store.getters.bizList.forEach(item => {
       this.bizIdListNameMap[item.id] = String(item.text).replace(`[${item.id}] `, '');
@@ -127,6 +136,13 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   handleTabChange(val: string) {
     this.curTab = val;
     this.handleTypeChange(val);
+  }
+
+  handleInputEnter() {
+    const ele = this.$el.querySelector(':focus');
+    if (ele instanceof HTMLInputElement) {
+      ele.blur();
+    }
   }
 
   rowDrop() {
@@ -168,18 +184,55 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     }
     return false;
   }
+
+  // 图片设置input
+  imgInputRender(index, cellValue, max, isHeightInput = false) {
+    return (
+      <bk-input
+        ext-cls='img-size-input'
+        max={max}
+        min={1}
+        placeholder={this.$t('数值')}
+        show-controls={false}
+        size='small'
+        type='number'
+        value={cellValue}
+        onChange={v => {
+          this.handleInputChange(index, v, isHeightInput);
+        }}
+        onEnter={this.handleInputEnter}
+      />
+    );
+  }
+
   // 视图截取表格
   getViewTable() {
     const tableColumnsMap: { label: string; key: string; width?: number }[] = [
-      { label: window.i18n.tc('子标题'), key: 'contentTitle' },
-      { label: window.i18n.tc('图表数量'), key: 'graphs', width: 150 },
-      { label: window.i18n.tc('布局'), key: 'rowPicturesNum', width: 150 },
-      { label: window.i18n.tc('说明'), key: 'contentDetails' },
+      { label: this.$t('子标题') as string, key: 'contentTitle' },
+      { label: this.$t('图表数量') as string, key: 'graphs', width: 150 },
+      { label: this.$t('布局') as string, key: 'rowPicturesNum', width: 150 },
+      { label: this.$t('单图宽高') as string, key: 'imgSize', width: 150 },
+      { label: this.$t('说明') as string, key: 'contentDetails' },
     ];
-    const formatterColumn = (row, column, cellValue) => {
-      if (column.property === 'layout') return cellValue + this.$t('个/行');
+    const formatterColumn = (row, column, cellValue, index) => {
+      if (column.property === 'rowPicturesNum') return cellValue + this.$t('个/行');
       if (column.property === 'graphs') return cellValue.length;
+      if (column.property === 'imgSize') return imgSizeRender(index, row);
       return cellValue;
+    };
+    const imgSizeRender = (index, row) => {
+      // 默认值：1行1个：w800 h720 | 1行2个：w620 h360 | 整屏：w1600
+      const { width = row.rowPicturesNum === 1 ? 800 : 620, height = row.rowPicturesNum === 1 ? 270 : 300 } = row;
+      return [
+        this.imgInputRender(index, width, 4000),
+        <span
+          key='img-size-span'
+          class='img-size-span'
+        >
+          ×
+        </span>,
+        this.imgInputRender(index, height, 2000, true),
+      ];
     };
     const iconSlot = {
       default: () => <span class='icon-drag' />,
@@ -235,10 +288,11 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   // 整屏截取表格
   getPullTable() {
     const tableColumnsMap: { label: string; key: string; width?: number }[] = [
-      { label: window.i18n.tc('子标题'), key: 'contentTitle' },
-      { label: window.i18n.tc('说明'), key: 'contentDetails', width: 150 },
-      { label: window.i18n.tc('业务'), key: 'curBizId', width: 150 },
-      { label: window.i18n.tc('仪表盘名称'), key: 'curGrafanaName' },
+      { label: this.$t('子标题') as string, key: 'contentTitle' },
+      { label: this.$t('图片宽度') as string, key: 'imgSize', width: 150 },
+      { label: this.$t('说明') as string, key: 'contentDetails', width: 150 },
+      { label: this.$t('业务') as string, key: 'curBizId', width: 150 },
+      { label: this.$t('仪表盘名称') as string, key: 'curGrafanaName' },
     ];
     const operateSlot = {
       default: props => [
@@ -264,6 +318,18 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
       <bk-table data={this.data.pullData}>
         <bk-table-column width={52} />
         {tableColumnsMap.map(item => {
+          if (item.key === 'imgSize') {
+            return (
+              <bk-table-column
+                key={item.key}
+                width={item.width}
+                scopedSlots={{
+                  default: ({ $index, row }) => this.imgInputRender($index, row?.width || 1600, 4000),
+                }}
+                label={item.label}
+              />
+            );
+          }
           if (item.key === 'curBizId') {
             return (
               <bk-table-column

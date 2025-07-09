@@ -610,7 +610,7 @@ class ImportConfigFileResource(Resource):
                     zip_file.extractall(temp_path)
             else:
                 with tarfile.open(fileobj=file.file) as tar:
-                    tar.extractall(temp_path)
+                    tar.extractall(temp_path, filter='data')
 
             temp_path = os.path.join(temp_path, "configs/")
 
