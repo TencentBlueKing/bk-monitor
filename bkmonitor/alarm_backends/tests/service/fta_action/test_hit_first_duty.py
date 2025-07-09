@@ -7,7 +7,6 @@ from bkmonitor.models import UserGroup
 
 @pytest.fixture
 def mock_assignee():
-    """创建完全模拟的AlertAssignee实例"""
     # 创建mock对象
     assignee = mock.MagicMock(spec=AlertAssignee)
 
@@ -15,11 +14,9 @@ def mock_assignee():
     assignee.all_group_users = defaultdict(list)
     assignee.biz_group_users = {"group1": ["user1", "user2"], "group2": ["user3"]}
 
-    # 添加alert属性
     assignee.alert = mock.MagicMock()
     assignee.alert.id = "test_alert_1"
 
-    # 保留原始方法用于测试
     original_method = AlertAssignee.get_group_duty_users.__get__(assignee)
     assignee.get_group_duty_users = original_method
 
