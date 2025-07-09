@@ -609,9 +609,12 @@ class ImportConfigFileResource(Resource):
         if file.name.endswith(".zip"):
             with zipfile.ZipFile(file.file, "r") as zip_file:
                 for file_info in zip_file.infolist():
+                    if not file_info.filename.startswith("./configs/"):
+                        continue
+                    config_name = file_info.filename[len("./configs/") :]
                     if file_info.filename.endswith((".yaml", ".yml", ".json")):
                         with zip_file.open(file_info) as f:
-                            configs[file_info.filename] = f.read().decode("utf-8")
+                            configs[config_name] = f.read().decode("utf-8")
         else:
             with tarfile.open(fileobj=file.file) as tar:
                 for member in tar.getmembers():
