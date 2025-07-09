@@ -192,7 +192,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
         ext-cls='img-size-input'
         max={max}
         min={1}
-        placeholder=' '
+        placeholder={this.$t('数值')}
         show-controls={false}
         size='small'
         type='number'
