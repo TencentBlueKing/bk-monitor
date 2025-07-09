@@ -209,7 +209,7 @@
     .edit-btn-container {
       display: flex;
       align-items: center;
-      justify-content: end;
+      justify-content: flex-end;
       width: 100%;
     }
   }
