@@ -183,19 +183,19 @@ export default defineComponent({
       if (duration < 48) return 21600 * 1000;
       return (86400 * 1000) / 2;
     };
+    
     // 拉取趋势图数据接口
     const fetchTrendChartData = (urlStr, indexId, queryData) => {
+      const controller = new AbortController();
+      logChartCancel = () => controller.abort();
+      
       return http.request(
         urlStr,
         {
           params: { index_set_id: indexId },
           data: queryData,
+          signal: controller.signal,
         },
-        {
-          cancelToken: new CancelToken(c => {
-            logChartCancel = c;
-          }),
-        }
       );
     };
 
