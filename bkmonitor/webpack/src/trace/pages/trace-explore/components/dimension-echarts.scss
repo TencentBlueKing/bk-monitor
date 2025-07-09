@@ -2,15 +2,10 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 136px;
-
-  &.has-legend {
-    height: 176px;
-  }
+  min-height: 56px;
 
   .event-explore-dimension-echarts-content {
     display: flex;
-    flex: 1;
   }
 
   .page-legend-box-component {
