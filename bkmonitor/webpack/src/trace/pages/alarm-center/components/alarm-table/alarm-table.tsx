@@ -43,7 +43,7 @@ import {
   AlarmLevelIconMap,
   type AlarmStorageKey,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
-  EventStatusMap,
+  AlertStatusMap,
   EXTEND_INFO_MAP,
   type TableColumnItem,
   type TablePagination,
@@ -199,12 +199,8 @@ export default defineComponent({
           renderType: ExploreTableColumnTypeEnum.TAGS,
         },
         status: {
-          renderType: ExploreTableColumnTypeEnum.TAGS,
-          getRenderValue(row) {
-            const tagInfo = EventStatusMap?.[row.status];
-            if (!tagInfo) return;
-            return [tagInfo];
-          },
+          renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+          getRenderValue: row => AlertStatusMap?.[row.status],
         },
       };
     }

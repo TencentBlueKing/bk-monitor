@@ -54,6 +54,26 @@
         }
       }
     }
+
+    &.explore-prefix-icon-col {
+      .prefix-icon {
+        margin-right: 4px;
+      }
+
+      .alert-status-icon {
+        &.icon-mind-fill {
+          color: #f59789;
+        }
+
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
+        }
+
+        &.icon-shixiao {
+          color: #8e9bb3;
+        }
+      }
+    }
   }
 
   .ellipsis-text {

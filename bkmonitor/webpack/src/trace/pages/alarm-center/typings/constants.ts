@@ -87,24 +87,18 @@ export const AlarmLevelIconMap = {
   },
 };
 
-export const EventStatusMap = {
+export const AlertStatusMap = {
   ABNORMAL: {
-    tagColor: '#EA3536',
-    tagBgColor: '#FEEBEA',
+    prefixIcon: 'alert-status-icon icon-monitor icon-mind-fill',
     alias: window.i18n.t('未恢复'),
-    value: 'ABNORMAL',
   },
   RECOVERED: {
-    tagColor: '#14A568',
-    bgColor: '#E4FAF0',
+    prefixIcon: 'alert-status-icon icon-monitor icon-mc-check-fill',
     name: window.i18n.t('已恢复'),
-    value: 'RECOVERED',
   },
   CLOSED: {
-    tagColor: '#63656E',
-    tagBgColor: '#F0F1F5',
+    prefixIcon: 'alert-status-icon icon-monitor icon-shixiao',
     alias: window.i18n.t('已失效'),
-    value: 'CLOSED',
   },
 };
 
