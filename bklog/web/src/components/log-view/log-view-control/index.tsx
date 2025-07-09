@@ -94,7 +94,7 @@ export default class LogViewControl extends tsc<IProps> {
     }
   }
 
-  initLightItemList(direction, lightList = this.lightList) {
+  initLightItemList(lightList = this.lightList, direction = '') {
     this.highlightHtmlList = document.querySelectorAll('[data-index="light"]');
     this.lightSize = this.highlightHtmlList.length;
     if (this.lightSize) {
