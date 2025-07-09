@@ -397,7 +397,7 @@ export default class AddContent extends Vue {
 
     .form-wrap {
       box-sizing: border-box;
-      max-height: calc(100vh - 111px);
+      // max-height: calc(100vh - 111px);
       padding: 24px 0;
       overflow-y: auto;
       background-color: #fff;
