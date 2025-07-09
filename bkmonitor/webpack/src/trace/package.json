@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@antv/g6": "^4.8.25",
+    "@blueking/bk-user-display-name": "1.0.3-beta.3",
+    "@blueking/bk-user-selector": "0.0.29-beta.10",
     "@blueking/date-picker": "2.0.0-beta.48",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.3.0-beta.44",
@@ -63,7 +65,10 @@
     "vue-router": "^4.5.1",
     "vue-tippy": "^6.7.1"
   },
-  "keywords": ["monitor", "trace"],
+  "keywords": [
+    "monitor",
+    "trace"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

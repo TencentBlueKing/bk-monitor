@@ -33,7 +33,8 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
@@ -1305,6 +1306,13 @@ class Space(SoftDeleteModel):
             return space.bk_tenant_id
 
         return default_tenant_id
+
+    @classmethod
+    def get_space_uid_list(cls, tenant_id: str) -> list:
+        """
+        获取租户的所有空间ID
+        """
+        return cls.objects.filter(bk_tenant_id=tenant_id).values_list("space_uid", flat=True)
 
 
 class SpaceApi(AbstractSpaceApi):
