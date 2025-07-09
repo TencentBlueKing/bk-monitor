@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
+import { Prop, Component, Emit, Watch, InjectReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
@@ -182,16 +182,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
-  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
-    id: string,
-    groupId: K8sTableColumnResourceKey,
-    isSelect: boolean
-  ) => void;
-
-  @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
-    item: K8sTableGroupByEvent,
-    showCancelDrill?: boolean
-  ) => void;
 
   tableLoading = {
     /** table 骨架屏 loading */
@@ -1045,10 +1035,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             <K8sQuickTools
               class='table-col-tools'
               filterCommonParams={this.filterCommonParams}
-              filterValue={text}
               groupByField={column.id}
-              onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
-              onFilterChange={this.onFilterChange}
+              value={text}
             />
           ) : null}
         </div>

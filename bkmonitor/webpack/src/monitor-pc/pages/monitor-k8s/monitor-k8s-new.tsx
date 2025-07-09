@@ -613,11 +613,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       if (groupBy) {
         this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
       }
-      if (!filterBy) {
-        this.initFilterBy();
-      } else {
-        this.filterBy = tryURLDecodeParse(filterBy as string, {});
-      }
+      this.initFilterBy();
+      this.filterBy = { ...this.filterBy, ...tryURLDecodeParse(filterBy as string, {}) };
     }
   }
 
