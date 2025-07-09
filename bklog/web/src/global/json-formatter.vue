@@ -1,7 +1,15 @@
 <template>
   <div
     ref="refJsonFormatterCell"
-    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    :class="[
+      'bklog-json-formatter-root',
+      {
+        'is-wrap-line': isWrap,
+        'is-inline': !isWrap,
+        'is-json': formatJson,
+        'is-hidden': !isRowIntersecting && isResolved,
+      },
+    ]"
     :style="rootElementStyle"
   >
     <template v-for="item in rootList">
@@ -38,7 +46,7 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
   import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
@@ -69,10 +77,7 @@
       type: Boolean,
       default: true,
     },
-    isIntersection: {
-      type: Boolean,
-      default: false,
-    },
+
     limitRow: {
       type: [Number, String, null],
       default: 3,
@@ -82,9 +87,10 @@
   const bigJson = JSONBig({ useNativeBigInt: true });
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
-  const isResolved = ref(props.isIntersection);
   const showAllText = ref(false);
   const hasScrollY = ref(false);
+  const isRowIntersecting = inject('isRowIntersecting', ref(false));
+  const isResolved = ref(isRowIntersecting.value);
 
   const isFormatDateField = computed(() => store.state.isFormatDate);
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
@@ -279,9 +285,9 @@
   };
 
   watch(
-    () => [props.isIntersection],
+    () => [isRowIntersecting.value],
     () => {
-      if (props.isIntersection && !isResolved.value) {
+      if (isRowIntersecting.value && !isResolved.value) {
         debounceUpdate();
       }
     },
@@ -348,7 +354,7 @@
 
     .btn-more-action {
       position: absolute;
-      right: 6px;
+      right: 4px;
       bottom: 0px;
       color: #3a84ff;
       cursor: pointer;
@@ -421,6 +427,10 @@
           will-change: transform;
         }
       }
+    }
+
+    &.is-hidden {
+      visibility: hidden;
     }
 
     .segment-content {

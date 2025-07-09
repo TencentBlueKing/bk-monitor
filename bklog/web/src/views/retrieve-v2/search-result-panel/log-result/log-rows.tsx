@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
 import { formatDateNanos, formatDate, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -49,7 +49,6 @@ import {
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
-  ROW_IS_IN_SECTION,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
   ROW_SOURCE,
@@ -155,7 +154,7 @@ export default defineComponent({
             arr.push({
               item: tableList.value[i],
               [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-              [ROW_IS_IN_SECTION]: tableList.value[i][ROW_IS_IN_SECTION] || false,
+              // [ROW_IS_IN_SECTION]: tableList.value[i][ROW_IS_IN_SECTION] || false,
             });
           }
 
@@ -230,13 +229,12 @@ export default defineComponent({
           minWidth: '100%',
           width: '100%',
           resize: false,
-          renderBodyCell: ({ row, options }) => {
+          renderBodyCell: ({ row }) => {
             return (
               <JsonFormatter
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 formatJson={formatJson.value}
-                isIntersection={options?.[ROW_IS_IN_SECTION] ?? true}
                 jsonValue={row}
                 limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
@@ -256,13 +254,12 @@ export default defineComponent({
         minWidth: field.minWidth,
         align: 'top',
         resize: true,
-        renderBodyCell: ({ row, options }) => {
+        renderBodyCell: ({ row }) => {
           return (
             <JsonFormatter
               class='bklog-column-wrapper'
               fields={field}
               formatJson={formatJson.value}
-              isIntersection={options[ROW_IS_IN_SECTION]}
               jsonValue={row}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             ></JsonFormatter>
@@ -631,7 +628,6 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
-
         computeRect();
       },
     );
@@ -902,7 +898,7 @@ export default defineComponent({
       [...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled),
     );
 
-    const renderRowCells = (row, rowIndex, options) => {
+    const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
@@ -926,7 +922,7 @@ export default defineComponent({
                 style={cellStyle}
                 class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
               >
-                {column.renderBodyCell?.({ row, column, rowIndex, options }, h) ?? column.title}
+                {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
               </div>
             );
           })}
@@ -944,11 +940,8 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
-            on-row-visible={(isIntersect: boolean) => {
-              set(tableList.value[rowIndex], ROW_IS_IN_SECTION, isIntersect);
-            }}
           >
-            {renderRowCells(row.item, rowIndex, tableList.value[rowIndex])}
+            {renderRowCells(row.item, rowIndex)}
           </RowRender>,
         ];
       });
