@@ -1,6 +1,12 @@
 .alarm-table {
   height: 100%;
 
+  @mixin text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .explore-col {
     &.lever-rect-col {
       display: flex;
@@ -17,6 +23,35 @@
       .lever-rect-text {
         color: #3a84ff;
         cursor: pointer;
+      }
+    }
+
+    .extend-info-col {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      max-width: 100%;
+      line-height: 18px;
+
+      .extend-content {
+        display: flex;
+        height: 18px;
+
+        @include text-ellipsis;
+
+        &-message {
+          @include text-ellipsis;
+        }
+
+        &-link {
+          color: #3a84ff;
+          cursor: pointer;
+
+          &.link-more {
+            float: right;
+            margin-left: 6px;
+          }
+        }
       }
     }
   }

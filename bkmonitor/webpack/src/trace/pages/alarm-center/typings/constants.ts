@@ -108,6 +108,13 @@ export const EventStatusMap = {
   },
 };
 
+/** 告警-关联信息不同类型提示信息 */
+export const EXTEND_INFO_MAP = {
+  log_search: window.i18n.t('查看更多相关的日志'),
+  custom_event: window.i18n.t('查看更多相关的事件'),
+  bkdata: window.i18n.t('查看更多相关的数据'),
+};
+
 /** 我有权限的业务ID */
 export const MY_AUTH_BIZ_ID = -1;
 /** 我有告警的业务ID */

@@ -29,6 +29,7 @@ import { useTippy } from 'vue-tippy';
 
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
+import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 import {
@@ -43,10 +44,13 @@ import {
   type AlarmStorageKey,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   EventStatusMap,
+  EXTEND_INFO_MAP,
   type TableColumnItem,
+  type TablePagination,
 } from '../../typings';
 import CommonTable from './components/common-table';
 
+import type { BkUiSettings } from '@blueking/tdesign-ui/.';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './alarm-table.scss';
@@ -58,6 +62,28 @@ export default defineComponent({
     columns: {
       type: Array as PropType<TableColumnItem[]>,
       default: () => [],
+    },
+    /** 表格分页属性类型 */
+    pagination: {
+      type: Object as PropType<TablePagination>,
+    },
+    /** 表格设置属性类型 */
+    tableSettings: {
+      type: Object as PropType<Omit<BkUiSettings, 'hasCheckAll'>>,
+    },
+    /** 表格渲染数据 */
+    data: {
+      type: Array as PropType<Record<string, any>[]>,
+      default: () => [],
+    },
+    /** 表格加载状态 */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 表格排序信息,字符串格式，以id为例：倒序 => -id；正序 => id；*/
+    sort: {
+      type: [String, Array] as PropType<string | string[]>,
     },
   },
   setup(props) {
@@ -85,16 +111,6 @@ export default defineComponent({
     });
 
     /**
-     * @description 将 string[] 类型数据转换成 tag 列所需结构数据
-     * @param row
-     * @param column
-     * @returns
-     */
-    function convertStringArrayToTags(row, column) {
-      return row[column.colKey]?.map?.(e => ({ alias: e, value: e }));
-    }
-
-    /**
      * @description 获取告警table表格列中单元格需要特殊渲染的列配置
      *
      */
@@ -111,6 +127,7 @@ export default defineComponent({
                 />
                 <div
                   class='lever-rect-text ellipsis-text'
+                  onClick={() => handleShowDetail(row.id)}
                   onMouseenter={e => handleAlterNameHover(e, row)}
                   onMouseleave={handleClearTimer}
                 >
@@ -126,7 +143,9 @@ export default defineComponent({
         },
         event_count: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
-          clickCallback(row, column, event) {},
+          clickCallback(row) {
+            handleShowDetail(row.id);
+          },
         },
         create_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
@@ -148,6 +167,20 @@ export default defineComponent({
           getRenderValue: row => {
             return row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value }));
           },
+        },
+        extend_info: {
+          cellRenderer: row =>
+            (
+              <div class='explore-col'>
+                <div
+                  class='extend-info-col'
+                  onMouseenter={e => handleExtendInfoEnter(e, row.extend_info)}
+                  onMouseleave={handleClearTimer}
+                >
+                  {row.extend_info?.type ? getExtendInfoColumn(row.extend_info, row.bk_biz_id?.toString?.()) : '--'}
+                </div>
+              </div>
+            ) as unknown as SlotReturnValue,
         },
         appointee: {
           renderType: ExploreTableColumnTypeEnum.TAGS,
@@ -177,30 +210,126 @@ export default defineComponent({
     }
 
     /**
-     * @description 跳转策略详情页面
+     * @description: 关联信息组件
      *
      */
-    function getStrategyUrl(strategy_id, bk_biz_id) {
-      if (!strategy_id) return;
-      return `${location.origin}${location.pathname}?bizId=${bk_biz_id}#/strategy-config/detail/${strategy_id}`;
+    function getExtendInfoColumn(extendInfo: Record<string, string>, bizId: string) {
+      switch (extendInfo.type) {
+        case 'host':
+          return [
+            <div
+              key={'extend-content-1'}
+              class='extend-content'
+            >{`${t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
+            <div
+              key={'extend-content-2'}
+              class='extend-content'
+            >
+              <span class='extend-content-message'>{`${t('节点信息:')}${extendInfo.topo_info || '--'}`}</span>
+              <span
+                class='extend-content-link link-more'
+                onClick={() => handleGotoMore(extendInfo, bizId)}
+              >
+                {t('更多')}
+              </span>
+            </div>,
+          ];
+        case 'log_search':
+        case 'custom_event':
+        case 'bkdata':
+          return (
+            <span
+              class='extend-content-link'
+              onClick={() => handleGotoMore(extendInfo, bizId)}
+            >
+              {EXTEND_INFO_MAP[extendInfo.type] || '--'}
+            </span>
+          );
+      }
+      return '--';
     }
 
     /**
-     * @description 处理复制事件
+     * @description: 关联信息跳转
      *
      */
-    function handleCopy(text) {
-      copyText(text || '--', msg => {
-        bkMessage({
-          message: msg,
-          theme: 'error',
-        });
-        return;
-      });
-      bkMessage({
-        message: t('复制成功'),
-        theme: 'success',
-      });
+    function handleGotoMore(extendInfo: Record<string, any>, bizId: string) {
+      const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
+      switch (extendInfo.type) {
+        // 监控主机监控详情
+        case 'host': {
+          const detailId =
+            extendInfo.bk_host_id ??
+            `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
+          window.open(
+            `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
+            '_blank'
+          );
+          return;
+        }
+        // 监控数据检索
+        case 'bkdata': {
+          const targets = [{ data: { query_configs: extendInfo.query_configs } }];
+          window.open(
+            `${origin}${location.pathname
+              .toString()
+              .replace(
+                'fta/',
+                ''
+              )}?bizId=${bizId}#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`,
+            '_blank'
+          );
+          return;
+        }
+        // 日志检索
+        case 'log_search': {
+          const retrieveParams = {
+            // 检索参数
+            bizId,
+            keyword: extendInfo.query_string, // 搜索关键字
+            addition: extendInfo.agg_condition || [],
+          };
+          const queryStr = transformLogUrlQuery(retrieveParams);
+          const url = `${window.bk_log_search_url}#/retrieve/${extendInfo.index_set_id}${queryStr}`;
+          window.open(url);
+          return;
+        }
+        // 监控自定义事件
+        case 'custom_event': {
+          const id = extendInfo.bk_event_group_id;
+          window.open(
+            `${origin}${location.pathname
+              .toString()
+              .replace('fta/', '')}?bizId=${bizId}#/custom-escalation-detail/event/${id}`,
+            '_blank'
+          );
+          return;
+        }
+      }
+    }
+
+    /** 关联信息提示信息 */
+    function handleExtendInfoEnter(e, info) {
+      let tplStr = '--';
+      switch (info.type) {
+        case 'host':
+          tplStr = `<div class="extend-content">${t('主机名:')}${info.hostname || '--'}</div>
+            <div class="extend-content">
+              <span class="extend-content-message">${t('节点信息:')}${info.topo_info || '--'}</span>
+            </div>
+          `;
+          break;
+        case 'log_search':
+        case 'custom_event':
+        case 'bkdata':
+          tplStr = `<span class="extend-content-link">
+            ${EXTEND_INFO_MAP[info.type] || '--'}
+          </span>`;
+          break;
+        default:
+          break;
+      }
+      handlePopoverShow(e, tplStr);
     }
 
     /**
@@ -237,6 +366,41 @@ export default defineComponent({
         </div>
       );
       handlePopoverShow(e, content);
+    }
+
+    /**
+     * @description: 展示详情
+     *
+     */
+    function handleShowDetail(id: string) {
+      alert(`记录${id}的详情弹窗`);
+    }
+
+    /**
+     * @description 跳转策略详情页面
+     *
+     */
+    function getStrategyUrl(strategy_id, bk_biz_id) {
+      if (!strategy_id) return;
+      return `${location.origin}${location.pathname}?bizId=${bk_biz_id}#/strategy-config/detail/${strategy_id}`;
+    }
+
+    /**
+     * @description 处理复制事件
+     *
+     */
+    function handleCopy(text) {
+      copyText(text || '--', msg => {
+        bkMessage({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      bkMessage({
+        message: t('复制成功'),
+        theme: 'success',
+      });
     }
 
     /**
@@ -305,8 +469,16 @@ export default defineComponent({
         horizontalScrollAffixedBottom={{
           container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
         }}
+        tableSettings={{
+          ...this.tableSettings,
+          hasCheckAll: true,
+        }}
         columns={this.transformedColumns}
-        {...this.$attrs}
+        data={this.data}
+        loading={this.loading}
+        pagination={this.pagination}
+        sort={this.sort}
+        {...this.$emit}
       />
     );
   },
