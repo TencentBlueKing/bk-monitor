@@ -360,7 +360,7 @@
           console.warn(e);
         } finally {
           this.logLoading = false;
-          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList();
+          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList(undefined,direction);
           if (this.zero) {
             this.$nextTick(() => {
               this.initLogScrollPosition();
