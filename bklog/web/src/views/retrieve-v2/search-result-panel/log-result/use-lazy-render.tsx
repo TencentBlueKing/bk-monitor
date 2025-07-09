@@ -108,17 +108,11 @@ export default ({
 
   const debounceComputeRect = debounce(computeRect, 300);
 
-  useIntersectionObserver(
-    refLoadMoreElement,
-    inter => {
-      if (inter.isIntersecting) {
-        loadMoreFn?.();
-      }
-    },
-    {
-      rootMargin: '100px 0px 100px 0px',
-    },
-  );
+  useIntersectionObserver(refLoadMoreElement, inter => {
+    if (inter.isIntersecting) {
+      loadMoreFn?.();
+    }
+  });
 
   onMounted(() => {
     calculateOffsetTop();
