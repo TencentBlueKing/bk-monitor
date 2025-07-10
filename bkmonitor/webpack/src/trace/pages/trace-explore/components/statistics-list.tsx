@@ -356,7 +356,11 @@ export default defineComponent({
             { value: `${item.proportions}%` },
           ])
         );
-        downloadFile(csvString, 'text/csv;charset=utf-8;', `${localField.value}.csv`);
+        downloadFile(
+          csvString,
+          'text/csv;charset=utf-8;',
+          `topk_${props.commonParams.app_name}_${localField.value}.csv`
+        );
       } else {
         downloadLoading.value = true;
         const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
