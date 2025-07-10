@@ -167,4 +167,10 @@ export default {
   'P95 耗时': 'P95 time',
   请求量少: 'Fewer requests',
   请求量多: 'More requests',
+  可疑程度: 'Suspicious degree',
+  诊断分析: 'Diagnosis analysis',
+  故障总结: 'Incident summary',
+  告警异常维度分析: 'Alarm abnormal dimension analysis',
+  '故障关联的告警，统计出最异常的维度（组合）：':
+    'Alarms related to the fault, statistics are the most abnormal dimension (combination):',
 };

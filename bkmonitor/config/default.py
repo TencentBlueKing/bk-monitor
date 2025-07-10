@@ -730,7 +730,12 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "bkmonitor.db_routers.TableVisitCountRouter"]
+
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+
+# 是否开启表访问次数统计
+if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
+    DATABASE_ROUTERS.append("bkmonitor.db_routers.TableVisitCountRouter")
 
 # 数据库配置
 (

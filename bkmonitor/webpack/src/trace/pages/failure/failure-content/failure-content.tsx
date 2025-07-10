@@ -45,6 +45,7 @@ import FailureMenu from '../failure-menu/failure-menu';
 // import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
+import { replaceSpecialCondition } from '../utils';
 
 import type { IAlert, IAlertObj, IFilterSearch, IIncident, IIncidentOperation } from '../types';
 
@@ -92,6 +93,10 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    alertList: {
+      type: Object as () => IAlertObj,
+      default: () => ({}),
+    },
   },
   emits: ['refresh', 'changeSelectNode'],
   setup(props, { emit }) {
@@ -102,11 +107,13 @@ export default defineComponent({
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('FailureView');
     provide('activeName', active);
+    const incidentResults = inject<Ref<object>>('incidentResults');
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
         name: FailureContentTabView.FAILURE_TOPO,
         label: t('故障拓扑'),
+        key: 'incident_topology',
       },
       // {
       //   name: FailureContentTabView.FAILURE_TIMING,
@@ -115,6 +122,7 @@ export default defineComponent({
       {
         name: FailureContentTabView.FAILURE_VIEW,
         label: t('告警'),
+        key: 'incident_alerts',
       },
     ];
     /** 告警Tab中二级tab列表  */
@@ -136,9 +144,18 @@ export default defineComponent({
     });
     const inputStatus = ref<string>('success');
 
+    const showTabList = computed(() => {
+      return tabList.filter(item => incidentResults.value[item.key]?.enabled);
+    });
+
+    const isShowTab = () => {
+      const tab = tabList.find(item => item.name === active.value);
+      return tab ? incidentResults.value[tab.key]?.enabled : true;
+    };
+
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
-      alertIdsObject.value = {};
+      // alertIdsObject.value = {};
     };
     const playingHandle = status => {
       playLoading.value = status;
@@ -164,16 +181,24 @@ export default defineComponent({
     watch(
       () => currentNodeData.value,
       () => {
-        handleChangeActive(FailureContentTabView.FAILURE_TOPO);
+        incidentResults.value.incident_topology?.enabled && handleChangeActive(FailureContentTabView.FAILURE_TOPO);
       }
     );
+    watch(
+      () => showTabList.value,
+      list => {
+        active.value = list[0]?.name || FailureContentTabView.FAILURE_VIEW;
+      }
+    );
+    watch(
+      () => props.alertList,
+      val => {
+        alertIdsObject.value = val;
+      }
+    );
+
     const handleChangeSelectNode = (nodeId: string) => {
       emit('changeSelectNode', nodeId);
-    };
-    const replaceSpecialCondition = (qs: string) => {
-      // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
-      const regExp = new RegExp(`${t('通知人')}\\s*:\\s*(""|'')`, 'gi');
-      return qs.replace(regExp, `NOT ${t('通知人')} : *`);
     };
     // 触发拓扑中跳转到span的事件
     const handleRootToSpan = () => {
@@ -195,7 +220,7 @@ export default defineComponent({
     const handleQueryStringChange = async (v: string) => {
       const isChange = alertIdsObject.value?.ids ? v !== alertIdsObject.value.ids : true;
       if (isChange) {
-        alertIdsObject.value = v;
+        alertIdsObject.value = { ids: v };
         searchValidate.value = await handleValidateQueryString();
       }
     };
@@ -218,6 +243,8 @@ export default defineComponent({
       handleQueryStringChange,
       inputStatus,
       searchValidate,
+      showTabList,
+      isShowTab,
     };
   },
   render() {
@@ -226,11 +253,11 @@ export default defineComponent({
         <FailureMenu
           width={'calc(100vw - 500px)'}
           active={this.active}
-          tabList={this.tabList}
+          tabList={this.showTabList}
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
-          {this.active === FailureContentTabView.FAILURE_TOPO && (
+          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               ref='failureTopo'
               selectNode={this.currentNodeData || []}
@@ -250,7 +277,7 @@ export default defineComponent({
               onRefresh={this.refresh}
             />
           )} */}
-          {this.active === FailureContentTabView.FAILURE_VIEW && (
+          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>
                 <div class='head-tab'>

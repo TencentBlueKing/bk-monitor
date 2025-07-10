@@ -271,9 +271,9 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
         lookups = serializers.CharField()
 
 
-class ListCommonUserResource(BkUserApiResource):
+class ListTenantVariablesResource(BkUserApiResource):
     """
-    查询公共用户列表
+    查询租户变量列表
     """
 
     action = "/api/v3/open/tenant/common-variables/"

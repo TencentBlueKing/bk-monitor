@@ -105,7 +105,7 @@ export interface IStatisticsInfo {
 export interface IStatisticsGraph {
   name: string;
   color: string;
-  datapoints: [number, number][];
+  datapoints: [number, number | string][];
   type: 'bar' | 'line';
   [key: string]: any;
 }

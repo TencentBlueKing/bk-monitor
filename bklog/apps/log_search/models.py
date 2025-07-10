@@ -1307,6 +1307,13 @@ class Space(SoftDeleteModel):
 
         return default_tenant_id
 
+    @classmethod
+    def get_space_uid_list(cls, tenant_id: str) -> list:
+        """
+        获取租户的所有空间ID
+        """
+        return cls.objects.filter(bk_tenant_id=tenant_id).values_list("space_uid", flat=True)
+
 
 class SpaceApi(AbstractSpaceApi):
     """
