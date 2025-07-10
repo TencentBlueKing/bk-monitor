@@ -676,6 +676,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
             onDrillDown={this.handleTableGroupChange}
+            onFilterChange={this.filterByChange}
           />
         );
       default:

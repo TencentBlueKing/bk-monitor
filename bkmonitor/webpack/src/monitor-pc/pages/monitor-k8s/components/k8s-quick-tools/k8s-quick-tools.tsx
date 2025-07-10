@@ -45,9 +45,9 @@ interface K8sQuickToolsProps {
   /** 当前filterBy筛选数据中所在维度的筛选项数据 */
   filters: string[];
   /** 是否启用下钻功能 */
-  enableDrillDown: boolean;
+  enableDrillDown?: boolean;
   /** 是否开启 添加/移除 筛选项 功能 */
-  enableFilter: boolean;
+  enableFilter?: boolean;
 }
 
 interface K8sQuickToolsEmits {

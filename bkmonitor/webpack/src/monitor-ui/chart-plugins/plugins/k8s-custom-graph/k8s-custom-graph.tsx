@@ -33,6 +33,7 @@ import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import K8sQuickTools from 'monitor-pc/pages/monitor-k8s/components/k8s-quick-tools/k8s-quick-tools';
 import {
   downCsvFile,
   transformSrcData,
@@ -49,7 +50,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
-import K8sDimensionDrillDown from './k8s-dimension-drilldown';
+import { transformField } from './utils';
 
 import type {
   DataQuery,
@@ -62,6 +63,7 @@ import type {
   PanelModel,
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
+import type { K8sTableColumnResourceKey } from 'monitor-pc/pages/monitor-k8s/components/k8s-table-new/k8s-table-new';
 
 import './k8s-custom-graph.scss';
 const SpecialSeriesColorMap = {
@@ -127,6 +129,11 @@ class K8SCustomChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string, name: string) => void;
+  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
+    id: string,
+    groupId: K8sTableColumnResourceKey,
+    isSelect: boolean
+  ) => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
     dimensions: Record<string, string>
   ) => void;
@@ -1118,11 +1125,24 @@ class K8SCustomChart extends CommonSimpleChart {
                           {item.name}
                         </span>
                         {!this.isSpecialSeries(item.name) && (
-                          <K8sDimensionDrillDown
-                            dimension={this.panel.externalData?.groupByField}
-                            value={this.panel.externalData?.groupByField}
-                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          <K8sQuickTools
+                            class='k8s-graph-quick-tools'
+                            filterValue={transformField(
+                              item.name,
+                              this.panel.externalData?.groupByField,
+                              this.timeOffset
+                            )}
+                            filters={this.panel.externalData?.filters}
+                            groupByField={this.panel.externalData?.groupByField}
+                            scene={this.panel.externalData?.scene}
+                            onDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                            onFilterChange={this.onFilterChange}
                           />
+                          // <K8sDimensionDrillDown
+                          //   dimension={this.panel.externalData?.groupByField}
+                          //   value={this.panel.externalData?.groupByField}
+                          //   onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          // />
                         )}
                       </div>
                     ),
