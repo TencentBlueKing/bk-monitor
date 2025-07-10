@@ -59,6 +59,7 @@ export default defineComponent({
     const itemMainRefs = shallowRef([]);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const playLoading = inject<Ref<boolean>>('playLoading');
+    const incidentResults = inject<Ref<object>>('incidentResults');
     const incidentDetailData = computed(() => incidentDetail.value);
     const failureTagsShowStates = computed(() => (isHover.value ? 'failure-tags-show-all' : 'failure-tags-show-omit'));
     const failureTagsPostionsStates = computed(() =>
@@ -122,10 +123,17 @@ export default defineComponent({
         class: 'failure-root-tag',
         tag: true,
         renderFn: () => {
+          // 判断是否有topo，没有topo的情况下显示incident_reason
+          if (!incidentResults.value.incident_topology?.enabled) {
+            const { incident_reason } = incidentDetailData.value;
+            return <span class={['item-info']}>{incident_reason || '--'}</span>;
+          }
+
           const snapshots: ICurrentISnapshot = incidentDetailData.value?.current_snapshot;
           const { incident_name_template, incident_propagation_graph } = snapshots?.content || {};
           const { elements = [], template } = incident_name_template || {};
           const { entities } = incident_propagation_graph || {};
+
           const replacePlaceholders = (template, replacements) => {
             const parts: Array<JSX.Element | string> = [];
             const regex = /{(.*?)}/g;
@@ -167,11 +175,11 @@ export default defineComponent({
               1: elements[1],
             };
             const processedContentArray = replacePlaceholders(template, replacements);
-            const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
+            // const tips = replacePlaceholders(template, { 0: elements[0][1], 1: elements[1] });
             return (
               <span
                 class={['item-info']}
-                title={tips.join('')}
+                // title={tips.join('')}
               >
                 {/* biome-ignore lint/correctness/useJsxKeyInIterable: <explanation> */}
                 {processedContentArray.map(part => (typeof part === 'string' ? part : <>{part}</>))}
