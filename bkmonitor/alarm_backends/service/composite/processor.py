@@ -47,7 +47,7 @@ class CompositeProcessor:
     # 关联告警检测窗口大小（单位 s）
     COMPOSITE_CHECK_WINDOW_SIZE = 60 * 60
 
-    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None):
+    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None, retry_times: int = 0):
         self.alert: Alert = alert
         self.alert_status = alert_status or self.alert.status
         # 此处仅做告警关联，不需要重复清洗数据
@@ -57,6 +57,7 @@ class CompositeProcessor:
         self.actions = []
         self.events = []
         self._strategy_cache = {}
+        self.retry_times = retry_times
 
     def pull(self):
         if not self.strategy_ids:
@@ -557,11 +558,13 @@ class CompositeProcessor:
                 check_action_and_composite,
             )
 
+            self.retry_times += 2
             check_action_and_composite.apply_async(
                 kwargs={
                     "alert_key": self.alert.key,
                     "alert_status": self.alert_status,
                     "composite_strategy_ids": [strategy["id"]],
+                    "retry_times": self.retry_times,
                 },
                 countdown=1,
             )
@@ -695,10 +698,12 @@ class CompositeProcessor:
                 check_action_and_composite,
             )
 
+            self.retry_times += 2
             check_action_and_composite.apply_async(
                 kwargs={
                     "alert_key": self.alert.key,
                     "alert_status": self.alert_status,
+                    "retry_times": self.retry_times,
                 },
                 countdown=1,
             )
