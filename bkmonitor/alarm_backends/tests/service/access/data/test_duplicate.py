@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import copy
 
@@ -23,12 +21,12 @@ from .config import STANDARD_DATA
 pytestmark = pytest.mark.django_db
 
 
-class MockRecord(object):
+class MockRecord:
     def __init__(self, attrs):
         self.__dict__.update(attrs)
 
 
-class TestDuplicate(object):
+class TestDuplicate:
     def setup_method(self, method):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
@@ -59,7 +57,7 @@ class TestDuplicate(object):
         record_2.time += 120
         dup.add_record(record_2)
 
-        dup.refresh_cache()
+        dup.refresh_cache(interval=60)
 
         dup = Duplicate(strategy_group_key)
         assert dup.is_duplicate(record_1) is True
