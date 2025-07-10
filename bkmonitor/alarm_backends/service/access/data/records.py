@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import six
 from django.conf import settings
@@ -60,7 +60,7 @@ class DataRecord(base.BaseRecord):
     items: list["Item"]
     _item: "Item"
 
-    def __init__(self, item_or_items: "Item" | list["Item"], raw_data: dict):
+    def __init__(self, item_or_items: Union["Item", list["Item"]], raw_data: dict):
         """
         :param item_or_items: 具有相同查询条件的item集合
         :param raw_data: 原始数据记录
