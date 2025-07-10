@@ -137,7 +137,7 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup, Toast } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
@@ -361,7 +361,19 @@ export default class AlarmDetail extends Vue {
     }
     quickShield(params)
       .then(() => {
+        Toast({
+          message: this.$tc('操作成功'),
+          duration: 2000,
+          position: 'bottom',
+        });
         this.$router.back();
+      })
+      .catch(e => {
+        Toast({
+          message: e?.message || this.$tc('操作失败'),
+          duration: 2000,
+          position: 'bottom',
+        });
       })
       .finally(() => {
         this.loading = false;

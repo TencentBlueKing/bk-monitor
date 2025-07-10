@@ -229,8 +229,10 @@ class EsSourceResourceProvider(BaseResourceProvider):
             for cluster in clusters
             if cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT
             and cluster["cluster_config"]["custom_option"].get("bk_biz_id")
-            and bk_tenant_id in cluster["cluster_config"]["custom_option"].get("admin", [])
         ]
+
+        # TODO: 根据租户过滤集群列表
+
         return clusters
 
     def list_instance(self, filter, page, **options):
@@ -367,7 +369,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             queryset = LogIndexSet.objects.all()
             if self.ENABLE_MULTI_TENANT_MODE:
                 space_uid_list = Space.get_space_uid_list(bk_tenant_id)
-                queryset.filter(space_uid__in=space_uid_list)
+                queryset = queryset.filter(space_uid__in=space_uid_list)
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
@@ -385,7 +387,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             queryset = LogIndexSet.objects.filter(q_filter)
             if self.ENABLE_MULTI_TENANT_MODE:
                 space_uid_list = Space.get_space_uid_list(bk_tenant_id)
-                queryset.filter(space_uid__in=space_uid_list)
+                queryset = queryset.filter(space_uid__in=space_uid_list)
 
         if not with_path:
             results = [
@@ -449,7 +451,7 @@ class IndicesResourceProvider(BaseResourceProvider):
         queryset = LogIndexSet.objects.filter(filters)
         if self.ENABLE_MULTI_TENANT_MODE:
             space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
-            queryset.filter(space_uid__in=space_uid_list)
+            queryset = queryset.filter(space_uid__in=space_uid_list)
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name}
             for item in queryset[page.slice_from : page.slice_to]
@@ -467,7 +469,7 @@ class IndicesResourceProvider(BaseResourceProvider):
             )
         if self.ENABLE_MULTI_TENANT_MODE:
             space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
-            queryset.filter(space_uid__in=space_uid_list)
+            queryset = queryset.filter(space_uid__in=space_uid_list)
         return ListResult(
             results=[
                 {"id": item.index_set_id, "display_name": item.index_set_name}

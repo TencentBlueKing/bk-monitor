@@ -2043,6 +2043,7 @@ export default defineComponent({
       () => props.selectNode,
       val => {
         if (val.length) {
+          if (!graph) return;
           /** 清除之前节点状态 */
           graph.findAllByState('node', 'running').forEach?.(node => {
             graph.setItemState(node, 'running', false);

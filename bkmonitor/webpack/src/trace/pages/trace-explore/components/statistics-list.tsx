@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef, watch, computed, useTemplateRef, type PropType, nextTick } from 'vue';
+import { defineComponent, reactive, shallowRef, watch, computed, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
@@ -39,10 +39,11 @@ import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { storeToRefs } from 'pinia';
 
-import ChartFiltering, { type DurationRangeItem } from '../../../components/chart-filtering/chart-filtering';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { formatDuration } from '../../../components/trace-view/utils/date';
+import { transformTableDataToCsvStr } from '../../../plugins/utls/menu';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
@@ -76,11 +77,10 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
-    const { tableList, filterTableList, tableLoading } = storeToRefs(store);
+    const { tableList, filterTableList } = storeToRefs(store);
 
-    const chartFilteringRef = useTemplateRef<InstanceType<typeof ChartFiltering>>('chartFiltering');
-    /** 注意这里的timeRange只做展示用途，实际接口请求需要拿实时的timeRange */
-    const timeRangeText = shallowRef([]);
+    /** 展示的范围文本 */
+    const rangeText = shallowRef([]);
     const infoLoading = shallowRef(false);
     const popoverLoading = shallowRef(false);
 
@@ -107,25 +107,37 @@ export default defineComponent({
     const chartData = shallowRef<IStatisticsGraph[]>([]);
     const downloadLoading = shallowRef(false);
 
+    /** '耗时字段' topk列表 */
+    const durationTopkList = shallowRef<ITopKField>({
+      distinct_count: 0,
+      field: '',
+      list: [],
+    });
+
     /** 数值类型 */
     const isInteger = computed(() => ['double', 'long', 'integer'].includes(props.fieldType));
 
     /** 耗时维度 */
     const isDuration = computed(() => ['trace_duration', 'elapsed_time'].includes(localField.value));
-    const durationRangeList = shallowRef<DurationRangeItem[]>([]);
 
     watch(
       () => props.isShow,
-      val => {
+      async val => {
         if (val) {
           localField.value = props.selectField;
-          timeRangeText.value = handleTransformTime(store.timeRange);
           if (!isDuration.value) {
+            rangeText.value = handleTransformTime(store.timeRange);
             getStatisticsList();
           } else {
-            nextTick(() => {
-              getDurationRangeList();
-            });
+            await getStatisticsGraphData();
+            rangeText.value = [
+              formatDuration(statisticsInfo.value.value_analysis?.min || 0),
+              formatDuration(statisticsInfo.value.value_analysis?.max || 0),
+            ];
+            durationTopkList.value = getDurationTopkList();
+            statisticsList.distinct_count = durationTopkList.value.distinct_count;
+            statisticsList.field = durationTopkList.value.field;
+            statisticsList.list = durationTopkList.value.list.slice(0, 5);
           }
         } else {
           statisticsList.distinct_count = 0;
@@ -137,24 +149,27 @@ export default defineComponent({
       }
     );
 
-    watch(
-      () => tableList.value,
-      () => {
-        if (isDuration.value && props.isShow) {
-          getDurationRangeList();
-        }
-      }
-    );
-
-    function getDurationRangeList() {
-      const list = chartFilteringRef.value?.getDurationList();
-      const sortList = list.filter(item => item.count).sort((a, b) => b.count - a.count);
-      durationRangeList.value = sortList;
-      statisticsList.distinct_count = durationRangeList.value.length;
-      statisticsList.field = localField.value;
-      statisticsList.list = sortList.length > 5 ? sortList.slice(0, 5) : sortList;
+    /** 耗时topK列表逻辑特殊，通过traceFieldStatisticsGraph接口返回的数据由前端生成 */
+    function getDurationTopkList(): ITopKField {
+      const data = (chartData.value[0]?.datapoints as [number, string][]) || [];
+      const total = data.reduce((pre, cur) => pre + cur[0], 0);
+      const list = data.map(item => {
+        const [start, end] = item[1].split('-');
+        return {
+          alias: `${formatDuration(Number(start))}-${formatDuration(Number(end))}`,
+          count: item[0],
+          proportions: Number(((item[0] / total) * 100).toFixed(2)),
+          value: item[1],
+        };
+      });
+      return {
+        distinct_count: list.length,
+        field: localField.value,
+        list: list.sort((a, b) => b.count - a.count),
+      };
     }
 
+    /** 获取topk列表 */
     async function getStatisticsList() {
       infoLoading.value = true;
       popoverLoading.value = true;
@@ -186,9 +201,10 @@ export default defineComponent({
       await getStatisticsGraphData();
     }
 
+    /** 获取维度信息和维度图表数据 */
     async function getStatisticsGraphData() {
       getStatisticsInfoCount.value += 1;
-      const count = getStatisticsListCount.value;
+      const count = getStatisticsInfoCount.value;
       const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
       topKInfoCancelFn?.();
       const info: IStatisticsInfo = await traceFieldStatisticsInfo(
@@ -206,7 +222,7 @@ export default defineComponent({
         }
       ).catch(() => []);
       /** 如果是取消接口，不进行后续操作 */
-      if (count !== getStatisticsListCount.value) return;
+      if (count !== getStatisticsInfoCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
       if (!info || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
         infoLoading.value = false;
@@ -277,9 +293,9 @@ export default defineComponent({
       if (!isDuration.value) {
         await loadMore();
       } else {
-        sliderDimensionList.distinct_count = durationRangeList.value.length;
-        sliderDimensionList.field = localField.value;
-        sliderDimensionList.list = durationRangeList.value;
+        sliderDimensionList.distinct_count = durationTopkList.value.distinct_count;
+        sliderDimensionList.field = durationTopkList.value.field;
+        sliderDimensionList.list = durationTopkList.value.list;
       }
       sliderLoading.value = false;
     }
@@ -318,20 +334,32 @@ export default defineComponent({
     }
 
     async function handleDownload() {
-      downloadLoading.value = true;
-      const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
-      const data = await traceDownloadTopK({
-        ...props.commonParams,
-        start_time,
-        end_time,
-        limit: sliderShow.value ? sliderDimensionList?.distinct_count : statisticsList?.distinct_count,
-        fields: [localField.value],
-      }).finally(() => {
-        downloadLoading.value = false;
-      });
-      try {
-        downloadFile(data.data, 'txt', data.filename);
-      } catch {}
+      if (isDuration.value) {
+        const csvString = transformTableDataToCsvStr(
+          [],
+          durationTopkList.value.list.map(item => [
+            { value: item.value },
+            { value: item.count },
+            { value: `${item.proportions}%` },
+          ])
+        );
+        downloadFile(csvString, 'text/csv;charset=utf-8;', `${localField.value}.csv`);
+      } else {
+        downloadLoading.value = true;
+        const [start_time, end_time] = handleTransformToTimestamp(store.timeRange);
+        const data = await traceDownloadTopK({
+          ...props.commonParams,
+          start_time,
+          end_time,
+          limit: sliderShow.value ? sliderDimensionList?.distinct_count : statisticsList?.distinct_count,
+          fields: [localField.value],
+        }).finally(() => {
+          downloadLoading.value = false;
+        });
+        try {
+          downloadFile(data.data, 'txt', data.filename);
+        } catch {}
+      }
     }
 
     function topKItemMouseenter(e: MouseEvent, content: string) {
@@ -447,7 +475,7 @@ export default defineComponent({
       t,
       localField,
       isInteger,
-      timeRangeText,
+      rangeText,
       popoverLoading,
       infoLoading,
       statisticsInfo,
@@ -455,7 +483,6 @@ export default defineComponent({
       chartData,
       tableList,
       filterTableList,
-      tableLoading,
       downloadLoading,
       sliderShow,
       sliderLoading,
@@ -483,16 +510,7 @@ export default defineComponent({
         >
           {this.isShow && (
             <div class='trace-explore-dimension-statistics-popover-content'>
-              {this.isDuration ? (
-                <ChartFiltering
-                  ref='chartFiltering'
-                  filterList={this.filterTableList}
-                  isShowSlider={false}
-                  list={this.tableList}
-                  listType={this.commonParams.mode}
-                  loading={this.tableLoading}
-                />
-              ) : this.infoLoading ? (
+              {this.infoLoading ? (
                 <div class='info-skeleton'>
                   <div class='total-skeleton'>
                     <div class='skeleton-element' />
@@ -511,21 +529,22 @@ export default defineComponent({
                 </div>
               ) : (
                 <div class='statistics-info'>
-                  <div class='top-k-info-header'>
-                    <div class='label-item'>
-                      <span class='label'>{this.t('总行数')}:</span>
-                      <span class='value'> {this.statisticsInfo.total_count}</span>
+                  {!this.isDuration && (
+                    <div class='top-k-info-header'>
+                      <div class='label-item'>
+                        <span class='label'>{this.t('总行数')}:</span>
+                        <span class='value'> {this.statisticsInfo.total_count}</span>
+                      </div>
+                      <div class='label-item'>
+                        <span class='label'>{this.t('出现行数')}:</span>
+                        <span class='value'> {this.statisticsInfo.field_count}</span>
+                      </div>
+                      <div class='label-item'>
+                        <span class='label'>{this.t('日志条数')}:</span>
+                        <span class='value'> {this.statisticsInfo.field_percent}%</span>
+                      </div>
                     </div>
-                    <div class='label-item'>
-                      <span class='label'>{this.t('出现行数')}:</span>
-                      <span class='value'> {this.statisticsInfo.field_count}</span>
-                    </div>
-                    <div class='label-item'>
-                      <span class='label'>{this.t('日志条数')}:</span>
-                      <span class='value'> {this.statisticsInfo.field_percent}%</span>
-                    </div>
-                  </div>
-
+                  )}
                   {this.isInteger && (
                     <div class='integer-statics-info'>
                       <div class='integer-item'>
@@ -541,23 +560,28 @@ export default defineComponent({
                         <span class='label'>{this.t('平均值')}</span>
                         <span class='value'>{this.statisticsInfo.value_analysis?.avg || 0}</span>
                       </div>
-                      <div class='integer-item'>
-                        <span class='label'>{this.t('中位数')}</span>
-                        <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
-                      </div>
+                      {!this.isDuration && (
+                        <div class='integer-item'>
+                          <span class='label'>{this.t('中位数')}</span>
+                          <span class='value'>{this.statisticsInfo.value_analysis?.median || 0}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   <div class='top-k-chart-title'>
-                    <span class='title'>{this.t(this.isInteger ? '数值分布直方图' : 'TOP 5 时序图')}</span>
+                    <span class='title'>
+                      {this.t(this.isDuration ? '耗时区间' : this.isInteger ? '数值分布直方图' : 'TOP 5 时序图')}
+                    </span>
                     {this.isInteger && (
                       <span class='time-range'>
-                        {this.timeRangeText[0]} ～ {this.timeRangeText[1]}
+                        {this.rangeText[0]} ～ {this.rangeText[1]}
                       </span>
                     )}
                   </div>
                   <DimensionEcharts
                     data={this.chartData}
+                    isDuration={this.isDuration}
                     seriesType={this.isInteger ? 'histogram' : 'line'}
                   />
                 </div>
@@ -582,18 +606,16 @@ export default defineComponent({
                     src={loadingIcon}
                   />
                 ) : (
-                  !this.isDuration && (
-                    <div
-                      class='download-tool'
-                      v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
-                      onClick={this.handleDownload}
-                    >
-                      <i class='icon-monitor icon-xiazai2' />
-                    </div>
-                  )
+                  <div
+                    class='download-tool'
+                    v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
+                    onClick={this.handleDownload}
+                  >
+                    <i class='icon-monitor icon-xiazai2' />
+                  </div>
                 )}
               </div>
-              {this.popoverLoading || this.tableLoading
+              {this.popoverLoading
                 ? this.renderSkeleton()
                 : [
                     this.renderTopKField(this.statisticsList?.list, 'popover'),
