@@ -69,6 +69,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
   getDebugStatus(actionIds) {
     let timer = null;
 
+    // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -211,7 +212,10 @@ export default class ManualDebugStatus extends tsc<IProps> {
           <div class='status-title'>{this.debugStatusTitle()}</div>
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {!['success', 'failure'].includes(this.debugStatusData?.status) && [
-            <div class='status-tip'>
+            <div
+              key='status-tip'
+              class='status-tip'
+            >
               <span class='icon-monitor icon-hint' />
               <i18n
                 class='text'
@@ -220,7 +224,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
                 <a
                   class='link'
                   href={this.actionUrl}
-                  rel='noreferrer'
+                  rel='noopener noreferrer'
                   target='_blank'
                 >
                   {this.$t('处理记录')}

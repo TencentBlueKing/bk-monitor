@@ -185,7 +185,7 @@ class AutoDeployProxy:
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
         for cloud_info in cloud_infos:
             bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
-            if int(bk_cloud_id) == 0:
+            if int(bk_cloud_id) <= 0:
                 continue
 
             try:
@@ -220,7 +220,10 @@ class AutoDeployProxy:
 
         # 遍历所有租户，自动部署插件
         for tenant in api.bk_login.list_tenant():
-            cls._refresh(bk_tenant_id=tenant["id"], plugin_name=plugin_name)
+            try:
+                cls._refresh(bk_tenant_id=tenant["id"], plugin_name=plugin_name)
+            except Exception as e:
+                logger.exception(f"Auto deploy {plugin_name} error, with bk_tenant_id({tenant['id']}), error({e}).")
 
 
 def main():

@@ -279,7 +279,7 @@ class K8SCustomChart extends CommonSimpleChart {
                         } else if (['limit', 'request', 'capacity'].includes(newParams.query_configs?.[0]?.alias)) {
                           name = newParams.query_configs?.[0]?.alias;
                         }
-                        name = name.replace(/\|/, ':');
+                        name = name.replace(/\|/g, ':');
                         this.legendSorts.push({
                           name: name,
                           timeShift: timeShift,

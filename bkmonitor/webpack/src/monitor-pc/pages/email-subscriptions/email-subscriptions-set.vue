@@ -244,6 +244,7 @@
         @add="() => handleShowContent('add')"
         @del="index => handleDelContent(index)"
         @edit="({ row, index }) => handleShowContent('edit', row, index)"
+        @imgInputChange="({ index, inputVal, isHeightInput }) => handleImgsizeChange(index, inputVal, isHeightInput)"
         @typeChange="type => handleTabChange(type)"
         @viewSort="data => (formData.reportContents = data)"
       />
@@ -720,7 +721,7 @@ export default class SubscriptionsSet extends Vue {
       this.contentType = 'full';
       const ids = Array.from<string>(new Set(data.contents.map(item => splitGraphId(item.graphs[0]).bizId)));
       this.formData.fullReportContents = data.contents.map(content => {
-        const { contentDetails, contentTitle, rowPicturesNum } = content;
+        const { contentDetails, contentTitle, rowPicturesNum, width } = content;
         const graphData = splitGraphId(content.graphs[0]);
         return {
           contentDetails,
@@ -729,6 +730,7 @@ export default class SubscriptionsSet extends Vue {
           curBizId: graphData.bizId,
           curGrafana: graphData.dashboardId,
           curGrafanaName: '',
+          width,
         };
       });
       this.setFullReportContents(ids);
@@ -814,6 +816,21 @@ export default class SubscriptionsSet extends Vue {
       this.curEditContentData = null;
     }
     this.showAddContent = true;
+  }
+
+  /**
+   * 图片尺寸编辑, isHeightInput = false
+   * @params isHeightInput 修改的是否为高度input(非整屏截取才有高度设置选项)
+   * @params inputVal 修改的尺寸值
+   * @params index table行数
+   */
+  handleImgsizeChange(index, inputVal, isHeightInput) {
+    if (this.contentType === 'view') {
+      this.formData.reportContents[index][isHeightInput ? 'height' : 'width'] = inputVal;
+    }
+    if (this.contentType === 'full') {
+      this.formData.fullReportContents[index].width = inputVal; // 整屏截取没有高度设置选项
+    }
   }
 
   /**
@@ -916,16 +933,19 @@ export default class SubscriptionsSet extends Vue {
         if (this.contentType === 'view') {
           params.reportContents.forEach(content => {
             content.graphs = content.graphs.map(chart => chart.id);
+            content.width = Number(content.width);
+            content.height = Number(content.height);
           });
         }
         if (this.contentType === 'full') {
           params.reportContents = params.fullReportContents.map(content => {
-            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
+            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana, width } = content;
             return {
               contentDetails,
               contentTitle,
               rowPicturesNum,
               graphs: [`${curBizId}-${curGrafana}-*`],
+              width: Number(width),
             };
           });
         }

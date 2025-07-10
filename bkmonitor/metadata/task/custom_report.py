@@ -144,30 +144,32 @@ def check_event_update():
 
 
 def refresh_custom_report_2_node_man(bk_biz_id=None):
-    try:
-        # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
-        default_version = "0.0.0"
-        plugin_infos = api.node_man.plugin_info(name="bk-collector")
-        version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
-        max_version = get_max_version(default_version, version_str_list)
+    # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
+    default_version = "0.0.0"
+    plugin_infos = api.node_man.plugin_info(name="bk-collector")
+    version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
+    max_version = get_max_version(default_version, version_str_list)
 
-        if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
-            if bk_biz_id is not None:
-                bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
-            else:
-                bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
+        if bk_biz_id is not None:
+            bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
+        else:
+            bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
-            for bk_tenant_id in bk_tenant_ids:
+        for bk_tenant_id in bk_tenant_ids:
+            try:
                 models.CustomReportSubscription.refresh_collector_custom_conf(
                     bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
                 )
-        else:
-            logger.info(
-                f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本"
-                f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
-            )
-    except Exception as e:  # noqa
-        logger.exception(f"refresh custom report config to collector error: {e}")
+            except Exception as e:
+                logger.exception(
+                    f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), bk_biz_id({bk_biz_id}), error({e})"
+                )
+    else:
+        logger.info(
+            f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本"
+            f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
+        )
 
 
 # 用于定时任务的包装函数，加锁防止任务重叠

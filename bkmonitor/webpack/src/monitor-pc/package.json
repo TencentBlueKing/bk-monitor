@@ -59,7 +59,6 @@
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
-    "@types/throttle-debounce": "^5.0.2",
-    "vue-template-compiler": "^2.7.16"
+    "@types/throttle-debounce": "^5.0.2"
   }
 }
