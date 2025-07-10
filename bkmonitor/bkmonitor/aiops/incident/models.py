@@ -260,21 +260,23 @@ class IncidentSnapshot:
 
     def prepare_graph(self):
         """根据故障分析结果快照实例化图结构."""
-        for category_name, category_info in self.incident_snapshot_content["product_hierarchy_category"].items():
+        for category_name, category_info in self.incident_snapshot_content.get(
+            "product_hierarchy_category", {}
+        ).items():
             self.incident_graph_categories[category_name] = IncidentGraphCategory(**category_info)
 
-        for rank_name, rank_info in self.incident_snapshot_content["product_hierarchy_rank"].items():
+        for rank_name, rank_info in self.incident_snapshot_content.get("product_hierarchy_rank", {}).items():
             rank_info["rank_category"] = self.incident_graph_categories[rank_info["rank_category"]]
             self.incident_graph_ranks[rank_name] = IncidentGraphRank(**rank_info)
 
-        for entity_info in self.incident_snapshot_content["incident_propagation_graph"]["entities"]:
+        for entity_info in self.incident_snapshot_content.get("incident_propagation_graph", {}).get("entities", []):
             entity_info["rank"] = self.incident_graph_ranks[entity_info.pop("rank_name")]
             entity_info["component_type"] = IncidentGraphComponentType(
                 entity_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
             )
             self.incident_graph_entities[entity_info["entity_id"]] = IncidentGraphEntity(**entity_info)
 
-        for edge_info in self.incident_snapshot_content["incident_propagation_graph"]["edges"]:
+        for edge_info in self.incident_snapshot_content.get("incident_propagation_graph", {}).get("edges", []):
             source = self.incident_graph_entities[edge_info["source_id"]]
             target = self.incident_graph_entities[edge_info["target_id"]]
             edge_type = IncidentGraphEdgeType(edge_info["edge_type"])
@@ -312,10 +314,11 @@ class IncidentSnapshot:
         """根据故障分析结果快照构建告警所在实体的关系."""
         for alert_info in self.incident_snapshot_content["incident_alerts"]:
             incident_alert_info = copy.deepcopy(alert_info)
-            entity_id = incident_alert_info.pop("entity_id")
-            incident_alert_info["entity"] = self.incident_graph_entities[entity_id] if entity_id else None
-            incident_alert = IncidentAlert(**incident_alert_info)
-            self.alert_entity_mapping[incident_alert.id] = incident_alert
+            entity_id = incident_alert_info.pop("entity_id", None)
+            if entity_id:
+                incident_alert_info["entity"] = self.incident_graph_entities[entity_id] if entity_id else None
+                incident_alert = IncidentAlert(**incident_alert_info)
+                self.alert_entity_mapping[incident_alert.id] = incident_alert
 
     def get_related_alert_ids(self) -> list[int]:
         """检索故障根因定位快照关联的告警详情列表.
@@ -805,6 +808,8 @@ class IncidentSnapshot:
 
         # 遍历被聚合的实体，把他们的边归拢到主实体的边上
         for entity in main_entity.aggregated_entities:
+            # 被聚合的节点，标记上聚合它们的外层节点
+            entity.properties["aggregated_by"] = main_entity.entity_id
             for edge_type in self.entity_targets[entity.entity_id].keys():
                 # 遍历被聚合实体指向的目标实体ID
                 for target_entity_id in self.entity_targets[entity.entity_id][edge_type]:
@@ -861,7 +866,10 @@ class IncidentSnapshot:
             self.incident_graph_edges[_to].anomaly_score = max(
                 self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
             )
-            self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
+            aggregated_edge = self.incident_graph_edges[_from]
+            # 被聚合的边，标记上聚合它们的外层边
+            aggregated_edge.properties["aggregated_by"] = list(_to)
+            self.incident_graph_edges[_to].aggregated_edges.append(aggregated_edge)
             if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
                 self.incident_graph_edges[_to].edge_cluster_id = None
 

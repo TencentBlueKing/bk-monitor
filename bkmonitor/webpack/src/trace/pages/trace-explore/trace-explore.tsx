@@ -636,6 +636,7 @@ export default defineComponent({
           timeRange: favoriteConfig?.componentData?.timeRange || DEFAULT_TIME_RANGE,
           refreshInterval: favoriteConfig?.componentData?.refreshInterval || -1,
         });
+        store.sortParamsToTableSortContainer(favoriteConfig?.queryParams?.sort || []);
       } else {
         where.value = [];
         queryString.value = '';
@@ -681,7 +682,7 @@ export default defineComponent({
             offset: 0,
             limit: 30,
             query: filterMode.value === EMode.queryString ? queryString.value : '',
-            sort: [],
+            sort: store.sortParams,
             mode: store.mode,
           },
         },

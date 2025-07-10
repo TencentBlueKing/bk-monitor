@@ -166,12 +166,34 @@ export default defineComponent({
           'is-hover': isHover.value,
         }}
         v-bk-tooltips={{
-          content: [
-            `${t('收藏名')}: ${props.data.name}`,
-            `${t('创建人')}: ${props.data.create_user}`,
-            `${t('最近更新人')}: ${props.data.update_user}`,
-            `${t('最近更新时间')}: ${props.data.update_time}`,
-          ].join('\n'),
+          content: () => {
+            return (
+              <div>
+                <div>
+                  <span>
+                    {t('收藏名')}: {props.data.name}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('创建人')}:{' '}
+                    {props.data.create_user ? <bk-user-display-name user-id={props.data.create_user} /> : '--'}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('最近更新人')}:{' '}
+                    {props.data.update_user ? <bk-user-display-name user-id={props.data.update_user} /> : '--'}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('最近更新时间')}: {props.data.update_time}
+                  </span>
+                </div>
+              </div>
+            );
+          },
           placement: 'right',
         }}
       >

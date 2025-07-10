@@ -34,6 +34,7 @@ import {
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
+import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 
 export type FormatterConfig = {
@@ -102,6 +103,7 @@ export default class UseJsonFormatter {
 
     const option = {
       fieldName: activeField?.field_name,
+      fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
       depth,
@@ -136,16 +138,6 @@ export default class UseJsonFormatter {
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
-  getCurrentFieldRegStr(field: any) {
-    /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t';
-    if (field.tokenize_on_chars) {
-      return field.tokenize_on_chars;
-    }
-
-    return segmentRegStr;
-  }
-
   isTextField(field: any) {
     return field?.field_type === 'text';
   }
@@ -173,8 +165,12 @@ export default class UseJsonFormatter {
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
-      // 这里进来的都是开了分词的情况
-      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
+      if (field.tokenize_on_chars) {
+        // 这里进来的都是开了分词的情况
+        return optimizedSplit(value, field.tokenize_on_chars);
+      }
+
+      return LuceneSegment.split(value, 1000);
     }
 
     return [
@@ -182,6 +178,7 @@ export default class UseJsonFormatter {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
+        isCursorText: true,
       },
     ];
   }
@@ -201,7 +198,9 @@ export default class UseJsonFormatter {
 
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
-      validTextNode.classList.add('valid-text');
+      if (item.isCursorText) {
+        validTextNode.classList.add('valid-text');
+      }
       validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
@@ -258,6 +257,11 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+
+        if (element.hasAttribute('data-with-intersection')) {
+          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+        }
+
         element.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
@@ -271,7 +275,7 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(600);
+        setListItem(1000);
 
         if (appendText) {
           const appendElement = document.createElement('span');
@@ -286,6 +290,10 @@ export default class UseJsonFormatter {
 
           element.firstChild.appendChild(appendElement);
         }
+
+        requestAnimationFrame(() => {
+          element.style.removeProperty('min-height');
+        });
       }
     });
   }

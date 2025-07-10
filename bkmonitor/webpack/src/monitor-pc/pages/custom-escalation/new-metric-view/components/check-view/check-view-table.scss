@@ -3,7 +3,28 @@
   height: 100%;
 
   .check-view-table-main {
+    border-bottom: 1px solid #e8e8e8;
     padding: 0;
+    position: relative;
+    .table-foot-btn {
+      background: #dcdee5;
+      width: 48px;
+      height: 14px;
+      line-height: 14px;
+      border-radius: 4px 4px 0 0;
+      text-align: center;
+      color: #fff;
+      position: absolute;
+      bottom: 0;
+      z-index: 100;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: pointer;
+      .foot-btn {
+        font-size: 20px;
+        font-weight: 900;
+      }
+    }
     .sort-icon {
       display: inline-block;
       color: #c4c6cc;

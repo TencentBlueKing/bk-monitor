@@ -58,9 +58,11 @@ class AgentConfigManager:
             # 添加适当的错误处理或日志记录
             raise ValueError(f"Failed to retrieve agent config: {e}")
 
-        # 处理特殊字段
+        # 处理特殊字段,兼容特殊role
         role_prompt = "\n".join(
-            item["content"] for item in res["prompt_setting"]["content"] if item["role"] == "system"
+            item["content"]
+            for item in res["prompt_setting"]["content"]
+            if item["role"] == "system" or item["role"] == "hidden-system"
         )
 
         # 创建配置实例

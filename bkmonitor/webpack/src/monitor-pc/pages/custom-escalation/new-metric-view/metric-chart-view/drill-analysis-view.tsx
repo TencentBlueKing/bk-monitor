@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Ref, Prop, ProvideReactive, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -64,7 +64,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   @Prop({ default: '' }) currentMethod: string;
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
+
   panelData = {
     targets: [],
   };
@@ -104,6 +104,24 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   defaultCommonConditions = [];
   /** 自动刷新定时器 */
   timer = null;
+  cacheTimeRange = [];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
+
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   /** 默认的图表配置 */
   get defaultPanelConfig() {
     return this.panelData?.targets[0] || {};
@@ -245,6 +263,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
     for (let i = 0; i < keysArray.length; i++) {
       const key = keysArray[i];
+      if (key === '__proto__' || key === 'constructor') continue;
       if (i === keysArray.length - 1) {
         current[key] = value;
       } else {
@@ -279,6 +298,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
   /** 修改时区 */
   handleTimezoneChange(timezone: string) {
+    this.showRestore = false;
     updateTimezone(timezone);
     this.getTableList();
   }
@@ -305,6 +325,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       group_by: this.filterConfig.drill_group_by,
     };
     const params = len > 0 ? { ...baseParams, ...{ function: this.filterConfig.function } } : baseParams;
+    // biome-ignore lint/performance/noDelete: <explanation>
     len === 0 && delete this.panelData.targets[0].function;
 
     graphDrillDown({ ...this.panelData.targets[0], ...params })

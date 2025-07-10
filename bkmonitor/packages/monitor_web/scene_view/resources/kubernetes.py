@@ -1719,12 +1719,9 @@ class GetKubernetesClusterChoices(KubernetesResource):
                 full_name = f"{name}({bcs_cluster_id})"
             else:
                 full_name = bcs_cluster_id
-            data.append(
-                {
-                    "id": bcs_cluster_id,
-                    "name": full_name,
-                }
-            )
+            cluster_type = BcsClusterType.SHARED if self.is_shared_cluster(bcs_cluster_id) else BcsClusterType.SINGLE
+
+            data.append({"id": bcs_cluster_id, "name": full_name, "cluster_type": cluster_type})
 
         return data
 

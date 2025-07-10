@@ -41,6 +41,7 @@ import useEditor from './use-editor';
 import { axiosInstance } from '@/api';
 
 import './index.scss';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 
 export default defineComponent({
   props: {
@@ -72,27 +73,16 @@ export default defineComponent({
     };
     const { $t } = useLocale();
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
+    const { alias_settings } = useFieldAliasRequestParams();
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const filter_addition = computed(() => getCommonFilterAddition(store.state));
 
-    const alias_settings = computed(() =>
-      // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-      (store.state.indexFieldInfo?.fields ?? {})
-        .filter(f => f.query_alias)
-        .map(f => ({
-          field_name: f.field_name,
-          query_alias: f.query_alias,
-          path_type: f.field_type,
-        })),
-    );
-
     const requestId = 'graphAnalysis_searchSQL';
 
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
-
       if (!sql || isRequesting.value) {
         return;
       }

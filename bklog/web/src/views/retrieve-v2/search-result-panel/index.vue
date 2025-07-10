@@ -3,6 +3,7 @@
 
   import useStore from '@/hooks/use-store';
   import { throttle } from 'lodash';
+  import { getCommonFilterAdditionWithValues } from '@/store/helper'
 
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
@@ -58,6 +59,13 @@
     }
     return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show
   });
+
+  const retrieveParamsWithCommonAddition = computed(() => {
+    return {
+      ...retrieveParams.value,
+      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)]
+    }
+  })
 
   RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
@@ -167,14 +175,14 @@
           <LogResult
             v-if="isOriginShow"
             :queue-status="queueStatus"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             :total-count="totalCount"
           />
           <LogClustering
             v-if="activeTab === 'clustering'"
             :active-tab="activeTab"
             :height="heightNum"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             @show-change="handleUpdateActiveTab"
           />
         </keep-alive>

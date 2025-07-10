@@ -15,6 +15,9 @@ from django.conf import settings
 from ai_agents.agent_factory import agent_factory
 from ai_agents.agent_factory import DEFAULT_AGENT
 from ai_agents.models import AgentConfigManager
+import logging
+
+logger = logging.getLogger("ai_agents")
 
 
 class AgentInstanceBuilder:
@@ -26,8 +29,30 @@ class AgentInstanceBuilder:
         :param api_client:      API客户端实例
         :param agent_code:      Agent代码
         """
-        session_context = api_client.api.get_chat_session_context(path_params={"session_code": session_code})
-        chat_history = [ChatPrompt.model_validate(each) for each in session_context.get("data", [])]
+        logger.info(
+            "AgentInstanceBuilder: try to build agent instance for session_code->[%s],use agent->[%s]",
+            session_code,
+            agent_code,
+        )
+        session_context_data = api_client.api.get_chat_session_context(path_params={"session_code": session_code}).get(
+            "data", []
+        )
+        logger.info(
+            "AgentInstanceBuilder: session->[%s] get session_context_data->[%s]", session_code, session_context_data
+        )
+
+        if session_context_data and session_context_data[-1]["role"] == "assistant":
+            logger.info(
+                "AgentInstanceBuilder: session->[%s] last message->[%s] is assistant, remove it",
+                session_code,
+                session_context_data[-1],
+            )
+            # TODO: 如果最后一条消息是assistant，且content里有"生成中"三个字，则去掉
+            content = session_context_data[-1]["content"]
+            if settings.AIDEV_AGENT_AI_GENERATING_KEYWORD in content:  # 只要 content 里有"生成中"三个字即可
+                session_context_data.pop()
+
+        chat_history = [ChatPrompt.model_validate(each) for each in session_context_data]
         agent = build_chat_completion_agent(api_client=api_client, agent_code=agent_code, chat_history=chat_history)
         return agent
 
@@ -42,7 +67,12 @@ def build_chat_completion_agent(api_client, agent_code, chat_history: list[ChatP
 
     llm_base_url = settings.AIDEV_AGENT_LLM_GW_ENDPOINT
 
-    llm = ChatModel.get_setup_instance(model=config.llm_model_name, base_url=llm_base_url, auth_headers=auth_headers)
+    llm = ChatModel.get_setup_instance(
+        model=config.llm_model_name,
+        base_url=llm_base_url,
+        auth_headers=auth_headers,
+        temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
+    )
 
     knowledge_bases = [
         api_client.api.appspace_retrieve_knowledgebase(path_params={"id": _id})["data"]

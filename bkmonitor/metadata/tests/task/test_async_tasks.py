@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from metadata import models
@@ -24,14 +24,14 @@ def create_or_delete_records(mocker):
         mq_config_id=1,
         etl_config="test",
         is_custom_source=False,
-        created_from='bkdata',
+        created_from="bkdata",
     )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     data_source.delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_check_and_delete_ds_consul_config(create_or_delete_records, mocker):
     """
     测试检查并删除 Consul 配置
@@ -48,8 +48,8 @@ def test_check_and_delete_ds_consul_config(create_or_delete_records, mocker):
 
     # 场景 1: Consul 配置存在
     mock_get.return_value = (
-        '9605173687',
-        {'Key': data_source.consul_config_path, 'Value': b'{"some_key": "some_value"}'},
+        "9605173687",
+        {"Key": data_source.consul_config_path, "Value": b'{"some_key": "some_value"}'},
     )
 
     _check_and_delete_ds_consul_config(data_source=data_source)
@@ -62,7 +62,7 @@ def test_check_and_delete_ds_consul_config(create_or_delete_records, mocker):
     mock_get.reset_mock()
     mock_delete.reset_mock()
 
-    mock_get.return_value = ('123456', None)  # 模拟配置不存在
+    mock_get.return_value = ("123456", None)  # 模拟配置不存在
 
     _check_and_delete_ds_consul_config(data_source=data_source)
 

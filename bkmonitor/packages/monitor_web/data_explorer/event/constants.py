@@ -87,7 +87,7 @@ class EventSource(CachedEnum):
 
 class EventType(CachedEnum):
     """
-    事件类型
+    事件等级
     """
 
     Normal = "Normal"
@@ -206,7 +206,7 @@ EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
         "event_name": _("事件名"),
         "domain": _("事件域"),
         "source": _("事件来源"),
-        "type": _("事件类型"),
+        "type": _("事件等级"),
         "event.count": _("事件数"),
         "event.content": _("事件内容"),
         "target": _("目标"),
@@ -258,7 +258,7 @@ EVENT_FIELD_ALIAS: dict[str, dict[str, str]] = {
 
 DISPLAY_FIELDS = [
     {"name": "time", "alias": _("数据上报时间")},
-    {"name": "type", "alias": _("事件类型"), "type": DisplayFieldType.ATTACH.value},
+    {"name": "type", "alias": _("事件等级"), "type": DisplayFieldType.ATTACH.value},
     {"name": "event_name", "alias": _("事件名")},
     {"name": "event.content", "alias": _("内容"), "type": DisplayFieldType.DESCRIPTIONS.value},
     {"name": "target", "alias": _("目标"), "type": DisplayFieldType.LINK.value},

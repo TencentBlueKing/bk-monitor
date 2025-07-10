@@ -603,7 +603,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 data={this.searchResultFavorites}
                 max-height={525}
                 row-class-name={this.getRowClassName}
-                on-row-click={(row, event) => (this.handleTableRowClick(row, event))}
+                on-row-click={(row, event) => this.handleTableRowClick(row, event)}
                 on-row-mouse-enter={index => (this.curHoverRowIndex = index)}
                 on-row-mouse-leave={() => (this.curHoverRowIndex = -1)}
                 on-selection-change={this.handleTableSelectionChange}
@@ -631,6 +631,9 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 />
                 {this.favoriteType === 'event' && this.renderEventColumns()}
                 <bk-table-column
+                  scopedSlots={{
+                    default: ({ row }) => <bk-user-display-name user-id={row.update_user} />,
+                  }}
                   filter-method={(value, row, column) => row[column.property] === value}
                   filters={this.tableFilters.names}
                   label={this.$t('变更人')}
@@ -667,7 +670,9 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 favoriteType={this.favoriteType}
                 groups={this.groups as any[]}
                 value={this.curClickRow}
-                onClose={() => {this.curClickRow = null}}
+                onClose={() => {
+                  this.curClickRow = null;
+                }}
                 onSuccess={this.handleDetailUpdate}
               />
             </div>

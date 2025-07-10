@@ -2066,11 +2066,14 @@
             // value 用于展示右边的预览值 - 编辑进入时需要触发预览
             if (res.data && res.data.fields) {
               const dataFields = res.data.fields;
+              const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
               dataFields.forEach(item => {
+                if(item.field_name && !validFieldPattern.test(item.field_name)){
+                  item.field_name = JSON.stringify(item.field_name)
+                }
                 item.verdict = this.judgeNumber(item);
               });
               const fields = this.formData.fields;
-
               if (!type) {
                 // 只有点击了调试按钮，才能修改fields列表  // 原始日志更新值改边预览值
                 if (!this.formData.etl_config || this.formData.etl_config !== etl_config || !newFields.length) {

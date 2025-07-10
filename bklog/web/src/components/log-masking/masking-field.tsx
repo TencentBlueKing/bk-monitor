@@ -32,7 +32,7 @@ import { Dialog, Tag, Input, Switcher, Table, TableColumn, Button, Popover, Side
 import VueDraggable from 'vuedraggable';
 
 import $http from '../../api';
-import { getFlatObjValues } from '../../common/util';
+import { getFlatObjValues, xssFilter } from '../../common/util';
 import { fieldTypeMap } from '../../store/constant';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone } from '../monitor-echarts/utils';
@@ -1236,7 +1236,7 @@ export default class MaskingField extends tsc<IProps> {
     // 1.首先动态创建一个容器标签元素，如DIV
     let temp = document.createElement('div');
     // 2.然后将要转换的字符串设置为这个元素的innerHTML(ie，火狐，google都支持)
-    temp.innerHTML = text;
+    temp.innerHTML = xssFilter(text);
     // 3.最后返回这个元素的innerText(ie支持)或者textContent(火狐，google支持)，即得到经过HTML解码的字符串了。
     const output = temp.innerText || temp.textContent;
     temp = null;
