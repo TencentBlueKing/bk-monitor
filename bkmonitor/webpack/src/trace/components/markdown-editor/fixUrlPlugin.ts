@@ -23,16 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ComputedRef, inject, provide } from 'vue';
+import type { PluginContext } from '@toast-ui/editor/types/editor';
 
-export const INCIDENT_ID_KEY = 'INCIDENT_ID_KEY';
-export const useIncidentProvider = (incidentId: ComputedRef<string>) => {
-  provide(INCIDENT_ID_KEY, incidentId);
-};
-export const useIncidentInject = () => inject<ComputedRef<string>>(INCIDENT_ID_KEY);
-
-export const replaceSpecialCondition = (qs: string) => {
-  // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
-  const regExp = new RegExp(`${window.i18n.t('通知人')}\\s*:\\s*(""|'')`, 'gi');
-  return qs.replace(regExp, `NOT ${window.i18n.t('通知人')} : *`);
-};
+export default function fixUrlPlugin(context: PluginContext) {
+  context.eventEmitter.listen('afterPreviewRender', () => {
+    setTimeout(() => {
+      const previewArea = context.instance.options.el;
+      if (previewArea) {
+        const originalHtml = previewArea.innerHTML;
+        // 通过正则表达式识别并修改 href 属性
+        const fixedHtml = originalHtml.replace(/href="([^"/]+\/)*(http(s)?:\/\/[^"]*)"/g, 'href="$2"');
+        previewArea.innerHTML = fixedHtml;
+      }
+    }, 100); // 延迟以确保预览已经渲染
+  });
+  return {
+    name: 'fixUrlPlugin',
+  };
+}
