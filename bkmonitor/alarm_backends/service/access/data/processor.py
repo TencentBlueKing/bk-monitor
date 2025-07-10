@@ -18,6 +18,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 import arrow
 import pytz
@@ -182,9 +183,6 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         """
         if records is None:
             records = self.record_list
-
-        # 去除重复数据
-        records: list[DataRecord] = [record for record in records if not record.is_duplicate]
 
         # 优先级检查
         PriorityChecker.check_records(records)
@@ -494,51 +492,68 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         return first_batch_points
 
-    def filter_duplicates(self, points: list[dict]):
+    def filter_duplicates(self, points: list[dict[str, Any]]):
         """
         过滤重复数据并实例化
+
+        数据存在延迟上报的情况，因此监控会向前多拉两个的周期的数据，并且记录那两个周期拉到的数据维度。如果拉到的数据维度存在于记录中，则意味着数据是重复拉取的。
+
+        大量重复数据记录会占用redis的内存，数据查询也会消耗redis资源，因此处理逻辑会有一些优化
+        1. 如果最新数据点的数据全部都是重复的，意味之前的周期数据全部都是重复的，因此可以跳过之前的周期
+        2. 只保留最近的三个周期数据
         """
         first_item = self.items[0]
 
-        records = []
+        records: list[DataRecord] = []
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id)
-        duplicate_counts = none_point_counts = 0
+        duplicate_counts = 0
+        none_point_counts = 0
 
-        # 是否有优先级
-        have_priority = False
-        for item in self.items:
-            if item.strategy.priority is not None and item.strategy.priority_group_key:
-                have_priority = True
-                break
+        # 获取策略的聚合周期
+        interval = first_item.strategy.get_interval()
 
-        max_data_time = 0
-        for record in reversed(points):
-            point = DataRecord(self.items, record)
+        # 数据按时间戳分组
+        max_timestamp = 0
+        time_point_groups = defaultdict(list)
+        for point in points:
+            timestamp = point.get("_time_") or point["time"]
+            time_point_groups[timestamp].append(point)
+            max_timestamp = max(max_timestamp, timestamp)
 
-            if point.value is not None:
-                # 去除重复数据
-                if dup_obj.is_duplicate(point):
-                    duplicate_counts += 1
-                    # 有优先级的策略，重复数据需要保留，后续再过滤
-                    if have_priority:
-                        point.is_duplicate = True
+        # 按时间戳从大到小遍历
+        has_new_point = False
+        old_timestamp = max_timestamp - 3 * interval
+        for index, timestamp in enumerate(sorted(list(time_point_groups.keys()), reverse=True)):
+            points = time_point_groups[timestamp]
+
+            # 如果最新时间戳没有新数据，则将更旧的数据全部视为重复数据
+            if index > 0 and not has_new_point:
+                duplicate_counts += len(points)
+
+            for point in points:
+                point = DataRecord(self.items, point)
+                if point.value is not None:
+                    if dup_obj.is_duplicate(point):
+                        duplicate_counts += 1
+                    else:
+                        # 记录最新时间戳是否有新数据
+                        if index == 0 and not has_new_point:
+                            has_new_point = True
+
+                        # 只记录最新的三个时间戳的重复数据记录
+                        if timestamp > old_timestamp:
+                            dup_obj.add_record(point)
                         records.append(point)
                 else:
-                    dup_obj.add_record(point)
-                    records.append(point)
-
-                    # 只观察非重复数据
-                    if point.time > max_data_time:
-                        max_data_time = point.time
-            else:
-                none_point_counts += 1
+                    none_point_counts += 1
+        dup_obj.refresh_cache()
+        dup_obj.clean_old_data(old_timestamp)
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
-        if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
-            self.observe_big_latency_datasource(first_item, max_data_time)
+        if max_timestamp > 0 and not self.batch_timestamp and self.until_timestamp:
+            self.observe_big_latency_datasource(first_item, max_timestamp)
 
-        dup_obj.refresh_cache(first_item.strategy.get_interval())
         self.record_list = records
         point_count = len(records)
         if point_count:
