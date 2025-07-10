@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import List
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db.models.sql import AND, OR
@@ -30,6 +29,10 @@ from constants.strategy import AGG_METHOD_REAL_TIME
 logger = logging.getLogger("core.control")
 
 
+if TYPE_CHECKING:
+    from alarm_backends.core.control.strategy import Strategy
+
+
 def gen_condition_matcher(agg_condition):
     or_cond = []
     and_cond = []
@@ -42,7 +45,7 @@ def gen_condition_matcher(agg_condition):
             or_cond.append(and_cond)
             and_cond = [t]
         else:
-            raise Exception("Unsupported connector(%s)" % connector)
+            raise Exception(f"Unsupported connector({connector})")
 
     if and_cond:
         or_cond.append(and_cond)
@@ -51,7 +54,7 @@ def gen_condition_matcher(agg_condition):
 
 
 class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
-    def __init__(self, item_config, strategy):
+    def __init__(self, item_config, strategy: "Strategy"):
         self.id = item_config.get("id")
         self.name = item_config.get("name")
 
@@ -107,7 +110,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         point_remain = detect_result_point_required(self.strategy.config)
         return point_remain * interval
 
-    def query_record(self, start_time: int, end_time: int) -> List:
+    def query_record(self, start_time: int, end_time: int) -> list:
         records = self.query.query_data(start_time * 1000, end_time * 1000)
         for record in records:
             record["_time_"] //= 1000
@@ -161,7 +164,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         return gen_condition_matcher(agg_condition)
 
     @cached_property
-    def agg_methods(self) -> List[str]:
+    def agg_methods(self) -> list[str]:
         """聚合方法列表"""
         methods = []
         for query_config in self.query_configs:
@@ -170,7 +173,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         return methods
 
     @cached_property
-    def algorithm_types(self) -> List[str]:
+    def algorithm_types(self) -> list[str]:
         """检测算法列表"""
         types = []
         for algorithm_type in self.algorithms:

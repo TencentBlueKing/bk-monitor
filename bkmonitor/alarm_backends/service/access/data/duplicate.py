@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from collections import defaultdict
 from alarm_backends.core.cache import key
+from alarm_backends.service.access.data.records import DataRecord
 
 
 class Duplicate:
@@ -17,6 +19,7 @@ class Duplicate:
         self.record_ids_cache = {}
         self.pending_to_add = {}
         self.strategy_id = strategy_id
+        self.latest_time: dict[str, int] = defaultdict(lambda: 0)
 
         self.client = key.ACCESS_DUPLICATE_KEY.client
 
@@ -32,7 +35,7 @@ class Duplicate:
 
         return self.record_ids_cache[dup_key]
 
-    def is_duplicate(self, record):
+    def is_duplicate(self, record: DataRecord):
         """
         判断数据是否重复
         采用redis的集合功能。以分钟+维度作为key，值为record_id的集合
@@ -49,8 +52,9 @@ class Duplicate:
         )
         self.record_ids_cache.setdefault(dup_key, set()).add(record.record_id)
         self.pending_to_add.setdefault(dup_key, set()).add(record.record_id)
+        self.latest_time[self.strategy_group_key] = max(self.latest_time[self.strategy_group_key], record.time)
 
-    def refresh_cache(self):
+    def refresh_cache(self, interval: int):
         # Q1：access 已经是按 item + 拉取周期拆分处理的，为什么这里要推一次 Redis
         # Q2：CheckPoint 已经控制了一个滑动窗口，按理说应该不会有重复？这里的业务背景是？
         # A1：是为了防止数据拉取周期之间数据点重复
@@ -65,4 +69,13 @@ class Duplicate:
         for ttl_dup_key in self.record_ids_cache:
             ttl_dup_key.strategy_id = self.strategy_id
             pipeline.expire(ttl_dup_key, key.ACCESS_DUPLICATE_KEY.ttl)
+
+        # 清理两个周期前的数据
+        for strategy_group_key, latest_time in self.latest_time.items():
+            pipeline.delete(
+                key.ACCESS_DUPLICATE_KEY.get_key(
+                    strategy_group_key=strategy_group_key, dt_event_time=latest_time - interval * 2
+                )
+            )
+
         pipeline.execute()
