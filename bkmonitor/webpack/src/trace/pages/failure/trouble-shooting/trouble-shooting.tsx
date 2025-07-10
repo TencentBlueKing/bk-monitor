@@ -30,9 +30,9 @@ import { useRoute } from 'vue-router';
 import { Collapse, Exception, Loading, Dropdown } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 
-import MarkdownView from './markdown-view';
+import MarkdownViewer from '../../../components/markdown-editor/viewer';
 
-import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis, IAlertObj } from '../types';
+import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis } from '../types';
 
 import './trouble-shooting.scss';
 
@@ -128,7 +128,7 @@ export default defineComponent({
     };
 
     const renderDisposal = () => {
-      return <MarkdownView content={contentList?.suggestion} />;
+      return <MarkdownViewer value={contentList?.suggestion} />;
     };
 
     const renderDimensional = () => {
@@ -272,7 +272,7 @@ export default defineComponent({
       if (this.subPanels.summary.status === 'failed') {
         return this.renderEmpty(this.subPanels.summary);
       }
-      return !this.loadingList.summary && <MarkdownView content={this.contentList?.summary} />;
+      return !this.loadingList.summary && <MarkdownViewer value={this.contentList?.summary} />;
     };
     return (
       <div class='failure-trouble-shooting'>
