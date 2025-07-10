@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import copy
 import datetime
 import functools
+import json
 import re
 from collections import defaultdict
 from typing import Any
@@ -32,7 +33,7 @@ from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
-from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
+from apps.api import BkDataStorekitApi, BkLogApi, TransferApi, BkDataMetaApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
@@ -251,8 +252,9 @@ class MappingHandlers:
         # 未获取到mapping信息 提前返回
         if not mapping_list:
             return []
+        self.add_tokenize_on_chars(mapping_list)
         property_dict: dict = self.find_merged_property(mapping_list)
-        fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+        fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict, self.scenario_id)
         built_in_fields = FieldBuiltInEnum.get_choices()
         fields_list: list = [
             {
@@ -576,20 +578,61 @@ class MappingHandlers:
         return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
 
     @classmethod
-    def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
+    def tokenize_on_chars(cls, field_dict: dict[str, Any], scenario_id=None) -> str:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
-        if not field_dict.get("analyzer"):
-            return ""
         if not field_dict.get("analyzer_details"):
             return ""
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
+        if scenario_id == Scenario.BKDATA:
+            return unicode_str_encode(field_dict["analyzer_details"]["tokenizer_details"].get("tokenize_on_chars", ""))
+        if not field_dict.get("analyzer"):
+            return ""
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
 
+    def add_tokenize_on_chars(self, mapping_list: list):
+        """
+        为bkdata的索引集添加自定义分词
+        """
+        if self.scenario_id != Scenario.BKDATA:
+            return
+
+        result_table_ids = self.indices.split(",")
+        result_tables = BkDataMetaApi.get_result_tables({"result_table_ids": result_table_ids, "related": ["storages"]})
+        result_table_mappings = {}
+        for item in result_tables:
+            tokenizers = json.loads(item.get("storages", {}).get("es", {}).get("storage_config", "{}")).get(
+                "tokenizers", {}
+            )
+            if not tokenizers:
+                continue
+            result_table_mappings[item["result_table_id"]] = tokenizers
+        if not result_table_mappings:
+            return
+
+        for mapping in mapping_list:
+            for result_table_id, result_table_config in mapping.items():
+                result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
+                tokenizers_config = result_table_mappings.get(result_table_id_bkbase)
+                if not tokenizers_config:
+                    continue
+                result_table_id_es = result_table_id_bkbase.split("_", maxsplit=1)[-1]
+                field_configs = result_table_config["mappings"][result_table_id_es]["properties"]
+                for field_name, field_config in field_configs.items():
+                    if field_name in tokenizers_config:
+                        field_config.update(
+                            {
+                                "analyzer_details": {
+                                    "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
+                                },
+                            }
+                        )
+        return mapping_list
+
     @classmethod
-    def get_all_index_fields_by_mapping(cls, properties_dict: dict) -> list:
+    def get_all_index_fields_by_mapping(cls, properties_dict: dict, scenario_id=None) -> list:
         """
         通过mapping集合获取所有的index下的fields
         :return:
@@ -614,7 +657,7 @@ class MappingHandlers:
                     es_doc_values = False
 
                 is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
-                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key])
+                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key], scenario_id=scenario_id)
 
                 # @TODO tag：兼容前端代码，后面需要删除
                 tag = "metric"
