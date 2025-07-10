@@ -35,6 +35,7 @@ import useWheel from '@/hooks/use-wheel';
 import PopInstanceUtil from '../../../../global/pop-instance-util';
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import retrieveHelper from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import ScrollTop from '../../components/scroll-top/index';
@@ -134,9 +135,12 @@ export default defineComponent({
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+
+    const handleSearchingChange = isSearching => {
       isPageLoading.value = isSearching;
-    });
+    };
+
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -1081,6 +1085,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
+      retrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
     });
 
     return {

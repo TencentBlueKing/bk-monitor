@@ -248,18 +248,23 @@ export default defineComponent({
       requestGrepList();
     };
 
-    RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
-      resetGrepRequestResult();
-      requestGrepList();
-    });
+    const handleRequestResult = (runRequest = true, setDefField = false) => {
+      if (runRequest) {
+        if (setDefField) {
+          setDefaultFieldValue();
+        }
 
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, (value: boolean) => {
-      if (!value) {
         resetGrepRequestResult();
-        setDefaultFieldValue();
         requestGrepList();
       }
-    });
+    };
+
+    const handleSearchingChange = (isSearching: boolean) => {
+      handleRequestResult(!isSearching);
+    };
+
+    RetrieveHelper.on([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
       if (isParamsChange) {
@@ -286,8 +291,9 @@ export default defineComponent({
       resetGrepRequestResult();
 
       RetrieveHelper.destroyMarkInstance();
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE);
-      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, handleRequestResult);
+      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, handleRequestResult);
     });
 
     return () => (
