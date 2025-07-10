@@ -109,8 +109,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return timeunit[unit] * Number(num);
   };
 
-  // 默认需要展示的柱子数量
-  const barCount = 60;
+  const barCount = 60;  // auto时展示的柱子数量
+
   const intervals: [string, number][] = [
     ['d', 86400],
     ['h', 3600],
@@ -118,18 +118,19 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     ['s', 1],
   ];
 
+  const xLabelMap = new Map<number, string>(); // 用于存储横坐标标签
+
   const setRunnningInterval = () => {
+    // 1. 若汇聚周期不为auto，则直接使用用户选择的汇聚周期
     if (retrieveParams.value.interval !== 'auto') {
       runningInterval = retrieveParams.value.interval;
       return;
     }
 
+    // 2. 若汇聚周期为auto，则根据时间范围动态计算
     const { start_time, end_time } = retrieveParams.value;
-
-    // 按照小时统计
-    // 按照指定的柱子数量分割
     const duration = (end_time - start_time) / 1000;
-    const segments = Math.floor(duration / barCount);
+    const segments = Math.floor(duration / barCount);  // 按照指定的柱子数量分割
     for (const [name, seconds] of intervals) {
       if (segments >= seconds) {
         const interval = Math.floor(segments / seconds);
@@ -193,6 +194,20 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
 
+    // 若时间大于等于1天，则显示月日时分秒
+    let formatStr = 'MM-DD';
+    if (buckets.length > 1) {
+      const diff = buckets[1].key - buckets[0].key;
+      // 若时间间隔小于1秒，则显示毫秒级时间
+      if (diff < 1000) {
+        formatStr = 'HH:mm:ss.SSS';
+      } 
+      // 若时间间隔小于1天，则显示时分秒
+      else if (diff < 24 * 60 * 60 * 1000) {
+        formatStr = 'HH:mm:ss';
+      }
+    }
+
     let count = 0;
 
     if (isInit) {
@@ -226,6 +241,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         sortKeys.forEach(dstKey => {
           const { dataMap } = dataset.get(dstKey);
           dataMap.set(key, [key, 0, key_as_string]);
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       }
 
@@ -247,6 +263,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           }
 
           dataMap.set(key, [key, count, key_as_string]);
+
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       });
     });
@@ -263,6 +281,21 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const setDefaultData = (aggs?, isInit?) => {
     let opt_data = new Map<Number, Number[]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
+
+    // 若时间大于等于1天，则显示月日时分秒
+    let formatStr = 'MM-DD';
+    if (buckets.length > 1) {
+      const diff = buckets[1].key - buckets[0].key;
+      // 若时间间隔小于1秒，则显示毫秒级时间
+      if (diff < 1000) {
+        formatStr = 'HH:mm:ss.SSS';
+      } 
+      // 若时间间隔小于1天，则显示时分秒
+      else if (diff < 24 * 60 * 60 * 1000) {
+        formatStr = 'HH:mm:ss';
+      }
+    }
+
     const series = [];
     let count = 0;
 
@@ -273,6 +306,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     buckets.forEach(({ key, doc_count, key_as_string }) => {
+      xLabelMap.set(key, dayjs(key).format(formatStr));
       opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
       count += doc_count;
     });
@@ -295,6 +329,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
+    if (isInit) xLabelMap.clear();
     if (fieldName) {
       return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, isInit);
     }
@@ -336,7 +371,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return;
     }
 
-    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    // options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;

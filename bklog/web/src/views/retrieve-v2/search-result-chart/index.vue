@@ -30,7 +30,7 @@
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
   >
-    <chart-title-v2
+    <chart-title-v2 
       class="monitor-echarts-title"
       ref="chartTitle"
       :is-fold="isFold"

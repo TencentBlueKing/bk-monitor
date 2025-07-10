@@ -33,7 +33,6 @@ import BklogPopover from '@/components/bklog-popover';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import http from '@/api';
-import axios from 'axios';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import './index-new.scss';
@@ -68,8 +67,6 @@ export default defineComponent({
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const unionIndexList = computed(() => store.getters.unionIndexList);
     const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
-
-    const CancelToken = axios.CancelToken;
 
     let finishPolling = ref(false);  // 是否完成轮询
     let isStart = ref(false);  // 是否开始轮询
@@ -468,7 +465,7 @@ export default defineComponent({
           {loading.value && !isFold.value && <bk-spin class='chart-spin'></bk-spin>}
         </div>
         {/* 图表部分 */}
-        <div v-show={!isFold.value} class='monitor-echart-wrap' v-bkloading={{ isLoading: loading.value, zIndex: 10, size: 'mini' }}>
+        <div v-show={!isFold.value} class='monitor-echart-wrap' v-bkloading={{ zIndex: 10, size: 'mini' }}>
             <div
               ref={trendChartCanvas}
               style={{ height: `${dynamicHeight.value}px` }}>
