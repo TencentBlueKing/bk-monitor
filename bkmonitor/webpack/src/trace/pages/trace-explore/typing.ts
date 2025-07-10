@@ -95,10 +95,10 @@ export interface IStatisticsInfo {
   distinct_count: number;
   field_percent: number;
   value_analysis?: {
-    max: number;
-    min: number;
-    avg: number;
-    median: number;
+    max: number | string;
+    min: number | string;
+    avg: number | string;
+    median: number | string;
   };
 }
 

@@ -35,7 +35,7 @@ import {
   traceFieldStatisticsInfo,
   traceFieldsTopK,
 } from 'monitor-api/modules/apm_trace';
-import { downloadFile } from 'monitor-common/utils';
+import { downloadFile, formatPercent } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { storeToRefs } from 'pinia';
 
@@ -108,9 +108,11 @@ export default defineComponent({
     const downloadLoading = shallowRef(false);
 
     /** '耗时字段' topk列表 */
-    const durationTopkList = shallowRef<ITopKField>({
+    const durationTopkList = shallowRef({
       distinct_count: 0,
       field: '',
+      max: '',
+      min: '',
       list: [],
     });
 
@@ -124,17 +126,24 @@ export default defineComponent({
       () => props.isShow,
       async val => {
         if (val) {
+          infoLoading.value = true;
           localField.value = props.selectField;
           if (!isDuration.value) {
             rangeText.value = handleTransformTime(store.timeRange);
             getStatisticsList();
           } else {
+            popoverLoading.value = true;
             await getStatisticsGraphData();
-            rangeText.value = [
-              formatDuration(statisticsInfo.value.value_analysis?.min || 0),
-              formatDuration(statisticsInfo.value.value_analysis?.max || 0),
-            ];
-            durationTopkList.value = getDurationTopkList();
+            popoverLoading.value = false;
+            const { min, max, avg, median } = statisticsInfo.value.value_analysis || {};
+            statisticsInfo.value.value_analysis = {
+              min: formatDuration(Number(min) || 0, '', ''),
+              max: formatDuration(Number(max) || 0, '', ''),
+              avg: formatDuration(Number(avg) || 0, '', ''),
+              median: median,
+            };
+            getDurationTopkList();
+            rangeText.value = [durationTopkList.value.min, durationTopkList.value.max];
             statisticsList.distinct_count = durationTopkList.value.distinct_count;
             statisticsList.field = durationTopkList.value.field;
             statisticsList.list = durationTopkList.value.list.slice(0, 5);
@@ -144,34 +153,38 @@ export default defineComponent({
           statisticsList.field = '';
           statisticsList.list = [];
           chartData.value = [];
-          infoLoading.value = true;
         }
       }
     );
 
     /** 耗时topK列表逻辑特殊，通过traceFieldStatisticsGraph接口返回的数据由前端生成 */
-    function getDurationTopkList(): ITopKField {
+    function getDurationTopkList() {
       const data = (chartData.value[0]?.datapoints as [number, string][]) || [];
       const total = data.reduce((pre, cur) => pre + cur[0], 0);
-      const list = data.map(item => {
+      let min = 0;
+      let max = 0;
+      const list = data.map((item, index) => {
         const [start, end] = item[1].split('-');
+        if (index === 0) min = Number(start);
+        if (index === data.length - 1) max = Number(end);
         return {
-          alias: `${formatDuration(Number(start))}-${formatDuration(Number(end))}`,
+          alias: `${formatDuration(Number(start), '', '')} - ${formatDuration(Number(end), '', '')}`,
           count: item[0],
-          proportions: Number(((item[0] / total) * 100).toFixed(2)),
+          proportions: formatPercent((item[0] / total) * 100, 3, 3, 3),
           value: item[1],
         };
       });
-      return {
+      durationTopkList.value = {
         distinct_count: list.length,
         field: localField.value,
         list: list.sort((a, b) => b.count - a.count),
+        min: formatDuration(min, '', ''),
+        max: formatDuration(max, '', ''),
       };
     }
 
     /** 获取topk列表 */
     async function getStatisticsList() {
-      infoLoading.value = true;
       popoverLoading.value = true;
       getStatisticsListCount.value += 1;
       const count = getStatisticsListCount.value;
@@ -224,14 +237,14 @@ export default defineComponent({
       /** 如果是取消接口，不进行后续操作 */
       if (count !== getStatisticsInfoCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
-      if (!info || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
+      if (!info || info.distinct_count === 0 || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
         infoLoading.value = false;
         return;
       }
       statisticsInfo.value = info;
       const { min, max } = statisticsInfo.value.value_analysis || {};
       const values = isInteger.value
-        ? [min, max, statisticsInfo.value.distinct_count, 10]
+        ? [min, max, statisticsInfo.value.distinct_count, isDuration.value ? 15 : 10]
         : statisticsList.list.map(item => item.value);
       topKChartCancelFn?.();
       const data = await traceFieldStatisticsGraph(
