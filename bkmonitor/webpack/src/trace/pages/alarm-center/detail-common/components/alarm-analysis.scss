@@ -1,0 +1,98 @@
+.alarm-center-detail-alarm-analysis {
+  width: 100%;
+  height: 100%;
+  background: #f3f6fa;
+  .item-box {
+    display: block;
+    padding-left: 20px;
+    padding-right: 12px;
+    height: 28px;
+  }
+  .trace-txt {
+    display: block;
+    line-height: 20px;
+    padding: 6px 12px 8px 20px;
+  }
+  .markdown-box-content {
+    padding: 0 16px;
+  }
+  .dimensional-list {
+    width: 100%;
+    border-bottom: 1px solid #eaebf0;
+    .dimensional-content-item {
+      display: block;
+      width: 100%;
+      line-height: 24px;
+      padding: 2px 12px 2px 20px;
+      &:nth-child(2n) {
+        background: #f8fafd;
+      }
+      .item-label {
+        display: inline-block;
+        width: 80px;
+        text-align: left;
+        color: #757880;
+      }
+    }
+  }
+  .panel-box {
+    background: #f5f7fa;
+    border: 1px solid #eaebf0;
+    border-radius: 2px;
+
+    .panel-box-title {
+      display: flex;
+      align-items: center;
+      height: 26px;
+      font-size: 12px;
+      color: #3a84ff;
+      background: #eaebf0;
+      cursor: pointer;
+      .icon-circle {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        color: #fff;
+        margin: 0 5px;
+        background: url('../../../../static/img/blue-shield.svg') no-repeat center center;
+      }
+      .icon-btn {
+        margin-left: 6px;
+      }
+    }
+  }
+  .ai-card-item {
+    display: flex;
+    margin-bottom: 8px;
+    cursor: default;
+    &:last-child {
+      margin-bottom: 0;
+    }
+    .gray-txt {
+      color: #c4c6cc;
+    }
+    .item-title {
+      display: inline-block;
+      width: 65px;
+      text-align: right;
+      color: #757880;
+    }
+    .item-label {
+      flex: 1;
+      color: #313238;
+    }
+    .link {
+      cursor: pointer;
+      color: #3a84ff;
+      margin: 0;
+    }
+    .edit {
+      margin-left: 5px;
+      .edit-btn {
+        font-size: 22px;
+        vertical-align: middle;
+      }
+    }
+  }
+}
