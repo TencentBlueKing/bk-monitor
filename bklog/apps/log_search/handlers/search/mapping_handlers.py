@@ -252,9 +252,8 @@ class MappingHandlers:
         # 未获取到mapping信息 提前返回
         if not mapping_list:
             return []
-        self.add_tokenize_on_chars(mapping_list)
         property_dict: dict = self.find_merged_property(mapping_list)
-        fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict, self.scenario_id)
+        fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
         built_in_fields = FieldBuiltInEnum.get_choices()
         fields_list: list = [
             {
@@ -525,40 +524,41 @@ class MappingHandlers:
             "add_settings_details": False if only_search else True,
         }
         if not storage_cluster_record_objs.exists():
-            return self._direct_latest_mapping(params)
+            result = self._direct_latest_mapping(params)
+        else:
+            multi_execute_func = MultiExecuteFunc()
+            multi_num = 1
+            storage_cluster_ids = {self.storage_cluster_id}
 
-        multi_execute_func = MultiExecuteFunc()
-        multi_num = 1
-        storage_cluster_ids = {self.storage_cluster_id}
+            # 获取当前使用的存储集群数据
+            multi_execute_func.append(
+                result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
+            )
 
-        # 获取当前使用的存储集群数据
-        multi_execute_func.append(
-            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
-        )
+            # 获取历史使用的存储集群数据
+            for storage_cluster_record_obj in storage_cluster_record_objs:
+                if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                    multi_params = copy.deepcopy(params)
+                    multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                    multi_num += 1
+                    multi_execute_func.append(
+                        result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                    )
+                    storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
-        # 获取历史使用的存储集群数据
-        for storage_cluster_record_obj in storage_cluster_record_objs:
-            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
-                multi_params = copy.deepcopy(params)
-                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
-                multi_num += 1
-                multi_execute_func.append(
-                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
-                )
-                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+            multi_result = multi_execute_func.run()
 
-        multi_result = multi_execute_func.run()
-
-        # 合并多个集群的检索结果
-        merge_result = list()
-        try:
-            for _key, _result in multi_result.items():
-                merge_result.extend(_result)
-        except Exception as e:
-            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
-            raise MultiFieldsErrorException()
-
-        return merge_result
+            # 合并多个集群的检索结果
+            result = list()
+            try:
+                for _key, _result in multi_result.items():
+                    result.extend(_result)
+            except Exception as e:
+                logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
+                raise MultiFieldsErrorException()
+        # 添加自定义分词信息
+        self.add_tokenize_on_chars(result)
+        return result
 
     @staticmethod
     def _get_context_fields(final_fields_list):
@@ -578,16 +578,14 @@ class MappingHandlers:
         return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
 
     @classmethod
-    def tokenize_on_chars(cls, field_dict: dict[str, Any], scenario_id=None) -> str:
+    def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
+        if not field_dict.get("analyzer"):
+            return ""
         if not field_dict.get("analyzer_details"):
             return ""
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
-            return ""
-        if scenario_id == Scenario.BKDATA:
-            return unicode_str_encode(field_dict["analyzer_details"]["tokenizer_details"].get("tokenize_on_chars", ""))
-        if not field_dict.get("analyzer"):
             return ""
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
@@ -624,15 +622,16 @@ class MappingHandlers:
                     if field_name in tokenizers_config:
                         field_config.update(
                             {
+                                "analyzer": "None",
                                 "analyzer_details": {
-                                    "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
+                                    "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name].split(",")}
                                 },
                             }
                         )
         return mapping_list
 
     @classmethod
-    def get_all_index_fields_by_mapping(cls, properties_dict: dict, scenario_id=None) -> list:
+    def get_all_index_fields_by_mapping(cls, properties_dict: dict) -> list:
         """
         通过mapping集合获取所有的index下的fields
         :return:
@@ -657,7 +656,7 @@ class MappingHandlers:
                     es_doc_values = False
 
                 is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
-                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key], scenario_id=scenario_id)
+                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key])
 
                 # @TODO tag：兼容前端代码，后面需要删除
                 tag = "metric"
