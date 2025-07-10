@@ -66,6 +66,13 @@ export const useTraceExploreStore = defineStore('explore', {
   }),
   getters: {
     currentApp: state => state.appList.find(app => app.app_name === state.appName),
+    sortParams: state => {
+      let sort = [];
+      if (state.tableSortContainer.sortBy) {
+        sort = [`${state.tableSortContainer.descending ? '-' : ''}${state.tableSortContainer.sortBy}`];
+      }
+      return sort;
+    },
   },
   actions: {
     updateTimeRange(timeRange: TimeRangeType) {
@@ -117,6 +124,24 @@ export const useTraceExploreStore = defineStore('explore', {
       this.refreshImmediate = data.refreshImmediate;
       this.tableSortContainer.sortBy = data.tableSortContainer?.sortBy || '';
       this.tableSortContainer.descending = data.tableSortContainer?.descending || null;
+    },
+    sortParamsToTableSortContainer(sort: string[]) {
+      let descending = null;
+      let sortBy = '';
+      const str = sort?.[0] || '';
+      const match = str.match(/^-(.*)/);
+      const extractedString = match ? match[1] : '';
+      if (extractedString) {
+        descending = true;
+        sortBy = extractedString;
+      } else if (str) {
+        descending = false;
+        sortBy = str;
+      }
+      this.updateTableSortContainer({
+        descending,
+        sortBy,
+      });
     },
   },
 });

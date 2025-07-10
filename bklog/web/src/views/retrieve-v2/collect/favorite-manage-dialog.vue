@@ -95,7 +95,7 @@
                   <bk-form-item :label="$t('分组名称')" property="name" required>
                     <bk-input
                       v-model="addGroupData.name"
-                      :placeholder="$t('输入组名,30个字符')"
+                      :placeholder="$t('请输入组名')"
                     />
                   </bk-form-item>
                 </bk-form>
@@ -266,8 +266,6 @@ import {
   defineEmits,
   computed,
   ref,
-  onMounted,
-  onBeforeUnmount,
   nextTick,
   watch,
 } from "vue";
@@ -355,13 +353,16 @@ const rules = {
   ],
 };
 
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-});
 
-onBeforeUnmount(() => {
-  window.removeEventListener("keydown", handleKeydown);
-});
+watch(() => [props.modelValue], () => {
+  if (props.modelValue) {
+    window.addEventListener("keydown", handleKeydown);
+  } else {
+    nextTick(() => {
+      window.removeEventListener("keydown", handleKeydown);
+    })
+  }
+})
 
 watch(
   allGroupList,
