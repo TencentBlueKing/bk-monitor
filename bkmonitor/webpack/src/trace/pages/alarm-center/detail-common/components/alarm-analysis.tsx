@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { aiContent, dimensional, content } from '../mockData';
 import DiagnosticAnalysis from './diagnostic-analysis';
-import MarkdownView from './diagnostic-analysis/markdown-view';
+import MarkdownViewer from '../../../../components/markdown-editor/viewer';
 import TitleBtn from './diagnostic-analysis/title-btn';
 
 import type { IPanelItem } from '../typeing';
@@ -118,7 +118,12 @@ export default defineComponent({
               />
             </span>
           ),
-          default: () => <MarkdownView content={content} />,
+          default: () => (
+            <MarkdownViewer
+              class='markdown-box-content'
+              value={content}
+            />
+          ),
         },
       },
       {
@@ -135,7 +140,10 @@ export default defineComponent({
           default: (item: IPanelItem) => (
             <div>
               {renderValueList(item)}
-              <MarkdownView content={content} />
+              <MarkdownViewer
+                class='markdown-box-content'
+                value={content}
+              />
             </div>
           ),
         },

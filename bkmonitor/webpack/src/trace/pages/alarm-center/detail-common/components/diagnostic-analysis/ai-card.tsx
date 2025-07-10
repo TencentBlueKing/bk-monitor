@@ -25,7 +25,7 @@
  */
 import { defineComponent, type PropType } from 'vue';
 
-import MarkdownView from './markdown-view';
+import MarkdownViewer from '../../../../../components/markdown-editor/viewer';
 
 import './ai-card.scss';
 
@@ -42,7 +42,7 @@ export default defineComponent({
           <span class='ai-card-title-icon' />
           {props.title}
         </div>
-        <div class='ai-card-main'>{slots?.default ? slots?.default?.() : <MarkdownView content={props.content} />}</div>
+        <div class='ai-card-main'>{slots?.default ? slots?.default?.() : <MarkdownViewer value={props.content} />}</div>
       </div>
     );
   },

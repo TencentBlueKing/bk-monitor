@@ -23,51 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, computed } from 'vue';
+import type { PluginContext } from '@toast-ui/editor/types/editor';
 
-import hljs from 'highlight.js';
-import MarkdownIt from 'markdown-it';
-
-import './markdown-view.scss';
-import 'highlight.js/styles/github.css';
-
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight: (str, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return `<pre><code class="hljs">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
-      } catch (__) {}
-    }
-    return `<pre><code class="hljs">${md.utils.escapeHtml(str)}</code></pre>`;
-  },
-});
-
-export default defineComponent({
-  name: 'MarkdownView',
-  props: {
-    content: {
-      type: String,
-      default: '',
-    },
-  },
-  setup(props) {
-    const htmlContent = computed(() => {
-      return md.render(props.content);
-    });
-    return {
-      htmlContent,
-    };
-  },
-
-  render() {
-    return (
-      <div
-        class='markdown-view-box'
-        innerHTML={this.htmlContent}
-      />
-    );
-  },
-});
+export default function fixUrlPlugin(context: PluginContext) {
+  context.eventEmitter.listen('afterPreviewRender', () => {
+    setTimeout(() => {
+      const previewArea = context.instance.options.el;
+      if (previewArea) {
+        const originalHtml = previewArea.innerHTML;
+        // 通过正则表达式识别并修改 href 属性
+        const fixedHtml = originalHtml.replace(/href="([^"/]+\/)*(http(s)?:\/\/[^"]*)"/g, 'href="$2"');
+        previewArea.innerHTML = fixedHtml;
+      }
+    }, 100); // 延迟以确保预览已经渲染
+  });
+  return {
+    name: 'fixUrlPlugin',
+  };
+}
