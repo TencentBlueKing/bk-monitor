@@ -180,20 +180,7 @@
 
   const getDateFieldValue = (field, content) => {
     if (isFormatDateField.value) {
-      const formatFn = {
-        date: formatDate,
-        date_nanos: formatDateNanos,
-      };
-
-      if (formatFn[field.field_type]) {
-        if (/^<mark>(\d+)<\/mark>$/i.test(content)) {
-          return content.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
-            return `<mark>${formatFn[field.field_type](Number(p1))}</mark>`;
-          });
-        }
-
-        return formatFn[field.field_type](Number(content)) || content || '--';
-      }
+      return RetrieveHelper.formatDateValue(content, field.field_type);
     }
 
     return content;

@@ -26,6 +26,7 @@
 
 import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
 
+import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -39,7 +40,6 @@ import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 // #else
 // #code const SearchResultTab = () => null;
-import useStore from '@/hooks/use-store';
 
 // #endif
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
