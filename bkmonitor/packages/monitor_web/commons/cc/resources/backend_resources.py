@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import logging
 from collections import defaultdict
-from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from rest_framework.serializers import ValidationError
 
 from api.cmdb.define import Host
 from bkmonitor.strategy.new_strategy import Item
@@ -84,7 +84,7 @@ class HostRegionISPInfoResource(Resource):
         isp_name = params.get("bk_isp_name", "")
 
         # 按业务模块过滤
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
 
         # 如果省份提供了，则优先使用省份查询
         region_key = province_name or state_name
@@ -99,7 +99,7 @@ class HostRegionISPInfoResource(Resource):
             filtered_hosts.append(host)
 
         # 获取主机的Agent状态
-        agent_status: Dict[int, int] = resource.cc.get_agent_status(bk_biz_id, filtered_hosts)
+        agent_status: dict[int, int] = resource.cc.get_agent_status(bk_biz_id, filtered_hosts)
 
         return [
             {
@@ -298,7 +298,7 @@ class GetHostInstanceByNodeResource(CacheResource):
     cache_type = CacheType.HOST
 
     def __init__(self):
-        super(GetHostInstanceByNodeResource, self).__init__()
+        super().__init__()
         self.node_list = []
         self.bk_biz_id = None
         # 用于查询模块和服务分类之间的关系
@@ -683,3 +683,34 @@ class GetDynamicGroupInstanceResource(Resource):
                 }
             )
         return result
+
+
+class GetTopoListResource(Resource):
+    """获取模块、集群节点ID列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        bk_obj_id = serializers.CharField(label="对象ID")
+        OBJ_ID_CHOOSE = ("module", "set")
+
+        def validate(self, attrs):
+            if attrs["bk_obj_id"] not in ["module", "set"]:
+                raise ValidationError(f"bk_obj_id must be one of {self.OBJ_ID_CHOOSE}")
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        bk_obj_id = validated_request_data["bk_obj_id"]
+        fun_map = {"module": self.get_modules, "set": self.get_sets}
+
+        return fun_map[bk_obj_id](bk_biz_id)
+
+    @staticmethod
+    def get_modules(bk_biz_id):
+        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, fields=["bk_module_id", "bk_module_name"])
+        return [{"id": m.bk_module_id, "name": m.bk_module_name} for m in modules]
+
+    @staticmethod
+    def get_sets(bk_biz_id):
+        hosts = api.cmdb.get_set(bk_biz_id=bk_biz_id, fields=["bk_set_id", "bk_set_name"])
+        return [{"id": h.bk_set_id, "name": h.bk_set_name} for h in hosts]
