@@ -173,21 +173,21 @@ DEFAULT_CRONTAB = [
 if BCS_API_GATEWAY_HOST:
     DEFAULT_CRONTAB += [
         # bcs资源同步
-        ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/25 * * * *", "global"),
         # bcs资源数据状态同步
-        ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_container_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_resource", "*/15 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_cluster_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_container_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_resource", "*/260 * * * *", "global"),
         # bcs集群安装operator信息，一天同步一次
         ("api.bcs.tasks.sync_bkmonitor_operator_info", "0 2 * * *", "global"),
     ]
