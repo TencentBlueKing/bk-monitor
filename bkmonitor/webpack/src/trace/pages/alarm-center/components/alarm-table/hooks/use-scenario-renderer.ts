@@ -55,14 +55,30 @@ export function useScenarioRenderer(context: any) {
     return new ScenarioClass(context);
   });
 
-  // 转换列配置
-  const transformColumns = (columns: TableColumnItem[]) => {
+  /**
+   * @description 转换列配置
+   */
+  function transformColumns(columns: TableColumnItem[]) {
+    const isAlert = currentScenario.value.name === ALERT_STORAGE_KEY;
+    const targetColumns = [];
+
+    if (isAlert) {
+      // 告警场景需要添加多选列
+      targetColumns.push({
+        colKey: 'row-select',
+        type: 'multiple',
+        width: 50,
+        minWidth: 50,
+      });
+    }
     const scenarioColumns = currentScenario.value.getColumnsConfig();
-    return columns.map(column => {
+    for (const column of columns) {
       const scenarioConfig = scenarioColumns[column.colKey];
-      return scenarioConfig ? { ...column, ...scenarioConfig } : column;
-    });
-  };
+      const targetColumn = scenarioConfig ? { ...column, ...scenarioConfig } : column;
+      targetColumns.push(targetColumn);
+    }
+    return targetColumns;
+  }
 
   watch(
     () => currentScenario.value,
@@ -74,15 +90,11 @@ export function useScenarioRenderer(context: any) {
 
   // 生命周期管理
   onMounted(() => {
-    if (currentScenario.value.initialize) {
-      currentScenario.value.initialize();
-    }
+    currentScenario.value?.initialize?.();
   });
 
   onBeforeUnmount(() => {
-    if (currentScenario.value.cleanup) {
-      currentScenario.value.cleanup();
-    }
+    currentScenario.value?.cleanup?.();
   });
 
   return {

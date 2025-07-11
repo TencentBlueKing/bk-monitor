@@ -67,47 +67,58 @@ export class AlertScenario extends BaseScenario {
     const commonColumnConfig = this.getCommonColumnsConfig();
     const columns = {
       ...commonColumnConfig,
-      // 告警状态(alert_status) 列
+      /** 告警状态(alert_status) 列 */
       alert_name: {
         cellRenderer: row => this.renderAlertName(row),
       },
+      /** 告警指标(metric) 列 */
       metric: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
       },
+      /** 关联事件(event_count) 列 */
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
         clickCallback: row => {
           this.context.handleShowDetail(row.id);
         },
       },
+      /** 首次异常时间(first_anomaly_time) 列 */
       first_anomaly_time: {
         renderType: ExploreTableColumnTypeEnum.TIME,
       },
+      /** 维度(tags) 列 */
       tags: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
         getRenderValue: row => {
           return row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value }));
         },
       },
+      /** 关联信息(extend_info) 列 */
       extend_info: {
         cellRenderer: row => this.renderExtendInfo(row),
       },
+      /** 负责人(appointee) 列 */
       appointee: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
       },
+      /** 通知人(assignee) 列 */
       assignee: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
       },
+      /** 关注人(follower) 列 */
       follower: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
       },
+      /** 策略名称(strategy_name) 列 */
       strategy_name: {
         renderType: ExploreTableColumnTypeEnum.LINK,
         getRenderValue: row => ({ url: this.getStrategyUrl(row.strategy_id, row.bk_biz_id), alias: row.strategy_name }),
       },
+      /** 策略标签(labels) 列 */
       labels: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
       },
+      /** 状态(status) 列 */
       status: {
         renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
         getRenderValue: row => AlertStatusMap?.[row.status],

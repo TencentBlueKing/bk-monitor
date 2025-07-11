@@ -38,7 +38,7 @@ import type {
   TableCellRenderer,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { TableEmpty, TablePagination, TableRenderer } from '../../../typings';
-import type { CheckboxGroupValue, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
+import type { CheckboxGroupValue, SelectOptions, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -72,6 +72,10 @@ export default defineComponent({
     pagination: {
       type: Object as PropType<TablePagination>,
     },
+    /** 选中行 keys */
+    selectedRowKeys: {
+      type: Array as PropType<(number | string)[]>,
+    },
     /** 表格加载状态 */
     loading: {
       type: Boolean,
@@ -103,6 +107,8 @@ export default defineComponent({
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<any>) => Array.isArray(selectedRowKeys),
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -193,6 +199,17 @@ export default defineComponent({
     }
 
     /**
+     * @description 选中行发生变化时触发
+     * @param selectedRowKeys 选中行 keys
+     * @param options.type uncheck: 当前行操作为「取消行选中」; check: 当前行操作为「行选中」
+     * @param options.currentRowKey 当前操作行的 rowKey 值
+     * @param options.currentRowData 当前操作行的 行数据
+     */
+    function handleSelectChange(selectedRowKeys: (number | string)[], options: SelectOptions<any>) {
+      emit('selectChange', selectedRowKeys, options);
+    }
+
+    /**
      * @description 表格每页条数变化时的回调
      *
      */
@@ -245,6 +262,7 @@ export default defineComponent({
       tableCellRender,
       handleSortChange,
       handleCurrentPageChange,
+      handleSelectChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
       tableLastFullRowRender,
@@ -269,13 +287,16 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
           lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+          reserveSelectedRowOnPaginate={false}
           resizable={true}
           rowKey={this.rowKey}
+          selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}
           size='small'
           sort={this.tableSort}
           tableLayout='fixed'
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
+          onSelectChange={this.handleSelectChange}
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
