@@ -33,7 +33,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
-import { AlarmStatusIconMap } from '../../typings';
+import { AlarmStatusIconMap, AlarmType } from '../../typings';
 
 import './alarm-trend-chart.scss';
 
@@ -42,44 +42,59 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
-    const panel = new PanelModel({
-      title: '',
-      gridPos: {
-        x: 16,
-        y: 16,
-        w: 8,
-        h: 4,
-      },
-      id: 'alarm-trend-chart',
-      type: 'graph',
-      options: {
-        time_series: {
-          type: 'bar',
-          echart_option: {
-            grid: {
-              bottom: 6,
-            },
-            yAxis: {
-              splitLine: {
-                lineStyle: {
-                  type: 'solid',
+
+    const apiMap = {
+      [AlarmType.ALERT]: 'alert.alertDateHistogram',
+      [AlarmType.ACTION]: 'alert.actionDateHistogram',
+      [AlarmType.INCIDENT]: '',
+    };
+
+    const seriesColorMap = {
+      ...AlarmStatusIconMap,
+      success: '#6FC5BF',
+      failure: '#F59789',
+    };
+
+    const panel = computed(() => {
+      return new PanelModel({
+        title: '',
+        gridPos: {
+          x: 16,
+          y: 16,
+          w: 8,
+          h: 4,
+        },
+        id: 'alarm-trend-chart',
+        type: 'graph',
+        options: {
+          time_series: {
+            type: 'bar',
+            echart_option: {
+              grid: {
+                bottom: 6,
+              },
+              yAxis: {
+                splitLine: {
+                  lineStyle: {
+                    type: 'solid',
+                  },
                 },
               },
             },
           },
         },
-      },
-      targets: [
-        {
-          datasource: 'time_series',
-          dataType: 'time_series',
-          api: 'alert.alertDateHistogram',
-          data: {
-            interval: 'auto',
-            stack: true,
+        targets: [
+          {
+            datasource: 'time_series',
+            dataType: 'time_series',
+            api: apiMap[store.alarmType],
+            data: {
+              interval: 'auto',
+              stack: true,
+            },
           },
-        },
-      ],
+        ],
+      });
     });
 
     const timeRange = computed(() => store.timeRange);
@@ -102,9 +117,9 @@ export default defineComponent({
             alias: item.display_name,
             type: 'bar',
             itemStyle: {
-              color: AlarmStatusIconMap[item.name].iconColor,
+              color: seriesColorMap[item.name].iconColor,
             },
-            color: AlarmStatusIconMap[item.name].iconColor,
+            color: seriesColorMap[item.name].iconColor,
             unit: data.unit,
           };
         }),
