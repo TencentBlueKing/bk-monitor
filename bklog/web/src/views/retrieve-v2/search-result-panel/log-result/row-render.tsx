@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, Ref, ref } from 'vue';
-
+import { defineComponent, nextTick, Ref, ref } from 'vue';
+import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import './row-render.scss';
 
 export default defineComponent({
@@ -34,10 +34,20 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['row-click'],
+  emits: ['row-click', 'row-visible'],
   setup(props, { slots, emit }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
+
+    const { destroyObserver } = useIntersectionObserver(
+      () => refRootContainer.value,
+      entry => {
+        if (entry.isIntersecting) {
+          emit('row-visible', entry.isIntersecting);
+          nextTick(destroyObserver);
+        }
+      },
+    );
 
     const renderRowVNode = () => {
       return (

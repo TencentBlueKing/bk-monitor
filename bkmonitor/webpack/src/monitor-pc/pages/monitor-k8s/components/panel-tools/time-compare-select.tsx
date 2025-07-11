@@ -109,7 +109,7 @@ export default class TimeCompareSelect extends tsc<IProps> {
    * @description: 自定义按下回车
    */
   handleAddCustomTime() {
-    const regular = /^([1-9][0-9]*)+(m|h|d|w|M|y)$/;
+    const regular = /^([1-9][0-9]+)+(m|h|d|w|M|y)$/;
     const str = this.customTimeVal.trim();
     if (regular.test(str)) {
       this.handleAddCustom(str);

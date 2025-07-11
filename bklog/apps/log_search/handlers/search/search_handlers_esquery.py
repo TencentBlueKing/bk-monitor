@@ -2193,8 +2193,7 @@ class SearchHandler:
             else:
                 log = self.convert_keys(log)
             # 联合检索补充索引集信息
-            if self.search_dict.get("is_union_search", False):
-                log["__index_set_id__"] = self.index_set_id
+            log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
             if self.export_fields:
                 new_origin_log = {}

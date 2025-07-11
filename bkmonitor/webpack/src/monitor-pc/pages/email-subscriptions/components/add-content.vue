@@ -74,6 +74,7 @@
             <bk-radio-group
               class="radio-wrap"
               v-model="formData.rowPicturesNum"
+              @change="handlePicturesnumChange"
             >
               <bk-radio :value="2">
                 {{ `2${$t('个/行')}` }}
@@ -82,6 +83,36 @@
                 {{ `1${$t('个/行')}` }}
               </bk-radio>
             </bk-radio-group>
+          </bk-form-item>
+          <bk-form-item
+            :label="$t('单图宽高')"
+            :required="true"
+          >
+            <bk-input
+              class="img-size-input"
+              v-model="formData.width"
+              :max="4000"
+              :min="1"
+              :placeholder="`${$t('最大')}4000`"
+              type="number"
+            >
+              <template slot="prepend">
+                <span class="group-text">{{ this.$t('宽') }}</span>
+              </template>
+            </bk-input>
+            <span class="img-size-span">×</span>
+            <bk-input
+              class="img-size-input"
+              :placeholder="`${$t('最大')}2000`"
+              :min="1"
+              :max="2000"
+              type="number"
+              v-model="formData.height"
+            >
+              <template slot="prepend">
+                <span class="group-text">{{ this.$t('高') }}</span>
+              </template>
+            </bk-input>
           </bk-form-item>
           <bk-form-item
             :label="$t('选择图表')"
@@ -140,6 +171,19 @@
               />
             </bk-select>
           </bk-form-item>
+          <bk-form-item
+            :label="$t('图片宽度')"
+            :required="true"
+          >
+            <bk-input
+              class="img-size-input single"
+              v-model="formData.width"
+              :max="4000"
+              :min="1"
+              :placeholder="`${$t('高度自适应，宽度最大值为')}4000`"
+              type="number"
+            />
+          </bk-form-item>
         </template>
         <bk-form-item class="form-action-buttons">
           <bk-button
@@ -195,6 +239,8 @@ export default class AddContent extends Vue {
     curBizId: `${window.cc_biz_id}`,
     curGrafana: '',
     curGrafanaName: '',
+    width: 620,
+    height: 300,
   };
 
   private rules = {
@@ -223,9 +269,11 @@ export default class AddContent extends Vue {
   }
 
   get canSave() {
-    const { contentTitle, rowPicturesNum, graphs, curBizId, curGrafana } = this.formData;
+    const { contentTitle, rowPicturesNum, graphs, curBizId, curGrafana, width, height } = this.formData;
+    // if (imgSize.some(item => Number.isNaN(+item) || item <= 0)) return false;
+    if (Number.isNaN(+width) || width <= 0) return false;
     return this.contentType === 'view'
-      ? !!(contentTitle && rowPicturesNum && graphs.length)
+      ? !!(contentTitle && rowPicturesNum && graphs.length && !Number.isNaN(+height) && height > 0)
       : !!(contentTitle && curBizId && curGrafana !== '');
   }
 
@@ -267,10 +315,14 @@ export default class AddContent extends Vue {
         contentDetails: '',
         rowPicturesNum: 2,
         graphs: [],
+        width: 620,
+        height: 300,
       };
       if (this.contentType === 'full') {
         this.formData = {
           ...this.formData,
+          width: 1600,
+          height: null,
           curBizId: `${window.cc_biz_id}`,
           curGrafana: '',
           curGrafanaName: '',
@@ -278,6 +330,16 @@ export default class AddContent extends Vue {
       }
     }
   }
+
+  // 新建时的默认值
+  handlePicturesnumChange(v) {
+    if (this.type === 'add') {
+      this.formData.width = v === 1 ? 800 : 620;
+      this.formData.height = v === 1 ? 270 : 300;
+    }
+  }
+
+
   /**
    * 确认操作
    */
@@ -335,7 +397,7 @@ export default class AddContent extends Vue {
 
     .form-wrap {
       box-sizing: border-box;
-      max-height: calc(100vh - 111px);
+      // max-height: calc(100vh - 111px);
       padding: 24px 0;
       overflow-y: auto;
       background-color: #fff;
@@ -392,6 +454,41 @@ export default class AddContent extends Vue {
         margin-right: 10px;
       }
     }
+  }
+
+  .img-size-input {
+    display: inline-flex;
+    width: 140px;
+    height: 32px;
+    vertical-align: middle;
+
+    &.single {
+      width: 240px;
+    }
+
+    .group-text {
+      width: 28px;
+      padding: 0;
+      font-size: 12px;
+      line-height: 30px;
+      color: #4D4F56;
+      text-align: center;
+    }
+
+    ::v-deep .input-number-option {
+      background-color: #f5f7fa;
+
+      .number-option-item {
+        color: #979ba5
+      }
+    }
+  }
+
+  .img-size-span {
+    margin: 0 2px;
+    font-size: 12px;
+    vertical-align: middle;
+    color: #313238;
   }
 }
 </style>

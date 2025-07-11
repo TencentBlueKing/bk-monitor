@@ -137,7 +137,7 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup, Toast } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
@@ -269,11 +269,11 @@ export default class AlarmDetail extends Vue {
     this.selectedDimension = this.eventDetail.dimensions?.map(item => item.key) || []; // 默认选中所有维度信息
     this.handleSetRadioList();
     this.shieldContent = [
-      {
-        type: 'event',
-        name: this.$tc('级别'),
-        value: this.eventDetail.levelName,
-      },
+      // {
+      //   type: 'event',
+      //   name: this.$tc('级别'),
+      //   value: this.eventDetail.levelName,
+      // },
       {
         type: 'event',
         name: this.$tc('维度'),
@@ -361,7 +361,19 @@ export default class AlarmDetail extends Vue {
     }
     quickShield(params)
       .then(() => {
+        Toast({
+          message: this.$tc('操作成功'),
+          duration: 2000,
+          position: 'bottom',
+        });
         this.$router.back();
+      })
+      .catch(e => {
+        Toast({
+          message: e?.message || this.$tc('操作失败'),
+          duration: 2000,
+          position: 'bottom',
+        });
       })
       .finally(() => {
         this.loading = false;

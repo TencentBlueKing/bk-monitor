@@ -564,7 +564,9 @@ export default class AuthorizationList extends tsc<object> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map((item, index) => <bk-tag key={index}>{item}</bk-tag>)}
+                {row.authorized_users?.map((item, index) => (
+                  <bk-tag key={index}>{item ? <bk-user-display-name user-id={item} /> : '--'}</bk-tag>
+                ))}
               </div>
             ),
           }}
@@ -614,6 +616,22 @@ export default class AuthorizationList extends tsc<object> {
                 </div>
               );
             },
+          }}
+        />
+      );
+    }
+
+    if (column.prop === TableColumnEnum.authorized_user) {
+      return (
+        <bk-table-column
+          key={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            props: column.props,
+          }}
+          scopedSlots={{
+            default: ({ row }) => (row.authorized_user ? <bk-user-display-name user-id={row.authorized_user} /> : '--'),
           }}
         />
       );

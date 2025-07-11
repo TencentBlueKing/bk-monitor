@@ -1258,11 +1258,15 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        return MetricListCache.objects.filter(
-            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-            data_type_label=DataTypeLabel.TIME_SERIES,
-            bk_tenant_id=self.bk_tenant_id,
-        ).exclude(result_table_id="", result_table_id__in=BuildInProcessMetric.result_table_list() + [""])
+        return (
+            MetricListCache.objects.filter(
+                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+                bk_tenant_id=self.bk_tenant_id,
+            )
+            .exclude(result_table_id="")
+            .exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
+        )
 
     def get_tables(self):
         if self.bk_biz_id is None:
@@ -1278,14 +1282,19 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         )
         if plugin_data.exists():
             # 获取全部的插件下的 ts 数据
-            plugin_ts_result = api.metadata.query_time_series_group.request.refresh(bk_biz_id=0)
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
-            for result in plugin_ts_result:
-                result["bk_biz_id"] = self.bk_biz_id
-                if result["time_series_group_name"] not in db_name_list:
+            for name in db_name_list:
+                # 插件默认都是全局数据
+                group_list = api.metadata.query_time_series_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
+                )
+                if not group_list:
                     continue
-                self.ts_db_name.append(result["time_series_group_name"])
-                yield result
+                self.ts_db_name.append(name)
+
+                for group in group_list:
+                    group["bk_biz_id"] = self.bk_biz_id
+                    yield group
 
         # 插件类指标
         yield from self.get_plugin_tables()

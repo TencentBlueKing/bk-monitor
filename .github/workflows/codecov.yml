@@ -1,4 +1,7 @@
 name: "[BKLog] CodeCov"
+permissions:
+  contents: read
+  actions: write
 
 defaults:
   run:

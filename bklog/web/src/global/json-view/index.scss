@@ -46,16 +46,11 @@
 
               &.valid-text {
                 cursor: pointer;
-                padding: 1px 0px;
 
                 &.focus-text,
                 &:hover {
                   color: #3a84ff;
                 }
-
-                // &:hover {
-                //   padding: 4px 0px;
-                // }
               }
             }
           }

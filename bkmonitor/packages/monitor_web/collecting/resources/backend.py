@@ -15,7 +15,7 @@ from typing import Any
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
@@ -44,11 +44,7 @@ from monitor_web.collecting.constant import (
 )
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.utils import fetch_sub_statistics
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    DeploymentConfigVersion,
-)
+from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, DeploymentConfigVersion, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.loader.datalink_loader import (
@@ -80,7 +76,7 @@ class CollectConfigListResource(Resource):
         page = serializers.IntegerField(required=False, default=1, label="页数")
         limit = serializers.IntegerField(required=False, default=10, label="大小")
 
-    def get_realtime_data(self, config_data_list):
+    def get_realtime_data(self, config_data_list, bk_tenant_id):
         """
         获取节点管理订阅实时状态
         :param config_data_list: 采集配置数据列表
@@ -131,10 +127,14 @@ class CollectConfigListResource(Resource):
                 config.operation_result = operation_result
                 updated_configs.append(config)
 
+        collector_plugins = CollectorPluginMeta.objects.filter(
+            bk_tenant_id=bk_tenant_id, plugin_id__in=[config.plugin_id for config in config_data_list]
+        ).values("plugin_id", "plugin_type")
+        plugin_id_type_map = {plugin["plugin_id"]: plugin["plugin_type"] for plugin in collector_plugins}
         # 更新k8s插件采集配置的状态
         for collect_config in config_data_list:
             # 跳过非k8s插件
-            if collect_config.plugin.plugin_type != PluginType.K8S:
+            if plugin_id_type_map.get(collect_config.plugin_id) != PluginType.K8S:
                 continue
 
             if collect_config.operation_result not in [OperationResult.PREPARING, OperationResult.DEPLOYING]:
@@ -215,30 +215,31 @@ class CollectConfigListResource(Resource):
         else:
             status = {"config_status": conf.config_status, "task_status": conf.task_status, "running_tasks": []}
 
-        conf = self.update_cache_data_item(conf, "status", conf.config_status)
-        conf = self.update_cache_data_item(conf, "task_status", conf.task_status)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
+        self.update_cache_data_item(conf, "status", conf.config_status)
+        self.update_cache_data_item(conf, "task_status", conf.task_status)
         return status
 
-    def _need_upgrade(self, conf):
+    def _need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
         if conf.task_status == TaskStatus.STOPPED or conf.get_cache_data("total_instance_count", 0) == 0:
             return False
         else:
-            config_version = self.plugin_release_version.get(conf.plugin.plugin_id)
+            plugin = config_plugin_map.get(conf.plugin_id)
+            config_version = plugin_version_map.get(plugin.plugin_id)
             if not config_version:
-                config_version = conf.plugin.packaged_release_version.config_version
-                self.plugin_release_version[conf.plugin.plugin_id] = config_version
+                logger.error(
+                    f"[CollectConfigList] [need_upgrade] collect config {conf.id} was not found config version."
+                )
+                return False
 
             return conf.deployment_config.plugin_version.config_version < config_version
 
-    def need_upgrade(self, conf):
+    def need_upgrade(self, conf: CollectConfigMeta, config_plugin_map, plugin_version_map) -> bool:
         # 判断采集配置是否需要升级，使用config_version缓存，大幅减少查询数据库的次数
         # 如果采集配置处于已停用，或者主机/实例总数为零，则不需要进行升级
-        is_need_upgrade = self._need_upgrade(conf)
-        conf = self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
-        conf.save(not_update_user=True, update_fields=["cache_data"])
+        is_need_upgrade = self._need_upgrade(conf, config_plugin_map, plugin_version_map)
+        self.update_cache_data_item(conf, "need_upgrade", is_need_upgrade)
         return is_need_upgrade
 
     def exists_by_biz(self, bk_biz_id):
@@ -348,15 +349,54 @@ class CollectConfigListResource(Resource):
 
         if refresh_status:
             try:
-                self.get_realtime_data(config_data_list)
+                self.get_realtime_data(config_data_list, bk_tenant_id)
             except Exception:
                 # 尝试实时获取，获取失败就用缓存数据
                 pass
 
+        plugin_ids = set(config.plugin_id for config in config_data_list)
+        plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids)
+        config_plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
+
+        version_filter = {
+            "bk_tenant_id": bk_tenant_id,
+            "plugin_id__in": plugin_ids,
+            "stage": PluginVersionHistory.Stage.RELEASE,
+            "is_packaged": True,
+        }
+        # 批量获取到最新的版本
+        group_by = ["bk_tenant_id", "plugin_id", "stage", "is_packaged"]
+        versions = (
+            PluginVersionHistory.objects.filter(**version_filter)
+            .values(*group_by)
+            .annotate(latest_version=Max("config_version"))
+            .values("plugin_id", "latest_version")
+            .order_by()
+        )
+        plugin_version_map = {version["plugin_id"]: version["latest_version"] for version in versions}
+        missing_plugin_ids = plugin_ids - set(plugin_version_map.keys())
+
+        # 如果还有缺少的插件id，则去除is_packaged条件再查询一次剩余插件的最新版本
+        if missing_plugin_ids:
+            version_filter["plugin_id__in"] = missing_plugin_ids
+            version_filter.pop("is_packaged")
+            group_by.remove("is_packaged")
+            versions = (
+                PluginVersionHistory.objects.filter(**version_filter)
+                .values(*group_by)
+                .annotate(latest_version=Max("config_version"))
+                .values("plugin_id", "latest_version")
+                .order_by()
+            )
+            plugin_version_map.update({version["plugin_id"]: version["latest_version"] for version in versions})
+
         search_list = []
+        update_configs = []
         for item in config_data_list:
             status = self.get_status(item)
             space = bk_biz_id_space_dict.get(item.bk_biz_id)
+            is_need_upgrade = self.need_upgrade(item, config_plugin_map, plugin_version_map)
+            update_configs.append(item)
             search_list.append(
                 {
                     "id": item.id,
@@ -370,7 +410,7 @@ class CollectConfigListResource(Resource):
                     "target_node_type": item.deployment_config.target_node_type,
                     "plugin_id": item.plugin_id,
                     "target_nodes_count": len(item.deployment_config.target_nodes),
-                    "need_upgrade": self.need_upgrade(item),
+                    "need_upgrade": is_need_upgrade,
                     "config_version": item.deployment_config.plugin_version.config_version,
                     "info_version": item.deployment_config.plugin_version.info_version,
                     "error_instance_count": (
@@ -386,6 +426,9 @@ class CollectConfigListResource(Resource):
                     "update_user": item.update_user,
                 }
             )
+
+        if update_configs:
+            CollectConfigMeta.objects.bulk_update(update_configs, ["cache_data"])
 
         # 排序
         if order:
@@ -1049,7 +1092,7 @@ class SaveCollectConfigResource(Resource):
             # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
             # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
             # 这两种情况要替换为实际值（默认值兜底）
-            if isinstance(received_password, (type(None), bool)):
+            if isinstance(received_password, type(None) | bool):
                 default_password = param["default"]
                 actual_password = deployment_params[param_mode].get(param_name, default_password)
                 data["params"][param_mode][param_name] = actual_password

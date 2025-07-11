@@ -301,7 +301,18 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         { title: this.$t('处理时长'), content: duration },
       ],
       [
-        { title: this.$t('负责人'), content: operator?.join(';') || '--' },
+        {
+          title: this.$t('负责人'),
+          content: operator?.length
+            ? operator.map((v, index, arr) => [
+                <bk-user-display-name
+                  key={`user-display-${v}`}
+                  user-id={v}
+                />,
+                index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{';'}</span> : null,
+              ])
+            : '--',
+        },
         { title: this.$t('执行对象'), content: operateTargetString || '--' },
       ],
       [
