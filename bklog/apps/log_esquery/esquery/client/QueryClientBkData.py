@@ -104,11 +104,11 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         result_dict: dict = mapping_dict.get("list", {})
         data = self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
         # 添加自定义分词信息
-        self.add_tokenize_on_chars(result_table_ids, data)
+        self.add_analyzer_details(result_table_ids, data)
         return data
 
     @staticmethod
-    def add_tokenize_on_chars(result_table_ids, mapping):
+    def add_analyzer_details(result_table_ids, mapping):
         """
         为bkdata的索引集添加自定义分词
         """
