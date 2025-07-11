@@ -256,7 +256,7 @@ export default defineComponent({
         <ChartCollapse
           defaultHeight={0}
           hasResize={true}
-          title={this.t('总趋势')}
+          title={this.t('告警分析')}
         >
           {{
             headerCustom: () => (
