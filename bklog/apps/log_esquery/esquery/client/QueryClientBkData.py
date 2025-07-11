@@ -103,8 +103,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         mapping_dict: type_mapping_dict = self._client.query(params)
         result_dict: dict = mapping_dict.get("list", {})
         data = self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
-        # 添加自定义分词信息
-        self.add_analyzer_details(result_table_ids, data)
+        if add_settings_details:
+            # 添加自定义分词信息
+            data = self.add_analyzer_details(result_table_ids, data)
         return data
 
     @staticmethod
@@ -143,6 +144,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                             },
                         }
                     )
+        return mapping
 
     @staticmethod
     def filter_mapping(indices: list, indices_mapping: dict):
