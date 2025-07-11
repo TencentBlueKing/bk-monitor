@@ -243,7 +243,7 @@ export default defineComponent({
             <div class='grep-cli-tools'>
               <BklogPopover
                 content={t('大小写匹配')}
-                options={{ placement: 'top', theme: 'dark' } as any}
+                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
                 trigger='hover'
               >
                 <span
@@ -254,7 +254,7 @@ export default defineComponent({
 
               <BklogPopover
                 content={t('精确匹配')}
-                options={{ placement: 'top', theme: 'dark' } as any}
+                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
                 trigger='hover'
               >
                 <span
@@ -265,7 +265,7 @@ export default defineComponent({
 
               <BklogPopover
                 content={t('正则匹配')}
-                options={{ placement: 'top', theme: 'dark' } as any}
+                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
                 trigger='hover'
               >
                 <span

@@ -28,7 +28,7 @@ import CancelToken from 'axios/lib/cancel/CancelToken';
 import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
-import { bkMessage, makeMessage } from './utils/index';
+import { axiosError, bkMessage, makeMessage } from './utils/index';
 const NO_NEED_ERROR_MESSAGE = 'bk_monitor_api_no_message';
 const defaultConfig = {
   needBiz: true,
@@ -42,7 +42,8 @@ const defaultConfig = {
   cancelFn() {},
   onUploadProgress() {},
 };
-const noMessageCode = [3308005, 3314003, 3314004]; // 无数据状态下 不弹窗
+
+const noMessageCode = [3308005, 3314003, 3314004, ...axiosError]; // 无数据状态下 不弹窗
 const pendingRequest = new Map(); // 请求取消映射表
 // 添加请求取消
 const addPendingRequest = (method, url, config) => {
@@ -117,11 +118,11 @@ export const request = (method, url) => {
         })
         .catch(err => {
           const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
-          if (message && config.needMessage) {
+          if (message && config.needMessage && !noMessageCode.includes(err.code)) {
             bkMessage(message);
           }
           // !err.error_details && err.message && (err.message = message);
-          return Promise.reject(err);
+          return Promise.reject(axiosError.includes(err?.code) ? '' : err);
         });
     }
     for (const value of Object.values(data)) {
@@ -172,7 +173,7 @@ export const request = (method, url) => {
           bkMessage(message);
         }
         // !err.error_details && err.message && (err.message = message);
-        return Promise.reject(err);
+        return Promise.reject(axiosError.includes(err?.code) ? '' : err);
       });
   };
 };

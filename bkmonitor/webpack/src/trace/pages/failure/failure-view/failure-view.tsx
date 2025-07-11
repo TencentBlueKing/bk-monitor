@@ -83,7 +83,7 @@ export default defineComponent({
       const queryString =
         typeof props.alertIdsObject === 'object' ? props.alertIdsObject?.ids || '' : props.alertIdsObject;
       incidentAlertView({
-        bk_biz_ids: bkzIds.value || [],
+        bk_biz_ids: bkzIds.value,
         id: incidentId.value,
         query_string: queryString,
       })
@@ -96,9 +96,9 @@ export default defineComponent({
           console.log(err);
         });
     };
-    onMounted(() => {
-      getIncidentAlertView();
-    });
+    // onMounted(() => {
+    //   getIncidentAlertView();
+    // });
     const handleSuccessLoad = () => {
       recommendedMetricPanels.value = [];
       getIncidentAlertView();
@@ -137,6 +137,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const renderMetricsCollapse = (item, index) => {
       const panelLen = recommendedMetricPanels.value.length;
       return (
@@ -161,6 +162,13 @@ export default defineComponent({
         />
       );
     };
+    watch(
+      () => bkzIds.value,
+      val => {
+        val.length > 0 && getIncidentAlertView();
+      },
+      { immediate: true }
+    );
     return {
       t,
       renderMetricsCollapse,

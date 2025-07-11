@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
@@ -42,7 +42,7 @@ import './grep-cli.scss';
 
 export default defineComponent({
   name: 'GrepView',
-  components: {
+  components: { 
     GrepCli,
     GrepCliResult,
   },
@@ -55,7 +55,7 @@ export default defineComponent({
     const searchValue = ref('');
     const field = ref((route.query.grep_field as string) ?? '');
     const grepQuery = ref((route.query.grep_query as string) ?? '');
-    const grepRequestResult: Ref<GrepRequestResult> = ref({
+    const grepRequestResult = ref<GrepRequestResult>({
       offset: 0,
       is_loading: true,
       list: [],
@@ -71,7 +71,6 @@ export default defineComponent({
     });
 
     const totalMatches = ref(0);
-    // const list = ref([]);
 
     /**
      * 设置默认字段值

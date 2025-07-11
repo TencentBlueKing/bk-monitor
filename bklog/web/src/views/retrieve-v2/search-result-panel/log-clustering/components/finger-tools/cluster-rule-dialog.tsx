@@ -27,6 +27,7 @@
 import { Component, Emit, Ref, Watch, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { xssFilter } from '@/common/util';
 import { Popover, Form } from 'bk-magic-vue';
 
 import xiaojingAI from '../../../../../../images/xiaojingAI.svg';
@@ -274,7 +275,7 @@ export default class ClusterPopover extends tsc<IProps> {
       result += text.slice(lastIndex);
     }
 
-    this.sampleRef.innerHTML = result;
+    this.sampleRef.innerHTML = xssFilter(result);
     await this.$nextTick();
     document.querySelectorAll('span.conflict').forEach(el => {
       el.addEventListener('mouseenter', e => {
