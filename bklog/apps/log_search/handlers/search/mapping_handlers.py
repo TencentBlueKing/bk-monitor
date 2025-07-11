@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import copy
 import datetime
 import functools
-import json
 import re
 from collections import defaultdict
 from typing import Any
@@ -33,7 +32,7 @@ from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
-from apps.api import BkDataStorekitApi, BkLogApi, TransferApi, BkDataMetaApi
+from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
@@ -524,41 +523,38 @@ class MappingHandlers:
             "add_settings_details": False if only_search else True,
         }
         if not storage_cluster_record_objs.exists():
-            result = self._direct_latest_mapping(params)
-        else:
-            multi_execute_func = MultiExecuteFunc()
-            multi_num = 1
-            storage_cluster_ids = {self.storage_cluster_id}
+            return self._direct_latest_mapping(params)
+        multi_execute_func = MultiExecuteFunc()
+        multi_num = 1
+        storage_cluster_ids = {self.storage_cluster_id}
 
-            # 获取当前使用的存储集群数据
-            multi_execute_func.append(
-                result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
-            )
+        # 获取当前使用的存储集群数据
+        multi_execute_func.append(
+            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
+        )
 
-            # 获取历史使用的存储集群数据
-            for storage_cluster_record_obj in storage_cluster_record_objs:
-                if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
-                    multi_params = copy.deepcopy(params)
-                    multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
-                    multi_num += 1
-                    multi_execute_func.append(
-                        result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
-                    )
-                    storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+        # 获取历史使用的存储集群数据
+        for storage_cluster_record_obj in storage_cluster_record_objs:
+            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                multi_params = copy.deepcopy(params)
+                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                multi_num += 1
+                multi_execute_func.append(
+                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                )
+                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
-            multi_result = multi_execute_func.run()
+        multi_result = multi_execute_func.run()
 
-            # 合并多个集群的检索结果
-            result = list()
-            try:
-                for _key, _result in multi_result.items():
-                    result.extend(_result)
-            except Exception as e:
-                logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
-                raise MultiFieldsErrorException()
-        # 添加自定义分词信息
-        self.add_tokenize_on_chars(result)
-        return result
+        # 合并多个集群的检索结果
+        merge_result = list()
+        try:
+            for _key, _result in multi_result.items():
+                merge_result.extend(_result)
+        except Exception as e:
+            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
+            raise MultiFieldsErrorException()
+        return merge_result
 
     @staticmethod
     def _get_context_fields(final_fields_list):
@@ -589,48 +585,6 @@ class MappingHandlers:
             return ""
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
-
-    def add_tokenize_on_chars(self, mapping_list: list):
-        """
-        为bkdata的索引集添加自定义分词
-        """
-        if self.scenario_id != Scenario.BKDATA:
-            return
-
-        result_table_ids = self.indices.split(",")
-        result_tables = BkDataMetaApi.result_tables.list(
-            {"result_table_ids": result_table_ids, "related": ["storages"]}
-        )
-        result_table_mappings = {}
-        for item in result_tables:
-            tokenizers = json.loads(item.get("storages", {}).get("es", {}).get("storage_config", "{}")).get(
-                "tokenizers", {}
-            )
-            if not tokenizers:
-                continue
-            result_table_mappings[item["result_table_id"]] = tokenizers
-        if not result_table_mappings:
-            return
-
-        for mapping in mapping_list:
-            for result_table_id, result_table_config in mapping.items():
-                result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
-                tokenizers_config = result_table_mappings.get(result_table_id_bkbase)
-                if not tokenizers_config:
-                    continue
-                result_table_id_es = result_table_id_bkbase.split("_", maxsplit=1)[-1]
-                field_configs = result_table_config["mappings"][result_table_id_es]["properties"]
-                for field_name, field_config in field_configs.items():
-                    if field_name in tokenizers_config:
-                        field_config.update(
-                            {
-                                "analyzer": "None",
-                                "analyzer_details": {
-                                    "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name].split(",")}
-                                },
-                            }
-                        )
-        return mapping_list
 
     @classmethod
     def get_all_index_fields_by_mapping(cls, properties_dict: dict) -> list:
