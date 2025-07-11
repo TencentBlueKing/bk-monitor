@@ -498,6 +498,31 @@ class DataIDNotExistException(BaseException):
     MESSAGE = _("DataID({bk_data_id}) 未能找到关联的索引集")
 
 
+class ESQuerySyntaxException(BaseSearchException):
+    ERROR_CODE = "449"
+    MESSAGE = _("查询失败，查询语法不正确")
+
+
+class HighlightException(BaseSearchException):
+    ERROR_CODE = "450"
+    MESSAGE = _("搜索结果高亮失败，字段({field_name})内容过长")
+
+
+class NoMappingException(BaseSearchException):
+    ERROR_CODE = "451"
+    MESSAGE = _("查询失败，字段{field_name}不存在或映射缺失")
+
+
+class UnSupportOperationException(BaseSearchException):
+    ERROR_CODE = "452"
+    MESSAGE = _("查询失败，字段{field_name}不支持当前操作")
+
+
+class QueryServerUnavailableException(BaseSearchException):
+    ERROR_CODE = "453"
+    MESSAGE = _("查询失败，搜索服务连接异常")
+
+
 # =================================================
 # 导出
 # =================================================

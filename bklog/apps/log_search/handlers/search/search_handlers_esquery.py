@@ -24,7 +24,9 @@ import datetime
 import hashlib
 import json
 import operator
+import re
 import time
+from collections import defaultdict
 from typing import Any
 
 import arrow
@@ -97,6 +99,12 @@ from apps.log_search.exceptions import (
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
     UserIndexSetSearchHistoryNotExistException,
+    ESQuerySyntaxException,
+    BaseException as AppBaseException,
+    NoMappingException,
+    HighlightException,
+    UnSupportOperationException,
+    QueryServerUnavailableException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslCreateSearchContextBodyCustomField,
@@ -826,6 +834,7 @@ class SearchHandler:
 
                 return data
             except Exception as e:
+                handle_es_query_error(e)
                 raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
@@ -3250,3 +3259,29 @@ class UnionSearchHandler:
                     UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
                 )
         return multi_result
+
+
+def handle_es_query_error(exc):
+    es_error_patterns = [
+        (r"查询DSL错误, ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+        (r"No mapping found for \[(?P<field_name>.*?)]", NoMappingException),
+        (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
+        (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),
+        (r"Can't load fielddata on \[(?P<field_name>.*?)]", UnSupportOperationException),
+        (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnSupportOperationException),
+        (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
+    ]
+    for pattern, exception in es_error_patterns:
+        match = re.search(pattern, str(exc))
+        if match:
+            # 记录原始日志
+            if isinstance(exc, AppBaseException):
+                _msg = _("【APP 自定义异常】{message}, code={code}, args={args}").format(
+                    message=exc.message, code=exc.code, args=exc.args, data=exc.data, errors=exc.errors
+                )
+                logger.exception(_msg)
+            try:
+                message = exception.MESSAGE.format_map(match.groupdict())
+            except Exception:
+                message = exception.MESSAGE.format_map(defaultdict(str))
+            raise exception(message)
