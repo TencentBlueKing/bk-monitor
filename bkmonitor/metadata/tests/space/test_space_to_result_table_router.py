@@ -200,7 +200,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
-            expected = '{"1001_bklog.stdout|system":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__|system":{"filters":[{"dimensions.bk_biz_id":"1"}]},"bkm_1_record_rule.__default__|system":{"filters":[]}}'
+            expected = '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             # 获取实际的调用参数
@@ -251,7 +251,7 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
-            expected = '{"custom_report_aggate.base|system":{"filters":[{"dimensions.bk_biz_id":"-10000"}]},"bkm_statistics.base|system":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1|system":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2|system":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3|system":{"filters":[{"biz_id":"-10000"}]}}'
+            expected = '{"custom_report_aggate.base":{"filters":[{"dimensions.bk_biz_id":"-10000"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10000"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
@@ -277,7 +277,7 @@ def test_push_space_to_rt_router_for_bksaas(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
-            expected = '{"custom_report_aggate.base|system":{"filters":[{"bk_biz_id":"-10008"}]},"bkm_statistics.base|system":{"filters":[{"dimensions.bk_biz_id":"-10008"}]},"apm_global.precalculate_storage_1|system":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_2|system":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_3|system":{"filters":[{"biz_id":"-10008"}]}}'
+            expected = '{"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{"dimensions.bk_biz_id":"-10008"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10008"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10008"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args
