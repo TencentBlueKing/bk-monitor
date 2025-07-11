@@ -131,4 +131,4 @@ class GetTopoListViewSet(ResourceViewSet):
     获取节点信息列表
     """
 
-    resource_routes = [ResourceRoute("GET", resource.commons.get_topo_list)]
+    resource_routes = [ResourceRoute("POST", resource.commons.get_topo_list)]

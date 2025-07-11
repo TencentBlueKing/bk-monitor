@@ -478,13 +478,16 @@ class GetModule(Resource):
         bk_module_ids = serializers.ListField(label="模块ID列表", child=serializers.IntegerField(), required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID")
         service_template_ids = serializers.ListField(label="服务模板ID列表", required=False)
-        fields = serializers.ListField(label="查询字段", default=[])
+        fields = serializers.ListField(label="查询字段，字段来自于模块定义的属性字段", default=[])
+        condition = serializers.DictField(label="查询条件，字段来自于模块定义的属性字段", required=False)
 
     def perform_request(self, validate_data):
-        # 查询业务下所有模块
         params = {"bk_biz_id": validate_data["bk_biz_id"]}
         if validate_data["fields"]:
             params["fields"] = validate_data["fields"]
+        if validate_data.get("condition"):
+            params["condition"] = validate_data["condition"]
+
         response_data = batch_request(client.search_module, params)
 
         # 按服务模版ID过滤
@@ -513,18 +516,26 @@ class GetSet(Resource):
         bk_set_ids = serializers.ListField(label="集群ID列表", child=serializers.IntegerField(), required=False)
         set_template_ids = serializers.ListField(label="集群模板ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        fields = serializers.ListField(label="查询字段，字段来自于集群定义的属性字段", default=[])
+        condition = serializers.DictField(label="查询条件，字段来自于集群定义的属性字段", required=False)
 
-    def perform_request(self, params):
-        response_data = batch_request(client.search_set, {"bk_biz_id": params["bk_biz_id"]})
+    def perform_request(self, validate_data):
+        params = {"bk_biz_id": validate_data["bk_biz_id"]}
+        if validate_data["fields"]:
+            params["fields"] = validate_data["fields"]
+        if validate_data.get("condition"):
+            params["condition"] = validate_data["condition"]
+
+        response_data = batch_request(client.search_set, params)
 
         # 按集群模块ID过滤
-        if "set_template_ids" in params:
-            set_template_ids = set(params["set_template_ids"])
+        if "set_template_ids" in validate_data:
+            set_template_ids = set(validate_data["set_template_ids"])
             response_data = [topo for topo in response_data if topo["set_template_id"] in set_template_ids]
 
         # 按集群ID过滤
-        if "bk_set_ids" in params:
-            bk_set_ids = set(params["bk_set_ids"])
+        if "bk_set_ids" in validate_data:
+            bk_set_ids = set(validate_data["bk_set_ids"])
             response_data = [topo for topo in response_data if topo["bk_set_id"] in bk_set_ids]
 
         return [Set(**topo) for topo in response_data]
