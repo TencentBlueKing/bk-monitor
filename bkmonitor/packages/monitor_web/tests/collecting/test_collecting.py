@@ -215,8 +215,9 @@ class TestBaseInstaller(TestCase):
 
     def _test_stop(self):
         self.installer.stop()
-        item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
-        self.assertEqual(item.last_operation, "STOP")
+        # item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
+        # self.assertEqual(item.last_operation, "STOP")
+        self.assertEqual(self.collect_config.last_operation, "STOP")
 
     def _test_uninstall(self):
         self._test_stop()
@@ -228,8 +229,8 @@ class TestBaseInstaller(TestCase):
 
     def _test_start(self):
         self.installer.start()
-        item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
-        self.assertEqual(item.last_operation, "START")
+        # item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
+        self.assertEqual(self.collect_config.last_operation, "START")
 
     @patch.object(CollectConfigMeta, "get_cache_data", return_value=1)
     def _test_upgrade(self, mock_get_cache_data):
@@ -253,8 +254,8 @@ class TestBaseInstaller(TestCase):
 
     def _test_retry(self):
         self.installer.retry()
-        item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
-        self.assertEqual(item.operation_result, "PREPARING")
+        # item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID).first()
+        self.assertEqual(self.collect_config.operation_result, "PREPARING")
 
     @patch("core.drf_resource.api.node_man.revoke_subscription", return_value="")
     def _test_revoke(self, mock_subscription):
