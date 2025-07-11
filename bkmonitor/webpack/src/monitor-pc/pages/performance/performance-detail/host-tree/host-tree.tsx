@@ -202,6 +202,8 @@ export default class HostTree extends tsc<IProps, IEvents> {
 
   /** 搜索关键字 */
   searchKeyword = '';
+  /** 存储搜索集群或模块下的主机 */
+  searchHostList = [];
 
   /* 统计栏数据 */
   statusData: any = {};
@@ -517,12 +519,33 @@ export default class HostTree extends tsc<IProps, IEvents> {
       if (isFullIpv6(padIPv6(filterObj.keyword))) {
         keyword = padIPv6(filterObj.keyword);
       }
-      return this.isStatusFilter
+      const isShow = this.isStatusFilter
         ? searchTarget.some(target => `${target ?? ''}`.indexOf(keyword) > -1) &&
-            (filterObj.status === 'all' ? true : this.hostStatusMap[data.status] === filterObj.status)
+          (filterObj.status === 'all' ? true : this.hostStatusMap[data.status] === filterObj.status)
         : searchTarget.some(target => `${target ?? ''}`.indexOf(keyword) > -1);
+      // 主机, 搜索集群|模块下的主机也展示
+      if (data.bk_host_id) {
+        return isShow || this.searchHostList.some(id => data.bk_host_id === id);
+      }
+      // 集群|模块,收集集群|模块下的主机列表，用于后续主机的搜索过滤
+      if (isShow) {
+        this.searchHostList = this.statisticsHostId(data);
+      }
+      return isShow;
     }
     return false;
+  }
+
+  statisticsHostId(data: TreeNodeItem) {
+    const ids = [];
+    if (data.bk_host_id) {
+      ids.push(data.bk_host_id);
+    } else {
+      data.children?.forEach(item => {
+        ids.push(...this.statisticsHostId(item));
+      });
+    }
+    return ids;
   }
 
   /** 刷新数据 */
