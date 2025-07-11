@@ -352,41 +352,6 @@ export function getWindowHeight() {
   return windowHeight;
 }
 
-/**
- * 深拷贝扩展对象
- * @param target
- * @param ...sources
- * @returns {object}
- */
-export function deepAssign(target, ...sources) {
-  const sourcesArray = [...sources];
-  const { length } = sourcesArray;
-  if (typeof target !== 'object' && typeof target !== 'function') {
-    target = {};
-  }
-  if (length === 0) {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    target = this;
-  }
-
-  sourcesArray.forEach(source => {
-    for (const key in source) {
-      if (Object.prototype.hasOwnProperty.call(source, key)) {
-        const targetValue = target[key];
-        if (Array.isArray(targetValue)) {
-          target[key].push(...(source[key] || []));
-        } else if (typeof targetValue === 'object') {
-          target[key] = deepAssign.call(targetValue, source[key]);
-        } else {
-          target[key] = source[key];
-        }
-      }
-    }
-  });
-
-  return target;
-}
-
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {

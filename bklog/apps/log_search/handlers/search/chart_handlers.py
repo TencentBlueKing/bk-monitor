@@ -124,10 +124,7 @@ class ChartHandler:
                 if field_name in alias_mappings:
                     field_name = alias_mappings[field_name]
                 # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-                if "." in field_name:
-                    field_list = field_name.split(".")
-                    field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
-                    field_name = f"CAST({field_name} AS TEXT)"
+                field_name = cls.convert_object_field(field_name)
                 expr = node.expr
                 if isinstance(expr, Phrase):
                     # 处理带引号的短语
@@ -303,10 +300,7 @@ class ChartHandler:
                 continue
 
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            if "." in field_name:
-                field_list = field_name.split(".")
-                field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
-                field_name = f"CAST({field_name} AS TEXT)"
+            field_name = cls.convert_object_field(field_name)
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -387,6 +381,88 @@ class ChartHandler:
         # 返回所有组合条件
         return " AND ".join(conditions)
 
+    @staticmethod
+    def convert_object_field(field_name):
+        """
+        将object字段转化为JSON_EXTRACT的形式
+        """
+        if "." in field_name:
+            field_list = field_name.split(".")
+            field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+            field_name = f"CAST({field_name} AS TEXT)"
+        return field_name
+
+    def add_grep_condition(self, where_clause, grep_query, grep_field, alias_mappings, sort_list, size=10, begin=0):
+        """
+        添加grep查询条件
+        :param where_clause: sql的where子句
+        :param grep_query: 查询语句
+        :param grep_field: 查询字段
+        :param alias_mappings: 别名
+        :param sort_list: 排序字段
+        :param size: 查询数据条数
+        :param begin: 偏移量
+        """
+        pattern = ""
+        ignore_case = False
+        if grep_query and grep_field:
+            # 使用别名作为查询条件
+            grep_field = alias_mappings.get(grep_field, grep_field)
+            # 加上 grep 查询条件
+            grep_syntax_list = grep_parser(grep_query)
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            _grep_field = self.convert_object_field(grep_field)
+            grep_where_clause = self.convert_to_where_clause(_grep_field, grep_syntax_list)
+            if grep_where_clause:
+                use_not = False
+                ignore_case = False
+                for arg in grep_syntax_list[-1]["args"]:
+                    if "v" in arg:
+                        use_not = True
+                    if "i" in arg:
+                        ignore_case = True
+                if not use_not:
+                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
+                    if ignore_case:
+                        pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
+                    pattern = pattern.strip("'")
+                where_clause += f" AND {grep_where_clause}"
+        # 加上排序条件
+        if not sort_list:
+            sort_list = SearchHandler(self.index_set_id, {}).sort_list
+        # 构建 ORDER BY 子句
+        order_by_clause = ""
+        for field, direction in sort_list:
+            order_field = alias_mappings.get(field, field)
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            order_field = self.convert_object_field(order_field)
+            if order_by_clause:
+                order_by_clause += ", "
+            order_by_clause += f"{order_field} {direction.upper()}"
+        if order_by_clause:
+            where_clause += f" ORDER BY {order_by_clause}"
+        # 加上分页条件
+        where_clause += f" LIMIT {size} OFFSET {begin}"
+        return where_clause, pattern, ignore_case
+
+    def add_doris_query_trace(self, sql, total_records=None, time_taken=None):
+        """
+        添加doris查询的trace记录
+        :param sql: 执行的SQL语句
+        :param total_records: 总条数
+        :param time_taken: 总耗时
+        """
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("bkdata_doris_query") as span:
+            span.set_attribute("index_set_id", self.index_set_id)
+            span.set_attribute("user.username", get_request_username())
+            span.set_attribute("space_uid", self.data.space_uid)
+            span.set_attribute("db.table", self.data.doris_table_id)
+            span.set_attribute("db.statement", sql)
+            span.set_attribute("db.system", "doris")
+            span.set_attribute("total_records", total_records)
+            span.set_attribute("time_taken", time_taken)
+
 
 class UIChartHandler(ChartHandler):
     def get_chart_data(self, params: dict) -> dict:
@@ -406,24 +482,17 @@ class SQLChartHandler(ChartHandler):
         :param params: 图表参数
         :return: 图表数据 dict
         """
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("bkdata_doris_query") as span:
-            span.set_attribute("index_set_id", self.index_set_id)
-            span.set_attribute("user.username", get_request_username())
-            span.set_attribute("space_uid", self.data.space_uid)
-
-            if not self.data.support_doris:
-                raise IndexSetDorisQueryException()
-            span.set_attribute("db.table", self.data.doris_table_id)
-            parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
-            span.set_attribute("db.statement", parsed_sql)
-            span.set_attribute("db.system", "doris")
-
+        if not self.data.support_doris:
+            raise IndexSetDorisQueryException()
+        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
+        trace_params = {"sql": parsed_sql}
+        try:
+            # 执行doris查询
             data = self.fetch_query_data(parsed_sql)
-            span.set_attribute("total_records", data["total_records"])
-            span.set_attribute("time_taken", data["time_taken"])
-
-            return data
+            trace_params.update({"total_records": data["total_records"], "time_taken": data["time_taken"]})
+        finally:
+            self.add_doris_query_trace(**trace_params)
+        return data
 
     def parse_sql_syntax(self, doris_table_id: str, params: dict):
         """
@@ -530,52 +599,39 @@ class SQLChartHandler(ChartHandler):
         """
         :param params: 查询相关参数
         """
+        if not self.data.support_doris:
+            raise IndexSetDorisQueryException()
+        alias_mappings = params["alias_mappings"]
         where_clause = self.generate_sql(
             addition=params["addition"],
             start_time=params["start_time"],
             end_time=params["end_time"],
             keyword=params.get("keyword"),
             action=SQLGenerateMode.WHERE_CLAUSE.value,
+            alias_mappings=alias_mappings,
         )
         grep_field = params.get("grep_field")
-        grep_query = params.get("grep_query")
-        pattern = ""
-        ignore_case = False
-        if grep_query and grep_field:
-            # 加上 grep 查询条件
-            grep_syntax_list = grep_parser(grep_query)
-            grep_where_clause = self.convert_to_where_clause(grep_field, grep_syntax_list)
-            if grep_where_clause:
-                use_not = False
-                ignore_case = False
-                for arg in grep_syntax_list[-1]["args"]:
-                    if "v" in arg:
-                        use_not = True
-                    if "i" in arg:
-                        ignore_case = True
-                if not use_not:
-                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
-                    if ignore_case:
-                        pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
-                    pattern = pattern.strip("'")
-                where_clause += f" AND {grep_where_clause}"
-        # 加上排序条件
-        sort_list = params.get("sort_list", [])
-        if not sort_list:
-            sort_list = SearchHandler(self.index_set_id, {}).sort_list
-        # 构建 ORDER BY 子句
-        order_by_clause = ", ".join(f"{field} {direction.upper()}" for field, direction in sort_list)
-        if order_by_clause:
-            where_clause += f" ORDER BY {order_by_clause}"
-        # 加上分页条件
-        where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
+        where_clause, pattern, ignore_case = self.add_grep_condition(
+            where_clause=where_clause,
+            grep_field=grep_field,
+            grep_query=params.get("grep_query"),
+            alias_mappings=alias_mappings,
+            sort_list=params.get("sort_list", []),
+            size=params["size"],
+            begin=params["begin"],
+        )
         sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
-        # 执行doris查询
-        result = self.fetch_query_data(sql)
+        trace_params = {"sql": sql}
+        try:
+            # 执行doris查询
+            result = self.fetch_query_data(sql)
+            trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
+        finally:
+            self.add_doris_query_trace(**trace_params)
         # 添加高亮标记
         log_list = add_highlight_mark(
             data_list=result["list"],
-            match_field=grep_field,
+            match_field=alias_mappings.get(grep_field, grep_field),
             pattern=pattern,
             ignore_case=ignore_case,
         )

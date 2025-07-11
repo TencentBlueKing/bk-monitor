@@ -46,6 +46,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
     bizId: +window.bk_biz_id,
   };
   randomKey = `trace_${random(4)}`;
+  unmountCallback: () => void;
   get incidentDetailHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -78,6 +79,9 @@ export default class IncidentDetail extends tsc<{ id: string }> {
       host: this.incidentDetailHost,
       baseroute: '/trace/',
       showDetailSlider: this.handleShowDetail,
+      setUnmountCallback: (callback: () => void) => {
+        this.unmountCallback = callback;
+      },
     };
     this.randomKey = `trace_${random(4)}`;
     this.$nextTick(async () => {
@@ -94,6 +98,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   }
   beforeDestroy() {
     this.detailInfo.isShow = false;
+    this.unmountCallback?.();
     unmount(this.randomKey);
   }
   beforeRouterLeave(next) {

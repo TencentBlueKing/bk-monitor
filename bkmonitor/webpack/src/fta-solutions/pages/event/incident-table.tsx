@@ -309,12 +309,11 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             formatter: (row: IncidentItem) => {
               return (
                 (row?.assignees || []).map(name => (
-                  <span
+                  <bk-user-display-name
                     key={name}
                     class='tag-item'
-                  >
-                    {name}
-                  </span>
+                    user-id={name}
+                  />
                 )) || '--'
               );
             },

@@ -16,6 +16,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
@@ -359,16 +360,24 @@ class CreateOrUpdateLogRouter(Resource):
             default=models.ClusterInfo.TYPE_ES,
         )
 
-    def perform_request(self, validated_request_data):
+        class QueryAliasSettingSerializer(serializers.Serializer):
+            field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
+            query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
+
+        query_alias_settings = QueryAliasSettingSerializer(
+            required=False, label="查询别名设置", default=list, many=True
+        )
+
+    def perform_request(self, validated_request_data: dict) -> None:
         space = models.Space.objects.get(
             space_type_id=validated_request_data["space_type"],
             space_id=validated_request_data["space_id"],
             bk_tenant_id=get_request_tenant_id(),
         )
-        bk_tenant_id = space.bk_tenant_id
+        bk_tenant_id: str = space.bk_tenant_id
 
         # 根据结果表判断是创建或更新
-        table_id = validated_request_data["table_id"]
+        table_id: str = validated_request_data["table_id"]
         tableObj = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
 
         logger.info(
@@ -376,6 +385,16 @@ class CreateOrUpdateLogRouter(Resource):
             table_id,
             validated_request_data["storage_type"],
         )
+
+        # 更新查询别名
+        if validated_request_data.get("query_alias_settings"):
+            operator = get_request_username() or "system"
+            models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                table_id=table_id,
+                query_alias_settings=validated_request_data["query_alias_settings"],
+                operator=operator,
+                bk_tenant_id=bk_tenant_id,
+            )
 
         # 定义创建器和更新器的映射
         create_router_map = {

@@ -666,19 +666,6 @@ export default {
       });
       this.paramConf.isShow = true;
     },
-    parseUrlStr(url) {
-      const obj = {};
-      const pattern = /^https?:\/\/(([a-zA-Z0-9_-])+(\.)?)*(:\d+)?(\/((\.)?(\?)?=?&?[a-zA-Z0-9_-](\?)?)*)*$/i;
-      if (url && pattern.test(url)) {
-        const url = /^(?:([A-Za-z]+):)?(\/{0,3})([0-9.\-A-Za-z]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?([^#]*))?(?:#(.*))?$/;
-        const fields = ['url', 'scheme', 'slash', 'host', 'port', 'path', 'query', 'hash'];
-        const result = url.exec(url);
-        fields.forEach((item, index) => {
-          obj[item] = result[index];
-        });
-      }
-      return obj;
-    },
     handleData(data) {
       // 转换is_diff_metric=true的指标type为diff用于展示
       data.metric_json.forEach(item => {

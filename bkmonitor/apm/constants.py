@@ -662,3 +662,7 @@ class StatisticsProperty(Enum):
     DISTINCT_COUNT = "distinct_count"
     FIELD_COUNT = "field_count"
     MEDIAN = "median"
+
+    @classmethod
+    def choices(cls):
+        return [(p.value, p.name) for p in cls]

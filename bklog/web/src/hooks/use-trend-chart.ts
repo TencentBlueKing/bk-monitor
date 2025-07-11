@@ -73,26 +73,26 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     delegateMethod('dispatchAction', payload);
   };
 
-  const formatTimeString = (data, interval) => {
-    if (/\d+s$/.test(interval)) {
-      return dayjs.tz(data).format('HH:mm:ss');
-    }
+  // const formatTimeString = (data, interval) => {
+  //   if (/\d+s$/.test(interval)) {
+  //     return dayjs.tz(data).format('HH:mm:ss');
+  //   }
 
-    if (/\d+(m|h)$/.test(interval)) {
-      const { start_time, end_time } = retrieveParams.value;
-      const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
-      // 当筛选时间间隔6小时以上 显示日期
-      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
-      return dayjs.tz(data).format(format).replace(/:00$/, '');
-    }
+  //   if (/\d+(m|h)$/.test(interval)) {
+  //     const { start_time, end_time } = retrieveParams.value;
+  //     const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
+  //     // 当筛选时间间隔6小时以上 显示日期
+  //     const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
+  //     return dayjs.tz(data).format(format).replace(/:00$/, '');
+  //   }
 
-    if (/\d+d$/.test(interval)) {
-      return dayjs
-        .tz(data)
-        .format('MM-DD HH:mm:ss')
-        .replace(/00:00:00$/, '');
-    }
-  };
+  //   if (/\d+d$/.test(interval)) {
+  //     return dayjs
+  //       .tz(data)
+  //       .format('MM-DD HH:mm:ss')
+  //       .replace(/00:00:00$/, '');
+  //   }
+  // };
 
   const getIntervalValue = (interval: string) => {
     const timeunit = {
@@ -109,8 +109,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return timeunit[unit] * Number(num);
   };
 
-  // 默认需要展示的柱子数量
-  const barCount = 60;
+  const barCount = 60; // auto时展示的柱子数量
+
   const intervals: [string, number][] = [
     ['d', 86400],
     ['h', 3600],
@@ -118,18 +118,19 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     ['s', 1],
   ];
 
+  const xLabelMap = new Map<number, string>(); // 用于存储横坐标标签
+
   const setRunnningInterval = () => {
+    // 1. 若汇聚周期不为auto，则直接使用用户选择的汇聚周期
     if (retrieveParams.value.interval !== 'auto') {
       runningInterval = retrieveParams.value.interval;
       return;
     }
 
+    // 2. 若汇聚周期为auto，则根据时间范围动态计算
     const { start_time, end_time } = retrieveParams.value;
-
-    // 按照小时统计
-    // 按照指定的柱子数量分割
     const duration = (end_time - start_time) / 1000;
-    const segments = Math.floor(duration / barCount);
+    const segments = Math.floor(duration / barCount); // 按照指定的柱子数量分割
     for (const [name, seconds] of intervals) {
       if (segments >= seconds) {
         const interval = Math.floor(segments / seconds);
@@ -190,10 +191,34 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
   };
 
+  // 计算x轴坐标点的时间显示格式
+  const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
+    const totalSpan = endTime - startTime;  // 查询的总时间范围
+    const intervalMs = getIntervalValue(interval) * 1000;  // 查询的时间间隔
+
+    // 若时间范围小于1天（<24h）
+    if (totalSpan < 24 * 60 * 60 * 1000) {
+      if (intervalMs <= 1000) return 'HH:mm:ss.SSS';         // <=1s
+      if (intervalMs <= 60 * 1000) return 'HH:mm:ss';        // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm';      // 1min~1h
+      return 'MM-DD HH:mm';                                  // >1h
+    }
+    // 时间范围大于等于1天（>=24h）
+    else{
+      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS';         // <=1s
+      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss';        // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm';      // 1min~1h
+      if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
+      return 'YYYY-MM-DD HH:mm';                                        // >1d
+    }
+  }
+
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
-
     let count = 0;
+    
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
     if (isInit) {
       dataset.clear();
@@ -226,6 +251,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         sortKeys.forEach(dstKey => {
           const { dataMap } = dataset.get(dstKey);
           dataMap.set(key, [key, 0, key_as_string]);
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       }
 
@@ -247,6 +273,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           }
 
           dataMap.set(key, [key, count, key_as_string]);
+
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       });
     });
@@ -266,6 +294,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const series = [];
     let count = 0;
 
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
+
     if (!isInit) {
       (options.series[0]?.data ?? []).forEach(item => {
         opt_data.set(item[0], [item[1], item[2]]);
@@ -273,6 +304,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     buckets.forEach(({ key, doc_count, key_as_string }) => {
+      xLabelMap.set(key, dayjs(key).format(formatStr));
       opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
       count += doc_count;
     });
@@ -295,6 +327,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
+    if (isInit) xLabelMap.clear();
     if (fieldName) {
       return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, isInit);
     }
@@ -336,10 +369,47 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return;
     }
 
-    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
+
+    // options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
+
+    // 格式化tooltip
+    options.tooltip.formatter = function (params) {
+      // 获取开始时间
+      const timeStart = xLabelMap.get(params[0].value[0]);
+
+      // 计算结束时间：起始时间 + runningInterval
+      const startTimestamp = params[0].value[0]; // 时间戳
+      const intervalSeconds = getIntervalValue(runningInterval);
+      const endTimestamp = startTimestamp + (intervalSeconds * 1000); // 转换为毫秒
+      const timeEnd = dayjs(endTimestamp).format(formatStr);
+
+      const value = params[0].value[1] || 0;
+      const seriesName = params[0].seriesName;
+      const color = params[0].color;
+      
+      return `
+        <div>
+          <div>${timeStart} - ${timeEnd}</div>
+          <div style="display: flex; align-items: center; margin-top: 4px;">
+            <span style="
+              display: inline-block; 
+              width: 10px; 
+              height: 10px; 
+              background-color: ${color}; 
+              border-radius: 50%; 
+            "></span>
+            <span style="flex: 1;">${seriesName}</span>
+            <span style="font-weight: bold;">${abbreviateNumber(value)}</span>
+          </div>
+        <div>
+      `;
+    };
 
     chartInstance.setOption(options, { notMerge });
     nextTick(() => {
@@ -398,6 +468,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       cachedBatch = null;
     }
   };
+  
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);

@@ -586,7 +586,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                           ]}
                         </div>
                         <span class='person-name'>
-                          {item.id}
+                          <bk-user-display-name user-id={item.id} />
                           {`(${item.display_name})`}
                         </span>
                       </div>
@@ -639,7 +639,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       ]}
                     </div>
                     <span class='person-name'>
-                      {item.id}
+                      <bk-user-display-name user-id={item.id} />
                       {`(${this.getMappingDisplayName(item.display_name)})`}
                     </span>
                   </div>

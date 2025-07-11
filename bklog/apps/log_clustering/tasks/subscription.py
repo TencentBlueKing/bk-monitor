@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -31,7 +31,8 @@ from celery.schedules import crontab
 from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import gettext_lazy as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import CmsiApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject

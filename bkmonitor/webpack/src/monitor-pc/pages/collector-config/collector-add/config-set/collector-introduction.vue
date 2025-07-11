@@ -42,8 +42,8 @@
       </div>
     </div>
     <div
-      class="introduction-content"
       :style="{ 'padding-left': introduction.type === 'bkmonitor.models.fta.plugin' ? '24px' : '' }"
+      class="introduction-content"
     >
       <div
         v-if="introduction.type === 'bkmonitor.models.fta.plugin'"
@@ -76,8 +76,8 @@
         </div>
         <div
           v-for="item in introduction.osTypeList"
-          :key="item"
           class="desc-tag"
+          :key="item"
         >
           <i :class="['icon-monitor tag-icon', `icon-${item}`]" />
           <span class="tag-text">{{ item }}</span>
@@ -87,14 +87,18 @@
           class="desc-tag"
         >
           <i class="icon-monitor icon-user tag-icon" />
-          <span class="tag-text"> {{ $t('创建人:') }} {{ introduction.createUser }}</span>
+          <span class="tag-text">
+            {{ $t('创建人:') }} <bk-user-display-name :user-id="introduction.createUser" />
+          </span>
         </div>
         <div
           v-if="introduction.updateUser"
           class="desc-tag"
         >
           <i class="icon-monitor icon-bianji tag-icon" />
-          <span class="tag-text"> {{ $t('最近更新人') }} {{ introduction.updateUser }}</span>
+          <span class="tag-text">
+            {{ $t('最近更新人') }} <bk-user-display-name :user-id="introduction.updateUser"
+          /></span>
         </div>
       </div>
       <viewer

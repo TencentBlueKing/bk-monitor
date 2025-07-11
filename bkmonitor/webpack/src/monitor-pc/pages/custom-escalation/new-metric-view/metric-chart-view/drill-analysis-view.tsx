@@ -263,6 +263,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
     for (let i = 0; i < keysArray.length; i++) {
       const key = keysArray[i];
+      if (key === '__proto__' || key === 'constructor') continue;
       if (i === keysArray.length - 1) {
         current[key] = value;
       } else {
@@ -324,6 +325,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       group_by: this.filterConfig.drill_group_by,
     };
     const params = len > 0 ? { ...baseParams, ...{ function: this.filterConfig.function } } : baseParams;
+    // biome-ignore lint/performance/noDelete: <explanation>
     len === 0 && delete this.panelData.targets[0].function;
 
     graphDrillDown({ ...this.panelData.targets[0], ...params })

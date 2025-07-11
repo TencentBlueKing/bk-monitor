@@ -81,7 +81,6 @@
     },
     computed: {
       ...mapState({
-        // formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
         tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
         isFormatDateField: state => state.isFormatDate,
       }),

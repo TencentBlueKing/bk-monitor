@@ -30,7 +30,7 @@ import { Button, Checkbox, Dialog, Message } from 'bkui-vue';
 import { createChatGroup } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 
-import BkUserSelector from '../../../alarm-shield/components/member-selector';
+import UserSelector from '../../../../components/user-selector/user-selector';
 
 import './chat-group.scss';
 
@@ -160,10 +160,9 @@ export default defineComponent({
                 </Checkbox>
                 {/* <Checkbox value={this.isHandler}>{this.t('告警处理人')}</Checkbox> */}
               </div>
-              <BkUserSelector
+              <UserSelector
                 class='bk-user-selector'
                 v-model={this.localValue}
-                api={this.bkUrl}
               />
               <div class='checkbox-group'>
                 <Checkbox.Group v-model={this.contentType}>
@@ -222,6 +221,7 @@ export default defineComponent({
         header-position='left'
         is-show={this.show}
         mask-close={true}
+        render-directive='if'
         title={this.t('一键拉群')}
         on-value-change={this.handleShowChange}
         onClosed={this.handleShowChange}

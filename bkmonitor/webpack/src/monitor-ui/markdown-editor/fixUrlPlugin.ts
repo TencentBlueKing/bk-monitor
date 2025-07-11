@@ -32,7 +32,7 @@ export default function fixUrlPlugin(context: PluginContext) {
       if (previewArea) {
         const originalHtml = previewArea.innerHTML;
         // 通过正则表达式识别并修改 href 属性
-        const fixedHtml = originalHtml.replace(/href="([^"]*\/)*(http(s)?:\/\/[^"]*)"/g, 'href="$2"');
+        const fixedHtml = originalHtml.replace(/href="([^"/]+\/)*(http(s)?:\/\/[^"]*)"/g, 'href="$2"');
         previewArea.innerHTML = fixedHtml;
       }
     }, 100); // 延迟以确保预览已经渲染

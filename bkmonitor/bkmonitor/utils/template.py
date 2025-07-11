@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import re
@@ -20,7 +20,8 @@ from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.utils import translation
 from django.utils.translation import gettext as _
-from jinja2 import Environment, Undefined
+from jinja2.sandbox import SandboxedEnvironment as Environment
+from jinja2 import Undefined
 from jinja2.compiler import CodeGenerator
 from markupsafe import Markup
 
@@ -35,7 +36,7 @@ from constants.action import NoticeWay
 logger = logging.getLogger(__name__)
 
 
-class NoticeRowRenderer(object):
+class NoticeRowRenderer:
     """
     行渲染器
     """
@@ -47,7 +48,7 @@ class NoticeRowRenderer(object):
             'vertical-align: text-top;">{title}</td><td style="color: #63656E; font-size: 14px; '
             'vertical-align: text-top;">{content}</td></tr><tr style="background: #FFFFFF;">'
             '<td colspan="4" style="height: 20px;"></td></tr>',
-            "markdown": '**{title}**{content}',
+            "markdown": "**{title}**{content}",
         },
     )
 
@@ -100,7 +101,7 @@ class NoticeRowRenderer(object):
         return "\n".join(lines)
 
 
-class CustomTemplateRenderer(object):
+class CustomTemplateRenderer:
     """
     自定义模板渲染器
     """
@@ -118,9 +119,9 @@ class CustomTemplateRenderer(object):
                 str(error),
                 context.get("content_template"),
             )
-            error_info = _("用户配置的通知模板渲染失败，默认使用系统内置模板，渲染失败可能是使用了不正确的语法，具体请查看策略配置{}").format(
-                context.get("alarm").strategy_url
-            )
+            error_info = _(
+                "用户配置的通知模板渲染失败，默认使用系统内置模板，渲染失败可能是使用了不正确的语法，具体请查看策略配置{}"
+            ).format(context.get("alarm").strategy_url)
             content_template = Jinja2Renderer.render(context.get("default_content_template") or "", context)
             content_template += "\n" + NoticeRowRenderer().format(
                 context.get("notice_way"), title=_("备注"), content=error_info
@@ -133,9 +134,9 @@ class CustomTemplateRenderer(object):
         context["user_content"] = alarm_content
         encoding = context.get("encoding", None)
         content_length = get_content_length(alarm_content, encoding=encoding)
-        if context.get("user_content_length") and content_length > context['user_content_length']:
-            alarm_content = cut_str_by_max_bytes(alarm_content, context['user_content_length'], encoding=encoding)
-            context["user_content"] = f"{alarm_content[:len(alarm_content) - 3]}..."
+        if context.get("user_content_length") and content_length > context["user_content_length"]:
+            alarm_content = cut_str_by_max_bytes(alarm_content, context["user_content_length"], encoding=encoding)
+            context["user_content"] = f"{alarm_content[: len(alarm_content) - 3]}..."
         title_content = ""
         try:
             title_content = Jinja2Renderer.render(context.get("title_template") or "", context)
@@ -150,7 +151,7 @@ class CustomTemplateRenderer(object):
         return content
 
 
-class CustomOperateTemplateRenderer(object):
+class CustomOperateTemplateRenderer:
     """
     自定义处理记录模板渲染器
     """
@@ -163,7 +164,7 @@ class CustomOperateTemplateRenderer(object):
         return content
 
 
-class Jinja2Renderer(object):
+class Jinja2Renderer:
     """
     Jinja2渲染器
     """
@@ -188,7 +189,7 @@ class Jinja2Renderer(object):
         )
 
 
-class AlarmNoticeTemplate(object):
+class AlarmNoticeTemplate:
     """
     通知模板
     """
@@ -232,7 +233,7 @@ class AlarmNoticeTemplate(object):
         :return: 模板消息
         """
         raw_template = get_template(template_path)
-        with open(raw_template.template.filename, "r", encoding="utf-8") as f:
+        with open(raw_template.template.filename, encoding="utf-8") as f:
             return f.read()
 
     @staticmethod
@@ -264,17 +265,17 @@ class AlarmNoticeTemplate(object):
         try:
             return cls.get_template_source(template_path)
         except TemplateDoesNotExist:
-            logger.info("use empty template because {} not exists".format(template_path))
+            logger.info(f"use empty template because {template_path} not exists")
         except Exception as e:
-            logger.info("use default template because {} load fail, {}".format(template_path, e))
+            logger.info(f"use default template because {template_path} load fail, {e}")
         template_path = cls.get_default_path(template_path, language_suffix)
 
         try:
             return cls.get_template_source(template_path)
         except TemplateDoesNotExist:
-            logger.info("use empty template because {} not exists".format(template_path))
+            logger.info(f"use empty template because {template_path} not exists")
         except Exception as e:
-            logger.info("use empty template because {} load fail, {}".format(template_path, e))
+            logger.info(f"use empty template because {template_path} load fail, {e}")
         return ""
 
 
@@ -296,67 +297,33 @@ class UndefinedSilently(Undefined):
     def __str__(self):
         return ""
 
-    __add__ = (
-        __radd__
-    ) = (
-        __mul__
-    ) = (
-        __rmul__
-    ) = (
-        __div__
-    ) = (
-        __rdiv__
-    ) = (
-        __truediv__
-    ) = (
-        __rtruediv__
-    ) = (
-        __floordiv__
-    ) = (
+    __add__ = __radd__ = __mul__ = __rmul__ = __div__ = __rdiv__ = __truediv__ = __rtruediv__ = __floordiv__ = (
         __rfloordiv__
-    ) = (
-        __mod__
-    ) = (
-        __rmod__
-    ) = (
-        __pos__
-    ) = (
-        __neg__
-    ) = (
-        __call__
-    ) = (
-        __getitem__
-    ) = (
-        __lt__
-    ) = (
-        __le__
-    ) = (
-        __gt__
-    ) = (
-        __ge__
-    ) = __int__ = __float__ = __complex__ = __pow__ = __rpow__ = __sub__ = __rsub__ = _fail_with_undefined_error
+    ) = __mod__ = __rmod__ = __pos__ = __neg__ = __call__ = __getitem__ = __lt__ = __le__ = __gt__ = __ge__ = (
+        __int__
+    ) = __float__ = __complex__ = __pow__ = __rpow__ = __sub__ = __rsub__ = _fail_with_undefined_error
 
 
 class LocalOverridingCodeGenerator(CodeGenerator):
     def visit_Template(self, *args, **kwargs):
-        super(LocalOverridingCodeGenerator, self).visit_Template(*args, **kwargs)
-        overrides = getattr(self.environment, '_codegen_overrides', {})
+        super().visit_Template(*args, **kwargs)
+        overrides = getattr(self.environment, "_codegen_overrides", {})
 
         if overrides:
-            self.writeline('')
+            self.writeline("")
 
         for name, override in overrides.items():
-            self.writeline('{} = {}'.format(name, override))
+            self.writeline(f"{name} = {override}")
 
 
 class DynAutoEscapeEnvironment(Environment):
     code_generator_class = LocalOverridingCodeGenerator
 
     def __init__(self, *args, **kwargs):
-        escape_func = kwargs.pop('escape_func', None)
-        markup_class = kwargs.pop('markup_class', None)
+        escape_func = kwargs.pop("escape_func", None)
+        markup_class = kwargs.pop("markup_class", None)
 
-        super(DynAutoEscapeEnvironment, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # we need to disable constant-evaluation at compile time, because it
         # calls jinja's own escape function.
@@ -367,10 +334,10 @@ class DynAutoEscapeEnvironment(Environment):
         # finalize in a contextfunction
         if self.finalize:
             if not (
-                getattr(self.finalize, 'contextfunction', False)  # jinja2 2.x
-                or getattr(self.finalize, 'jinja_pass_arg', False)  # jinja2 3.x
+                getattr(self.finalize, "contextfunction", False)  # jinja2 2.x
+                or getattr(self.finalize, "jinja_pass_arg", False)  # jinja2 3.x
             ):
-                _finalize = getattr(self, 'finalize')
+                _finalize = getattr(self, "finalize")
                 self.finalize = lambda _, v: _finalize(v)
         else:
             self.finalize = lambda _, v: v
@@ -379,13 +346,13 @@ class DynAutoEscapeEnvironment(Environment):
         self._codegen_overrides = {}
 
         if escape_func:
-            self._codegen_overrides['escape'] = 'environment.escape_func'
+            self._codegen_overrides["escape"] = "environment.escape_func"
             self.escape_func = escape_func
-            self.filters['e'] = escape_func
-            self.filters['escape'] = escape_func
+            self.filters["e"] = escape_func
+            self.filters["escape"] = escape_func
 
         if markup_class:
-            self._codegen_overrides['markup'] = 'environment.markup_class'
+            self._codegen_overrides["markup"] = "environment.markup_class"
             self.markup_class = markup_class
 
 

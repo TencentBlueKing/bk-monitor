@@ -394,10 +394,11 @@ export default class CheckViewTable extends tsc<object, object> {
     this.worker = new Worker(new URL('./tableDataWorker.ts', import.meta.url));
 
     this.worker.onmessage = e => {
-      const { tableData, footerDataList } = e.data;
-      this.tableData = tableData;
-      this.footerDataList = footerDataList;
-
+      const { tableData, footerDataList, origin } = e.data;
+      if (origin === window.location.origin) {
+        this.tableData = tableData;
+        this.footerDataList = footerDataList;
+      }
       this.worker?.terminate();
       this.worker = null;
     };
@@ -409,6 +410,7 @@ export default class CheckViewTable extends tsc<object, object> {
       timeData: this.timeData,
       isCompareNotDimensions: this.isCompareNotDimensions,
       isMergeTable: this.isMergeTable,
+      origin: window.location.origin,
     });
   }
 

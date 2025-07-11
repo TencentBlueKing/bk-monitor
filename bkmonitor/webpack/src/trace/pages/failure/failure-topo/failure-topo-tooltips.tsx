@@ -311,6 +311,7 @@ export default defineComponent({
             pod: pod_name ? [pod_name] : [],
           };
           return {
+            groupBy: JSON.stringify(['namespace', 'pod']),
             sceneId: 'kubernetes',
             activeTab: 'detail',
             cluster: cluster_id ?? '',

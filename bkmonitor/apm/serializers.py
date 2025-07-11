@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 from django.utils.translation import gettext as _
 
-from apm.constants import EnabledStatisticsDimension, QueryMode
+from apm.constants import EnabledStatisticsDimension, QueryMode, StatisticsProperty
 from constants.apm import OperatorGroupRelation
 
 
@@ -55,6 +55,9 @@ class TraceStatisticsFieldSerializer(serializers.Serializer):
 
 class TraceFieldStatisticsInfoRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):
     field = TraceStatisticsFieldSerializer(label="字段")
+    exclude_property = serializers.ListSerializer(
+        label="排除属性", child=serializers.ChoiceField(choices=StatisticsProperty.choices()), default=[]
+    )
 
 
 class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, BaseTraceFilterSerializer):

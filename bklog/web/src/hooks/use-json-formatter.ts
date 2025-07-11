@@ -103,6 +103,7 @@ export default class UseJsonFormatter {
 
     const option = {
       fieldName: activeField?.field_name,
+      fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
       depth,
@@ -177,6 +178,7 @@ export default class UseJsonFormatter {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
+        isCursorText: true,
       },
     ];
   }
@@ -255,6 +257,11 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+
+        if (element.hasAttribute('data-with-intersection')) {
+          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+        }
+
         element.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
@@ -268,7 +275,7 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(600);
+        setListItem(1000);
 
         if (appendText) {
           const appendElement = document.createElement('span');
@@ -283,6 +290,10 @@ export default class UseJsonFormatter {
 
           element.firstChild.appendChild(appendElement);
         }
+
+        requestAnimationFrame(() => {
+          element.style.removeProperty('min-height');
+        });
       }
     });
   }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,9 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import Optional
 
-from jinja2 import Template
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from metadata.models.vm.constants import VM_RETENTION_TIME, TimestampLen
 
@@ -120,7 +118,7 @@ class BkDataClean:
         raw_data_name: str,
         result_table_name: str,
         bk_biz_id: int,
-        timestamp_len: Optional[int] = TimestampLen.MILLISECOND_LEN.value,
+        timestamp_len: int | None = TimestampLen.MILLISECOND_LEN.value,
     ):
         self.raw_data_name = raw_data_name
         self.result_table_name = result_table_name
@@ -162,16 +160,19 @@ class BkDataClean:
 
         # 获取清洗的时间精度
         time_format = TimestampLen.get_choice_value(self.timestamp_len)
-
-        config_str = Template(self.TEMPLATE).render(
-            {
-                "result_table_name": self.raw_data_name,
-                "result_table_name_alias": self.result_table_name,
-                "fields": json.dumps(fields),
-                "time_format": time_format,
-                "timestamp_len": self.timestamp_len,
-                "bk_biz_id": self.bk_biz_id,
-            }
+        config_str = (
+            Environment()
+            .from_string(self.TEMPLATE)
+            .render(
+                {
+                    "result_table_name": self.raw_data_name,
+                    "result_table_name_alias": self.result_table_name,
+                    "fields": json.dumps(fields),
+                    "time_format": time_format,
+                    "timestamp_len": self.timestamp_len,
+                    "bk_biz_id": self.bk_biz_id,
+                }
+            )
         )
         # 转换为 Dict
         try:
@@ -182,7 +183,7 @@ class BkDataClean:
 
 
 class BkDataStorage:
-    def __init__(self, bk_table_id: str, vm_cluster: str, expires: Optional[str] = VM_RETENTION_TIME):
+    def __init__(self, bk_table_id: str, vm_cluster: str, expires: str | None = VM_RETENTION_TIME):
         self.bk_table_id = bk_table_id
         self.vm_cluster = vm_cluster
         self.expires = expires
@@ -201,7 +202,7 @@ class BkDataStorage:
 
 class BkDataStorageWithDataID:
     def __init__(
-        self, raw_data_id: int, result_table_name: str, vm_cluster: str, expires: Optional[str] = VM_RETENTION_TIME
+        self, raw_data_id: int, result_table_name: str, vm_cluster: str, expires: str | None = VM_RETENTION_TIME
     ):
         self.raw_data_id = raw_data_id
         self.result_table_name = result_table_name

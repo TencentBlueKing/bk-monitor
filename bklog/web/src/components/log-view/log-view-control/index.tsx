@@ -94,7 +94,7 @@ export default class LogViewControl extends tsc<IProps> {
     }
   }
 
-  initLightItemList(lightList = this.lightList) {
+  initLightItemList(lightList = this.lightList, direction = '') {
     this.highlightHtmlList = document.querySelectorAll('[data-index="light"]');
     this.lightSize = this.highlightHtmlList.length;
     if (this.lightSize) {
@@ -111,7 +111,7 @@ export default class LogViewControl extends tsc<IProps> {
           break;
         }
       }
-      if (!isFindShow) {
+      if (!isFindShow && direction !== 'top' && direction !== 'down') {
         this.catchViewIndex = this.highlightHtmlList.length;
         this.handelChangeLight(this.highlightHtmlList.length);
       }

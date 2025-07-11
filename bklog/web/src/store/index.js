@@ -42,6 +42,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
+import DOMPurify from 'dompurify';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -52,7 +53,6 @@ import {
   IndexSetQueryResult,
   IndexFieldInfo,
   IndexItem,
-  logSourceField,
   indexSetClusteringData,
   getDefaultRetrieveParams,
   getStorageOptions,
@@ -170,6 +170,7 @@ const stateTpl = {
       [BK_LOG_STORAGE.BK_BIZ_ID]: URL_ARGS.bizId,
       [BK_LOG_STORAGE.BK_SPACE_UID]: URL_ARGS.spaceUid,
     }),
+    chartIsFold: false,
   },
   features: {
     isAiAssistantActive: false,
@@ -323,6 +324,10 @@ const store = new Vuex.Store({
       });
 
       localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
+    },
+
+    updateChartIsFold(state, val) {
+      state.storage.chartIsFold = val;
     },
 
     updateApiError(state, { apiName, errorMessage }) {
@@ -857,7 +862,7 @@ const store = new Vuex.Store({
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
 
-      if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
+      // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
       const {
@@ -1602,7 +1607,7 @@ const store = new Vuex.Store({
 
       const formatJsonString = formatResult => {
         if (typeof formatResult === 'string') {
-          return formatResult.replace(/"/g, '\\"');
+          return DOMPurify.sanitize(formatResult);
         }
 
         return formatResult;
@@ -1708,29 +1713,10 @@ const store = new Vuex.Store({
       return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
     },
 
-    changeShowUnionSource({ commit, dispatch, state }) {
+    changeShowUnionSource({ commit, state }) {
       commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
-      dispatch('showShowUnionSource', { keepLastTime: false });
     },
 
-    /** 日志来源显隐操作 */
-    showShowUnionSource({ state }, { keepLastTime = false }) {
-      // 非联合查询 或者清空了所有字段 不走逻辑
-      if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
-      const isExist = state.visibleFields.some(item => item.tag === 'union-source');
-      // 保持之前的逻辑
-      if (keepLastTime) {
-        const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
-        if (isExist) {
-          !isShowSourceField && state.visibleFields.shift();
-        } else {
-          isShowSourceField && state.visibleFields.unshift(logSourceField());
-        }
-        return;
-      }
-
-      isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
-    },
     requestSearchTotal({ state, getters }) {
       state.searchTotal = 0;
       const start_time = Math.floor(getters.retrieveParams.start_time);

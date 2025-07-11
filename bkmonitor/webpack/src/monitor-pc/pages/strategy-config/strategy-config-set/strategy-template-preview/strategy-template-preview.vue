@@ -25,21 +25,21 @@
 -->
 <template>
   <monitor-dialog
-    :value.sync="show"
-    :title="$t('告警模板预览')"
     width="860"
     :need-footer="true"
-    @on-confirm="handleConfirm"
+    :title="$t('告警模板预览')"
+    :value.sync="show"
     @change="handleValueChange"
+    @on-confirm="handleConfirm"
   >
     <template>
       <div v-bkloading="{ isLoading: loading }">
         <ul class="preview-tab">
           <li
             v-for="(item, index) in renderData"
-            :key="index"
-            :class="{ 'tab-active': tabActive === index }"
             class="preview-tab-item"
+            :class="{ 'tab-active': tabActive === index }"
+            :key="index"
             @click="handleTabItemClick(item, index)"
           >
             {{ item.label }}
@@ -94,7 +94,15 @@ export default {
         data?.messages.map(item => ({
           ...item,
           tabActive: this.tabActive,
-          message: item.message.replace(/\n/gim, '</br>').replace(/<style[^>]*>[^<]+<\/style>/gim, ''),
+          message: (() => {
+            let sanitizedMessage = item.message.replace(/\n/gim, '</br>');
+            let previousMessage;
+            do {
+              previousMessage = sanitizedMessage;
+              sanitizedMessage = sanitizedMessage.replace(/<style[^>]*>[^<]*<\/style>/gim, '');
+            } while (sanitizedMessage !== previousMessage);
+            return sanitizedMessage;
+          })(),
           type: data.type || '',
         })) || []
       );

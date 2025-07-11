@@ -265,6 +265,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
 
   handleMessage(e: any) {
+    if (e.origin !== location.origin) {
+      return;
+    }
     if (e?.data?.starredChange) {
       this.handleFetchGrafanaTree();
       this.handleFetchFavGrafana();

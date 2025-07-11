@@ -24,6 +24,20 @@
  * IN THE SOFTWARE.
  */
 let vue;
+export const axiosError = [
+  'ERR_BAD_OPTION_VALUE',
+  'ERR_BAD_OPTION',
+  'ERR_NOT_SUPPORT',
+  'ERR_DEPRECATED',
+  'ERR_INVALID_URL',
+  'ECONNABORTED',
+  'ERR_CANCELED',
+  'ETIMEDOUT',
+  'ERR_NETWORK',
+  'ERR_FR_TOO_MANY_REDIRECTS',
+  'ERR_BAD_RESPONSE',
+  'ERR_BAD_REQUEST',
+];
 export const setVue = function (instance) {
   vue = instance;
 };
@@ -53,7 +67,7 @@ const formatJson = str => {
   } catch {
     return false;
   }
-}
+};
 
 export const makeMessage = (message, traceparent, needTraceId) => {
   const list = traceparent?.split('-');

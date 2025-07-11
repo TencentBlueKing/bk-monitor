@@ -162,6 +162,7 @@ self.onmessage = (
     self.postMessage({
       tableData,
       footerDataList,
+      origin,
     });
   });
 };

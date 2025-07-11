@@ -67,14 +67,14 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializers import FilterSerializer as TraceFilterSerializer
 from apm.serializers import (
+    TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
-    TraceFieldStatisticsGraphRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
-
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -93,7 +93,6 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
-from apm.serializers import FilterSerializer as TraceFilterSerializer
 
 logger = logging.getLogger("apm")
 
@@ -2052,6 +2051,7 @@ class QueryFieldStatisticsInfoResource(Resource):
                     StatisticsProperty.AVG.value,
                 ]
             )
+        statistics_properties = set(statistics_properties) - set(validated_data["exclude_property"])
 
         statistics_info = {}
         run_threads(
@@ -2122,16 +2122,15 @@ class QueryFieldStatisticsInfoResource(Resource):
             processed_statistics_info[statistics_property] = value
 
         # 计算百分比
-        processed_statistics_info["field_percent"] = (
-            round(
-                statistics_info[StatisticsProperty.FIELD_COUNT.value]
-                / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
-                * 100,
-                2,
-            )
-            if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
-            else 0
-        )
+        if (
+            StatisticsProperty.FIELD_COUNT.value in statistics_info
+            and StatisticsProperty.TOTAL_COUNT.value in statistics_info
+        ):
+            field_percent = 0
+            total_count = statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+            if total_count > 0:
+                field_percent = statistics_info[StatisticsProperty.FIELD_COUNT.value] / total_count * 100
+            processed_statistics_info["field_percent"] = format_percent(field_percent, 3, 3, 3)
         return processed_statistics_info
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from typing import Dict, List
 
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
@@ -35,7 +32,7 @@ class HostPerformanceResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: List[Host], data: Dict[int, Dict]):
+    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
         """
         获取进程信息
         """
@@ -54,7 +51,7 @@ class HostPerformanceResource(CacheResource):
             ]
 
     @staticmethod
-    def get_alarm_count(bk_biz_id: int, hosts: List[Host], data: Dict[int, Dict]):
+    def get_alarm_count(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
         """
         获取告警信息
         """
@@ -69,8 +66,8 @@ class HostPerformanceResource(CacheResource):
 
     def perform_request(self, params):
         bk_biz_id = params.get("bk_biz_id")
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
-        topo_links: Dict[str, List[TopoNode]] = api.cmdb.get_topo_tree(
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(
             bk_biz_id=params["bk_biz_id"]
         ).convert_to_topo_link()
 
@@ -141,7 +138,7 @@ class HostPerformanceDetailResource(Resource):
         host = hosts[0]
 
         # 获取主机拓扑信息
-        topo_links: Dict[str, List[TopoNode]] = api.cmdb.get_topo_tree(
+        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(
             bk_biz_id=params["bk_biz_id"]
         ).convert_to_topo_link()
         module = SearchHostInfoResource.get_module_info(host.bk_module_ids, topo_links)
@@ -182,7 +179,7 @@ class HostTopoNodeDetailResource(Resource):
         bk_inst_id = serializers.IntegerField(required=True, label="节点实例ID")
 
     @staticmethod
-    def get_alarm_count(bk_biz_id: int, hosts: List[Host]):
+    def get_alarm_count(bk_biz_id: int, hosts: list[Host]):
         """
         统计主机关联告警数量
         """
@@ -201,7 +198,7 @@ class HostTopoNodeDetailResource(Resource):
                 count += value
         return count
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict):
         bk_obj_id = params["bk_obj_id"]
         bk_inst_id = params["bk_inst_id"]
         bk_biz_id = params["bk_biz_id"]
@@ -284,7 +281,7 @@ class SearchHostInfoResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     @staticmethod
-    def get_module_info(bk_module_ids: List[int], topo_links: Dict[str, List[TopoNode]]) -> List[Dict]:
+    def get_module_info(bk_module_ids: list[int], topo_links: dict[str, list[TopoNode]]) -> list[dict]:
         """
         获取模块详情
         """
@@ -308,8 +305,8 @@ class SearchHostInfoResource(Resource):
         return modules
 
     def perform_request(self, params):
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
-        topo_links: Dict[str, List[TopoNode]] = api.cmdb.get_topo_tree(
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=params["bk_biz_id"])
+        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(
             bk_biz_id=params["bk_biz_id"]
         ).convert_to_topo_link()
 
@@ -351,7 +348,7 @@ class SearchHostMetricResource(Resource):
             return validate_bk_biz_id(value)
 
     @staticmethod
-    def get_agent_status(bk_biz_id: int, hosts: List[Host], data: Dict[int, Dict]):
+    def get_agent_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
         """
         获取Agent状态
         """
@@ -362,7 +359,7 @@ class SearchHostMetricResource(Resource):
             data[bk_host_id]["status"] = status
 
     @staticmethod
-    def get_performance_data(bk_biz_id: int, hosts: List[Host], data: Dict[int, Dict]):
+    def get_performance_data(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
         """
         获取指标信息
         """
@@ -373,7 +370,7 @@ class SearchHostMetricResource(Resource):
             data[bk_host_id].update(metrics)
 
     @staticmethod
-    def get_process_status(bk_biz_id: int, hosts: List[Host], data: Dict[int, Dict]):
+    def get_process_status(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
         """
         获取进程信息
         """

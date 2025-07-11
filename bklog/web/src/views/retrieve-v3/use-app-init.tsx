@@ -40,13 +40,13 @@ export default () => {
   const router = useRouter();
   const route = useRoute();
   const searchBarHeight = ref(0);
-  const leftFieldSettingWidth = ref(0);
-  const leftFieldSettingShown = ref(true);
   const isPreApiLoaded = ref(false);
 
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
+
+  const leftFieldSettingWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
 
   /**
    * 解析地址栏参数
@@ -81,15 +81,9 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown => {
-    leftFieldSettingShown.value = isShown;
+  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+    searchBarHeight.value = height;
   })
-    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
-      searchBarHeight.value = height;
-    })
-    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
-      leftFieldSettingWidth.value = width;
-    })
     .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
       favoriteWidth.value = width;
     })
@@ -109,7 +103,7 @@ export default () => {
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
-      '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
+      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
       '--header-height': fromMonitor.value ? '0px' : '52px',
@@ -181,6 +175,13 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      exception_msg: '',
+      is_error: false,
+    });
+
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {

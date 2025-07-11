@@ -1279,11 +1279,17 @@ class BkMonitorTimeSeriesDataSource(TimeSeriesDataSource):
         group_by: list[str] | None = None,
         **kwargs,
     ):
-        # ！！！cmdb level 数据查询路由逻辑！！！
-
         if settings.IS_ACCESS_BK_DATA and cls.is_cmdb_level_query(
             where=agg_condition, filter_dict=where, group_by=group_by
         ):
+            # ！！！cmdb level 数据查询路由逻辑！！！
+            # 通过 is_cmdb_level_query 判定是否查询cmdb 层级表（和unify-query）判定逻辑保持一致
+            # 如果是层级表查询，则转到计算平台查询
+            # 将_cmdb_level 替换成去掉， 再转换成 bk_data 的结果表，直接使用 bk_sql 进行查询
+            # 后续次逻辑去掉。直接将结果表传递给unify-query即可。
+            # 在UnifyQuery.use_unify_query判定中，如果是cmdb-level查询，并且在白名单(settings.BKDATA_CMDB_LEVEL_TABLES)里
+            # 会走到这个逻辑
+
             raw_table, _, _ = table.partition("_cmdb_level")
             replace_table_id = to_bk_data_rt_id(raw_table, settings.BK_DATA_CMDB_SPLIT_TABLE_SUFFIX)
             return BkdataTimeSeriesDataSource._get_queryset(

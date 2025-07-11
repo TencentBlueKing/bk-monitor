@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import gzip
 import logging
 
-import jinja2
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from kubernetes import client
 from opentelemetry import trace
@@ -100,8 +100,8 @@ class PlatformConfig(BkCollectorConfig):
 
                     # Step2: 往集群的 bk-collector 下发配置
                     platform_config_context = PlatformConfig.get_platform_config(cluster_id)
-                    tpl = jinja2.Template(platform_config_tpl)
-                    platform_config = tpl.render(platform_config_context)
+
+                    platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
                     PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
 
                     # s.add_event("default_application", attributes={"id": default_application.id})
@@ -354,7 +354,7 @@ class PlatformConfig(BkCollectorConfig):
         operator_service_name = svc.items[0].metadata.name
 
         cluster_cache_config = settings.K8S_COLLECTOR_CONFIG or {}
-        cache_interval = cluster_cache_config.get(bcs_cluster_id, {}).get("cache", {}).get("interval", '10s')
+        cache_interval = cluster_cache_config.get(bcs_cluster_id, {}).get("cache", {}).get("interval", "10s")
 
         return {
             "name": "resource_filter/fill_dimensions",
@@ -445,18 +445,16 @@ class PlatformConfig(BkCollectorConfig):
                 if old_subscription_params_md5 != new_subscription_params_md5:
                     logger.info("apm platform config subscription task config has changed, update it.")
                     result = api.node_man.update_subscription(subscription_params)
-                    logger.info("update apm platform config subscription successful, result:{}".format(result))
+                    logger.info(f"update apm platform config subscription successful, result:{result}")
                     platform_subscription.update(config=subscription_params)
                 return sub_config_obj.subscription_id
             except Exception as e:  # noqa
-                logger.exception(
-                    "update apm platform config subscription error:{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"update apm platform config subscription error:{e}, params:{subscription_params}")
         else:
             try:
                 logger.info("apm platform config subscription task not exists, create it.")
                 result = api.node_man.create_subscription(subscription_params)
-                logger.info("create apm platform config subscription successful, result:{}".format(result))
+                logger.info(f"create apm platform config subscription successful, result:{result}")
 
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
@@ -470,11 +468,9 @@ class PlatformConfig(BkCollectorConfig):
                 result = api.node_man.run_subscription(
                     subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
                 )
-                logger.info("run apm platform config subscription result:{}".format(result))
+                logger.info(f"run apm platform config subscription result:{result}")
             except Exception as e:  # noqa
-                logger.exception(
-                    "create apm platform config subscription error{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"create apm platform config subscription error{e}, params:{subscription_params}")
 
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
@@ -486,10 +482,7 @@ class PlatformConfig(BkCollectorConfig):
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector="component={},template=false,type={}".format(
-                BkCollectorComp.LABEL_COMPONENT_VALUE,
-                BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-            ),
+            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG}",
         )
         if len(secrets.items) > 0:
             # 存在，且与已有的数据不一致，则更新

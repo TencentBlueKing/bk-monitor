@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
@@ -31,6 +32,9 @@ from bkmonitor.models import BCSPod
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, TelemetryDataType, Vendor
+
+
+logger = logging.getLogger(__name__)
 
 
 class NodeDiscover(DiscoverBase):
@@ -126,6 +130,15 @@ class NodeDiscover(DiscoverBase):
                 continue
 
             for k, v in instances_mapping.items():
+                if not k:
+                    # topo_key 为空，可能是 Span 未上报 service.name，记录异常日志并跳过。
+                    logger.warning(
+                        "[NodeDiscover] topo_key empty: bk_biz_id=%s, app_name=%s, skipped",
+                        self.bk_biz_id,
+                        self.app_name,
+                    )
+                    continue
+
                 v["system"] = list(v["system"].values())
                 v["sdk"] = list(v["sdk"].values())
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:

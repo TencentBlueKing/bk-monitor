@@ -130,9 +130,7 @@ def get_metric_id(
             DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
             DataTypeLabel.EVENT: f"{data_source_label}.{metric_field}",
             DataTypeLabel.LOG: f"{data_source_label}.{data_type_label}.{result_table_id}",
-            DataTypeLabel.ALERT: "{}.{}.{}".format(
-                data_source_label, data_type_label, bkmonitor_strategy_id or metric_field
-            ),
+            DataTypeLabel.ALERT: f"{data_source_label}.{data_type_label}.{bkmonitor_strategy_id or metric_field}",
         },
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
@@ -911,6 +909,7 @@ class ActionRelation(BaseActionRelation):
     class Serializer(BaseActionRelation.Serializer):
         class OptionsSerializer(serializers.Serializer):
             converge_config = ConvergeConfigSlz()
+            skip_delay = serializers.IntegerField(required=False, default=0)
 
             def validate_converge_config(self, data):
                 # 默认防御维度
@@ -1750,10 +1749,10 @@ class Strategy(AbstractConfig):
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
 
-        if isinstance(self.update_time, (int, str)):
+        if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
 
-        if isinstance(self.create_time, (int, str)):
+        if isinstance(self.create_time, int | str):
             self.create_time = arrow.get(create_time).datetime
 
         for item in self.items:

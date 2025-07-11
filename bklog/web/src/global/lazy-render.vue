@@ -87,7 +87,7 @@
 
     &.is-not-intersecting {
       opacity: 1;
-      transition: opacity 1s;
+      /* transition: opacity 1s; */
     }
   }
 

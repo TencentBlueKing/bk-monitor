@@ -37,10 +37,6 @@ import './duration-input.scss';
 export default defineComponent({
   name: 'DurationInput',
   props: {
-    modelValue: {
-      type: Array as PropType<number[]>,
-      default: () => [],
-    },
     value: {
       type: Array as PropType<number[]>,
       default: () => [],
@@ -51,7 +47,6 @@ export default defineComponent({
     },
   },
   emits: {
-    'update:modelValue': (_val: number[]) => true,
     change: (_val: number[]) => true,
   },
   setup(props, { emit }) {
@@ -64,13 +59,6 @@ export default defineComponent({
     const startInput = shallowRef('');
     const endInput = shallowRef('');
 
-    watch(
-      () => props.modelValue,
-      val => {
-        watchPropValue(val);
-      },
-      { immediate: true }
-    );
     watch(
       () => props.value,
       val => {
@@ -85,13 +73,11 @@ export default defineComponent({
       const isEndNE = endVal !== endInput.value;
       if (isStartNE) {
         startInput.value = startVal;
-        sliderInit(startVal, endVal);
       }
       if (isEndNE) {
         endInput.value = endVal;
-        sliderInit(startVal, endVal);
       }
-      if (isEndNE || isEndNE) {
+      if (isStartNE || isEndNE) {
         sliderInit(val[0], val[1]);
       }
     }
@@ -147,7 +133,6 @@ export default defineComponent({
         sliderInit(startVal, endVal);
       }
       emit('change', [startVal, endVal]);
-      emit('update:modelValue', [startVal, endVal]);
     }
 
     function sliderInit(startVal, endVal) {
@@ -182,7 +167,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                ns, μs, ms, s, m, h, d
+                μs/us, ms, s, m, h, d
               </div>
             ),
           }}
@@ -190,7 +175,7 @@ export default defineComponent({
           <Input
             v-model={this.startInput}
             autoWidth={true}
-            placeholder={'0ns'}
+            placeholder={'0μs'}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleStartInputChange}
             onEnter={this.handleStartInputChange}
@@ -199,6 +184,9 @@ export default defineComponent({
 
         <div class='duration-slider'>
           <Slider
+            tooltipProps={{
+              overlayClassName: 'duration-input-component-slider-tip',
+            }}
             max={this.sliderValue.max as number}
             min={this.sliderValue.min as number}
             range={true}
@@ -213,7 +201,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                ns, μs, ms, s, m, h, d
+                μs/us, ms, s, m, h, d
               </div>
             ),
           }}

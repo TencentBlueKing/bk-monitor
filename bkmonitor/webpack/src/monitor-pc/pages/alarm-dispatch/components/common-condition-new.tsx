@@ -258,7 +258,6 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagContainerWidth = this.commonConditionNewRef?.offsetWidth || 500;
       this.handleConditionToTagList();
       this.validateConditionsRepeatKey();
-      console.log(this.commonConditionNewRef?.offsetWidth, '===');
     });
   }
 
@@ -569,7 +568,7 @@ export default class CommonCondition extends tsc<IProps> {
   handleSecondSearchChange(v) {
     this.secondSearch = v;
     if (this.curGroupKey === 'dimensions') {
-      this.handleSelectCustomDimension(v)
+      this.handleSelectCustomDimension(v);
     }
   }
 
@@ -1197,13 +1196,33 @@ export default class CommonCondition extends tsc<IProps> {
         if (!curValues.includes(this.inputValue)) {
           const key = this.tagList[index].condition.field;
           const values = this.getCurValuesList(key);
-          const valueItem = values.find(vItem => vItem.id === this.inputValue);
-          this.tagList[index].condition.value.push(this.inputValue);
-          this.tagList[index].tags.splice(tagIndex, 0, {
-            id: valueItem?.id || this.inputValue,
-            name: valueItem?.name || this.inputValue,
-            type: TypeEnum.value,
-          });
+          // 是否包含换行符
+          const hasLineBreak = /\r\n|\n|\r/.test(this.inputValue);
+          if (hasLineBreak) {
+            const inputValueArr = this.inputValue.split(/\r\n|\n|\r/).filter(v => !!v && !curValues.includes(v));
+            const valueArr = Array.from(new Set(inputValueArr));
+            this.tagList[index].condition.value.push(...valueArr);
+            this.tagList[index].tags.splice(
+              tagIndex,
+              0,
+              ...valueArr.map(v => {
+                const valueItem = values.find(vItem => vItem.id === v);
+                return {
+                  id: valueItem?.id || v,
+                  name: valueItem?.name || v,
+                  type: TypeEnum.value,
+                };
+              })
+            );
+          } else {
+            const valueItem = values.find(vItem => vItem.id === this.inputValue);
+            this.tagList[index].condition.value.push(this.inputValue);
+            this.tagList[index].tags.splice(tagIndex, 0, {
+              id: valueItem?.id || this.inputValue,
+              name: valueItem?.name || this.inputValue,
+              type: TypeEnum.value,
+            });
+          }
           if (this.tagList[index].condition.value.includes(nullOption.id)) {
             /* 清除空选项 */
             const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
@@ -1462,10 +1481,12 @@ export default class CommonCondition extends tsc<IProps> {
                           class='input-wrap'
                         >
                           <span class='input-value'>{this.inputValue}</span>
-                          <input
+                          <textarea
                             ref='input'
                             class='input'
                             v-model={this.inputValue}
+                            rows={1}
+                            spellcheck={false}
                             onBlur={() => this.handBlur(index, tagIndex)}
                             onInput={this.handleInput}
                             onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
@@ -1717,7 +1738,7 @@ export default class CommonCondition extends tsc<IProps> {
               <bk-input
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
+                placeholder={this.$t(`${this.curGroupKey === 'dimensions' ? '搜索或直接输入' : '输入关键字搜索'}`)}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               />
@@ -1742,8 +1763,9 @@ export default class CommonCondition extends tsc<IProps> {
                         <span>
                           {this.$t('直接输入')} "<span class='highlight'>{item.name}</span>"
                         </span>
-                      ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
-
+                      ) : (
+                        <span>{this.getSearchNode(item.name, this.secondSearch)}</span>
+                      )}
                     </div>
                   ))}
               </div>

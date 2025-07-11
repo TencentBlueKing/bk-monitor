@@ -65,8 +65,18 @@ class BkLogForwardingView(APIView):
         return cls._construct_json_response(response)
 
     def dispatch(self, request, *args, **kwargs):
-        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split("bklog")[-1])
+        if not str(request.path).replace("/", "").replace("_", "").isalnum():
+            return JsonResponse(
+                {
+                    "message": _("请求路径不在日志平台接口范围"),
+                    "code": 500,
+                    "data": None,
+                    "result": False,
+                },
+                status=500,
+            )
 
+        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split("bklog")[-1])
         try:
             params = {key: request.GET.get(key) for key in request.GET}
             body = request.body if request.body else None
@@ -82,12 +92,6 @@ class BkLogForwardingView(APIView):
                     "body": body,
                 },
             ):
-                logger.info(
-                    f"[APMLogForward] {request.method} - "
-                    f"target_url: {target_url} headers: {json.dumps(headers)} "
-                    f"params: {params} body: {body}"
-                )
-
                 response = requests.request(
                     method=request.method,
                     url=target_url,

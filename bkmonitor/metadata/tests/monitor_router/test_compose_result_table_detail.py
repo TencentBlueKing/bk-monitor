@@ -78,19 +78,8 @@ def test_compose_es_table_detail(create_or_delete_records):
             "field_alias": {
                 "pod_name": "__ext.pod_name",
                 "pod_ip": "__ext.pod_ip",
-                "container_name": "__ext.container_name",
             },
         }
     }
 
-    assert expected
-
-    expected_str = {
-        "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log",'
-        '"options":{"need_add_time":true,"time_field":{"name":"dtEventTimeStamp",'
-        '"type":"date","unit":"millisecond"}},"storage_type":"elasticsearch",'
-        '"storage_cluster_records":[],"data_label":"bklog_index_set_1001",'
-        '"field_alias":{"pod_name":"__ext.pod_name","pod_ip":"__ext.pod_ip"}}'
-    }
-
-    assert res == expected_str
+    assert res == expected

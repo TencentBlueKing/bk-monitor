@@ -8,10 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections import defaultdict
 import json
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 import requests
 
 from metadata import models
@@ -58,22 +60,38 @@ def push_and_publish_log_space_router(space_type: str, space_id: str):
 
 def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
     """推送并发布es别名"""
-    if not data_label:
+
+    # 拆分data_label，去重
+    data_label_list: list[str] = list(set([dl for dl in data_label.split(",") if dl]))
+    if not data_label_list:
         return
 
+    # 组装查询条件
+    data_label_qs: Q = Q(data_label__contains=data_label_list[0])
+    for data_label in data_label_list[1:]:
+        data_label_qs |= Q(data_label__contains=data_label)
+
+    # 查询结果表
     result_tables = models.ResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_label=data_label, is_deleted=False, is_enable=True
+        data_label_qs, bk_tenant_id=bk_tenant_id, is_deleted=False, is_enable=True
     )
 
-    # 未开启多租户模式，直接推送
-    table_ids = [reformat_table_id(i.table_id) for i in result_tables]
+    data_label_to_table_ids: dict[str, list[str]] = defaultdict(list)
+    for result_table in result_tables:
+        # 拆分data_label
+        for dl in result_table.data_label.split(","):
+            if not dl or dl not in data_label_list:
+                continue
+            data_label_to_table_ids[dl].append(reformat_table_id(result_table.table_id))
 
+    # 多租户模式下，在data_label前拼接bk_tenant_id
     if settings.ENABLE_MULTI_TENANT_MODE:
         redis_values = {
-            f"{data_label}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
+            f"{dl}|{bk_tenant_id}": json.dumps([f"{table_id}|{bk_tenant_id}" for table_id in table_ids])
+            for dl, table_ids in data_label_to_table_ids.items()
         }
     else:
-        redis_values = {data_label: json.dumps(table_ids)}
+        redis_values = {dl: json.dumps(table_ids) for dl, table_ids in data_label_to_table_ids.items()}
 
     RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
     RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))
@@ -166,8 +184,8 @@ def push_and_publish_doris_table_id_detail(
     logger.info("push_and_publish_doris_table_id_detail: table_id->[%s]", table_id)
 
     try:
-        result_table = models.ResultTable.objects.get(table_id=table_id)
-        doris_storage = models.DorisStorage.objects.get(table_id=table_id)
+        result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        doris_storage = models.DorisStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except Exception as e:
         logger.error(
             "push_and_publish_doris_table_id_detail: table_id->[%s] get result table or doris storage "
@@ -177,11 +195,16 @@ def push_and_publish_doris_table_id_detail(
         )
         raise ValueError(f"get result table or doris storage failed, table_id:{table_id}")
 
+    # 多租户模式下，在data_label后拼接bk_tenant_id
+    new_data_label = result_table.data_label
+    if new_data_label and settings.ENABLE_MULTI_TENANT_MODE:
+        new_data_label = ",".join([f"{dl}|{bk_tenant_id}" for dl in new_data_label.split(",")])
+
     values = {
         "db": doris_storage.bkbase_table_id,
         "measurement": models.ClusterInfo.TYPE_DORIS,
         "storage_type": "bk_sql",
-        "data_label": result_table.data_label,
+        "data_label": new_data_label,
     }
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id

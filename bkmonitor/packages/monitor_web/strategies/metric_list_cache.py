@@ -1287,10 +1287,10 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 if not group_list:
                     continue
                 self.ts_db_name.append(name)
-                result = group_list[0]
-                # 将业务id设置为当前业务id
-                result["bk_biz_id"] = self.bk_biz_id
-                yield result
+
+                for group in group_list:
+                    group["bk_biz_id"] = self.bk_biz_id
+                    yield group
 
         # 插件类指标
         yield from self.get_plugin_tables()

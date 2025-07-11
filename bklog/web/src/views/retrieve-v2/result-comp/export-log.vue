@@ -377,10 +377,17 @@
         this.isShowExportDialog = false;
       },
       quickDownload() {
+        if (!/^\d+$/.test(this.routerIndexSet)) {
+          console.warn('当前检索结果不是索引集，无法进行快速下载');
+          return;
+        }
+
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const downRequestUrl = this.isUnionSearch ? `/search/index_set/union_async_export/`: `/search/index_set/${this.routerIndexSet}/quick_export/`;
-        const data  = {
+        const downRequestUrl = this.isUnionSearch
+          ? `/search/index_set/union_async_export/`
+          : `/search/index_set/${this.routerIndexSet}/quick_export/`;
+        const data = {
           ...params,
           size: this.totalCount,
           time_range: 'customized',
@@ -389,12 +396,15 @@
           file_type: this.documentType,
         };
         if (this.isUnionSearch) {
-          Object.assign(data, {is_quick_export: true, union_configs: this.unionIndexList.map(item => {
-            return {
-              begin: 0,
-              index_set_id: item,
-            };
-          }) });
+          Object.assign(data, {
+            is_quick_export: true,
+            union_configs: this.unionIndexList.map(item => {
+              return {
+                begin: 0,
+                index_set_id: item,
+              };
+            }),
+          });
         }
         axiosInstance
           .post(downRequestUrl, data, {
@@ -424,6 +434,11 @@
           });
       },
       openDownloadUrl() {
+        if (!/^\d+$/.test(this.routerIndexSet)) {
+          console.warn('当前检索结果不是索引集，无法进行快速下载');
+          return;
+        }
+
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
@@ -465,25 +480,28 @@
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const data = { ...params };
-        let downRequestUrl =  this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
+        let downRequestUrl = this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
         data.size = this.totalCount;
         data.export_fields = this.submitSelectFiledList;
         data.is_desensitize = this.desensitizeRadioType === 'desensitize';
         if (this.isUnionSearch) {
-          Object.assign(data, {is_quick_export: false, union_configs: this.unionIndexList.map(item => {
-            return {
-              begin: 0,
-              index_set_id: item,
-            };
-          }) });
+          Object.assign(data, {
+            is_quick_export: false,
+            union_configs: this.unionIndexList.map(item => {
+              return {
+                begin: 0,
+                index_set_id: item,
+              };
+            }),
+          });
         }
         this.exportLoading = true;
         const requestConfig = this.isUnionSearch
-        ? { data }
-        : {
-            params: { index_set_id: this.routerIndexSet },
-            data,
-          };
+          ? { data }
+          : {
+              params: { index_set_id: this.routerIndexSet },
+              data,
+            };
         this.$http
           .request(downRequestUrl, requestConfig)
           .then(res => {

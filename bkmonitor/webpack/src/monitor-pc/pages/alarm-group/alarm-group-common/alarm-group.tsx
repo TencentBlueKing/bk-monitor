@@ -145,7 +145,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--',
+      formatter: row => (row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--'),
     },
     {
       label: i18n.t('最近更新时间'),

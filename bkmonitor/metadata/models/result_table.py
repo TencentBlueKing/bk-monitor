@@ -1329,9 +1329,14 @@ class ResultTable(models.Model):
 
         # 更新结果表option配置
         if option is not None:
-            result_table_option_ids = ResultTableOption.objects.filter(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            ).values_list("id", flat=True)
+            # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
+            # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
+            # TODO: 后续需要优化option的配置方式，增加option的类型标记
+            result_table_option_ids = (
+                ResultTableOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+                .exclude(name__in=ResultTableFieldOption.QUERY_OPTION_NAME_LIST)
+                .values_list("id", flat=True)
+            )
             self.raw_delete(result_table_option_ids)
 
             logger.info(

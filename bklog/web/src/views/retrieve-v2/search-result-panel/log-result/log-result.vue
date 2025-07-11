@@ -48,6 +48,7 @@
         :log-params="logDialog.data"
         :target-fields="targetFields"
         :title="logDialog.title"
+        :indexSetId="logDialog.indexSetId"
         @close-dialog="hideDialog"
         @toggle-screen-full="toggleScreenFull"
       />

@@ -78,7 +78,7 @@ export default class MyComponent extends tsc<object> {
                 <a
                   class='tips-link'
                   href={this.docCenterUrl}
-                  rel='noreferrer'
+                  rel='noopener noreferrer'
                   target='_blank'
                 >
                   {this.$t('查看语法')}

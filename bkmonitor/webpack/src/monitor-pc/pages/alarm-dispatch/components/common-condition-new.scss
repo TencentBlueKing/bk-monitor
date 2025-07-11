@@ -128,12 +128,14 @@
       }
 
       &.tag-more {
-        background: #f0f1f5;
-        cursor: pointer;
         margin-left: 4px;
+        cursor: pointer;
+        background: #f0f1f5;
+
         .more-icon {
           margin-left: 2px;
         }
+
         &:hover {
           background: #cedffb;
         }
@@ -151,9 +153,9 @@
       }
 
       &.tag-del {
-        color: #979ba5;
         // display: none;
         visibility: hidden;
+        color: #979ba5;
         background: #fff;
         border: 1px solid #eaebf0;
 
@@ -258,24 +260,31 @@
 
     .input-value {
       display: inline-block;
+      visibility: hidden;
       padding: 0 2px;
       font-family: inherit;
       font-size: inherit;
       line-height: normal;
-      visibility: hidden;
     }
 
     .input {
       position: absolute;
       box-sizing: border-box;
       width: 100%;
+      max-width: 100%;
       height: inherit;
-      padding: 0;
+      max-height: 22px;
       padding: 0 2px;
+      overflow-x: hidden;
+      overflow-y: auto;
       font-family: inherit;
       font-size: inherit;
-      border: 0;
+      line-height: 22px;
+      white-space: nowrap;
+      // 改为textarea输入框
+      resize: none;
       outline: none;
+      border: 0;
     }
   }
 }

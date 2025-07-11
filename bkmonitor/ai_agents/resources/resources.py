@@ -306,6 +306,7 @@ class CreateChatCompletionResource(Resource):
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
 
+        # 传递默认智能体 agent_code 保持和session的创建者一致
         agent_instance = AgentInstanceBuilder.build_agent_instance_by_session(
             session_code=session_code, api_client=api_client, agent_code=agent_code
         )

@@ -4,7 +4,6 @@ export default defineConfig({
   recursive: true,
   packageMode: {
     'eslint-plugin-perfectionist': 'minor',
-    '@blueking/user-selector': 'minor',
     'bk-magic-vue': 'minor',
     'monaco-editor': 'minor',
     vue: 'minor',

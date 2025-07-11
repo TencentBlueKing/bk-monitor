@@ -30,7 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { bulkUpdateUserGroup } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 
-import MemberSelector from '../alarm-group-add/member-selector.vue';
+import { getDefaultUserGroupListSync } from '../../../components/user-selector/user-group';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { type OperationType, OperationTypeMap } from './utils';
 
 import './batch-operation-dialog.scss';
@@ -69,6 +70,10 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
       addMethod: 'append',
     },
   };
+
+  get defaultUserGroupList() {
+    return getDefaultUserGroupListSync(this.defaultGroupList[0]?.children || []);
+  }
 
   get formData() {
     return this.formModel[this.operationType] || {};
@@ -203,10 +208,11 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
             property='users'
             required={true}
           >
-            <MemberSelector
+            <UserSelector
               class='user-selector'
-              v-model={this.formModel.noticeUser.users}
-              group-list={this.defaultGroupList}
+              userGroupList={this.defaultUserGroupList}
+              userIds={this.formModel.noticeUser.users}
+              onChange={users => (this.formModel.noticeUser.users = users)}
             />
           </bk-form-item>,
           <bk-form-item

@@ -445,7 +445,7 @@ class PluginImportResource(Resource):
     def un_tar_gz_file(self, tar_obj):
         # 解压文件到临时目录
         with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
-            tar.extractall(self.tmp_path)
+            tar.extractall(self.tmp_path, filter='data')
             self.filename_list = tar.getnames()
 
     def get_plugin(self):

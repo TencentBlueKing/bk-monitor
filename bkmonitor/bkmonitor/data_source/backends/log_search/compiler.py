@@ -27,6 +27,7 @@ class SQLCompiler(compiler.SQLCompiler):
     SELECT_RE = re.compile(
         r"(?P<agg_method>[^\( ]+)[\( ]+" r"(?P<metric_field>[^\) ]+)[\) ]+" r"([ ]?as[ ]+(?P<metric_alias>[^ ]+))?"
     )
+    ESCAPE_CHAR = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
     DEFAULT_AGG_METHOD = "count"
     DEFAULT_METRIC_FIELD = "_index"
     DEFAULT_METRIC_ALIAS = "count"
@@ -81,6 +82,10 @@ class SQLCompiler(compiler.SQLCompiler):
                 if not values:
                     continue
 
+                # 转义特殊字符
+                values = [self.ESCAPE_CHAR.sub(r"\\\1", value) for value in values]
+
+                # 映射操作符到查询语法模板
                 connector = "OR"
                 if method == "eq":
                     expr_template = '{}: "{}"'

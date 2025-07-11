@@ -60,6 +60,7 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.aiops import SDKDetectStatus
@@ -1095,9 +1096,10 @@ class GetStrategyListV2Resource(Resource):
         if not queries:
             return {}
 
-        metrics = MetricListCache.objects.filter(
-            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[bk_biz_id, 0]
-        ).filter(reduce(lambda x, y: x | y, queries))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        metrics = MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=[bk_biz_id, 0]).filter(
+            reduce(lambda x, y: x | y, queries)
+        )
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 

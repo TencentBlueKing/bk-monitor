@@ -2303,7 +2303,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       /* 更新记录 */
       default: props => (
         <div class='col-name'>
-          <div class='col-name-label'>{props.row.updator || '--'}</div>
+          <div class='col-name-label'>
+            {props.row.updator ? <bk-user-display-name user-id={props.row.updator} /> : '--'}
+          </div>
           <div>{dayjs.tz(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
         </div>
       ),

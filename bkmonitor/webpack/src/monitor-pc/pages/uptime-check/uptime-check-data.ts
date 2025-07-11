@@ -264,7 +264,7 @@ export const taskCommonTableProps: ICommonTableProps = {
     },
     { id: 'available_progress', name: window.i18n.tc('可用率'), type: 'scoped_slots', header_pre_icon: 'icon-avg' },
     { id: 'groups_str', name: window.i18n.tc('所属分组'), type: 'string' },
-    { id: 'create_user', name: window.i18n.tc('创建人'), type: 'string' },
+    { id: 'create_user', name: window.i18n.tc('创建人'), type: 'scoped_slots' },
     {
       id: 'status_text',
       name: window.i18n.tc('状态'),

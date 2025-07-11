@@ -27,7 +27,8 @@ from dataclasses import asdict
 import arrow
 from django.conf import settings
 from django.utils.translation import gettext as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from retrying import retry
 
 from apps.api import (
@@ -190,7 +191,6 @@ class DataFlowHandler(BaseAiopsHandler):
                 )
             )
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}, result -> {result}")
-
 
     @classmethod
     def _init_filter_rule(cls, filter_rules, all_fields_dict, clustering_field):
