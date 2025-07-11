@@ -88,8 +88,6 @@ from constants.apm import (
     TelemetryDataType,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
-    OtlpKey,
-    PreCalculateSpecificField,
 )
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
@@ -2174,7 +2172,7 @@ class QueryFieldStatisticsGraphResource(Resource):
 
         # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if field["field_name"] not in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION} and (
+        if distinct_count is not None and (
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)

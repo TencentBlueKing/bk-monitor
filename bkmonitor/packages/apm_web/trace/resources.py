@@ -1352,6 +1352,7 @@ class TraceFieldStatisticsInfoResource(Resource):
                 StatisticsProperty.MEDIAN.value,
                 StatisticsProperty.TOTAL_COUNT.value,
                 StatisticsProperty.FIELD_COUNT.value,
+                StatisticsProperty.DISTINCT_COUNT.value,
             ]
         return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
