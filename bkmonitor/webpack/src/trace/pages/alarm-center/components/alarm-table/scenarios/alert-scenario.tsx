@@ -28,11 +28,14 @@ import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
+import {
+  ExploreTableColumnTypeEnum,
+  type BaseTableColumn,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 import { ALERT_STORAGE_KEY } from '../../../services/alert-services';
-import { AlarmLevelIconMap, EXTEND_INFO_MAP } from '../../../typings';
+import { AlarmLevelIconMap, AlertStatusMap, EXTEND_INFO_MAP } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
-import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 /**
@@ -49,8 +52,9 @@ export class AlertScenario extends BaseScenario {
   constructor(
     private readonly context: {
       handleShowDetail: (id: string) => void;
-      handlePopoverShow: (e: MouseEvent, content: any) => void;
-      handleClearTimer: () => void;
+      showPopover: (e: MouseEvent, content: any) => void;
+      clearPopoverTimer: () => void;
+      [methodName: string]: any;
     }
   ) {
     super();
@@ -59,25 +63,56 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 获取当前场景的特殊列配置
    */
-  getColumnsConfig(): Map<string, Partial<BaseTableColumn>> {
+  getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     const commonColumnConfig = this.getCommonColumnsConfig();
-    const columns = new Map(commonColumnConfig);
-
-    // 告警名称列
-    columns.set('alert_name', {
-      cellRenderer: row => this.renderAlertName(row),
-    });
-
-    // 扩展信息列
-    columns.set('extend_info', {
-      cellRenderer: row => this.renderExtendInfo(row),
-    });
-
-    // 告警特有的其他列...
-    columns.set('metric', {
-      renderType: 'tags',
-      getRenderValue: row => row.metric?.map?.(e => ({ alias: e, value: e })),
-    });
+    const columns = {
+      ...commonColumnConfig,
+      // 告警状态(alert_status) 列
+      alert_name: {
+        cellRenderer: row => this.renderAlertName(row),
+      },
+      metric: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+      },
+      event_count: {
+        renderType: ExploreTableColumnTypeEnum.CLICK,
+        clickCallback: row => {
+          this.context.handleShowDetail(row.id);
+        },
+      },
+      first_anomaly_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      tags: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+        getRenderValue: row => {
+          return row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value }));
+        },
+      },
+      extend_info: {
+        cellRenderer: row => this.renderExtendInfo(row),
+      },
+      appointee: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+      },
+      assignee: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+      },
+      follower: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+      },
+      strategy_name: {
+        renderType: ExploreTableColumnTypeEnum.LINK,
+        getRenderValue: row => ({ url: this.getStrategyUrl(row.strategy_id, row.bk_biz_id), alias: row.strategy_name }),
+      },
+      labels: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+      },
+      status: {
+        renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+        getRenderValue: row => AlertStatusMap?.[row.status],
+      },
+    };
 
     return columns;
   }
@@ -98,7 +133,7 @@ export class AlertScenario extends BaseScenario {
           class='lever-rect-text ellipsis-text'
           onClick={() => this.context.handleShowDetail(row.id)}
           onMouseenter={e => this.handleAlterNameHover(e, row)}
-          onMouseleave={this.context.handleClearTimer}
+          onMouseleave={this.context.clearPopoverTimer}
         >
           <span>{row?.alert_name}</span>
         </div>
@@ -114,7 +149,7 @@ export class AlertScenario extends BaseScenario {
         <div
           class='extend-info-col'
           onMouseenter={e => this.handleExtendInfoHover(e, row.extend_info)}
-          onMouseleave={this.context.handleClearTimer}
+          onMouseleave={this.context.clearPopoverTimer}
         >
           {row.extend_info?.type ? this.getExtendInfoColumn(row) : '--'}
         </div>
@@ -155,7 +190,7 @@ export class AlertScenario extends BaseScenario {
         </div>
       </div>
     );
-    this.context.handlePopoverShow(e, content);
+    this.context.showPopover(e, content);
   }
 
   /**
@@ -181,7 +216,7 @@ export class AlertScenario extends BaseScenario {
       default:
         break;
     }
-    this.context.handlePopoverShow(e, tplStr);
+    this.context.showPopover(e, tplStr);
   }
 
   /**

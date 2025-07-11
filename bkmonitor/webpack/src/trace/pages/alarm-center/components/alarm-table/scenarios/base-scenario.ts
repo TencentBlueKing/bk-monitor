@@ -24,7 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
+import {
+  ExploreTableColumnTypeEnum,
+  type BaseTableColumn,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 
 /**
  * @abstract
@@ -43,18 +46,28 @@ export abstract class BaseScenario {
    * 获取当前场景的特殊列配置
    * @returns 列键到特殊配置的映射
    */
-  abstract getColumnsConfig(): Map<string, BaseTableColumn>;
+  abstract getColumnsConfig(): Record<string, BaseTableColumn>;
 
   /**
    * 公共列配置（所有场景共享）
    */
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  protected getCommonColumnsConfig(): Map<string, Partial<BaseTableColumn>> {
-    return new Map([
-      ['begin_time', { renderType: 'time' }],
-      ['create_time', { renderType: 'time' }],
+  protected getCommonColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
+    return {
+      create_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      begin_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      end_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      latest_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
       // 其他通用列...
-    ]);
+    };
   }
 
   /**

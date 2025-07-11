@@ -59,7 +59,7 @@ export function useScenarioRenderer(context: any) {
   const transformColumns = (columns: TableColumnItem[]) => {
     const scenarioColumns = currentScenario.value.getColumnsConfig();
     return columns.map(column => {
-      const scenarioConfig = scenarioColumns.get(column.colKey);
+      const scenarioConfig = scenarioColumns[column.colKey];
       return scenarioConfig ? { ...column, ...scenarioConfig } : column;
     });
   };

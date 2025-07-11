@@ -42,9 +42,9 @@ export class IncidentScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      handleShowDetail: (id: string) => void;
-      handlePopoverShow: (e: MouseEvent, content: any) => void;
-      handleClearTimer: () => void;
+      showPopover: (e: MouseEvent, content: any) => void;
+      clearPopoverTimer: () => void;
+      [methodName: string]: any;
     }
   ) {
     super();
@@ -53,9 +53,12 @@ export class IncidentScenario extends BaseScenario {
   /**
    * @description 获取当前场景的特殊列配置
    */
-  getColumnsConfig(): Map<string, Partial<BaseTableColumn>> {
+  getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     const commonColumnConfig = this.getCommonColumnsConfig();
-    const columns = new Map(commonColumnConfig);
+    const columns = {
+      ...commonColumnConfig,
+      // ... other private columns config
+    };
 
     return columns;
   }
