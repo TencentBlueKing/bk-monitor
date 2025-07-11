@@ -39,8 +39,8 @@ class TestESExceptionHandler(TestCase):
     def test_handle_highlight_error(self):
         # 测试高亮失败错误
         error_messages = [
-            "The length of [log] field of [27209] doc of [100644_vulcan_log_2025070302] index has exceeded [1000000] - maximum allowed to be analyzed for highlighting.",
-            "The length [4580567] of field [log] in doc[50402]/index[v2_101067_bklog_silo_server_log_20250622_0] exceeds the [index.highlight.max_analyzed_offset] limit [1000000].",
+            "The length of [log] field of [27209] doc of [test_log_2025070302] index has exceeded [1000000] - maximum allowed to be analyzed for highlighting.",
+            "The length [4580567] of field [log] in doc[50402]/index[test_server_log_20250622_0] exceeds the [index.highlight.max_analyzed_offset] limit [1000000].",
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
@@ -63,7 +63,7 @@ class TestESExceptionHandler(TestCase):
     def test_handle_server_unavailable_error(self):
         # 测试服务器不可用错误
         error_messages = [
-            "HTTPConnectionPool(host='bk-data.apigw.o.woa.com', port=80): Read timed out. (read timeout=130)",
+            "HTTPConnectionPool(host='www.example.com', port=80): Read timed out. (read timeout=130)",
             "request_id [9034563563] timed out after [30012ms]",
             "[][] connect_timeout[30s]",
         ]
@@ -75,7 +75,7 @@ class TestESExceptionHandler(TestCase):
     def test_handle_custom_exception_logging(self):
         # 测试自定义异常的日志记录
         custom_exc = BaseSearchException(
-            "HTTPConnectionPool(host='bk-data.apigw.o.woa.com', port=80): Read timed out. (read timeout=130"
+            "HTTPConnectionPool(host='www.example.com', port=80): Read timed out. (read timeout=130"
         )
         with patch("apps.utils.log.logger.exception") as mock_logger:
             try:
