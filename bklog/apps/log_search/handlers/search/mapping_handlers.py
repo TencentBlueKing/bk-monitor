@@ -822,9 +822,11 @@ class MappingHandlers:
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {
-            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
-        }
+        alias_dict = {}
+        if query_alias_settings := self.index_set.query_alias_settings:
+            for item in query_alias_settings:
+                alias_dict[item["field_name"]] = item["query_alias"]
+
         remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:
