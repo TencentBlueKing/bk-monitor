@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import gzip
 import json
@@ -18,7 +18,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any
 
 import arrow
 import pytz
@@ -65,7 +65,7 @@ logger = logging.getLogger("access.data")
 
 class BaseAccessDataProcess(base.BaseAccessProcess):
     def __init__(self, *args, sub_task_id: str = None, **kwargs):
-        super(BaseAccessDataProcess, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.add_filter(RangeFilter())
         self.add_filter(ExpireFilter())
         self.add_filter(HostStatusFilter())
@@ -166,14 +166,9 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         # 非批量任务，记录日志
         if not self.sub_task_id:
             logger.info(
-                "output_key({output_key}) "
-                "strategy({strategy_id}), item({item_id}), "
-                "push records({records_length}).".format(
-                    output_key=output_key,
-                    strategy_id=item.strategy.strategy_id,
-                    item_id=item.id,
-                    records_length=len(record_list),
-                )
+                f"output_key({output_key}) "
+                f"strategy({item.strategy.strategy_id}), item({item.id}), "
+                f"push records({len(record_list)})."
             )
         else:
             self.process_counts.setdefault("push_data", {})
@@ -182,22 +177,19 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                 "count": len(record_list),
             }
 
-    def push(self, records: Optional[List] = None, output_client=None):
+    def push(self, records: list | None = None, output_client=None):
         """
         推送格式化后的数据到 detect 和 nodata 中(按单个策略，单个item项，写入不同的队列)
         """
         if records is None:
             records = self.record_list
 
-        # 去除重复数据
-        records: List[DataRecord] = [record for record in records if not record.is_duplicate]
-
         # 优先级检查
         PriorityChecker.check_records(records)
 
         # 按item_id分组
-        pending_to_push: Dict[int, List[DataRecord]] = {}
-        item_id_to_item: Dict[int, Item] = {}
+        pending_to_push: dict[int, list[DataRecord]] = {}
+        item_id_to_item: dict[int, Item] = {}
         for record in records:
             for item in record.items:
                 item_id = item.id
@@ -242,7 +234,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
 class AccessDataProcess(BaseAccessDataProcess):
     def __init__(self, strategy_group_key: str, *args, sub_task_id: str = None, **kwargs):
-        super(AccessDataProcess, self).__init__(sub_task_id=sub_task_id, *args, **kwargs)
+        super().__init__(sub_task_id=sub_task_id, *args, **kwargs)
         self.strategy_group_key = strategy_group_key
         self.from_timestamp = None
         self.until_timestamp = None
@@ -253,10 +245,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             self.batch_timestamp = None
 
     def __str__(self):
-        return "{}:strategy_group_key({})".format(self.__class__.__name__, self.strategy_group_key)
+        return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
 
     @cached_property
-    def items(self) -> List[Item]:
+    def items(self) -> list[Item]:
         data = []
         records = StrategyCacheManager.get_strategy_group_detail(self.strategy_group_key)
         for strategy_id, item_ids in list(records.items()):
@@ -340,7 +332,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 过滤重复数据并实例化
         self.filter_duplicates(points)
 
-    def query_data(self, now_timestamp: int) -> List[Dict]:
+    def query_data(self, now_timestamp: int) -> list[dict]:
         """
         数据源查询
         """
@@ -369,11 +361,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             logger.error(e)
             points = []
         except Exception as e:  # noqa
-            logger.exception(
-                "strategy_group_key({strategy_group_key}) query records error, {err}".format(
-                    strategy_group_key=self.strategy_group_key, err=e
-                )
-            )
+            logger.exception(f"strategy_group_key({self.strategy_group_key}) query records error, {e}")
             points = []
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
@@ -447,7 +435,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         self.until_timestamp = until_timestamp
 
-    def send_batch_data(self, points: List[Dict], batch_threshold: int = 50000) -> List[Dict]:
+    def send_batch_data(self, points: list[dict], batch_threshold: int = 50000) -> list[dict]:
         """
         发送分批处理任务，并返回第一批数据
         """
@@ -499,58 +487,73 @@ class AccessDataProcess(BaseAccessDataProcess):
             self.sub_task_id = f"{self.batch_timestamp}.1"
             self.batch_count = batch_count
             logger.info(
-                "strategy_group_key({}), split {} access data into {} batch tasks".format(
-                    self.strategy_group_key, len(points), batch_count
-                )
+                f"strategy_group_key({self.strategy_group_key}), split {len(points)} access data into {batch_count} batch tasks"
             )
 
         return first_batch_points
 
-    def filter_duplicates(self, points: List[Dict]):
+    def filter_duplicates(self, points: list[dict[str, Any]]):
         """
         过滤重复数据并实例化
+
+        数据存在延迟上报的情况，因此监控会向前多拉两个的周期的数据，并且记录那两个周期拉到的数据维度。如果拉到的数据维度存在于记录中，则意味着数据是重复拉取的。
+
+        大量重复数据记录会占用redis的内存，数据查询也会消耗redis资源，因此处理逻辑会有一些优化
+        1. 如果最新数据点的数据全部都是重复的，意味之前的周期数据全部都是重复的，因此可以跳过之前的周期
+        2. 只保留最近的三个周期数据
         """
         first_item = self.items[0]
 
-        records = []
+        records: list[DataRecord] = []
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id)
-        duplicate_counts = none_point_counts = 0
+        duplicate_counts = 0
+        none_point_counts = 0
 
-        # 是否有优先级
-        have_priority = False
-        for item in self.items:
-            if item.strategy.priority is not None and item.strategy.priority_group_key:
-                have_priority = True
-                break
+        # 获取策略的聚合周期
+        interval = first_item.strategy.get_interval()
 
-        max_data_time = 0
-        for record in reversed(points):
-            point = DataRecord(self.items, record)
+        # 数据按时间戳分组
+        max_timestamp = 0
+        time_point_groups = defaultdict(list)
+        for point in points:
+            timestamp = point.get("_time_") or point["time"]
+            time_point_groups[timestamp].append(point)
+            max_timestamp = max(max_timestamp, timestamp)
 
-            if point.value is not None:
-                # 去除重复数据
-                if dup_obj.is_duplicate(point):
-                    duplicate_counts += 1
-                    # 有优先级的策略，重复数据需要保留，后续再过滤
-                    if have_priority:
-                        point.is_duplicate = True
+        # 按时间戳从大到小遍历
+        has_new_point = False
+        old_timestamp = max_timestamp - 3 * interval
+        for index, timestamp in enumerate(sorted(list(time_point_groups.keys()), reverse=True)):
+            points = time_point_groups[timestamp]
+
+            # 如果最新时间戳没有新数据，则将更旧的数据全部视为重复数据
+            if index > 0 and not has_new_point:
+                duplicate_counts += len(points)
+
+            for point in points:
+                point = DataRecord(self.items, point)
+                if point.value is not None:
+                    if dup_obj.is_duplicate(point):
+                        duplicate_counts += 1
+                    else:
+                        # 记录最新时间戳是否有新数据
+                        if index == 0 and not has_new_point:
+                            has_new_point = True
+
+                        # 只记录最新的三个时间戳的重复数据记录
+                        if timestamp > old_timestamp:
+                            dup_obj.add_record(point)
                         records.append(point)
                 else:
-                    dup_obj.add_record(point)
-                    records.append(point)
-
-                    # 只观察非重复数据
-                    if point.time > max_data_time:
-                        max_data_time = point.time
-            else:
-                none_point_counts += 1
+                    none_point_counts += 1
+        dup_obj.refresh_cache()
+        dup_obj.clean_old_data(old_timestamp)
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
-        if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
-            self.observe_big_latency_datasource(first_item, max_data_time)
+        if max_timestamp > 0 and not self.batch_timestamp and self.until_timestamp:
+            self.observe_big_latency_datasource(first_item, max_timestamp)
 
-        dup_obj.refresh_cache()
         self.record_list = records
         point_count = len(records)
         if point_count:
@@ -560,23 +563,13 @@ class AccessDataProcess(BaseAccessDataProcess):
         for item in self.items:
             if not self.sub_task_id:
                 logger.info(
-                    "strategy({strategy_id}),item({item_id}),"
-                    "total_records({total}),"
-                    "access records({records_length}),"
-                    "duplicate({duplicate_counts}),"
-                    "none_point_counts({none_point_counts}),"
-                    "strategy_group_key({strategy_group_key}),"
-                    "time range({from_datetime} - {until_datetime})".format(
-                        strategy_id=item.strategy.id,
-                        item_id=item.id,
-                        total=len(points),
-                        records_length=point_count,
-                        duplicate_counts=duplicate_counts,
-                        none_point_counts=none_point_counts,
-                        strategy_group_key=self.strategy_group_key,
-                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                    )
+                    f"strategy({item.strategy.id}),item({item.id}),"
+                    f"total_records({len(points)}),"
+                    f"access records({point_count}),"
+                    f"duplicate({duplicate_counts}),"
+                    f"none_point_counts({none_point_counts}),"
+                    f"strategy_group_key({self.strategy_group_key}),"
+                    f"time range({arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT)} - {arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT)})"
                 )
             else:
                 self.process_counts.setdefault("pull_data", {})
@@ -587,8 +580,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
-    def push(self, records: List = None, output_client=None):
-        super(AccessDataProcess, self).push(records=records, output_client=output_client)
+    def push(self, records: list = None, output_client=None):
+        super().push(records=records, output_client=output_client)
 
         checkpoint = Checkpoint(self.strategy_group_key)
         last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
@@ -603,11 +596,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 非批量任务，记录日志
         if not self.sub_task_id:
             logger.info(
-                "strategy_group_key({}), process records({}), last_checkpoint({})".format(
-                    self.strategy_group_key,
-                    len(self.record_list),
-                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
-                )
+                f"strategy_group_key({self.strategy_group_key}), process records({len(self.record_list)}), last_checkpoint({arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)})"
             )
         else:
             self.process_counts["total_push_data"] = {
@@ -618,7 +607,7 @@ class AccessDataProcess(BaseAccessDataProcess):
     def process(self):
         start_time = time.time()
 
-        exc = super(AccessDataProcess, self).process()
+        exc = super().process()
 
         client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
         result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
@@ -674,7 +663,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             exception=exc,
         ).inc()
 
-    def batch_log(self, batch_results: List[Dict]):
+    def batch_log(self, batch_results: list[dict]):
         """
         汇总分批任务结果并记录日志
         """
@@ -683,8 +672,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         for result in batch_results:
             if not result["result"]:
                 logger.error(
-                    "strategy_group_key({strategy_group_key}) "
-                    "access batch task({sub_task_id}) error({error})".format(
+                    "strategy_group_key({strategy_group_key}) access batch task({sub_task_id}) error({error})".format(
                         strategy_group_key=self.strategy_group_key,
                         sub_task_id=result["sub_task_id"],
                         error=result["error"],
@@ -721,61 +709,36 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 拉取数量记录日志
             if total_count:
                 logger.info(
-                    "strategy({strategy_id}),item({item_id}),"
-                    "total_records({total}),"
-                    "access records({records_length}),"
-                    "duplicate({duplicate_counts}),"
-                    "none_point_counts({none_point_counts}),"
-                    "strategy_group_key({strategy_group_key}),"
-                    "time range({from_datetime} - {until_datetime})".format(
-                        strategy_id=item.strategy.id,
-                        item_id=item.id,
-                        total=total_count,
-                        records_length=access_count,
-                        duplicate_counts=duplicate_count,
-                        none_point_counts=none_point_count,
-                        strategy_group_key=self.strategy_group_key,
-                        from_datetime=arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                        until_datetime=arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT),
-                    )
+                    f"strategy({item.strategy.id}),item({item.id}),"
+                    f"total_records({total_count}),"
+                    f"access records({access_count}),"
+                    f"duplicate({duplicate_count}),"
+                    f"none_point_counts({none_point_count}),"
+                    f"strategy_group_key({self.strategy_group_key}),"
+                    f"time range({arrow.get(self.from_timestamp).strftime(constants.STD_LOG_DT_FORMAT)} - {arrow.get(self.until_timestamp).strftime(constants.STD_LOG_DT_FORMAT)})"
                 )
 
             # 推送数量记录日志
             if push_count:
                 logger.info(
-                    "output_key({output_key}) "
-                    "strategy({strategy_id}), item({item_id}), "
-                    "push records({records_length}).".format(
-                        output_key=output_key,
-                        strategy_id=item.strategy.strategy_id,
-                        item_id=item.id,
-                        records_length=push_count,
-                    )
+                    f"output_key({output_key}) "
+                    f"strategy({item.strategy.strategy_id}), item({item.id}), "
+                    f"push records({push_count})."
                 )
 
             # 降噪推送数量记录日志
             if push_noise_count:
                 logger.info(
-                    "record_key({record_key}) "
-                    "dimension_key({dimension_key})"
-                    "strategy({strategy_id}), item({item_id}), "
-                    "push dimension records({records_length}).".format(
-                        record_key=record_key,
-                        dimension_key=dimension_key,
-                        strategy_id=item.strategy.strategy_id,
-                        item_id=item.id,
-                        records_length=push_noise_count,
-                    )
+                    f"record_key({record_key}) "
+                    f"dimension_key({dimension_key})"
+                    f"strategy({item.strategy.strategy_id}), item({item.id}), "
+                    f"push dimension records({push_noise_count})."
                 )
 
         # 总推送数量
         if total_push_count:
             logger.info(
-                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
-                    self.strategy_group_key,
-                    total_push_count,
-                    arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
-                )
+                f"strategy_group_key({self.strategy_group_key}), push records({total_push_count}), last_checkpoint({arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)})"
             )
 
             # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
@@ -814,7 +777,7 @@ class AccessBatchDataProcess(AccessDataProcess):
     """
 
     def __init__(self, *args, **kwargs):
-        super(AccessBatchDataProcess, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if self.sub_task_id is None:
             raise ValueError("sub_task_id is required")
 
@@ -866,7 +829,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             "0bkmonitor_100010": {"strategy_ids": [3, 4], "dimensions": ["ip", "bk_cloud_id"]},
         }
         """
-        super(AccessRealTimeDataProcess, self).__init__()
+        super().__init__()
 
         # 服务注册
         self.service = service
@@ -879,17 +842,17 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         self.topic_cache_key = key.REAL_TIME_HOST_TOPIC_KEY.get_key()
 
         # topics信息
-        self.topics: Dict[str, Dict] = {}
+        self.topics: dict[str, dict] = {}
         self.rt_id_to_storage_info = {}
 
-        self.consumers: Dict[str, KafkaConsumer] = {}
+        self.consumers: dict[str, KafkaConsumer] = {}
         self.consumers_lock = threading.Lock()
         self.queue = queue.Queue(maxsize=100)
         self._stop_signal = False
         self.strategy_cache = {}
 
     def __str__(self):
-        return super(AccessRealTimeDataProcess, self).__str__()
+        return super().__str__()
 
     @staticmethod
     def get_all_hosts():
@@ -971,7 +934,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                         continue
 
                     cluster_config = storage_info["cluster_config"]
-                    bootstrap_server = f'{cluster_config["domain_name"]}:{cluster_config["port"]}'
+                    bootstrap_server = f"{cluster_config['domain_name']}:{cluster_config['port']}"
                     consumer = consumers.get(bootstrap_server)
                     if not consumer:
                         try:
