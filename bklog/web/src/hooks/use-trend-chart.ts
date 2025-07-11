@@ -73,26 +73,26 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     delegateMethod('dispatchAction', payload);
   };
 
-  const formatTimeString = (data, interval) => {
-    if (/\d+s$/.test(interval)) {
-      return dayjs.tz(data).format('HH:mm:ss');
-    }
+  // const formatTimeString = (data, interval) => {
+  //   if (/\d+s$/.test(interval)) {
+  //     return dayjs.tz(data).format('HH:mm:ss');
+  //   }
 
-    if (/\d+(m|h)$/.test(interval)) {
-      const { start_time, end_time } = retrieveParams.value;
-      const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
-      // 当筛选时间间隔6小时以上 显示日期
-      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
-      return dayjs.tz(data).format(format).replace(/:00$/, '');
-    }
+  //   if (/\d+(m|h)$/.test(interval)) {
+  //     const { start_time, end_time } = retrieveParams.value;
+  //     const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
+  //     // 当筛选时间间隔6小时以上 显示日期
+  //     const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
+  //     return dayjs.tz(data).format(format).replace(/:00$/, '');
+  //   }
 
-    if (/\d+d$/.test(interval)) {
-      return dayjs
-        .tz(data)
-        .format('MM-DD HH:mm:ss')
-        .replace(/00:00:00$/, '');
-    }
-  };
+  //   if (/\d+d$/.test(interval)) {
+  //     return dayjs
+  //       .tz(data)
+  //       .format('MM-DD HH:mm:ss')
+  //       .replace(/00:00:00$/, '');
+  //   }
+  // };
 
   const getIntervalValue = (interval: string) => {
     const timeunit = {
@@ -109,7 +109,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return timeunit[unit] * Number(num);
   };
 
-  const barCount = 60;  // auto时展示的柱子数量
+  const barCount = 60; // auto时展示的柱子数量
 
   const intervals: [string, number][] = [
     ['d', 86400],
@@ -130,7 +130,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 2. 若汇聚周期为auto，则根据时间范围动态计算
     const { start_time, end_time } = retrieveParams.value;
     const duration = (end_time - start_time) / 1000;
-    const segments = Math.floor(duration / barCount);  // 按照指定的柱子数量分割
+    const segments = Math.floor(duration / barCount); // 按照指定的柱子数量分割
     for (const [name, seconds] of intervals) {
       if (segments >= seconds) {
         const interval = Math.floor(segments / seconds);
@@ -191,24 +191,34 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
   };
 
+  // 计算x轴坐标点的时间显示格式
+  const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
+    const totalSpan = endTime - startTime;  // 查询的总时间范围
+    const intervalMs = getIntervalValue(interval) * 1000;  // 查询的时间间隔
+
+    // 若时间范围小于1天（<24h）
+    if (totalSpan < 24 * 60 * 60 * 1000) {
+      if (intervalMs <= 1000) return 'HH:mm:ss.SSS';         // <=1s
+      if (intervalMs <= 60 * 1000) return 'HH:mm:ss';        // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm';      // 1min~1h
+      return 'MM-DD HH:mm';                                  // >1h
+    }
+    // 时间范围大于等于1天（>=24h）
+    else{
+      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS';         // <=1s
+      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss';        // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm';      // 1min~1h
+      if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
+      return 'YYYY-MM-DD HH:mm';                                        // >1d
+    }
+  }
+
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
-
-    // 若时间大于等于1天，则显示月日时分秒
-    let formatStr = 'MM-DD';
-    if (buckets.length > 1) {
-      const diff = buckets[1].key - buckets[0].key;
-      // 若时间间隔小于1秒，则显示毫秒级时间
-      if (diff < 1000) {
-        formatStr = 'HH:mm:ss.SSS';
-      } 
-      // 若时间间隔小于1天，则显示时分秒
-      else if (diff < 24 * 60 * 60 * 1000) {
-        formatStr = 'HH:mm:ss';
-      }
-    }
-
     let count = 0;
+    
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
     if (isInit) {
       dataset.clear();
@@ -281,23 +291,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const setDefaultData = (aggs?, isInit?) => {
     let opt_data = new Map<Number, Number[]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
-
-    // 若时间大于等于1天，则显示月日时分秒
-    let formatStr = 'MM-DD';
-    if (buckets.length > 1) {
-      const diff = buckets[1].key - buckets[0].key;
-      // 若时间间隔小于1秒，则显示毫秒级时间
-      if (diff < 1000) {
-        formatStr = 'HH:mm:ss.SSS';
-      } 
-      // 若时间间隔小于1天，则显示时分秒
-      else if (diff < 24 * 60 * 60 * 1000) {
-        formatStr = 'HH:mm:ss';
-      }
-    }
-
     const series = [];
     let count = 0;
+
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
     if (!isInit) {
       (options.series[0]?.data ?? []).forEach(item => {
@@ -371,11 +369,47 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return;
     }
 
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
+
     // options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
+
+    // 格式化tooltip
+    options.tooltip.formatter = function (params) {
+      // 获取开始时间
+      const timeStart = xLabelMap.get(params[0].value[0]);
+
+      // 计算结束时间：起始时间 + runningInterval
+      const startTimestamp = params[0].value[0]; // 时间戳
+      const intervalSeconds = getIntervalValue(runningInterval);
+      const endTimestamp = startTimestamp + (intervalSeconds * 1000); // 转换为毫秒
+      const timeEnd = dayjs(endTimestamp).format(formatStr);
+
+      const value = params[0].value[1] || 0;
+      const seriesName = params[0].seriesName;
+      const color = params[0].color;
+      
+      return `
+        <div>
+          <div>${timeStart} - ${timeEnd}</div>
+          <div style="display: flex; align-items: center; margin-top: 4px;">
+            <span style="
+              display: inline-block; 
+              width: 10px; 
+              height: 10px; 
+              background-color: ${color}; 
+              border-radius: 50%; 
+            "></span>
+            <span style="flex: 1;">${seriesName}</span>
+            <span style="font-weight: bold;">${abbreviateNumber(value)}</span>
+          </div>
+        <div>
+      `;
+    };
 
     chartInstance.setOption(options, { notMerge });
     nextTick(() => {
@@ -434,6 +468,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       cachedBatch = null;
     }
   };
+  
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);

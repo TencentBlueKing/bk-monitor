@@ -136,6 +136,7 @@ export default {
     },
     extraCssText: 'border-radius: 4px',
     appendToBody: true,
+    formatter: null,
   },
   toolbox: {
     showTitle: false,

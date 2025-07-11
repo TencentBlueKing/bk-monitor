@@ -191,8 +191,10 @@ export default defineComponent({
         {
           params: { index_set_id: indexId },
           data: queryData,
-          signal: controller.signal,
         },
+        {
+          signal: controller.signal,
+        }
       );
     };
 
@@ -303,7 +305,7 @@ export default defineComponent({
               // 继续下一步
               nextStep();
             })
-            .catch(() => {
+            .catch(err => {
               isStart.value = false;
               finishPolling.value = true;
               store.commit('retrieve/updateTrendDataLoading', false);
