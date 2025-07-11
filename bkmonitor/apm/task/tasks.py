@@ -43,6 +43,7 @@ from apm.models import (
 )
 from apm.utils.report_event import EventReportHelper
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -158,8 +159,12 @@ def refresh_apm_config():
 
 
 def refresh_apm_platform_config():
-    PlatformConfig.refresh()
-    PlatformConfig.refresh_k8s()
+    for tenant in api.bk_login.list_tenant():
+        try:
+            PlatformConfig.refresh(tenant["id"])
+            PlatformConfig.refresh_k8s(tenant["id"])
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[refresh_apm_platform_config]: refresh tenant_id({tenant}) platform config error({e})")
 
 
 @app.task(ignore_result=True, queue="celery_cron")

@@ -12,6 +12,7 @@ import logging
 
 from django.conf import settings
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
@@ -22,16 +23,28 @@ class BkCollectorConfig:
     PLUGIN_NAME = "bk-collector"
 
     @classmethod
-    def get_target_hosts(cls) -> list[int]:
+    def get_target_host_in_default_cloud_area(cls) -> list[int]:
         """
-        查询云区域下所有的Proxy机器列表
+        获取全局配置中的主机ID，这些主机需在默认租户下
         """
         bk_host_ids = []
-        hosts = api.cmdb.get_host_without_biz(ips=settings.CUSTOM_REPORT_DEFAULT_PROXY_IP)["hosts"]
+        proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        if not proxy_ips:
+            logger.info("no proxy host in direct area, skip it")
+            return bk_host_ids
+
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=DEFAULT_TENANT_ID, ips=proxy_ips)["hosts"]
         hosts = [host for host in hosts if host["bk_cloud_id"] == 0]
         bk_host_ids.extend([host["bk_host_id"] for host in hosts])
+        return bk_host_ids
 
-        cloud_infos = api.cmdb.search_cloud_area()
+    @classmethod
+    def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id) -> list[int]:
+        """
+        查询云区域下所有的Proxy机器列表 (不包含直连区域)
+        """
+        bk_host_ids = []
+        cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
         for cloud_info in cloud_infos:
             bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
             if int(bk_cloud_id) == 0:
@@ -49,16 +62,8 @@ class BkCollectorConfig:
         return bk_host_ids
 
     @classmethod
-    def get_target_host_in_default_cloud_area(cls) -> list[int]:
-        bk_host_ids = []
-        hosts = api.cmdb.get_host_without_biz(ips=settings.CUSTOM_REPORT_DEFAULT_PROXY_IP)["hosts"]
-        hosts = [host for host in hosts if host["bk_cloud_id"] == 0]
-        bk_host_ids.extend([host["bk_host_id"] for host in hosts])
-        return bk_host_ids
-
-    @classmethod
-    def get_target_host_ids_by_biz_id(cls, bk_biz_id) -> list[int]:
-        proxies = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+    def get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id) -> list[int]:
+        proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
         proxy_hosts = []
         for proxy_biz_id in proxy_biz_ids:

@@ -31,6 +31,7 @@ from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from constants.apm import BkCollectorComp, SpanKindKey
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
@@ -45,25 +46,33 @@ class PlatformConfig(BkCollectorConfig):
 
     PLUGIN_PLATFORM_CONFIG_TEMPLATE_NAME = "bk-collector-platform.conf"
 
-    @classmethod
-    def refresh(cls):
-        """
-        [旧] 下发平台默认配置到主机上 （通过节点管理）
-        """
-        bk_host_ids = cls.get_target_hosts()
-        if not bk_host_ids:
-            logger.info("no bk-collector node, otlp is disabled")
-            return
+    def __init__(self, bk_tenant_id: str):
+        self.bk_tenant_id = bk_tenant_id
 
+    @classmethod
+    def refresh(cls, bk_tenant_id: str):
+        """
+        [主机下发模式：待废弃] 下发平台默认配置到主机上 （通过节点管理）
+        """
+        # 1. 获取配置上下文
         platform_config = cls.get_platform_config()
 
+        # 2. 下发给默认的全局接收配置主机（这些主机必须在默认租户的直连区域下）
+        bk_host_ids = cls.get_target_host_in_default_cloud_area()
         try:
-            cls.deploy_to_nodeman(platform_config, bk_host_ids)
+            cls.deploy_to_nodeman(DEFAULT_TENANT_ID, platform_config, bk_host_ids)
         except Exception:  # noqa
-            logger.exception("auto deploy bk-collector platform config error")
+            logger.exception(f"auto deploy DEFAULT_TENANT_ID({DEFAULT_TENANT_ID}) bk-collector platform config error")
+
+        # 3. 下发给给定租户下
+        proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
+        try:
+            cls.deploy_to_nodeman(bk_tenant_id, platform_config, proxy_bk_host_ids)
+        except Exception:  # noqa
+            logger.exception(f"auto deploy DEFAULT_TENANT_ID({DEFAULT_TENANT_ID}) bk-collector platform config error")
 
     @classmethod
-    def refresh_k8s(cls):
+    def refresh_k8s(cls, bk_tenant_id: str):
         """
         下发平台默认配置到 K8S 集群
 
@@ -407,10 +416,14 @@ class PlatformConfig(BkCollectorConfig):
         ]
 
     @classmethod
-    def deploy_to_nodeman(cls, platform_config, bk_host_ids):
+    def deploy_to_nodeman(cls, bk_tenant_id, platform_config, bk_host_ids):
         """
         下发bk-collector的平台配置
         """
+        if not bk_host_ids:
+            logger.info("no bk-collector node, otlp is disabled")
+            return
+
         scope = {
             "object_type": "HOST",
             "node_type": "INSTANCE",
@@ -432,7 +445,9 @@ class PlatformConfig(BkCollectorConfig):
             ],
         }
 
-        platform_subscription = SubscriptionConfig.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="")
+        platform_subscription = SubscriptionConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name=""
+        )
         if platform_subscription.exists():
             try:
                 logger.info("apm platform config subscription task already exists.")
@@ -459,6 +474,7 @@ class PlatformConfig(BkCollectorConfig):
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
                 SubscriptionConfig.objects.create(
+                    bk_tenant_id=bk_tenant_id,
                     bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
                     app_name="",
                     config=subscription_params,
@@ -466,7 +482,7 @@ class PlatformConfig(BkCollectorConfig):
                 )
 
                 result = api.node_man.run_subscription(
-                    subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
+                    bk_tenant_id=bk_tenant_id, subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
                 )
                 logger.info(f"run apm platform config subscription result:{result}")
             except Exception as e:  # noqa
