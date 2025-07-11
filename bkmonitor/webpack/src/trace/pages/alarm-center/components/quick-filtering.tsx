@@ -27,6 +27,7 @@
 import { defineComponent, ref as deepRef, watch, type PropType, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import EmptyStatus from '@/components/empty-status/empty-status';
 import { useDebounceFn } from '@vueuse/core';
 import { Tree, type TreeNodeValue } from 'tdesign-vue-next';
 
@@ -221,6 +222,13 @@ export default defineComponent({
           </div>
         ) : (
           <div class='filter-list'>
+            {!this.showFilterList.length && (
+              <EmptyStatus
+                showOperation={false}
+                textMap={{ 'search-empty': this.t('暂无告警') }}
+                type='search-empty'
+              />
+            )}
             {this.showFilterList.map(item => (
               <div
                 key={item.id}

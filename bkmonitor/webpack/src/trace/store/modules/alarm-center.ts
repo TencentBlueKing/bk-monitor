@@ -78,6 +78,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     {
       conditions?: CommonCondition[];
       queryString?: string;
+      quickFilterValue?: CommonCondition[];
     }
   > = new Map();
 
@@ -142,16 +143,22 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   });
   watch(
     alarmType,
-    () => {
-      cacheMap.set(alarmType.value, {
+    (newVal, oldVal) => {
+      cacheMap.set(oldVal, {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
         queryString: JSON.parse(JSON.stringify(queryString.value)),
+        quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
       });
       alarmService.value = AlarmServiceFactory(alarmType.value);
-      const cache = cacheMap.get(alarmType.value);
+      const cache = cacheMap.get(newVal);
       if (cache) {
         conditions.value = cache.conditions;
         queryString.value = cache.queryString;
+        quickFilterValue.value = cache.quickFilterValue;
+      } else {
+        conditions.value = [];
+        queryString.value = '';
+        quickFilterValue.value = [];
       }
     },
     {

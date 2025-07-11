@@ -68,12 +68,13 @@ export default defineComponent({
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
+    const params = computed(() => props.params);
 
     const { options, loading, metricList, targets, series } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
-      props.params,
+      params,
       props.formatterData
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
