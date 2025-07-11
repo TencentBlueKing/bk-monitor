@@ -127,16 +127,15 @@ class BaseQueryTransformer(BaseTreeTransformer):
                 ipv6 = exploded_ip(node.expr.value.strip('"'))
                 node.expr.value = f'"{ipv6}"'
 
-            yield from self.generic_visit(
-                node, {"search_field_name": node.name, "search_field_origin_name": origin_node_name}
-            )
+            context.update({"search_field_name": node.name, "search_field_origin_name": origin_node_name})
+            yield from self.generic_visit(node, context)
 
     @classmethod
-    def transform_query_string(cls, query_string: str):
-        def parse_query_string_node(_transform_obj, _query_string):
+    def transform_query_string(cls, query_string: str, context=None):
+        def parse_query_string_node(_transform_obj, _query_string, _context):
             try:
                 query_node = parser.parse(_query_string, lexer=lexer.clone())
-                return _transform_obj.visit(query_node)
+                return _transform_obj.visit(query_node, _context)
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})
 
@@ -147,7 +146,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         if is_include_promql(query_string):
             # 包含promql语句，可能会报语法错误，需要尝试转换
             query_string = cls.convert_metric_id(query_string)
-        query_tree = parse_query_string_node(transform_obj, query_string)
+        query_tree = parse_query_string_node(transform_obj, query_string, context)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
             # 如果有嵌套字段，就不能用 query_string 查询了，需要转成 dsl（dsl 模式并不能完全兼容 query_string，只是折中方案）
@@ -363,7 +362,7 @@ class BaseQueryHandler:
 
         return search_object
 
-    def add_query_string(self, search_object: Search, query_string: str = None):
+    def add_query_string(self, search_object: Search, query_string: str = None, context=None):
         """
         处理 query_string
         """
@@ -372,7 +371,7 @@ class BaseQueryHandler:
         query_string = process_metric_string(query_string)
 
         if query_string.strip():
-            query_dsl = self.query_transformer.transform_query_string(query_string)
+            query_dsl = self.query_transformer.transform_query_string(query_string, context)
             if isinstance(query_dsl, str):
                 # 如果 query_dsl 是字符串，就使用 query_string 查询
                 search_object = search_object.query("query_string", query=query_dsl)

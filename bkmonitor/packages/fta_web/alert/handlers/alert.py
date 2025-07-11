@@ -165,7 +165,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
 
             yield from self.generic_visit(node, context)
 
-    def _process_not_search_field_name(self, node: Word, context: dict) -> tuple | None:
+    def _process_not_search_field_name(self, node: Word, context: dict) -> tuple:
         search_field_name = context.get("search_field_name")
         if search_field_name:
             return None, None
@@ -187,7 +187,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             node.value = f'"{node.value}"'
         return node, context
 
-    def _process_value_translate_fields(self, node: Word, context: dict) -> tuple | None:
+    def _process_value_translate_fields(self, node: Word, context: dict) -> tuple:
         """处理值翻译字段"""
         search_field_name = context.get("search_field_name")
         if search_field_name not in self.VALUE_TRANSLATE_FIELDS:
@@ -200,7 +200,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
 
         return node, context
 
-    def _process_action_id(self, node: Word, context: dict) -> tuple | None:
+    def _process_action_id(self, node: Word, context: dict) -> tuple:
         """
         处理动作ID
         """
@@ -225,7 +225,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             return node, context
         return None, None
 
-    def _process_converge_id(self, node: Word, context: dict) -> tuple | None:
+    def _process_converge_id(self, node: Word, context: dict) -> tuple:
         """处理收敛ID"""
         search_field_name = context.get("search_field_name")
         if search_field_name == "id" and context.get("search_field_origin_name") in [
@@ -252,7 +252,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             return node, context
         return None, None
 
-    def _process_event_ipv6(self, node: Word, context: dict) -> tuple | None:
+    def _process_event_ipv6(self, node: Word, context: dict) -> tuple:
         """处理事件IPv6"""
         search_field_name = context.get("search_field_name")
         if search_field_name == "event.ipv6":
@@ -261,27 +261,74 @@ class AlertQueryTransformer(BaseQueryTransformer):
             return node, context
         return None, None
 
-    def _process_module_id(self, node: Word, context: dict) -> tuple | None:
+    def _process_module_id(self, node: Word, context: dict) -> tuple:
         """处理模块ID"""
         search_field_name = context.get("search_field_name")
         search_field_origin_name = context.get("search_field_origin_name")
-        if search_field_name == "event.bk_topo_node" and search_field_origin_name in ["module_id", _("模块ID")]:
+        bk_biz_ids = set(context.get("bk_biz_ids", []))
+
+        is_need_process = search_field_name == "event.bk_topo_node" and search_field_origin_name in [
+            "module_id",
+            _("模块ID"),
+        ]
+
+        if not is_need_process:
+            return None, None
+
+        # 如果值不是数字，则将其作为模块名，并尝试查询对应的模块ID
+        if not node.value.isdigit():
+            values = resource.commons.get_topo_list(
+                bk_biz_ids=bk_biz_ids,
+                bk_obj_id="module",
+                condition={"bk_module_name": node.value},
+            )
+
+            if len(values) == 1:
+                node.value = f"module|{values[0]['bk_module_id']}"
+            elif len(values) > 1:
+                node = FieldGroup(OrOperation(*[Word(f"module|{value['bk_module_id']}") for value in values]))
+            else:
+                node.value = "module|''"
+
+        else:
             node.value = f"module|{node.value}"
-            context.update({"ignore_search_field": True, "ignore_word": True})
 
-            return node, context
-        return None, None
+        context.update({"ignore_search_field": True, "ignore_word": True})
+        return node, context
 
-    def _process_set_id(self, node: Word, context: dict) -> tuple | None:
+    def _process_set_id(self, node: Word, context: dict) -> tuple:
         """处理集群ID"""
         search_field_name = context.get("search_field_name")
         search_field_origin_name = context.get("search_field_origin_name")
-        if search_field_name == "event.bk_topo_node" and search_field_origin_name in ["set_id", _("集群ID")]:
-            node.value = f"set|{node.value}"
-            context.update({"ignore_search_field": True, "ignore_word": True})
+        bk_biz_ids = context.get("bk_biz_ids")
 
-            return node, context
-        return None, None
+        is_need_process = search_field_name == "event.bk_topo_node" and search_field_origin_name in [
+            "set_id",
+            _("集群ID"),
+        ]
+
+        if not is_need_process:
+            return None, None
+
+        if not node.value.isdigit():
+            values = resource.commons.get_topo_list(
+                bk_biz_ids=bk_biz_ids,
+                bk_obj_id="set",
+                condition={"bk_set_name": node.value},
+            )
+
+            if len(values) == 1:
+                node.value = f"set|{values[0]['bk_set_id']}"
+            elif len(values) > 1:
+                node = FieldGroup(OrOperation(*[Word(f"set|{value['bk_set_id']}") for value in values]))
+            else:
+                node.value = "set|''"
+
+        else:
+            node.value = f"set|{node.value}"
+
+        context.update({"ignore_search_field": True, "ignore_word": True})
+        return node, context
 
 
 class AlertQueryHandler(BaseBizQueryHandler):
@@ -387,9 +434,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
+        # 构建上下午查询信息
+        context = {
+            "bk_biz_ids": self.bk_biz_ids,
+        }
+
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object)
+        search_object = self.add_query_string(search_object, context=context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 

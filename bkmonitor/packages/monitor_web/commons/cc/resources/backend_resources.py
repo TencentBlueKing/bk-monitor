@@ -689,8 +689,9 @@ class GetTopoListResource(Resource):
     """获取模块、集群节点ID列表"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
+        bk_biz_ids = serializers.ListField(label="业务ID列表", child=serializers.IntegerField())
         bk_obj_id = serializers.CharField(label="对象ID")
+        condition = serializers.JSONField(label="查询条件", required=False, default={})
         OBJ_ID_CHOOSE = ("module", "set")
 
         def validate(self, attrs):
@@ -699,18 +700,46 @@ class GetTopoListResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
+        bk_biz_ids = set(validated_request_data["bk_biz_ids"])
+        # todo 过滤有效业务ID
         bk_obj_id = validated_request_data["bk_obj_id"]
+        condition = validated_request_data.get("condition")
         fun_map = {"module": self.get_modules, "set": self.get_sets}
 
-        return fun_map[bk_obj_id](bk_biz_id)
+        return fun_map[bk_obj_id](bk_biz_ids, condition)
 
-    @staticmethod
-    def get_modules(bk_biz_id):
-        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, fields=["bk_module_id", "bk_module_name"])
-        return [{"id": m.bk_module_id, "name": m.bk_module_name} for m in modules]
+    def get_modules(self, bk_biz_ids: list[int], condition: dict | None = None):
+        module_list = []
+        fields = ["bk_module_id", "bk_module_name", "bk_biz_id"]
+        params = self._get_query_params(bk_biz_ids, fields, condition)
+        for modules in api.cmdb.get_module.bulk_request(params, ignore_exceptions=True):
+            for m in modules:
+                module_list.append(self._get_attr_value(m, fields))
+        return module_list
 
-    @staticmethod
-    def get_sets(bk_biz_id):
-        hosts = api.cmdb.get_set(bk_biz_id=bk_biz_id, fields=["bk_set_id", "bk_set_name"])
-        return [{"id": h.bk_set_id, "name": h.bk_set_name} for h in hosts]
+    def get_sets(self, bk_biz_ids: list[int], condition: dict | None = None):
+        set_list = []
+        fields = ["bk_set_id", "bk_set_name", "bk_biz_id"]
+        params = self._get_query_params(bk_biz_ids, fields, condition)
+        for sets in api.cmdb.get_set.bulk_request(params, ignore_exceptions=True):
+            for s in sets:
+                set_list.append(self._get_attr_value(s, fields))
+        return set_list
+
+    def _get_query_params(self, bk_biz_ids, fields, condition=None):
+        query_params = []
+        for biz_id in bk_biz_ids:
+            param = {"bk_biz_id": biz_id, "fields": fields}
+            if condition:
+                param["condition"] = condition
+            query_params.append(param)
+        return query_params
+
+    def _get_attr_value(self, obj, attr_names: list):
+        res = {}
+        for attr in attr_names:
+            if hasattr(obj, attr):
+                res[attr] = getattr(obj, attr)
+            else:
+                res[attr] = obj._extra_attr.get(attr)
+        return res
