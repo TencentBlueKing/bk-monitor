@@ -14,7 +14,7 @@ GREP_SYNTAX_CASE = [
     'grep -i "error" | grep -v "test"',
     'grep "hello\\"world"',
     "grep -i critical\ error",
-    'grep -v "info" | egrep -i "error" | grep "failed"',
+    'grep -v "info" | egrep -i "error" | grep   "failed"',
     '-v "success"',
     "egrep -i 'OOM' | grep -v \"kill\"",
     'egrep "error|warning"',
