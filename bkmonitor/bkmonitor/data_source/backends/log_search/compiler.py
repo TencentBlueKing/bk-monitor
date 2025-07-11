@@ -82,7 +82,7 @@ class SQLCompiler(compiler.SQLCompiler):
                     continue
 
                 # 转义特殊字符
-                values = self.escape_es_special_chars(values)
+                values = self.escape_es_special_chars(values, many=True)
 
                 # 映射操作符到查询语法模板
                 connector = "OR"
@@ -129,11 +129,11 @@ class SQLCompiler(compiler.SQLCompiler):
         return query_string
 
     @staticmethod
-    def escape_es_special_chars(values: list) -> list:
+    def escape_es_special_chars(chars, many=False) -> list | str:
         """安全转义Elasticsearch特殊字符"""
 
-        if not isinstance(values, list):
-            values = [values]
+        if many is True and not isinstance(chars, list):
+            chars = [chars]
 
         regex = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
         special_chars = re.compile(regex)
@@ -148,7 +148,9 @@ class SQLCompiler(compiler.SQLCompiler):
 
             return special_chars.sub(r"\\\1", str(s))
 
-        return [escape_char(value) for value in values]
+        if not many:
+            return escape_char(chars)
+        return [escape_char(value) for value in chars]
 
     def as_sql(self):
         bk_tenant_id = self.query.bk_tenant_id
