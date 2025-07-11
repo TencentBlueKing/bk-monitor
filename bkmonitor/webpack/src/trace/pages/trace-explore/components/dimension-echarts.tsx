@@ -121,8 +121,8 @@ export default defineComponent({
       if (props.isDuration) {
         const nameVal = params[0].name.split('-');
         const [start, end] = nameVal;
-        const startLabel = formatDuration(Number(start || 0));
-        const endLabel = formatDuration(Number(end || 0));
+        const startLabel = formatDuration(Number(start || 0), '', '');
+        const endLabel = formatDuration(Number(end || 0), '', '');
         name = `${startLabel} - ${endLabel}`;
         value = params[0].value[1];
       }
@@ -177,6 +177,7 @@ export default defineComponent({
             },
             xAxis: {
               type: 'category',
+              boundaryGap: true,
               show: false,
             },
             tooltip: {
