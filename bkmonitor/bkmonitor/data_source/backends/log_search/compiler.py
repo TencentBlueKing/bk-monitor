@@ -27,7 +27,6 @@ class SQLCompiler(compiler.SQLCompiler):
     SELECT_RE = re.compile(
         r"(?P<agg_method>[^\( ]+)[\( ]+" r"(?P<metric_field>[^\) ]+)[\) ]+" r"([ ]?as[ ]+(?P<metric_alias>[^ ]+))?"
     )
-    ESCAPE_CHAR = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
     DEFAULT_AGG_METHOD = "count"
     DEFAULT_METRIC_FIELD = "_index"
     DEFAULT_METRIC_ALIAS = "count"
@@ -83,7 +82,7 @@ class SQLCompiler(compiler.SQLCompiler):
                     continue
 
                 # 转义特殊字符
-                values = [self.ESCAPE_CHAR.sub(r"\\\1", value) for value in values]
+                values = self.escape_es_special_chars(values)
 
                 # 映射操作符到查询语法模板
                 connector = "OR"
@@ -128,6 +127,28 @@ class SQLCompiler(compiler.SQLCompiler):
             query_string = f"({query_string})"
 
         return query_string
+
+    @staticmethod
+    def escape_es_special_chars(values: list) -> list:
+        """安全转义Elasticsearch特殊字符"""
+
+        if not isinstance(values, list):
+            values = [values]
+
+        regex = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
+        special_chars = re.compile(regex)
+        escaped_special_chars = re.compile(rf"\\({regex})")
+
+        def escape_char(s):
+            if not isinstance(s, str):
+                return s
+
+            # 避免双重转义：先移除已有转义
+            s = escaped_special_chars.sub(r"\1", s)
+
+            return special_chars.sub(r"\\\1", str(s))
+
+        return [escape_char(value) for value in values]
 
     def as_sql(self):
         bk_tenant_id = self.query.bk_tenant_id
