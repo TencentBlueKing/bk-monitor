@@ -26,9 +26,9 @@
 
 import { defineComponent, useTemplateRef, watch, onUnmounted, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import { useEventListener } from '@vueuse/core';
-import tippy from 'tippy.js';
 
 import { isEn } from '../../i18n/i18n';
 import AutoWidthInput from './auto-width-input';
@@ -38,7 +38,6 @@ import UiSelectorOptions from './ui-selector-options';
 import { getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
-import 'tippy.js/dist/tippy.css';
 export default defineComponent({
   name: 'UiSelector',
   props: UI_SELECTOR_PROPS,
@@ -89,8 +88,8 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',

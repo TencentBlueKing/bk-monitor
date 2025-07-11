@@ -883,7 +883,10 @@ export default defineComponent({
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
                 isDefaultResidentSetting={this.isDefaultResidentSetting}
+                isShowClear={true}
+                isShowCopy={true}
                 isShowFavorite={true}
+                isShowResident={true}
                 placeholder={this.retrievalFilterPlaceholder}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}

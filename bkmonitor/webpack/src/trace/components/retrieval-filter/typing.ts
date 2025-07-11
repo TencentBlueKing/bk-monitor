@@ -256,10 +256,12 @@ export const qsSelectorOptionsDescMap = {
 };
 
 export const RETRIEVAL_FILTER_PROPS = {
+  // 字段列表
   fields: {
     type: Array as PropType<IFilterField[]>,
     default: () => [],
   },
+  // 检索值候选项获取
   getValueFn: {
     type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
     default: () =>
@@ -316,6 +318,26 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  // 是否需要常驻设置功能
+  isShowResident: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要复制功能
+  isShowCopy: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要清空功能
+  isShowClear: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要最右侧的搜索按钮
+  isShowSearchBtn: {
+    type: Boolean,
+    default: true,
+  },
   // 当前默认是否展示常驻设置
   defaultShowResidentBtn: {
     type: Boolean,
@@ -329,6 +351,11 @@ export const RETRIEVAL_FILTER_PROPS = {
   placeholder: {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
+  // 只包含ui模式
+  onlyUiMode: {
+    type: Boolean,
+    default: false,
   },
   // 为了支持外部各类where条件格式可以自定义格式
   // 将自定义格式转换为组件内支持格式

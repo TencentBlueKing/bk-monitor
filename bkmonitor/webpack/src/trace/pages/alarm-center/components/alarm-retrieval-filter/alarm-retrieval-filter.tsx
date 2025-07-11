@@ -100,6 +100,9 @@ export default defineComponent({
         fields={this.fields}
         filterMode={this.filterMode}
         getValueFn={this.getRetrievalFilterValueData}
+        isShowClear={true}
+        isShowCopy={true}
+        isShowResident={true}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
         where={this.condition}
