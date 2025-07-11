@@ -42,7 +42,7 @@ import './grep-cli.scss';
 
 export default defineComponent({
   name: 'GrepView',
-  components: { 
+  components: {
     GrepCli,
     GrepCliResult,
   },
@@ -264,7 +264,7 @@ export default defineComponent({
     };
 
     RetrieveHelper.on([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    RetrieveHelper.on([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
       if (isParamsChange) {
@@ -294,6 +294,7 @@ export default defineComponent({
       RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, handleRequestResult);
       RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
       RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, handleRequestResult);
+      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, handleRequestResult);
     });
 
     return () => (
