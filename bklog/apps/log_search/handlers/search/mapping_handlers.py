@@ -598,7 +598,9 @@ class MappingHandlers:
             return
 
         result_table_ids = self.indices.split(",")
-        result_tables = BkDataMetaApi.get_result_tables({"result_table_ids": result_table_ids, "related": ["storages"]})
+        result_tables = BkDataMetaApi.result_tables.list(
+            {"result_table_ids": result_table_ids, "related": ["storages"]}
+        )
         result_table_mappings = {}
         for item in result_tables:
             tokenizers = json.loads(item.get("storages", {}).get("es", {}).get("storage_config", "{}")).get(
