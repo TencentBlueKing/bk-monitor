@@ -269,11 +269,11 @@ export default class AlarmDetail extends Vue {
     this.selectedDimension = this.eventDetail.dimensions?.map(item => item.key) || []; // 默认选中所有维度信息
     this.handleSetRadioList();
     this.shieldContent = [
-      {
-        type: 'event',
-        name: this.$tc('级别'),
-        value: this.eventDetail.levelName,
-      },
+      // {
+      //   type: 'event',
+      //   name: this.$tc('级别'),
+      //   value: this.eventDetail.levelName,
+      // },
       {
         type: 'event',
         name: this.$tc('维度'),

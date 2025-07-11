@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
-import { formatDateNanos, formatDate, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -214,7 +214,7 @@ export default defineComponent({
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: formatDateValue(row[timeField.value], timeFieldType.value),
+                  innerHTML: RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value),
                 },
               },
               [],
@@ -458,26 +458,6 @@ export default defineComponent({
         },
       ];
     });
-
-    const formatDateValue = (data, field_type, regMatchFn?) => {
-      const formatFn = {
-        date: formatDate,
-        date_nanos: formatDateNanos,
-      };
-
-      if (formatFn[field_type]) {
-        if (/^<mark>(\d+)<\/mark>$/i.test(data)) {
-          return data.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
-            return regMatchFn?.(formatFn[field_type](Number(p1))) ?? `<mark>${formatFn[field_type](Number(p1))}</mark>`;
-          });
-        }
-
-        if (/^\d+$/.test(data)) {
-          return formatFn[field_type](Number(data)) || data || '--';
-        }
-      }
-      return data;
-    };
 
     const { handleOperation } = useTextAction(emit, 'origin');
 

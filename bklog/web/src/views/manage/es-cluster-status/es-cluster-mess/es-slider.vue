@@ -594,7 +594,7 @@
 
   import EsDialog from './es-dialog';
 
-  export default {
+  export default { 
     components: {
       EsDialog,
       BkUserSelector,

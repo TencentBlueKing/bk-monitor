@@ -51,6 +51,9 @@ import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import { BK_LOG_STORAGE } from './store/store.type';
 
+import VueVirtualScroller from 'vue-virtual-scroller'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+
 Vue.prototype.$renderHeader = renderHeader;
 
 const setRouterErrorHandle = router => {
@@ -68,6 +71,7 @@ Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
+Vue.use(VueVirtualScroller)
 
 const mountedVueInstance = () => {
   window.mainComponent = {

@@ -222,12 +222,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)
             return
 
-        # 更新告警所属故障
-        snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot)
-
         # 生成故障快照记录
         try:
             if snapshot:
+                # 更新告警所属故障
+                snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot)
+
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
