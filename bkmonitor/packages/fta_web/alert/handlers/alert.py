@@ -15,6 +15,7 @@ from collections import defaultdict
 from functools import reduce
 from itertools import chain
 
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
@@ -23,6 +24,7 @@ from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
+from bkmonitor.models.fta.action import ActionConfig
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
@@ -134,6 +136,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("ack_duration", _lazy("确认时间")),
         QueryField("data_type", _lazy("数据类型"), es_field="event.data_type"),
         QueryField("action_id", _lazy("处理记录ID"), es_field="id"),
+        QueryField("action_name", _lazy("处理套餐名称"), es_field="id"),
         QueryField("converge_id", _lazy("收敛记录ID"), es_field="id"),
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
         QueryField("plugin_id", _lazy("告警来源"), es_field="event.plugin_id", is_char=True),
@@ -152,6 +155,32 @@ class AlertQueryTransformer(BaseQueryTransformer):
                     # 尝试将匹配翻译值，并转换回原值
                     if display == node.value:
                         node.value = str(value)
+
+            # 用于支持对处理套餐名称的查询
+            elif search_field_name == "id" and context.get("search_field_origin_name") in [
+                "action_name",
+                _("处理套餐名称"),
+            ]:
+                action_config_ids = ActionConfig.objects.filter(
+                    name=node.value, bk_biz_id__in=context.get("bk_biz_ids", [])
+                ).values_list("id", flat=True)
+
+                # 获取开始时间,没有则取7天前的时间
+                if context.get("start_time"):
+                    start_time = context.get("start_time")
+                else:
+                    start_time = int(time.time()) - 7 * 24 * 60 * 60
+
+                start_time = timezone.datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+                alert_id_ids = ActionInstance.objects.filter(
+                    action_config_id__in=action_config_ids, create_time__gte=start_time
+                ).values_list("alerts", flat=True)
+                alert_ids = set(chain.from_iterable(alert_id_ids))
+                node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
+                context = {"ignore_search_field": True, "ignore_word": True}
+
+            # 特殊处理动作ID字段：从动作实例提取关联告警ID
             elif search_field_name == "id" and context.get("search_field_origin_name") in [
                 "action_id",
                 _("处理记录ID"),
@@ -313,9 +342,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
+        # 构建上下文信息
+        context = {
+            "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
+        }
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object)
+        search_object = self.add_query_string(search_object, context=context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 
@@ -856,6 +890,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 去掉无用字段
         cleaned_data.pop("action_id", None)
+        cleaned_data.pop("action_name", None)
 
         # 额外字段
         cleaned_data.update(
