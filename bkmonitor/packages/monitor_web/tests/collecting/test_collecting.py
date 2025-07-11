@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import os
 
-import mock
+from unittest import mock
 from django.test import TestCase
 
 from bkmonitor.utils.local import local
@@ -27,9 +25,60 @@ from monitor_web.models import (
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.custom_report import CustomEventGroup, CustomEventItem
 from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.collecting.deploy import get_collect_installer
+from packages.monitor_web.collecting.resources.backend import SaveCollectConfigResource
+from unittest.mock import patch
+
+PLUGIN_ID = "plugin_01"
+
+DATA = {
+    "name": "name626",
+    "bk_biz_id": 2,
+    "collect_type": "Script",
+    "target_object_type": "HOST",
+    "target_node_type": "INSTANCE",
+    "plugin_id": PLUGIN_ID,
+    "target_nodes": [{"bk_host_id": 54}, {"bk_host_id": 587}],
+    "remote_collecting_host": None,
+    "params": {"collector": {"period": 60, "timeout": 60}, "plugin": {}},
+    "label": "os",
+    "operation": "EDIT",
+    "metric_relabel_configs": [],
+}
+
+INSTALL_CONFIG = {
+    "name": "name626",
+    "bk_biz_id": 2,
+    "collect_type": "Script",
+    "target_object_type": "HOST",
+    "target_node_type": "INSTANCE",
+    "plugin_id": PLUGIN_ID,
+    "target_nodes": [{"bk_host_id": 54}, {"bk_host_id": 587}],
+    "remote_collecting_host": None,
+    "params": {
+        "collector": {"period": 60, "timeout": 60, "metric_relabel_configs": []},
+        "plugin": {},
+        "target_node_type": "INSTANCE",
+        "target_object_type": "HOST",
+    },
+    "label": "os",
+    "operation": "CREATE",
+}
+INSTALL_RESULT = {
+    "diff_node": {
+        "is_modified": True,
+        "added": [{"bk_host_id": 54}, {"bk_host_id": 587}],
+        "removed": [],
+        "unchanged": [],
+        "updated": [],
+    },
+    "can_rollback": False,
+    "id": 1,
+    "deployment_id": 1,
+}
 
 
-class Base(object):
+class Base:
     pass
 
 
@@ -87,8 +136,138 @@ class TestCollectingViewSet(TestCase):
 
         mock_api.side_effect = mock_request
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_file", "test.json")
-        with open(file_path, "r") as fp:
+        with open(file_path) as fp:
             post_data = json.load(fp)
         local.current_request = request
         content = resource.collecting.save_collect_config.request(post_data)
-        self.assert_(content["deployment_id"], DeploymentConfigVersion.objects.last().pk)
+        self.assertTrue(content["deployment_id"], DeploymentConfigVersion.objects.last().pk)
+
+
+class TestSaveCollectConfigResource(TestCase):
+    @patch("core.drf_resource.api.node_man.release_plugin", return_value="")
+    @patch("core.drf_resource.api.node_man.create_config_template", return_value="")
+    @patch("core.drf_resource.api.node_man.plugin_info", return_value=[{"md5": ""}])
+    @patch("core.drf_resource.api.node_man.register_package", return_value={"job_id": 1})
+    @patch("core.drf_resource.api.node_man.query_register_task", return_value={"message": "", "is_finish": 1})
+    @patch("core.drf_resource.api.node_man.upload", return_value={"name": "name_01"})
+    def test_perform_request(self, mock_1, mock_2, mock_3, mock_4, mock_5, mock_6):
+        CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
+        plugin_config = CollectorPluginConfig.objects.create(config_json=[])
+        plugin_info = CollectorPluginInfo.objects.create()
+        PluginVersionHistory.objects.create(
+            config_version=1,
+            info_version=1,
+            config_id=plugin_config.id,
+            info_id=plugin_info.id,
+            stage="release",
+            plugin_id=PLUGIN_ID,
+            bk_tenant_id="system",
+        )
+
+        SaveCollectConfigResource().perform_request(data=DATA)
+        items = DeploymentConfigVersion.objects.filter()
+        self.assertTrue(items.exists())
+
+
+class TestBaseInstaller(TestCase):
+    def setUp(self):
+        self.collect_config = CollectConfigMeta(
+            bk_tenant_id="system",
+            bk_biz_id=2,
+            name="name626",
+            last_operation="CREATE",
+            operation_result="PREPARING",
+            collect_type="Script",
+            plugin_id=PLUGIN_ID,
+            target_object_type="HOST",
+            label="os",
+        )
+        CollectorPluginMeta.objects.create(plugin_id=PLUGIN_ID, bk_biz_id=2, plugin_type="Pushgateway")
+        self.plugin_config = CollectorPluginConfig.objects.create(config_json=[])
+        self.plugin_info = CollectorPluginInfo.objects.create()
+        PluginVersionHistory.objects.create(
+            config_version=1,
+            info_version=1,
+            config_id=self.plugin_config.id,
+            info_id=self.plugin_info.id,
+            stage="release",
+            plugin_id=PLUGIN_ID,
+            bk_tenant_id="system",
+        )
+
+        self.installer = get_collect_installer(self.collect_config)
+
+    def test_create(self):
+        self._test_install()
+        self._test_instance_status()
+        self._test_retry()
+        self._test_upgrade()
+        self._test_rollback()
+        self._test_stop()
+        self._test_start()
+        self._test_update_status()
+        self._test_status()
+        self._test_revoke()
+        self._test_uninstall()
+
+    def _test_install(self):
+        self.assertEqual(self.installer.install(INSTALL_CONFIG, "CREATE"), INSTALL_RESULT)
+
+    def _test_stop(self):
+        self.installer.stop()
+        self.assertEqual(self.collect_config.last_operation, "STOP")
+
+    def _test_uninstall(self):
+        self._test_stop()
+        self.installer.uninstall()
+        item = CollectConfigMeta.objects.filter(bk_tenant_id="system", plugin_id=PLUGIN_ID)
+        self.assertFalse(item.exists())
+        item = DeploymentConfigVersion.objects.filter()
+        self.assertFalse(item.exists())
+
+    def _test_start(self):
+        self.installer.start()
+        self.assertEqual(self.collect_config.last_operation, "START")
+
+    @patch.object(CollectConfigMeta, "get_cache_data", return_value=1)
+    def _test_upgrade(self, mock_get_cache_data):
+        PluginVersionHistory.objects.create(
+            config_version=2,
+            info_version=2,
+            config_id=self.plugin_config.id,
+            info_id=self.plugin_info.id,
+            stage="release",
+            is_packaged=True,
+            plugin_id=PLUGIN_ID,
+            bk_tenant_id="system",
+        )
+
+        self.installer.upgrade({"collector": {}, "plugin": {}})
+        self.assertEqual(self.collect_config.last_operation, "UPGRADE")
+
+    def _test_rollback(self):
+        self.installer.rollback()
+        self.assertEqual(self.collect_config.last_operation, "ROLLBACK")
+
+    def _test_retry(self):
+        self.installer.retry()
+        self.assertEqual(self.collect_config.operation_result, "PREPARING")
+
+    @patch("core.drf_resource.api.node_man.revoke_subscription", return_value="")
+    def _test_revoke(self, mock_subscription):
+        self.installer.revoke(["host|instance|host|275"])
+        self.assertTrue(mock_subscription.called)
+
+    def _test_status(self):
+        result = self.installer.status(diff=True)
+        self.assertEqual(result[0]["child"][0]["action"], "install")
+
+    @patch("core.drf_resource.api.node_man.task_result_detail", return_value={"steps": []})
+    def _test_instance_status(self, mock_task_result_detail):
+        self.installer.instance_status("1")
+        self.assertTrue(mock_task_result_detail.called)
+
+    @patch("core.drf_resource.api.node_man.batch_task_result", return_value=[])
+    def _test_update_status(self, mock_batch_task_result):
+        self.installer.update_status()
+        self.assertTrue(mock_batch_task_result.called)
