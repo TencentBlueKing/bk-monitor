@@ -25,7 +25,7 @@ class BkCollectorConfig:
     @classmethod
     def get_target_host_in_default_cloud_area(cls) -> list[int]:
         """
-        获取全局配置中的主机ID，这些主机需在默认租户下
+        获取全局配置中的主机 ID，这些主机需在默认租户的直连区域下
         """
         bk_host_ids = []
         proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
@@ -41,7 +41,7 @@ class BkCollectorConfig:
     @classmethod
     def get_target_host_ids_by_bk_tenant_id(cls, bk_tenant_id) -> list[int]:
         """
-        查询云区域下所有的Proxy机器列表 (不包含直连区域)
+        获取指定租户下所有的 Proxy 机器列表 (不包含直连区域)
         """
         bk_host_ids = []
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
@@ -63,6 +63,9 @@ class BkCollectorConfig:
 
     @classmethod
     def get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id) -> list[int]:
+        """
+        获取指定租户指定业务下所有 Proxy 机器列表
+        """
         proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
         proxy_hosts = []

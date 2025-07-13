@@ -52,29 +52,26 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def refresh(cls, bk_tenant_id: str):
         """
-        [主机下发模式：待废弃] 下发平台默认配置到主机上 （通过节点管理）
+        [主机下发模式：待废弃] 下发平台默认配置到主机上（通过节点管理）
+        按租户：每个租户一份平台配置
         """
         # 1. 获取配置上下文
         platform_config = cls.get_platform_config()
 
-        # 2. 下发给默认的全局接收配置主机（这些主机必须在默认租户的直连区域下）
-        bk_host_ids = cls.get_target_host_in_default_cloud_area()
-        try:
-            cls.deploy_to_nodeman(DEFAULT_TENANT_ID, platform_config, bk_host_ids)
-        except Exception:  # noqa
-            logger.exception(f"auto deploy DEFAULT_TENANT_ID({DEFAULT_TENANT_ID}) bk-collector platform config error")
-
-        # 3. 下发给给定租户下
+        # 2. 下发给给定租户下
         proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
         try:
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                # 如果是 默认租户，需要增加全局配置中的主机
+                proxy_bk_host_ids += cls.get_target_host_in_default_cloud_area()
             cls.deploy_to_nodeman(bk_tenant_id, platform_config, proxy_bk_host_ids)
         except Exception:  # noqa
-            logger.exception(f"auto deploy DEFAULT_TENANT_ID({DEFAULT_TENANT_ID}) bk-collector platform config error")
+            logger.exception(f"auto deploy TENANT_ID({bk_tenant_id}) bk-collector platform config error")
 
     @classmethod
     def refresh_k8s(cls, bk_tenant_id: str):
         """
-        下发平台默认配置到 K8S 集群
+        下发平台默认配置到 K8S 集群（不区分租户，每个集群一份平台配置）
 
         # 1. 获取所有集群ID列表
         # 2. 针对每一个集群
