@@ -69,7 +69,7 @@ class PlatformConfig(BkCollectorConfig):
             logger.exception(f"auto deploy TENANT_ID({bk_tenant_id}) bk-collector platform config error")
 
     @classmethod
-    def refresh_k8s(cls, bk_tenant_id: str):
+    def refresh_k8s(cls):
         """
         下发平台默认配置到 K8S 集群（不区分租户，每个集群一份平台配置）
 

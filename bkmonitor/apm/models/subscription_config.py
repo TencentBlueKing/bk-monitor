@@ -21,6 +21,7 @@ logger = logging.getLogger("apm")
 class SubscriptionConfig(models.Model):
     """
     APM订阅ID记录
+    （平台配置 + 应用配置 共用一个 DB 记录表，bk_biz_id(0)+app_name("") 代表平台配置）
     """
 
     bk_tenant_id = models.CharField(verbose_name="租户ID", default=DEFAULT_TENANT_ID, max_length=128)

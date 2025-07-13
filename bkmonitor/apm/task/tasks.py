@@ -159,12 +159,15 @@ def refresh_apm_config():
 
 
 def refresh_apm_platform_config():
+    # 每个租户下发一份平台配置
     for tenant in api.bk_login.list_tenant():
         try:
             PlatformConfig.refresh(tenant["id"])
-            PlatformConfig.refresh_k8s(tenant["id"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"[refresh_apm_platform_config]: refresh tenant_id({tenant}) platform config error({e})")
+
+    # 每个集群下发一份平台配置
+    PlatformConfig.refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
