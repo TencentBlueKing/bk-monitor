@@ -662,7 +662,8 @@ def push_and_publish_space_router(
 
     # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
     bulk_handle(
-        lambda batch_spaces: space_client.push_multi_space_table_ids(batch_spaces, is_publish=False), list(spaces)
+        lambda batch_spaces: SpaceTableIDRedis().push_multi_space_table_ids(batch_spaces, is_publish=False),
+        list(spaces),
     )
 
     # 通知到使用方
