@@ -196,7 +196,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             )
             expected_rt_detail_router = {
                 "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839|riot"}'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -229,7 +229,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 "2_bkbase_metric_agg.__default__|riot": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
-                '"data_label":"bkbase_rt_meta_metric|riot",'
+                '"data_label":"bkbase_rt_meta_metric",'
                 '"fields":["metric_a","metric_b"]}'
             }
 
