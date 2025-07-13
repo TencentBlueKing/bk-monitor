@@ -47,13 +47,9 @@ def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TE
     """获取平台级的数据源
     NOTE: 仅针对当前空间类型，比如 bkcc，特殊的是 all 类型
     """
-    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户,则仅返回租户下的全局数据
-        # TODO: 1001基础采集数据有两种形态,需要通过开关控制决定使用哪种
-        qs = models.DataSource.objects.filter(is_tenant_specific_global=True, bk_tenant_id=bk_tenant_id).values(
-            "bk_data_id", "space_type_id"
-        )
-    else:  # 非多租户环境下,即全局数据
-        qs = models.DataSource.objects.filter(is_platform_data_id=True).values("bk_data_id", "space_type_id")
+    qs = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, is_platform_data_id=True).values(
+        "bk_data_id", "space_type_id"
+    )
 
     # 针对 bkcc 类型，这要是插件，不属于某个业务空间，也没有传递空间类型，因此，需要包含 all 类型
     if space_type and space_type != SpaceTypes.BKCC.value:
