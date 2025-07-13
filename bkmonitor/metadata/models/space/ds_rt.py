@@ -51,6 +51,28 @@ def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TE
         "bk_data_id", "space_type_id"
     )
 
+    # 如果是多租户的情况下，需要去除单租户模式下的全局数据源
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        qs = qs.exclude(
+            bk_data_id__in=[
+                settings.SNAPSHOT_DATAID,
+                settings.MYSQL_METRIC_DATAID,
+                settings.REDIS_METRIC_DATAID,
+                settings.APACHE_METRIC_DATAID,
+                settings.NGINX_METRIC_DATAID,
+                settings.TOMCAT_METRIC_DATAID,
+                settings.PROCESS_PERF_DATAID,
+                settings.PROCESS_PORT_DATAID,
+                settings.UPTIMECHECK_HEARTBEAT_DATAID,
+                settings.UPTIMECHECK_TCP_DATAID,
+                settings.UPTIMECHECK_UDP_DATAID,
+                settings.UPTIMECHECK_HTTP_DATAID,
+                settings.UPTIMECHECK_ICMP_DATAID,
+                settings.PING_SERVER_DATAID,
+                settings.GSE_CUSTOM_EVENT_DATAID,
+            ]
+        )
+
     # 针对 bkcc 类型，这要是插件，不属于某个业务空间，也没有传递空间类型，因此，需要包含 all 类型
     if space_type and space_type != SpaceTypes.BKCC.value:
         qs = qs.filter(space_type_id=space_type)
