@@ -261,6 +261,56 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
   return 'Unknown';
 };
 
+/**
+ * 格式化百分比数值，使其在不同情况下都能合理显示，避免精度问题导致的数据失真
+ * 如果数值小数过大，toFixed函数会导致精度丢失，
+ * @param {number} value - 要格式化的百分比数值（可以是整数或浮点数）
+ * @param {number} [precision=2] - 普通情况下小数点后保留的位数（默认2位）
+ * @param {number} [sigFigCnt=2] - 当数值极小时，保留的有效数字位数（默认2位）
+ * @param {number} [readablePrecision=6] - 当数值极小时，返回可读的最小值（默认1e-6）
+ * @returns {number} 格式化后的数值
+ */
+export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePrecision = 6) {
+  let percent = value;
+  // 1. 如果是整数，直接返回（不处理）
+  if (Number.isInteger(percent)) {
+    return percent;
+  }
+
+  // 2. 记录数值的正负号，并取绝对值进行计算
+  const sign = percent >= 0 ? 1 : -1;
+  percent = Math.abs(percent);
+
+  // 辅助函数：恢复数值的原始符号
+  const withSign = f => sign * f;
+
+  // 3. 处理极小数值（低于可读精度的情况）
+  // 例如：percent = 0.000000123（1.23e-7），readablePrecision=6 → 返回1e-6
+  if (0.0 < percent && percent < 10 ** -readablePrecision) {
+    return withSign(10 ** -readablePrecision);
+  }
+
+  // 4. 处理较小数值（低于普通精度的情况）
+  // 例如：percent = 0.000123（1.23e-4），precision=2 → 使用有效数字位数格式化
+  if (percent < 10 ** -precision) {
+    return withSign(Number.parseFloat(percent.toPrecision(sigFigCnt)));
+  }
+
+  // 5. 普通情况：四舍五入到指定精度
+  // 例如：percent = 0.123456，precision=2 → 0.12
+  const roundedPercent = Number.parseFloat(percent.toFixed(precision));
+
+  // 6. 检查四舍五入是否会导致失真（如99.9999变成100.00）
+  // 如果四舍五入的误差较大，则改用截断法
+  if (roundedPercent - percent < 10 ** -(precision + 1) * 5) {
+    const factor = 10 ** precision;
+    return withSign(Math.trunc(percent * factor) / factor);
+  }
+
+  // 7. 默认返回四舍五入后的值
+  return withSign(roundedPercent);
+}
+
 export * from './colorHelpers';
 export * from './constant';
 export * from './equal';

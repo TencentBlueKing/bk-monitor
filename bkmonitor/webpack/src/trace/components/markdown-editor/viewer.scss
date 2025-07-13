@@ -1,0 +1,172 @@
+.markdown-viewer {
+  .toastui-editor-contents {
+    font-size: 12px;
+    ul,
+    ol {
+      padding-left: 0;
+      li {
+        position: relative;
+        padding-left: 20px;
+        line-height: 20px;
+        margin-bottom: 5px;
+        color: #63656e;
+
+        a {
+          color: #3a84ff;
+          text-decoration: none;
+        }
+
+        code {
+          padding: 2px 4px;
+          font-size: 90%;
+          line-height: 20px;
+          color: #35393c;
+          background-color: rgba(27, 31, 35, 0.06);
+          border-radius: 2px;
+        }
+
+        p {
+          line-height: 20px;
+          font-size: 12px;
+          color: #4d4f56;
+
+          code {
+            padding: 2px 4px;
+            font-size: 90%;
+            line-height: 20px;
+            color: #35393c;
+            background-color: rgba(27, 31, 35, 0.06);
+            border-radius: 2px;
+          }
+
+          a {
+            color: #3a84ff;
+            text-decoration: none;
+          }
+
+          p {
+            color: #63656e;
+          }
+        }
+
+        pre {
+          padding: 5px;
+          margin-top: 8px;
+          margin-bottom: 0;
+
+          code {
+            color: #63656e;
+          }
+        }
+      }
+    }
+  }
+  &.md-veiwer-flowchart-wrap,
+  &.md-editor-flowchart-wrap {
+    pre {
+      padding: 0 16px;
+      font-family: Menlo, Monaco, Consolas, Courier, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #888;
+      background-color: #f9fafc;
+    }
+
+    a {
+      color: #3c96ff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    p {
+      margin: initial;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #63656e;
+    }
+
+    .toastui-editor-contents {
+      ol {
+        padding-left: 0;
+        list-style-type: none;
+        counter-reset: section; /* 为每个ol元素创建新的计数器实例 */
+        // list-style: none;
+        li {
+          position: relative;
+          padding-left: 28px;
+          margin-bottom: 24px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+
+          a {
+            color: #3a84ff;
+            text-decoration: none;
+          }
+
+          code {
+            padding: 0;
+            color: #ff9c01;
+            background: none;
+          }
+
+          p {
+            line-height: 20px;
+            font-size: 12px;
+            color: #4d4f56;
+
+            code {
+              padding: 0;
+              color: #ff9c01;
+              background: none;
+            }
+
+            a {
+              color: #3a84ff;
+              text-decoration: none;
+            }
+
+            p {
+              color: #63656e;
+            }
+          }
+
+          &:not(:last-child)::after {
+            position: absolute;
+            top: 27px;
+            left: 9px;
+            width: 1px;
+            height: calc(100% - 10px);
+            content: '';
+            border-left: 1px dashed #c4c6cc;
+          }
+
+          &::before {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            margin-left: -28px;
+            color: #fff;
+            content: ' ' counter(li);
+            background: #3a84ff;
+            border-radius: 50%;
+          }
+
+          pre {
+            padding: 5px;
+            margin-top: 8px;
+            margin-bottom: 0;
+            font-size: 12px;
+
+            code {
+              color: #63656e;
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -884,13 +884,30 @@ export const parseTableRowData = (
     data = emptyCharacter;
   }
 
-  if (isFormatDate && fieldType === 'date') {
-    return formatDate(Number(data)) || data || emptyCharacter;
-  }
+  if (isFormatDate && ['date', 'date_nanos'].includes(fieldType)) {
+    let formatData = data;
+    let formatValue = data;
+    let isMark = false;
 
-  // 处理纳秒精度的UTC时间格式
-  if (isFormatDate && fieldType === 'date_nanos') {
-    return formatDateNanos(data) || emptyCharacter;
+    if (`${data}`.startsWith('<mark>')) {
+      formatData = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+      isMark = true;
+    }
+
+    if (fieldType === 'date' && /^\d+$/.test(formatData)) {
+      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+    }
+
+    // 处理纳秒精度的UTC时间格式
+    if (fieldType === 'date_nanos') {
+      formatValue = formatDateNanos(formatData) || emptyCharacter;
+    }
+
+    if (isMark) {
+      return `<mark>${formatValue}</mark>`;
+    }
+
+    return formatValue;
   }
 
   if (Array.isArray(data) && !data.length) {
