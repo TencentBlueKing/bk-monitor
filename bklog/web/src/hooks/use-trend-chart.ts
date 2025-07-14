@@ -191,6 +191,34 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
   };
 
+  // 补齐图表数据到指定长度
+  const padDataToLength = (data: Array<[number, number, string | null]>, targetLength: number, intervalMs: number) => {
+
+    if (data.length >= targetLength) return data;
+  
+    // 按时间升序排序
+    data.sort((a, b) => a[0] - b[0]);
+    const result = [...data];
+    const missing = targetLength - data.length;
+  
+    // 计算需要补前面和后面的数量
+    const padBefore = Math.floor(missing / 2);
+    const padAfter = missing - padBefore;
+  
+    // 前补
+    let firstTime = data.length ? data[0][0] : Date.now();
+    for (let i = 1; i <= padBefore; i++) {
+      result.unshift([firstTime - i * intervalMs, 0, null]);
+    }
+    // 后补
+    let lastTime = data.length ? data[data.length - 1][0] : Date.now();
+    for (let i = 1; i <= padAfter; i++) {
+      result.push([lastTime + i * intervalMs, 0, null]);
+    }
+    
+    return result;
+  };
+
   // 计算x轴坐标点的时间显示格式
   const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
     const totalSpan = endTime - startTime;  // 查询的总时间范围
@@ -232,7 +260,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           options.series.push(dst);
           colors.push(group.color);
           const index = options.series.length - 1;
-          dataset.set(group.id, { group, dst: options.series[index], dataMap: new Map<string, number>() });
+          dataset.set(group.id, { group, dst: options.series[index], dataMap: new Map<string, [number, number, string | null]>() });
         }
       });
 
@@ -273,7 +301,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           }
 
           dataMap.set(key, [key, count, key_as_string]);
-
           xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       });
@@ -284,12 +311,20 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       dst.data = Array.from(dataMap.values());
     });
 
+    sortKeys.forEach(key => {
+      const { dst, dataMap } = dataset.get(key);
+      let dataArr = Array.from(dataMap.values()) as [number, number, string | null][];
+      const intervalMs = getIntervalValue(runningInterval) * 1000;  // 获取时间间隔的毫秒数
+      dataArr = padDataToLength(dataArr, 15, intervalMs);  // 补齐图表数据
+      dst.data = dataArr;
+    });
+
     updateChart(isInit);
     return count;
   };
 
   const setDefaultData = (aggs?, isInit?) => {
-    let opt_data = new Map<Number, Number[]>();
+    let opt_data = new Map<number, [number, string | null]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
     const series = [];
     let count = 0;
@@ -311,7 +346,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const keys = [...opt_data.keys()];
     keys.sort((a, b) => a[0] - b[0]);
-    const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+    // let data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+    let data = keys.map(key => {
+      const val = opt_data.get(key);
+      return [key, val ? val[0] : 0, val ? val[1] : null] as [number, number, string | null];
+    });
+
+    const intervalMs = getIntervalValue(runningInterval) * 1000;
+    data = padDataToLength(data, 15, intervalMs);
 
     if (isInit) {
       series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
@@ -371,9 +413,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const { start_time, end_time } = retrieveParams.value;
     const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
-
-    // options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
-    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v);
+    
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v) || dayjs(v).format(formatStr);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
