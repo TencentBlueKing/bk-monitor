@@ -500,27 +500,27 @@ class DataIDNotExistException(BaseException):
 
 class ESQuerySyntaxException(BaseSearchException):
     ERROR_CODE = "449"
-    MESSAGE = _("查询失败，查询语法不正确")
+    MESSAGE = _("日志检索失败，请检查检索语句是否正确")
 
 
 class HighlightException(BaseSearchException):
     ERROR_CODE = "450"
-    MESSAGE = _("搜索结果高亮失败，字段({field_name})内容过长")
+    MESSAGE = _("日志检索失败，字段({field_name})内容过长导致高亮异常，请联系 BK 助手处理")
 
 
 class NoMappingException(BaseSearchException):
     ERROR_CODE = "451"
-    MESSAGE = _("查询失败，字段{field_name}不存在或映射缺失")
+    MESSAGE = _("日志检索失败，排序字段({field_name})不存在，请调整排序配置后重试")
 
 
-class UnSupportOperationException(BaseSearchException):
+class UnsupportedOperationException(BaseSearchException):
     ERROR_CODE = "452"
-    MESSAGE = _("查询失败，字段{field_name}不支持当前操作")
+    MESSAGE = _("日志检索失败，字段({field_name})不支持排序和聚合，请确保该字段已被设置为聚合字段")
 
 
 class QueryServerUnavailableException(BaseSearchException):
     ERROR_CODE = "453"
-    MESSAGE = _("查询失败，搜索服务连接异常")
+    MESSAGE = _("日志检索失败，存储集群请求超时，请稍后重试或联系 BK 助手确认集群状态")
 
 
 # =================================================
