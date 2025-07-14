@@ -1133,12 +1133,12 @@ class LogGrepQuerySerializer(serializers.Serializer):
     grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
     size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
 
 class AliasSettingsSerializer(serializers.Serializer):
     alias_settings = AliasSettingSerializer(many=True, required=True)
-    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
-    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
