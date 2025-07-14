@@ -18,7 +18,7 @@
     "@blueking/ip-selector": "0.3.0-beta.44",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/monitor-trace-log": "2.0.5",
-    "@blueking/tdesign-ui": "0.0.1-beta.32",
+    "@blueking/tdesign-ui": "0.0.1-beta.69",
     "@dagrejs/dagre": "^1.1.4",
     "@toast-ui/editor": "^3.2.2",
     "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
@@ -67,10 +67,7 @@
     "vue-router": "^4.5.1",
     "vue-tippy": "^6.7.1"
   },
-  "keywords": [
-    "monitor",
-    "trace"
-  ],
+  "keywords": ["monitor", "trace"],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {
