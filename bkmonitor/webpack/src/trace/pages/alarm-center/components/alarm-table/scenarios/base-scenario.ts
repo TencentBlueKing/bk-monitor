@@ -24,31 +24,54 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import {
+  ExploreTableColumnTypeEnum,
+  type BaseTableColumn,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
-};
+/**
+ * @abstract
+ * @description 场景表格特殊列渲染配置抽象基类
+ */
+export abstract class BaseScenario {
+  // 场景名称（用于调试）
+  abstract readonly name: string;
 
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = (props?: T) => SlotReturnValue;
+  /**
+   * 场景清理（可选）
+   */
+  cleanup?(): void;
 
-export interface TableEmptyProps {
-  type: 'empty' | 'search-empty';
-  emptyText: string;
-}
+  /**
+   * 获取当前场景的特殊列配置
+   * @returns 列键到特殊配置的映射
+   */
+  abstract getColumnsConfig(): Record<string, BaseTableColumn>;
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+  /**
+   * 公共列配置（所有场景共享）
+   */
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  protected getCommonColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
+    return {
+      create_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      begin_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      end_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      latest_time: {
+        renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      // 其他通用列...
+    };
+  }
 
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 总数 */
-  total: number;
-  /** 每页条数 */
-  pageSize: number;
+  /**
+   * 场景初始化（可选）
+   */
+  initialize?(): void;
 }

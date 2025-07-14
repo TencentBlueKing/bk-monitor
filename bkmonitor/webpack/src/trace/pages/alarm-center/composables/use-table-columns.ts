@@ -42,7 +42,7 @@ export function useAlarmTableColumns() {
 
   // 不通过 computed 计算属性过渡会无法正确收集到响应式Effect，导致storageKey 变更时无法触发 useStorage 的响应式逻辑
   const storageKey = computed(() => alarmStore.alarmService.storageKey);
-  const storageColumns = useStorage<string[]>(storageKey, [...defaultTableFields.value]);
+  const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
 
   const tableColumns = computed<TableColumnItem[]>(() => {
     return storageColumns.value

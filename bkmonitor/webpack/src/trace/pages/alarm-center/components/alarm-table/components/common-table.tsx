@@ -31,13 +31,14 @@ import { Exception, Pagination } from 'bkui-vue';
 import TableSkeleton from '../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
+import { DEFAULT_TABLE_CONFIG } from './table-constants';
 
 import type {
   BaseTableColumn,
   TableCellRenderer,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { TableEmpty, TableRenderer } from '../../../typings';
-import type { CheckboxGroupValue, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
+import type { TableEmpty, TablePagination, TableRenderer } from '../../../typings';
+import type { CheckboxGroupValue, SelectOptions, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -59,36 +60,21 @@ export default defineComponent({
       type: Array as PropType<Record<string, any>[]>,
       default: () => [],
     },
-    allTableFields: {
-      type: Array as PropType<BkUiSettings['fields']>,
-    },
-    /** 表格展示列配置数组 */
-    displayColFields: {
-      type: Array as PropType<string[]>,
+    /** 表格设置属性类型 */
+    tableSettings: {
+      type: Object as PropType<BkUiSettings>,
     },
     /** 表格排序信息,字符串格式，以id为例：倒序 => -id；正序 => id；*/
     sort: {
       type: [String, Array] as PropType<string | string[]>,
     },
-    /** 表格数据总条数 */
-    total: {
-      type: Number,
-      default: 0,
+    /** 表格分页属性类型 */
+    pagination: {
+      type: Object as PropType<TablePagination>,
     },
-    /** 是否启用分页 */
-    enabledPagination: {
-      type: Boolean,
-      default: true,
-    },
-    /** 表格分页当前页码 */
-    currentPage: {
-      type: Number,
-      default: 1,
-    },
-    /** 表格排序信息 */
-    pageSize: {
-      type: Number,
-      default: 20,
+    /** 选中行 keys */
+    selectedRowKeys: {
+      type: Array as PropType<(number | string)[]>,
     },
     /** 表格加载状态 */
     loading: {
@@ -121,6 +107,8 @@ export default defineComponent({
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<any>) => Array.isArray(selectedRowKeys),
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -149,7 +137,7 @@ export default defineComponent({
       return config;
     });
     /** 是否展示分页器 */
-    const showPagination = computed(() => props.enabledPagination && props.data?.length);
+    const showPagination = computed(() => props.pagination?.total && props.data?.length);
     /** 表格排序，将字符串形式转换成 TableSort 形式 */
     const tableSort = computed(() => {
       // 统一处理为数组形式
@@ -196,7 +184,7 @@ export default defineComponent({
       }
 
       let sort = '';
-      if (sortEvent.sortBy) {
+      if (sortEvent?.sortBy) {
         sort = `${sortEvent.descending ? '-' : ''}${sortEvent.sortBy}`;
       }
       emit('sortChange', sort);
@@ -208,6 +196,17 @@ export default defineComponent({
      */
     function handleCurrentPageChange(page: number) {
       emit('currentPageChange', page);
+    }
+
+    /**
+     * @description 选中行发生变化时触发
+     * @param selectedRowKeys 选中行 keys
+     * @param options.type uncheck: 当前行操作为「取消行选中」; check: 当前行操作为「行选中」
+     * @param options.currentRowKey 当前操作行的 rowKey 值
+     * @param options.currentRowData 当前操作行的 行数据
+     */
+    function handleSelectChange(selectedRowKeys: (number | string)[], options: SelectOptions<any>) {
+      emit('selectChange', selectedRowKeys, options);
     }
 
     /**
@@ -263,6 +262,7 @@ export default defineComponent({
       tableCellRender,
       handleSortChange,
       handleCurrentPageChange,
+      handleSelectChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
       tableLastFullRowRender,
@@ -278,12 +278,8 @@ export default defineComponent({
           v-slots={{
             empty: this.tableEmptyRender,
           }}
-          bkUiSettings={{
-            fields: this.allTableFields,
-            checked: this.displayColFields,
-            hasCheckAll: true,
-          }}
           activeRowType='single'
+          bkUiSettings={this.tableSettings}
           columns={this.tableColumns}
           data={this.data}
           disableDataPage={true}
@@ -291,13 +287,16 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
           lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+          reserveSelectedRowOnPaginate={false}
           resizable={true}
           rowKey={this.rowKey}
+          selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}
           size='small'
           sort={this.tableSort}
           tableLayout='fixed'
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
+          onSelectChange={this.handleSelectChange}
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
@@ -305,11 +304,11 @@ export default defineComponent({
         {this.showPagination ? (
           <Pagination
             align={'right'}
-            count={this.total}
+            count={this.pagination?.total}
             layout={['total', 'limit', 'list']}
-            limit={this.pageSize}
+            limit={this.pagination?.pageSize || DEFAULT_TABLE_CONFIG.pagination.pageSize}
             location={'right'}
-            modelValue={this.currentPage}
+            modelValue={this.pagination?.currentPage || DEFAULT_TABLE_CONFIG.pagination.currentPage}
             small={true}
             onChange={this.handleCurrentPageChange}
             onLimitChange={this.handlePageSizeChange}

@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, useTemplateRef, type PropType, computed } from 'vue';
-import { shallowRef } from 'vue';
+import { defineComponent, type PropType } from 'vue';
+
+import { Tag } from 'bkui-vue';
 
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';
-import { useTagsEllipsis } from '../../hooks/use-tag-ellipsis';
+import CollapseTags from './collapse-tags';
 
 import type { ExploreTableColumn, ExploreTableColumnTypeEnum, GetTableCellRenderValue } from '../../typing';
 
@@ -54,86 +55,41 @@ export default defineComponent({
       type: String,
     },
   },
-  setup(props) {
-    const tagContainerRef = useTemplateRef<HTMLElement>('tagContainerRef');
-    const tagsRef = shallowRef<Element[]>([]);
-    const collapseTagRef = useTemplateRef<HTMLElement>('collapseTagRef');
-
-    /** 需要渲染的 tag 总数 */
-    const tagTotal = computed(() => props.tags?.length || 0);
-
-    const { canShowIndex } = useTagsEllipsis({
-      tagContainerRef,
-      // @ts-ignore
-      tagsRef,
-      collapseTagRef: collapseTagRef,
-      tagTotal: tagTotal.value,
-      horizontalSpacing: 4,
-    });
-
-    /** 是否需要显示折叠 tag */
-    const showCollapseTag = computed(() => !tagTotal.value || canShowIndex.value < tagTotal.value - 1);
-
-    /** 折叠 tag 的tip提示内容 */
-    const tipContent = computed(() => {
-      if (!showCollapseTag.value) return;
-      return props.tags
-        .slice(canShowIndex.value + 1)
-        .map(tag => tag.alias)
-        .join('，');
-    });
-
-    return {
-      tagsRef,
-      collapseTagRef,
-      canShowIndex,
-      tagTotal,
-      tipContent,
-      showCollapseTag,
-    };
+  setup() {
+    return {};
   },
   render() {
     return (
-      <div
-        ref='tagContainerRef'
+      <CollapseTags
         class='explore-col explore-tags-col'
-      >
-        {this.tags?.map?.((tag, index) => (
-          <div
-            key={tag.alias}
-            ref={el => {
-              this.tagsRef[index] = el as Element;
-            }}
-            style={{
-              '--tag-color': tag.tagColor || DEFAULT_TAG_COLOR.tagColor,
-              '--tag-bg-color': tag.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
-              display: index > this.canShowIndex ? 'none' : '',
-            }}
-            class='tag-item'
-          >
-            <span
-              class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-              data-col-id={this.colId}
-              data-index={index}
-              data-row-id={this.rowId}
+        v-slots={{
+          customTag: (tag, index) => (
+            <Tag
+              key={index}
+              style={{
+                '--tag-color': tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
+                '--tag-bg-color': tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+              }}
+              class='tag-item'
             >
-              {tag.alias}
-            </span>
-          </div>
-        ))}
-        <div
-          ref='collapseTagRef'
-          style={{
-            '--tag-color': DEFAULT_TAG_COLOR.tagColor,
-            '--tag-bg-color': DEFAULT_TAG_COLOR.tagBgColor,
-            visibility: this.showCollapseTag ? 'visible' : 'hidden',
-          }}
-          class='tag-item collapse-tag'
-          v-bk-tooltips={{ content: this.tipContent, placement: 'top', disabled: !this.showCollapseTag }}
-        >
-          <span> +{this.tagTotal - this.canShowIndex - 1}</span>
-        </div>
-      </div>
+              {{
+                default: () => (
+                  <span
+                    class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                    data-col-id={this.colId}
+                    data-index={index}
+                    data-row-id={this.rowId}
+                  >
+                    {tag?.alias || tag}
+                  </span>
+                ),
+              }}
+            </Tag>
+          ),
+        }}
+        data={this.tags}
+        ellipsisTip={ellipsisTags => ellipsisTags.map(tag => tag?.alias || tag).join('，')}
+      />
     );
   },
 });

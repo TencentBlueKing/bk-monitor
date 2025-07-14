@@ -24,31 +24,46 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { INCIDENT_STORAGE_KEY } from '../../../services/incident-services';
+import { BaseScenario } from './base-scenario';
 
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
-};
+import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = (props?: T) => SlotReturnValue;
+/**
+ * @class IncidentScenario
+ * @classdesc 故障场景表格特殊列渲染配置类
+ * @extends BaseScenario
+ */
+export class IncidentScenario extends BaseScenario {
+  /**
+   * @readonly 场景标识
+   */
+  readonly name = INCIDENT_STORAGE_KEY;
 
-export interface TableEmptyProps {
-  type: 'empty' | 'search-empty';
-  emptyText: string;
-}
+  constructor(
+    private readonly context: {
+      showPopover: (e: MouseEvent, content: any) => void;
+      clearPopoverTimer: () => void;
+      [methodName: string]: any;
+    }
+  ) {
+    super();
+  }
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+  /**
+   * @description 获取当前场景的特殊列配置
+   */
+  getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
+    const commonColumnConfig = this.getCommonColumnsConfig();
+    const columns = {
+      ...commonColumnConfig,
+      // ... other private columns config
+    };
 
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 总数 */
-  total: number;
-  /** 每页条数 */
-  pageSize: number;
+    return columns;
+  }
+
+  // ----------------- 故障场景私有渲染方法 -----------------
+
+  // ----------------- 故障场景私有逻辑方法 -----------------
 }

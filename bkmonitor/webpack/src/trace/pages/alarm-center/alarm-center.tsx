@@ -107,16 +107,20 @@ export default defineComponent({
                     </div>
                     <div class='alarm-center-table'>
                       <AlarmTable
-                        // @ts-ignore
-                        allTableFields={this.allTableFields}
+                        pagination={{
+                          currentPage: this.page,
+                          pageSize: this.pageSize,
+                          total: this.total,
+                        }}
+                        tableSettings={{
+                          checked: this.storageColumns,
+                          fields: this.allTableFields,
+                        }}
                         columns={this.tableSourceColumns}
-                        currentPage={this.page}
                         data={this.data}
-                        displayColFields={this.storageColumns}
                         loading={this.loading}
-                        pageSize={this.pageSize}
                         sort={this.ordering}
-                        total={this.total}
+                        // @ts-ignore
                         onCurrentPageChange={page => {
                           this.page = page;
                         }}

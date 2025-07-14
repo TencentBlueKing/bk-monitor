@@ -61,6 +61,7 @@ declare global {
     bk_docs_site_url: string;
     bk_doc_version: string;
     graph_watermark: boolean;
+    enable_create_chat_group: boolean;
     // 以下为日志全局变量配置
     mainComponent: any;
     traceLogComponent: any;

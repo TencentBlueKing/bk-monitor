@@ -87,25 +87,26 @@ export const AlarmLevelIconMap = {
   },
 };
 
-export const EventStatusMap = {
+export const AlertStatusMap = {
   ABNORMAL: {
-    tagColor: '#EA3536',
-    tagBgColor: '#FEEBEA',
+    prefixIcon: 'alert-status-icon icon-monitor icon-mind-fill',
     alias: window.i18n.t('未恢复'),
-    value: 'ABNORMAL',
   },
   RECOVERED: {
-    tagColor: '#14A568',
-    bgColor: '#E4FAF0',
+    prefixIcon: 'alert-status-icon icon-monitor icon-mc-check-fill',
     name: window.i18n.t('已恢复'),
-    value: 'RECOVERED',
   },
   CLOSED: {
-    tagColor: '#63656E',
-    tagBgColor: '#F0F1F5',
+    prefixIcon: 'alert-status-icon icon-monitor icon-shixiao',
     alias: window.i18n.t('已失效'),
-    value: 'CLOSED',
   },
+};
+
+/** 告警-关联信息不同类型提示信息 */
+export const EXTEND_INFO_MAP = {
+  log_search: window.i18n.t('查看更多相关的日志'),
+  custom_event: window.i18n.t('查看更多相关的事件'),
+  bkdata: window.i18n.t('查看更多相关的数据'),
 };
 
 /** 我有权限的业务ID */

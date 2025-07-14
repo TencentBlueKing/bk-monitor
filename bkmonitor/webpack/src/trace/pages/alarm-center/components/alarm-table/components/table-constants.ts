@@ -24,31 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
-
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
+/** 默认表格配置 */
+export const DEFAULT_TABLE_CONFIG = {
+  pagination: {
+    pageSize: 20,
+    currentPage: 1,
+  },
 };
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = (props?: T) => SlotReturnValue;
-
-export interface TableEmptyProps {
-  type: 'empty' | 'search-empty';
-  emptyText: string;
-}
-
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
-
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 总数 */
-  total: number;
-  /** 每页条数 */
-  pageSize: number;
-}

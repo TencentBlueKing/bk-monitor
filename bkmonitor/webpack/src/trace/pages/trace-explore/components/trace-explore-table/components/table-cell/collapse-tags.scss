@@ -1,0 +1,35 @@
+.bk-common-tag-show {
+  position: relative;
+  display: flex;
+  column-gap: var(--tag-col-gap);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .item-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    column-gap: var(--tag-col-gap);
+    // margin-right: 5px;
+    overflow: hidden;
+  }
+
+  .top-bar-tag {
+    display: inline-block;
+    height: 20px;
+    padding: 0 5px;
+    // margin-right: 4px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    background: #fafbfd;
+    border-radius: 2px;
+  }
+
+  .top-bar-tag-fill {
+    position: absolute;
+    top: -9999px;
+    visibility: hidden;
+  }
+}

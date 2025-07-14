@@ -1,13 +1,12 @@
 .explore-tags-col {
   --tag-height: 23px;
   display: flex;
-  column-gap: 4px;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: center;
   height: var(--tag-height);
 
   .tag-item {
-    display: flex;
+    display: inline-flex;
     flex-shrink: 0;
     align-items: center;
     height: var(--tag-height);
