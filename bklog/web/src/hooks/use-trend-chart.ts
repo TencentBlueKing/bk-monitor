@@ -422,13 +422,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 格式化tooltip
     options.tooltip.formatter = function (params) {
       // 获取开始时间
-      const timeStart = dayjs(params[0].value[0]).format(formatStr);
+      const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
 
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
       const intervalSeconds = getIntervalValue(runningInterval);
       const endTimestamp = startTimestamp + (intervalSeconds * 1000); // 转换为毫秒
-      const timeEnd = dayjs(endTimestamp).format(formatStr);
+      const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
 
       // 多 series 展示
       const seriesHtml = params.map(item => {
@@ -452,7 +452,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       
       return `
         <div style="min-width: 120px;">
-          <div>${timeStart} - ${timeEnd}</div>
+          <div>${timeStart} <span style="font-weight:bold;margin:0 4px;">to</span> ${timeEnd}</div>
           ${seriesHtml}
         </div>
       `;
