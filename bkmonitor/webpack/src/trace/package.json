@@ -20,6 +20,8 @@
     "@blueking/monitor-trace-log": "2.0.5",
     "@blueking/tdesign-ui": "0.0.1-beta.32",
     "@dagrejs/dagre": "^1.1.4",
+    "@toast-ui/editor": "^3.2.2",
+    "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "@vue-flow/core": "^1.45.0",
     "@vue-flow/minimap": "^1.5.3",
     "@vue/compiler-dom": "3.5.15",

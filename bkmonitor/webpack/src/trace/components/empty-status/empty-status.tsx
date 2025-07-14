@@ -56,7 +56,7 @@ export default defineComponent({
     },
     textMap: {
       type: Object as PropType<IEmptyStatusTextMap>,
-      default: null,
+      default: () => null,
     },
   },
   emits: ['operation'],

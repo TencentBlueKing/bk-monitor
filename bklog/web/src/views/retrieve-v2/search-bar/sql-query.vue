@@ -2,6 +2,7 @@
   import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
+  import { debounce } from 'lodash';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -101,7 +102,7 @@
       handleWrapperClick: handleWrapperClickCapture,
       afterShowKeyEnter: () => {
         editorInstance?.setFocus(Infinity);
-      }
+      },
     },
   );
 
@@ -126,9 +127,9 @@
     return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
   });
 
-  const debounceRetrieve = value => {
+  const debounceRetrieve = debounce(value => {
     emit('retrieve', value ?? modelValue.value);
-  };
+  });
 
   const closeAndRetrieve = value => {
     // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
@@ -211,7 +212,7 @@
         onEditorContextChange(e);
       },
       onKeyEnter: () => {
-        debounceRetrieve();
+        closeAndRetrieve();
         return true;
       },
       onFocusChange: (state, isFocusing) => {

@@ -68,8 +68,8 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     extensions: [
       keymap.of([
         {
-          key: 'Ctrl-Enter',
-          mac: 'Cmd-Enter',
+          key: 'Enter',
+          mac: 'Enter',
           run: view => {
             return onKeyEnter?.(view) ?? false;
           },
@@ -140,7 +140,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       const docLength = view.state.doc.length;
       const safeFrom = Math.min(from, docLength);
       const safeTo = Math.min(to, docLength);
-      
+
       // 如果 from 大于等于 to，当作插入处理
       if (safeFrom >= safeTo) {
         view.dispatch({
@@ -159,16 +159,14 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     }
   };
 
-  const setFocus = (focusPosition) => {
+  const setFocus = focusPosition => {
     if (!view) return;
-    
+
     view.focus();
     // 确保光标位置在有效范围内
     const docLength = view.state.doc.length;
-    const pos = typeof focusPosition === 'number' 
-      ? Math.min(Math.max(0, focusPosition), docLength)
-      : 0;
-    
+    const pos = typeof focusPosition === 'number' ? Math.min(Math.max(0, focusPosition), docLength) : 0;
+
     view.dispatch({
       selection: EditorSelection.cursor(pos),
       userEvent: 'focus',
@@ -179,12 +177,12 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     return view.state.doc.toString() ?? '*';
   };
 
-  return { 
-    state, 
-    view, 
-    appendText, 
-    setValue, 
-    setFocus, 
+  return {
+    state,
+    view,
+    appendText,
+    setValue,
+    setFocus,
     getValue,
   };
 };

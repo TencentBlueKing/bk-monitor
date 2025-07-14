@@ -1,9 +1,9 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1750669950027') format('woff2'),
-    url('monitor-icons.woff?t=1750669950027') format('woff'),
-    url('monitor-icons.ttf?t=1750669950027') format('truetype');
+    url('monitor-icons.woff2?t=1751447220734') format('woff2'),
+    url('monitor-icons.woff?t=1751447220734') format('woff'),
+    url('monitor-icons.ttf?t=1751447220734') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +12,18 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-a-Contentmulu:before {
+  content: '\e839';
+}
+
+.icon-a-logrizhi:before {
+  content: '\e838';
+}
+
+.icon-zhibiaomoban:before {
+  content: '\e837';
 }
 
 .icon-All:before {

@@ -81,18 +81,26 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+  const handleSearchBarHeightChange = height => {
     searchBarHeight.value = height;
-  })
-    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
-      favoriteWidth.value = width;
-    })
-    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
-      isFavoriteShown.value = isShown;
-    })
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
-      trendGraphHeight.value = height;
-    });
+  };
+
+  const handleFavoriteWidthChange = width => {
+    favoriteWidth.value = width;
+  };
+
+  const hanldeFavoriteShown = isShown => {
+    isFavoriteShown.value = isShown;
+  };
+
+  const handleGraphHeightChange = height => {
+    trendGraphHeight.value = height;
+  };
+
+  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange)
+    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange)
+    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown)
+    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
