@@ -986,7 +986,7 @@ class SpaceTableIDRedis:
         # 组装数据
         for tid in table_ids:
             if tid in settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST:
-                rt_ins = models.ResultTable.objects.get(table_id=tid)
+                rt_ins = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=tid)
                 logger.info(
                     "_compose_bkci_level_table_ids: table_id->[%s] in special_rt_list, will use filter key->[%s]",
                     tid,
