@@ -35,7 +35,7 @@ from apm_web.handlers.trace_handler.query import (
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
-from apm_web.trace.constants import OperatorEnum
+from apm_web.trace.constants import EnabledStatisticsDimension, OperatorEnum
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -1362,8 +1362,20 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
+    EMPTY_DATA = {"series": [{"datapoints": []}]}
+
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
+        # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
+        if field_info["field_type"] in {
+            EnabledStatisticsDimension.INTEGER.value,
+            EnabledStatisticsDimension.LONG.value,
+            EnabledStatisticsDimension.DOUBLE.value,
+        }:
+            min_value, max_value, *_ = field_info["values"][:4]
+            if min_value is None or max_value is None:
+                return self.EMPTY_DATA
+        # 耗时交互优化特殊处理
         if field_info["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
             field_info_values = field_info["values"]
             min_value, max_value, _, interval_num = field_info_values[:4]
