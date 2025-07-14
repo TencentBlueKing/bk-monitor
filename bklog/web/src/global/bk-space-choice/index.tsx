@@ -73,7 +73,6 @@ export default defineComponent({
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
     const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
-    const commonListIdsLog = ref<number[]>([]); // 常用业务缓存的ID列表
     const refRootElement = ref<HTMLElement>(null);
 
     const isExternal = computed(() => store.state.isExternal);
@@ -82,6 +81,8 @@ export default defineComponent({
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
+
+    const commonListIdsLog = computed(() => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
     const spaceUid = computed(() => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
 
     // 业务名称和首字母
@@ -106,9 +107,6 @@ export default defineComponent({
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
-
-      // 获取常用业务缓存
-      commonListIdsLog.value = JSON.parse(localStorage.getItem('commonListIdsLog') || '[]');
     });
 
     // 点击下拉框外内容，收起下拉框
@@ -290,24 +288,13 @@ export default defineComponent({
 
     // 更新缓存的常用业务ids
     const updateCacheBizId = (id: number) => {
-      const cacheKey = 'commonListIdsLog';
       const maxLen = BIZ_SELECTOR_COMMON_MAX;
-      let cacheIds: number[] = [];
-      try {
-        cacheIds = JSON.parse(localStorage.getItem(cacheKey) || '[]');
-      } catch {
-        cacheIds = [];
-      }
       // 移除已存在的 id
-      cacheIds = cacheIds.filter(item => item != id);
+      const cacheIds = commonListIdsLog.value.filter(item => item != id);
       // 将当前 id 插入第一位
       cacheIds.unshift(id);
-      // 超过最大长度则移除最后一位
-      if (cacheIds.length > maxLen) {
-        cacheIds = cacheIds.slice(0, maxLen);
-      }
-      localStorage.setItem(cacheKey, JSON.stringify(cacheIds));
-      commonListIdsLog.value = cacheIds;
+
+      store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
     };
 
     // 点击体验demo按钮
