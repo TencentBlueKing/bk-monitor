@@ -700,8 +700,7 @@ class GetTopoListResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-        bk_biz_ids = set(validated_request_data["bk_biz_ids"])
-        # todo 过滤有效业务ID
+        bk_biz_ids = self.filter_bk_biz_ids(validated_request_data["bk_biz_ids"])
         bk_obj_id = validated_request_data["bk_obj_id"]
         condition: dict = validated_request_data.get("condition")
         fun_map = {"module": self.get_modules, "set": self.get_sets}
@@ -743,3 +742,9 @@ class GetTopoListResource(Resource):
             else:
                 res[attr] = obj._extra_attr.get(attr)
         return res
+
+    @staticmethod
+    def filter_bk_biz_ids(bk_biz_ids: list[int]):
+        exited_bk_biz_ids = set(b.bk_biz_id for b in api.cmdb.get_business())
+        bk_biz_ids = list(set(bk_biz_ids) & exited_bk_biz_ids)
+        return bk_biz_ids
