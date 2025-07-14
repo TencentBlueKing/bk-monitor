@@ -132,9 +132,12 @@ export default defineComponent({
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+
+    const handleSearchingChange = isSearching => {
       isPageLoading.value = isSearching;
-    });
+    };
+
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -1028,6 +1031,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
+      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
     });
 
     return {
