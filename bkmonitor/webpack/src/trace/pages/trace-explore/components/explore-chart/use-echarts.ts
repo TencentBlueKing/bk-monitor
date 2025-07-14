@@ -46,7 +46,7 @@ export const useEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
-  params: Record<string, any>,
+  params: MaybeRef<Record<string, any>>,
   formatterSeriesData = res => res
 ) => {
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
@@ -77,7 +77,7 @@ export const useEcharts = (
         [target.apiFunc](
           {
             ...target.data,
-            ...params,
+            ...get(params),
             start_time: startTime,
             end_time: endTime,
           },

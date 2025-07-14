@@ -157,12 +157,11 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     }
   }
 
-  const { stop } = watch(
+  watch(
     () => options.value,
     v => {
       if (v?.series) {
         getLegendData(v.series);
-        stop();
       }
     },
     {
