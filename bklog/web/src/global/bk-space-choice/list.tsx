@@ -169,11 +169,7 @@ export default defineComponent({
                       <span class='list-item-name'>{item.name}</span>
                       <span class={['list-item-id', props.theme]}>
                         {/* 显示业务ID或空间ID */}
-                        {item.type != 'group-title'
-                          ? item.space_type_id === ETagsType.BKCC
-                            ? `(#${item.id})`
-                            : `(${item.space_id})` || `(${item.space_code})`
-                          : ''}
+                        { item.type != 'group-title' ? `(#${item.space_id})` : ''}
                       </span>
                       {/* 如果当前业务是默认业务，显示“默认”标签 */}
                       {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
