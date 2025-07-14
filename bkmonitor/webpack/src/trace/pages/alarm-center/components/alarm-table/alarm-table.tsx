@@ -26,6 +26,7 @@
 import { computed, defineComponent, ref as deepRef, type PropType } from 'vue';
 
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
+import AlertMetricsConfig from './components/alert-metrics-config';
 import AlertSelectionToolbar from './components/alert-selection-toolbar';
 import CommonTable from './components/common-table';
 import { usePopover } from './hooks/use-popover';
@@ -69,6 +70,12 @@ export default defineComponent({
       type: [String, Array] as PropType<string | string[]>,
     },
   },
+  emits: {
+    currentPageChange: (currentPage: number) => typeof currentPage === 'number',
+    displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
+    pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
+    sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
+  },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
     const { showPopover, hidePopover, clearPopoverTimer } = usePopover();
@@ -110,28 +117,35 @@ export default defineComponent({
   },
   render() {
     console.log('================ transformedColumns ================', this.transformedColumns);
+    console.log('================ data ================', this.data);
     return (
-      <CommonTable
-        class='alarm-table'
-        headerAffixedTop={{
-          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-        }}
-        horizontalScrollAffixedBottom={{
-          container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-        }}
-        tableSettings={{
-          ...this.tableSettings,
-          hasCheckAll: true,
-        }}
-        columns={this.transformedColumns}
-        data={this.data}
-        loading={this.loading}
-        pagination={this.pagination}
-        selectedRowKeys={this.selectedRowKeys}
-        sort={this.sort}
-        onSelectChange={this.handleSelectionChange}
-        {...this.$emit}
-      />
+      <div class='alarm-table-container'>
+        <AlertMetricsConfig />
+        <CommonTable
+          class='alarm-table'
+          headerAffixedTop={{
+            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+          }}
+          horizontalScrollAffixedBottom={{
+            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+          }}
+          tableSettings={{
+            ...this.tableSettings,
+            hasCheckAll: true,
+          }}
+          columns={this.transformedColumns}
+          data={this.data}
+          loading={this.loading}
+          pagination={this.pagination}
+          selectedRowKeys={this.selectedRowKeys}
+          sort={this.sort}
+          onCurrentPageChange={page => this.$emit('currentPageChange', page)}
+          onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
+          onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
+          onSelectChange={this.handleSelectionChange}
+          onSortChange={sort => this.$emit('sortChange', sort)}
+        />
+      </div>
     );
   },
 });

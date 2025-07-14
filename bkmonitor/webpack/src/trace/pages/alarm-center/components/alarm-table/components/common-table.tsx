@@ -113,7 +113,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     /** 表格单元格渲染逻辑 */
-    const { tableCellRender } = useTableCell({
+    const { tableCellRender, renderContext } = useTableCell({
       rowKeyField: props.rowKey,
       customCellRenderMap: props.customCellRenderMap,
     });
@@ -124,7 +124,10 @@ export default defineComponent({
     const tableColumns = computed(() =>
       props.columns.map(column => ({
         ...column,
-        cell: (_, { row }) => (column?.cellRenderer ? column?.cellRenderer(row, column) : tableCellRender(row, column)),
+        cell: (_, { row }) =>
+          column?.cellRenderer
+            ? column?.cellRenderer(row, column, renderContext)
+            : tableCellRender(row, column, renderContext),
       }))
     );
     /** 表格骨架屏展示相关配置 */

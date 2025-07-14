@@ -46,6 +46,8 @@ import {
   type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
   type ActiveConditionMenuTarget,
+  type TableCellRenderContext,
+  type TableCellRenderer,
 } from '../typing';
 
 import type { IDimensionField } from '../../../typing';
@@ -58,8 +60,9 @@ interface UseExploreTableColumnConfig {
   isSpanVisual: MaybeRef<boolean>;
   rowKeyField: MaybeRef<string>;
   sortContainer: DeepReadonly<SortInfo>;
+  renderContext: TableCellRenderContext;
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  tableCellRender: TableCellRenderer;
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
   handleSortChange: (sortEvent: TableSort) => void;
@@ -74,6 +77,7 @@ export function useExploreColumnConfig({
   isSpanVisual,
   rowKeyField,
   sortContainer,
+  renderContext,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
@@ -168,7 +172,7 @@ export function useExploreColumnConfig({
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(row, column);
+        const tableCell = (_, { row }) => tableCellRender(row, column, renderContext);
 
         return {
           ...defaultTableConfig,

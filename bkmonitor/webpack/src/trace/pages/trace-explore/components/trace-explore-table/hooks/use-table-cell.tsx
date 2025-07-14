@@ -38,6 +38,7 @@ import {
   type ExploreTableColumn,
   ExploreTableColumnTypeEnum,
   type GetTableCellRenderValue,
+  type TableCellRenderContext,
   type TableCellRenderer,
 } from '../typing';
 
@@ -65,6 +66,13 @@ export function useTableCell({
   let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRenderer> =
     {};
 
+  /** 渲染上下文 */
+  const renderContext: TableCellRenderContext<keyof typeof customCellRenderMap> = {
+    cellEllipsisClass,
+    cellRenderHandleMap,
+    isEnabledCellEllipsis,
+  };
+
   /**
    * @description 初始化单元格渲染策略
    *
@@ -83,6 +91,7 @@ export function useTableCell({
       ...defaultCellRenderHandleMap,
       ...(customCellRenderMap || {}),
     };
+    renderContext.cellRenderHandleMap = cellRenderHandleMap;
   }
 
   /**
@@ -124,10 +133,14 @@ export function useTableCell({
    * @description 表格单元格后置插槽渲染
    *
    */
-  function columnCellSuffixRender(row, column: BaseTableColumn<any, any>) {
+  function columnCellSuffixRender(
+    row,
+    column: BaseTableColumn<any, any>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const suffixSlot = column?.suffixSlot;
     if (!suffixSlot) return null;
-    return suffixSlot(row, column);
+    return suffixSlot(row, column, renderCtx);
   }
 
   /**
@@ -135,14 +148,22 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function clickColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>) {
+  function clickColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const alias = getTableCellRenderValue(row, column);
     if (!alias) {
-      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     return (
       <div class={'explore-col explore-click-col'}>
-        <div class={`${isEnabledCellEllipsis(column)}`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
             onClick={event => column?.clickCallback?.(row, column, event)}
@@ -150,7 +171,7 @@ export function useTableCell({
             {alias}
           </span>
         </div>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -160,7 +181,11 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function iconColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) {
+  function iconColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
     const { alias, prefixIcon } = item;
     if (alias == null || alias === '') {
@@ -168,7 +193,11 @@ export function useTableCell({
         ...column,
         getRenderValue: () => alias,
       };
-      return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     return (
       <div class='explore-col explore-prefix-icon-col'>
@@ -176,10 +205,10 @@ export function useTableCell({
           typeof prefixIcon === 'string' ? (
             <i class={`prefix-icon ${prefixIcon}`} />
           ) : (
-            prefixIcon(row, column)
+            prefixIcon(row, column, renderCtx)
           )
         ) : null}
-        <div class={`${isEnabledCellEllipsis(column)}`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -188,7 +217,7 @@ export function useTableCell({
             {alias}
           </span>
         </div>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -198,15 +227,23 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function timeColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>) {
+  function timeColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.TIME>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const timestamp = getTableCellRenderValue(row, column);
     if (!timestamp) {
-      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     const alias = formatTraceTableDate(timestamp);
     return (
       <div class={'explore-col explore-time-col'}>
-        <div class={`${isEnabledCellEllipsis(column)}`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-time-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -215,7 +252,7 @@ export function useTableCell({
             {alias}
           </span>
         </div>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -225,15 +262,23 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function durationColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>) {
+  function durationColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.DURATION>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const timestamp = getTableCellRenderValue(row, column);
     if (!timestamp) {
-      return textColumnFormatter(column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     const alias = formatDuration(+timestamp);
     return (
       <div class={'explore-col explore-duration-col '}>
-        <div class={`${isEnabledCellEllipsis(column)}`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-duration-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -242,7 +287,7 @@ export function useTableCell({
             {alias}
           </span>
         </div>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -252,7 +297,11 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function linkColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>) {
+  function linkColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.LINK>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const item = getTableCellRenderValue(row, column);
     // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
     if (!item?.url) {
@@ -260,7 +309,11 @@ export function useTableCell({
         ...column,
         getRenderValue: () => item?.alias,
       };
-      return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     return (
       <div class='explore-col explore-link-col '>
@@ -270,12 +323,12 @@ export function useTableCell({
           rel='noreferrer'
           target='_blank'
         >
-          <div class={`explore-link-text ${isEnabledCellEllipsis(column)}`}>
+          <div class={`explore-link-text ${renderCtx.isEnabledCellEllipsis(column)}`}>
             <span>{item.alias}</span>
           </div>
           <i class='icon-monitor icon-mc-goto' />
         </a>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -285,14 +338,22 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function tagsColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>) {
+  function tagsColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const tags = getTableCellRenderValue(row, column);
     if (!tags?.length) {
       const textColumn = {
         ...column,
         getRenderValue: () => defaultTableConfig.emptyPlaceholder,
       };
-      return textColumnFormatter(textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>, row);
+      return textColumnFormatter(
+        row,
+        textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
     }
     return (
       <TagsCell
@@ -309,11 +370,15 @@ export function useTableCell({
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function textColumnFormatter(row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>) {
+  function textColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
     const alias = getTableCellRenderValue(row, column);
     return (
       <div class={'explore-col explore-text-col '}>
-        <div class={`${isEnabledCellEllipsis(column)}`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
             data-col-id={column.colKey}
@@ -322,7 +387,7 @@ export function useTableCell({
             {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
           </span>
         </div>
-        {columnCellSuffixRender(row, column)}
+        {columnCellSuffixRender(row, column, renderCtx)}
       </div>
     ) as unknown as SlotReturnValue;
   }
@@ -334,16 +399,18 @@ export function useTableCell({
    */
   function tableCellRender(
     row,
-    column: BaseTableColumn<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, any>
+    column: BaseTableColumn<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, any>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
   ) {
     const renderType = column.renderType || ExploreTableColumnTypeEnum.TEXT;
     const renderMethod = cellRenderHandleMap[renderType];
-    return renderMethod ? renderMethod(row, column) : null;
+    return renderMethod ? renderMethod(row, column, renderCtx) : null;
   }
 
   initCellRenderHandleMap();
   return {
     tableCellRender,
     isEnabledCellEllipsis,
+    renderContext,
   };
 }

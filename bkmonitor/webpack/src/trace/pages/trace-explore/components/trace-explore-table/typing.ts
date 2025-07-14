@@ -29,13 +29,23 @@ import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-n
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
 
+export interface TableCellRenderContext<K extends string = string> {
+  /** 开启省略文本省略的类名 */
+  cellEllipsisClass: string;
+  /** 不同类型单元格渲染策略对象集合 */
+  cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | K, TableCellRenderer>;
+  /** 是否启用单元格文本省略号 */
+  isEnabledCellEllipsis: (column: BaseTableColumn<any, any>) => string;
+}
+
 /**
  * 通用表格单元格渲染类型
  * column 允许为 BaseTableColumn 或 ExploreTableColumn，row 为 any
  */
 export type TableCellRenderer<T extends BaseTableColumn<any, any> = BaseTableColumn<any, any>> = (
   row: any,
-  column: T
+  column: T,
+  renderCtx: TableCellRenderContext
 ) => SlotReturnValue;
 
 /** trace检索 表格列配置类型 */
