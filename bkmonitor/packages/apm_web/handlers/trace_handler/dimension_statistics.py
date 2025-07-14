@@ -39,17 +39,28 @@ class HistogramNiceNumberGenerator:
     # fmt: on
     @classmethod
     def align_histogram_bounds(
-        cls, min_value: float | int, max_value: float | int, num_buckets: int
+        cls,
+        min_value: float | int,
+        max_value: float | int,
+        num_buckets: int,
+        min_bucket_size: float | int | None = None,
     ) -> tuple[float | int, float | int, float | int, int]:
-        """重新计算最小值边界，最大值边界，桶大小和桶数量"""
+        """重新计算最小值边界，最大值边界，桶大小和桶数量
+
+        :param min_bucket_size: 最小桶的大小，如果是数据类型是整型的话，传值 1
+        """
         if min_value == max_value:
             return min_value, max_value, 0, 1
 
         target_size = (max_value - min_value) / num_buckets
+
         bucket_size_index = bisect.bisect_left(cls._HISTOGRAM_BUCKET_SIZES, target_size)
         bucket_size_index = bucket_size_index if bucket_size_index != len(cls._HISTOGRAM_BUCKET_SIZES) else -1
 
         bucket_size = cls._HISTOGRAM_BUCKET_SIZES[bucket_size_index]
+        if min_bucket_size is not None:
+            bucket_size = max(bucket_size, min_bucket_size)
+
         min_x = math.floor(min_value / bucket_size) * bucket_size
         max_x = math.ceil(max_value / bucket_size) * bucket_size
         num_buckets = int((max_x - min_x) // bucket_size)

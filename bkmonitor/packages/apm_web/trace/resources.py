@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
+import math
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -1380,11 +1381,11 @@ class TraceFieldStatisticsGraphResource(Resource):
             field_info_values = field_info["values"]
             min_value, max_value, _, interval_num = field_info_values[:4]
             min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.align_histogram_bounds(
-                min_value, max_value, interval_num
+                min_value, max_value, interval_num, 1
             )
             field_info_values[0], field_info_values[1], field_info_values[3] = (
-                int(min_value),
-                int(max_value),
+                math.floor(min_value),
+                math.ceil(max_value),
                 interval_num,
             )
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
