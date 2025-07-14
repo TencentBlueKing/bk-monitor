@@ -27,13 +27,13 @@
   <div :class="['compare-panel', { 'has-favorites-list': hasFavoritesList }]">
     <slot name="pre" />
     <div
-      class="panel-wrap"
       ref="panelWrap"
+      class="panel-wrap"
     >
       <div
-        class="panel-wrap-left"
         v-if="!compareHide"
         v-en-style="'width: 150px'"
+        class="panel-wrap-left"
       >
         <drop-down-menu
           v-model="compare.type"
@@ -43,8 +43,8 @@
       </div>
       <div :class="['panel-wrap-center', { 'no-compare': compareHide }]">
         <div
-          class="center-maintag"
           v-if="compare.type === 'target' && curHost && curHost.ip"
+          class="center-maintag"
         >
           <span
             class="tag"
@@ -59,30 +59,30 @@
         >
           <!-- 目标对比 -->
           <div
-            class="target-select"
             v-if="compare.type === 'target' && needTarget"
+            class="target-select"
           >
             <bk-select
               ref="targetSelect"
-              @toggle="handleSelectToggle"
+              v-model="compare.value"
               :clearable="false"
               :placeholder="$t('选择目标')"
-              searchable
-              multiple
-              display-tag
-              v-model="compare.value"
-              @change="handleValueChange('compare')"
               :popover-width="200"
+              display-tag
+              multiple
+              searchable
+              @change="handleValueChange('compare')"
+              @toggle="handleSelectToggle"
             >
               <bk-option
                 v-for="option in targetList"
-                :key="option.id"
                 :id="option.id"
+                :key="option.id"
                 :name="option.name"
               />
               <div
-                class="target-select-clear"
                 v-if="refTargetSelect && showClearBtn"
+                class="target-select-clear"
               >
                 <span
                   class="clear-btn"
@@ -95,20 +95,20 @@
           </div>
           <!-- 时间对比 -->
           <bk-select
-            v-model="compare.value"
+            v-else-if="compare.type === 'time'"
+            ref="timeSelect"
             class="time-select"
+            v-model="compare.value"
+            v-en-class="'en-lang'"
             :clearable="false"
             multiple
-            ref="timeSelect"
-            v-en-class="'en-lang'"
-            @toggle="handleSelectToggle"
-            v-else-if="compare.type === 'time'"
             @change="handleValueChange('compare')"
+            @toggle="handleSelectToggle"
           >
             <bk-option
               v-for="item in timeshiftList"
-              :key="item.id + item.name"
               :id="item.id"
+              :key="item.id + item.name"
               :name="item.name"
             />
             <div>
@@ -130,46 +130,46 @@
                 />
                 <span
                   v-if="custom.show"
-                  v-bk-tooltips.top="$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')"
                   class="help-icon icon-monitor icon-mc-help-fill"
+                  v-bk-tooltips.top="$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')"
                 />
               </div>
             </div>
           </bk-select>
           <!-- 不对比: 视图拆分 -->
           <div
-            class="split-btn-wrapper"
             v-else-if="needSplit && compare.type === 'none'"
+            class="split-btn-wrapper"
           >
             <i
-              @click="handleSplit"
               :class="['icon-monitor', compare.value ? 'icon-hebing' : 'icon-chaifen icon-active']"
+              @click="handleSplit"
             />
           </div>
           <favorites-list
-            class="favorites-list"
             v-if="hasFavoritesList"
-            :value="favoritesList"
+            class="favorites-list"
             :checked-value="favCheckedValue"
-            @selectFav="emitSelectFav"
+            :value="favoritesList"
             @deleteFav="handleDeleteFav"
+            @selectFav="emitSelectFav"
           />
           <span class="margin-left-auto" />
           <div
-            class="search-selector-wrapper search-select-active"
             v-if="needSearchSelect"
+            class="search-selector-wrapper search-select-active"
           >
             <slot name="search">
               <div class="search-select">
                 <search-select
-                  :value="tools.searchValue"
-                  :placeholder="$t('搜索')"
                   :data="searchSelectList"
+                  :placeholder="$t('搜索')"
+                  :value="tools.searchValue"
                   @change="handleSearchSelectChange"
                 >
                   <i
-                    slot="prepend"
                     class="bk-icon icon-search"
+                    slot="prepend"
                   />
                 </search-select>
               </div>
@@ -196,21 +196,21 @@
             </monitor-date-range> -->
           </div>
           <drop-down-menu
-            :show-name="showText"
-            icon="icon-zidongshuaxin"
             class="time-interval"
             v-model="tools.refreshInterval"
-            :text-active="tools.refreshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-refresh')"
-            @change="handleValueChange('interval')"
             :is-refresh-interval="true"
             :list="refreshList"
+            :show-name="showText"
+            :text-active="tools.refreshInterval !== -1"
+            icon="icon-zidongshuaxin"
+            @change="handleValueChange('interval')"
+            @on-icon-click="$emit('on-immediate-refresh')"
           />
         </slot>
       </div>
       <div
-        class="panel-wrap-right"
         v-if="hasViewChangeIcon"
+        class="panel-wrap-right"
       >
         <span
           class="tool-icon"
@@ -227,9 +227,10 @@
   </div>
 </template>
 <script lang="ts">
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { DEFAULT_REFLESH_LIST } from '../../../common/constant';
 import MonitorDateRange from '../../../components/monitor-date-range/monitor-date-range.vue';
@@ -238,6 +239,7 @@ import TimeRange, { type TimeRangeType } from '../../../components/time-range/ti
 import { PERFORMANCE_CHART_TYPE } from '../../../constant/constant';
 import { getRandomId } from '../../../utils';
 import FavoritesList from '../../data-retrieval/favorites-list/favorites-list';
+
 import type { IDataRetrieval, IFavList } from '../../data-retrieval/typings';
 import type {
   ChartType,
@@ -450,7 +452,7 @@ export default class ComparePanel extends Vue {
   }
 
   handleAddCustomTime() {
-    const regular = /^([1-9][0-9]*)+(m|h|d|w|M|y)$/;
+    const regular = /^[1-9][0-9]*(?:m|h|d|w|M|y)$/;
     if (regular.test(this.custom.value.trim())) {
       (this.compare.value as string[]).push(this.custom.value);
       this.handleValueChange('compare');

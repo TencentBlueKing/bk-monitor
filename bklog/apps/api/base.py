@@ -404,8 +404,8 @@ class DataAPI:
                         serializer.is_valid(raise_exception=True)
                         response_result = serializer.validated_data
 
-                if self.cache_time:
-                    self._set_cache(cache_key, response_result)
+                    if self.cache_time:
+                        self._set_cache(cache_key, response_result)
 
                 response = DataResponse(response_result, request_id)
                 return response

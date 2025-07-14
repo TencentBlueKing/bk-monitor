@@ -42,6 +42,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
+import DOMPurify from 'dompurify';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -52,7 +53,6 @@ import {
   IndexSetQueryResult,
   IndexFieldInfo,
   IndexItem,
-  logSourceField,
   indexSetClusteringData,
   getDefaultRetrieveParams,
   getStorageOptions,
@@ -67,6 +67,9 @@ import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
+
+export const SET_APP_STATE = 'SET_APP_STATE';
+
 const stateTpl = {
   userMeta: {}, // /meta/mine
   pageLoading: true,
@@ -110,6 +113,9 @@ const stateTpl = {
   traceIndexId: '',
   // 业务Id
   bkBizId: URL_ARGS.bizId ?? '',
+  // 默认业务ID
+  defaultBizId: '',
+
   // 我的项目列表
   mySpaceList: [],
   currentMenu: {},
@@ -175,6 +181,8 @@ const stateTpl = {
     isAiAssistantActive: false,
   },
   localSort: false,
+  spaceUidMap: new Map(),
+  bizIdMap: new Map(),
 };
 
 const store = new Vuex.Store({
@@ -201,6 +209,7 @@ const store = new Vuex.Store({
     unionIndexItemList: state => state.unionIndexItemList,
     traceIndexId: state => state.traceIndexId,
     bkBizId: state => state.bkBizId,
+    defaultBizId: state => state.defaultBizId,
     mySpaceList: state => state.mySpaceList,
     pageLoading: state => state.pageLoading,
     globalsData: state => state.globalsData,
@@ -317,6 +326,12 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    [SET_APP_STATE](state, data) {
+      for (const [key, value] of Object.entries(data)) {
+        state[key] = value;
+      }
+    },
+
     updateStorage(state, payload) {
       Object.keys(payload).forEach(key => {
         state.storage[key] = payload[key];
@@ -1602,7 +1617,7 @@ const store = new Vuex.Store({
 
       const formatJsonString = formatResult => {
         if (typeof formatResult === 'string') {
-          return formatResult.replace(/"/g, '\\"');
+          return DOMPurify.sanitize(formatResult);
         }
 
         return formatResult;
@@ -1708,29 +1723,10 @@ const store = new Vuex.Store({
       return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
     },
 
-    changeShowUnionSource({ commit, dispatch, state }) {
+    changeShowUnionSource({ commit, state }) {
       commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
-      // dispatch('showShowUnionSource', { keepLastTime: false });
     },
 
-    /** 日志来源显隐操作 */
-    // showShowUnionSource({ state }, { keepLastTime = false }) {
-    //   // 非联合查询 或者清空了所有字段 不走逻辑
-    //   if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
-    //   const isExist = state.visibleFields.some(item => item.tag === 'union-source');
-    //   // 保持之前的逻辑
-    //   if (keepLastTime) {
-    //     const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
-    //     if (isExist) {
-    //       !isShowSourceField && state.visibleFields.shift();
-    //     } else {
-    //       isShowSourceField && state.visibleFields.unshift(logSourceField());
-    //     }
-    //     return;
-    //   }
-
-    //   isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
-    // },
     requestSearchTotal({ state, getters }) {
       state.searchTotal = 0;
       const start_time = Math.floor(getters.retrieveParams.start_time);

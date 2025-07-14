@@ -29,8 +29,8 @@
     :title="$t('主机性能状态分布')"
   >
     <div
-      slot="title"
       class="sub-title"
+      slot="title"
     >
       {{ $t('（数据缓存2mins）') }}
     </div>
@@ -40,29 +40,29 @@
     >
       <template v-for="(optionList, index) in options">
         <div
-          :key="index"
           class="radio-content-wrap"
+          :key="index"
         >
           <div
             v-for="(option, key) in optionList"
-            :key="key"
             class="chart-item"
             :class="{ 'item-border': index === 0, 'border-left': !(key % 2) }"
+            :key="key"
           >
             <monitor-pie-echart
               class="chart-set"
-              chart-type="pie"
               :height="200"
               :options="option"
+              chart-type="pie"
               @chart-click="e => handleChartClick(e, option)"
             >
               <div
-                slot="chartCenter"
                 class="slot-center"
+                slot="chartCenter"
               >
                 <div
-                  class="slot-center-name"
                   style="width: 56px; font-size: 14px; text-align: center"
+                  class="slot-center-name"
                 >
                   {{ option.name }}
                 </div>
@@ -316,7 +316,7 @@ export default {
     },
     handleChartClick(params, option) {
       if (params.data.ip_list?.length) {
-        const scopes = params.name.replace(/\s+/g, '').replace('%', '').split('~');
+        const scopes = params.name.replace(/\s+/g, '').replace(/%/g, '').split('~');
         this.gotoPerformace({
           id: this.chartIdMap[option.name],
           value: [

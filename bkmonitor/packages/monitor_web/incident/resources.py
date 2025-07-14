@@ -1422,7 +1422,7 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": "finished",
                 },
                 "incident_topology": {  # 故障拓扑tab
-                    "enabled": True,
+                    "enabled": False,
                     "status": "finished",
                 },
                 "incident_alerts": {  # 故障告警tab

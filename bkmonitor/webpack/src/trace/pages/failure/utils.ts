@@ -30,3 +30,9 @@ export const useIncidentProvider = (incidentId: ComputedRef<string>) => {
   provide(INCIDENT_ID_KEY, incidentId);
 };
 export const useIncidentInject = () => inject<ComputedRef<string>>(INCIDENT_ID_KEY);
+
+export const replaceSpecialCondition = (qs: string) => {
+  // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
+  const regExp = new RegExp(`${window.i18n.t('通知人')}\\s*:\\s*(""|'')`, 'gi');
+  return qs.replace(regExp, `NOT ${window.i18n.t('通知人')} : *`);
+};

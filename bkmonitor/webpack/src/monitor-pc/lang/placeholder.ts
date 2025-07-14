@@ -331,4 +331,6 @@ export default {
   待翻译文本: 'Text to be translated',
   解释: 'Explanation',
   翻译: 'Translation',
+  '高度自适应，宽度最大值为': 'Adaptive height, maximum width of',
+  数值: 'Number',
 };
