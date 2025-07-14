@@ -232,7 +232,7 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell({
+    const { tableCellRender, renderContext } = useTableCell({
       rowKeyField: tableRowKeyField,
       customDefaultGetRenderValue: (row, column) => {
         const alias = row?.[column.colKey];
@@ -254,6 +254,7 @@ export default defineComponent({
       isSpanVisual,
       rowKeyField: tableRowKeyField,
       sortContainer,
+      renderContext,
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,

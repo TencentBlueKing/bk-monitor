@@ -30,10 +30,17 @@ import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import {
   ExploreTableColumnTypeEnum,
+  type TableCellRenderContext,
   type BaseTableColumn,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { ALERT_STORAGE_KEY } from '../../../services/alert-services';
-import { AlarmLevelIconMap, AlertStatusMap, EXTEND_INFO_MAP } from '../../../typings';
+import {
+  AlarmLevelIconMap,
+  AlertDataTypeMap,
+  AlertStatusMap,
+  AlertTargetTypeMap,
+  EXTEND_INFO_MAP,
+} from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -85,6 +92,19 @@ export class AlertScenario extends BaseScenario {
       /** 首次异常时间(first_anomaly_time) 列 */
       first_anomaly_time: {
         renderType: ExploreTableColumnTypeEnum.TIME,
+      },
+      /** 告警内容(description) 列 */
+      description: {
+        cellRenderer: (row, column, renderCtx) => this.renderDescription(row, column, renderCtx),
+        getRenderValue: row => ({ prefixIcon: AlertDataTypeMap[row.data_type]?.prefixIcon, alias: row.description }),
+      },
+      /** 监控目标(target_key) 列 */
+      target_key: {
+        renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+        getRenderValue: row => ({
+          prefixIcon: AlertTargetTypeMap[row.target_key]?.prefixIcon,
+          alias: row?.extend_info?.topo_info ? `${row?.extend_info?.topo_info} ${row.target_key}` : row.target_key,
+        }),
       },
       /** 维度(tags) 列 */
       tags: {
@@ -168,6 +188,24 @@ export class AlertScenario extends BaseScenario {
     ) as unknown as SlotReturnValue;
   }
 
+  /**
+   * @description 告警内容(description) 列渲染方法
+   */
+  private renderDescription(row: any, column: BaseTableColumn, renderCtx: TableCellRenderContext): SlotReturnValue {
+    if (row.data_type !== 'time_series') {
+      return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.PREFIX_ICON]?.(row, column, renderCtx);
+    }
+    const item = column?.getRenderValue?.(row, column);
+    return (
+      <div class='explore-col explore-prefix-icon-col '>
+        <i class={`prefix-icon ${item?.prefixIcon}`} />
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)} description-click-col`}>
+          <span>{item.alias || '--'}</span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+
   // ----------------- 告警场景私有逻辑方法 -----------------
   /**
    * @description 告警名称(alert_name) 列 hover事件
@@ -208,10 +246,10 @@ export class AlertScenario extends BaseScenario {
    * @description 关联信息(extend_info) 列 hover事件
    */
   private handleExtendInfoHover(e: MouseEvent, info: any) {
-    let tplStr = '--';
+    let content = '--';
     switch (info.type) {
       case 'host':
-        tplStr = `<div class="extend-content">${window.i18n.t('主机名:')}${info.hostname || '--'}</div>
+        content = `<div class="extend-content">${window.i18n.t('主机名:')}${info.hostname || '--'}</div>
             <div class="extend-content">
               <span class="extend-content-message">${window.i18n.t('节点信息:')}${info.topo_info || '--'}</span>
             </div>
@@ -220,13 +258,17 @@ export class AlertScenario extends BaseScenario {
       case 'log_search':
       case 'custom_event':
       case 'bkdata':
-        tplStr = `<span class="extend-content-link">
+        content = `<span class="extend-content-link">
             ${EXTEND_INFO_MAP[info.type] || '--'}
           </span>`;
         break;
       default:
         break;
     }
+
+    const tplStr = `<div class='extend-info-popover-container'>
+        ${content}
+      </div>`;
     this.context.showPopover(e, tplStr);
   }
 

@@ -130,6 +130,12 @@ const ALERT_TABLE_COLUMNS = [
     width: 300,
   },
   {
+    colKey: 'target_key',
+    title: window.i18n.t('监控目标'),
+    is_default: true,
+    width: 300,
+  },
+  {
     colKey: 'tags',
     title: window.i18n.t('维度'),
     is_default: false,
