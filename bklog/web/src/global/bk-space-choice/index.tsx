@@ -81,6 +81,7 @@ export default defineComponent({
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
 
+    const demoId = ref('');
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
@@ -179,6 +180,8 @@ export default defineComponent({
         return true;
       });
 
+      // 体验demo的业务id
+      demoId.value = mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '';
       // 有权限业务
       generalList.value = filteredList.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
       // 常用业务
@@ -328,7 +331,8 @@ export default defineComponent({
     // 点击体验demo按钮
     const experienceDemo = () => {
       showBizList.value = false;
-      checkSpaceChange(demoUid.value);
+      checkSpaceChange(demoUid.value);  // 切换到demo业务
+      if (demoId.value) updateCacheBizId(Number(demoId.value));  // 更新常用业务缓存
     };
 
     // 下拉框内容渲染
