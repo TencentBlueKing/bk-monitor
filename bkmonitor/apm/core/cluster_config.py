@@ -97,7 +97,7 @@ class ClusterConfig:
             logger.error(f"[ClusterConfig] parse platform_config_tpl failed: cluster({cluster_id}), error({e})")
 
     @classmethod
-    def application_config_tpl(cls, cluster_id):
+    def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
@@ -107,11 +107,19 @@ class ClusterConfig:
         if config_maps is None or len(config_maps.items) == 0:
             return None
 
-        content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME)
+        content = ""
+        for item in config_maps.items:
+            if not item.data:
+                continue
+
+            content = item.data.get(sub_config_tpl_name)
+            if content:
+                break
+
         try:
             return base64.b64decode(content).decode()
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(f"[ClusterConfig] parse application_config_tpl failed: cluster({cluster_id}), error({e})")
+            logger.error(f"[ClusterConfig] parse {sub_config_tpl_name} failed: cluster({cluster_id}), error({e})")
 
     @classmethod
     def _split_value(cls, value):

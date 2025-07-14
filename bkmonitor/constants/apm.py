@@ -1167,6 +1167,8 @@ class BkCollectorComp:
     CONFIG_MAP_PLATFORM_TPL_NAME = "bk-collector-platform.conf.tpl"
     # ConfigMap: 应用配置名称
     CONFIG_MAP_APPLICATION_TPL_NAME = "bk-collector-application.conf.tpl"
+    # ConfigMap: 自定义上报配置名称
+    CONFIG_MAP_REPORT_V2_TPL_NAME = "bk-collector-report-v2.conf.tpl"
 
     # Secrets 配置
     SECRET_PLATFORM_NAME = "bk-collector-platform"

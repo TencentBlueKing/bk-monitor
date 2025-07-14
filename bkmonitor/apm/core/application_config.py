@@ -108,7 +108,9 @@ class ApplicationConfig(BkCollectorConfig):
                 f"cluster-id: {cluster_id}", attributes={"apm_application_id": self._application.id}
             ) as s:
                 try:
-                    application_tpl = ClusterConfig.application_config_tpl(cluster_id)
+                    application_tpl = ClusterConfig.sub_config_tpl(
+                        cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                    )
                     if application_tpl is None:
                         continue
 
