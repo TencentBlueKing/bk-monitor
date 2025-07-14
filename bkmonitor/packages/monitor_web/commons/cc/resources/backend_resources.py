@@ -691,7 +691,7 @@ class GetTopoListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(label="业务ID列表", child=serializers.IntegerField())
         bk_obj_id = serializers.CharField(label="对象ID")
-        condition = serializers.JSONField(label="查询条件", required=False, default={})
+        condition = serializers.JSONField(label="查询条件", required=False, default=dict)
         OBJ_ID_CHOOSE = ("module", "set")
 
         def validate(self, attrs):
@@ -703,12 +703,12 @@ class GetTopoListResource(Resource):
         bk_biz_ids = set(validated_request_data["bk_biz_ids"])
         # todo 过滤有效业务ID
         bk_obj_id = validated_request_data["bk_obj_id"]
-        condition = validated_request_data.get("condition")
+        condition: dict = validated_request_data.get("condition")
         fun_map = {"module": self.get_modules, "set": self.get_sets}
 
         return fun_map[bk_obj_id](bk_biz_ids, condition)
 
-    def get_modules(self, bk_biz_ids: list[int], condition: dict | None = None):
+    def get_modules(self, bk_biz_ids: list[int], condition: dict):
         module_list = []
         fields = ["bk_module_id", "bk_module_name", "bk_biz_id"]
         params = self._get_query_params(bk_biz_ids, fields, condition)
@@ -717,7 +717,7 @@ class GetTopoListResource(Resource):
                 module_list.append(self._get_attr_value(m, fields))
         return module_list
 
-    def get_sets(self, bk_biz_ids: list[int], condition: dict | None = None):
+    def get_sets(self, bk_biz_ids: list[int], condition: dict):
         set_list = []
         fields = ["bk_set_id", "bk_set_name", "bk_biz_id"]
         params = self._get_query_params(bk_biz_ids, fields, condition)
@@ -726,7 +726,7 @@ class GetTopoListResource(Resource):
                 set_list.append(self._get_attr_value(s, fields))
         return set_list
 
-    def _get_query_params(self, bk_biz_ids, fields, condition=None):
+    def _get_query_params(self, bk_biz_ids: list[int], fields: list[str], condition: dict):
         query_params = []
         for biz_id in bk_biz_ids:
             param = {"bk_biz_id": biz_id, "fields": fields}
