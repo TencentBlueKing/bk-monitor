@@ -14,7 +14,7 @@ import json
 import logging
 from collections import defaultdict
 
-import jinja2
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from kubernetes import client
 from opentelemetry import trace
@@ -26,7 +26,6 @@ from apm.constants import (
     ConfigTypes,
     DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
-from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
 from apm.models import (
     ApdexConfig,
@@ -42,8 +41,10 @@ from apm.models import (
     SubscriptionConfig,
 )
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from constants.apm import BkCollectorComp
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
@@ -59,15 +60,28 @@ class ApplicationConfig(BkCollectorConfig):
 
     def refresh(self):
         """[旧] 下发应用配置（通过节点管理）"""
-        target_hosts = self.get_target_hosts()
-        if not target_hosts:
+        bk_tenant_id = self._application.bk_tenant_id
+        bk_biz_id = self._application.bk_biz_id
+
+        # 1. 获取应用配置上下文
+        application_config = self.get_application_config()
+
+        # 2.1 获取指定租户指定业务下的主机
+        proxy_target_hosts = self.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
+
+        # 2.2 获取默认租户下全局配置中主机配置列表
+        default_target_hosts = self.get_target_host_in_default_cloud_area()
+        if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
 
-        application_config = self.get_application_config()
-
         try:
-            self.deploy(application_config, target_hosts)
+            # 3. 下发给指定租户下
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                self.deploy(bk_tenant_id, application_config, default_target_hosts + proxy_target_hosts)
+            else:
+                self.deploy(DEFAULT_TENANT_ID, application_config, default_target_hosts)
+                self.deploy(bk_tenant_id, application_config, proxy_target_hosts)
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
 
@@ -99,8 +113,7 @@ class ApplicationConfig(BkCollectorConfig):
                         continue
 
                     application_config_context = self.get_application_config()
-                    tpl = jinja2.Template(application_tpl)
-                    application_config = tpl.render(application_config_context)
+                    application_config = Environment().from_string(application_tpl).render(application_config_context)
                     self.deploy_to_k8s(cluster_id, application_config)
 
                     s.set_status(trace.StatusCode.OK)
@@ -450,7 +463,7 @@ class ApplicationConfig(BkCollectorConfig):
             res.append(tem_item)
         return {"name": "probe_filter/common", "rules": res}
 
-    def deploy(self, application_config, bk_host_ids: list[int]):
+    def deploy(self, bk_tenant_id: str, application_config, bk_host_ids: list[int]):
         """
         下发bk-collector的应用配置
         """
@@ -477,13 +490,13 @@ class ApplicationConfig(BkCollectorConfig):
             ],
         }
 
-        applicaiton_subscription = SubscriptionConfig.objects.filter(
-            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+        application_subscription = SubscriptionConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
         )
-        if applicaiton_subscription.exists():
+        if application_subscription.exists():
             try:
                 logger.info("apm application config subscription task already exists.")
-                sub_config_obj = applicaiton_subscription.first()
+                sub_config_obj = application_subscription.first()
                 subscription_params["subscription_id"] = sub_config_obj.subscription_id
                 subscription_params["run_immediately"] = True
 
@@ -493,7 +506,7 @@ class ApplicationConfig(BkCollectorConfig):
                     logger.info("apm application config subscription task config has changed, update it.")
                     result = api.node_man.update_subscription(subscription_params)
                     logger.info(f"update apm application config subscription successful, result:{result}")
-                    applicaiton_subscription.update(config=subscription_params)
+                    application_subscription.update(config=subscription_params)
                 return sub_config_obj.subscription_id
             except Exception as e:  # noqa
                 logger.exception(f"update apm application config subscription error:{e}, params:{subscription_params}")
@@ -506,6 +519,7 @@ class ApplicationConfig(BkCollectorConfig):
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
                 SubscriptionConfig.objects.create(
+                    bk_tenant_id=bk_tenant_id,
                     bk_biz_id=self._application.bk_biz_id,
                     app_name=self._application.app_name,
                     config=subscription_params,
@@ -513,7 +527,7 @@ class ApplicationConfig(BkCollectorConfig):
                 )
 
                 result = api.node_man.run_subscription(
-                    subscription_id=subscription_id, actions={self.PLUGIN_NAME: "INSTALL"}
+                    bk_tenant_id=bk_tenant_id, subscription_id=subscription_id, actions={self.PLUGIN_NAME: "INSTALL"}
                 )
                 logger.info(f"run apm application config subscription result:{result}")
             except Exception as e:  # noqa
@@ -556,11 +570,7 @@ class ApplicationConfig(BkCollectorConfig):
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector="component={},template=false,type={},source={}".format(
-                BkCollectorComp.LABEL_COMPONENT_VALUE,
-                BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
-                BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
-            ),
+            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG},source={BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG}",
         )
         sec = find_secrets_in_boundary(secrets, self._application.id)
         if sec is None:

@@ -42,7 +42,7 @@
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-      // { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
+      { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
     ];
   });
 
@@ -105,6 +105,21 @@
 
     emit('input', panel, panel === 'origin');
   };
+
+  watch(
+    () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+    ([grepEnable, graphEnable, aiopsEnable]) => {
+      if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
+        if (
+          (!grepEnable && route.query.tab === 'grep') ||
+          (!graphEnable && route.query.tab === 'graphAnalysis') ||
+          (!aiopsEnable && route.query.tab === 'clustering')
+        ) {
+          handleActive('origin');
+        }
+      }
+    },
+  );
 
   onMounted(() => {
     const tabName = route.query.tab ?? 'origin';

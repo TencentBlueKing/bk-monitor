@@ -323,7 +323,6 @@ export default class UseTextSegmentation {
 
   private getSplitList(field: any, content: any, forceSplit = false) {
     /** 检索高亮分词字符串 */
-    const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
 
     if (this.isVirtualObjField(field)) {
@@ -338,7 +337,7 @@ export default class UseTextSegmentation {
 
       return LuceneSegment.split(value, 1000);
     }
-
+    const markRegStr = '<mark>(.*?)</mark>';
     const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
     const isMark = new RegExp(markRegStr).test(value);
     return [

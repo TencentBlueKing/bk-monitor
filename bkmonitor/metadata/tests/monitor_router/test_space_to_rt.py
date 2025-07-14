@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from datetime import timedelta
 import json
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
@@ -172,7 +172,7 @@ def test_push_space_to_rt_router_with_tenant_for_bkcc(create_or_delete_records):
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
             expected = {
-                "bkcc__1|riot": '{"1001_bklog.stdout|riot":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__|riot":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__|riot":{"filters":[]}}'
+                "bkcc__1|riot": '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -224,8 +224,8 @@ def test_push_space_to_rt_router_with_tenant_for_bkci(create_or_delete_records):
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
             expected = {
-                "bkci__bkmonitor|tencent": '{"custom_report_aggate.base|tencent":{"filters":[{"bk_biz_id":"-10000"}]},'
-                '"bkm_statistics.base|tencent":{"filters":[{"bk_biz_id":"-10000"}]}}'
+                "bkci__bkmonitor|tencent": '{"custom_report_aggate.base":{"filters":[{"bk_biz_id":"-10000"}]},'
+                '"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -270,8 +270,8 @@ def test_push_space_to_rt_router_with_tenant_for_bksaas(create_or_delete_records
             client.push_space_table_ids(space_type="bksaas", space_id="monitor_saas", is_publish=True)
 
             expected = {
-                "bksaas__monitor_saas|tencent": '{"custom_report_aggate.base|tencent":{"filters":[{'
-                '"bk_biz_id":"-10008"}]},"bkm_statistics.base|tencent":{"filters":[{'
+                "bksaas__monitor_saas|tencent": '{"custom_report_aggate.base":{"filters":[{'
+                '"bk_biz_id":"-10008"}]},"bkm_statistics.base":{"filters":[{'
                 '"bk_biz_id":"-10008"}]}}'
             }
 

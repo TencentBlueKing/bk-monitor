@@ -564,7 +564,7 @@ export default class HistoryShareManage extends tsc<IProps> {
               <span class='content link'>
                 <a
                   href={this.shareUrl}
-                  rel='noreferrer'
+                  rel='noopener noreferrer'
                   target='_blank'
                 >
                   {this.shareUrl}

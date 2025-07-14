@@ -111,9 +111,9 @@ const actions = {
     const data = await detailAlertNotice(params).catch(() => ({}));
     return transformDataKey(data);
   },
-  async getlistEventLog(store, params) {
+  async getListEventLog(store, params) {
     const data = await listEventLog(params);
-    data.forEach(item => {
+    for (const item of data) {
       item.logIcon = `icon-mc-alarm-${item.operate.toLocaleLowerCase()}`;
       if (item.operate === 'RECOVER') {
         item.logIcon += 'ed';
@@ -138,7 +138,7 @@ const actions = {
       item.border = false;
       item.show = true;
       item.expandDate = '';
-    });
+    }
     return transformDataKey(data);
   },
   // 获取变化趋势图数据
@@ -148,11 +148,12 @@ const actions = {
   },
   async getListConvergeLog(store, params) {
     const data = await listConvergeLog(params).catch(() => []);
-    data.forEach(item => {
-      item.operate === 'ANOMALY_NOTICE'
-        ? (item.logIcon = 'icon-mc-alarm-notice')
-        : (item.logIcon = `icon-mc-alarm-${item.operate.toLocaleLowerCase()}`);
-
+    for (const item of data) {
+      if (item.operate === 'ANOMALY_NOTICE') {
+        item.logIcon = 'icon-mc-alarm-notice';
+      } else {
+        item.logIcon = `icon-mc-alarm-${item.operate.toLocaleLowerCase()}`;
+      }
       if (item.operate === 'RECOVER') {
         item.logIcon += 'ed';
       }
@@ -161,7 +162,7 @@ const actions = {
       item.border = false;
       item.show = true;
       item.expandTime = '';
-    });
+    }
     return transformDataKey(data);
   },
 };

@@ -730,7 +730,12 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "bkmonitor.db_routers.TableVisitCountRouter"]
+
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+
+# 是否开启表访问次数统计
+if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
+    DATABASE_ROUTERS.append("bkmonitor.db_routers.TableVisitCountRouter")
 
 # 数据库配置
 (
@@ -1361,6 +1366,7 @@ AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
 AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
 AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
 AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE = 0.3  # 默认温度
+AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 

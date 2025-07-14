@@ -42,13 +42,19 @@ import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
-import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
+import {
+  feedbackIncidentRoot,
+  incidentAlertList,
+  incidentRecordOperation,
+  incidentValidateQueryString,
+} from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
+import { replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -110,6 +116,7 @@ export default defineComponent({
     const currentData = deepRef({});
     const currentIds = deepRef([]);
     const currentBizIds = deepRef([]);
+    const disableKey = ['serial-number', 'project', 'category_display'];
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -174,6 +181,8 @@ export default defineComponent({
     const tableToolList = deepRef([]);
     const enableCreateChatGroup = deepRef((window as any).enable_create_chat_group || false);
     const alertIdsData = deepRef(props.alertIdsObject);
+    const alarmDetailRef = deepRef(null);
+    const alarmDetailHeight = deepRef(0);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
@@ -335,6 +344,7 @@ export default defineComponent({
             strategy: 'fixed',
           },
         },
+        fixed: 'left',
         disabled: true,
         cell: (_, { row: data }) => {
           return (
@@ -361,6 +371,7 @@ export default defineComponent({
         title: t('告警名称'),
         colKey: 'alert_name',
         minWidth: 134,
+        fixed: 'left',
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -368,7 +379,7 @@ export default defineComponent({
         },
         cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity.is_root || data.is_feedback_root;
+          const isRoot = entity?.is_root || data.is_feedback_root;
           return (
             <div
               class='name-column'
@@ -513,6 +524,7 @@ export default defineComponent({
         colKey: 'duration',
         width: 155,
         minWidth: 155,
+        fixed: 'right',
         ellipsis: (_, { row: data }) => {
           return data.duration;
         },
@@ -534,23 +546,25 @@ export default defineComponent({
                 }}
                 class='operate-panel'
               >
-                <span
-                  class={['operate-panel-item', { 'is-disable': data.entity.is_root }]}
-                  v-bk-tooltips={{
-                    content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
-                    trigger: 'hover',
-                    delay: 200,
-                    disabled: data.entity.is_root,
-                  }}
-                  onClick={() => handleRootCauseConfirm(data)}
-                >
-                  <i
-                    class={[
-                      'icon-monitor',
-                      !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
-                    ]}
-                  />
-                </span>
+                {!!data.entity && (
+                  <span
+                    class={['operate-panel-item', { 'is-disable': data.entity?.is_root }]}
+                    v-bk-tooltips={{
+                      content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
+                      trigger: 'hover',
+                      delay: 200,
+                      disabled: data.entity?.is_root,
+                    }}
+                    onClick={() => handleRootCauseConfirm(data)}
+                  >
+                    <i
+                      class={[
+                        'icon-monitor',
+                        !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
+                      ]}
+                    />
+                  </span>
+                )}
                 <span
                   class='operate-panel-item'
                   v-bk-tooltips={{ content: t('告警分派'), delay: 200, appendTo: 'parent' }}
@@ -667,7 +681,7 @@ export default defineComponent({
           renderType: 'auto',
           padding: 0,
           offset: 10,
-          zIndex: 10,
+          zIndex: 100,
           disableTeleport: false,
           autoPlacement: false,
           autoVisibility: false,
@@ -737,7 +751,7 @@ export default defineComponent({
     const quickShieldChange = (v: boolean) => {
       dialog.quickShield.show = v;
     };
-    const handleGetTable = async () => {
+    const handleGetTable = () => {
       tableLoading.value = true;
       const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
@@ -745,14 +759,24 @@ export default defineComponent({
         id: incidentId.value,
         query_string: queryString,
       };
-      const data = await incidentAlertList(params);
+      incidentAlertList(params)
+        .then(res => {
+          tableLoading.value = false;
+          alertData.value = res;
+        })
+        .catch(() => {
+          tableLoading.value = false;
+          alertData.value = [];
+        });
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
-      tableLoading.value = false;
-      alertData.value = data;
+
       // const list = alertData.value.find(item => item.alerts.length > 0);
       // collapseId.value = list ? list.id : '';n
     };
     onMounted(() => {
+      if (alarmDetailRef.value) {
+        alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
+      }
       props.searchValidate && handleGetTable();
       document.body.addEventListener('click', handleHideMoreOperate);
     });
@@ -781,9 +805,15 @@ export default defineComponent({
     };
     watch(
       () => props.alertIdsObject,
-      val => {
+      async val => {
         alertIdsData.value = val;
-        props.searchValidate && handleGetTable();
+        const validate = await incidentValidateQueryString(
+          { query_string: replaceSpecialCondition(alertIdsData.value?.ids), search_type: 'incident' },
+          { needMessage: false, needRes: true }
+        )
+          .then(res => res.result)
+          .catch(() => false);
+        validate && handleGetTable();
       },
       { deep: true }
     );
@@ -824,14 +854,23 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
+      disableKey,
+      alarmDetailRef,
+      alarmDetailHeight,
     };
   },
   render() {
     const alertData = this.alertData.filter(item => item.alerts.length > 0);
     return (
       <>
-        <Loading loading={this.tableLoading}>
-          <div class='alarm-detail bk-scroll-y'>
+        <Loading
+          class='alarm-detail-loading'
+          loading={this.tableLoading}
+        >
+          <div
+            ref='alarmDetailRef'
+            class='alarm-detail bk-scroll-y'
+          >
             {/* {this.alertIdsData?.label && (
               <Tag
                 style={{ marginBottom: '10px' }}
@@ -911,13 +950,15 @@ export default defineComponent({
                     <PrimaryTable
                       key={item.id}
                       bkUiSettings={{
-                        checked: this.columns.map(item => item.colKey),
+                        checked: this.columns
+                          .filter(item => !this.disableKey.includes(item.colKey))
+                          .map(item => item.colKey),
                       }}
                       // autoResize={true}
                       // bordered={true}
                       columns={this.columns}
                       data={item.alerts}
-                      max-height={616}
+                      maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
                       tooltip-config={{ showAll: false }}
                       onRowMouseenter={this.handleEnter}
                       onRowMouseleave={() => {
