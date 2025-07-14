@@ -422,7 +422,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 格式化tooltip
     options.tooltip.formatter = function (params) {
       // 获取开始时间
-      const timeStart = xLabelMap.get(params[0].value[0]);
+      const timeStart = dayjs(params[0].value[0]).format(formatStr);
 
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
@@ -430,13 +430,12 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       const endTimestamp = startTimestamp + (intervalSeconds * 1000); // 转换为毫秒
       const timeEnd = dayjs(endTimestamp).format(formatStr);
 
-      const value = params[0].value[1] || 0;
-      const seriesName = params[0].seriesName;
-      const color = params[0].color;
-      
-      return `
-        <div>
-          <div>${timeStart} - ${timeEnd}</div>
+      // 多 series 展示
+      const seriesHtml = params.map(item => {
+        const value = item.value[1] || 0;
+        const seriesName = item.seriesName;
+        const color = item.color;
+        return `
           <div style="display: flex; align-items: center; margin-top: 4px;">
             <span style="
               display: inline-block; 
@@ -445,10 +444,17 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
               background-color: ${color}; 
               border-radius: 50%; 
             "></span>
-            <span style="flex: 1;">${seriesName}</span>
+            <span style="flex: 1; margin-left: 6px;">${seriesName}</span>
             <span style="font-weight: bold;">${abbreviateNumber(value)}</span>
           </div>
-        <div>
+        `;
+      }).join('');
+      
+      return `
+        <div style="min-width: 120px;">
+          <div>${timeStart} - ${timeEnd}</div>
+          ${seriesHtml}
+        </div>
       `;
     };
 
