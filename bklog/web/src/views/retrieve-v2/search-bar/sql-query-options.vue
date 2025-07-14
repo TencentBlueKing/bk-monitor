@@ -14,7 +14,6 @@
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
   import useFieldEgges from './use-field-egges';
-  import { getOsCommandLabel } from '@/common/util';
 
   const props = defineProps({
     value: {
@@ -84,9 +83,7 @@
   const valueList: Ref<string[]> = ref([]);
 
   const refDropdownEl: Ref<HTMLElement | null> = ref(null);
-  const activeIndex = ref(0);
-
-  const handleRetrieve = debounce(() => emits('retrieve'));
+  const activeIndex = ref(null);
 
   const operatorSelectList = ref([
     {
@@ -131,7 +128,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = 0;
+    activeIndex.value = null;
   };
 
   /**
@@ -304,6 +301,13 @@
     showWhichDropdown();
   };
 
+  const setNextActive = () => {
+    nextTick(() => {
+      activeIndex.value = null;
+      setOptionActive();
+    });
+  };
+
   /**
    * 选择某个可选字段
    * @param {string} field
@@ -328,12 +332,8 @@
     const result = `${leftValue}${field}${rightFieldStr}`;
 
     emitValueChange(result, false, true, leftValue.length + field.length);
-
     showColonOperator(field as string);
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -352,11 +352,7 @@
 
     emitValueChange(result, false, true, sqlValue.length + target.length);
     calculateDropdown();
-
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -383,10 +379,7 @@
 
     // 当前输入值可能的情况 【name:"a】【age:】
     emitValueChange(result, false, true, focusPosition);
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -400,10 +393,7 @@
     emitValueChange(result, false, true, sqlValue.length + type.length + 1);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   const scrollActiveItemIntoView = () => {
@@ -433,14 +423,6 @@
       return;
     }
 
-    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
-    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
-      stopEventPreventDefault(e);
-      handleRetrieve();
-      emits('cancel');
-      return;
-    }
-
     const dropdownEl = refDropdownEl.value;
     if (!dropdownEl) {
       return;
@@ -449,16 +431,18 @@
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
     const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
-      stopEventPreventDefault(e);
-      if (hasHover && !activeIndex.value) {
-        activeIndex.value = 0;
-      }
+      if (activeIndex.value !== null) {
+        stopEventPreventDefault(e);
+        if (hasHover && !activeIndex.value) {
+          activeIndex.value = 0;
+        }
 
-      if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
-        // enter 选中下拉选项
-        (dropdownList[activeIndex.value] as HTMLElement).click();
-      } else {
-        emitValueChange(props.value, false, true);
+        if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
+          // enter 选中下拉选项
+          (dropdownList[activeIndex.value] as HTMLElement).click();
+        } else {
+          emitValueChange(props.value, false, true);
+        }
       }
     }
 
@@ -496,6 +480,7 @@
 
   const beforeShowndFn = () => {
     calculateDropdown();
+    activeIndex.value = null;
     nextTick(() => {
       setOptionActive();
     });
@@ -516,6 +501,7 @@
   };
 
   const beforeHideFn = () => {
+    activeIndex.value = null;
     document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
 
@@ -777,7 +763,7 @@
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
+          <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
       </div>
