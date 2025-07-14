@@ -32,6 +32,7 @@ import { Tab, Loading } from 'bkui-vue';
 import { alertDetail } from 'monitor-api/modules/alert';
 
 import AlarmAlert from './components/alarm-alert';
+import AlarmAnalysis from './components/alarm-analysis';
 import AlarmInfo from './components/alarm-info';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
@@ -90,6 +91,7 @@ export default defineComponent({
     ];
 
     const isLoading = shallowRef(false);
+    const isFixed = shallowRef(false);
     const currentPanel = shallowRef(panelTabList[0].name);
     const alterDetailData = shallowRef<IAlert>();
 
@@ -131,26 +133,41 @@ export default defineComponent({
         immediate: true,
       }
     );
+    /** 固定诊断分析 */
+    const handleFixed = (val: boolean) => {
+      isFixed.value = val;
+    };
+    /** 关闭诊断分析 */
+    const handleClose = () => {};
 
     return () => (
       <Loading loading={isLoading.value}>
-        <div class='alarm-center-detail-box'>
-          <AlarmAlert data={alterDetailData.value} />
-          <AlarmInfo data={alterDetailData.value} />
-          <Tab
-            class='panel-tab'
-            v-model:active={currentPanel.value}
-            type='unborder-card'
-          >
-            {panelTabList.map(item => (
-              <Tab.TabPanel
-                key={item.name}
-                label={item.label}
-                name={item.name}
-              />
-            ))}
-          </Tab>
-          <panelCom.value />
+        <div class='alarm-center-detail-new'>
+          <div class='alarm-center-detail-box'>
+            <AlarmAlert data={alterDetailData.value} />
+            <AlarmInfo data={alterDetailData.value} />
+            <Tab
+              class='panel-tab'
+              v-model:active={currentPanel.value}
+              type='unborder-card'
+            >
+              {panelTabList.map(item => (
+                <Tab.TabPanel
+                  key={item.name}
+                  label={item.label}
+                  name={item.name}
+                />
+              ))}
+            </Tab>
+            <panelCom.value />
+          </div>
+          <div class='alarm-center-detail-diagnostic'>
+            <AlarmAnalysis
+              isFixed={false}
+              onClose={handleClose}
+              onFixed={handleFixed}
+            />
+          </div>
         </div>
       </Loading>
     );
