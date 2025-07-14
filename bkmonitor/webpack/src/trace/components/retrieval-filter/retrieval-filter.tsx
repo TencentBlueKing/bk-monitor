@@ -283,7 +283,6 @@ export default defineComponent({
         /* 避免重复渲染 */
         return;
       }
-      console.log(where);
       cacheWhere.value = deepClone(where);
       const fieldsMap: Map<string, IFilterField> = new Map();
       for (const item of localFields.value) {
@@ -457,28 +456,30 @@ export default defineComponent({
         class='vue3_retrieval-filter__component'
       >
         <div class='retrieval-filter__component-main'>
-          <div
-            class='component-left'
-            onClick={() => this.handleChangeMode()}
-          >
-            {MODE_LIST.filter(item => item.id === this.mode).map(item => [
-              <span
-                key={`${item.id}_0`}
-                class='text'
-              >
-                {item.name}
-              </span>,
-              <div
-                key={`${item.id}_1`}
-                class='mode-icon'
-              >
-                <span class='icon-monitor icon-switch' />
-              </div>,
-            ])}
-          </div>
+          {!this.onlyUiMode && (
+            <div
+              class='component-left'
+              onClick={() => this.handleChangeMode()}
+            >
+              {MODE_LIST.filter(item => item.id === this.mode).map(item => [
+                <span
+                  key={`${item.id}_0`}
+                  class='text'
+                >
+                  {item.name}
+                </span>,
+                <div
+                  key={`${item.id}_1`}
+                  class='mode-icon'
+                >
+                  <span class='icon-monitor icon-switch' />
+                </div>,
+              ])}
+            </div>
+          )}
           {this.$slots?.default?.()}
           <div class={['filter-content', { 'bg-fff0f0': this.isShowQueryStringError }]}>
-            {this.mode === EMode.ui ? (
+            {this.mode === EMode.ui || this.onlyUiMode ? (
               <UiSelector
                 clearKey={this.clearKey}
                 fields={this.localFields}
@@ -520,27 +521,31 @@ export default defineComponent({
               >
                 <span class='icon-monitor icon-mind-fill' />
               </div>
-              <div
-                class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
-                v-bk-tooltips={{
-                  content: this.t('清空'),
-                  delay: 300,
-                }}
-                onClick={this.handleClear}
-              >
-                <span class='icon-monitor icon-a-Clearqingkong' />
-              </div>
-              <div
-                class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
-                v-bk-tooltips={{
-                  content: this.t('复制'),
-                  delay: 300,
-                }}
-                onClick={this.handleCopy}
-              >
-                <span class='icon-monitor icon-mc-copy' />
-              </div>
-              {this.mode === EMode.ui && (
+              {this.isShowClear && (
+                <div
+                  class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
+                  v-bk-tooltips={{
+                    content: this.t('清空'),
+                    delay: 300,
+                  }}
+                  onClick={this.handleClear}
+                >
+                  <span class='icon-monitor icon-a-Clearqingkong' />
+                </div>
+              )}
+              {this.isShowCopy && (
+                <div
+                  class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
+                  v-bk-tooltips={{
+                    content: this.t('复制'),
+                    delay: 300,
+                  }}
+                  onClick={this.handleCopy}
+                >
+                  <span class='icon-monitor icon-mc-copy' />
+                </div>
+              )}
+              {this.mode === EMode.ui && this.isShowResident && (
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
@@ -602,15 +607,17 @@ export default defineComponent({
                 </Popover>
               )}
             </div>
-            <div
-              class='search-btn'
-              onClick={this.handleClickSearchBtn}
-            >
-              <span class='icon-monitor icon-mc-search' />
-            </div>
+            {this.isShowSearchBtn && (
+              <div
+                class='search-btn'
+                onClick={this.handleClickSearchBtn}
+              >
+                <span class='icon-monitor icon-mc-search' />
+              </div>
+            )}
           </div>
         </div>
-        {this.showResidentSetting && this.mode !== EMode.queryString && (
+        {this.showResidentSetting && this.mode !== EMode.queryString && this.isShowResident && (
           <ResidentSetting
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}

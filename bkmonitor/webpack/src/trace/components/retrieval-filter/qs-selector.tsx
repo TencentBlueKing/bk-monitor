@@ -26,9 +26,9 @@
 
 import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import { watchDebounced, useEventListener } from '@vueuse/core';
-import tippy from 'tippy.js';
 
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
@@ -130,8 +130,8 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
