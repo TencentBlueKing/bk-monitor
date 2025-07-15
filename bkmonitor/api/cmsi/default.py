@@ -390,12 +390,18 @@ class SendMail(CheckCMSIResource):
 
             return attrs
 
-    def perform_request(self, validated_request_data: dict[str, list[str] | str]):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         """
         发送请求
 
         针对内部用户和外部用户做一个额外判断处理
         """
+        # 如果使用 apigw，则需要将 receiver__username, cc__username, cc, receiver 字段转换为列表
+        if self.use_apigw():
+            for field in ["receiver__username", "cc__username", "cc", "receiver"]:
+                if validated_request_data.get(field):
+                    validated_request_data[field] = validated_request_data[field].split(",")
+
         self.message_detail = {}
 
         # 如果没有 receiver__username 说明是直接用 receiver 邮箱发送的
@@ -411,7 +417,12 @@ class SendMail(CheckCMSIResource):
         internal_users: list[str] = []
         external_users: list[str] = []
 
-        for username in validated_request_data["receiver__username"].split(","):
+        # 兼容不同类型
+        usernames: list[str] = validated_request_data["receiver__username"]
+        if isinstance(usernames, str):
+            usernames = usernames.split(",")
+
+        for username in usernames:
             # 通过是否以 "@tai" 结尾判断是否是内外部用户
             if self.is_external_user(username):
                 external_users.append(username)
@@ -428,16 +439,18 @@ class SendMail(CheckCMSIResource):
         # 内部用户 针对内部用户直接通过 receiver__username 发送
         if internal_users:
             request_data = deepcopy(validated_request_data)
-            request_data["receiver__username"] = ",".join(internal_users)
+            if not self.use_apigw():
+                request_data["receiver__username"] = ",".join(internal_users)
             request_data.pop("receiver", None)
-            response = self.send_request(request_data, request_data["receiver__username"])
+            response = self.send_request(request_data, internal_users)  # type: ignore
 
         # 外部用户 针对外部用户通过 需要转化成 receiver 邮箱的方式直接发送
         if external_users:  # <- 以@结尾,还需要转化成邮箱
             # receivers -> 邮箱
             receivers = self.get_receivers_with_external_users(external_users)
             request_data = deepcopy(validated_request_data)
-            request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
+            if not self.use_apigw():
+                request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
             request_data.pop("receiver__username", None)
             if receivers:
                 external_send_response = self.send_request(request_data, external_users)
@@ -517,8 +530,18 @@ class SendSms(CheckCMSIResource):
         def validate(self, attrs):
             if attrs["is_content_base64"]:
                 attrs["content"] = base64.b64encode(attrs["content"].encode("utf-8")).decode("utf-8")
-
             return attrs
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        # 如果使用 apigw，则需要将 receiver__username, receiver 字段转换为列表
+        if self.use_apigw():
+            for field in ["receiver__username", "receiver"]:
+                if validated_request_data.get(field):
+                    validated_request_data[field] = validated_request_data[field].split(",")  # type: ignore
+        return super().perform_request(validated_request_data)
 
 
 class SendVoice(CMSIBaseResource):
@@ -533,13 +556,16 @@ class SendVoice(CMSIBaseResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        class UserInfo(serializers.Serializer):
-            username = serializers.CharField()
-            mobile_phone = serializers.CharField(required=False)
-
-        user_list_information = UserInfo(required=False, many=True)
-        receiver__username = serializers.CharField(required=False)
+        receiver__username = serializers.CharField()
         auto_read_message = serializers.CharField()
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        if self.use_apigw():
+            validated_request_data["receiver__username"] = validated_request_data["receiver__username"].split(",")  # type: ignore
+        return super().perform_request(validated_request_data)
 
 
 class SendWecomRobot(CheckCMSIResource):
