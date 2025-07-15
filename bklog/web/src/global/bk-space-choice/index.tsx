@@ -28,6 +28,7 @@ import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted
 import useLocale from '@/hooks/use-locale';
 import { useNavMenu } from '@/hooks/use-nav-menu';
 import { SPACE_TYPE_MAP } from '@/store/constant';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { debounce } from 'throttle-debounce';
 import { useRouter, useRoute } from 'vue-router/composables';
 
@@ -37,7 +38,6 @@ import UserConfigMixin from '../../mixins/userStoreConfig';
 import List from './list';
 
 import './index.scss';
-import { BK_LOG_STORAGE } from '@/store/store.type';
 
 const userConfigMixin = new UserConfigMixin();
 
@@ -78,6 +78,7 @@ export default defineComponent({
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
 
+    const demoId = ref('');
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
@@ -300,7 +301,8 @@ export default defineComponent({
     // 点击体验demo按钮
     const experienceDemo = () => {
       showBizList.value = false;
-      checkSpaceChange(demoUid.value);
+      checkSpaceChange(demoUid.value); // 切换到demo业务
+      if (demoId.value) updateCacheBizId(Number(demoId.value)); // 更新常用业务缓存
     };
 
     // 下拉框内容渲染
@@ -352,9 +354,9 @@ export default defineComponent({
               <List
                 canSetDefaultSpace={props.canSetDefaultSpace as boolean}
                 checked={spaceUid.value}
+                commonList={commonList.value}
                 list={groupList.value}
                 theme={props.theme as ThemeType}
-                commonList={commonList.value}
                 on-HandleClickMenuItem={handleClickMenuItem}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-OpenDialog={openDialog}
@@ -383,8 +385,8 @@ export default defineComponent({
     // 渲染主入口
     return () => (
       <div
-        class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}
         ref={refRootElement}
+        class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}
       >
         {/* 图标+业务名称 */}
         <div class='menu-select'>
