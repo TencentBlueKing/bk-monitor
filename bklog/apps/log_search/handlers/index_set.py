@@ -1707,9 +1707,9 @@ class BaseIndexSetHandler:
                 index.get("time_field"),
                 index["result_table_id"],
                 index["scenario_id"],
-                index["result_table_id"],
-                time_field_type,
-                time_field_unit,
+                index["storage_cluster_id"],
+                time_field_type=time_field_type,
+                time_field_unit=time_field_unit,
             )
 
         # 更新字段快照
