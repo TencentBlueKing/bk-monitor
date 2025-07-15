@@ -138,9 +138,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 if field_name in tokenizers_config:
                     field_config.update(
                         {
-                            "analyzer": "custom",
+                            "analyzer": "bkbase_custom",
                             "analyzer_details": {
-                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name].split(",")}
+                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
                             },
                         }
                     )
