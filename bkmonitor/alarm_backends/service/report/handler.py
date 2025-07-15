@@ -28,7 +28,6 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
 from bkmonitor.utils.grafana import fetch_panel_title_ids
 from bkmonitor.utils.send import Sender
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.report import GRAPH_ID_REGEX, LOGO, BuildInBizType, StaffChoice
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
@@ -121,7 +120,7 @@ async def start_tasks(elements):
     return result
 
 
-def screenshot_by_uid_panel_id(graph_info, need_title=False):
+def screenshot_by_uid_panel_id(bk_tenant_id, graph_info, need_title=False):
     """
     根据所需图表信息进行截图
     :param graph_info: 图表信息
@@ -144,7 +143,7 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
     elements = []
     for graph in graph_info:
         element = {
-            "bk_tenant_id": bk_biz_id_to_bk_tenant_id(graph["bk_biz_id"]),
+            "bk_tenant_id": bk_tenant_id,
             "bk_biz_id": graph["bk_biz_id"],
             "dashboard_uid": graph["uid"],
             "panel_id": graph["panel_id"] if graph["panel_id"] != "*" else None,
@@ -308,6 +307,7 @@ class ReportHandler:
 
     def render_images_to_html(
         self,
+        bk_tenant_id,
         mail_title,
         contents,
         user_bizs,
@@ -364,7 +364,7 @@ class ReportHandler:
         # 截图
         logger.info(f"[mail_report] prepare for screenshot {mail_title}...")
         images_files, err_msg = screenshot_by_uid_panel_id(
-            total_graphs, need_title=bool(channel_name == ReportItems.Channel.WXBOT)
+            bk_tenant_id, total_graphs, need_title=bool(channel_name == ReportItems.Channel.WXBOT)
         )
         logger.info(f"[mail_report] got screenshot {mail_title}...")
 

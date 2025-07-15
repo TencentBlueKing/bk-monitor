@@ -212,6 +212,7 @@ def render_mails(
 
     try:
         render_args, err_msg = mail_handler.render_images_to_html(
+            report_item.bk_tenant_id,
             report_item.mail_title,
             report_item_contents,
             bk_biz_ids,
