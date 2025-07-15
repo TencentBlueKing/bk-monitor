@@ -28,6 +28,7 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
 from bkmonitor.utils.grafana import fetch_panel_title_ids
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.report import GRAPH_ID_REGEX, LOGO, BuildInBizType, StaffChoice
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
@@ -93,6 +94,7 @@ async def start_tasks(elements):
     for element in elements:
         err_msg = None
         config = RenderDashboardConfig(
+            bk_tenant_id=element["bk_tenant_id"],
             bk_biz_id=element["bk_biz_id"],
             dashboard_uid=element["dashboard_uid"],
             panel_id=element["panel_id"],
@@ -142,6 +144,7 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
     elements = []
     for graph in graph_info:
         element = {
+            "bk_tenant_id": bk_biz_id_to_bk_tenant_id(graph["bk_biz_id"]),
             "bk_biz_id": graph["bk_biz_id"],
             "dashboard_uid": graph["uid"],
             "panel_id": graph["panel_id"] if graph["panel_id"] != "*" else None,

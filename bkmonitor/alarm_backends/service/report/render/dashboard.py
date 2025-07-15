@@ -21,6 +21,7 @@ class RenderDashboardConfig:
     渲染仪表盘配置
     """
 
+    bk_tenant_id: str
     bk_biz_id: int
     dashboard_uid: str
     width: int
