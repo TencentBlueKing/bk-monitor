@@ -167,7 +167,7 @@ export default defineComponent({
 
     // 初始化、设置、重绘图表
     const handleChartDataZoom = inject('handleChartDataZoom', () => {});
-    const { initChartData, setChartData } = useTrendChart({
+    const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
       dynamicHeight,
@@ -410,6 +410,12 @@ export default defineComponent({
               {/* 汇聚周期选择与分级设置 */}
               {!isFold.value && (
                 <div class='converge-cycle'>
+                  {canGoBack.value && (
+                    <span class='chart-back-btn' onClick={backToPreChart}>
+                      <span class="bk-icon icon-angle-left-line" style={{ marginRight: '2px'}}></span>
+                      {t('回退')}
+                    </span>
+                  )}
                   <span>{t('汇聚周期')} : </span> 
                   <bk-select
                     ext-cls='select-custom'

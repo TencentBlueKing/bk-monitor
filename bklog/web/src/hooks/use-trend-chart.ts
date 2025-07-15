@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -468,13 +468,31 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
   };
 
-  let cachedBatch: any = null;
+  const cachedBatch = ref<Array<any>>([]);
+  const canGoBack = computed(() => cachedBatch.value.length > 1);
 
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
-    if (cachedBatch === null && !batch.dblclick) {
+
+    // 初始化时，存入初始时间范围
+    if (cachedBatch.value.length === 0 && !batch.dblclick && !batch.isBack) {
       const { start_time, end_time } = store.state.indexItem;
-      cachedBatch = { startValue: start_time, endValue: end_time };
+      cachedBatch.value.push({
+        startValue: start_time,
+        endValue: end_time,
+        start: start_time,
+        end: end_time,
+      });
+    }
+
+    // 每次有效选择都 push
+    if (batch.startValue && batch.endValue && !batch.dblclick && !batch.isBack) {
+      cachedBatch.value.push({
+        startValue: batch.startValue,
+        endValue: batch.endValue,
+        start: batch.startValue,
+        end: batch.endValue,
+      });
     }
 
     if (batch.startValue && batch.endValue) {
@@ -493,26 +511,34 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
   });
 
+  // 趋势图回退到上一个时间范围
+  const backToPreChart = () => {
+    if (cachedBatch.value.length > 1) {
+      cachedBatch.value.pop(); // 移除当前时间范围
+      const prev = cachedBatch.value[cachedBatch.value.length - 1];
+
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        batch: [prev],
+        isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
+      });
+    }
+  };
+
   const handleCanvasResize = debounce(() => {
-    chartInstance?.resize();
+    chartInstance?.resize();1
   });
 
+  // 回到初始趋势图（第一个历史范围）
   const handleDblClick = () => {
-    if (cachedBatch !== null) {
+    if (cachedBatch.value.length > 0) {
+      const first = cachedBatch.value[0];
       chartInstance.dispatchAction({
         type: 'dataZoom',
         dblclick: true,
-        batch: [
-          {
-            startValue: cachedBatch.startValue,
-            endValue: cachedBatch.endValue,
-            start: cachedBatch.startValue,
-            end: cachedBatch.endValue,
-          },
-        ],
+        batch: [first],
       });
-
-      cachedBatch = null;
+      cachedBatch.value = [first];
     }
   };
   
@@ -534,5 +560,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
   });
 
-  return { initChartData, setChartData, clearChartData };
+  // return { initChartData, setChartData, clearChartData };
+  return { initChartData, setChartData, clearChartData, backToPreChart, canGoBack };
 };
