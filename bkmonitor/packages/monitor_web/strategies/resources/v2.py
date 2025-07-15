@@ -1168,7 +1168,11 @@ class GetStrategyListV2Resource(Resource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        # 如果存在 ids，说明是分享策略，则获取所分享策略的query_set
+        if params["ids"]:
+            strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
+        else:
+            strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
 
         # 按条件过滤策略
         if params["conditions"]:
