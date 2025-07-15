@@ -524,7 +524,6 @@ class MappingHandlers:
         }
         if not storage_cluster_record_objs.exists():
             return self._direct_latest_mapping(params)
-
         multi_execute_func = MultiExecuteFunc()
         multi_num = 1
         storage_cluster_ids = {self.storage_cluster_id}
@@ -555,7 +554,6 @@ class MappingHandlers:
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
             raise MultiFieldsErrorException()
-
         return merge_result
 
     @staticmethod

@@ -196,7 +196,7 @@ export default defineComponent({
             ref={refContentElement}
             class={props.contentClass}
           >
-            {slots.content?.() ?? (typeof props.content === 'function' ? props.content() : props.content)}
+            {slots.content?.() ?? (props.content as Function)?.() ?? props.content}
           </div>
         </div>
       </div>

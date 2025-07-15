@@ -42,6 +42,8 @@ class HistogramNiceNumberGenerator:
         cls, min_value: float | int, max_value: float | int, num_buckets: int
     ) -> tuple[float | int, float | int, float | int, int]:
         """重新计算最小值边界，最大值边界，桶大小和桶数量"""
+        if min_value == max_value:
+            return min_value, max_value, 0, 1
 
         target_size = (max_value - min_value) / num_buckets
         bucket_size_index = bisect.bisect_left(cls._HISTOGRAM_BUCKET_SIZES, target_size)
