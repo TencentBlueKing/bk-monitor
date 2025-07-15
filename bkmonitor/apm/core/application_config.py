@@ -26,7 +26,6 @@ from apm.constants import (
     ConfigTypes,
     DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
-from apm.core.cluster_config import ClusterConfig
 from apm.models import (
     ApdexConfig,
     ApmApplication,
@@ -41,7 +40,7 @@ from apm.models import (
     SubscriptionConfig,
 )
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.bk_collector_config import BkCollectorConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from constants.apm import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
@@ -108,7 +107,7 @@ class ApplicationConfig(BkCollectorConfig):
                 f"cluster-id: {cluster_id}", attributes={"apm_application_id": self._application.id}
             ) as s:
                 try:
-                    application_tpl = ClusterConfig.sub_config_tpl(
+                    application_tpl = BkCollectorClusterConfig.sub_config_tpl(
                         cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                     )
                     if application_tpl is None:
@@ -568,7 +567,7 @@ class ApplicationConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
-        namespace = ClusterConfig.bk_collector_namespace(cluster_id)
+        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,

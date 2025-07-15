@@ -8,10 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
 import logging
 
 from django.conf import settings
 
+from bkmonitor.utils.bcs import BcsKubeClient
+from constants.apm import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
@@ -83,3 +86,83 @@ class BkCollectorConfig:
             )
             proxy_hosts.extend(current_proxy_hosts)
         return [proxy.bk_host_id for proxy in proxy_hosts]
+
+
+class BkCollectorClusterConfig:
+    @classmethod
+    def get_cluster_mapping(cls):
+        """获取由 apm_ebpf 模块发现的集群 id"""
+        from alarm_backends.core.storage.redis import Cache
+
+        cache = Cache("cache")
+        with cache.pipeline() as p:
+            p.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
+            p.delete(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
+            values = p.execute()
+        cluster_to_bk_biz_ids = values[0]
+
+        res = {}
+        for i in cluster_to_bk_biz_ids:
+            cluster_id, related_bk_biz_ids = cls._split_value(i)
+            if cluster_id and related_bk_biz_ids:
+                res[cluster_id] = related_bk_biz_ids
+
+        return res
+
+    @classmethod
+    def bk_collector_namespace(cls, cluster_id):
+        cluster_namespace = settings.K8S_OPERATOR_DEPLOY_NAMESPACE or {}
+        return cluster_namespace.get(cluster_id, BkCollectorComp.NAMESPACE)
+
+    @classmethod
+    def platform_config_tpl(cls, cluster_id):
+        bcs_client = BcsKubeClient(cluster_id)
+        config_maps = bcs_client.client_request(
+            bcs_client.core_api.list_namespaced_config_map,
+            namespace=cls.bk_collector_namespace(cluster_id),
+            label_selector="component=bk-collector,template=true,type=platform",
+        )
+        if config_maps is None or len(config_maps.items) == 0:
+            return None
+
+        content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME)
+        try:
+            return base64.b64decode(content).decode()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                f"[BkCollectorClusterConfig] parse platform_config_tpl failed: cluster({cluster_id}), error({e})"
+            )
+
+    @classmethod
+    def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str):
+        bcs_client = BcsKubeClient(cluster_id)
+        config_maps = bcs_client.client_request(
+            bcs_client.core_api.list_namespaced_config_map,
+            namespace=cls.bk_collector_namespace(cluster_id),
+            label_selector="component=bk-collector,template=true,type=subconfig",
+        )
+        if config_maps is None or len(config_maps.items) == 0:
+            return None
+
+        content = ""
+        for item in config_maps.items:
+            if not item.data:
+                continue
+
+            content = item.data.get(sub_config_tpl_name)
+            if content:
+                break
+
+        try:
+            return base64.b64decode(content).decode()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                f"[BkCollectorClusterConfig] parse {sub_config_tpl_name} failed: cluster({cluster_id}), error({e})"
+            )
+
+    @classmethod
+    def _split_value(cls, value):
+        c = value.split(":")
+        if len(c) != 2:
+            return None, None
+        return c[0], c[1].split(",")
