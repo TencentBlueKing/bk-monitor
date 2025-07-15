@@ -26,7 +26,7 @@ TokenTypeViews = {
 }
 
 
-class AuthType:
+class AuthType(object):
     AsCode = "as_code"
     Grafana = "grafana"
     UptimeCheck = "uptime_check"

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Dict, List, Union
 from django.conf import settings
 from django.utils.translation import gettext as _
 from iam import Action
@@ -32,7 +33,7 @@ class ActionMeta(Action):
         description: str = "",
         description_en: str = "",
     ):
-        super().__init__(id)
+        super(ActionMeta, self).__init__(id)
         self.name = name
         self.name_en = name_en
         self.type = type
@@ -515,7 +516,7 @@ class ActionEnum:
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
 
-def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
+def get_action_by_id(action_id: Union[str, ActionMeta]) -> ActionMeta:
     """
     根据动作ID获取动作实例
     """
@@ -529,7 +530,7 @@ def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
     return _all_actions[action_id]
 
 
-def fetch_related_actions(actions: list[ActionMeta | str]) -> dict[str, ActionMeta]:
+def fetch_related_actions(actions: List[Union[ActionMeta, str]]) -> Dict[str, ActionMeta]:
     """
     递归获取 action 动作依赖列表
     """
@@ -557,7 +558,7 @@ def fetch_related_actions(actions: list[ActionMeta | str]) -> dict[str, ActionMe
     return related_actions
 
 
-def generate_all_actions_json() -> list:
+def generate_all_actions_json() -> List:
     """
     生成migrations的json配置
     """
