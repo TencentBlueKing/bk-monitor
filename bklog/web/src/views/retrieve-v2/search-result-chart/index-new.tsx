@@ -354,7 +354,7 @@ export default defineComponent({
 
     onMounted(() => {
       // 初始化折叠状态
-      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD];
+      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] || false;
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
