@@ -496,7 +496,7 @@ class UnifyQueryHandler:
         )
 
     def _init_desensitize(self) -> bool:
-        is_desensitize = self.search_params.get("is_desensitize", None)
+        is_desensitize = self.search_params.get("is_desensitize", True)
 
         if not is_desensitize:
             request = get_request(peaceful=True)
@@ -514,9 +514,6 @@ class UnifyQueryHandler:
                 user_white_list = feature_toggle.feature_config.get("user_white_list", {})
                 if request_user in user_white_list.get(str(bk_biz_id), []):
                     is_desensitize = False  # 特权用户关闭脱敏
-
-        if is_desensitize is None:
-            is_desensitize = True
 
         return is_desensitize
 
