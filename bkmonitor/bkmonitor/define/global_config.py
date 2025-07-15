@@ -636,8 +636,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
+        # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
