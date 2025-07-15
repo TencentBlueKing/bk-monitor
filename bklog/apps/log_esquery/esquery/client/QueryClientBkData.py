@@ -140,7 +140,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                         {
                             "analyzer": "bkbase_custom",
                             "analyzer_details": {
-                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name].split(",")}
+                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
                             },
                         }
                     )

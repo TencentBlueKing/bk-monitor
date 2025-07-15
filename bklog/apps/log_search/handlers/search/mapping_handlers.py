@@ -581,11 +581,11 @@ class MappingHandlers:
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
-        result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         if not field_dict.get("analyzer"):
             return ""
         elif field_dict.get("analyzer") == "bkbase_custom":
-            return result
+            return field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", "")
+        result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
 
     @classmethod
