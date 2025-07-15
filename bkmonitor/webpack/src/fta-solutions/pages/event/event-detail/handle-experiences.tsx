@@ -111,7 +111,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   errConditions = '';
   selectKey = random(8);
   /* 默认填充维度维度 */
-  defalutDimensionValue: { [propName: string]: string[] } = {};
+  defaultDimensionValue: { [propName: string]: string[] } = {};
 
   @Watch('show')
   async handleShow(v) {
@@ -124,16 +124,16 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 通过指标id获取维度交集 */
   async init() {
     this.isLoading = true;
-    if (!Object.keys(this.defalutDimensionValue).length) {
-      this.detail.dimensions.forEach(item => {
-        this.defalutDimensionValue[item.key] = Array.isArray(item.value) ? item.value : [item.value];
-      });
+    if (!Object.keys(this.defaultDimensionValue).length) {
+      for (const item of this.detail.dimensions) {
+        this.defaultDimensionValue[item.key] = Array.isArray(item.value) ? item.value : [item.value];
+      }
       const extraInfoDimension = this.detail.extra_info?.origin_alarm?.data?.dimensions || {};
-      Object.keys(extraInfoDimension).forEach(key => {
-        this.defalutDimensionValue[key] = Array.isArray(extraInfoDimension[key])
+      for (const key of Object.keys(extraInfoDimension)) {
+        this.defaultDimensionValue[key] = Array.isArray(extraInfoDimension[key])
           ? extraInfoDimension[key]
           : [extraInfoDimension[key]];
-      });
+      }
     }
     const [graphQueryConfig = {}] = this.detail.graph_panel?.targets?.[0]?.data?.query_configs || [];
     let dataSourceType = graphQueryConfig?.data_source_label || '';
@@ -158,11 +158,11 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       page_size: metricIds.length,
       conditions: [{ key: 'metric_id', value: metricIds }],
     }).catch(() => []);
-    metricList.forEach(item => {
+    for (const item of metricList) {
       if (!dataSourceType) dataSourceType = item.data_source_label;
       if (!dataTypeLabel) dataTypeLabel = item.data_type_label;
       this.metricNameMap[item.metric_id] = item.name;
-    });
+    }
     if (!metricField)
       metricField = metricList[0]?.metric_field || graphQueryConfig?.metrics?.[0]?.field || this.detail.alert_name;
     if (!resultTableId)
@@ -189,6 +189,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       data_type_label: dataTypeLabel,
       metric_field: metricField,
       result_table_id: resultTableId,
+      index_set_id: metricList?.[0]?.index_set_id,
     };
     this.experienceList = await getExperience({
       alert_id: this.detail.id,
@@ -517,7 +518,9 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                           groupByList={this.dimensionList}
                           metric={this.metricMeta as any}
                           value={item.conditions as any}
-                          onValueMapChange={v => (this.allWhereValueMap = v)}
+                          onValueMapChange={v => {
+                            this.allWhereValueMap = v;
+                          }}
                         />
                       )}
                     </div>
@@ -596,7 +599,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   ) : (
                     <ConditionInput
                       conditionList={this.conditionList}
-                      defaultValue={this.defalutDimensionValue}
+                      defaultValue={this.defaultDimensionValue}
                       dimensionsList={this.dimensionList}
                       metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}

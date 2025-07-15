@@ -139,75 +139,196 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("plugin_id", _lazy("告警来源"), es_field="event.plugin_id", is_char=True),
         QueryField("plugin_display_name", _lazy("告警源名称"), searchable=False),
         QueryField("strategy_name", _lazy("策略名称"), es_field="alert_name", agg_field="alert_name.raw", is_char=True),
+        QueryField("module_id", _lazy("模块ID"), es_field="event.bk_topo_node"),
+        QueryField("set_id", _lazy("集群ID"), es_field="event.bk_topo_node"),
     ]
 
-    def visit_word(self, node, context):
+    def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
             yield from self.generic_visit(node, context)
         else:
-            # 获取搜索字段的名字
-            search_field_name = context.get("search_field_name")
-            if search_field_name in self.VALUE_TRANSLATE_FIELDS:
-                for value, display in self.VALUE_TRANSLATE_FIELDS[search_field_name]:
-                    # 尝试将匹配翻译值，并转换回原值
-                    if display == node.value:
-                        node.value = str(value)
-            elif search_field_name == "id" and context.get("search_field_origin_name") in [
-                "action_id",
-                _("处理记录ID"),
-            ]:
-                # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-                action_id = node.value
-                try:
-                    action = ActionInstanceDocument.get(action_id)
-                    if action:
-                        alert_ids = action.alert_id
-                    else:
-                        alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
-                except Exception:
-                    alert_ids = []
-                node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
-                context = {"ignore_search_field": True, "ignore_word": True}
-            elif search_field_name == "id" and context.get("search_field_origin_name") in [
-                "converge_id",
-                _("收敛记录ID"),
-            ]:
-                # 收敛动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-                converge_id = node.value
-                try:
-                    # TODO 这一部分的内容要进行调整， 统一通过ES查询
-                    action_instance = ActionInstanceDocument.get(converge_id)
-                    if action_instance.is_converge_primary:
-                        queryset = ConvergeRelation.objects.filter(
-                            converge_id=action_instance.converge_id, converge_status=ConvergeStatus.SKIPPED
-                        )
-                        alert_ids = list(chain(*[converge.alerts for converge in queryset]))
-                    else:
-                        alert_ids = []
-                except Exception:
-                    alert_ids = []
-                node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
-                context = {"ignore_search_field": True, "ignore_word": True}
-            elif search_field_name == "event.ipv6":
-                ip = exploded_ip(node.value.strip('"'))
-                node.value = f'"{ip}"'
-            elif not search_field_name:
-                for key, choices in self.VALUE_TRANSLATE_FIELDS.items():
-                    origin_value = None
-                    for value, display in choices:
-                        # 尝试将匹配翻译值，并转换回原值。例如: severity: 致命 => severity: 1
-                        if display == node.value:
-                            origin_value = str(value)
+            process_fun_list = [
+                self._process_not_search_field_name,
+                self._process_value_translate_fields,
+                self._process_action_id,
+                self._process_converge_id,
+                self._process_event_ipv6,
+                self._process_module_id,
+                self._process_set_id,
+            ]
 
-                    if origin_value is not None:
-                        # 例如:  致命 =>  致命 OR (severity: 1)
-                        node = FieldGroup(OrOperation(node, SearchField(key, Word(origin_value))))
-                        context = {"ignore_search_field": True, "ignore_word": True}
-                        break
-                else:
-                    node.value = f'"{node.value}"'
+            for fun in process_fun_list:
+                new_node, new_context = fun(node, context)
+                if new_node:
+                    node, context = new_node, new_context
+                    break
 
             yield from self.generic_visit(node, context)
+
+    def _process_not_search_field_name(self, node: Word, context: dict) -> tuple:
+        search_field_name = context.get("search_field_name")
+        if search_field_name:
+            return None, None
+
+        for key, choices in self.VALUE_TRANSLATE_FIELDS.items():
+            origin_value = None
+            for value, display in choices:
+                # 尝试将匹配翻译值，并转换回原值。例如: severity: 致命 => severity: 1
+                if display == node.value:
+                    origin_value = str(value)
+
+            if origin_value is not None:
+                # 例如:  致命 =>  致命 OR (severity: 1)
+                node = FieldGroup(OrOperation(node, SearchField(key, Word(origin_value))))
+                context.update({"ignore_search_field": True, "ignore_word": True})
+
+                break
+        else:
+            node.value = f'"{node.value}"'
+        return node, context
+
+    def _process_value_translate_fields(self, node: Word, context: dict) -> tuple:
+        """处理值翻译字段"""
+        search_field_name = context.get("search_field_name")
+        if search_field_name not in self.VALUE_TRANSLATE_FIELDS:
+            return None, None
+
+        for value, display in self.VALUE_TRANSLATE_FIELDS[search_field_name]:
+            # 尝试将匹配翻译值，并转换回原值
+            if display == node.value:
+                node.value = str(value)
+
+        return node, context
+
+    def _process_action_id(self, node: Word, context: dict) -> tuple:
+        """
+        处理动作ID
+        """
+        search_field_name = context.get("search_field_name")
+        if search_field_name == "id" and context.get("search_field_origin_name") in [
+            "action_id",
+            _("处理记录ID"),
+        ]:
+            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
+            action_id = node.value
+            try:
+                action = ActionInstanceDocument.get(action_id)
+                if action:
+                    alert_ids = action.alert_id
+                else:
+                    alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
+            except Exception:
+                alert_ids = []
+            node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
+            context.update({"ignore_search_field": True, "ignore_word": True})
+
+            return node, context
+        return None, None
+
+    def _process_converge_id(self, node: Word, context: dict) -> tuple:
+        """处理收敛ID"""
+        search_field_name = context.get("search_field_name")
+        if search_field_name == "id" and context.get("search_field_origin_name") in [
+            "converge_id",
+            _("收敛记录ID"),
+        ]:
+            # 收敛动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
+            converge_id = node.value
+            try:
+                # TODO 这一部分的内容要进行调整， 统一通过ES查询
+                action_instance = ActionInstanceDocument.get(converge_id)
+                if action_instance.is_converge_primary:
+                    queryset = ConvergeRelation.objects.filter(
+                        converge_id=action_instance.converge_id, converge_status=ConvergeStatus.SKIPPED
+                    )
+                    alert_ids = list(chain(*[converge.alerts for converge in queryset]))
+                else:
+                    alert_ids = []
+            except Exception:
+                alert_ids = []
+            node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
+            context.update({"ignore_search_field": True, "ignore_word": True})
+
+            return node, context
+        return None, None
+
+    def _process_event_ipv6(self, node: Word, context: dict) -> tuple:
+        """处理事件IPv6"""
+        search_field_name = context.get("search_field_name")
+        if search_field_name == "event.ipv6":
+            ip = exploded_ip(node.value.strip('"'))
+            node.value = f'"{ip}"'
+            return node, context
+        return None, None
+
+    def _process_module_id(self, node: Word, context: dict) -> tuple:
+        """处理模块ID"""
+        search_field_name = context.get("search_field_name")
+        search_field_origin_name = context.get("search_field_origin_name")
+        bk_biz_ids = set(context.get("bk_biz_ids", []))
+
+        is_need_process = search_field_name == "event.bk_topo_node" and search_field_origin_name in [
+            "module_id",
+            _("模块ID"),
+        ]
+
+        if not is_need_process:
+            return None, None
+
+        # 如果值不是数字，则将其作为模块名，并尝试查询对应的模块ID
+        if not node.value.isdigit():
+            values = resource.commons.get_topo_list(
+                bk_biz_ids=bk_biz_ids,
+                bk_obj_id="module",
+                condition={"bk_module_name": node.value},
+            )
+
+            if len(values) == 1:
+                node.value = f"module|{values[0]['bk_module_id']}"
+            elif len(values) > 1:
+                node = FieldGroup(OrOperation(*[Word(f"module|{value['bk_module_id']}") for value in values]))
+            else:
+                node.value = "module|''"
+
+        else:
+            node.value = f"module|{node.value}"
+
+        context.update({"ignore_search_field": True, "ignore_word": True})
+        return node, context
+
+    def _process_set_id(self, node: Word, context: dict) -> tuple:
+        """处理集群ID"""
+        search_field_name = context.get("search_field_name")
+        search_field_origin_name = context.get("search_field_origin_name")
+        bk_biz_ids = context.get("bk_biz_ids")
+
+        is_need_process = search_field_name == "event.bk_topo_node" and search_field_origin_name in [
+            "set_id",
+            _("集群ID"),
+        ]
+
+        if not is_need_process:
+            return None, None
+
+        if not node.value.isdigit():
+            values = resource.commons.get_topo_list(
+                bk_biz_ids=bk_biz_ids,
+                bk_obj_id="set",
+                condition={"bk_set_name": node.value},
+            )
+
+            if len(values) == 1:
+                node.value = f"set|{values[0]['bk_set_id']}"
+            elif len(values) > 1:
+                node = FieldGroup(OrOperation(*[Word(f"set|{value['bk_set_id']}") for value in values]))
+            else:
+                node.value = "set|''"
+
+        else:
+            node.value = f"set|{node.value}"
+
+        context.update({"ignore_search_field": True, "ignore_word": True})
+        return node, context
 
 
 class AlertQueryHandler(BaseBizQueryHandler):
@@ -313,9 +434,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
+        # 构建上下午查询信息
+        context = {
+            "bk_biz_ids": self.bk_biz_ids,
+        }
+
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object)
+        search_object = self.add_query_string(search_object, context=context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 
@@ -856,6 +982,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 去掉无用字段
         cleaned_data.pop("action_id", None)
+        cleaned_data.pop("module_id", None)
+        cleaned_data.pop("set_id", None)
 
         # 额外字段
         cleaned_data.update(

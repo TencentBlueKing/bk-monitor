@@ -100,13 +100,9 @@ export default ({
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
-  // const getParentContainer = () => {
-  //   return rootElement.value as HTMLElement;
-  // };
-
   const computeRect = () => {
     const current = getCurrentElement();
-    scrollWidth.value = current?.scrollWidth ?? 0;
+    scrollWidth.value = (current?.scrollWidth ?? 2) - 2;
     offsetWidth.value = current?.offsetWidth ?? 0;
   };
 
@@ -117,14 +113,6 @@ export default ({
       loadMoreFn?.();
     }
   });
-
-  // useResizeObserve(getCurrentElement, () => {
-  //   debounceComputeRect();
-  // });
-
-  // useResizeObserve(getParentContainer, () => {
-  //   debounceComputeRect();
-  // });
 
   onMounted(() => {
     calculateOffsetTop();
