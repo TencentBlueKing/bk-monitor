@@ -1,6 +1,8 @@
 .alert-metrics-config {
-  width: 480px;
+  z-index: 2;
+  width: 100%;
   padding: 12px;
+  background-color: white;
 
   .metrics-config-meaning {
     display: flex;
