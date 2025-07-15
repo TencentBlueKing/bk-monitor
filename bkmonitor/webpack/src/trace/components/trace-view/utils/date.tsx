@@ -162,6 +162,24 @@ export function formatDuration(duration: number, split = '', unitSplit = ' '): s
   return secondaryValue === 0 ? primaryUnitString : `${primaryUnitString}${unitSplit}${secondaryUnitString}`;
 }
 
+export function formatDurationWithUnit(duration: number, split = '') {
+  const units = _dropWhile(
+    UNIT_STEPS,
+    ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration
+  );
+  if (duration === 0) return '0μs';
+  let remainingMicroseconds = duration;
+  const durationUnits = units.reduce((pre, cur) => {
+    if (remainingMicroseconds > cur.microseconds) {
+      const primaryValue = Math.floor(remainingMicroseconds / cur.microseconds);
+      remainingMicroseconds = remainingMicroseconds % cur.microseconds;
+      pre.push(`${primaryValue}${cur.unit}`);
+    }
+    return pre;
+  }, []);
+  return durationUnits.join(split);
+}
+
 export function formatRelativeDate(value: any, fullMonthName = false) {
   const m = dayjs.isDayjs(value) ? value : dayjs.tz(value);
   const monthFormat = fullMonthName ? 'MMMM' : 'MMM';
