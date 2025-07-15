@@ -3074,11 +3074,8 @@ class UnionSearchHandler:
                     _index = union_field_names.index(field_name)
                     _field_type = total_fields[_index]["field_type"]
                     if field_type != _field_type:
-                        if (
-                            field_type == "date"
-                            and _field_type == "date_nanos"
-                            or field_type == "date_nanos"
-                            and _field_type == "date"
+                        if (field_type == "date" and _field_type == "date_nanos") or (
+                            field_type == "date_nanos" and _field_type == "date"
                         ):
                             total_fields[_index]["field_type"] = "date_nanos"
                         else:
