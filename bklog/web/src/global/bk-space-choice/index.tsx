@@ -28,6 +28,7 @@ import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted
 import useLocale from '@/hooks/use-locale';
 import { useNavMenu } from '@/hooks/use-nav-menu';
 import { SPACE_TYPE_MAP } from '@/store/constant';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { debounce } from 'throttle-debounce';
 import { useRouter, useRoute } from 'vue-router/composables';
 
@@ -47,7 +48,6 @@ export default defineComponent({
   props: {
     isExpand: { type: Boolean, default: true },
     theme: { type: String, default: 'dark' },
-    handlePropsClick: { type: Function },
     isExternalAuth: { type: Boolean, default: false },
     canSetDefaultSpace: { type: Boolean, default: false },
   },
@@ -73,19 +73,18 @@ export default defineComponent({
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
     const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
-    const commonListIdsLog = ref<number[]>([]); // 常用业务缓存的ID列表
-    const commonList = ref<any[]>([]); // 常用业务列表
-    const generalList = ref<any[]>([]); // 有权限的业务列表
-    // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
+    const refRootElement = ref<HTMLElement>(null);
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
 
+    const demoId = ref('');
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
-    const localValue = ref('');
-    const spaceUid = ref<string>(route.query.spaceUid?.toString() || route.params.spaceUid?.toString() || '');
+
+    const commonListIdsLog = computed(() => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
+    const spaceUid = computed(() => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
 
     // 业务名称和首字母
     const bizName = computed(() => {
@@ -109,15 +108,12 @@ export default defineComponent({
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
-
-      // 获取常用业务缓存
-      commonListIdsLog.value = JSON.parse(localStorage.getItem('commonListIdsLog') || '[]');
     });
 
     // 点击下拉框外内容，收起下拉框
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const isInside = document.querySelector('.biz-menu-select')?.contains(target);
+      const isInside = refRootElement.value?.contains(target);
       if (!isInside) {
         handleClickOutSide();
       }
@@ -136,29 +132,14 @@ export default defineComponent({
       }
     });
 
-    // 监听路由变化，自动同步空间ID
-    watch(
-      () => route.fullPath,
-      () => {
-        const uid = route.query.spaceUid || route.params.spaceUid;
-        if (uid) {
-          spaceUid.value = uid.toString();
-          localValue.value = uid.toString();
-        }
-      },
-      { immediate: true },
-    );
-
     // 在组件卸载时清除监听
     onUnmounted(() => {
       document.removeEventListener('click', handleGlobalClick);
     });
 
-    // 初始化业务列表
-    const groupList = computed(() => {
-      const keywordVal = keyword.value.trim().toLocaleLowerCase();
-      // 过滤出有权限且符合搜索条件的业务
-      const filteredList = mySpaceList.value.filter(item => {
+    const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
+    const authorizedList = computed(() =>
+      mySpaceList.value.filter(item => {
         let show = false;
         if (searchTypeId.value) {
           show =
@@ -166,25 +147,32 @@ export default defineComponent({
               ? item.space_type_id === 'bkci' && !!item.space_code
               : item.space_type_id === searchTypeId.value;
         }
-        if ((show && keywordVal) || (!searchTypeId.value && !show)) {
+        if ((show && lowerCaseKeyword.value) || (!searchTypeId.value && !show)) {
           show =
-            item.space_name.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(keywordVal) > -1 ||
-            `${item.bk_biz_id}`.includes(keywordVal) ||
-            `${item.space_code}`.includes(keywordVal);
+            item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
+            item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
+            item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
+            `${item.bk_biz_id}`.includes(lowerCaseKeyword.value) ||
+            `${item.space_code}`.includes(lowerCaseKeyword.value);
         }
         if (!show) return false;
         if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
         return true;
-      });
+      }),
+    );
 
+    const commonList = computed(
+      () =>
+        commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
+        [],
+    );
+
+    // 初始化业务列表
+    const groupList = computed(() => {
       // 有权限业务
-      generalList.value = filteredList.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
-      // 常用业务
-      commonList.value = commonListIdsLog.value.map(id => filteredList.find(item => Number(item.id) === id)).filter(Boolean) || [];
+      const generalList = authorizedList.value.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
 
-      if(commonList.value.length > 0){
+      if (commonList.value.length > 0) {
         return [
           {
             id: '__group_common__',
@@ -192,12 +180,10 @@ export default defineComponent({
             type: 'group-title',
           } as any,
           ...commonList.value,
-          ...generalList.value
-        ]
-      }else {
-        return [
-          ...generalList.value
-        ]
+          ...generalList,
+        ];
+      } else {
+        return [...generalList];
       }
     });
 
@@ -257,6 +243,8 @@ export default defineComponent({
     const debounceUpdateRouter = () => {
       return debounce(60, (space: any) => {
         if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
+          store.commit('updateSpace', space.space_uid);
+          store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid });
           router.push({
             params: {
               ...(route.params ?? {}),
@@ -283,15 +271,11 @@ export default defineComponent({
       try {
         if (props.isExternalAuth) {
           exterlAuthSpaceName.value = space.space_name;
-          localValue.value = space.space_uid;
           emit('space-change', space.space_uid);
           return;
         }
-        if (typeof props.handlePropsClick === 'function') {
-          return props.handlePropsClick(space);
-        }
+
         checkSpaceChange(space.space_uid);
-        localValue.value = space.space_uid;
         // 更新常用业务缓存
         if (space.id) {
           updateCacheBizId(Number(space.id));
@@ -305,30 +289,20 @@ export default defineComponent({
 
     // 更新缓存的常用业务ids
     const updateCacheBizId = (id: number) => {
-      const cacheKey = 'commonListIdsLog';
       const maxLen = BIZ_SELECTOR_COMMON_MAX;
-      let cacheIds: number[] = [];
-      try {
-        cacheIds = JSON.parse(localStorage.getItem(cacheKey) || '[]');
-      } catch {
-        cacheIds = [];
-      }
       // 移除已存在的 id
-      cacheIds = cacheIds.filter(item => item != id);
+      const cacheIds = commonListIdsLog.value.filter(item => item != id);
       // 将当前 id 插入第一位
       cacheIds.unshift(id);
-      // 超过最大长度则移除最后一位
-      if (cacheIds.length > maxLen) {
-        cacheIds = cacheIds.slice(0, maxLen);
-      }
-      localStorage.setItem(cacheKey, JSON.stringify(cacheIds));
-      commonListIdsLog.value = cacheIds;
+
+      store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
     };
 
     // 点击体验demo按钮
     const experienceDemo = () => {
       showBizList.value = false;
-      checkSpaceChange(demoUid.value);
+      checkSpaceChange(demoUid.value); // 切换到demo业务
+      if (demoId.value) updateCacheBizId(Number(demoId.value)); // 更新常用业务缓存
     };
 
     // 下拉框内容渲染
@@ -379,10 +353,10 @@ export default defineComponent({
             >
               <List
                 canSetDefaultSpace={props.canSetDefaultSpace as boolean}
-                checked={localValue.value}
+                checked={spaceUid.value}
+                commonList={commonList.value}
                 list={groupList.value}
                 theme={props.theme as ThemeType}
-                commonList={commonList.value}
                 on-HandleClickMenuItem={handleClickMenuItem}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-OpenDialog={openDialog}
@@ -410,7 +384,10 @@ export default defineComponent({
 
     // 渲染主入口
     return () => (
-      <div class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}>
+      <div
+        ref={refRootElement}
+        class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}
+      >
         {/* 图标+业务名称 */}
         <div class='menu-select'>
           {/* 图标 */}

@@ -3072,8 +3072,14 @@ class UnionSearchHandler:
                 else:
                     # 判断字段类型是否一致  不一致则标记为类型冲突
                     _index = union_field_names.index(field_name)
-                    if field_type != total_fields[_index]["field_type"]:
-                        total_fields[_index]["field_type"] = "conflict"
+                    _field_type = total_fields[_index]["field_type"]
+                    if field_type != _field_type:
+                        if (field_type == "date" and _field_type == "date_nanos") or (
+                            field_type == "date_nanos" and _field_type == "date"
+                        ):
+                            total_fields[_index]["field_type"] = "date_nanos"
+                        else:
+                            total_fields[_index]["field_type"] = "conflict"
                     total_fields[_index]["index_set_ids"].append(index_set_id)
 
             # 处理默认显示字段
