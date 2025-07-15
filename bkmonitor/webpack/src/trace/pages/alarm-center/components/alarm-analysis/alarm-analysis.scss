@@ -1,18 +1,46 @@
 .alarm-analysis-comp {
-  .settings {
-    display: inline-flex;
+  .collapse-header {
+    display: flex;
     align-items: center;
-    height: 100%;
-    font-size: 12px;
-    color: #3a84ff;
+    height: 20px;
+    margin: 8px 4px;
     cursor: pointer;
 
-    .icon-shezhi1 {
-      margin: 0 3px 0 9px;
+    .arrow-icon {
+      width: 14px;
+      height: 14px;
+      font-size: 12px;
+      transition: rotateZ 0.1s;
+
+      &.expand {
+        transform: rotateZ(90deg);
+      }
+    }
+
+    .title {
+      margin-left: 2px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #313238;
+    }
+
+    .settings {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #3a84ff;
+
+      .icon-shezhi1 {
+        margin: 0 3px 0 9px;
+      }
     }
   }
 
   .collapse-content {
+    transition: height 0.6s;
+  }
+
+  .panel-list {
     display: flex;
     flex-wrap: wrap;
     padding: 0 16px 4px;

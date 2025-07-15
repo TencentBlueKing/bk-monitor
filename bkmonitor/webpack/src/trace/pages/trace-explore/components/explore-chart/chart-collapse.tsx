@@ -64,7 +64,8 @@ export default defineComponent({
       default: 36,
     },
   },
-  setup(props, { slots }) {
+  emits: ['collapseChange'],
+  setup(props, { slots, emit }) {
     /** 折叠面板，是否展开图表 */
     const isExpand = shallowRef(true);
     /** 显示内容区域高度 -- 主要用于配合 resize 操作时使用 */
@@ -117,6 +118,7 @@ export default defineComponent({
      */
     function handleExpandChange() {
       set(isExpand, !get(isExpand));
+      emit('collapseChange', get(isExpand));
     }
 
     /**
