@@ -1949,4 +1949,5 @@ export default {
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',
   添加方式: 'Add method',
+  数据含义: 'Data meaning',
 };

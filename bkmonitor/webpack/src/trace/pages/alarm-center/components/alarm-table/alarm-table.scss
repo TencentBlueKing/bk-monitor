@@ -1,10 +1,17 @@
-.alarm-table {
+.alarm-table-container {
+  display: flex;
+  flex-direction: column;
   height: 100%;
 
   @mixin text-ellipsis {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .alarm-table {
+    flex-grow: 1;
+    flex-basis: auto;
   }
 
   .explore-col {
@@ -55,6 +62,11 @@
       }
     }
 
+    .description-click-col {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
     &.explore-prefix-icon-col {
       .prefix-icon {
         margin-right: 4px;
@@ -73,6 +85,19 @@
           color: #8e9bb3;
         }
       }
+
+      .description-icon {
+        &.icon-monitor {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          font-size: 14px;
+          color: #8e9bb3;
+          background-color: #f0f2f7;
+        }
+      }
     }
   }
 
@@ -85,6 +110,7 @@
 
 .tippy-box[data-theme~='alarm-center-popover'] {
   .alert-name-popover-container {
+    padding: 6px 8px;
     line-height: 20px;
 
     .alert-name-item {
@@ -117,5 +143,9 @@
         }
       }
     }
+  }
+
+  .extend-info-popover-container {
+    padding: 6px 8px;
   }
 }

@@ -1,0 +1,67 @@
+.alert-metrics-config {
+  z-index: 2;
+  width: 100%;
+  padding: 12px;
+  background-color: white;
+
+  .metrics-config-meaning {
+    display: flex;
+    line-height: 26px;
+    color: #313238;
+
+    .label,
+    .value-view,
+    .value-edit {
+      display: flex;
+      align-items: center;
+    }
+
+    .label {
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+
+    .value-view {
+      .icon-bianji {
+        flex-shrink: 0;
+        margin-right: 4px;
+        font-size: 20px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .value-edit {
+      .bk-input--text {
+        color: #313238;
+      }
+
+      .operations {
+        display: flex;
+        flex-shrink: 0;
+        column-gap: 4px;
+        margin-left: 2px;
+
+        .icon-monitor {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          font-size: 20px;
+          cursor: pointer;
+          // background: #fafbfd;
+          // border: 1px solid #dcdee5;
+        }
+
+        .icon-mc-check-small {
+          color: #299e56;
+        }
+
+        .icon-mc-close {
+          color: #ea3636;
+        }
+      }
+    }
+  }
+}

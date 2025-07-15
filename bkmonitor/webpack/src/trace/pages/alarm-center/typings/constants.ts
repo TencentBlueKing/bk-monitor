@@ -102,6 +102,36 @@ export const AlertStatusMap = {
   },
 };
 
+export const AlertDataTypeMap = {
+  time_series: {
+    prefixIcon: 'description-icon icon-monitor icon-zhibiaojiansuo',
+    alias: window.i18n.t('时序数据'),
+  },
+  event: {
+    prefixIcon: 'description-icon icon-monitor icon-shijianjiansuo',
+    alias: window.i18n.t('事件'),
+  },
+  log: {
+    prefixIcon: 'description-icon icon-monitor icon-a-logrizhi',
+    alias: window.i18n.t('日志'),
+  },
+};
+
+export const AlertTargetTypeMap = {
+  HOST: {
+    prefixIcon: 'target-icon icon-monitor icon-zhuji',
+    alias: window.i18n.t('主机'),
+  },
+  SERVICE: {
+    prefixIcon: 'target-icon icon-monitor icon-APM',
+    alias: window.i18n.t('服务'),
+  },
+  // INSTANCE: {
+  //   prefixIcon: 'target-icon icon-monitor icon-zidingyizhibiao',
+  //   alias: window.i18n.t('自定义指标'),
+  // },
+};
+
 /** 告警-关联信息不同类型提示信息 */
 export const EXTEND_INFO_MAP = {
   log_search: window.i18n.t('查看更多相关的日志'),

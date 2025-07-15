@@ -1281,8 +1281,11 @@ export default defineComponent({
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.isManagerOrUser}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.isManagerOrUser ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus
@@ -1357,8 +1360,11 @@ export default defineComponent({
               }}
             />
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.createType === 'self'}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.createType === 'self' ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus

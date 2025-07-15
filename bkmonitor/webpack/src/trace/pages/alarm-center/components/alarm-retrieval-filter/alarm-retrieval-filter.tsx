@@ -43,45 +43,10 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
 
-    const { localBizIds, bizId, isIncident, bizList, handleBizIdsChange, handleCheckAllowedByIds } = useSpaceSelect();
-
-    const {
-      fields,
-      condition,
-      queryString,
-      residentSettingOnlyId,
-      filterMode,
-      residentCondition,
-      showAlarmModule,
-      handleConditionChange,
-      handleQueryStringChange,
-      handleFilterModeChange,
-      getRetrievalFilterValueData,
-      handleResidentConditionChange,
-      handleQuery,
-    } = useAlarmFilter();
-
     return {
-      bizId,
-      isIncident,
-      localBizIds,
-      bizList,
-      fields,
-      condition,
-      queryString,
-      residentSettingOnlyId,
-      filterMode,
-      residentCondition,
-      showAlarmModule,
       t,
-      handleCheckAllowedByIds,
-      handleBizIdsChange,
-      handleConditionChange,
-      handleQueryStringChange,
-      handleFilterModeChange,
-      getRetrievalFilterValueData,
-      handleResidentConditionChange,
-      handleQuery,
+      ...useAlarmFilter(),
+      ...useSpaceSelect(),
     };
   },
   render() {
@@ -119,11 +84,14 @@ export default defineComponent({
                 currentSpace={this.bizId}
                 hasAuthApply={true}
                 isCommonStyle={false}
+                multiple={this.isMultiple}
+                needChangeChoiceType={true}
                 needIncidentOption={this.isIncident}
                 spaceList={this.bizList}
                 value={this.localBizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
+                onChangeChoiceType={this.handleChangeChoiceType}
               >
                 {{
                   trigger: (options: ITriggerSlotOptions) => (

@@ -33,8 +33,8 @@ import {
   useTemplateRef,
   onUnmounted,
   nextTick,
+  computed,
 } from 'vue';
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useTippy } from 'vue-tippy';
@@ -658,6 +658,13 @@ export default defineComponent({
       });
     }
 
+    function handleChangeChoiceType(val) {
+      if (!val && localValue.value.length > 1) {
+        handleWatchValue([localValue.value[0]]);
+      }
+      emit('changeChoiceType', val);
+    }
+
     return {
       isErr,
       isOpen,
@@ -670,6 +677,7 @@ export default defineComponent({
       pagination,
       needCurSpace,
       localCurrentSpace,
+      handleChangeChoiceType,
       handleSearchType,
       t,
       handleMousedown,
@@ -754,39 +762,51 @@ export default defineComponent({
                 }}
               </Input>
             </div>
-            <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
-              <ul
-                ref='typeListRef'
-                class={'space-type-list'}
-              >
-                {this.spaceTypeIdList.map(item => (
-                  <li
-                    key={item.id}
-                    class={[
-                      'space-type-item',
-                      item.id,
-                      { 'hover-active': item.id !== this.searchTypeId },
-                      { selected: item.id === this.searchTypeId },
-                    ]}
-                    onClick={() => this.handleSearchType(item.id)}
-                  >
-                    {item.name}
-                  </li>
-                ))}
-              </ul>
-              <div
-                class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
-                onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
-              >
-                <span class='icon-monitor icon-arrow-left' />
+            <div class='group-choice-wrap'>
+              <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
+                <ul
+                  ref='typeListRef'
+                  class={'space-type-list'}
+                >
+                  {this.spaceTypeIdList.map(item => (
+                    <li
+                      key={item.id}
+                      class={[
+                        'space-type-item',
+                        item.id,
+                        { 'hover-active': item.id !== this.searchTypeId },
+                        { selected: item.id === this.searchTypeId },
+                      ]}
+                      onClick={() => this.handleSearchType(item.id)}
+                    >
+                      {item.name}
+                    </li>
+                  ))}
+                </ul>
+                <div
+                  class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
+                  onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
+                >
+                  <span class='icon-monitor icon-arrow-left' />
+                </div>
+                <div
+                  class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
+                  onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
+                >
+                  <span class='icon-monitor icon-arrow-right' />
+                </div>
               </div>
-              <div
-                class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
-                onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
-              >
-                <span class='icon-monitor icon-arrow-right' />
-              </div>
+              {this.needChangeChoiceType && (
+                <Checkbox
+                  class='choice-type-checkbox'
+                  modelValue={this.multiple}
+                  onChange={this.handleChangeChoiceType}
+                >
+                  {this.t('多选')}
+                </Checkbox>
+              )}
             </div>
+
             <div
               class='space-list'
               onScroll={this.handleScroll}

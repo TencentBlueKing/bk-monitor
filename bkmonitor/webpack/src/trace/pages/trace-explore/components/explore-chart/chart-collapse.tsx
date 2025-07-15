@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, shallowRef, onMounted } from 'vue';
+import { defineComponent, computed, shallowRef, onMounted, watch } from 'vue';
 
 import { get, set } from '@vueuse/core';
 
@@ -90,6 +90,15 @@ export default defineComponent({
       // 容器切换折叠状态时动画持续时长
       '--expand-animation-duration': '0.6s',
     }));
+
+    watch(
+      () => props.defaultIsExpand,
+      val => {
+        if (val !== isExpand.value) {
+          set(isExpand, val);
+        }
+      }
+    );
 
     onMounted(() => {
       initConfig();

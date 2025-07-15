@@ -35,6 +35,10 @@ import { AlarmType } from '../../../typings';
 export function useSpaceSelect() {
   const appStore = useAppStore();
   const alarmStore = useAlarmCenterStore();
+  const localBizIds = shallowRef(alarmStore.bizIds);
+  const allowedBizList = shallowRef([]);
+  const isMultiple = shallowRef(false);
+
   const bizId = computed(() => {
     return appStore.bizId;
   });
@@ -44,9 +48,6 @@ export function useSpaceSelect() {
   const bizList = computed(() => {
     return appStore.bizList;
   });
-
-  const localBizIds = shallowRef(alarmStore.bizIds);
-  const allowedBizList = shallowRef([]);
 
   /**
    * @description: 通过业务id 获取无权限申请url
@@ -80,12 +81,18 @@ export function useSpaceSelect() {
     alarmStore.bizIds = v;
   }
 
+  function handleChangeChoiceType(v: boolean) {
+    isMultiple.value = v;
+  }
+
   return {
     bizId,
     isIncident,
     bizList,
     localBizIds,
+    isMultiple,
     handleCheckAllowedByIds,
     handleBizIdsChange,
+    handleChangeChoiceType,
   };
 }

@@ -106,10 +106,16 @@ export const SPACE_SELECTOR_PROPS = {
     type: Boolean,
     default: false,
   },
+  /* 是否包含多选/单选切换按钮  multiple属性需替换成变量 */
+  needChangeChoiceType: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const SPACE_SELECTOR_EMITS = {
   change: (_val: number[]) => true,
   applyAuth: (_val: (number | string)[]) => true,
+  changeChoiceType: (_val: boolean) => true,
 } as const;
 
 export interface ITriggerSlotOptions {
