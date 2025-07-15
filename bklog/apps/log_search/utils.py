@@ -242,7 +242,7 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     return response
 
 
-def handle_es_query_error(exc: Exception):
+def handle_es_query_error(exc: Exception) -> Exception:
     """
     处理ES查询错误
     :param exc: 异常对象
@@ -254,7 +254,7 @@ def handle_es_query_error(exc: Exception):
                 message = exception.MESSAGE.format_map(match.groupdict())
             except Exception:
                 # 如果格式化失败，则抛出原始异常
-                raise LogSearchException(LogSearchException.MESSAGE.format(e=exc))
-            raise exception(message)
+                return LogSearchException(LogSearchException.MESSAGE.format(e=exc))
+            return exception(message)
     # 如果没有匹配到任何错误模式，则抛出原始异常
-    raise LogSearchException(LogSearchException.MESSAGE.format(e=exc))
+    return LogSearchException(LogSearchException.MESSAGE.format(e=exc))

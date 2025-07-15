@@ -1773,7 +1773,7 @@ class HighlightConfig:
 
 
 ES_ERROR_PATTERNS = [
-    (r"查询DSL错误, ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+    (r"ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
     (r"No mapping found for \[(?P<field_name>.*?)] in order to sort on", NoMappingException),
     (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
     (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),

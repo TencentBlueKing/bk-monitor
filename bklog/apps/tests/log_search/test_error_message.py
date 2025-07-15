@@ -25,15 +25,15 @@ class TestESExceptionHandler(TestCase):
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
-                with self.assertRaises(ESQuerySyntaxException):
-                    handle_es_query_error(Exception(msg))
+                exc = handle_es_query_error(Exception(msg))
+                self.assertIsInstance(exc, ESQuerySyntaxException)
 
     def test_handle_no_mapping_error(self):
         # 测试字段映射缺失错误
         error_msg = "No mapping found for [test_field] in order to sort on"
-        with self.assertRaises(NoMappingException) as cm:
-            handle_es_query_error(Exception(error_msg))
-        self.assertIn("test_field", str(cm.exception))
+        exc = handle_es_query_error(Exception(error_msg))
+        self.assertIsInstance(exc, NoMappingException)
+        self.assertIn("test_field", str(exc))
 
     def test_handle_highlight_error(self):
         # 测试高亮失败错误
@@ -43,9 +43,9 @@ class TestESExceptionHandler(TestCase):
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
-                with self.assertRaises(HighlightException) as cm:
-                    handle_es_query_error(Exception(msg))
-                self.assertIn("log", str(cm.exception))
+                exc = handle_es_query_error(Exception(msg))
+                self.assertIsInstance(exc, HighlightException)
+                self.assertIn("log", str(exc))
 
     def test_handle_unsupported_operation_error(self):
         # 测试不支持的操作错误
@@ -55,9 +55,9 @@ class TestESExceptionHandler(TestCase):
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
-                with self.assertRaises(UnsupportedOperationException) as cm:
-                    handle_es_query_error(Exception(msg))
-                self.assertIn("test_field", str(cm.exception))
+                exc = handle_es_query_error(Exception(msg))
+                self.assertIsInstance(exc, UnsupportedOperationException)
+                self.assertIn("test_field", str(exc))
 
     def test_handle_server_unavailable_error(self):
         # 测试服务器不可用错误
@@ -68,8 +68,8 @@ class TestESExceptionHandler(TestCase):
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
-                with self.assertRaises(QueryServerUnavailableException):
-                    handle_es_query_error(Exception(msg))
+                exc = handle_es_query_error(Exception(msg))
+                self.assertIsInstance(exc, QueryServerUnavailableException)
 
     def test_raw_error(self):
         # 测试没有匹配到任何错误模式
@@ -79,5 +79,5 @@ class TestESExceptionHandler(TestCase):
         ]
         for msg in error_messages:
             with self.subTest(msg=msg):
-                with self.assertRaises(LogSearchException):
-                    handle_es_query_error(Exception(msg))
+                exc = handle_es_query_error(Exception(msg))
+                self.assertIsInstance(exc, LogSearchException)

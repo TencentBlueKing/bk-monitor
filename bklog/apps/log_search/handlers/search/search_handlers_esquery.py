@@ -826,7 +826,7 @@ class SearchHandler:
 
                 return data
             except Exception as e:
-                handle_es_query_error(e)
+                raise handle_es_query_error(e)
 
         storage_cluster_ids = {self.storage_cluster_id}
 
