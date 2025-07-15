@@ -134,9 +134,11 @@ export function formatSecondTime(duration: number) {
  * 183840s => 2d 3h
  *
  * @param {number} duration (in microseconds)
+ * @param {string} split 分隔符
+ * @param {number} precision 精度
  * @return {string} formatted duration
  */
-export function formatDuration(duration: number, split = '', unitSplit = ' '): string {
+export function formatDuration(duration: number, split = '', precision = 2): string {
   // Drop all units that are too large except the last one
   const [primaryUnit, secondaryUnit] = _dropWhile(
     UNIT_STEPS,
@@ -145,7 +147,7 @@ export function formatDuration(duration: number, split = '', unitSplit = ' '): s
 
   if (primaryUnit.ofPrevious === 1000) {
     // If the unit is decimal based, display as a decimal
-    return `${_round(duration / primaryUnit.microseconds, 2)}${split}${primaryUnit.unit}`;
+    return `${_round(duration / primaryUnit.microseconds, precision)}${split}${primaryUnit.unit}`;
   }
 
   const primaryValue = Math.floor(duration / primaryUnit.microseconds);
@@ -159,7 +161,7 @@ export function formatDuration(duration: number, split = '', unitSplit = ' '): s
 
   const primaryUnitString = `${primaryValue}${split}${primaryUnit.unit}`;
   const secondaryUnitString = `${secondaryValue}${split}${secondaryUnit.unit}`;
-  return secondaryValue === 0 ? primaryUnitString : `${primaryUnitString}${unitSplit}${secondaryUnitString}`;
+  return secondaryValue === 0 ? primaryUnitString : `${primaryUnitString} ${secondaryUnitString}`;
 }
 
 export function formatDurationWithUnit(duration: number, split = '') {
