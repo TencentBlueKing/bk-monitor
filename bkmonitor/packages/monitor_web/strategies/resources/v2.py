@@ -118,6 +118,7 @@ class GetStrategyListV2Resource(Resource):
         with_user_group = serializers.BooleanField(default=False, label="是否补充告警组信息")
         with_user_group_detail = serializers.BooleanField(required=False, default=False, label="补充告警组详细信息")
         convert_dashboard = serializers.BooleanField(required=False, default=True, label="是否转换仪表盘格式")
+        ids = serializers.ListField(required=False, default=[], label="策略ID列表")
 
     @classmethod
     def filter_by_ip(cls, ips: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
