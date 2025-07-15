@@ -50,6 +50,17 @@ def filter_bk_field_prefix_before(params):
 class _CCApi:
     MODULE = _("配置平台")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}{new_path}"
+            if self.use_apigw
+            else f"{CC_APIGATEWAY_ROOT_V2}{old_path}"
+        )
+
     def __init__(self):
         self.get_app_list = DataAPI(
             method="POST",
