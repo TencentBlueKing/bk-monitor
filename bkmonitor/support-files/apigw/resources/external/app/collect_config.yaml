@@ -44,7 +44,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: save collect config
   /app/collect_config/detail/:
-    post:
+    get:
       operationId: query_collect_config_detail
       description: 查询采集配置详情
       x-bk-apigateway-resource:
@@ -53,7 +53,7 @@ paths:
         matchSubpath: false
         backend:
           type: HTTP
-          method: post
+          method: get
           path: /api/v4/collect/config_detail/
           matchSubpath: false
         authConfig:
