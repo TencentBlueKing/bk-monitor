@@ -13,16 +13,14 @@
   }
 
   .collapse-content {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 8px;
     padding: 0 16px 4px;
 
     .panel-item {
-      flex: 1;
-      min-width: 320px;
       height: 208px;
       padding: 6px 8px 12px 12px;
-      margin: 0 8px 8px 0;
       background: #f5f7fa;
       border-radius: 4px;
 
