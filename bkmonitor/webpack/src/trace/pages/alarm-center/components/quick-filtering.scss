@@ -27,7 +27,11 @@
   .filter-list {
     height: calc(100% - 40px);
     padding: 0 12px;
-    overflow-y: auto;
+    overflow-y: hidden;
+
+    &:hover {
+      overflow-y: auto;
+    }
 
     .filter-item {
       .filter-group-header {
