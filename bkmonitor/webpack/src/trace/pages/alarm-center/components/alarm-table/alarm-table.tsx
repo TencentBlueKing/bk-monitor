@@ -26,8 +26,8 @@
 import { computed, defineComponent, ref as deepRef, type PropType } from 'vue';
 
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
-import AlertMetricsConfig from './components/alert-metrics-config';
-import AlertSelectionToolbar from './components/alert-selection-toolbar';
+import AlertMetricsConfig from './components/alert-metrics-config/alert-metrics-config';
+import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';

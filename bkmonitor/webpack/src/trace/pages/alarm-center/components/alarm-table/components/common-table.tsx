@@ -38,7 +38,7 @@ import type {
   TableCellRenderer,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { TableEmpty, TablePagination, TableRenderer } from '../../../typings';
-import type { CheckboxGroupValue, SelectOptions, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
+import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -59,6 +59,11 @@ export default defineComponent({
     data: {
       type: Array as PropType<Record<string, any>[]>,
       default: () => [],
+    },
+    /** 表格行高主题 */
+    tableSize: {
+      type: String as PropType<SizeEnum>,
+      default: 'small',
     },
     /** 表格设置属性类型 */
     tableSettings: {
@@ -295,7 +300,7 @@ export default defineComponent({
           rowKey={this.rowKey}
           selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}
-          size='small'
+          size={this.tableSize}
           sort={this.tableSort}
           tableLayout='fixed'
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}

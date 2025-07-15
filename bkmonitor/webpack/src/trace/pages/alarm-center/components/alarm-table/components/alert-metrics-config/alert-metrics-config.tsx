@@ -37,7 +37,7 @@ export default defineComponent({
       type: String,
     },
   },
-  setup(props, { emit }) {
+  setup() {
     const { t } = useI18n();
     const metricsDetail = deepRef({
       description: '请求处理错误码等级为 error',

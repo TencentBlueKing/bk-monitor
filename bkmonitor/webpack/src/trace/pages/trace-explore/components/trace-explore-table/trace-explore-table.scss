@@ -7,6 +7,7 @@
   height: 100%;
 
   .explore-table {
+    height: 100%;
     @include traceTable.table-theme();
   }
 
@@ -15,6 +16,7 @@
       display: flex;
       align-items: center;
       min-width: 0;
+      color: #000000 !important;
       user-select: none;
     }
 
@@ -179,41 +181,28 @@
     }
   }
 
-  .explore-table.t-table {
-    .t-table__header {
-      tr {
-        .t-table__th-cell-inner {
-          color: #000000 !important;
-        }
+  .scroll-end-loading {
+    position: sticky;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    // height: 32px;
+    transform: translateX(-50%);
+
+    .bk-loading-size-mini {
+      flex-direction: row;
+      column-gap: 8px;
+      align-items: center;
+
+      .bk-loading-title {
+        margin-top: 0;
       }
     }
+  }
 
+  .explore-table.t-table {
     .t-table__body {
       tr {
-        &.t-table__last-full-row {
-          td,
-          .t-table__row-full-element {
-            .scroll-end-loading {
-              position: sticky;
-              left: 50%;
-              display: inline-flex;
-              align-items: center;
-              height: 32px;
-              transform: translateX(-50%);
-
-              .bk-loading-size-mini {
-                flex-direction: row;
-                column-gap: 8px;
-                align-items: center;
-
-                .bk-loading-title {
-                  margin-top: 0;
-                }
-              }
-            }
-          }
-        }
-
         .icon-Tracing {
           display: none;
           flex-shrink: 0;
@@ -235,5 +224,13 @@
         }
       }
     }
+  }
+
+  .explore-table-empty {
+    position: sticky;
+    right: var(--td-comp-paddingLR-s);
+    left: var(--td-comp-paddingLR-s);
+    width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
+    padding: 20px 0;
   }
 }

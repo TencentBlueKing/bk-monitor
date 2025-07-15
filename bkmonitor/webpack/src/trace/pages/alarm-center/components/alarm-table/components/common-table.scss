@@ -6,7 +6,7 @@
   flex-direction: column;
 
   .common-table {
-    // @include tableCommonTheme.table-theme();
+    @include tableCommonTheme.table-theme();
   }
 
   .common-table-skeleton {

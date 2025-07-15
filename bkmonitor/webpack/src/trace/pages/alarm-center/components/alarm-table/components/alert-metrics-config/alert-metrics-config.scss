@@ -6,7 +6,8 @@
 
   .metrics-config-meaning {
     display: flex;
-    line-height: 26px;
+    min-height: 26px;
+    line-height: 20px;
     color: #313238;
 
     .label,

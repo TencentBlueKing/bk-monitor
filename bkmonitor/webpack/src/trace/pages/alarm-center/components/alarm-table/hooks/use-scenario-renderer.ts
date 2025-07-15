@@ -69,6 +69,7 @@ export function useScenarioRenderer(context: any) {
         type: 'multiple',
         width: 50,
         minWidth: 50,
+        fixed: 'left',
       });
     }
     const scenarioColumns = currentScenario.value.getColumnsConfig();
