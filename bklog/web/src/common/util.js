@@ -478,7 +478,7 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  */
 export function formatDateNanos(val) {
   if (/^\d+$/.test(val)) {
-    return formatDate(val);
+    return formatDate(`${val}`);
   }
 
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
