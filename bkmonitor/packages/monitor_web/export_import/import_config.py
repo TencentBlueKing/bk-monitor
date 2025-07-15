@@ -481,9 +481,12 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
     """
     获取策略配置列表（包含用户组详细信息）
     """
-    strategy_configs = resource.strategies.get_strategy_list_v2(
+    strategy_configs: list[dict] = resource.strategies.get_strategy_list_v2(
         bk_biz_id=bk_biz_id,
-        conditions=[{"key": "id", "value": strategy_ids}],
+        conditions=[
+            {"key": "id", "value": strategy_ids},
+            {"key": "source__neq", "value": DEFAULT_DATALINK_COLLECTING_FLAG},
+        ],
         page=0,
         page_size=0,
         with_user_group=True,
@@ -501,11 +504,6 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
     # 遍历处理每个策略配置
     for result_data in strategy_configs:
         strategy_id = result_data.get("id")
-
-        # 过滤集成内置策略配置
-        source = result_data.get("source")
-        if source == DEFAULT_DATALINK_COLLECTING_FLAG:
-            continue
 
         # 处理指标拆分策略配置
         for item_msg in result_data["items"]:

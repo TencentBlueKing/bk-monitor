@@ -448,6 +448,18 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
     @classmethod
+    def filter_strategy_ids_exclude_source(cls, filter_dict: dict, filter_strategy_ids_set: set):
+        """过滤来源"""
+        if filter_dict["source__neq"]:
+            source_strategy_ids = (
+                StrategyModel.objects.exclude(source__in=filter_dict["source__neq"])
+                .filter(id__in=filter_strategy_ids_set)
+                .values_list("id", flat=True)
+                .distinct()
+            )
+            filter_strategy_ids_set.intersection_update(set(source_strategy_ids))
+
+    @classmethod
     def filter_by_conditions(cls, conditions: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
         """
         按条件进行过滤
@@ -516,6 +528,7 @@ class GetStrategyListV2Resource(Resource):
             (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_exclude_source, (filter_dict, filter_strategy_ids_set)),
         ]
         for filter_method, args in filter_methods:
             filter_method(*args)
