@@ -14,7 +14,7 @@ import logging
 from django.conf import settings
 
 from bkmonitor.utils.bcs import BcsKubeClient
-from constants.apm import BkCollectorComp
+from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 

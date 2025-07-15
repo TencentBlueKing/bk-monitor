@@ -14,7 +14,7 @@ import logging
 from alarm_backends.core.storage.redis import Cache
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
-from constants.apm import BkCollectorComp
+from constants.bk_collector import BkCollectorComp
 
 logger = logging.getLogger("apm")
 
