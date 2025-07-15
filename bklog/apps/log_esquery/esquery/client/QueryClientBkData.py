@@ -125,7 +125,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 continue
             result_table_mappings[item["result_table_id"]] = tokenizers
         if not result_table_mappings:
-            return
+            return mapping
 
         for result_table_id, result_table_config in mapping.items():
             result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
