@@ -36,6 +36,7 @@ import http from '@/api';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import { throttle } from 'lodash';
 import './index-new.scss';
 
 export default defineComponent({
@@ -173,6 +174,9 @@ export default defineComponent({
       handleChartDataZoom,
       dynamicHeight,
     });
+
+    // 节流后的回退操作函数
+    const throttledBackToPreChart = throttle(backToPreChart, 500, { trailing: false });
 
     // 根据时间范围决定是否分段请求
     const handleRequestSplit = (startTime, endTime) => {
@@ -412,7 +416,7 @@ export default defineComponent({
               {!isFold.value && (
                 <div class='converge-cycle'>
                   {canGoBack.value && (
-                    <span class='chart-back-btn' onClick={backToPreChart}>
+                    <span class='chart-back-btn' onClick={throttledBackToPreChart}>
                       <span class="bk-icon icon-angle-left-line" style={{ marginRight: '2px'}}></span>
                       {t('回退')}
                     </span>
