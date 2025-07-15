@@ -35,6 +35,7 @@ import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import http from '@/api';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
+import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import './index-new.scss';
 
 export default defineComponent({
@@ -143,7 +144,7 @@ export default defineComponent({
     // 切换折叠状态
     const toggleExpand = (val: boolean) => {
       isFold.value = val;
-      store.commit('updateChartIsFold', val);
+      store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: val });
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
@@ -353,7 +354,7 @@ export default defineComponent({
 
     onMounted(() => {
       // 初始化折叠状态
-      isFold.value = store.state.storage.chartIsFold;
+      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD];
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });

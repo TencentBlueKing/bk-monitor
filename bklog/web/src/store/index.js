@@ -176,7 +176,6 @@ const stateTpl = {
       [BK_LOG_STORAGE.BK_BIZ_ID]: URL_ARGS.bizId,
       [BK_LOG_STORAGE.BK_SPACE_UID]: URL_ARGS.spaceUid,
     }),
-    chartIsFold: false,
   },
   features: {
     isAiAssistantActive: false,
@@ -337,12 +336,7 @@ const store = new Vuex.Store({
       Object.keys(payload).forEach(key => {
         state.storage[key] = payload[key];
       });
-
       localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
-    },
-
-    updateChartIsFold(state, val) {
-      state.storage.chartIsFold = val;
     },
 
     updateApiError(state, { apiName, errorMessage }) {

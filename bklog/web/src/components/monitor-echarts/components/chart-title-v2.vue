@@ -107,6 +107,7 @@
 <script lang="ts">
   import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
   import useStore from '@/hooks/use-store';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
   import { formatNumberWithRegex } from '../../../common/util';
 
@@ -129,7 +130,7 @@
     @Prop({ default: '' }) title: string;
     @Prop({ default: '' }) subtitle: string;
     @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: store.state.storage.chartIsFold }) isFold: boolean;
+    @Prop({ default: store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] }) isFold: boolean;
     @Prop({ default: true }) loading: boolean;
     @Prop({ default: true }) isEmptyChart: boolean;
     @Prop({ required: true }) totalCount: number;

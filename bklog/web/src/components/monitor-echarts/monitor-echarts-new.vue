@@ -129,6 +129,7 @@
     ITextChartOption,
     ChartType,
   } from './options/type-interface';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
   import { hexToRgbA } from './utils';
   import ChartInView from './utils/chart-in-view';
   import watermarkMaker from './utils/watermark-maker';
@@ -210,7 +211,7 @@
     @Prop({ default: 165 }) height: number | string;
     @Prop({ default: 1, type: Number }) lineWidth: number;
 
-    @Prop({ default: store.state.storage.chartIsFold }) isFold: boolean;
+    @Prop({ default: store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] }) isFold: boolean;
 
     // chart: Echarts.ECharts = null
     resizeHandler: ResizeCallback<HTMLDivElement>;

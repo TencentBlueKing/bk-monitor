@@ -55,6 +55,7 @@
   import { ref, watch, onMounted, computed, nextTick } from 'vue';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
   const emit = defineEmits(['toggle-change', 'change-queue-res']);
 
@@ -83,7 +84,7 @@
 
   const toggleExpand = val => {
     isFold.value = val;
-    store.commit('updateChartIsFold', val);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: val });
     nextTick(() => {
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });
@@ -102,7 +103,7 @@
   };
 
   onMounted(() => {
-    isFold.value = store.state.storage.chartIsFold;
+    isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD];
     nextTick(() => {
       emit('toggle-change', !isFold.value, getOffsetHeight());
     });
