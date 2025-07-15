@@ -39,7 +39,7 @@ from apps.api.base import DataApiRetryClass
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH, LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -121,6 +121,7 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
 )
+from apps.log_search.permission import Permission
 from apps.log_search.utils import sort_func
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
@@ -132,7 +133,7 @@ from apps.utils.local import (
     get_local_param,
     get_request_app_code,
     get_request_external_username,
-    get_request_username,
+    get_request_username, get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
@@ -314,6 +315,22 @@ class SearchHandler:
         self.export_fields = export_fields
 
         self.is_desensitize = search_dict.get("is_desensitize", True)
+        if not search_dict.get("is_desensitize"):
+            # 只针对白名单中的APP_CODE开放不脱敏的权限
+            request = get_request(peaceful=True)
+            auth_info = Permission.get_auth_info(request, raise_exception=False)
+            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
+                self.is_desensitize = True
+        if search_dict.get("is_desensitize"):
+            # 对脱敏白名单中的用户开放不脱敏的权限
+            bk_biz_id = search_dict.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    # 用户在脱敏白名单中,开放不脱敏权限
+                    self.is_desensitize =  False
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
