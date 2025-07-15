@@ -44,6 +44,7 @@ class DataLinkResourceConfigBase(models.Model):
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID", default=settings.DEFAULT_BKDATA_BIZ_ID)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         abstract = True
