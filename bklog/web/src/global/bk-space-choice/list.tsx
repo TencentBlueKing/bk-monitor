@@ -23,17 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, onMounted } from 'vue';
+import { defineComponent, ref, computed } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 
 import useStore from '../../hooks/use-store';
-// import UserConfigMixin from '../../mixins/userStoreConfig';
 import { SPACE_TYPE_MAP } from '../../store/constant';
 
 import './list.scss';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
-
-// const userConfigMixin = new UserConfigMixin();
 
 export enum ETagsType {
   BCS = 'bcs',
@@ -146,9 +143,6 @@ export default defineComponent({
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
-            buffer={200} /* 提前加载200px以外的内容 */
-            items={Array.isArray(props.list) ? props.list : []}
-            item-size={32}
             scopedSlots={{
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
@@ -169,7 +163,7 @@ export default defineComponent({
                       <span class='list-item-name'>{item.name}</span>
                       <span class={['list-item-id', props.theme]}>
                         {/* 显示业务ID或空间ID */}
-                        { item.type != 'group-title' ? `(#${item.space_id})` : ''}
+                        {item.type != 'group-title' ? `(#${item.space_id})` : ''}
                       </span>
                       {/* 如果当前业务是默认业务，显示“默认”标签 */}
                       {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
@@ -216,6 +210,9 @@ export default defineComponent({
                 </div>
               ),
             }}
+            buffer={200} /* 提前加载200px以外的内容 */
+            item-size={32}
+            items={Array.isArray(props.list) ? props.list : []}
           />
         ) : (
           // 无数据时显示异常提示
