@@ -64,7 +64,7 @@ class _CCApi:
     def __init__(self):
         self.get_app_list = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_business/",
+            url=self._build_url("search_business/", "search_business/"),
             module=self.MODULE,
             description="查询业务列表",
             before_request=get_supplier_account_before,
@@ -73,7 +73,7 @@ class _CCApi:
         )
         self.search_inst_by_object = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_inst_by_object/",
+            url=self._build_url("search_inst_by_object/", "search_inst_by_object/"),
             module=self.MODULE,
             description="查询CC对象列表",
             before_request=get_supplier_account_before,
@@ -82,7 +82,7 @@ class _CCApi:
         )
         self.search_biz_inst_topo = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_biz_inst_topo/",
+            url=self._build_url("search_biz_inst_topo/", "search_biz_inst_topo/"),
             module=self.MODULE,
             description="查询业务TOPO，显示各个层级",
             before_request=get_supplier_account_before,
@@ -91,7 +91,7 @@ class _CCApi:
         )
         self.search_module = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_module",
+            url=self._build_url("search_module", "search_module"),
             module=self.MODULE,
             description="查询模块",
             before_request=get_supplier_account_before,
@@ -100,7 +100,7 @@ class _CCApi:
         )
         self.get_host_info = DataAPI(
             method="GET",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_module",
+            url=self._build_url("search_module", "search_module"),
             module=self.MODULE,
             description="查询模块",
             before_request=get_supplier_account_before,
@@ -108,7 +108,7 @@ class _CCApi:
         )
         self.get_biz_internal_module = DataAPI(
             method="GET",
-            url=CC_APIGATEWAY_ROOT_V2 + "get_biz_internal_module",
+            url=self._build_url("get_biz_internal_module", "get_biz_internal_module"),
             module=self.MODULE,
             description="查询内部业务模块",
             before_request=get_supplier_account_before,
@@ -117,7 +117,7 @@ class _CCApi:
         )
         self.search_object_attribute = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_object_attribute",
+            url=self._build_url("search_object_attribute", "search_object_attribute"),
             module=self.MODULE,
             description="查询对象属性",
             before_request=filter_bk_field_prefix_before,
@@ -125,7 +125,7 @@ class _CCApi:
         )
         self.list_biz_hosts = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_biz_hosts",
+            url=self._build_url("list_biz_hosts", "list_biz_hosts"),
             module=self.MODULE,
             description="查询业务下的主机",
             before_request=get_supplier_account_before,
@@ -134,7 +134,7 @@ class _CCApi:
         )
         self.list_hosts_without_biz = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_hosts_without_biz",
+            url=self._build_url("list_hosts_without_biz", "list_hosts_without_biz"),
             module=self.MODULE,
             description="根据条件查询主机, 不需要业务",
             before_request=get_supplier_account_before,
@@ -142,7 +142,7 @@ class _CCApi:
         )
         self.list_biz_hosts_topo = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_biz_hosts_topo",
+            url=self._build_url("list_biz_hosts_topo", "list_biz_hosts_topo"),
             module=self.MODULE,
             description="查询业务下的主机和拓扑信息",
             before_request=get_supplier_account_before,
@@ -151,7 +151,7 @@ class _CCApi:
         )
         self.search_cloud_area = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_cloud_area",
+            url=self._build_url("search_cloud_area", "search_cloud_area"),
             module=self.MODULE,
             description="查询云区域",
             before_request=get_supplier_account_before,
@@ -159,7 +159,7 @@ class _CCApi:
         )
         self.find_host_topo_relation = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_host_topo_relation",
+            url=self._build_url("find_host_topo_relation", "find_host_topo_relation"),
             module=self.MODULE,
             description="获取主机与拓扑的关系",
             before_request=get_supplier_account_before,
@@ -168,7 +168,7 @@ class _CCApi:
         )
         self.search_set = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_set",
+            url=self._build_url("search_set", "search_set"),
             module=self.MODULE,
             description="查询集群",
             before_request=get_supplier_account_before,
@@ -177,7 +177,7 @@ class _CCApi:
         )
         self.list_service_template = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_service_template",
+            url=self._build_url("list_service_template", "list_service_template"),
             module=self.MODULE,
             description="获取服务模板列表",
             before_request=get_supplier_account_before,
@@ -186,7 +186,7 @@ class _CCApi:
         )
         self.list_set_template = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_set_template",
+            url=self._build_url("list_set_template", "list_set_template"),
             module=self.MODULE,
             description="获取集群模板列表",
             before_request=get_supplier_account_before,
@@ -195,7 +195,7 @@ class _CCApi:
         )
         self.find_host_by_set_template = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_host_by_set_template",
+            url=self._build_url("find_host_by_set_template", "find_host_by_set_template"),
             module=self.MODULE,
             description="查询集群模板下的主机",
             before_request=get_supplier_account_before,
@@ -204,7 +204,7 @@ class _CCApi:
         )
         self.find_host_by_service_template = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_host_by_service_template",
+            url=self._build_url("find_host_by_service_template", "find_host_by_service_template"),
             module=self.MODULE,
             description="查询服务模板下的主机",
             before_request=get_supplier_account_before,
@@ -213,7 +213,7 @@ class _CCApi:
         )
         self.find_module_with_relation = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_module_with_relation",
+            url=self._build_url("find_module_with_relation", "find_module_with_relation"),
             module=self.MODULE,
             description="根据条件查询业务下的模块",
             before_request=get_supplier_account_before,
@@ -222,7 +222,7 @@ class _CCApi:
         )
         self.search_dynamic_group = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "search_dynamic_group",
+            url=self._build_url("search_dynamic_group", "search_dynamic_group"),
             module=self.MODULE,
             description="查询动态分组列表",
             before_request=get_supplier_account_before,
@@ -231,7 +231,7 @@ class _CCApi:
         )
         self.execute_dynamic_group = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "execute_dynamic_group",
+            url=self._build_url("execute_dynamic_group", "execute_dynamic_group"),
             module=self.MODULE,
             description="根据指定动态分组规则查询获取数据",
             before_request=get_supplier_account_before,
@@ -240,7 +240,7 @@ class _CCApi:
         )
         self.find_host_by_topo = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_host_by_topo",
+            url=self._build_url("find_host_by_topo", "find_host_by_topo"),
             module=self.MODULE,
             description="查询拓扑节点下的主机",
             before_request=get_supplier_account_before,
@@ -248,7 +248,7 @@ class _CCApi:
         )
         self.list_host_total_mainline_topo = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_host_total_mainline_topo",
+            url=self._build_url("list_host_total_mainline_topo", "list_host_total_mainline_topo"),
             module=self.MODULE,
             description="查询主机及其对应拓扑",
             before_request=get_supplier_account_before,
@@ -257,7 +257,7 @@ class _CCApi:
         )
         self.find_topo_node_paths = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "find_topo_node_paths",
+            url=self._build_url("find_topo_node_paths", "find_topo_node_paths"),
             module=self.MODULE,
             description="查询业务拓扑节点的拓扑路径",
             before_request=get_supplier_account_before,
@@ -266,7 +266,7 @@ class _CCApi:
         )
         self.list_service_category = DataAPI(
             method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_service_category",
+            url=self._build_url("list_service_category", "list_service_category"),
             module=self.MODULE,
             description="list_service_category",
             before_request=get_supplier_account_before,
