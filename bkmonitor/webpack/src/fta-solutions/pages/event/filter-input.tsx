@@ -28,6 +28,7 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
+import { getTopoList } from 'monitor-api/modules/alert';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
@@ -51,7 +52,7 @@ interface IListItem extends ICommonItem {
   queryString?: string;
   edit?: boolean;
   fakeName?: string;
-  special?: boolean;
+  special?: string;
 }
 interface IFilterInputProps {
   value: string;
@@ -59,6 +60,7 @@ interface IFilterInputProps {
   inputStatus?: FilterInputStatus;
   valueMap?: Record<string, ICommonItem[]>;
   isFillId?: boolean;
+  bkBizIds?: number[];
 }
 interface IFilterInputEvent {
   onBlur: string;
@@ -129,6 +131,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   @Prop({ default: 'success', type: String }) inputStatus: FilterInputStatus;
   // top n数据列表 用于构造
   @Prop({ default: () => ({}), type: Object }) valueMap: Record<string, ICommonItem[]>;
+  @Prop({ default: () => [], type: Array }) bkBizIds: number[];
   @Prop({ default: false, type: Boolean }) isFillId: boolean; // 选择候选值时填id还是填name
   @Ref('filterPanel') filterPanelRef: HTMLDivElement;
   @Ref('filterSearch') filterSearchRef: HTMLDivElement;
@@ -182,10 +185,25 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     { type: 'fuzzy', label: this.$t('模糊匹配') as string, prefix: '' },
   ];
 
+  searchTopoList = {
+    set_id: [],
+    module_id: [],
+  }
+
+  get isTopoList() {
+    return ['set_id', 'module_id'].includes(this.focusData?.filedId);
+  }
+
   get menuList() {
     if (this.focusData.show === 'condition') return this.conditionList;
     if (this.focusData.show === 'method') return this.methodList;
-    if (this.focusData.show === 'value') return this.valueMap?.[this.focusData.filedId] || [];
+    // if (this.focusData.show === 'value') return this.valueMap?.[this.focusData.filedId] || [];
+    if (this.focusData.show === 'value') {
+      // 搜索过滤的集群和模块value从另外接口获取的
+      return this.isTopoList
+        ? this.searchTopoList?.[this.focusData.filedId]
+        : this.valueMap?.[this.focusData.filedId] || [];
+    }
     return [];
   }
   get fieldList() {
@@ -220,6 +238,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   }
   @Watch('searchType', { immediate: true })
   handleSearchTypeChange() {
+    this.searchType === 'alert' && this.getTopoListData();
     this.handleGetSearchHistory();
     this.handleGetSearchFavorite();
   }
@@ -305,7 +324,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       {
         id: 'tags',
         name: this.$t('维度'),
-        special: true,
+        special: 'tags.',
       },
       {
         id: 'action_id',
@@ -318,6 +337,16 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       {
         id: 'stage',
         name: this.$t('处理阶段'),
+      },
+      {
+        id: 'set_id',
+        name: this.$t('集群'),
+        special: 'set_id : ',
+      },
+      {
+        id: 'module_id',
+        name: this.$t('模块'),
+        special: 'module_id : ',
       },
     ];
     // 事件建议字段列表
@@ -593,14 +622,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.isOnlyInput = false;
     if (id === 'field') {
       if (!this.inputValue?.length) {
-        this.inputValue = item.special ? `${item.id}.` : `${item.name} : `;
+        this.inputValue = item.special ? `${item.special}` : `${item.name} : `;
         setTimeout(() => {
           this.handleInputFocus();
         }, 20);
         return;
       }
       this.handleReplaceInputValue(
-        item.special ? `${item.id}.` : `${item.name.toString()} : `,
+        item.special ? `${item.special}` : `${item.name.toString()} : `,
         item.special ? '' : ' '
       );
     } else if (id === 'history') {
@@ -825,6 +854,25 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       this.destroyPopoverInstance();
       this.focusData = {};
       this.placeholderText = '';
+    }
+  }
+
+  // 搜索过滤的集群和模块value通过另外接口获取
+  async getTopoListData() {
+    for (const key in this.searchTopoList) {
+      if (this.searchTopoList[key].length) {
+        continue;
+      }
+      const list = await getTopoList({
+        bk_biz_ids: this.bkBizIds,
+        bk_obj_id: key === 'module_id' ? 'module' : 'set',
+      }).catch(() => []);
+      if (!list.length) return;
+      const keyType = key === 'module_id' ? 'bk_module' : 'bk_set';
+      this.searchTopoList[key] = list.map(item => ({
+        id: item[`${keyType}_id`],
+        name: `${item[`${keyType}_name`]}(${item[`${keyType}_id`]})`,
+      }));
     }
   }
 
