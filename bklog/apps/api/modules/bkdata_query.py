@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -30,9 +30,20 @@ from config.domains import DATAQUERY_APIGATEWAY_ROOT
 class _BkDataQueryApi:
     MODULE = _("计算平台数据查询模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/queryengine/{new_path}"
+            if self.use_apigw
+            else f"{DATAQUERY_APIGATEWAY_ROOT}{old_path}"
+        )
+    
     def __init__(self):
         self.query = DataAPI(
-            url=DATAQUERY_APIGATEWAY_ROOT + "query_sync/",
+            url=self._build_url("query_sync/", "query_sync/"),
             method="POST",
             module=self.MODULE,
             description="原始数据操作",
