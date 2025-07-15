@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed } from 'vue';
+import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
@@ -36,17 +36,16 @@ import type { BkUiSettings } from '@blueking/tdesign-ui';
 const BK_BIZ_NAME_FIELD = 'bk_biz_name';
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
-  const defaultTableFields = computed(() => {
-    return alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey);
+  const defaultTableFields = shallowRef<string[]>([]);
+  watchEffect(() => {
+    defaultTableFields.value = alarmStore.alarmService.allTableColumns
+      .filter(item => item.is_default)
+      .map(item => item.colKey);
   });
-
-  // 不通过 computed 计算属性过渡会无法正确收集到响应式Effect，导致storageKey 变更时无法触发 useStorage 的响应式逻辑
-  const storageKey = computed(() => alarmStore.alarmService.storageKey);
-  const storageColumns = useStorage<string[]>(storageKey, [...defaultTableFields.value]);
-
+  const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, defaultTableFields);
   const tableColumns = computed<TableColumnItem[]>(() => {
-    return storageColumns.value
-      .map(field => {
+    return allTableFields.value
+      .map(({ field }) => {
         if (
           field === BK_BIZ_NAME_FIELD &&
           alarmStore.bizIds.length < 2 &&
