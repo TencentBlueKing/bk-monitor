@@ -57,20 +57,26 @@ export function useAlarmAnalysis() {
   // 告警、故障、处理记录 展示的告警分析设置项
   const analysisSettings = useStorage<string[]>(storageAnalysisKey, [...alarmStore.alarmService.analysisFields]);
 
-  const effectFunc = () => {
+  const effectFunc = async () => {
     analysisFieldTopNLoading.value = true;
-    getAnalysisDimensionData();
-    getAnalysisDataByFields(analysisFields.value)
+    analysisDimensionFields.value = await alarmStore.alarmService.getAnalysisDimensionFields({
+      ...alarmStore.commonFilterParams,
+    });
+    if (analysisSettings.value.length) {
+      getAnalysisDimensionData(analysisDimensionFields.value.map(item => item.id));
+    }
+    getAnalysisFieldData(analysisFields.value);
+  };
+
+  /** 获取分析字段TopN数据 */
+  const getAnalysisFieldData = async (fields: string[], isAll = false) => {
+    getAnalysisDataByFields(fields, isAll)
       .then(analysisTopN => {
         analysisFieldTopNData.value = {
           doc_count: analysisTopN.doc_count,
           fields: analysisTopN.fields.map(item => ({
             ...item,
             name: analysisFieldsMap.value[item.field] || item.field,
-            buckets: item.buckets.map(bucket => ({
-              ...bucket,
-              percent: Number(((bucket.count / analysisTopN.doc_count) * 100).toFixed(2)),
-            })),
           })),
         };
       })
@@ -80,27 +86,16 @@ export function useAlarmAnalysis() {
   };
 
   /** 获取分析 dimension Tag列表 以及对应的TopN数据 */
-  const getAnalysisDimensionData = async () => {
+  const getAnalysisDimensionData = async (fields: string[], isAll = false) => {
     analysisDimensionLoading.value = true;
-    const analysisDimension = await alarmStore.alarmService.getAnalysisDimensionFields({
-      ...alarmStore.commonFilterParams,
-    });
-    analysisDimensionFields.value = analysisDimension;
-    if (analysisDimension.length) {
-      await getAnalysisDataByFields(analysisDimension.map(item => item.id)).then(analysisTopN => {
-        analysisDimensionTopNData.value = {
-          doc_count: analysisTopN.doc_count,
-          fields: analysisTopN.fields.map(item => ({
-            ...item,
-            name: analysisDimension.find(tag => tag.id === item.field)?.name || item.field,
-            buckets: item.buckets.map(bucket => ({
-              ...bucket,
-              percent: Number(((bucket.count / analysisTopN.doc_count) * 100).toFixed(2)),
-            })),
-          })),
-        };
-      });
-    }
+    const data = await getAnalysisDataByFields(fields, isAll);
+    analysisDimensionTopNData.value = {
+      doc_count: data.doc_count,
+      fields: data.fields.map(item => ({
+        ...item,
+        name: analysisDimensionFields.value.find(tag => tag.id === item.field)?.name || item.field,
+      })),
+    };
     analysisDimensionLoading.value = false;
   };
 
@@ -109,14 +104,25 @@ export function useAlarmAnalysis() {
    * @param {string[]} fields 维度分析字段列表
    * @param {boolean} isAll 是否获取全部数据
    */
-  const getAnalysisDataByFields = (fields: string[], isAll = false) => {
-    return alarmStore.alarmService.getAnalysisTopNData(
+  const getAnalysisDataByFields = async (fields: string[], isAll = false) => {
+    const data = await alarmStore.alarmService.getAnalysisTopNData(
       {
         ...alarmStore.commonFilterParams,
         fields: fields,
       },
       isAll
     );
+
+    return {
+      doc_count: data.doc_count,
+      fields: data.fields.map(item => ({
+        ...item,
+        buckets: item.buckets.map(bucket => ({
+          ...bucket,
+          percent: Number(((bucket.count / data.doc_count) * 100).toFixed(2)),
+        })),
+      })),
+    };
   };
   watchEffect(effectFunc);
 

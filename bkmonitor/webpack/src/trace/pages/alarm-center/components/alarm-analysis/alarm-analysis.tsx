@@ -83,7 +83,7 @@ export default defineComponent({
       }, []);
     });
 
-    const expand = shallowRef(true);
+    const expand = shallowRef(false);
 
     onMounted(() => {
       handleGetUserConfig<boolean>('AlarmAnalysisCollapse').then(res => {
@@ -91,8 +91,8 @@ export default defineComponent({
       });
     });
 
-    const handleCollapse = () => {
-      expand.value = !expand.value;
+    const handleCollapse = (val: boolean) => {
+      expand.value = val;
       handleSetUserConfig(JSON.stringify(expand.value));
     };
 
@@ -136,7 +136,10 @@ export default defineComponent({
                   >
                     {item.name}
                   </span>
-                  <span class='item-count'>{item.count}</span>
+                  <span class='item-count'>
+                    {item.count}
+                    {t('条')}
+                  </span>
                   <span class='item-percent'>{item.percent}%</span>
                 </div>
                 <Progress
@@ -167,10 +170,12 @@ export default defineComponent({
       console.log(type, value, field);
     };
 
+    /** 设置字段，维度是否展示 */
     const handleSelectValueChange = (val: string[]) => {
       analysisSettings.value = val;
     };
 
+    /** 加载更多-侧栏数据 */
     const detailSliderShow = shallowRef(false);
     const detailSliderLoading = shallowRef(false);
     const detailSliderInfo = reactive({
@@ -255,8 +260,10 @@ export default defineComponent({
       <div class='alarm-analysis-comp'>
         <ChartCollapse
           defaultHeight={0}
-          hasResize={true}
+          defaultIsExpand={this.expand}
+          hasResize={false}
           title={this.t('告警分析')}
+          onCollapseChange={this.handleCollapse}
         >
           {{
             headerCustom: () => (
