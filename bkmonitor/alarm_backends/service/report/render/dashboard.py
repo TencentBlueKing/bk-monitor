@@ -9,7 +9,6 @@ from pyppeteer.browser import Browser, Page
 from pyppeteer.errors import TimeoutError
 
 from bkmonitor.browser import get_browser
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.common import CustomError
 
 logger = logging.getLogger("alarm_backends")
@@ -106,7 +105,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     page = await browser.newPage()
 
     # 设置租户信息
-    await page.setExtraHTTPHeaders({"X-BK-TENANT-ID": bk_biz_id_to_bk_tenant_id(config.bk_biz_id)})
+    await page.setExtraHTTPHeaders({"X-BK-TENANT-ID": config.bk_tenant_id})
 
     try:
         await page.goto(url, {"waitUntil": "networkidle0", "timeout": timeout * 1000})
