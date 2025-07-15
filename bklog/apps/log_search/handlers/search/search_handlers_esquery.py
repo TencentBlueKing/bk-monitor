@@ -314,23 +314,7 @@ class SearchHandler:
         # 导出字段
         self.export_fields = export_fields
 
-        self.is_desensitize = search_dict.get("is_desensitize", True)
-        if not search_dict.get("is_desensitize"):
-            # 只针对白名单中的APP_CODE开放不脱敏的权限
-            request = get_request(peaceful=True)
-            auth_info = Permission.get_auth_info(request, raise_exception=False)
-            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
-                self.is_desensitize = True
-        if search_dict.get("is_desensitize"):
-            # 对脱敏白名单中的用户开放不脱敏的权限
-            bk_biz_id = search_dict.get("bk_biz_id", "")
-            request_user = get_request_username()
-            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
-            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
-                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
-                if request_user in user_white_list.get(str(bk_biz_id), []):
-                    # 用户在脱敏白名单中,开放不脱敏权限
-                    self.is_desensitize =  False
+        self.is_desensitize = self._init_desensitize()
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
@@ -1964,6 +1948,31 @@ class SearchHandler:
             scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
+
+    def _init_desensitize(self) -> bool:
+        is_desensitize = self.search_dict.get("is_desensitize", None)
+
+        if not is_desensitize:
+            request = get_request(peaceful=True)
+            if request:
+                auth_info = Permission.get_auth_info(request, raise_exception=False)
+                # 应用不在白名单 → 强制开启脱敏
+                if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
+                    is_desensitize = True
+
+        if is_desensitize:
+            bk_biz_id = self.search_dict.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    is_desensitize = False  # 特权用户关闭脱敏
+
+        if is_desensitize is None:
+            is_desensitize = True
+
+        return is_desensitize
 
     @property
     def filter(self) -> list:
