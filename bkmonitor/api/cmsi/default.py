@@ -80,18 +80,21 @@ class CheckCMSIResource(CMSIBaseResource):
 
         return self.send_request(validated_request_data, receivers)
 
-    @classmethod
-    def get_receivers(cls, validated_request_data: dict) -> list[str]:
+    def get_receivers(self, validated_request_data: dict) -> list[str]:
         """
         获取接收用户列表
         优先 receiver__username， 再 receiver
         """
         receivers: list[str] = []
         if validated_request_data.get("receiver__username"):
-            receivers = validated_request_data["receiver__username"].split(",")
-        elif isinstance(validated_request_data["receiver"], list):
+            if isinstance(validated_request_data["receiver__username"], list):
+                receivers = validated_request_data["receiver__username"]
+            else:
+                receivers = validated_request_data["receiver__username"].split(",")
+        elif validated_request_data.get("receiver"):
             receivers = validated_request_data["receiver"]
-            validated_request_data["receiver"] = ",".join(receivers)
+            if not self.use_apigw():
+                validated_request_data["receiver"] = ",".join(receivers)
         else:
             receivers = validated_request_data["receiver"].split(",")
 
@@ -351,6 +354,15 @@ class SendWeixin(CheckCMSIResource):
                 params["data"]["remark"] = attrs["remark"]
 
             return params
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        if self.use_apigw():
+            validated_request_data["receiver__username"] = validated_request_data["receiver__username"].split(",")  # type: ignore
+            validated_request_data["message_data"] = validated_request_data.pop("data")
+        return super().perform_request(validated_request_data)
 
 
 class SendMail(CheckCMSIResource):
