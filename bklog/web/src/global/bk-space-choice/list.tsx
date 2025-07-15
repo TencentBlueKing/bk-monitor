@@ -217,7 +217,7 @@ export default defineComponent({
         ) : (
           // 无数据时显示异常提示
           <bk-exception
-            class='no-data'
+            style='height: 300px;  display: flex; justify-content: center; align-items: center;'
             scene='part'
             type='search-empty'
           />
