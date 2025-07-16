@@ -448,18 +448,18 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
     @classmethod
-    def filter_strategy_ids_by_source(cls, filter_dict: dict, filter_strategy_ids_set: set) -> None:
+    def filter_strategy_ids_by_source(cls, filter_dict: dict[str, list], filter_strategy_ids_set: set) -> None:
         """过滤来源"""
         source_field: str | None = None
         for key in filter_dict.keys():
-            if "source" in key:
+            fields = key.split("__")
+            if "source" == fields[0]:
                 source_field = key
                 break
 
         if not source_field:
             return
 
-        fields = source_field.split("__")
         source_strategy_ids = StrategyModel.objects.filter(id__in=filter_strategy_ids_set)
         if len(fields) == 1 or fields[1] == "in":
             source_strategy_ids = source_strategy_ids.filter(source__in=filter_dict[source_field])
