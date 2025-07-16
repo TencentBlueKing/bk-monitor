@@ -158,7 +158,7 @@ class RouteUrlResolver {
 
       return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
         const instance = new ConditionOperator(val);
-        return instance.formatApiOperatorToFront();
+        return instance.formatApiOperatorToFront(true);
       });
     });
   }
