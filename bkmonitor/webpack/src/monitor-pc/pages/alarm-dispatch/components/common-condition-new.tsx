@@ -839,7 +839,7 @@ export default class CommonCondition extends tsc<IProps> {
   }
   /* 根据key获取value可选项 */
   getCurValuesList(key: string) {
-    const isStrategyId = key === 'alert.strategy_id';
+    const isStrategyId = key === strategyField;
     const valueMap = this.getDimensionKeys(false) as TValueMap;
     // const { valueMap } = this;
     if (valueMap.get(key)?.length) {
