@@ -640,6 +640,7 @@ def push_and_publish_space_router(
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
     from metadata.models.space.ds_rt import get_space_table_id_data_id
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     # 过滤数据
     spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
@@ -662,7 +663,8 @@ def push_and_publish_space_router(
 
     # 批量处理 -- SPACE_TO_RESULT_TABLE 路由
     bulk_handle(
-        lambda batch_spaces: space_client.push_multi_space_table_ids(batch_spaces, is_publish=False), list(spaces)
+        lambda batch_spaces: SpaceTableIDRedis().push_multi_space_table_ids(batch_spaces, is_publish=False),
+        list(spaces),
     )
 
     # 通知到使用方
@@ -674,9 +676,6 @@ def push_and_publish_space_router(
             else:
                 space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
-
-    # 更新数据
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     # 仅存在空间 id 时，可以直接按照结果表进行处理
     # 非多租户环境: 所有table_id的路由一并推送

@@ -26,8 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import BizMenuSelect from '@/components/biz-menu/index.vue';
+import BizMenuSelect from '@/global/bk-space-choice/index';
 import { Alert, Message, Select, Option, Button, Input, Table, TableColumn, Tag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
@@ -377,7 +376,7 @@ export default class AuthorizationList extends tsc<object> {
    */
   async handleSpaceChange(v: string) {
     this.spaceUid = v;
-    this.$store.commit('updateSpace', v);
+    // this.$store.commit('updateSpace', v);
     const hasManageAuth = await this.checkBizAllow();
     this.getResources();
     if (hasManageAuth) {
@@ -476,7 +475,6 @@ export default class AuthorizationList extends tsc<object> {
     this.searchValue = val;
     this.changeEmptyStatusType();
   }
-
 
   async getListData() {
     this.abortController?.abort();

@@ -1,0 +1,285 @@
+@import '../../scss/theme/index.scss';
+
+.biz-list-wrap {
+  $bg-dark: #192133;
+  $color-dark: #c3d0e7;
+  $border-dark: #2c354d;
+
+  cursor: initial;
+
+  &.dark {
+    color: $color-dark;
+    background-color: $bg-dark;
+  }
+
+  .list-scroller {
+    height: 240px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+      background: #38455f;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 20px;
+      box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
+    }
+  }
+
+  .no-data {
+    padding-bottom: 24px;
+  }
+
+  .list-group {
+    position: relative;
+
+    .list-group-title {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #66768e;
+      // 设置不可点击
+      pointer-events: none;
+    }
+
+    &::before {
+      position: absolute;
+      top: 4px;
+      right: 9px;
+      left: 9px;
+      display: none;
+      content: '';
+      border-top: 1px solid #eaebf0;
+    }
+
+    &.dark {
+      &::before {
+        border-top-color: $border-dark;
+      }
+    }
+  }
+
+  .list-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 9px 0 12px;
+    overflow: hidden;
+    line-height: 32px;
+    color: #63656e;
+    cursor: pointer;
+    transition: background-color 0.1s ease-in-out;
+
+    &:hover {
+      background-color: #e1ecff;
+
+      .set-default-button {
+        display: block;
+      }
+    }
+
+    &.checked {
+      color: #3a84ff;
+      background-color: #f5f7fa;
+    }
+
+    &.dark {
+      color: $color-dark;
+
+      &:hover {
+        background: #272f45;
+      }
+
+      &.checked {
+        color: #fff;
+        background: #234071;
+      }
+    }
+
+    &.light {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .last-common-item {
+    &::after {
+      position: absolute;
+      right: 9px;
+      bottom: 0;
+      left: 12px;
+      height: 1px;
+      pointer-events: none;
+      content: '';
+      background: #434e68;
+    }
+  }
+
+  .list-item-left {
+    display: inline-flex;
+    flex: 1;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-right: 8px;
+
+    @include ellipsis();
+
+    .list-item-name {
+      @include ellipsis();
+    }
+
+    .list-item-id {
+      margin-left: 8px;
+      color: #c4c6cc;
+
+      @include ellipsis();
+
+      &.dark {
+        color: #66768e;
+      }
+    }
+
+    .item-default-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 16px;
+      margin-left: 4px;
+      background-color: #4d4f56;
+      border-radius: 2px;
+    }
+
+    .item-default-text {
+      font-size: 16px;
+      color: #fff;
+      vertical-align: middle;
+      transform: scale(0.625);
+    }
+  }
+
+  .list-item-right {
+    flex-shrink: 0;
+
+    .list-item-tag {
+      display: inline-block;
+      height: 23px;
+      padding: 0 10px;
+      line-height: 23px;
+      border-radius: 2px;
+
+      &:not(:last-child) {
+        margin-right: 8px;
+      }
+    }
+  }
+
+  .set-default-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    display: none;
+
+    .btn-style-dark {
+      padding: 0 12px;
+      font-size: 12px;
+      color: #fff;
+      background-color: #3a84ff;
+      border: none;
+      border-radius: 0;
+    }
+
+    .remove {
+      color: #fff;
+      background-color: #5e6678;
+    }
+  }
+}
+
+// 设置默认弹窗
+.confirm-dialog__set-default {
+  .bk-dialog-body {
+    padding: 18px 32px 0;
+  }
+
+  .bk-dialog-footer {
+    padding: 24px 32px;
+    background-color: #fff;
+    border: none;
+
+    .btn-confirm + .btn-cancel {
+      margin-left: 9px;
+    }
+
+    .btn-confirm,
+    .btn-cancel {
+      min-width: 88px;
+    }
+  }
+
+  .confirm-dialog__hd {
+    font-size: 20px;
+    line-height: 32px;
+    color: #313238;
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  .confirm-dialog__bd {
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #4d4f56;
+    letter-spacing: 0;
+  }
+
+  .confirm-dialog__bd-name {
+    color: #313238;
+  }
+
+  .confirm-dialog__ft {
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #4d4f56;
+    word-break: break-all;
+    word-wrap: break-word;
+    background: #f5f6fa;
+    border-radius: 2px;
+  }
+}
+
+// 虚拟滚动容器样式
+.virtual-scroller {
+  position: relative;
+  width: 100%;
+  overflow-y: auto;
+
+  // 主题适配
+  &.dark {
+    background: #2e2e2e;
+  }
+
+  &.light {
+    background: #ffffff;
+  }
+
+  .list-group {
+    box-sizing: border-box;
+    padding: 4px 0;
+
+    .list-item {
+      position: relative; // 确保位置正确
+      transition: none; // 禁用动画提升性能
+    }
+  }
+}

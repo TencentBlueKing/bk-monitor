@@ -92,11 +92,7 @@ class SpaceTableIDRedis:
         # 二段式校验&补充
         values_to_redis = {}
         for key, value in redis_values.items():
-            key = reformat_table_id(key)
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                # 若开启多租户模式,需要增加租户ID后缀
-                key = f"{key}|{bk_tenant_id}"
-            values_to_redis[key] = value
+            values_to_redis[reformat_table_id(key)] = value
 
         # 组装redis key
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -184,12 +180,9 @@ class SpaceTableIDRedis:
                     continue
                 rt_dl_map.setdefault(data_label, []).append(data["table_id"])
 
-        # 若开启多租户模式,则data_label和table_id都需要在前面拼接bk_tenant_id
+        # 若开启多租户模式,则data_label都需要在前面拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
-            rt_dl_map = {
-                f"{data_label}|{bk_tenant_id}": [f"{table_id}|{bk_tenant_id}" for table_id in table_ids]
-                for data_label, table_ids in rt_dl_map.items()
-            }
+            rt_dl_map = {f"{data_label}|{bk_tenant_id}": table_ids for data_label, table_ids in rt_dl_map.items()}
 
         redis_values = {}
         if rt_dl_map:
@@ -265,16 +258,11 @@ class SpaceTableIDRedis:
                         "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
-                    for key in list(_table_id_detail.keys()):
-                        table_detail = _table_id_detail.pop(key)
-                        if table_detail.get("data_label"):
-                            table_detail["data_label"] = ",".join(
-                                [f"{dl}|{bk_tenant_id}" for dl in table_detail["data_label"].split(",") if dl]
-                            )
-                        _table_id_detail[f"{key}|{bk_tenant_id}"] = table_detail
+                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
 
                 RedisTools.hmset_to_redis(
-                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
+                    RESULT_TABLE_DETAIL_KEY,
+                    {key: json.dumps(value) for key, value in _table_id_detail.items()},
                 )
                 if is_publish:
                     logger.info(
@@ -374,22 +362,13 @@ class SpaceTableIDRedis:
                 # 更新 _table_id_detail
                 _table_id_detail = updated_table_id_detail
 
-                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
+                # 若开启多租户模式,则在table_id后面拼接bk_tenant_id
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     logger.info(
                         "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
-                    for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
-                        if _table_id_detail[f"{key}|{bk_tenant_id}"].get("data_label"):
-                            _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"] = ",".join(
-                                [
-                                    f"{dl}|{bk_tenant_id}"
-                                    for dl in _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"].split(",")
-                                    if dl
-                                ]
-                            )
+                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
 
                 RedisTools.hmset_to_redis(
                     RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
@@ -500,16 +479,7 @@ class SpaceTableIDRedis:
                         "push_bkbase_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
                         bk_tenant_id,
                     )
-                    for key in list(_table_id_detail.keys()):
-                        _table_id_detail[f"{key}|{bk_tenant_id}"] = _table_id_detail.pop(key)
-                        if _table_id_detail[f"{key}|{bk_tenant_id}"].get("data_label"):
-                            _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"] = ",".join(
-                                [
-                                    f"{dl}|{bk_tenant_id}"
-                                    for dl in _table_id_detail[f"{key}|{bk_tenant_id}"]["data_label"].split(",")
-                                    if dl
-                                ]
-                            )
+                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
 
                 RedisTools.hmset_to_redis(
                     RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
@@ -624,13 +594,7 @@ class SpaceTableIDRedis:
         # 若开启多租户模式,则在table_id前拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info("push_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]", bk_tenant_id)
-            for key in list(_table_id_detail.keys()):
-                table_detail = _table_id_detail.pop(key)
-                if table_detail.get("data_label"):
-                    table_detail["data_label"] = ",".join(
-                        [f"{dl}|{bk_tenant_id}" for dl in table_detail["data_label"].split(",") if dl]
-                    )
-                _table_id_detail[f"{key}|{bk_tenant_id}"] = table_detail
+            _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
 
         # 推送数据
         if _table_id_detail:
@@ -1021,6 +985,15 @@ class SpaceTableIDRedis:
         table_ids = self._refine_table_ids(table_is_list, bk_tenant_id=bk_tenant_id)
         # 组装数据
         for tid in table_ids:
+            if tid in settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST:
+                rt_ins = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=tid)
+                logger.info(
+                    "_compose_bkci_level_table_ids: table_id->[%s] in special_rt_list, will use filter key->[%s]",
+                    tid,
+                    rt_ins.bk_biz_id_alias,
+                )
+                _values[tid] = {"filters": [{rt_ins.bk_biz_id_alias: space_id}]}
+                continue
             _values[tid] = {"filters": [{"projectId": space_id}]}
 
         return _values

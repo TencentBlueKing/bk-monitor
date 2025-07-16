@@ -49,7 +49,7 @@ export default class AiBluekingWrapper extends tsc<object> {
       {
         id: 'explanation',
         name: this.$t('解释'),
-        icon: 'bkai-help',
+        // icon: 'bkai-help',
         components: [
           {
             type: 'textarea',
@@ -63,7 +63,7 @@ export default class AiBluekingWrapper extends tsc<object> {
       {
         id: 'translate',
         name: this.$t('翻译'),
-        icon: 'bkai-translate',
+        // icon: 'bkai-translate',
         components: [
           {
             type: 'textarea',
@@ -82,6 +82,19 @@ export default class AiBluekingWrapper extends tsc<object> {
               { label: 'English', value: 'english' },
               { label: '中文', value: 'chinese' },
             ],
+          },
+        ],
+      },
+      {
+        id: 'metadata_diagnosis',
+        name: this.$t('链路排障'),
+        // icon: 'bk-icon icon-monitors-cog',
+        components: [
+          {
+            type: 'textarea',
+            key: 'bk_data_id',
+            name: this.$t('数据源ID'),
+            placeholder: this.$t('请输入数据源ID'),
           },
         ],
       },
