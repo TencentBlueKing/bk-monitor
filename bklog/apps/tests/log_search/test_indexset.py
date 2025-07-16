@@ -507,12 +507,14 @@ class TestIndexSet(TestCase):
         index_set = LogIndexSet.objects.all().first()
 
         index_set_id = index_set.index_set_id
+        storage_cluster_id = index_set.storage_cluster_id
         created_at = arrow.get(index_set.created_at).to(settings.TIME_ZONE).strftime(settings.BKDATA_DATETIME_FORMAT)
         updated_at = arrow.get(index_set.updated_at).to(settings.TIME_ZONE).strftime(settings.BKDATA_DATETIME_FORMAT)
         index_ids = [i["index_id"] for i in index_set.indexes]
 
         path = "/api/v1/index_set/"
-        data = {"space_uid": SPACE_UID, "page": 1, "pagesize": 2}
+        data = {"space_uid": SPACE_UID, "storage_cluster_id": storage_cluster_id, "page": 1, "pagesize": 2}
+
         response = self.client.get(path=path, data=data)
         content = json.loads(response.content)
 
