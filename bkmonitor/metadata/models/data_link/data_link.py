@@ -589,7 +589,7 @@ class DataLink(models.Model):
                 "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", self.data_link_name, e
             )
 
-    def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source):
+    def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source, datasource):
         """
         同步元数据
         同步全套链路信息 AccessVMRecord,
@@ -610,11 +610,12 @@ class DataLink(models.Model):
                 for usage in BASEREPORT_USAGES:
                     vm_result_table_id = f"{bkbase_vmrt_prefix}_{usage}"
                     result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
-                    vm_record, _ = AccessVMRecord.objects.create(
+                    vm_record, _ = AccessVMRecord.objects.get_or_create(
                         result_table_id=result_table_id,
                         vm_result_table_id=vm_result_table_id,
                         storage_cluster_id=storage_cluster_id,
                         vm_cluster_id=storage_cluster_id,
+                        bk_base_data_id=datasource.bk_data_id,
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)

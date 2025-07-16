@@ -1113,6 +1113,42 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
                 )
                 models.DataSourceResultTable.objects.bulk_create(dsrt_to_create)
 
+            # ResultTableOption is_split_measurement 是否开启单指标单表模式
+            # TODO 需要确认
+            # existing_rt_options = set(
+            #     models.ResultTableOption.objects.filter(
+            #         table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id, name='is_split_measurement'
+            #     ).values_list("table_id", flat=True)
+            # )
+            # result_table_options_to_create = []
+            # for table_id in result_table_ids:
+            #     if table_id in existing_rt_options:
+            #         logger.info(
+            #             "create_basereport_datalink_for_bkcc: table_id->[%s] is_split_measurement rt option already "
+            #             "exists,skip",
+            #             table_id,
+            #         )
+            #         continue
+            #
+            #     result_table_options_to_create.append(
+            #         models.ResultTableOption(
+            #             table_id=table_id,
+            #             bk_tenant_id=bk_tenant_id,
+            #             name='is_split_measurement',
+            #             value='true',
+            #             value_type='bool'
+            #         )
+            #     )
+            #
+            # if result_table_options_to_create:  # 批量创建
+            #     logger.info(
+            #         "create_basereport_datalink_for_bkcc: creating result table options,bk_biz_id->[%s],"
+            #         "bk_tenant_id->[%s]",
+            #         bk_biz_id,
+            #         bk_tenant_id,
+            #     )
+            #     models.ResultTableOption.objects.bulk_create(result_table_options_to_create)
+
             # ResultTableField 结果表字段配置
             existing_fields_qs = models.ResultTableField.objects.filter(
                 table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id
@@ -1189,7 +1225,9 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         data_link_ins.apply_data_link(
             data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id, source=source
         )
-        data_link_ins.sync_basereport_metadata()
+        data_link_ins.sync_basereport_metadata(
+            bk_biz_id=bk_biz_id, storage_cluster_name=storage_cluster_name, source=source, datasource=data_source
+        )
         logger.info(
             "create_basereport_datalink_for_bkcc: data link applied successfully,for bk_biz_id->[%s]", bk_biz_id
         )
