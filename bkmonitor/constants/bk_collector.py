@@ -24,6 +24,11 @@ class BkCollectorComp:
     CONFIG_MAP_APPLICATION_TPL_NAME = "bk-collector-application.conf.tpl"
     # ConfigMap: 自定义上报配置名称
     CONFIG_MAP_REPORT_V2_TPL_NAME = "bk-collector-report-v2.conf.tpl"
+    CONFIG_MAP_NAME_MAP = {
+        "apm": CONFIG_MAP_APPLICATION_TPL_NAME,
+        "json": CONFIG_MAP_REPORT_V2_TPL_NAME,
+        "prometheus": CONFIG_MAP_APPLICATION_TPL_NAME,
+    }
 
     # Secrets 配置
     SECRET_PLATFORM_NAME = "bk-collector-platform"
@@ -31,6 +36,23 @@ class BkCollectorComp:
     SECRET_PLATFORM_CONFIG_FILENAME_NAME = "platform.conf"
     SECRET_APPLICATION_CONFIG_FILENAME_NAME = "application-{}.conf"  # 这里的名字不能随意变，逻辑上依赖
     SECRET_APPLICATION_CONFIG_MAX_COUNT = 20  # 每个 Secret 存放 20 个 APM 应用配置
+    SECRET_SUBCONFIG_MAP = {  # 这里的名字不能随意变，逻辑上依赖，包括数字
+        "apm": {
+            "secret_name_tpl": "bk-collector-subconfig-apm-{}-{}",
+            "secret_data_key_tpl": "application-{}.conf",
+            "secret_data_max_count": 20,
+        },
+        "json": {
+            "secret_name_tpl": "bk-collector-subconfig-json-{}-{}",
+            "secret_data_key_tpl": "report-v2-{}.conf",
+            "secret_data_max_count": 100,
+        },
+        "prometheus": {
+            "secret_name_tpl": "bk-collector-subconfig-prometheus-{}-{}",
+            "secret_data_key_tpl": "application-{}.conf",
+            "secret_data_max_count": 100,
+        },
+    }
 
     # Labels 过滤条件
     LABEL_COMPONENT_VALUE = "bk-collector"
