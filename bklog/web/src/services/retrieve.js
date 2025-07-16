@@ -263,7 +263,13 @@ const getIndexSetDataByDataId = {
   url: '/index_set/query_by_dataid/',
   method: 'get',
 };
-
+/**
+ * 修改别名
+ */
+const updateFieldsAlias = {
+  url: '/search/index_set/:index_set_id/alias_settings/',
+  method: 'post',
+};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -316,4 +322,5 @@ export {
   createOrUpdateToken,
   getShareParams,
   getIndexSetDataByDataId,
+  updateFieldsAlias,
 };
