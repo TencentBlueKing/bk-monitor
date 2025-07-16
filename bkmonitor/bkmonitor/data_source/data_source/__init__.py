@@ -2089,11 +2089,9 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             return True
 
         # 如果业务在黑名单中，则不使用 UnifyQuery。
-        return all(
-            [
-                bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST,
-                str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST,
-            ]
+        return (
+            bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+            and str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
         )
 
     def _get_unify_query_table(self) -> str:
