@@ -477,6 +477,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
 export function formatDateNanos(val) {
+  if (/^\d+$/.test(val)) {
+    return formatDate(`${val}`);
+  }
+
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
   const nanoseconds = `${val}`.slice(23, -1);
 
@@ -884,13 +888,30 @@ export const parseTableRowData = (
     data = emptyCharacter;
   }
 
-  if (isFormatDate && fieldType === 'date') {
-    return formatDate(Number(data)) || data || emptyCharacter;
-  }
+  if (isFormatDate && ['date', 'date_nanos'].includes(fieldType)) {
+    let formatData = data;
+    let formatValue = data;
+    let isMark = false;
 
-  // 处理纳秒精度的UTC时间格式
-  if (isFormatDate && fieldType === 'date_nanos') {
-    return formatDateNanos(data) || emptyCharacter;
+    if (`${data}`.startsWith('<mark>')) {
+      formatData = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+      isMark = true;
+    }
+
+    if (fieldType === 'date' && /^\d+$/.test(formatData)) {
+      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+    }
+
+    // 处理纳秒精度的UTC时间格式
+    if (fieldType === 'date_nanos') {
+      formatValue = formatDateNanos(formatData) || emptyCharacter;
+    }
+
+    if (isMark) {
+      return `<mark>${formatValue}</mark>`;
+    }
+
+    return formatValue;
   }
 
   if (Array.isArray(data) && !data.length) {

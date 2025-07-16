@@ -123,7 +123,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
 };
 
 export interface IIableTdArrItem {
-  value: number;
+  value: number | string;
 }
 /**
  * 根据表格数据转换成csv字符串

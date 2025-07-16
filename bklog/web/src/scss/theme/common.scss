@@ -1,0 +1,133 @@
+$seriousColor: #de6573;
+$unsetColor: #c4c6cc;
+$normalColor: #85cfb7;
+$slightColor: #febf81;
+
+$seriousFontColor: #de6573;
+$normalFontColor: #699df4;
+$slightFontColor: #c4c6cc;
+$defaultFontColor: #63656e;
+$primaryFontColor: #3a84ff;
+
+$seriousIconColor: #ea3636;
+$slightIconColor: #ff9c01;
+$unsetIconColor: #979ba5;
+$normalIconColor: #2dcb56;
+
+$defaultBorderColor: #dcdee5;
+
+$fontLgSize: 24px;
+$fontNormalSize: 16px;
+$fontSmSize: 14px;
+
+$defaultBgColor: #fafbfd;
+
+$successFontColor: #2dcb56;
+$failFontColor: #ea3636;
+$deadlyAlarmColor: #ea3636;
+$warningAlarmColor: #ff8000;
+$remindAlarmColor: #ffd000;
+
+$whiteColor: #fff;
+
+$icons: arrow-down arrow-left arrow-right arrow-up aix back-down back-left back-right back-up check check-circle cluster
+  custom database hint http inform inform-circle linux message-queue default performance remind setting warning windows;
+
+@mixin border-1px($color: $defaultBorderColor) {
+  border: 1px solid $color;
+}
+
+@mixin border-dashed-1px($color: $defaultBorderColor) {
+  border: 1px dashed $color;
+}
+
+@mixin common-svg($h: 92px, $t: -92px, $w: 55px, $r: 62px) {
+  position: absolute;
+  top: $t;
+  right: $r;
+  width: $w;
+  height: $h;
+}
+
+@mixin hover($cursor: pointer) {
+  &:hover {
+    cursor: $cursor;
+  }
+}
+
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin box-ellipsis {
+  // display: box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 1;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+}
+
+@mixin content-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 下拉组件simplicity样式
+.bk-select-simplicity {
+  line-height: 24px;
+
+  &.is-default-trigger.is-unselected:before {
+    left: 2px;
+  }
+
+  .bk-select-angle {
+    top: 2px;
+  }
+
+  .bk-select-clear {
+    top: 6px;
+  }
+
+  .bk-tooltip {
+    .bk-select-name {
+      height: 24px;
+      padding-left: 2px;
+      line-height: 24px;
+    }
+  }
+}
+
+.global-part-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  min-height: 130px;
+  color: #63656e;
+
+  .part-img {
+    margin-top: -35px;
+  }
+
+  .part-text {
+    margin-top: -15px;
+    font-size: 12px;
+  }
+}
+
+.monitor-wrapper-error-tooltip {
+  width: 400px;
+
+  .tippy-tooltip {
+    max-width: 400px;
+    background-color: #e0226e;
+
+    .tippy-arrow {
+      border-top: 8px solid #e0226e;
+    }
+  }
+}
