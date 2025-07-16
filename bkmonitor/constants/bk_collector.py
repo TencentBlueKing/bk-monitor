@@ -58,8 +58,12 @@ class BkCollectorComp:
     LABEL_COMPONENT_VALUE = "bk-collector"
     LABEL_TYPE_SUB_CONFIG = "subconfig"
     LABEL_TYPE_PLATFORM_CONFIG = "platform"
-    LABEL_SOURCE_APPLICATION_CONFIG = "apm"
-    LABEL_SOURCE_REPORT_V2_CONFIG = "report-v2"
+    LABEL_SOURCE_DEFAULT = "default"
+    LABEL_SOURCE_MAP = {
+        "apm": "apm",
+        "json": "custom_report_v2_json",
+        "prometheus": "custom_report_prometheus",
+    }
 
     # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"

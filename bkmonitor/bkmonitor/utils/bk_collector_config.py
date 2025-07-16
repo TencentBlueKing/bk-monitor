@@ -216,10 +216,11 @@ class BkCollectorClusterConfig:
         # 下发
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG},source={BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG}",
+            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG},source={label_source}",
         )
         sec = cls._find_secrets_in_boundary(secrets, config_id)
         if sec is None:
@@ -234,7 +235,7 @@ class BkCollectorClusterConfig:
                         "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
                         "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
                         "template": "false",
-                        "source": BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
+                        "source": label_source,
                     },
                 ),
                 data={subconfig_filename: b64_content},
