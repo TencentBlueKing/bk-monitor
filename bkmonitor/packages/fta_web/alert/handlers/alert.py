@@ -277,11 +277,14 @@ class AlertQueryTransformer(BaseQueryTransformer):
 
         # 如果值不是数字，则将其作为模块名，并尝试查询对应的模块ID
         if not node.value.isdigit():
-            values = resource.commons.get_topo_list(
-                bk_biz_ids=bk_biz_ids,
-                bk_obj_id="module",
-                condition={"bk_module_name": node.value},
-            )
+            if bk_biz_ids:
+                values = resource.commons.get_topo_list(
+                    bk_biz_ids=bk_biz_ids,
+                    bk_obj_id="module",
+                    condition={"bk_module_name": node.value},
+                )
+            else:
+                values = []
 
             if len(values) == 1:
                 node.value = f"module|{values[0]['bk_module_id']}"
@@ -300,7 +303,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         """处理集群ID"""
         search_field_name = context.get("search_field_name")
         search_field_origin_name = context.get("search_field_origin_name")
-        bk_biz_ids = context.get("bk_biz_ids")
+        bk_biz_ids = context.get("bk_biz_ids", [])
 
         is_need_process = search_field_name == "event.bk_topo_node" and search_field_origin_name in [
             "set_id",
@@ -311,11 +314,14 @@ class AlertQueryTransformer(BaseQueryTransformer):
             return None, None
 
         if not node.value.isdigit():
-            values = resource.commons.get_topo_list(
-                bk_biz_ids=bk_biz_ids,
-                bk_obj_id="set",
-                condition={"bk_set_name": node.value},
-            )
+            if bk_biz_ids:
+                values = resource.commons.get_topo_list(
+                    bk_biz_ids=bk_biz_ids,
+                    bk_obj_id="set",
+                    condition={"bk_set_name": node.value},
+                )
+            else:
+                values = []
 
             if len(values) == 1:
                 node.value = f"set|{values[0]['bk_set_id']}"
