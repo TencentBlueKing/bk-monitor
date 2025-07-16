@@ -829,6 +829,10 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         assert vm_record.vm_result_table_id == vm_result_table_id
         assert vm_record.vm_cluster_id == 100112
 
+        # DataSourceResultTable
+        dsrt = models.DataSourceResultTable.objects.get(table_id=table_id)
+        assert dsrt.bk_data_id == 70010
+        assert dsrt.bk_tenant_id == "system"
         # ResultTableField
         expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP.get(usage)
         for expected_field in expected_fields:
