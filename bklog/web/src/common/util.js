@@ -477,8 +477,8 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
 export function formatDateNanos(val) {
-  if (/^\d+$/.test(val)) {
-    return formatDate(`${val}`);
+  if (/^\d+$/.test(`${val}`)) {
+    return formatDate(Number(val), true, `${val}`.length > 10);
   }
 
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
