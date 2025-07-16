@@ -457,7 +457,6 @@ class GetStrategyListV2Resource(Resource):
                 break
 
         if not source_field:
-            print("出去了")
             return
 
         fields = source_field.split("__")
