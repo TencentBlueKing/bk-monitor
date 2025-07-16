@@ -709,14 +709,6 @@ def push_and_publish_space_router(
         space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
 
 
-def push_and_publish_space_router_task():
-    logger.info("start to push and publish space router")
-
-    push_and_publish_space_router(is_publish=False)
-
-    logger.info("push and publish space router successfully")
-
-
 @atomic(config.DATABASE_CONNECTION_NAME)
 def delete_and_create_paas_space_data_id(
     space_type: str,
