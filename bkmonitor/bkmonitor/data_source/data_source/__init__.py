@@ -2088,7 +2088,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if self.query_string and self.query_string != "*":
             return True
 
-        return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
+        # 如果业务在黑名单中，则不使用 UnifyQuery。
+        return (
+            bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+            and str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+        )
 
     def _get_unify_query_table(self) -> str:
         table_mapping: dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}
