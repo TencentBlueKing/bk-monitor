@@ -498,7 +498,7 @@ class ModifyResultTableResource(Resource):
                     )
                     is_moving_cluster = True
 
-        except Exception as e:  # pyling: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("failed to get es_storage_ins,table_id->[%s],error->[%s]", table_id, e)
 
         try:
