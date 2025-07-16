@@ -15,19 +15,18 @@
     overflow: hidden;
   }
 
-  .top-bar-tag {
+  .collapse-tag {
     display: inline-block;
     height: 20px;
     padding: 0 5px;
-    // margin-right: 4px;
     font-size: 12px;
     line-height: 20px;
-    color: #63656e;
-    background: #fafbfd;
+    color: #4d4f56;
+    background: #f0f1f5;
     border-radius: 2px;
   }
 
-  .top-bar-tag-fill {
+  .collapse-tag-fill {
     position: absolute;
     top: -9999px;
     visibility: hidden;

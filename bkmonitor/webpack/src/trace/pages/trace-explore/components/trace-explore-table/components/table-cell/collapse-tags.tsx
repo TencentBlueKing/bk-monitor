@@ -223,7 +223,7 @@ export default defineComponent({
         </span>
         {canShowCollapseTag && (
           <span
-            class='top-bar-tag'
+            class='collapse-tag'
             v-tippy={{
               content: this.ellipsisTip?.(ellipsisList) || ellipsisList.join(','),
               theme: 'dark text-wrap max-width-50vw',
@@ -235,7 +235,7 @@ export default defineComponent({
         )}
         <span
           ref='maxCountCollectTagRef'
-          class='top-bar-tag top-bar-tag-fill'
+          class='collapse-tag collapse-tag-fill'
         >
           +{dataLen}
         </span>

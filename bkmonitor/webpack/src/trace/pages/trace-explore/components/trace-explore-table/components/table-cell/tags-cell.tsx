@@ -36,8 +36,8 @@ import type { ExploreTableColumn, ExploreTableColumnTypeEnum, GetTableCellRender
 import './tags-cell.scss';
 
 const DEFAULT_TAG_COLOR = {
-  tagColor: '#63656e',
-  tagBgColor: 'rgba(151,155,165,.1)',
+  tagColor: '#4D4F56',
+  tagBgColor: '#F0F1F5',
 };
 export default defineComponent({
   name: 'TagsCell',
@@ -69,6 +69,8 @@ export default defineComponent({
               style={{
                 '--tag-color': tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
                 '--tag-bg-color': tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
+                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
               }}
               class='tag-item'
             >
