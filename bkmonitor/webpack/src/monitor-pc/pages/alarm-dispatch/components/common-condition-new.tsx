@@ -278,7 +278,7 @@ export default class CommonCondition extends tsc<IProps> {
       keysMap.set(item.id, item);
     }
     for (const [key, value] of this.groupKeys) {
-      for (const item of value) {
+      for (const item of value || []) {
         keysMap.set(item.id, { ...item, groupName: groupNamesMap[key] });
       }
     }
