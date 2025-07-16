@@ -582,8 +582,7 @@ class SpaceTableIDRedis:
             _table_id_detail[table_id] = detail
 
         # 追加预计算结果表详情
-        # TODO: BkBase 多租户
-        _table_id_detail.update(self._compose_record_rule_table_id_detail())
+        _table_id_detail.update(self._compose_record_rule_table_id_detail(bk_tenant_id=bk_tenant_id))
 
         # 追加 es 结果表
         if include_es_table_ids:
@@ -615,12 +614,13 @@ class SpaceTableIDRedis:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push_table_id_detail： push redis result_table_detail")
 
-    # TODO: BkBase多租户 -- 预计算结果表多租户
-    def _compose_record_rule_table_id_detail(self) -> dict[str, dict]:
+    def _compose_record_rule_table_id_detail(self, bk_tenant_id: str) -> dict[str, dict]:
         """组装预计算结果表的详情"""
         from metadata.models.record_rule.rules import RecordRule
 
-        record_rule_objs = RecordRule.objects.values("table_id", "vm_cluster_id", "dst_vm_table_id", "rule_metrics")
+        record_rule_objs = RecordRule.objects.filter(bk_tenant_id=bk_tenant_id).values(
+            "table_id", "vm_cluster_id", "dst_vm_table_id", "rule_metrics"
+        )
         vm_cluster_id_name = {
             cluster["cluster_id"]: cluster["cluster_name"]
             for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
@@ -985,6 +985,15 @@ class SpaceTableIDRedis:
         table_ids = self._refine_table_ids(table_is_list, bk_tenant_id=bk_tenant_id)
         # 组装数据
         for tid in table_ids:
+            if tid in settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST:
+                rt_ins = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=tid)
+                logger.info(
+                    "_compose_bkci_level_table_ids: table_id->[%s] in special_rt_list, will use filter key->[%s]",
+                    tid,
+                    rt_ins.bk_biz_id_alias,
+                )
+                _values[tid] = {"filters": [{rt_ins.bk_biz_id_alias: space_id}]}
+                continue
             _values[tid] = {"filters": [{"projectId": space_id}]}
 
         return _values

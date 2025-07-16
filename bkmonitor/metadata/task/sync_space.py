@@ -640,6 +640,7 @@ def push_and_publish_space_router(
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
     from metadata.models.space.ds_rt import get_space_table_id_data_id
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     # 过滤数据
     spaces = models.Space.objects.values("space_type_id", "space_id", "bk_tenant_id")
@@ -676,9 +677,6 @@ def push_and_publish_space_router(
                 space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
 
-    # 更新数据
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
     # 仅存在空间 id 时，可以直接按照结果表进行处理
     # 非多租户环境: 所有table_id的路由一并推送
     # 多租户环境: 按空间逐个推送路由,因为table_id不再唯一
@@ -709,14 +707,6 @@ def push_and_publish_space_router(
         space_client = SpaceTableIDRedis()
         space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
         space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
-
-
-def push_and_publish_space_router_task():
-    logger.info("start to push and publish space router")
-
-    push_and_publish_space_router(is_publish=False)
-
-    logger.info("push and publish space router successfully")
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
