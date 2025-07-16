@@ -380,10 +380,10 @@ class IndexSetHandler(APIModel):
         cls,
         index_set_name,
         space_uid,
+        storage_cluster_id,
         scenario_id,
         view_roles,
         indexes,
-        storage_cluster_id=None,
         category_id=None,
         collector_config_id=None,
         is_trace_log=False,
@@ -1157,7 +1157,7 @@ class IndexSetHandler(APIModel):
             if not cluster_id:
                 cluster_id = table_cluster_id
             if not table_cluster_id or table_cluster_id != cluster_id:
-                cluster_id = None
+                raise IndexCrossClusterException()
 
         return cluster_id
 
@@ -1707,9 +1707,9 @@ class BaseIndexSetHandler:
                 index.get("time_field"),
                 index["result_table_id"],
                 index["scenario_id"],
-                index["storage_cluster_id"],
-                time_field_type=time_field_type,
-                time_field_unit=time_field_unit,
+                index["result_table_id"],
+                time_field_type,
+                time_field_unit,
             )
 
         # 更新字段快照
