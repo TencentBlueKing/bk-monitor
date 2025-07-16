@@ -489,7 +489,7 @@ class ModifyResultTableResource(Resource):
                     .get("storage_cluster_id")
                 )
                 storage_ins = es_storage_queryset.first()
-                if storage_ins.first().storage_cluster_id != param_cluster_id:
+                if storage_ins.storage_cluster_id != param_cluster_id:
                     logger.info(
                         "ModifyResultTableResource: table_id->[%s] moved es cluster from old->[%s] to new->[%s]",
                         table_id,
