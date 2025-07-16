@@ -32,7 +32,7 @@ import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
+import { setVue, type VueInstance } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
@@ -60,7 +60,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
   const app = createApp(App);
-  setVue(app);
+  setVue(app as VueInstance);
   app.use(store).use(router).use(i18n).use(directives).mount('#app');
   app.config.globalProperties = {
     $api: Api,
@@ -85,7 +85,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
       const app = createApp(App);
-      setVue(app);
+      setVue(app as VueInstance);
       app.use(store).use(router).use(i18n).use(directives).mount('#app');
       app.config.globalProperties = {
         $api: Api,

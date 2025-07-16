@@ -1,7 +1,7 @@
 import { makeMap } from 'monitor-common/utils/make-map';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import type { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
+import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-metric-view/services/scene_view_new';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.

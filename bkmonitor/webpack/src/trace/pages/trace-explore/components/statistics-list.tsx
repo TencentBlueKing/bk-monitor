@@ -28,7 +28,7 @@ import { defineComponent, reactive, shallowRef, watch, computed, type PropType }
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import {
   traceDownloadTopK,
   traceFieldStatisticsGraph,

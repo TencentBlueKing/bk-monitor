@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
