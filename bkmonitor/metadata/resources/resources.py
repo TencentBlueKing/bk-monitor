@@ -477,6 +477,30 @@ class ModifyResultTableResource(Resource):
                     query_alias_settings,
                     e,
                 )
+        is_moving_cluster = False
+        try:
+            es_storage_queryset = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            if es_storage_queryset.exists() and request_data.get("external_storage", {}).get(
+                models.ClusterInfo.TYPE_ES.value
+            ):
+                param_cluster_id = (
+                    request_data.get("external_storage", {})
+                    .get(models.ClusterInfo.TYPE_ES.value)
+                    .get("storage_cluster_id")
+                )
+                storage_ins = es_storage_queryset.first()
+                if storage_ins.storage_cluster_id != param_cluster_id:
+                    logger.info(
+                        "ModifyResultTableResource: table_id->[%s] moved es cluster from old->[%s] to new->[%s]",
+                        table_id,
+                        storage_ins.storage_cluster_id,
+                        param_cluster_id,
+                    )
+                    is_moving_cluster = True
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get es_storage_ins,table_id->[%s],error->[%s]", table_id, e)
+
         try:
             result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
             result_table.modify(**request_data)
@@ -496,8 +520,13 @@ class ModifyResultTableResource(Resource):
         query_set = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
         if query_set.exists() and request_data["field_list"] is not None:
+            logger.info(
+                "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
+                table_id,
+                is_moving_cluster,
+            )
             storage = query_set[0]
-            storage.update_index_and_aliases(ahead_time=0)
+            storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(
                 table_id=table_id, bk_tenant_id=bk_tenant_id
