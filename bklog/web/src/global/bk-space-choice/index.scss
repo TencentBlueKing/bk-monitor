@@ -50,7 +50,7 @@
       display: flex;
       flex-direction: column;
       overflow: auto;
-      background-color: #38455f;
+      background-color: #192133;
       border-radius: 2px;
       box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
@@ -166,7 +166,7 @@
 
       .bk-form-input {
         color: #acb5c6;
-        background-color: #38455f;
+        background-color: #192133;
         border: 0;
         border-bottom: 1px solid rgba(240, 241, 245, 0.16);
         border-radius: 0;
@@ -174,12 +174,12 @@
         &::placeholder {
           /* stylelint-disable-next-line declaration-no-important */
           color: #66768e !important;
-          background-color: #39455f;
+          background-color: #192133;
         }
 
         &:focus {
           /* stylelint-disable-next-line declaration-no-important */
-          background-color: #39455f !important;
+          background-color: #192133 !important;
 
           /* stylelint-disable-next-line declaration-no-important */
           border-bottom-color: #434e68 !important;
