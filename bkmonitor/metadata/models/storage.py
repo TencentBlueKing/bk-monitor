@@ -2801,7 +2801,7 @@ class ESStorage(models.Model, StorageResultTable):
                     last_round_time_str = last_round_time.strftime(self.date_format)
 
                     last_round_alias_name = f"write_{last_round_time_str}_{index_name}"
-                    last_round_read_alias_name = f"{last_round_time_str}_{round_time_str}_read"
+                    last_round_read_alias_name = f"{index_name}_{last_round_time_str}_read"
 
                     actions.append({"add": {"index": last_index_name, "alias": last_round_alias_name}})
                     actions.append({"add": {"index": last_index_name, "alias": last_round_read_alias_name}})
