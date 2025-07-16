@@ -2669,7 +2669,7 @@ class ESStorage(models.Model, StorageResultTable):
 
         return True
 
-    def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False):
+    def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False, is_moving_cluster: bool = False):
         """
         更新alias，如果有已存在的alias，则将其指向最新的index，并根据ahead_time前向预留一定的alias
         只有当即将切换的索引完全就绪时，才进行索引-别名的绑定关系切换，防止数据丢失
@@ -2791,7 +2791,22 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                # 2.8 执行索引-别名绑定关系建立操作
+                # 2.8 是否进行了集群迁移操作,若是,则额外创建上一周期的别名-索引绑定关系
+                if is_moving_cluster:
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] is moving cluster, will create last round alias.",
+                        self.table_id,
+                    )
+                    last_round_time = now_datetime_object - datetime.timedelta(minutes=1440)
+                    last_round_time_str = last_round_time.strftime(self.date_format)
+
+                    last_round_alias_name = f"write_{last_round_time_str}_{index_name}"
+                    last_round_read_alias_name = f"{index_name}_{last_round_time_str}_read"
+
+                    actions.append({"add": {"index": last_index_name, "alias": last_round_alias_name}})
+                    actions.append({"add": {"index": last_index_name, "alias": last_round_read_alias_name}})
+
+                # 2.9 执行索引-别名绑定关系建立操作
                 logger.info(
                     "create_or_update_aliases: table_id->[%s] try to add new index binding,actions->[%s]",
                     self.table_id,
@@ -2837,7 +2852,7 @@ class ESStorage(models.Model, StorageResultTable):
                 )
 
             finally:
-                # 2.9 结束当前轮次循环，进入下一次循环
+                # 2.10 结束当前轮次循环，进入下一次循环
                 logger.info(
                     f"create_or_update_aliases: all operations for index->[{self.table_id}] gap->[{now_gap}] now is done."
                 )
@@ -2852,7 +2867,12 @@ class ESStorage(models.Model, StorageResultTable):
         # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
 
-    def update_index_and_aliases(self, ahead_time=1440):
+    def update_index_and_aliases(self, ahead_time=1440, is_moving_cluster=False):
+        logger.info(
+            "update_index_and_aliases: table_id->[%s], try to update index and aliases,is_moving_cluster->[%s]",
+            self.table_id,
+            is_moving_cluster,
+        )
         try:
             # 0. 更新mapping配置
             self.put_field_alias_mapping_to_es()
@@ -2864,7 +2884,7 @@ class ESStorage(models.Model, StorageResultTable):
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
-        self.create_or_update_aliases(ahead_time)
+        self.create_or_update_aliases(ahead_time=ahead_time, is_moving_cluster=is_moving_cluster)
 
     @retry(
         stop=stop_after_attempt(3),
