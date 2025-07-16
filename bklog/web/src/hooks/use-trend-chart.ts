@@ -560,6 +560,5 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
   });
 
-  // return { initChartData, setChartData, clearChartData };
   return { initChartData, setChartData, clearChartData, backToPreChart, canGoBack };
 };

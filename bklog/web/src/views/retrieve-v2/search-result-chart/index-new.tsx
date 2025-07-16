@@ -38,6 +38,7 @@ import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import { throttle } from 'lodash';
 import './index-new.scss';
+import dayjs from 'dayjs';
 
 export default defineComponent({
   name: 'SearchResultChart',
@@ -162,6 +163,7 @@ export default defineComponent({
           interval: v,
         },
       });
+      store.commit('retrieve/updateTrendDataLoading', true);
       setTimeout(() => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);  // 触发趋势图刷新
       });
@@ -180,13 +182,100 @@ export default defineComponent({
 
     // 根据时间范围决定是否分段请求
     const handleRequestSplit = (startTime, endTime) => {
-      const duration = (endTime - startTime) / 3600000;
-      if (duration <= 6) return 0;
-      if (duration < 48) return 21600 * 1000;
+      const duration = (endTime - startTime) / 3600000;  // 计算时间间隔，单位：小时
+      if (duration <= 6) return 0; 
+      if (duration < 48) return 21600 * 1000; 
       return (86400 * 1000) / 2;
     };
-    
-    // 拉取趋势图数据接口
+
+    // 趋势图数据请求主函数
+    const getSeriesData = (startTimeStamp, endTimeStamp) => {
+      const runningInterval = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔
+      const gen = getGenFn({ startTimeStamp, endTimeStamp, runningInterval }); // 定义生成器
+
+      const promises: Promise<any>[] = [];
+      while(true){
+        let result = gen.next();
+        if (result.done) break;
+        const { urlStr, indexId, queryData } = result.value
+
+        // 发送请求
+        const p = fetchTrendChartData(urlStr, indexId, queryData)
+          .then(res => {
+            setChartData(res?.data?.aggs, queryData.group_field, isInit);
+            isInit = false;
+          })
+          .catch(err => {
+            store.commit('retrieve/updateTrendDataLoading', false);
+          });
+        promises.push(p);
+      }
+
+      // 所有请求完成后再设置 loading 为 false
+      Promise.all(promises).finally(() => {
+        store.commit('retrieve/updateTrendDataLoading', false);
+      });
+    };
+
+    // 趋势图数据请求生成器
+    function* getGenFn({ startTimeStamp, endTimeStamp, runningInterval }){
+      const { interval } = initChartData(); // 获取趋势图汇聚周期
+      let currentTimeStamp = endTimeStamp; // 从最后一段时间开始请求
+
+      // 组装请求参数方法
+      const buildQueryParams = (start_time: number, end_time: number) => {
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
+        const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
+        const queryData = {
+          ...retrieveParams.value,
+          addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
+          time_range: 'customized',
+          interval: interval,
+          start_time: start_time,
+          end_time: end_time,
+        };
+        if (isUnionSearch.value) {
+          Object.assign(queryData, { index_set_ids: unionIndexList.value });
+        }
+        if (
+          gradeOptions.value &&
+          !gradeOptions.value.disabled &&
+          gradeOptions.value.type === 'custom' &&
+          gradeOptions.value.field
+        ) {
+          Object.assign(queryData, { group_field: gradeOptions.value.field });
+        }
+        return { urlStr, indexId, queryData };
+      };
+
+      while (currentTimeStamp >= startTimeStamp) {
+
+        // 计算本轮请求结束时间
+        let end_time = runningInterval === 0 ? endTimeStamp : currentTimeStamp;
+
+        // 计算本轮请求开始时间
+        let start_time = runningInterval === 0 ? startTimeStamp : end_time - runningInterval;
+        if(start_time < startTimeStamp) { start_time = startTimeStamp; }
+        
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
+        if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+          // 获取请求参数
+          const { urlStr, indexId, queryData } = buildQueryParams(start_time, end_time);
+
+          yield { urlStr, indexId, queryData }
+
+          // 如果不分段，请求一次直接结束
+          if (runningInterval === 0) break;
+          
+          currentTimeStamp -= runningInterval;
+        }
+      }
+
+      // 循环结束
+      return undefined;
+    }
+
+    // 趋势图数据请求接口
     const fetchTrendChartData = (urlStr, indexId, queryData) => {
       const controller = new AbortController();
       logChartCancel = () => controller.abort();
@@ -201,130 +290,7 @@ export default defineComponent({
           signal: controller.signal,
         }
       );
-    };
-
-    // 生成器：每次生成一段请求的时间窗口参数
-    function* seriesDataGenerator(startTimeStamp, endTimeStamp) {
-      let localIsInit = true;
-      let localPollingEndTime = endTimeStamp;
-      let localPollingStartTime = 0;
-      let localRequestInterval = handleRequestSplit(startTimeStamp, endTimeStamp);
-
-      while (true) {
-        if (localIsInit) {
-          localPollingStartTime = localRequestInterval > 0 ? localPollingEndTime - localRequestInterval : startTimeStamp;
-        } else {
-          localPollingEndTime = localPollingStartTime;
-          localPollingStartTime = localPollingStartTime - localRequestInterval;
-        }
-
-        // 边界判断
-        if (localPollingStartTime < startTimeStamp) {
-          localPollingStartTime = startTimeStamp;
-        }
-        if (localPollingStartTime < retrieveParams.value.start_time) {
-          localPollingStartTime = retrieveParams.value.start_time;
-        }
-        if (localPollingStartTime > localPollingEndTime) {
-          return; // 结束
-        }
-
-        // 生成当前请求的时间段
-        yield {
-          isInit: localIsInit,
-          pollingStartTime: localPollingStartTime,
-          pollingEndTime: localPollingEndTime,
-          requestInterval: localRequestInterval,
-        };
-
-        localIsInit = false;
-        // 终止条件
-        if (localPollingStartTime === startTimeStamp) {
-          return;
-        }
-      }
     }
-
-    // 请求趋势图数据主函数（使用.next推进）
-    const getSeriesData = (startTimeStamp, endTimeStamp) => {
-      finishPolling.value = false;
-      isStart.value = false;
-      store.commit('retrieve/updateTrendDataLoading', true);
-
-      const gen = seriesDataGenerator(startTimeStamp, endTimeStamp);
-
-      // 初始化图表
-      const { interval } = initChartData();  // 获取趋势图的分段数
-      runningInterval = interval;
-
-      function nextStep(genResult?) {
-        const { value, done } = genResult ?? gen.next();
-        if (done) {
-          finishPolling.value = true;
-          isStart.value = false;
-          store.commit('retrieve/updateTrendDataLoading', false);
-          return;
-        }
-        isStart.value = true;
-        isInit = value.isInit;
-        pollingStartTime = value.pollingStartTime;
-        pollingEndTime = value.pollingEndTime;
-        requestInterval = value.requestInterval;
-
-        // 组装请求参数
-        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
-        if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
-          const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
-          const queryData = {
-            ...retrieveParams.value,
-            addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
-            time_range: 'customized',
-            interval: runningInterval,
-            start_time: pollingStartTime,
-            end_time: pollingEndTime,
-          };
-          if (isUnionSearch.value) {
-            Object.assign(queryData, { index_set_ids: unionIndexList.value });
-          }
-          if (
-            gradeOptions.value &&
-            !gradeOptions.value.disabled &&
-            gradeOptions.value.type === 'custom' &&
-            gradeOptions.value.field
-          ) {
-            Object.assign(queryData, { group_field: gradeOptions.value.field });
-          }
-
-          fetchTrendChartData(urlStr, indexId, queryData)
-            .then(res => {
-              if (res?.data) {
-                setChartData(res?.data?.aggs, queryData.group_field, isInit);
-                isInit = false;
-              }
-              if (!res?.result || requestInterval === 0) {
-                finishPolling.value = true;
-                isStart.value = false;
-                store.commit('retrieve/updateTrendDataLoading', false);
-                return;
-              }
-              // 继续下一步
-              nextStep();
-            })
-            .catch(err => {
-              isStart.value = false;
-              finishPolling.value = true;
-              store.commit('retrieve/updateTrendDataLoading', false);
-            });
-        } else {
-          isStart.value = false;
-          finishPolling.value = true;
-          store.commit('retrieve/updateTrendDataLoading', false);
-        }
-      }
-
-      // 启动
-      nextStep();
-    };
 
     // 加载趋势图数据
     const loadTrendData = () => {
@@ -337,8 +303,8 @@ export default defineComponent({
 
       // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(() => {
-        finishPolling.value = false;
-        isStart.value = false;
+        isInit = true;
+        store.commit('retrieve/updateTrendDataLoading', true);  // 设置加载状态
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);  
       });
     };
