@@ -196,7 +196,6 @@
   };
 
   const getFieldValue = field => {
-    debugger;
     if (formatJson.value) {
       if (typeof props.jsonValue === 'string') {
         return [convertToObject(props.jsonValue), props.jsonValue];
