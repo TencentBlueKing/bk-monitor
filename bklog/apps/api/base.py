@@ -270,6 +270,7 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
+        self.headers = None
 
     def __call__(
         self,
@@ -452,6 +453,7 @@ class DataAPI:
                 "method": self.method,
                 "method_override": self.method_override,
                 "query_params": params,
+                "headers": self.headers,
                 "response_result": response_result,
                 "response_code": response_code,
                 "response_data": response_data,
@@ -536,7 +538,7 @@ class DataAPI:
             else:
                 bk_tenant_id = get_request_tenant_id()
         session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
-
+        self.headers = session.headers
         url = self.build_actual_url(params)
 
         # 发出请求并返回结果

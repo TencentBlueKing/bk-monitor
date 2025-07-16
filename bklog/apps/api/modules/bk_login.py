@@ -88,6 +88,13 @@ class _BKLoginApi:
             # 没有开启多租户的，返回固定内容
             self.list_tenant = lambda *args, **kwargs: [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
+        self.batch_lookup_virtual_user = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
+                module=self.MODULE,
+                description="获取虚拟用户",
+        )
+
         self.list_department_profiles = DataAPI(
             method="GET",
             url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",
