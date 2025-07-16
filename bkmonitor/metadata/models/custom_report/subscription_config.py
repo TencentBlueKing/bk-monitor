@@ -311,7 +311,7 @@ class CustomReportSubscription(models.Model):
                     if tpl is None:
                         continue
 
-                    config_id = config_context.get("bk_data_id")
+                    config_id = int(config_context.get("bk_data_id"))
                     config_context.setdefault("bk_biz_id", bk_biz_id)
                     config_content = Environment().from_string(tpl).render(config_context)
                     BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, protocol, config_content)

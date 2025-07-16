@@ -207,7 +207,7 @@ class BkCollectorClusterConfig:
         secret_subconfig_name = secret_config["secret_name_tpl"].format(min_boundary, max_boundary)
 
         # 计算 secret 中 key 的名字
-        subconfig_filename = secret_config.get["secret_data_key_tpl"].format(config_id)
+        subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
 
         # 编码配置内容
         gzip_content = gzip.compress(sub_config.encode())
@@ -228,7 +228,7 @@ class BkCollectorClusterConfig:
             sec = client.V1Secret(
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
-                    name=secret_subconfig_name(config_id),
+                    name=secret_subconfig_name,
                     namespace=namespace,
                     labels={
                         "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
@@ -237,7 +237,7 @@ class BkCollectorClusterConfig:
                         "source": BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
                     },
                 ),
-                data={subconfig_filename(config_id): b64_content},
+                data={subconfig_filename: b64_content},
             )
 
             bcs_client.client_request(
@@ -249,23 +249,22 @@ class BkCollectorClusterConfig:
         else:
             # 存在，且与已有的数据不一致，则更新
             logger.info(f"{cluster_id} {protocol} config ({config_id}) secrets already exists.")
-            filename = subconfig_filename(config_id)
             need_update = False
             if isinstance(sec.data, dict):
-                if filename not in sec.data:
+                if subconfig_filename not in sec.data:
                     logger.info(f"{cluster_id} {protocol} config ({config_id})  not exists, but secret exists.")
-                    sec.data[filename] = b64_content
+                    sec.data[subconfig_filename] = b64_content
                     need_update = True
 
-                old_content = sec.data.get(filename, "")
+                old_content = sec.data.get(subconfig_filename, "")
                 old_application_config = gzip.decompress(base64.b64decode(old_content)).decode()
                 if old_application_config != sub_config:
                     logger.info(f"{cluster_id} {protocol} config ({config_id}) has changed, update it.")
-                    sec.data[filename] = b64_content
+                    sec.data[subconfig_filename] = b64_content
                     need_update = True
             else:
                 logger.info(f"{cluster_id} {protocol} config ({config_id}) not exists, secret exists but not valid.")
-                sec.data = {filename: b64_content}
+                sec.data = {subconfig_filename: b64_content}
                 need_update = True
 
             if need_update:
