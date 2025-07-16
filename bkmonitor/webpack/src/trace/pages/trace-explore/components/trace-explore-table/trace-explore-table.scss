@@ -9,6 +9,28 @@
   .explore-table {
     height: 100%;
     @include traceTable.table-theme();
+
+    &.t-table {
+      // 容器有剩余空间时撑满容器
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+        overflow-x: scroll;
+        overflow-y: hidden;
+
+        .t-table--layout-fixed {
+          height: 100%;
+        }
+
+        .t-table__body {
+          tr {
+            &:not(.t-table__row--full) {
+              height: var(--trace-table-row-height, 32px);
+            }
+          }
+        }
+      }
+    }
   }
 
   .t-table__header {
@@ -45,6 +67,8 @@
   }
 
   .explore-col {
+    --trace-table-explore-col-height: 15px;
+
     &.explore-prefix-icon-col {
       .status-code-icon {
         &-normal {

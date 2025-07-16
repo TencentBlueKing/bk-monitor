@@ -73,7 +73,7 @@ const ALERT_TABLE_COLUMNS = [
     colKey: 'metric',
     title: window.i18n.t('告警指标'),
     is_default: true,
-    width: 180,
+    width: 240,
     sorter: true,
   },
   {

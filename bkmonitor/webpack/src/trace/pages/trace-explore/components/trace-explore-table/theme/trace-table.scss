@@ -14,7 +14,7 @@
       display: flex;
       align-items: center;
       width: 100%;
-      height: var(--trace-table-row-height, 15px);
+      height: var(--trace-table-explore-col-height);
       font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
 
       &.explore-click-col {
@@ -65,6 +65,20 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    &.t-table,
+    .t-table {
+      .t-table__content {
+        .t-table__body {
+          td {
+            &:has(.explore-tags-col) {
+              padding-top: 0px;
+              padding-bottom: 0px;
+            }
+          }
+        }
+      }
     }
 
     // &.t-table,

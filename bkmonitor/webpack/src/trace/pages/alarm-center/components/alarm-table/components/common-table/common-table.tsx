@@ -28,16 +28,16 @@ import { defineComponent, computed, type PropType, useTemplateRef, onMounted } f
 import { type BkUiSettings, PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
 
-import TableSkeleton from '../../../../../components/skeleton/table-skeleton';
-import { useTableCell } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
-import { useTableEllipsis } from '../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
+import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
+import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
+import { useTableEllipsis } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 import { DEFAULT_TABLE_CONFIG } from './table-constants';
 
 import type {
   BaseTableColumn,
   TableCellRenderer,
-} from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { TableEmpty, TablePagination, TableRenderer } from '../../../typings';
+} from '../../../../../trace-explore/components/trace-explore-table/typing';
+import type { TableEmpty, TablePagination, TableRenderer } from '../../../../typings';
 import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
@@ -49,6 +49,11 @@ export default defineComponent({
     rowKey: {
       type: String,
       default: 'id',
+    },
+    /** 在根元素容器高度仍有剩余的情况下，表格是否自适应填满根元素容器的剩余空间 */
+    autoFillSpace: {
+      type: Boolean,
+      default: false,
     },
     /** 表格列配置 */
     columns: {
@@ -97,6 +102,10 @@ export default defineComponent({
     /** 滚动条吸底 */
     horizontalScrollAffixedBottom: {
       type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
+    },
+    /** 首行内容，横跨所有列。 */
+    firstFullRow: {
+      type: Function as PropType<TableRenderer>,
     },
     /** 表格尾行内容，横跨所有列。 */
     lastFullRow: {
@@ -279,7 +288,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='common-table-wrapper'>
+      <div class={`common-table-wrapper ${this.autoFillSpace ? 'fill-remaining-space' : ''}`}>
         <PrimaryTable
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
@@ -291,6 +300,7 @@ export default defineComponent({
           columns={this.tableColumns}
           data={this.data}
           disableDataPage={true}
+          firstFullRow={this.firstFullRow}
           headerAffixedTop={this.headerAffixedTop}
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}

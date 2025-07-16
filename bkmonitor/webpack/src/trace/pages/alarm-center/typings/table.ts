@@ -33,7 +33,7 @@ export type TableColumnItem<T = any> = TableCol<T> & {
 };
 
 /** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = (props?: T) => SlotReturnValue;
+export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
 
 export interface TableEmptyProps {
   type: 'empty' | 'search-empty';

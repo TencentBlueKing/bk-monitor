@@ -1,9 +1,13 @@
 .explore-tags-col {
-  --tag-height: 23px;
+  --tag-height: 22px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   height: var(--tag-height);
+
+  &.explore-col {
+    min-height: var(--tag-height);
+  }
 
   .tag-item {
     display: inline-flex;
