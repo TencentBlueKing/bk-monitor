@@ -380,10 +380,10 @@ class IndexSetHandler(APIModel):
         cls,
         index_set_name,
         space_uid,
-        storage_cluster_id,
         scenario_id,
         view_roles,
         indexes,
+        storage_cluster_id=None,
         category_id=None,
         collector_config_id=None,
         is_trace_log=False,
@@ -1157,7 +1157,7 @@ class IndexSetHandler(APIModel):
             if not cluster_id:
                 cluster_id = table_cluster_id
             if not table_cluster_id or table_cluster_id != cluster_id:
-                raise IndexCrossClusterException()
+                cluster_id = None
 
         return cluster_id
 
