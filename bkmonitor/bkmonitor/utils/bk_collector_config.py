@@ -100,11 +100,7 @@ class BkCollectorClusterConfig:
         from alarm_backends.core.storage.redis import Cache
 
         cache = Cache("cache")
-        with cache.pipeline() as p:
-            p.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
-            p.delete(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
-            values = p.execute()
-        cluster_to_bk_biz_ids = values[0]
+        cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
 
         res = {}
         for i in cluster_to_bk_biz_ids:
