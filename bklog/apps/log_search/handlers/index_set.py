@@ -1545,8 +1545,10 @@ class BaseIndexSetHandler:
 
         # 创建索引集的同时添加索引
         for index in self.indexes:
+            _scenario_id = index.get("scenario_id") or self.scenario_id
+            _storage_cluster_id = index.get("storage_cluster_id") or self.storage_cluster_id
             _, time_field_type, time_field_unit = self.init_time_field(
-                index["scenario_id"],
+                _scenario_id,
                 index.get("time_field"),
                 index.get("time_field_type"),
                 index.get("time_field_unit"),
@@ -1555,8 +1557,8 @@ class BaseIndexSetHandler:
                 bk_biz_id=index["bk_biz_id"],
                 time_filed=index.get("time_field"),
                 result_table_id=index["result_table_id"],
-                scenario_id=index["scenario_id"],
-                storage_cluster_id=index["storage_cluster_id"],
+                scenario_id=_scenario_id,
+                storage_cluster_id=_storage_cluster_id,
                 time_field_type=time_field_type,
                 time_field_unit=time_field_unit,
             )
@@ -1696,8 +1698,10 @@ class BaseIndexSetHandler:
             if index["result_table_id"] not in [index["result_table_id"] for index in self.index_set_obj.indexes]
         ]
         for index in to_append_indexes:
+            _scenario_id = index.get("scenario_id") or self.scenario_id
+            _storage_cluster_id = index.get("storage_cluster_id") or self.storage_cluster_id
             _, time_field_type, time_field_unit = self.init_time_field(
-                index["scenario_id"],
+                _scenario_id,
                 index.get("time_field"),
                 index.get("time_field_type"),
                 index.get("time_field_unit"),
@@ -1706,8 +1710,8 @@ class BaseIndexSetHandler:
                 index["bk_biz_id"],
                 index.get("time_field"),
                 index["result_table_id"],
-                index["scenario_id"],
-                index["storage_cluster_id"],
+                _scenario_id,
+                _storage_cluster_id,
                 time_field_type=time_field_type,
                 time_field_unit=time_field_unit,
             )
