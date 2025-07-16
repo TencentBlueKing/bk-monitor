@@ -31,6 +31,7 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { getTopoList } from 'monitor-api/modules/alert';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 import { getEventPaths } from 'monitor-pc/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
@@ -238,9 +239,16 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   }
   @Watch('searchType', { immediate: true })
   handleSearchTypeChange() {
-    this.searchType === 'alert' && this.getTopoListData();
+    this.handlebkBizIdsChange();
     this.handleGetSearchHistory();
     this.handleGetSearchFavorite();
+  }
+
+  @Watch('bkBizIds')
+  handlebkBizIdsChange() {
+    if (this.searchType === 'alert' && this.bkBizIds.length) {
+      this.getTopoListData(); 
+    }
   }
 
   @Watch('inputValue', { immediate: true })
@@ -858,11 +866,9 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   }
 
   // 搜索过滤的集群和模块value通过另外接口获取
+  @Debounce(300)
   async getTopoListData() {
     for (const key in this.searchTopoList) {
-      if (this.searchTopoList[key].length) {
-        continue;
-      }
       const list = await getTopoList({
         bk_biz_ids: this.bkBizIds,
         bk_obj_id: key === 'module_id' ? 'module' : 'set',
