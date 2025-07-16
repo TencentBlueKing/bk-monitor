@@ -967,7 +967,7 @@ def sync_bkbase_v4_metadata(key):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name):
+def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
     """
     为单个业务创建基础采集数据链路
     @param bk_biz_id: 业务ID

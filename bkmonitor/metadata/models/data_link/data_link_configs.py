@@ -94,6 +94,9 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -105,15 +108,25 @@ class DataIdConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose data_id config",
         )
 
@@ -141,6 +154,9 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -153,16 +169,28 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "data_type": self.data_type,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
-                "data_type": self.data_type,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose bkdata table_id config",
         )
 
@@ -180,6 +208,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
+    # TODO 多租户yaml改造
     def compose_config(
         self,
     ) -> dict:
@@ -191,6 +220,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "kind": "VmStorageBinding",
                 "metadata": {
                     "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
@@ -198,6 +230,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                     "data": {
                         "kind": "ResultTable",
                         "name": "{{rt_name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},

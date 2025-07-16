@@ -49,6 +49,9 @@ def test_compose_data_id_config(create_or_delete_records):
     """
     测试DataIdConfig能否正确生成
     """
+
+    # 单租户模式
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -62,6 +65,17 @@ def test_compose_data_id_config(create_or_delete_records):
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
+    content = data_id_config_ins.compose_config()
+    assert json.dumps(content) == expected_config
+
+    # 多租户模式
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    expected_config = (
+        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
+        '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
+        '"bizId":0,"description":"bkm_data_link_test","maintainers":["admin"]}}'
+    )
+
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
 

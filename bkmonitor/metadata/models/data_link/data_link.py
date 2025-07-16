@@ -499,6 +499,7 @@ class DataLink(models.Model):
                 defaults={
                     "status": DataLinkResourceStatus.INITIALIZING.value,
                 },
+                bk_tenant_id=self.bk_tenant_id,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(

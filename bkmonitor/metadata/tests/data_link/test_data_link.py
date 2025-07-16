@@ -30,11 +30,15 @@ from metadata.models.vm.utils import (
     create_bkbase_data_link,
     create_fed_bkbase_data_link,
 )
+from metadata.task.tasks import create_basereport_datalink_for_bkcc
 from metadata.tests.common_utils import consul_client
 
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    bkcc_1_space = models.Space.objects.create(
+        space_type_id="bkcc", space_id=1, space_name="bkcc_1", bk_tenant_id="system"
+    )
     data_source = models.DataSource.objects.create(
         bk_data_id=50010,
         data_name="data_link_test",
@@ -57,6 +61,15 @@ def create_or_delete_records(mocker):
         mq_cluster_id=1,
         mq_config_id=1,
         etl_config="test",
+        is_custom_source=False,
+    )
+    multi_tenant_base_data_source = models.DataSource.objects.create(
+        bk_data_id=70010,
+        data_name="system_1_sys_base",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_multi_tenancy_basereport",
         is_custom_source=False,
     )
     models.BCSClusterInfo.objects.create(
@@ -119,11 +132,23 @@ def create_or_delete_records(mocker):
         is_default_cluster=False,
         version="5.x",
     )
+    models.ClusterInfo.objects.create(
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="default.vm",
+        port=9090,
+        description="",
+        cluster_id=100112,
+        is_default_cluster=True,
+        version="6.x",
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    bkcc_1_space.delete()
     data_source.delete()
     proxy_data_source.delete()
     federal_sub_data_source.delete()
+    multi_tenant_base_data_source.delete()
     result_table.delete()
     proxy_rt.delete()
     fed_rt.delete()
@@ -754,3 +779,33 @@ def test_component_id(create_or_delete_records, mocker):
         BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).component_id
         == "bkmonitor-bkm_1001_bkmonitor_time_series_50010"
     )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_basereport_datalink_for_bkcc(create_or_delete_records, mocker):
+    """
+    测试多租户基础采集数据链路创建
+    """
+    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
+    settings.ENABLE_MULTI_TENANT_MODE = True
+
+    expected_configs = {}
+    with (
+        patch.object(DataLink, "compose_configs", return_value=expected_configs) as mock_compose_configs,
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+    ):  # noqa
+        # 调用多租户基础采集数据链路创建方法
+        create_basereport_datalink_for_bkcc(bk_biz_id=1)
+
+        # 生成的链路配置是否符合预期
+        mock_compose_configs.assert_called_once()
+        actual_configs = mock_compose_configs.return_value
+        assert actual_configs == expected_configs
+
+        mock_apply_with_retry.assert_called_once()
+
+    table_id_prefix = "system_1_sys."
+    multi_tenancy_base_report_rts = models.ResultTable.objects.filter(table_id__startswith=table_id_prefix)
+    assert multi_tenancy_base_report_rts.exists()
