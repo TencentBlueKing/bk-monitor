@@ -1124,6 +1124,7 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
+CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
 JOB_USE_APIGW = os.getenv("BKAPP_JOB_USE_APIGW", "false").lower() == "true"
 JOB_API_BASE_URL = os.getenv("BKAPP_JOB_API_BASE_URL", "")
 # monitor api base url:
