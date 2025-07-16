@@ -230,31 +230,46 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                     "data": {
                         "kind": "ResultTable",
                         "name": "{{rt_name}}",
-                    {% if tenant %}
-                    "tenant": "{{ tenant }}",
-                    {% endif %}
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     }
                 }
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "rt_name": self.name,
+            "vm_name": self.vm_cluster_name,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "rt_name": self.name,
-                "vm_name": self.vm_cluster_name,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm storage binding config",
         )
 
@@ -293,6 +308,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "kind": "Databus",
             "metadata": {
                 "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
                 "namespace": "{{namespace}}",
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
@@ -303,6 +321,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     {
                         "kind": "DataId",
                         "name": "{{data_id_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     }
                 ],
@@ -317,20 +338,31 @@ class DataBusConfig(DataLinkResourceConfigBase):
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 接入者的业务ID
+            "sinks": json.dumps(sinks),
+            "sink_name": self.name,
+            "data_id_name": self.data_id_name,
+            "transform_kind": transform_kind,
+            "transform_name": transform_name,
+            "transform_format": transform_format,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 接入者的业务ID
-                "sinks": json.dumps(sinks),
-                "sink_name": self.name,
-                "data_id_name": self.data_id_name,
-                "transform_kind": transform_kind,
-                "transform_name": transform_name,
-                "transform_format": transform_format,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm databus config",
         )
 
@@ -358,6 +390,9 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "namespace": "{{namespace}}",
                 "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
@@ -365,13 +400,25 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             }
         }
         """
+
+        render_params = {
+            "name": self.name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "bk_biz_id": self.bk_biz_id,
+            "conditions": json.dumps(conditions),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "bk_biz_id": self.bk_biz_id,
-                "conditions": json.dumps(conditions),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm conditional sink config",
         )
