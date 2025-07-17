@@ -24,31 +24,34 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { defineComponent, onMounted } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
-};
+import hljs from 'highlight.js';
 
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+import { PromQlLanguage } from './highlight-promql-plugin';
 
-export interface TableEmptyProps {
-  type: 'empty' | 'search-empty';
-  emptyText: string;
-}
+import './promql-viewer.scss';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+export default defineComponent({
+  name: 'PromqlViewer',
+  setup() {
+    hljs.registerLanguage('promql', PromQlLanguage);
 
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 总数 */
-  total: number;
-  /** 每页条数 */
-  pageSize: number;
-}
+    onMounted(() => {
+      hljs.highlightAll();
+    });
+
+    return {};
+  },
+  render() {
+    return (
+      <div class='promql-viewer'>
+        <pre>
+          <code class='language-promql'>
+            {`sum(sum_over_time({__name__="custom:2_bkapm_metric_v_lwynlian.__default__:bk_apm_count"}[1m])) or vector(0)`}
+          </code>
+        </pre>
+      </div>
+    );
+  },
+});

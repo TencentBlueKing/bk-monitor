@@ -570,8 +570,8 @@ export function useExploreColumnConfig({
           return value.map(v => ({
             alias: SPAN_KIND_MAPS[v]?.alias,
             value: v,
-            tagColor: '#63656e',
-            tagBgColor: 'rgba(151,155,165,.1)',
+            tagColor: '#4D4F56',
+            tagBgColor: '#F0F1F5',
           }));
         },
       },

@@ -26,9 +26,9 @@
 import { computed, defineComponent, ref as deepRef, type PropType } from 'vue';
 
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
-import AlertMetricsConfig from './components/alert-metrics-config';
-import AlertSelectionToolbar from './components/alert-selection-toolbar';
-import CommonTable from './components/common-table';
+import AlertMetricsConfig from './components/alert-metrics-config/alert-metrics-config';
+import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
+import CommonTable from './components/common-table/common-table';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
@@ -36,6 +36,7 @@ import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
 import type { IncidentScenario } from './scenarios/incident-scenario';
 import type { BkUiSettings } from '@blueking/tdesign-ui/.';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './alarm-table.scss';
 
@@ -116,13 +117,22 @@ export default defineComponent({
     };
   },
   render() {
-    console.log('================ transformedColumns ================', this.transformedColumns);
-    console.log('================ data ================', this.data);
     return (
       <div class='alarm-table-container'>
         <AlertMetricsConfig />
         <CommonTable
           class='alarm-table'
+          firstFullRow={
+            this.selectedRowKeys?.length
+              ? () =>
+                  (
+                    <AlertSelectionToolbar
+                      class='alarm-table-first-full-row'
+                      selectedRowKeys={this.selectedRowKeys}
+                    />
+                  ) as unknown as SlotReturnValue
+              : undefined
+          }
           headerAffixedTop={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
           }}
@@ -133,6 +143,7 @@ export default defineComponent({
             ...this.tableSettings,
             hasCheckAll: true,
           }}
+          autoFillSpace={true}
           columns={this.transformedColumns}
           data={this.data}
           loading={this.loading}

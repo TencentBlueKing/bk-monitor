@@ -7,7 +7,30 @@
   height: 100%;
 
   .explore-table {
+    height: 100%;
     @include traceTable.table-theme();
+
+    &.t-table {
+      // 容器有剩余空间时撑满容器
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+        overflow-x: scroll;
+        overflow-y: hidden;
+
+        .t-table--layout-fixed {
+          height: 100%;
+        }
+
+        .t-table__body {
+          tr {
+            &:not(.t-table__row--full) {
+              height: var(--trace-table-row-height, 32px);
+            }
+          }
+        }
+      }
+    }
   }
 
   .t-table__header {
@@ -15,6 +38,7 @@
       display: flex;
       align-items: center;
       min-width: 0;
+      color: #000000 !important;
       user-select: none;
     }
 
@@ -43,6 +67,8 @@
   }
 
   .explore-col {
+    --trace-table-explore-col-height: 15px;
+
     &.explore-prefix-icon-col {
       .status-code-icon {
         &-normal {
@@ -179,41 +205,28 @@
     }
   }
 
-  .explore-table.t-table {
-    .t-table__header {
-      tr {
-        .t-table__th-cell-inner {
-          color: #000000 !important;
-        }
+  .scroll-end-loading {
+    position: sticky;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    // height: 32px;
+    transform: translateX(-50%);
+
+    .bk-loading-size-mini {
+      flex-direction: row;
+      column-gap: 8px;
+      align-items: center;
+
+      .bk-loading-title {
+        margin-top: 0;
       }
     }
+  }
 
+  .explore-table.t-table {
     .t-table__body {
       tr {
-        &.t-table__last-full-row {
-          td,
-          .t-table__row-full-element {
-            .scroll-end-loading {
-              position: sticky;
-              left: 50%;
-              display: inline-flex;
-              align-items: center;
-              height: 32px;
-              transform: translateX(-50%);
-
-              .bk-loading-size-mini {
-                flex-direction: row;
-                column-gap: 8px;
-                align-items: center;
-
-                .bk-loading-title {
-                  margin-top: 0;
-                }
-              }
-            }
-          }
-        }
-
         .icon-Tracing {
           display: none;
           flex-shrink: 0;
@@ -235,5 +248,13 @@
         }
       }
     }
+  }
+
+  .explore-table-empty {
+    position: sticky;
+    right: var(--td-comp-paddingLR-s);
+    left: var(--td-comp-paddingLR-s);
+    width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
+    padding: 20px 0;
   }
 }

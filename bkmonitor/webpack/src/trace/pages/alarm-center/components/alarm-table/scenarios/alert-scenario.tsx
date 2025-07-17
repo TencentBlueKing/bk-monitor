@@ -192,9 +192,6 @@ export class AlertScenario extends BaseScenario {
    * @description 告警内容(description) 列渲染方法
    */
   private renderDescription(row: any, column: BaseTableColumn, renderCtx: TableCellRenderContext): SlotReturnValue {
-    if (row.data_type !== 'time_series') {
-      return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.PREFIX_ICON]?.(row, column, renderCtx);
-    }
     const item = column?.getRenderValue?.(row, column);
     return (
       <div class='explore-col explore-prefix-icon-col '>

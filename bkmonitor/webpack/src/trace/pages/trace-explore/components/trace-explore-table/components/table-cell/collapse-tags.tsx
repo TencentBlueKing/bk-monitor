@@ -92,35 +92,47 @@ export default defineComponent({
         return;
       }
       requestAnimationFrame(() => {
-        const domList = sectionRef.value?.children || [];
-        const maxWidth = sectionRef.value?.parentNode?.getBoundingClientRect?.().width;
-        let num = 0;
-        let index = -1;
+        //
+        const tagsList = sectionRef.value?.children || [];
+        // 获取容器宽度
+        const containerWidth = sectionRef.value?.parentNode?.getBoundingClientRect?.().width;
+        let totalWidth = 0;
+        let visibleCount = 0;
 
-        for (let i = 0; i < domList.length; i++) {
-          const clientWidth = domList[i]?.getBoundingClientRect?.().width;
-          num = clientWidth + num + props.tagColGap;
-
-          if (num >= maxWidth) {
-            num = num - clientWidth - props.tagColGap;
+        // 第一轮：计算在不显示折叠标签时能容纳的标签数量
+        for (let i = 0; i < tagsList.length; i++) {
+          const tagWidth = tagsList[i]?.getBoundingClientRect?.().width;
+          const newWidth = totalWidth + tagWidth + (i > 0 ? props.tagColGap : 0);
+          if (newWidth < containerWidth) {
+            totalWidth = newWidth;
+            visibleCount = i + 1;
+          } else {
             break;
           }
-          index = i;
         }
 
-        if (domList.length >= index + 1) {
-          // +1 是因为兼容实际为浮点数但 clientWidth 获取到的是舍弃小数后的整数的边际场景
-          const collectTagWidth = (maxCountCollectTagRef.value?.getBoundingClientRect?.().width || 0) + 1;
-          for (let i = index; i > 0; i--) {
-            if (num + collectTagWidth < maxWidth) {
-              break;
-            }
-            const clientWidth = domList[i]?.getBoundingClientRect?.()?.width || 0;
-            num = num - clientWidth - props.tagColGap;
-            index = i - 1;
-          }
+        // 如果所有标签都能显示，则不需要折叠
+        if (visibleCount === tagsList.length) {
+          calculateTagCount.value = visibleCount;
+          return;
         }
-        calculateTagCount.value = index + 1;
+
+        // 如果执行到这里了，那么说明 折叠标签元素 肯定是需要显示的，所以 totalWidth 需要加上 折叠标签的宽度以及间隔宽度
+        const collectTagWidth = maxCountCollectTagRef.value?.getBoundingClientRect?.().width || 0;
+        totalWidth = totalWidth + collectTagWidth + props.tagColGap;
+        if (totalWidth < containerWidth) {
+          calculateTagCount.value = visibleCount;
+          return;
+        }
+
+        // 第二轮：走到这里则说明剩余的空间不足以显示折叠标签，所以需要逐个递减至可以容纳折叠标签
+        while (visibleCount > 0) {
+          visibleCount--;
+          const tagWidth = tagsList[visibleCount]?.getBoundingClientRect?.().width;
+          totalWidth = totalWidth - tagWidth - props.tagColGap;
+          if (totalWidth < containerWidth) break;
+        }
+        calculateTagCount.value = Math.max(visibleCount, 0); // 确保visibleCount不为负数
       });
     }, 200);
 
@@ -211,7 +223,7 @@ export default defineComponent({
         </span>
         {canShowCollapseTag && (
           <span
-            class='top-bar-tag'
+            class='collapse-tag'
             v-tippy={{
               content: this.ellipsisTip?.(ellipsisList) || ellipsisList.join(','),
               theme: 'dark text-wrap max-width-50vw',
@@ -223,7 +235,7 @@ export default defineComponent({
         )}
         <span
           ref='maxCountCollectTagRef'
-          class='top-bar-tag top-bar-tag-fill'
+          class='collapse-tag collapse-tag-fill'
         >
           +{dataLen}
         </span>

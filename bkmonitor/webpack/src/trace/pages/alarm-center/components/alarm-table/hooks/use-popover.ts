@@ -46,7 +46,6 @@ export function usePopover() {
     arrow: true,
     interactive: true,
     theme: 'alarm-center-popover max-width-50vw text-wrap padding-0',
-    onHide: () => false,
     onHidden: () => {
       hidePopover();
     },

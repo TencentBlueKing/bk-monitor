@@ -1,4 +1,4 @@
-@use '../../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
+@use '../../../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
 
 .common-table-wrapper {
   position: relative;
@@ -6,7 +6,28 @@
   flex-direction: column;
 
   .common-table {
-    // @include tableCommonTheme.table-theme();
+    @include tableCommonTheme.table-theme();
+  }
+
+  // 在根元素容器高度仍有剩余的情况下，表格是否自适应填满根元素容器的剩余空间
+  &.fill-remaining-space {
+    .common-table {
+      flex-grow: 1;
+      flex-basis: auto;
+
+      &.t-table {
+        // 容器有剩余空间时撑满容器
+        .t-table__content {
+          // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+          height: calc(100% + 1px);
+          overflow-x: scroll;
+
+          .t-table--layout-fixed {
+            height: 100%;
+          }
+        }
+      }
+    }
   }
 
   .common-table-skeleton {
