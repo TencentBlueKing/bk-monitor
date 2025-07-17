@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
+import { formatNumberWithRegex } from '@/common/util';
 
 import chartOption, { COLOR_LIST, getSeriesData } from './trend-chart-options';
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
@@ -381,7 +382,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     updateChart();
   };
 
-  /** 缩写数字 */
+  // 格式化数字（带单位）
   const abbreviateNumber = (value: number) => {
     let newValue = value;
     let suffix = '';
@@ -405,6 +406,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     return `${formatter.format(newValue)}${suffix}`;
   };
+
+  // 格式化数字（三位分隔）
+  const getShowTotalNum = (num: number) => formatNumberWithRegex(num);
 
   const updateChart = (notMerge = true) => {
     if (!chartInstance) {
@@ -445,7 +449,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
               border-radius: 50%; 
             "></span>
             <span style="flex: 1; margin-left: 6px;">${seriesName}</span>
-            <span style="font-weight: bold;">${abbreviateNumber(value)}</span>
+            <span style="font-weight: bold;">${getShowTotalNum(value)}</span>
           </div>
         `;
       }).join('');
