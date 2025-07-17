@@ -454,7 +454,7 @@
   </div>
 </template>
 <script>
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 // import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 // import MetricDimension from './metric-dimension/metric-dimension-dialog.vue';
 import {
@@ -1636,9 +1636,9 @@ export default {
             max-width: 197px;
             padding: 0 10px;
             overflow: hidden;
+            text-overflow: ellipsis;
             line-height: 30px;
             text-align: center;
-            text-overflow: ellipsis;
             white-space: nowrap;
 
             &.param-label-required:after {

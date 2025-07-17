@@ -27,7 +27,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { globalSearch } from 'monitor-api/modules/search';
 
 import './global-search-modal-new.scss';
