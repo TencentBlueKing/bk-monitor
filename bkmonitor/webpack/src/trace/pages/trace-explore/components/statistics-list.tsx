@@ -154,6 +154,13 @@ export default defineComponent({
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
+          statisticsInfo.value = {
+            field: '',
+            total_count: 0,
+            field_count: 0,
+            distinct_count: 0,
+            field_percent: 0,
+          };
           chartData.value = [];
         }
       }

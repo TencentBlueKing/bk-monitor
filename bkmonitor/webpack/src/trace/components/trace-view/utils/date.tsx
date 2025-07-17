@@ -172,7 +172,7 @@ export function formatDurationWithUnit(duration: number, split = '') {
   if (duration === 0) return '0μs';
   let remainingMicroseconds = duration;
   const durationUnits = units.reduce((pre, cur) => {
-    if (remainingMicroseconds > cur.microseconds) {
+    if (remainingMicroseconds >= cur.microseconds) {
       const primaryValue = Math.floor(remainingMicroseconds / cur.microseconds);
       remainingMicroseconds = remainingMicroseconds % cur.microseconds;
       pre.push(`${primaryValue}${cur.unit}`);
