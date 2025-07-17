@@ -262,13 +262,33 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
 };
 
 /**
+ * URL解码并转化
+ * @param str 需要解析的字符串
+ * @param defaultValue 默认值
+ * @returns 解析后的值
+ */
+export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
+  let result: T;
+  try {
+    result = JSON.parse(str);
+  } catch {
+    try {
+      result = JSON.parse(decodeURIComponent(str));
+    } catch {
+      result = defaultValue;
+    }
+  }
+  return result || defaultValue;
+}
+
+/**
  * 格式化百分比数值，使其在不同情况下都能合理显示，避免精度问题导致的数据失真
  * 如果数值小数过大，toFixed函数会导致精度丢失，
  * @param {number} value - 要格式化的百分比数值（可以是整数或浮点数）
  * @param {number} [precision=2] - 普通情况下小数点后保留的位数（默认2位）
  * @param {number} [sigFigCnt=2] - 当数值极小时，保留的有效数字位数（默认2位）
  * @param {number} [readablePrecision=6] - 当数值极小时，返回可读的最小值（默认1e-6）
- * @returns {number} 格式化后的数值
+ * @returns number格式化后的数值
  */
 export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePrecision = 6) {
   let percent = value;

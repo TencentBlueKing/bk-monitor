@@ -61,6 +61,7 @@ export default class K8SCharts extends tsc<
   },
   {
     onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
+    onFilterChange: (id: string, dimensionId: string, isSelect: boolean) => void;
   }
 > {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
@@ -147,7 +148,6 @@ export default class K8SCharts extends tsc<
     dom.scrollIntoView?.();
     dom.classList.add('scroll-in');
   }
-
   @Provide('onDrillDown')
   handleDrillDown(group: string, field: string) {
     let name = field;
@@ -167,6 +167,28 @@ export default class K8SCharts extends tsc<
       return;
     }
     this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
+  }
+
+  @Provide('onFilterChange')
+  handleFilterChange(field: string, dimensionId: string, isSelect: boolean) {
+    console.log(field, dimensionId, isSelect);
+    let name = field;
+    if (this.timeOffset.length) {
+      name = field.split('-')?.slice(1).join('-');
+    }
+    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+      const [container] = name.split(':');
+      this.$emit('filterChange', container, dimensionId, isSelect);
+      return;
+    }
+    if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
+      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
+      const list = field.split(':');
+      const id = isIngress ? list[0] : list[1];
+      this.$emit('filterChange', id, dimensionId, isSelect);
+      return;
+    }
+    this.$emit('filterChange', field, dimensionId, isSelect);
   }
 
   @Provide('onShowDetail')
@@ -234,6 +256,8 @@ export default class K8SCharts extends tsc<
             externalData: {
               groupByField: this.groupByField,
               metrics: [{ metric_id: panel.id }],
+              filters: this.filterCommonParams?.filter_dict?.[this.groupByField] || [],
+              scene: this.scene,
             },
             options: {
               legend: {

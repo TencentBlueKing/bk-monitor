@@ -143,19 +143,15 @@ export interface IGetValueFnParams {
   fields?: string[];
   queryString?: string;
 }
-
 export interface IFavoriteListItem {
   id: string;
   name: string;
-  favorites: {
-    name: string;
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-  }[];
+  groupName: string;
+  config: {
+    queryString?: string;
+    where?: IWhereItem[];
+    commonWhere?: IWhereItem[];
+  };
 }
 
 /**

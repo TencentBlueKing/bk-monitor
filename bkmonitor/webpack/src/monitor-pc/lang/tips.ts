@@ -330,6 +330,7 @@ export default {
   移除下钻: 'Remove drill down',
   添加为筛选项: 'Add as filter',
   移除该筛选项: 'Remove this filter',
+  查看该对象的其他场景: 'View other scenarios of this object',
   点击加载更多: 'Click to load more',
   '当前空间未开启{0}功能': 'The current space has not enabled the {0} feature',
   '当前告警不支持{0}功能': 'The current alarm does not support the {0} feature',

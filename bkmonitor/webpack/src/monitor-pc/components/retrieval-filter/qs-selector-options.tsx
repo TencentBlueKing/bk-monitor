@@ -175,16 +175,13 @@ export default class QsSelectorSelector extends tsc<IProps> {
     if (this.queryString && !/^\s*$/.test(this.queryString)) {
       const keyword = this.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
       for (const item of this.favoriteList) {
-        const favorites = item?.favorites || [];
-        for (const favoriteItem of favorites) {
-          const content = favoriteItem?.config?.queryConfig?.query_string || '';
-          if (content?.toLocaleLowerCase().includes(keyword)) {
-            favoriteOptions.push({
-              title: `${item.name} / ${favoriteItem.name}`,
-              content,
-              keyword,
-            });
-          }
+        const content = item?.config?.queryString || '';
+        if (content?.toLocaleLowerCase().includes(keyword)) {
+          favoriteOptions.push({
+            title: `${item.groupName} / ${item.name}`,
+            content,
+            keyword,
+          });
         }
       }
     }

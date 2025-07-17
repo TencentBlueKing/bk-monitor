@@ -50,7 +50,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
+  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -75,6 +75,10 @@
       default: () => [],
     },
 
+    limitRow: {
+      type: [Number, String, null],
+      default: 3,
+    },
     limitRow: {
       type: [Number, String, null],
       default: 3,
@@ -273,6 +277,16 @@
     if (refJsonFormatterCell.value) {
       const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
       hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+      return;
+    }
+
+    hasScrollY.value = false;
+  };
+
+  const setIsOverflowY = () => {
+    if (refJsonFormatterCell.value) {
+      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
+      hasScrollY.value = scrollHeight > offsetHeight;
       return;
     }
 
