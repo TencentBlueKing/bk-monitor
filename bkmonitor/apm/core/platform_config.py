@@ -24,13 +24,13 @@ from apm.constants import (
     DEFAULT_PLATFORM_LICENSE_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
-from apm.core.cluster_config import ClusterConfig
 from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.bk_collector_config import BkCollectorConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5
-from constants.apm import BkCollectorComp, SpanKindKey
+from constants.apm import SpanKindKey
+from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
@@ -78,7 +78,7 @@ class PlatformConfig(BkCollectorConfig):
         #    2.1 从集群中获取模版配置
         #    2.2 获取到模板，则下发，否则忽略该集群
         """
-        cluster_mapping = ClusterConfig.get_cluster_mapping()
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 补充中心化集群
@@ -90,7 +90,7 @@ class PlatformConfig(BkCollectorConfig):
                 f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
             ) as s:
                 try:
-                    platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
+                    platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
                     if platform_config_tpl is None:
                         # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                         continue
@@ -350,7 +350,7 @@ class PlatformConfig(BkCollectorConfig):
         bcs_client = BcsKubeClient(bcs_cluster_id)
         svc = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_service,
-            namespace=ClusterConfig.bk_collector_namespace(bcs_cluster_id),
+            namespace=BkCollectorClusterConfig.bk_collector_namespace(bcs_cluster_id),
             label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
         )
         count = len(svc.items)
@@ -492,7 +492,7 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
-        namespace = ClusterConfig.bk_collector_namespace(cluster_id)
+        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
