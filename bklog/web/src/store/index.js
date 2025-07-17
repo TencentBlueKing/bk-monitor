@@ -336,7 +336,6 @@ const store = new Vuex.Store({
       Object.keys(payload).forEach(key => {
         state.storage[key] = payload[key];
       });
-
       localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
 

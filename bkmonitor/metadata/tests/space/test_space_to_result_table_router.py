@@ -57,6 +57,7 @@ def create_or_delete_records(mocker):
         space_id="bkmonitor",
         space_name="bkmonitor",
         space_code="1111bkm",
+        bk_tenant_id="system",
         id=10000,
     )
     models.SpaceResource.objects.create(
@@ -163,6 +164,31 @@ def create_or_delete_records(mocker):
     models.DataSourceResultTable.objects.create(bk_data_id=50011, table_id="1001_bklog.stdout")
 
     # ---------------------日志数据--------------------- #
+
+    # ---------------------全局事件--------------------- #
+    models.DataSource.objects.create(
+        bk_data_id=60010,
+        data_name="test_event",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="test",
+        is_custom_source=False,
+        is_platform_data_id=True,
+        space_type_id="bkci",
+    )
+    models.ResultTable.objects.create(
+        table_id="bkmonitor_event_60010",
+        table_name_zh="test_devops_event",
+        bk_biz_id_alias="dimensions.project_id",
+        is_custom_table=True,
+    )
+    models.ESStorage.objects.create(
+        table_id="bkmonitor_event_60010",
+        storage_cluster_id=11,
+    )
+    models.DataSourceResultTable.objects.create(table_id="bkmonitor_event_60010", bk_data_id=60010)
+
+    # ---------------------全局事件--------------------- #
 
     # ---------------------自定义过滤别名--------------------- #
     models.SpaceTypeToResultTableFilterAlias.objects.create(
@@ -311,3 +337,15 @@ def test_compose_apm_all_type_table_ids(create_or_delete_records):
         "apm_global.precalculate_storage_2": {"filters": [{"biz_id": "-10008"}]},
         "apm_global.precalculate_storage_3": {"filters": [{"biz_id": "-10008"}]},
     }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_bkci_level_table_ids(create_or_delete_records):
+    """
+    测试特殊路由 -- BKCI下也使用RT中的bk_biz_id_alias
+    """
+    client = SpaceTableIDRedis()
+    settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = ["bkmonitor_event_60010"]
+    data = client._compose_bkci_level_table_ids(space_type="bkci", space_id="bkmonitor", bk_tenant_id="system")
+    expected = {"bkmonitor_event_60010": {"filters": [{"dimensions.project_id": "bkmonitor"}]}}
+    assert data == expected

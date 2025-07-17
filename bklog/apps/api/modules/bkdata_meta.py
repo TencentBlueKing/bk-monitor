@@ -22,7 +22,10 @@ the project delivered to anyone in the future.
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataDRFAPISet, DRFActionAPI
-from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter
+from apps.api.modules.utils import (
+    add_esb_info_before_request_for_bkdata_user,
+    biz_to_tenant_getter,
+)
 from config.domains import META_APIGATEWAY_ROOT
 
 
@@ -43,6 +46,10 @@ class _BkDataMetaApi:
                 "fields": DRFActionAPI(method="GET"),
             },
             bk_tenant_id=biz_to_tenant_getter(
-                lambda p: p["bk_biz_id"] if "bk_biz_id" in p else p["result_table_id"].split("_", 1)[0],
+                lambda p: p["bk_biz_id"]
+                if "bk_biz_id" in p
+                else p["result_table_id"].split("_", 1)[0]
+                if "result_table_id" in p
+                else p["result_table_ids"][0].split("_", 1)[0],
             ),
         )

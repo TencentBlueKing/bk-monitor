@@ -367,6 +367,10 @@ ADVANCED_OPTIONS = OrderedDict(
             "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
             slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
         ),
+        (
+            "SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST",
+            slz.ListField(label="使用RT中的路由过滤别名的结果表列表", default=[]),
+        ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
@@ -632,8 +636,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
+        # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关

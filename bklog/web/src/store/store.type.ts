@@ -80,7 +80,18 @@ enum BK_LOG_STORAGE {
    * 最后选择索引ID
    */
   LAST_INDEX_SET_ID = '_15',
+
+  /**
+   * 常用业务ID列表
+   */
+  COMMON_SPACE_ID_LIST = '_16',
+
+  /**
+   * 趋势图是否折叠
+   */
+  TREND_CHART_IS_FOLD = '_17',
 }
+
 
 export { BK_LOG_STORAGE };
 

@@ -212,6 +212,7 @@ def render_mails(
 
     try:
         render_args, err_msg = mail_handler.render_images_to_html(
+            report_item.bk_tenant_id,
             report_item.mail_title,
             report_item_contents,
             bk_biz_ids,
@@ -244,7 +245,7 @@ def render_mails(
     except Exception as e:
         exc = e
         # 有用户发送失败了也得继续，不能影响其他用户的发送流程
-        logger.exception("[mail_report] Send mail failed: %s" % e)
+        logger.exception(f"[mail_report] Send mail failed: {e}")
         status["details"]["error_message"][receivers_string] = str(e)
         status["is_success"] = False
         ReportStatus.objects.create(**status)
@@ -305,7 +306,7 @@ def render_image_task(task: RenderImageTask):
     # 根据任务类型，定义渲染函数及配置
     func, config = None, None
     if task.type == RenderImageTask.Type.DASHBOARD:
-        config = RenderDashboardConfig(**task.options)
+        config = RenderDashboardConfig(**task.options, bk_tenant_id=task.bk_tenant_id)
         func = render_dashboard_panel
     else:
         raise ValueError(f"Invalid task type: {task.type}")

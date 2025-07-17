@@ -1505,10 +1505,23 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                     if drill_result.get("alert_ids")
                     else []
                 )
+                strategy_alerts_mapping = {}
+                for alert in alerts:
+                    if not alert.get("strategy_id"):
+                        continue
+                    if str(alert["strategy_id"]) not in strategy_alerts_mapping:
+                        strategy_alerts_mapping[str(alert["strategy_id"])] = {
+                            "strategy_id": alert["strategy_id"],
+                            "strategy_name": alert["strategy_name"],
+                            "alerts": [],
+                        }
+                    strategy_alerts_mapping[str(alert["strategy_id"])]["alerts"].append(alert["id"])
+
                 content_item = {
                     "score": drill_result["score"],
                     "alert_count": len(alerts),
                     "alerts": alerts,
+                    "strategy_alerts_mapping": strategy_alerts_mapping,
                     "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
                 }
                 content.append(content_item)

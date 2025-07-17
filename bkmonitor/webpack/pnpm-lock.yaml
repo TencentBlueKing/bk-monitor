@@ -342,8 +342,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.14
-        version: 1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.1.0-beta.15
+        version: 1.1.0-beta.15(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -625,6 +625,12 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.4
+      '@toast-ui/editor':
+        specifier: ^3.2.2
+        version: 3.2.2
+      '@toast-ui/editor-plugin-code-syntax-highlight':
+        specifier: ^3.1.0
+        version: 3.1.0
       '@vue-flow/core':
         specifier: ^1.45.0
         version: 1.45.0(vue@3.5.15(typescript@5.8.3))
@@ -1496,8 +1502,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.14':
-    resolution: {integrity: sha512-CUVu1Xn6mgNalBLJwiunoSxiKU+Rk7WmBc10wk72mZu+lyhpEs4Qvqy8N6k3mKzE35AumcuDS9VHWZ31AKETrg==}
+  '@blueking/ai-blueking@1.1.0-beta.15':
+    resolution: {integrity: sha512-ExgxwBA6F5t2cRVPLpG12HSx3o+GB8SjeYfXVszcfL+TwJwf+jrOeh7G95gjal3S9VRCo7+F9IOmZkLRxfZNjQ==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -9701,7 +9707,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.1.0-beta.15(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.1.11(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)

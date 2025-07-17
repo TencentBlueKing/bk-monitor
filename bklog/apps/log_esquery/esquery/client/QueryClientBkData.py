@@ -80,12 +80,14 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         index_list: list = index.split(",")
         new_index_list: list = []
         has_wildcard = False
+        result_table_ids = []
         for _index in index_list:
             if not _index.endswith("*"):
                 _index = _index + "_*"
             else:
                 has_wildcard = True
             new_index_list.append(_index)
+            result_table_ids.append(_index.rsplit("_", maxsplit=1)[0])
         index = ",".join(new_index_list)
 
         params = {
@@ -100,7 +102,49 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
 
         mapping_dict: type_mapping_dict = self._client.query(params)
         result_dict: dict = mapping_dict.get("list", {})
-        return self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
+        data = self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
+        if add_settings_details:
+            # 添加自定义分词信息
+            data = self.add_analyzer_details(result_table_ids, data)
+        return data
+
+    @staticmethod
+    def add_analyzer_details(result_table_ids, mapping):
+        """
+        为bkdata的索引集添加自定义分词
+        """
+        result_tables = BkDataMetaApi.result_tables.list(
+            {"result_table_ids": result_table_ids, "related": ["storages"]}
+        )
+        result_table_mappings = {}
+        for item in result_tables:
+            tokenizers = json.loads(item.get("storages", {}).get("es", {}).get("storage_config", "{}")).get(
+                "tokenizers", {}
+            )
+            if not tokenizers:
+                continue
+            result_table_mappings[item["result_table_id"]] = tokenizers
+        if not result_table_mappings:
+            return mapping
+
+        for result_table_id, result_table_config in mapping.items():
+            result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
+            tokenizers_config = result_table_mappings.get(result_table_id_bkbase)
+            if not tokenizers_config:
+                continue
+            result_table_id_es = result_table_id_bkbase.split("_", maxsplit=1)[-1]
+            field_configs = result_table_config["mappings"][result_table_id_es]["properties"]
+            for field_name, field_config in field_configs.items():
+                if field_name in tokenizers_config:
+                    field_config.update(
+                        {
+                            "analyzer": "bkbase_custom",
+                            "analyzer_details": {
+                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
+                            },
+                        }
+                    )
+        return mapping
 
     @staticmethod
     def filter_mapping(indices: list, indices_mapping: dict):

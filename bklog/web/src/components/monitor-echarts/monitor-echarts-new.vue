@@ -105,6 +105,7 @@
 <script lang="ts">
   import { Vue, Prop, Ref, Component, Watch } from 'vue-property-decorator';
 
+  import useStore from '@/hooks/use-store';
   import dayjs from 'dayjs';
   import deepMerge from 'deepmerge';
   import Echarts, { EChartOption } from 'echarts';
@@ -128,6 +129,7 @@
     ITextChartOption,
     ChartType,
   } from './options/type-interface';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
   import { hexToRgbA } from './utils';
   import ChartInView from './utils/chart-in-view';
   import watermarkMaker from './utils/watermark-maker';
@@ -151,6 +153,9 @@
       TextChart,
     },
   })
+
+  const store = useStore();
+
   export default class MonitorEcharts extends Vue {
     @Ref() readonly chartRef!: HTMLDivElement;
     @Ref() readonly charWrapRef!: HTMLDivElement;
@@ -206,7 +211,7 @@
     @Prop({ default: 165 }) height: number | string;
     @Prop({ default: 1, type: Number }) lineWidth: number;
 
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+    @Prop({ default: store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] }) isFold: boolean;
 
     // chart: Echarts.ECharts = null
     resizeHandler: ResizeCallback<HTMLDivElement>;

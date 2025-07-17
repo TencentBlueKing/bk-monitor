@@ -394,6 +394,7 @@ class PlatformConfig(BkCollectorConfig):
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
+            "default_value": [{"type": "string", "key": "resource.service.name", "value": "unknown_service"}],
         }
 
     @classmethod

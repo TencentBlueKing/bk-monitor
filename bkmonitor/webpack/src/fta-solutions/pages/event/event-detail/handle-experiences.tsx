@@ -113,7 +113,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 默认填充维度维度 */
   defaultDimensionValue: { [propName: string]: string[] } = {};
 
-  @Watch('show')
+  @Watch('show', { immediate: true })
   async handleShow(v) {
     if (v) {
       if (this.experienceList.length) return;

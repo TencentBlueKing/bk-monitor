@@ -715,6 +715,24 @@ class DataSource(metaclass=ABCMeta):
                 if field in self.group_by:
                     continue
                 self.group_by.append(field)
+            # group by 去掉数值型字段，数值型的过滤依然留在self.where中
+            # 由于group by 去掉数值型类型， 所有数据中不会有对应数值型字段
+            # 但_advance_where中有对应key是数值型的condition，由于待匹配的数据没有对应字段， 所以这个condition不生效，符合预期
+            # con = [{'key': 'fail_user_num', 'value': [10], 'method': 'gte'}]
+            # In[1]: load_agg_condition_instance(con).is_match({})
+            # Out[1]: True
+            # In[2]: load_agg_condition_instance(con).is_match({"fail_user_num": 11})
+            # Out[2]: True
+            # In[3]: load_agg_condition_instance(con).is_match({"fail_user_num": 1})
+            # Out[3]: False
+            num_compare_method = ["gt", "gte", "lt", "lte"]
+            remove_num_fields = set()
+            for condition in self._advance_where:
+                if condition["method"] in num_compare_method:
+                    self.where.append(condition)
+                    remove_num_fields.add(condition["key"])
+            if remove_num_fields:
+                self.group_by = [field for field in self.group_by if field not in remove_num_fields]
 
     @property
     def metric_display(self):
@@ -2070,7 +2088,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if self.query_string and self.query_string != "*":
             return True
 
-        return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
+        # 如果业务在黑名单中，则不使用 UnifyQuery。
+        return (
+            bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+            and str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+        )
 
     def _get_unify_query_table(self) -> str:
         table_mapping: dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}

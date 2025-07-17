@@ -27,7 +27,7 @@
 import { computed, defineComponent, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { formatDuration } from '@/components/trace-view/utils/date';
+import { formatDurationWithUnit } from '@/components/trace-view/utils/date';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
@@ -121,8 +121,8 @@ export default defineComponent({
       if (props.isDuration) {
         const nameVal = params[0].name.split('-');
         const [start, end] = nameVal;
-        const startLabel = formatDuration(Number(start || 0), '', '');
-        const endLabel = formatDuration(Number(end || 0), '', '');
+        const startLabel = formatDurationWithUnit(Number(start || 0));
+        const endLabel = formatDurationWithUnit(Number(end || 0));
         name = `${startLabel} - ${endLabel}`;
         value = params[0].value[1];
       }

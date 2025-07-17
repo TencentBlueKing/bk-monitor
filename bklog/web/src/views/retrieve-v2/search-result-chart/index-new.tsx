@@ -1,0 +1,456 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { defineComponent, ref, computed, nextTick, onMounted, watch, onBeforeUnmount, inject } from 'vue';
+import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
+import useLocale from '@/hooks/use-locale';
+import { formatNumberWithRegex } from '@/common/util';
+import BklogPopover from '@/components/bklog-popover';
+import GradeOption from '@/components/monitor-echarts/components/grade-option';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import http from '@/api';
+import useTrendChart from '@/hooks/use-trend-chart';
+import { getCommonFilterAddition } from '@/store/helper';
+import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import { throttle } from 'lodash';
+import './index-new.scss';
+
+export default defineComponent({
+  name: 'SearchResultChart',
+  emits: ['toggle-change'],
+  setup(props, { emit }) {
+    const store = useStore();
+    const route = useRoute();
+    const router = useRouter();
+    const { t } = useLocale();
+
+    // 图表容器和标题的 DOM 引用
+    const chartContainer = ref<HTMLElement | null>(null);
+    const chartTitle = ref<HTMLElement | null>(null);
+
+    // 折叠状态
+    const isFold = ref<boolean>(false);
+
+    // 当前选中的汇聚周期
+    const chartInterval = ref<string>('auto');
+
+    const subtitle = ref<string>(''); // 如有副标题可用
+    const refGradePopover = ref();
+    const refGradeOption = ref();
+
+    const trendChartCanvas = ref(null);
+    const dynamicHeight = ref(130);
+
+    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const unionIndexList = computed(() => store.getters.unionIndexList);
+    const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
+
+    let logChartCancel: any = null; // 取消请求的方法
+    let isInit = true; // 是否为首次请求
+    let runningTimer: any = null; // 定时器
+
+    // 监听store中interval变化，自动同步到chartInterval
+    watch(
+      () => store.getters.retrieveParams.interval,
+      newVal => {
+        chartInterval.value = newVal;
+      },
+      { immediate: true },
+    );
+
+    const tippyOptions = {
+      appendTo: document.body,
+      hideOnClick: false,
+      onShown: () => {
+        // popover 展开时，更新分级配置
+        const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+        refGradeOption.value?.updateOptions?.(cfg);
+      },
+    };
+
+    // popover 隐藏前的拦截逻辑
+    const beforePopoverHide = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
+        target.classList.contains('bklog-popover-stop')
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    // 分级配置变更回调
+    const handleGradeOptionChange = ({ isSave }) => {
+      refGradePopover.value?.hide();
+      if (isSave) {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      }
+    };
+
+    // 是否正在加载趋势图数据
+    const loading = computed(() => store.state.retrieve.isTrendDataLoading);
+
+    // 总条数和耗时
+    const totalCount = computed(() => store.state.searchTotal);
+    const tookTime = computed(() => Number.parseFloat(store.state.tookTime).toFixed(0));
+
+    // 汇聚周期选项
+    const intervalArr = [
+      { id: 'auto', name: 'auto' },
+      { id: '1m', name: '1 min' },
+      { id: '5m', name: '5 min' },
+      { id: '1h', name: '1 h' },
+      { id: '1d', name: '1 d' },
+    ];
+
+    // 格式化数字
+    const getShowTotalNum = (num: number) => formatNumberWithRegex(num);
+
+    // 获取容器高度
+    const getOffsetHeight = () => chartContainer.value?.offsetHeight ?? 26;
+
+    // 切换折叠状态
+    const toggleExpand = (val: boolean) => {
+      isFold.value = val;
+      store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: val });
+      nextTick(() => {
+        emit('toggle-change', !isFold.value, getOffsetHeight());
+      });
+    };
+
+    // 切换汇聚周期
+    const handleChangeInterval = (v: string) => {
+      chartInterval.value = v;
+      store.commit('updateIndexItem', { interval: v });
+      store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
+      router.replace({
+        query: {
+          ...route.query,
+          interval: v,
+        },
+      });
+      store.commit('retrieve/updateTrendDataLoading', true);
+      setTimeout(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
+      });
+    };
+
+    // 初始化、设置、重绘图表
+    const handleChartDataZoom = inject('handleChartDataZoom', () => {});
+    const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
+      target: trendChartCanvas,
+      handleChartDataZoom,
+      dynamicHeight,
+    });
+
+    // 节流后的回退操作函数
+    const throttledBackToPreChart = throttle(backToPreChart, 500, { trailing: false });
+
+    // 根据时间范围决定是否分段请求
+    const handleRequestSplit = (startTime, endTime) => {
+      const duration = (endTime - startTime) / 3600000; // 计算时间间隔，单位：小时
+      if (duration <= 6) return 0;
+      if (duration < 48) return 21600 * 1000;
+      return (86400 * 1000) / 2;
+    };
+
+    // 趋势图数据请求主函数
+    const getSeriesData = async (startTimeStamp, endTimeStamp) => {
+      const runningInterval = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔
+      const gen = getGenFn({ startTimeStamp, endTimeStamp, runningInterval }); // 定义生成器
+
+      let result = gen.next();
+      while (!result.done) {
+        const { urlStr, indexId, queryData } = result.value;
+        try {
+          const res = await fetchTrendChartData(urlStr, indexId, queryData);
+          setChartData(res?.data?.aggs, queryData.group_field, isInit);
+          isInit = false;
+          console.log('完成一次请求--------')
+          console.log('loading:', loading.value)
+        } catch (err) {
+          store.commit('retrieve/updateTrendDataLoading', false);
+          break;
+        }
+        result = gen.next();
+      }
+      store.commit('retrieve/updateTrendDataLoading', false);
+    };
+
+    // 趋势图数据请求生成器
+    function* getGenFn({ startTimeStamp, endTimeStamp, runningInterval }) {
+      const { interval } = initChartData(); // 获取趋势图汇聚周期
+      let currentTimeStamp = endTimeStamp; // 从最后一段时间开始请求
+
+      // 组装请求参数方法
+      const buildQueryParams = (start_time: number, end_time: number) => {
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
+        const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
+        const queryData = {
+          ...retrieveParams.value,
+          addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
+          time_range: 'customized',
+          interval: interval,
+          start_time: start_time,
+          end_time: end_time,
+        };
+        if (isUnionSearch.value) {
+          Object.assign(queryData, { index_set_ids: unionIndexList.value });
+        }
+        if (
+          gradeOptions.value &&
+          !gradeOptions.value.disabled &&
+          gradeOptions.value.type === 'custom' &&
+          gradeOptions.value.field
+        ) {
+          Object.assign(queryData, { group_field: gradeOptions.value.field });
+        }
+        return { urlStr, indexId, queryData };
+      };
+
+      while (currentTimeStamp >= startTimeStamp) {
+        // 计算本轮请求结束时间
+        let end_time = runningInterval === 0 ? endTimeStamp : currentTimeStamp;
+
+        // 计算本轮请求开始时间
+        let start_time = runningInterval === 0 ? startTimeStamp : end_time - runningInterval;
+        if (start_time < startTimeStamp) {
+          start_time = startTimeStamp;
+        }
+
+        // 获取请求参数
+        const { urlStr, indexId, queryData } = buildQueryParams(start_time, end_time);
+
+        if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+          yield { urlStr, indexId, queryData };
+
+          // 如果不分段，请求一次直接结束
+          if (runningInterval === 0) break;
+
+          currentTimeStamp -= runningInterval;
+        }
+      }
+
+      // 循环结束
+      return undefined;
+    }
+
+    // 趋势图数据请求接口
+    const fetchTrendChartData = (urlStr, indexId, queryData) => {
+      const controller = new AbortController();
+      logChartCancel = () => controller.abort();
+
+      return http
+        .request(
+          urlStr,
+          {
+            params: { index_set_id: indexId },
+            data: queryData,
+          },
+          {
+            signal: controller.signal,
+          },
+        )
+        .catch(err => {
+          store.commit('retrieve/updateTrendDataLoading', false); // 请求失败时,关闭loading
+        });
+    };
+
+    // 加载趋势图数据
+    const loadTrendData = () => {
+      if (totalCount.value <= 0 || isFold.value) return;
+
+      logChartCancel?.(); // 取消上一次未完成的趋势图请求
+      setChartData(null, null, true); // 清空图表数据, 重置为初始状态
+
+      runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
+
+      // 开始拉取新一轮趋势数据
+      runningTimer = setTimeout(() => {
+        isInit = true;
+        store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      });
+    };
+
+    // 监听总条数数量，自动刷新趋势图（只监听一次）
+    let initLoadedTrend = false;
+    watch(
+      () => totalCount.value,
+      val => {
+        if (!initLoadedTrend && val > 0 && !isFold.value) {
+          loadTrendData();
+          initLoadedTrend = true;
+        }
+      },
+      { immediate: true },
+    );
+
+    onMounted(() => {
+      // 初始化折叠状态
+      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] || false;
+      nextTick(() => {
+        emit('toggle-change', !isFold.value, getOffsetHeight());
+      });
+
+      // 监听检索相关事件，自动刷新趋势图
+      RetrieveHelper.on(
+        [
+          RetrieveEvent.SEARCH_VALUE_CHANGE,
+          RetrieveEvent.SEARCH_TIME_CHANGE,
+          RetrieveEvent.TREND_GRAPH_SEARCH,
+          RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+          RetrieveEvent.INDEX_SET_ID_CHANGE,
+        ],
+        loadTrendData,
+      );
+    });
+
+    onBeforeUnmount(() => {
+      // 组件卸载时清理定时器和事件监听
+      runningTimer && clearTimeout(runningTimer);
+      logChartCancel?.();
+      RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
+      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
+      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
+    });
+
+    // 渲染标题内容
+    const chartTitleContent = () => {
+      return (
+        <div
+          ref={chartTitle}
+          class='chart-title'
+          tabindex={0}
+        >
+          <div class='main-title'>
+            {/* 折叠/展开按钮及主标题 */}
+            <div
+              class='title-click'
+              onClick={() => toggleExpand(!isFold.value)}
+            >
+              <span class={['bk-icon', 'icon-down-shape', { 'is-flip': isFold.value }]}></span>
+              <div class='title-name'>{t('总趋势')}</div>
+              <i18n
+                class='time-result'
+                path='（找到 {0} 条结果，用时 {1} 毫秒) {2}'
+              >
+                <span class='total-count'>{getShowTotalNum(totalCount.value)}</span>
+                <span>{tookTime.value}</span>
+              </i18n>
+            </div>
+            {/* 汇聚周期选择与分级设置 */}
+            {!isFold.value && (
+              <div class='converge-cycle'>
+                {canGoBack.value && (
+                  <span
+                    class='chart-back-btn'
+                    onClick={throttledBackToPreChart}
+                  >
+                    <span
+                      class='bk-icon icon-angle-left-line'
+                      style={{ marginRight: '2px' }}
+                    ></span>
+                    {t('回退')}
+                  </span>
+                )}
+                <span>{t('汇聚周期')} : </span>
+                <bk-select
+                  ext-cls='select-custom'
+                  value={chartInterval.value}
+                  clearable={false}
+                  popover-width={70}
+                  behavior='simplicity'
+                  data-test-id='generalTrendEcharts_div_selectCycle'
+                  size='small'
+                  onChange={handleChangeInterval}
+                >
+                  {intervalArr.map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    />
+                  ))}
+                </bk-select>
+                <BklogPopover
+                  content-class='bklog-v3-grade-setting'
+                  ref={refGradePopover}
+                  options={tippyOptions as any}
+                  beforeHide={beforePopoverHide}
+                  content={() => (
+                    <GradeOption
+                      ref={refGradeOption}
+                      on-Change={handleGradeOptionChange}
+                    />
+                  )}
+                >
+                  <span class='bklog-icon bklog-shezhi'></span>
+                </BklogPopover>
+              </div>
+            )}
+          </div>
+          {/* 副标题 */}
+          {subtitle.value && <div class='sub-title'>{subtitle.value}</div>}
+        </div>
+      );
+    };
+
+    // 渲染主入口
+    return () => (
+      <div
+        ref={chartContainer}
+        class={['monitor-echarts-container', { 'is-fold': isFold.value }]}
+        data-test-id='retrieve_div_generalTrendEcharts'
+      >
+        {/* 标题部分 */}
+        <div class='title-wrapper-new'>
+          {/* 1. 标题内容 */}
+          {chartTitleContent()}
+          {/* 2. 加载中动画 */}
+          {loading.value && !isFold.value && <bk-spin class='chart-spin'></bk-spin>}
+        </div>
+        {/* 图表部分 */}
+        <div
+          v-show={!isFold.value}
+          class='monitor-echart-wrap'
+          v-bkloading={{ zIndex: 10, size: 'mini' }}
+        >
+          <div
+            ref={trendChartCanvas}
+            style={{ height: `${dynamicHeight.value}px` }}
+          ></div>
+        </div>
+      </div>
+    );
+  },
+});

@@ -356,21 +356,6 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        if not data.get("is_desensitize"):
-            # 只针对白名单中的APP_CODE开放不脱敏的权限
-            auth_info = Permission.get_auth_info(self.request, raise_exception=False)
-            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
-                data["is_desensitize"] = True
-        if data.get("is_desensitize"):
-            # 对脱敏白名单中的用户开放不脱敏的权限
-            bk_biz_id = data.get("bk_biz_id", "")
-            request_user = get_request_username()
-            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
-            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
-                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
-                if request_user in user_white_list.get(str(bk_biz_id), []):
-                    # 用户在脱敏白名单中,开放不脱敏权限
-                    data["is_desensitize"] = False
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())

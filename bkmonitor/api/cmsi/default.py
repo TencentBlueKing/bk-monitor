@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,7 +12,7 @@ import abc
 import base64
 import json
 from copy import deepcopy
-from typing import Dict, List, Union
+from typing import Any
 
 import six
 from django.conf import settings
@@ -25,7 +24,29 @@ from core.errors.api import BKAPIError
 
 
 class CMSIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/c/compapi/v2/cmsi/" % settings.BK_COMPONENT_API_URL
+    """
+    CMSI 接口基类
+    """
+
+    def use_apigw(self):
+        """
+        是否使用 apigw
+        """
+        return settings.ENABLE_MULTI_TENANT_MODE or settings.CMSI_API_BASE_URL
+
+    @property
+    def base_url(self):
+        # 优先使用配置的接口地址
+        if settings.CMSI_API_BASE_URL:
+            return settings.CMSI_API_BASE_URL
+
+        # 多租户模式下，使用 apigw 接口
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return f"{settings.BK_COMPONENT_API_URL}/api/bk-cmsi/prod/"
+
+        # 否则使用旧的接口地址
+        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/cmsi/"
+
     module_name = "cmsi"
 
 
@@ -49,7 +70,7 @@ class CheckCMSIResource(CMSIBaseResource):
         }
     """
 
-    def perform_request(self, validated_request_data: Dict[str, Union[List[str], any]]):
+    def perform_request(self, validated_request_data: dict[str, list[str] | str | Any]):
         """
         发送请求
         """
@@ -59,23 +80,27 @@ class CheckCMSIResource(CMSIBaseResource):
 
         return self.send_request(validated_request_data, receivers)
 
-    @classmethod
-    def get_receivers(cls, validated_request_data: Dict) -> List[str]:
+    def get_receivers(self, validated_request_data: dict) -> list[str]:
         """
         获取接收用户列表
         优先 receiver__username， 再 receiver
         """
+        receivers: list[str] = []
         if validated_request_data.get("receiver__username"):
-            receivers: List[str] = validated_request_data["receiver__username"].split(",")
-        elif isinstance(validated_request_data["receiver"], list):
-            receivers: List = validated_request_data["receiver"]
-            validated_request_data["receiver"] = ",".join(receivers)
+            if isinstance(validated_request_data["receiver__username"], list):
+                receivers = validated_request_data["receiver__username"]
+            else:
+                receivers = validated_request_data["receiver__username"].split(",")
+        elif validated_request_data.get("receiver"):
+            receivers = validated_request_data["receiver"]
+            if not self.use_apigw():
+                validated_request_data["receiver"] = ",".join(receivers)
         else:
-            receivers: List = validated_request_data["receiver"].split(",")
+            receivers = validated_request_data["receiver"].split(",")
 
         return receivers
 
-    def send_request(self, validated_request_data: Dict, receivers: List[str]):  # send_failed_users
+    def send_request(self, validated_request_data: dict, receivers: list[str]):  # send_failed_users
         """
         发送请求
         """
@@ -112,7 +137,7 @@ class CheckCMSIResource(CMSIBaseResource):
             return response_data
 
         except Exception as e:
-            self.report_api_failure_metric(error_code=getattr(e, 'code', 0), exception_type=type(e).__name__)
+            self.report_api_failure_metric(error_code=getattr(e, "code", 0), exception_type=type(e).__name__)
             # 其他没有处理到的异常，默认发送失败
 
             response_data["username_check"]["invalid"] = receivers
@@ -120,7 +145,7 @@ class CheckCMSIResource(CMSIBaseResource):
             return response_data
 
     @classmethod
-    def get_external_receiver_info(cls, receivers_username: List[str]) -> Dict[str, Dict[str, str]]:
+    def get_external_receiver_info(cls, receivers_username: list[str]) -> dict[str, dict[str, str]]:
         """
         通过用户名获取用户信息(邮箱和电话号)
         param
@@ -147,7 +172,7 @@ class CheckCMSIResource(CMSIBaseResource):
         return {
             receiver["username"]: {
                 "email": receiver["email"],
-                "phone": f"+{receiver['phone_country_code']}{receiver['phone']}" if receiver['phone'] else "",
+                "phone": f"+{receiver['phone_country_code']}{receiver['phone']}" if receiver["phone"] else "",
             }
             for receiver in receivers_info
         }
@@ -158,7 +183,10 @@ class GetMsgType(CMSIBaseResource):
     查询通知类型
     """
 
-    action = "get_msg_type"
+    @property
+    def action(self):
+        return "v1/channels" if self.use_apigw() else "get_msg_type"
+
     method = "GET"
 
     def render_response_data(self, validated_request_data, response_data):
@@ -293,7 +321,10 @@ class SendWeixin(CheckCMSIResource):
     发送微信消息
     """
 
-    action = "send_weixin"
+    @property
+    def action(self):
+        return "v1/send_weixin/" if self.use_apigw() else "send_weixin"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -324,13 +355,25 @@ class SendWeixin(CheckCMSIResource):
 
             return params
 
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        if self.use_apigw():
+            validated_request_data["receiver__username"] = validated_request_data["receiver__username"].split(",")  # type: ignore
+            validated_request_data["message_data"] = validated_request_data.pop("data")
+        return super().perform_request(validated_request_data)
+
 
 class SendMail(CheckCMSIResource):
     """
     发送邮件消息
     """
 
-    action = "send_mail"
+    @property
+    def action(self):
+        return "v1/send_mail/" if self.use_apigw() else "send_mail"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -359,12 +402,18 @@ class SendMail(CheckCMSIResource):
 
             return attrs
 
-    def perform_request(self, validated_request_data: Dict[str, Union[List[str], any]]):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         """
         发送请求
 
         针对内部用户和外部用户做一个额外判断处理
         """
+        # 如果使用 apigw，则需要将 receiver__username, cc__username, cc, receiver 字段转换为列表
+        if self.use_apigw():
+            for field in ["receiver__username", "cc__username", "cc", "receiver"]:
+                if validated_request_data.get(field):
+                    validated_request_data[field] = validated_request_data[field].split(",")
+
         self.message_detail = {}
 
         # 如果没有 receiver__username 说明是直接用 receiver 邮箱发送的
@@ -377,10 +426,15 @@ class SendMail(CheckCMSIResource):
             return super().perform_request(validated_request_data)
 
         # 区分内外部用户
-        internal_users: List[str] = []
-        external_users: List[str] = []
+        internal_users: list[str] = []
+        external_users: list[str] = []
 
-        for username in validated_request_data.get("receiver__username").split(","):
+        # 兼容不同类型
+        usernames: list[str] = validated_request_data["receiver__username"]
+        if isinstance(usernames, str):
+            usernames = usernames.split(",")
+
+        for username in usernames:
             # 通过是否以 "@tai" 结尾判断是否是内外部用户
             if self.is_external_user(username):
                 external_users.append(username)
@@ -397,16 +451,18 @@ class SendMail(CheckCMSIResource):
         # 内部用户 针对内部用户直接通过 receiver__username 发送
         if internal_users:
             request_data = deepcopy(validated_request_data)
-            request_data["receiver__username"] = ",".join(internal_users)
+            if not self.use_apigw():
+                request_data["receiver__username"] = ",".join(internal_users)
             request_data.pop("receiver", None)
-            response = self.send_request(request_data, request_data["receiver__username"])
+            response = self.send_request(request_data, internal_users)  # type: ignore
 
         # 外部用户 针对外部用户通过 需要转化成 receiver 邮箱的方式直接发送
         if external_users:  # <- 以@结尾,还需要转化成邮箱
             # receivers -> 邮箱
             receivers = self.get_receivers_with_external_users(external_users)
             request_data = deepcopy(validated_request_data)
-            request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
+            if not self.use_apigw():
+                request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
             request_data.pop("receiver__username", None)
             if receivers:
                 external_send_response = self.send_request(request_data, external_users)
@@ -426,7 +482,7 @@ class SendMail(CheckCMSIResource):
 
         return response or default_response_data
 
-    def get_receivers_with_external_users(self, external_users: List[str]) -> List[str]:
+    def get_receivers_with_external_users(self, external_users: list[str]) -> list[str]:
         """
         获取接收者
 
@@ -455,14 +511,14 @@ class SendMail(CheckCMSIResource):
         # 获取最终的 receivers
         return [receivers_info[username]["email"] for username in exist_usernames]
 
-    def rich_message_detail_with_usernames(self, usernames: List[str], message_detail):
+    def rich_message_detail_with_usernames(self, usernames: list[str], message_detail):
         """
         丰富异常用户的消息详情
         """
         self.message_detail.update({username: message_detail for username in usernames})
 
     @classmethod
-    def is_external_user(self, username: str) -> bool:
+    def is_external_user(cls, username: str) -> bool:
         return username.endswith("@tai")
 
 
@@ -471,7 +527,10 @@ class SendSms(CheckCMSIResource):
     发送短信消息
     """
 
-    action = "send_sms"
+    @property
+    def action(self):
+        return "v1/send_sms/" if self.use_apigw() else "send_sms"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
@@ -483,8 +542,18 @@ class SendSms(CheckCMSIResource):
         def validate(self, attrs):
             if attrs["is_content_base64"]:
                 attrs["content"] = base64.b64encode(attrs["content"].encode("utf-8")).decode("utf-8")
-
             return attrs
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        # 如果使用 apigw，则需要将 receiver__username, receiver 字段转换为列表
+        if self.use_apigw():
+            for field in ["receiver__username", "receiver"]:
+                if validated_request_data.get(field):
+                    validated_request_data[field] = validated_request_data[field].split(",")  # type: ignore
+        return super().perform_request(validated_request_data)
 
 
 class SendVoice(CMSIBaseResource):
@@ -492,17 +561,23 @@ class SendVoice(CMSIBaseResource):
     发送语言消息
     """
 
-    action = "send_voice_msg"
+    @property
+    def action(self):
+        return "v1/send_voice/" if self.use_apigw() else "send_voice_msg"
+
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        class UserInfo(serializers.Serializer):
-            username = serializers.CharField()
-            mobile_phone = serializers.CharField(required=False)
-
-        user_list_information = UserInfo(required=False, many=True)
-        receiver__username = serializers.CharField(required=False)
+        receiver__username = serializers.CharField()
         auto_read_message = serializers.CharField()
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        """
+        发送请求
+        """
+        if self.use_apigw():
+            validated_request_data["receiver__username"] = validated_request_data["receiver__username"].split(",")  # type: ignore
+        return super().perform_request(validated_request_data)
 
 
 class SendWecomRobot(CheckCMSIResource):

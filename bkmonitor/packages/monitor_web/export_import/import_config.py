@@ -39,6 +39,7 @@ from monitor_web.models import (
 )
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.resources import CreatePluginResource
+from packages.monitor_web.strategies.default_settings.datalink.v1 import DEFAULT_DATALINK_COLLECTING_FLAG
 from utils import count_md5
 
 logger = logging.getLogger("monitor_web")
@@ -235,12 +236,12 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
     }
 
     # 已存在的用户组
-    existed_user_group_names = set(UserGroup.objects.filter(bk_biz_id=bk_biz_id).values_list('name', flat=True))
+    existed_user_group_names = set(UserGroup.objects.filter(bk_biz_id=bk_biz_id).values_list("name", flat=True))
     # 新创建的用户组
     newly_created_user_groups = {}  # {user_group.name: user_group}
 
     # 已存在的处理套餐
-    existed_action_names = set(ActionConfig.objects.filter(bk_biz_id=bk_biz_id).values_list('name', flat=True))
+    existed_action_names = set(ActionConfig.objects.filter(bk_biz_id=bk_biz_id).values_list("name", flat=True))
     # 新创建的处理套餐
     newly_created_actions = {}  # {action.name: action}
 
@@ -317,18 +318,18 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 user_group = exited_user_groups.get(name)
 
                 if not is_overwrite_mode:
-                    while group_detail['name'] in existed_user_group_names:
-                        group_detail['name'] = f"{group_detail['name']}_clone"
+                    while group_detail["name"] in existed_user_group_names:
+                        group_detail["name"] = f"{group_detail['name']}_clone"
 
-                if group_detail['name'] in newly_created_user_groups:
-                    related_group_ids.append(newly_created_user_groups[group_detail['name']].id)
+                if group_detail["name"] in newly_created_user_groups:
+                    related_group_ids.append(newly_created_user_groups[group_detail["name"]].id)
                     continue
 
                 user_group_serializer = UserGroupDetailSlz(user_group, data=group_detail)
                 user_group_serializer.is_valid(raise_exception=True)
                 instance = user_group_serializer.save()
                 related_group_ids.append(instance.id)
-                newly_created_user_groups[group_detail['name']] = instance
+                newly_created_user_groups[group_detail["name"]] = instance
 
             # 更新处理套餐关联的告警组ID
             for action in action_list:
@@ -342,19 +343,19 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 config["bk_biz_id"] = bk_biz_id
 
                 if not is_overwrite_mode:
-                    while config['name'] in existed_action_names:
-                        config['name'] = f"{config['name']}_clone"
+                    while config["name"] in existed_action_names:
+                        config["name"] = f"{config['name']}_clone"
 
                 # 避免重复创建处理套餐
                 if config["name"] in newly_created_actions:
-                    action["config_id"] = newly_created_actions[config['name']].id
+                    action["config_id"] = newly_created_actions[config["name"]].id
                     continue
 
                 action_config_instance, created = ActionConfig.objects.update_or_create(
                     name=config["name"], bk_biz_id=bk_biz_id, defaults=config
                 )
                 action["config_id"] = action_config_instance.id
-                newly_created_actions[config['name']] = action_config_instance
+                newly_created_actions[config["name"]] = action_config_instance
 
             # 替换agg_condition中关联采集配置相关信息
             for query_config in create_config["items"][0]["query_configs"]:
@@ -480,9 +481,12 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
     """
     获取策略配置列表（包含用户组详细信息）
     """
-    strategy_configs = resource.strategies.get_strategy_list_v2(
+    strategy_configs: list[dict] = resource.strategies.get_strategy_list_v2(
         bk_biz_id=bk_biz_id,
-        conditions=[{"key": "id", "value": strategy_ids}],
+        conditions=[
+            {"key": "id", "value": strategy_ids},
+            {"key": "source__neq", "value": DEFAULT_DATALINK_COLLECTING_FLAG},
+        ],
         page=0,
         page_size=0,
         with_user_group=True,

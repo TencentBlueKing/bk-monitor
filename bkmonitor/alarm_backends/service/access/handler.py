@@ -40,7 +40,7 @@ class AccessBeater(MonitorBeater):
     def __init__(self, name, targets, service, entries=None):
         super().__init__(name, entries)
         self.targets = targets or []
-        self.max_access_data_period = 60
+        self.max_access_data_period = 58
         self.interval_map = {}
         self.service = service
         self.host_target = []
@@ -152,7 +152,7 @@ class AccessHandler(base.BaseHandler):
         access_type = option.get("access_type")
         self.service = option.get("service")
         if access_type not in ACCESS_TYPE_TO_CLASS:
-            raise Exception("Unknown Access Type(%s)." % str(access_type))
+            raise Exception(f"Unknown Access Type({str(access_type)}).")
 
         self.access_type = access_type
         self.targets = targets or []

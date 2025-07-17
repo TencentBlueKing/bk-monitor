@@ -30,7 +30,7 @@ class Config:
 
     timezone = "Asia/Shanghai"
 
-    schedule = {
+    beat_schedule = {
         "monitor_web.tasks.update_external_approval_status": {
             "task": "monitor_web.tasks.update_external_approval_status",
             "schedule": crontab(minute="*/10"),

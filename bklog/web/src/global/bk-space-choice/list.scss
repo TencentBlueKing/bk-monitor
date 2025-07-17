@@ -1,11 +1,8 @@
 @import '../../scss/theme/index.scss';
 
 .biz-list-wrap {
-  // $bg-dark: #39455f;$bg-dark
   $bg-dark: #192133;
-  // $color-dark:#c3d0e7;$color-dark
   $color-dark: #c3d0e7;
-  // $border-dark: #434e68;$border-dark
   $border-dark: #2c354d;
 
   cursor: initial;
@@ -16,7 +13,6 @@
   }
 
   .list-scroller {
-    // border: 2px red solid;
     height: 240px;
     overflow-y: auto;
 
@@ -39,10 +35,10 @@
   .list-group {
     position: relative;
 
-    .list-group-title{
-      font-size: 12px;
+    .list-group-title {
       height: 32px;
       padding: 0 12px;
+      font-size: 12px;
       line-height: 32px;
       color: #66768e;
       // 设置不可点击
@@ -67,14 +63,12 @@
   }
 
   .list-item {
-    // border: 3px solid red;
-    
     position: relative;
     display: flex;
     align-items: center;
-    height: 32px !important;
-    overflow: hidden;
+    height: 32px;
     padding: 0 9px 0 12px;
+    overflow: hidden;
     line-height: 32px;
     color: #63656e;
     cursor: pointer;
@@ -97,13 +91,11 @@
       color: $color-dark;
 
       &:hover {
-        // background-color: #323c53;background-color
         background: #272f45;
       }
 
       &.checked {
         color: #fff;
-        // background-color: #272f45;background-color
         background: #234071;
       }
     }
@@ -117,14 +109,14 @@
 
   .last-common-item {
     &::after {
-      content: '';
       position: absolute;
-      left: 12px;
       right: 9px;
       bottom: 0;
+      left: 12px;
       height: 1px;
-      background: #434e68;
       pointer-events: none;
+      content: '';
+      background: #434e68;
     }
   }
 
@@ -139,7 +131,6 @@
 
     .list-item-name {
       @include ellipsis();
-      // white-space: nowrap;white-space
     }
 
     .list-item-id {
@@ -269,34 +260,26 @@
 
 // 虚拟滚动容器样式
 .virtual-scroller {
-  overflow-y: auto;
   position: relative;
   width: 100%;
-  
+  overflow-y: auto;
+
   // 主题适配
   &.dark {
     background: #2e2e2e;
   }
-  
+
   &.light {
     background: #ffffff;
   }
-  
+
   .list-group {
     box-sizing: border-box;
     padding: 4px 0;
-    
+
     .list-item {
-      transition: none; // 禁用动画提升性能
       position: relative; // 确保位置正确
+      transition: none; // 禁用动画提升性能
     }
   }
-}
-
-// 确保无数据提示居中
-.no-data {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 300px;
 }
