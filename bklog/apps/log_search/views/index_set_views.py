@@ -573,19 +573,18 @@ class IndexSetViewSet(ModelViewSet):
         else:
             storage_cluster_id = IndexSetHandler.get_storage_by_table_list(data["indexes"])
         # 获取调用方APP CODE
-        data = self.validated_data
         auth_info = Permission.get_auth_info(request, raise_exception=False)
         if auth_info:
             data["bk_app_code"] = auth_info["bk_app_code"]
 
         index_set = IndexSetHandler.create(
-            data["index_set_name"],
-            data["space_uid"],
-            storage_cluster_id,
-            data["scenario_id"],
-            data["view_roles"],
-            data["indexes"],
-            data["category_id"],
+            index_set_name=data["index_set_name"],
+            space_uid=data["space_uid"],
+            scenario_id=data["scenario_id"],
+            view_roles=data["view_roles"],
+            indexes=data["indexes"],
+            storage_cluster_id=storage_cluster_id,
+            category_id=data["category_id"],
             is_trace_log=data["is_trace_log"],
             time_field=data["time_field"],
             time_field_type=data["time_field_type"],
@@ -656,11 +655,11 @@ class IndexSetViewSet(ModelViewSet):
             data["view_roles"],
             data["indexes"],
             data["category_id"],
+            storage_cluster_id=storage_cluster_id,
             is_trace_log=data["is_trace_log"],
             time_field=data["time_field"],
             time_field_type=data["time_field_type"],
             time_field_unit=data["time_field_unit"],
-            storage_cluster_id=storage_cluster_id,
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
