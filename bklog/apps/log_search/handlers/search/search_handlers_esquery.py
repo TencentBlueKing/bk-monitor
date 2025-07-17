@@ -133,7 +133,8 @@ from apps.utils.local import (
     get_local_param,
     get_request_app_code,
     get_request_external_username,
-    get_request_username, get_request,
+    get_request_username,
+    get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
@@ -3070,7 +3071,6 @@ class UnionSearchHandler:
         union_field_names = list()
         union_display_fields = list()
         union_time_fields = set()
-        union_time_fields_type = set()
         union_time_fields_unit = set()
         context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
         for index_set_id in index_set_ids:
@@ -3119,17 +3119,17 @@ class UnionSearchHandler:
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)
-            union_time_fields_type.add(index_set_obj.time_field_type)
             union_time_fields_unit.add(index_set_obj.time_field_unit)
 
         # 处理公共的时间字段
-        if len(union_time_fields) != 1 or len(union_time_fields_type) != 1 or len(union_time_fields_unit) != 1:
+        if len(union_time_fields) != 1:
             time_field = "unionSearchTimeStamp"
             time_field_type = "date"
             time_field_unit = "millisecond"
         else:
             time_field = list(union_time_fields)[0]
-            time_field_type = list(union_time_fields_type)[0]
+            time_field_idx = union_field_names.index(time_field)
+            time_field_type = total_fields[time_field_idx]["field_type"]
             time_field_unit = list(union_time_fields_unit)[0]
 
         if not union_display_fields_all:
