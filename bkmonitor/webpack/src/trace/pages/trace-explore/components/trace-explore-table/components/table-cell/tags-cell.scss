@@ -13,6 +13,7 @@
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
+    max-width: 180px;
     height: var(--tag-height);
     padding: 0 8px;
     color: var(--tag-color);

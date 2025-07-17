@@ -66,9 +66,9 @@ export function useTableCell({
   let cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | keyof typeof customCellRenderMap, TableCellRenderer> =
     {};
 
-  /** 渲染上下文 */
+  /** table 单元格渲染上下文信息 */
   const renderContext: TableCellRenderContext<keyof typeof customCellRenderMap> = {
-    cellEllipsisClass,
+    cellEllipsisClass: cellEllipsisClass || ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
     cellRenderHandleMap,
     isEnabledCellEllipsis,
   };
@@ -111,7 +111,7 @@ export function useTableCell({
     if (column?.cellEllipsis === false) {
       return '';
     }
-    return cellEllipsisClass || ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME;
+    return renderContext.cellEllipsisClass;
   }
 
   /**
@@ -359,6 +359,7 @@ export function useTableCell({
       <TagsCell
         colId={column.colKey}
         column={column}
+        renderCtx={renderCtx}
         rowId={getRowId(row)}
         tags={tags}
       />
