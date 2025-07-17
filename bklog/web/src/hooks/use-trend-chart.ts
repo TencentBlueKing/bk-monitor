@@ -27,6 +27,7 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'v
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
 import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
@@ -51,6 +52,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
+  const router = useRouter();
+  const route = useRoute();
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() =>
@@ -515,6 +518,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         // 更新Store中的时间范围
         store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
           store.dispatch('requestIndexSetQuery');
+          // 更新URL
+          router.replace({
+            query: {
+              ...route.query,
+              start_time: timeFrom,
+              end_time: timeTo,
+            }
+          });
         });
       }
     }
