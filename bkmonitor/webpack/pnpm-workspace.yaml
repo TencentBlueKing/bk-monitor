@@ -28,5 +28,3 @@ recursiveInstall: true
 publicHoistPattern:
   - '!vue'
   - '!vue-template-compiler'
-
-autoInstallPeers: true
