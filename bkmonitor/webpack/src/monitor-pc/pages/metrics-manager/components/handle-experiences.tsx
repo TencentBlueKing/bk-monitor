@@ -113,7 +113,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   errConditions = '';
   selectKey = random(8);
   /* 默认填充维度维度 */
-  defalutDimensionValue: { [propName: string]: string[] } = {};
+  defaultDimensionValue: { [propName: string]: string[] } = {};
 
   @Watch('show')
   async handleShow(v) {
@@ -126,10 +126,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 通过指标id获取维度交集 */
   async init() {
     this.isLoading = true;
-    if (!Object.keys(this.defalutDimensionValue).length) {
-      this.metricData.dimensions.forEach(item => {
-        if (item.is_dimension) this.defalutDimensionValue[item.id] = [];
-      });
+    if (!Object.keys(this.defaultDimensionValue).length) {
+      for (const item of this.metricData.dimensions) {
+        if (item.is_dimension) this.defaultDimensionValue[item.id] = [];
+      }
     }
     this.metricNameMap[this.metricData.metric_id] = this.metricData.name;
     this.dimensionList = this.metricData.dimensions.filter(item => !!item.is_dimension);
@@ -364,7 +364,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
   /* 输入md文档 */
   handleInputContent(v: string) {
-    this.errMsg = !!v ? '' : this.$tc('注意: 必填字段不能为空');
+    this.errMsg = v ? '' : this.$tc('注意: 必填字段不能为空');
     this.curDescription = v;
   }
 
@@ -518,7 +518,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   ) : (
                     <ConditionInput
                       conditionList={this.conditionList}
-                      defaultValue={this.defalutDimensionValue}
+                      defaultValue={this.defaultDimensionValue}
                       dimensionsList={this.dimensionList}
                       metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}

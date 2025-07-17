@@ -69,6 +69,8 @@ export interface IContentFormData {
   curBizId?: string;
   curGrafana?: string;
   curGrafanaName?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface ISelectChartValue {

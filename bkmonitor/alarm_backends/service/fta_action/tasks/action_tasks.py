@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -60,7 +59,7 @@ def run_action(action_type, action_info):
     :return:
     """
     # import action's call function
-    module_name = "alarm_backends.service.fta_action.%s.processor" % action_type or action_info.get("module")
+    module_name = f"alarm_backends.service.fta_action.{action_type}.processor" or action_info.get("module")
     # logger.info("$%s Action start, call back module name %s", action_info["id"], action_type)
     logger.info(f"[run_action_worker] action({action_info['id']}) {action_type} begin import {module_name}")
     try:
@@ -201,9 +200,13 @@ def sync_action_instances_every_10_secs(last_sync_time=None):
             try:
                 last_sync_time = int(redis_client.get(cache_key))
             except (ValueError, TypeError):
+                logger.warning(
+                    f"[sync_action_instances] get last_sync_time({cache_key}) failed. "
+                    f"will start processing one hour ago"
+                )
                 # 如果获取缓存记录异常，表示要全库更新或者指定变量，这种可能性很小，但是无法保证redis一直正常运行
-                three_days_ago = current_sync_time - timedelta(days=3)
-                last_sync_time = last_sync_time or int(three_days_ago.timestamp())
+                one_hour_ago = current_sync_time - timedelta(hours=1)
+                last_sync_time = last_sync_time or int(one_hour_ago.timestamp())
 
             # 同步逻辑： 如果不存在最近更新时间的缓存key， 直接更新全表， 如果有，则更新对应时间范围内的数据即可
             # 汇总并且处于休眠期的内容不做同步
@@ -234,7 +237,7 @@ def sync_action_instances_every_10_secs(last_sync_time=None):
         logger.info("[get service lock fail] sync_action_instances_every_10_secs. will process later")
         return
     except BaseException as e:  # NOCC:broad-except(设计如此:)
-        logger.exception("[process error] sync_action_instances_every_10_secs, reason：{msg}".format(msg=str(e)))
+        logger.exception(f"[process error] sync_action_instances_every_10_secs, reason：{str(e)}")
         return
 
 
@@ -361,7 +364,11 @@ def check_timeout_actions():
                         update_time=datetime.now(tz=timezone.utc),
                         status=ActionStatus.FAILURE,
                         failure_type=FailureType.TIMEOUT,
-                        ex_data=dict(message=_("处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理").format(timeout_setting // 60 or 10)),
+                        ex_data=dict(
+                            message=_("处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理").format(
+                                timeout_setting // 60 or 10
+                            )
+                        ),
                     )
                 logger.info("setting actions(%s) to failure because of timeout", len(timeout_actions))
     except LockError:
@@ -369,7 +376,7 @@ def check_timeout_actions():
         logger.info("[get service lock fail] check timeout action. will process later")
         return
     except BaseException as e:  # NOCC:broad-except(设计如此:)
-        logger.exception("[process error] check timeout action, reason：{msg}".format(msg=str(e)))
+        logger.exception(f"[process error] check timeout action, reason：{str(e)}")
         return
 
 
@@ -389,7 +396,7 @@ def execute_demo_actions():
         logger.info("[get service lock fail] run demo action. will process later")
         return
     except BaseException as e:  # NOCC:broad-except(设计如此:)
-        logger.exception("[process error] run demo action, reason：{msg}".format(msg=str(e)))  # NOCC:broad-except(设计如此:)
+        logger.exception(f"[process error] run demo action, reason：{str(e)}")  # NOCC:broad-except(设计如此:)
         return
 
 

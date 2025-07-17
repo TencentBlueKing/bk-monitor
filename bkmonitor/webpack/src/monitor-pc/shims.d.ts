@@ -44,7 +44,7 @@ interface IBkInfoProps {
   showFooter?: boolean;
   extCls?: string;
   okText?: string | TranslateResult;
-  cancelText?: string;
+  cancelText?: string | TranslateResult;
   confirmFn: (v: unknown) => void;
   cancelFn: (v: unknown) => void;
 }

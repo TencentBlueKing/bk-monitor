@@ -134,9 +134,11 @@ export function formatSecondTime(duration: number) {
  * 183840s => 2d 3h
  *
  * @param {number} duration (in microseconds)
+ * @param {string} split 分隔符
+ * @param {number} precision 精度
  * @return {string} formatted duration
  */
-export function formatDuration(duration: number, split = ''): string {
+export function formatDuration(duration: number, split = '', precision = 2): string {
   // Drop all units that are too large except the last one
   const [primaryUnit, secondaryUnit] = _dropWhile(
     UNIT_STEPS,
@@ -145,14 +147,39 @@ export function formatDuration(duration: number, split = ''): string {
 
   if (primaryUnit.ofPrevious === 1000) {
     // If the unit is decimal based, display as a decimal
-    return `${_round(duration / primaryUnit.microseconds, 2)}${split}${primaryUnit.unit}`;
+    return `${_round(duration / primaryUnit.microseconds, precision)}${split}${primaryUnit.unit}`;
   }
 
   const primaryValue = Math.floor(duration / primaryUnit.microseconds);
+  const remainingMicroseconds = duration % primaryUnit.microseconds;
+  const secondaryValue = Math.round(remainingMicroseconds / secondaryUnit.microseconds);
+
+  // If secondaryValue equals primaryUnit.ofPrevious, it means we should carry over
+  if (secondaryValue >= primaryUnit.ofPrevious) {
+    return `${primaryValue + 1}${split}${primaryUnit.unit}`;
+  }
+
   const primaryUnitString = `${primaryValue}${split}${primaryUnit.unit}`;
-  const secondaryValue = Math.round((duration / secondaryUnit.microseconds) % primaryUnit.ofPrevious);
   const secondaryUnitString = `${secondaryValue}${split}${secondaryUnit.unit}`;
   return secondaryValue === 0 ? primaryUnitString : `${primaryUnitString} ${secondaryUnitString}`;
+}
+
+export function formatDurationWithUnit(duration: number, split = '') {
+  const units = _dropWhile(
+    UNIT_STEPS,
+    ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration
+  );
+  if (duration === 0) return '0μs';
+  let remainingMicroseconds = duration;
+  const durationUnits = units.reduce((pre, cur) => {
+    if (remainingMicroseconds > cur.microseconds) {
+      const primaryValue = Math.floor(remainingMicroseconds / cur.microseconds);
+      remainingMicroseconds = remainingMicroseconds % cur.microseconds;
+      pre.push(`${primaryValue}${cur.unit}`);
+    }
+    return pre;
+  }, []);
+  return durationUnits.join(split);
 }
 
 export function formatRelativeDate(value: any, fullMonthName = false) {

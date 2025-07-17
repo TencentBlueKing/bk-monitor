@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, shallowRef } from 'vue';
 
-import { formatDateNanos, formatDate, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -49,7 +49,6 @@ import {
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
-  ROW_IS_IN_SECTION,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
   ROW_SOURCE,
@@ -104,14 +103,13 @@ export default defineComponent({
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
 
-    let renderList = Object.freeze([]);
+    const renderList = shallowRef([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
-    const tableLineIsWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
@@ -134,18 +132,21 @@ export default defineComponent({
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+
+    const handleSearchingChange = isSearching => {
       isPageLoading.value = isSearching;
-    });
+    };
+
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
     const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
       const inteval = 50;
 
       const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.length;
+        const appendLength = targetLength - renderList.value.length;
         const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.length;
+        const startIndex = renderList.value.length;
 
         if (appendLength > 0) {
           const arr = [];
@@ -155,11 +156,10 @@ export default defineComponent({
             arr.push({
               item: tableList.value[i],
               [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-              [ROW_IS_IN_SECTION]: tableList.value[i][ROW_IS_IN_SECTION] || false,
             });
           }
 
-          renderList = Object.freeze(arr);
+          renderList.value = arr;
           appendChildNodes();
           return;
         }
@@ -168,30 +168,7 @@ export default defineComponent({
       appendChildNodes();
     };
 
-    /**
-     * 分步更新行属性
-     * 主要是是否Json格式化
-     * @param startIndex
-     */
-    const stepUpdateRowProp = (startIndex = 0, formatJson = false) => {
-      const inteval = 50;
-      const endIndex = startIndex + inteval;
-
-      for (let i = startIndex; i < endIndex; i++) {
-        if (i < tableList.value.length) {
-          const row = tableList.value[i];
-          const config = tableRowConfig.get(row);
-          config.value[ROW_F_JSON] = formatJson;
-        }
-      }
-
-      if (endIndex < tableList.value.length) {
-        requestAnimationFrame(() => stepUpdateRowProp(endIndex, formatJson));
-      }
-    };
-
     const searchContainerHeight = ref(52);
-
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
@@ -215,7 +192,7 @@ export default defineComponent({
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: formatDateValue(row[timeField.value], timeFieldType.value),
+                  innerHTML: RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value),
                 },
               },
               [],
@@ -230,13 +207,11 @@ export default defineComponent({
           minWidth: '100%',
           width: '100%',
           resize: false,
-          renderBodyCell: ({ row, options }) => {
+          renderBodyCell: ({ row }) => {
             return (
               <JsonFormatter
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
-                formatJson={formatJson.value}
-                isIntersection={options?.[ROW_IS_IN_SECTION] ?? true}
                 jsonValue={row}
                 limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
@@ -256,14 +231,12 @@ export default defineComponent({
         minWidth: field.minWidth,
         align: 'top',
         resize: true,
-        renderBodyCell: ({ row, options }) => {
+        renderBodyCell: ({ row }) => {
           return (
             <JsonFormatter
               class='bklog-column-wrapper'
               fields={field}
-              formatJson={formatJson.value}
-              isIntersection={options[ROW_IS_IN_SECTION]}
-              jsonValue={row}
+              jsonValue={parseTableRowData(row, field.field_name, field.field_type, false) as any}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             ></JsonFormatter>
           );
@@ -462,26 +435,6 @@ export default defineComponent({
       ];
     });
 
-    const formatDateValue = (data, field_type, regMatchFn?) => {
-      const formatFn = {
-        date: formatDate,
-        date_nanos: formatDateNanos,
-      };
-
-      if (formatFn[field_type]) {
-        if (/^<mark>(\d+)<\/mark>$/i.test(data)) {
-          return data.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
-            return regMatchFn?.(formatFn[field_type](Number(p1))) ?? `<mark>${formatFn[field_type](Number(p1))}</mark>`;
-          });
-        }
-
-        if (/^\d+$/.test(data)) {
-          return formatFn[field_type](Number(data)) || data || '--';
-        }
-      }
-      return data;
-    };
-
     const { handleOperation } = useTextAction(emit, 'origin');
 
     // 替换原有的handleIconClick
@@ -615,13 +568,14 @@ export default defineComponent({
     );
 
     watch(
-      () => [props.contentType, formatJson.value, tableLineIsWrap.value],
+      () => [props.contentType],
       () => {
         scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
-
         showCtxType.value = props.contentType;
-        stepUpdateRowProp(0, formatJson.value);
+        pageIndex.value = 1;
+        renderList.value = [];
+        setRenderList(50);
         computeRect();
       },
     );
@@ -631,7 +585,6 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
-
         computeRect();
       },
     );
@@ -653,7 +606,7 @@ export default defineComponent({
 
           if (isLoading.value) {
             scrollToTop(0);
-            renderList = [];
+            renderList.value = [];
             return;
           }
 
@@ -762,7 +715,7 @@ export default defineComponent({
       pageIndex.value = 1;
 
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList = renderList.slice(0, maxLength);
+      renderList.value = renderList.value.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
@@ -902,7 +855,7 @@ export default defineComponent({
       [...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled),
     );
 
-    const renderRowCells = (row, rowIndex, options) => {
+    const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
@@ -926,7 +879,7 @@ export default defineComponent({
                 style={cellStyle}
                 class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
               >
-                {column.renderBodyCell?.({ row, column, rowIndex, options }, h) ?? column.title}
+                {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
               </div>
             );
           })}
@@ -936,7 +889,7 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return renderList.map((row, rowIndex) => {
+      return renderList.value.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
         return [
@@ -944,11 +897,8 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
-            on-row-visible={(isIntersect: boolean) => {
-              set(tableList.value[rowIndex], ROW_IS_IN_SECTION, isIntersect);
-            }}
           >
-            {renderRowCells(row.item, rowIndex, tableList.value[rowIndex])}
+            {renderRowCells(row.item, rowIndex)}
           </RowRender>,
         ];
       });
@@ -1081,6 +1031,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
+      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
     });
 
     return {

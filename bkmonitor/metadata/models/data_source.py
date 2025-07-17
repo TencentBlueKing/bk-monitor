@@ -29,10 +29,10 @@ from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import (
-    SPACE_UID_HYPHEN,
-    SpaceTypes,
     ENABLE_V4_DATALINK_ETL_CONFIGS,
+    SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
+    SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
@@ -122,7 +122,7 @@ class DataSource(models.Model):
         verbose_name="transfer集群ID", default=settings.DEFAULT_TRANSFER_CLUSTER_ID, max_length=50
     )
 
-    is_tenant_specific_global = models.BooleanField(verbose_name="是否为租户下的全局数据源", default=False)
+    is_tenant_specific_global = models.BooleanField(verbose_name="（废弃）是否为租户下的全局数据源", default=False)
     is_platform_data_id = models.BooleanField(
         "是否为平台 ID", default=False, help_text="如果为平台级 ID，则认为全量可以访问"
     )
@@ -319,9 +319,7 @@ class DataSource(models.Model):
         """
         返回当前data_id在gse的路由配置
         """
-        route_name = "stream_to_{}_{}_{}".format(
-            config.DEFAULT_GSE_API_PLAT_NAME, self.DEFAULT_MQ_TYPE, self.mq_config.topic
-        )
+        route_name = f"stream_to_{config.DEFAULT_GSE_API_PLAT_NAME}_{self.DEFAULT_MQ_TYPE}_{self.mq_config.topic}"
         return {
             "name": route_name,
             "stream_to": {
@@ -528,8 +526,8 @@ class DataSource(models.Model):
             label_id=type_label, label_type=Label.LABEL_TYPE_TYPE
         ):
             logger.error(
-                "user->[{}] try to create datasource but use type_label->[{}] or source_type->[{}] "
-                "which is not exists.".format(operator, type_label, source_label)
+                f"user->[{operator}] try to create datasource but use type_label->[{type_label}] or source_type->[{source_label}] "
+                "which is not exists."
             )
             raise ValueError(_("标签[{} | {}]不存在，请确认后重试").format(source_label, type_label))
 
@@ -554,8 +552,7 @@ class DataSource(models.Model):
             # 此时，用户无提供新的数据源配置的集群信息，而也没有配置默认的集群信息，新的数据源无法配置集群信息
             # 需要抛出异常
             logger.error(
-                "failed to get default MQ for cluster type->[%s], maybe admin set something wrong?"
-                % cls.DEFAULT_MQ_TYPE
+                f"failed to get default MQ for cluster type->[{cls.DEFAULT_MQ_TYPE}], maybe admin set something wrong?"
             )
             raise ValueError(_("缺少数据源MQ集群信息，请联系管理员协助处理"))
 
@@ -622,8 +619,7 @@ class DataSource(models.Model):
                     # 如果小于的最小的data_id，需要判断最小ID是否已经分配了，如果没有分配，则使用之
                     if cls.objects.filter(bk_data_id=config.MIN_DATA_ID).exists():
                         logger.info(
-                            "new data_id->[%s] and min data_id is exists, maybe something go wrong?"
-                            % data_source.bk_data_id
+                            f"new data_id->[{data_source.bk_data_id}] and min data_id is exists, maybe something go wrong?"
                         )
                         raise ValueError(_("数据源ID生成异常，请联系管理员协助处理"))
 
@@ -636,16 +632,15 @@ class DataSource(models.Model):
                 # 达到了最大值的判断
                 if data_source.bk_data_id > config.MAX_DATA_ID:
                     logger.info(
-                        "new data_id->[%s] is lager than max data id->[%s], nothing will create."
-                        % data_source.bk_data_id,
+                        "new data_id->[{}] is lager than max data id->[{}], nothing will create.".format(
+                            *data_source.bk_data_id
+                        ),
                         config.MAX_DATA_ID,
                     )
                     raise ValueError(_("数据源ID分配达到最大上限，请联系管理员协助处理"))
 
             logger.info(
-                "data_id->[{}] data_name->[{}] by operator->[{}] now is pre-create.".format(
-                    data_source.bk_data_id, data_source.data_name, data_source.creator
-                )
+                f"data_id->[{data_source.bk_data_id}] data_name->[{data_source.data_name}] by operator->[{data_source.creator}] now is pre-create."
             )
 
             # 获取这个数据源对应的配置记录model，并创建一个新的配置记录
@@ -657,8 +652,7 @@ class DataSource(models.Model):
             data_source.mq_config_id = mq_config.id
             data_source.save()
             logger.info(
-                "data_id->[%s] now is relate to its mq config id->[%s]"
-                % (data_source.bk_data_id, data_source.mq_config_id)
+                f"data_id->[{data_source.bk_data_id}] now is relate to its mq config id->[{data_source.mq_config_id}]"
             )
 
             if space_uid:
@@ -681,9 +675,7 @@ class DataSource(models.Model):
                     bk_data_id=data_source.bk_data_id, name=option_name, value=option_value, creator=operator
                 )
                 logger.info(
-                    "bk_data_id->[{}] now has option->[{}] with value->[{}]".format(
-                        data_source.bk_data_id, option_name, option_value
-                    )
+                    f"bk_data_id->[{data_source.bk_data_id}] now has option->[{option_name}] with value->[{option_value}]"
                 )
 
             # 添加时间 option
@@ -707,15 +699,14 @@ class DataSource(models.Model):
         if is_refresh_config:
             try:
                 data_source.refresh_outer_config()
-                logger.info("data_id->[%s] refresh consul and outer_config done. " % data_source.bk_data_id)
+                logger.info(f"data_id->[{data_source.bk_data_id}] refresh consul and outer_config done. ")
 
             except Exception:
                 logger.error(
-                    "data_id->[%s] refresh outer_config failed for->[%s] will wait cron task to finish."
-                    % (data_source.bk_data_id, traceback.format_exc())
+                    f"data_id->[{data_source.bk_data_id}] refresh outer_config failed for->[{traceback.format_exc()}] will wait cron task to finish."
                 )
 
-        logger.info("data->[%s] now IS READY, TRY IT~" % data_source.bk_data_id)
+        logger.info(f"data->[{data_source.bk_data_id}] now IS READY, TRY IT~")
 
         # 6. 返回新实例
         return data_source
@@ -815,10 +806,8 @@ class DataSource(models.Model):
         if data_name is not None and self.data_name != data_name:
             if self.__class__.objects.filter(data_name=data_name).exists():
                 logger.error(
-                    "user->[{operator}] try to update data_id->{data_id}] data_name->[{data_name}] "
-                    "but data name is already exists, nothing will do".format(
-                        operator=operator, data_id=self.bk_data_id, data_name=data_name
-                    )
+                    f"user->[{operator}] try to update data_id->{self.bk_data_id}] data_name->[{data_name}] "
+                    "but data name is already exists, nothing will do"
                 )
                 raise ValueError(_("数据源名称已存在，请确认"))
             self.data_name = data_name
@@ -837,9 +826,7 @@ class DataSource(models.Model):
                     bk_data_id=self.bk_data_id, name=option_name, value=option_value, creator=operator
                 )
                 logger.info(
-                    "bk_data_id->[{}] now has option->[{}] with value->[{}]".format(
-                        self.bk_data_id, option_name, option_value
-                    )
+                    f"bk_data_id->[{self.bk_data_id}] now has option->[{option_name}] with value->[{option_value}]"
                 )
 
         # 2.5 判断是否需要修改启用标记位，并且数据源ID来源 BKGSE
@@ -857,7 +844,7 @@ class DataSource(models.Model):
             # 判断是否is_enable变为了False(数据源禁用)，如果是则需要同时清理consul配置，告知transfer停止写入
             if not is_enable:
                 consul_client.kv.delete(self.consul_config_path)
-                logger.info("datasource->[%s] now is deleted its consul path." % self.bk_data_id)
+                logger.info(f"datasource->[{self.bk_data_id}] now is deleted its consul path.")
 
         # 2.6 更新数据源针对空间的配置
         if is_platform_data_id is not None:
@@ -892,7 +879,7 @@ class DataSource(models.Model):
             # 使用同一的刷新配置
             self.refresh_outer_config()
 
-            logger.info("data_id->[%s] update success and notify zk & consul success." % self.bk_data_id)
+            logger.info(f"data_id->[{self.bk_data_id}] update success and notify zk & consul success.")
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
@@ -982,9 +969,7 @@ class DataSource(models.Model):
             return
 
         logger.debug(
-            "data_id->[{}] gse route config->[{}] is different from gse->[{}], will refresh it.".format(
-                self.bk_data_id, new_hash, old_hash
-            )
+            f"data_id->[{self.bk_data_id}] gse route config->[{new_hash}] is different from gse->[{old_hash}], will refresh it."
         )
 
         params = {
@@ -993,7 +978,7 @@ class DataSource(models.Model):
             "specification": {"route": [self.gse_route_config]},
         }
         api.gse.update_route(**params)
-        logger.info("data_id->[%s] success to push route info to gse" % self.bk_data_id)
+        logger.info(f"data_id->[{self.bk_data_id}] success to push route info to gse")
 
     def delete_consul_config(self, consul_config_path=""):
         consul_config_path = consul_config_path or self.consul_config_path
@@ -1001,7 +986,7 @@ class DataSource(models.Model):
         hash_consul = consul_tools.HashConsul()
         # 删除旧dataid的配置
         hash_consul.delete(consul_config_path)
-        logger.info("dataid->[%d] has delete config from->[%s]" % (self.bk_data_id, consul_config_path))
+        logger.info("dataid->[%d] has delete config from->[%s]", self.bk_data_id, consul_config_path)
 
     def redirect_consul_config(self, new_transfer_cluster_id):
         """
@@ -1072,7 +1057,7 @@ class DataSource(models.Model):
         kafka_hosts = f"{self.mq_cluster.domain_name}:{self.mq_cluster.port}"
         client = kafka.SimpleClient(hosts=kafka_hosts)
         # 只是确保TOPIC存在，如果不存在则会创建之
-        client.ensure_topic_exists("%s" % self.mq_config.topic)
+        client.ensure_topic_exists(f"{self.mq_config.topic}")
         logger.info(f"data_id->[{self.bk_data_id}] now must has topic->[{self.mq_config.topic}]")
 
     def get_consul_fields(self):
@@ -1132,7 +1117,7 @@ class DataSource(models.Model):
         """
         # 确认必须是可以更新字段的datasource
         if not self.is_field_discoverable:
-            logger.info("data_id->[%s] is not self discoverable, nothing will update ." % self.bk_data_id)
+            logger.info(f"data_id->[{self.bk_data_id}] is not self discoverable, nothing will update .")
             return True
 
         consul_fields = self.get_consul_fields()
@@ -1150,8 +1135,7 @@ class DataSource(models.Model):
                 dimension_list=json.dumps(dimension_list),
             ).exists():
                 logger.info(
-                    "record format for table->[%s] metric->[%s] dimension->[%s] is exists, nothing will do."
-                    % (table_id, metric_name, dimension_list)
+                    f"record format for table->[{table_id}] metric->[{metric_name}] dimension->[{dimension_list}] is exists, nothing will do."
                 )
                 continue
 
@@ -1209,13 +1193,13 @@ class DataSource(models.Model):
 
         # 刷新GSE的zk配置
         self.refresh_gse_config()
-        logger.debug("data_id->[%s] refresh gse config to zk success" % self.bk_data_id)
+        logger.debug(f"data_id->[{self.bk_data_id}] refresh gse config to zk success")
 
         # 刷新consul配置
         self.refresh_consul_config()
-        logger.debug("data_id->[%s] refresh consul config success." % self.bk_data_id)
+        logger.debug(f"data_id->[{self.bk_data_id}] refresh consul config success.")
 
-        logger.debug("refresh data_id->[%s] all outer config success" % self.bk_data_id)
+        logger.debug(f"refresh data_id->[{self.bk_data_id}] all outer config success")
         return True
 
 
@@ -1377,7 +1361,7 @@ class DataSourceResultTable(models.Model):
         )
 
         if len(data_id_list) == 0:
-            raise ValueError("%s not found" % table_id)
+            raise ValueError(f"{table_id} not found")
 
         for datasource in DataSource.objects.filter(bk_data_id__in=data_id_list, is_enable=True):
             datasource.refresh_consul_config()

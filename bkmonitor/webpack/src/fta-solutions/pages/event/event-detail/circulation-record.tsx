@@ -176,7 +176,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     this.circulationRecord.abnormal = false;
     const operate = conditions || this.conditions;
     this.circulationRecord.loading = true;
-    const list = await EventDetail.getlistEventLog({
+    const list = await EventDetail.getListEventLog({
       bk_biz_id: this.detail.bk_biz_id,
       id: this.detail.id,
       offset: this.circulationRecord.offset,

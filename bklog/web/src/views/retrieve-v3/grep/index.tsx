@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
@@ -55,7 +55,7 @@ export default defineComponent({
     const searchValue = ref('');
     const field = ref((route.query.grep_field as string) ?? '');
     const grepQuery = ref((route.query.grep_query as string) ?? '');
-    const grepRequestResult: Ref<GrepRequestResult> = ref({
+    const grepRequestResult = ref<GrepRequestResult>({
       offset: 0,
       is_loading: true,
       list: [],
@@ -71,7 +71,6 @@ export default defineComponent({
     });
 
     const totalMatches = ref(0);
-    // const list = ref([]);
 
     /**
      * 设置默认字段值
@@ -249,18 +248,23 @@ export default defineComponent({
       requestGrepList();
     };
 
-    RetrieveHelper.on(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
-      resetGrepRequestResult();
-      requestGrepList();
-    });
+    const handleRequestResult = (runRequest = true, setDefField = false) => {
+      if (runRequest) {
+        if (setDefField) {
+          setDefaultFieldValue();
+        }
 
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, (value: boolean) => {
-      if (!value) {
         resetGrepRequestResult();
-        setDefaultFieldValue();
         requestGrepList();
       }
-    });
+    };
+
+    const handleSearchingChange = (isSearching: boolean) => {
+      handleRequestResult(!isSearching);
+    };
+
+    RetrieveHelper.on([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
+    RetrieveHelper.on([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
       if (isParamsChange) {
@@ -287,8 +291,10 @@ export default defineComponent({
       resetGrepRequestResult();
 
       RetrieveHelper.destroyMarkInstance();
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE);
-      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, handleRequestResult);
+      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, handleRequestResult);
+      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, handleRequestResult);
     });
 
     return () => (

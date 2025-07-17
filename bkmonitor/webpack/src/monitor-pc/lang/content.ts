@@ -335,4 +335,7 @@ export default {
   '关联后，会自动获取相关的事件数据。': 'After association, relevant event data will be automatically obtained.',
   关联项: 'Associated items',
   事件关联: 'Event association',
+  链路排障: 'Link troubleshooting',
+  数据源ID: 'Data source ID',
+  请输入数据源ID: 'Please enter the data source ID',
 };

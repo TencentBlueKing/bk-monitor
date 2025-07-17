@@ -27,6 +27,9 @@ class SQLCompiler(compiler.SQLCompiler):
     SELECT_RE = re.compile(
         r"(?P<agg_method>[^\( ]+)[\( ]+" r"(?P<metric_field>[^\) ]+)[\) ]+" r"([ ]?as[ ]+(?P<metric_alias>[^ ]+))?"
     )
+    SPECIAL_CHARS = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
+    ESCAPED_SPECIAL_CHARS = re.compile(r'\\([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
+
     DEFAULT_AGG_METHOD = "count"
     DEFAULT_METRIC_FIELD = "_index"
     DEFAULT_METRIC_ALIAS = "count"
@@ -81,6 +84,10 @@ class SQLCompiler(compiler.SQLCompiler):
                 if not values:
                     continue
 
+                # 转义特殊字符
+                values = [self.escape_char(value) for value in values]
+
+                # 映射操作符到查询语法模板
                 connector = "OR"
                 if method == "eq":
                     expr_template = '{}: "{}"'
@@ -123,6 +130,17 @@ class SQLCompiler(compiler.SQLCompiler):
             query_string = f"({query_string})"
 
         return query_string
+
+    def escape_char(self, s):
+        """
+        转义query string中的特殊字符
+        """
+        if not isinstance(s, str):
+            return s
+
+        # 避免双重转义：先移除已有转义
+        s = self.ESCAPED_SPECIAL_CHARS.sub(r"\1", s)
+        return self.SPECIAL_CHARS.sub(r"\\\1", str(s))
 
     def as_sql(self):
         bk_tenant_id = self.query.bk_tenant_id

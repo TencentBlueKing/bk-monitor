@@ -199,10 +199,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         使用apigw鉴权
         """
-        # 如果开启了多租户模式，则必须使用apigw鉴权
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return True
-
         # 如果请求来自apigw，并且携带了jwt，则使用apigw鉴权
         return request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME)
 
@@ -233,6 +229,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 后台仪表盘渲染豁免
         # TODO: 多租户支持验证
         if "/grafana/" in request.path and not app_code:
+            bk_tenant_id = request.META.get("HTTP_X_BK_TENANT_ID") or DEFAULT_TENANT_ID
             request.user = auth.authenticate(username="admin", bk_tenant_id=bk_tenant_id)
             return
 

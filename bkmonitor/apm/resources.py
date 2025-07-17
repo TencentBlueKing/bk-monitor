@@ -2170,9 +2170,14 @@ class QueryFieldStatisticsGraphResource(Resource):
             )
             return resource.grafana.graph_unify_query(config)
 
-        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
+        if min_value is None or max_value is None:
+            return self.process_graph_info([])
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
+        if distinct_count is not None and (
+            distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
+        ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
             return self.process_graph_info(
                 [
@@ -2216,6 +2221,9 @@ class QueryFieldStatisticsGraphResource(Resource):
         """
         处理数值趋势图格式，和时序趋势图保持一致
         """
+        # 如果只有一个 bucket，且数据为 0，则返回空数据
+        if len(buckets) == 1 and buckets[0][0] == 0:
+            buckets = []
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod

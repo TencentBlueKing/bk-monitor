@@ -1334,7 +1334,7 @@ class ResultTable(models.Model):
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
             result_table_option_ids = (
                 ResultTableOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-                .exclude(name__in=ResultTableFieldOption.QUERY_OPTION_NAME_LIST)
+                .exclude(name__in=list(set(ResultTableFieldOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
                 .values_list("id", flat=True)
             )
             self.raw_delete(result_table_option_ids)

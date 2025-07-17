@@ -2,7 +2,7 @@
 echo "{{ divide_symbol | safe }}"
 mkdir -p {{ download_path | safe }}
 
-cat << EOF > {{ test_config_file_path }}
+cat << 'EOF' > {{ test_config_file_path }}
 {{ test_config_yml | safe }}
 EOF
 

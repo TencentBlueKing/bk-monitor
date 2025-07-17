@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, reactive, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, reactive, ref as deepRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Message } from 'bkui-vue';
@@ -46,9 +46,9 @@ export default defineComponent({
   emits: ['listHidden', 'listShown', 'successLoad'],
   setup(props, { emit, slots }) {
     const chartInfo = useChartInfoInject();
-    const isActionFocus = ref(false);
+    const isActionFocus = deepRef(false);
     const { t } = useI18n();
-    const isShowList = ref(false);
+    const isShowList = deepRef(false);
     const textStyle = 'font-size: 12px;line-height: 20px;font-weight: 400; cursor: pointer;';
     const widthStyle = 'width:110px;display:inline-block;text-align:right;';
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
@@ -159,12 +159,17 @@ export default defineComponent({
         mealInfo: null,
       },
     });
+    const currentIds = deepRef([]);
+    const currentBizIds = deepRef([]);
 
     const incidentDetailData = computed(() => {
       return incidentDetail?.value;
     });
-    const currentIds = ref([]);
-    const currentBizIds = ref([]);
+    const showActionList = computed(() => {
+      const { entity } = currentData.value;
+      return !entity ? actionList.filter(item => item.id !== 'feedback_new_root_cause') : actionList;
+    });
+
     /** 设置各种操作弹框需要的数据 */
     const setDialogData = data => {
       currentIds.value = [data.id];
@@ -342,7 +347,7 @@ export default defineComponent({
             content: () =>
               !isActionFocus.value && (
                 <BkDropdownMenu>
-                  {actionList.map(item => (
+                  {showActionList.value.map(item => (
                     <BkDropdownItem
                       key={item.id}
                       style={`font-size: 12px;color: #63656E; ${getDisabled(item) ? style : ''}`}

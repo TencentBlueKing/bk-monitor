@@ -203,7 +203,9 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   }
   /** 是否需要展示右侧的AI相关的视图 */
   get isShowAiopsView() {
-    return window.enable_aiops_event_center_biz_list?.some?.(id => +id === +this.bkBizId);
+    // 2025-07-02 故障详情里的故障诊断内容与告警详情展示冲突，先隐藏右侧AI的相关视图。后续等新版告警详情上线后，按照最新设计稿展示
+    return false;
+    // return window.enable_aiops_event_center_biz_list?.some?.(id => +id === +this.bkBizId);
   }
 
   /* 权限校验 */

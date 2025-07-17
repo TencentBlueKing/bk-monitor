@@ -25,7 +25,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
         if : ${{ failure() }}
-        uses: thollander/actions-comment-pull-request@v2
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
         with:
           message: |
             请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`、`project/aiops`
@@ -41,7 +41,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
         if : ${{ failure() }}
-        uses: thollander/actions-comment-pull-request@v2
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
         with:
           message: |
             请在 PR 中添加类型标签，例如：`fix`、`feat`、`docs`、`style`、`refactor`、`test`、`chore`、`merge`, `perf`

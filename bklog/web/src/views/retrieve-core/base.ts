@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import OptimizedHighlighter from './optimized-highlighter';
-import { random } from '../../common/util';
+import { formatDate, formatDateNanos, random } from '../../common/util';
 import { getRGBAColors } from './colors';
+import OptimizedHighlighter from './optimized-highlighter';
 import RetrieveEvent from './retrieve-events';
 import StaticUtil from './static.util';
 
@@ -40,7 +40,7 @@ export default class {
   leftFieldSettingWidth: number;
 
   // 左侧字段设置是否展示
-  leftFieldSettingShown: boolean = true;
+  leftFieldSettingShown = true;
 
   // 收藏栏宽度
   favoriteWidth: number;
@@ -83,13 +83,38 @@ export default class {
 
   RGBA_LIST: string[];
 
-  isSearching: boolean = false;
+  isSearching = false;
 
   constructor({}) {
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
+  }
+
+  formatDateValue(data: string, field_type: string) {
+    const formatFn = {
+      date: formatDate,
+      date_nanos: formatDateNanos,
+    };
+
+    if (formatFn[field_type]) {
+      if (`${data}`.startsWith('<mark>')) {
+        const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+
+        if (/^\d+$/.test(value)) {
+          return `<mark>${formatFn[field_type](Number(value))}</mark>`;
+        }
+        return `<mark>${formatFn[field_type](value)}</mark>`;
+      }
+
+      if (/^\d+$/.test(data)) {
+        return formatFn[field_type](Number(data)) || data || '--';
+      }
+
+      return formatFn[field_type](data) || data || '--';
+    }
+    return data;
   }
 
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
@@ -142,7 +167,7 @@ export default class {
     });
   }
 
-  getRegExp(reg: string | RegExp | number | boolean): RegExp {
+  getRegExp(reg: RegExp | boolean | number | string): RegExp {
     return StaticUtil.getRegExp(reg);
   }
 }

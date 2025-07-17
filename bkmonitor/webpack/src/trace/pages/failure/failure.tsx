@@ -23,16 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, provide, ref, nextTick } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onMounted,
+  provide,
+  nextTick,
+  ref as deepRef,
+  onBeforeUnmount,
+  watch,
+  shallowRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
-import { incidentDetail, incidentOperationTypes, incidentOperations } from 'monitor-api/modules/incident';
+import {
+  incidentDetail,
+  incidentOperationTypes,
+  incidentOperations,
+  incidentResults,
+} from 'monitor-api/modules/incident';
 import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
-
+import type { IAlertObj, IAlert, IAlertData } from './types';
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
@@ -40,9 +55,9 @@ import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
 import { useIncidentProvider } from './utils';
 
-import type { AnlyzeField, ICommonItem } from '../../../../fta-solutions/typings/event';
 import type { IFilterSearch, IIncident } from './types';
 import type { ITagInfoType } from './types';
+import type { AnlyzeField, ICommonItem } from 'fta-solutions/pages/event/typings/event';
 
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 import './failure.scss';
@@ -88,24 +103,29 @@ export default defineComponent({
     useIncidentProvider(computed(() => props.id));
     const route = useRoute();
     const router = useRouter();
-    const operations = ref([]);
-    const bkzIds = ref([]);
+    const operations = deepRef([]);
+    const bkzIds = deepRef([]);
     const { t } = useI18n();
-    const incidentDetailData = ref<IIncident>({});
-    const valueMap = ref<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
-    const analyzeTagList = ref([]);
-    const tagInfo = ref<ITagInfoType>({});
-    const currentNode = ref([] as string[]);
-    const filterSearch = ref<IFilterSearch>({});
-    const alertAggregateData = ref([]);
-    const operationsLoading = ref(false);
-    const scrollTopNum = ref(0);
-    const operationTypeMap = ref({});
-    const playLoading = ref(false);
-    const operationTypes = ref([]);
-    const refContent = ref<InstanceType<typeof FailureContent>>();
-    const failureNavRef = ref<InstanceType<typeof FailureNav>>();
-    const topoNodeId = ref<string>();
+    const incidentDetailData = deepRef<IIncident>({});
+    const valueMap = deepRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
+    const analyzeTagList = deepRef([]);
+    const tagInfo = deepRef<ITagInfoType>({});
+    const currentNode = deepRef([] as IAlertData[]);
+    const filterSearch = deepRef<IFilterSearch>({});
+    const alertAggregateData = deepRef([]);
+    const operationsLoading = deepRef(false);
+    const scrollTopNum = deepRef(0);
+    const operationTypeMap = deepRef({});
+    const playLoading = deepRef(false);
+    const operationTypes = deepRef([]);
+    const refContent = deepRef<InstanceType<typeof FailureContent>>();
+    const failureNavRef = deepRef<InstanceType<typeof FailureNav>>();
+    const topoNodeId = deepRef<string>();
+    const incidentResultList = deepRef({});
+    const incidentResultStatus = deepRef('');
+    const timer = deepRef();
+    const isShowDiagnosis = shallowRef(false);
+    const currentAlertList = deepRef({});
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -113,6 +133,8 @@ export default defineComponent({
     provide('operationsList', operations);
     provide('operationsLoading', operationsLoading);
     provide('operationTypeMap', operationTypeMap);
+    provide('incidentResults', incidentResultList);
+    provide('isShowDiagnosis', isShowDiagnosis);
     /**
      * @description: 获取告警分析TopN数据
      * @param {*}
@@ -141,7 +163,7 @@ export default defineComponent({
       const setTopnDataFn = async (fieldList, count) => {
         valueMap.value = {};
         const list = [];
-        (fieldList || []).forEach(item => {
+        (fieldList || []).map(item => {
           valueMap.value[item.field] =
             item.buckets.map(set => {
               if (tagList.some(tag => tag.id === item.field)) {
@@ -231,10 +253,10 @@ export default defineComponent({
         incident_id: incidentDetailData.value?.incident_id,
       })
         .then(res => {
-          res.forEach(item => {
+          res.map(item => {
             item.id = item.operation_class;
             item.name = item.operation_class_alias;
-            item.operation_types.forEach(type => {
+            item.operation_types.map(type => {
               type.id = type.operation_type;
               type.name = type.operation_type_alias;
               operationTypeMap.value[type.id] = type.name;
@@ -256,7 +278,7 @@ export default defineComponent({
         incident_id: incidentDetailData.value?.incident_id,
       })
         .then(res => {
-          res.forEach(item => {
+          res.map(item => {
             const { operation_type, extra_info } = item;
             item.str = replaceStr(typeTextMap[operation_type], extra_info);
           });
@@ -301,11 +323,43 @@ export default defineComponent({
     const treeDataList = computed(() => {
       return alertAggregateData.value;
     });
+
+    /** 故障分析状态获取接口 */
+    const getIncidentResults = (isInit = false) => {
+      incidentResults({ id: props.id }).then(res => {
+        incidentResultStatus.value = res.status || 'finished';
+        incidentResultList.value = res.panels || {};
+        /** 第一次请求这个接口的时候去判断是否要切换到故障诊断的Tab */
+        const len = Object.keys(incidentResultList.value).length;
+        if (isInit && len) {
+          const panel = incidentResultList.value.incident_diagnosis.sub_panels || {};
+          isShowDiagnosis.value = Object.values(panel).findIndex(item => item.status === 'finished') > -1;
+        }
+      });
+    };
+    watch(
+      () => incidentResultStatus.value,
+      val => {
+        if (val === 'running') {
+          timer.value = setInterval(() => {
+            getIncidentResults();
+          }, 5000);
+        } else {
+          clearInterval(timer.value);
+        }
+      }
+    );
+
     onMounted(() => {
+      getIncidentResults(true);
       getIncidentDetail();
     });
-    const nodeClick = item => {
+    onBeforeUnmount(() => {
+      timer.value && clearInterval(timer.value);
+    });
+    const nodeClick = (item: IAlert, alertObj: IAlertObj) => {
       currentNode.value = [];
+      currentAlertList.value = alertObj;
       nextTick(() => {
         currentNode.value = item.related_entities || item;
       });
@@ -331,10 +385,13 @@ export default defineComponent({
       topoNodeId.value = nodeId;
     };
     const handleChangeSpace = (space: string[]) => {
-      bkzIds.value = space;
+      bkzIds.value = space || [window.bk_biz_id];
     };
     const changeTab = () => {
       refContent.value?.handleChangeActive('FailureView');
+    };
+    const goAlertList = data => {
+      refContent.value?.goAlertDetail(data);
     };
     return {
       incidentDetailData,
@@ -360,6 +417,8 @@ export default defineComponent({
       handleChangeSelectNode,
       topoNodeId,
       changeTab,
+      goAlertList,
+      currentAlertList,
     };
   },
   render() {
@@ -382,6 +441,7 @@ export default defineComponent({
                 ref='failureNavRef'
                 tagInfo={this.tagInfo}
                 topoNodeId={this.topoNodeId}
+                onAlertList={this.goAlertList}
                 onChangeSpace={this.handleChangeSpace}
                 onChangeTab={this.changeTab}
                 onChooseOperation={this.chooseOperation}
@@ -401,6 +461,7 @@ export default defineComponent({
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
                 onRefresh={this.refresh}
+                alertList={this.currentAlertList}
               />
             ),
           }}

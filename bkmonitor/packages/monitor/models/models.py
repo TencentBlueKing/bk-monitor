@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,11 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import hashlib
+import logging
 import os
 import subprocess
 import traceback
-from functools import reduce
-from typing import Tuple
+from functools import cached_property, reduce
 
 from django.conf import settings
 from django.db import models, transaction
@@ -24,7 +23,6 @@ from django.utils.translation import gettext as _
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
@@ -33,6 +31,8 @@ from core.errors.uptime_check import DeprecatedFunctionError
 from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
 from monitor_web.models import OperateRecordModelBase
 from monitor_web.tasks import append_metric_list_cache, update_task_running_status
+
+logger = logging.getLogger(__name__)
 
 
 class OperateRecordModel(OperateRecordModelBase):
@@ -153,7 +153,7 @@ class UptimeCheckNode(OperateRecordModel):
         # 数据验证
         self.validate_data(update)
 
-        super(UptimeCheckNode, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def delete(self, force=False, *args, **kwargs):
         """
@@ -164,8 +164,10 @@ class UptimeCheckNode(OperateRecordModel):
             tasks = self.tasks.all()
             task_name = ";".join([task.name for task in tasks if (task.status == task.Status.RUNNING)])
             if len(self.tasks.all()) != 0:
-                raise CustomException(_("该节点存在以下运行中的拨测任务：%s，" + _("请先暂停或删除相关联的任务")) % task_name)
-        super(UptimeCheckNode, self).delete(*args, **kwargs)
+                raise CustomException(
+                    _("该节点存在以下运行中的拨测任务：%s，" + _("请先暂停或删除相关联的任务")) % task_name
+                )
+        super().delete(*args, **kwargs)
 
     def validate_data(self, update):
         """
@@ -180,7 +182,9 @@ class UptimeCheckNode(OperateRecordModel):
                 host = api.cmdb.get_host_by_ip(ips=[{"ip": self.ip}], bk_biz_id=self.bk_biz_id)
             if host:
                 if not host[0].bk_host_id:
-                    raise CustomException(_("保存拨测节点失败，主机%(ip)s存在，但无bk_host_id信息".format(**{"ip": self.ip})))
+                    raise CustomException(
+                        _("保存拨测节点失败，主机%(ip)s存在，但无bk_host_id信息".format(**{"ip": self.ip}))
+                    )
                 validate_dict = {"bk_host_id": host[0].bk_host_id}
                 # 如果有 ip 数据，则添加到筛选
                 if host[0].bk_host_innerip:
@@ -256,7 +260,7 @@ class UptimeCheckTaskSubscription(OperateRecordModel):
 
 
 class UptimeCheckTask(OperateRecordModel):
-    class Protocol(object):
+    class Protocol:
         TCP = UptimeCheckProtocol.TCP
         UDP = UptimeCheckProtocol.UDP
         HTTP = UptimeCheckProtocol.HTTP
@@ -269,7 +273,7 @@ class UptimeCheckTask(OperateRecordModel):
         (Protocol.ICMP, "ICMP"),
     )
 
-    class Status(object):
+    class Status:
         NEW_DRAFT = "new_draft"
         RUNNING = "running"
         STOPED = "stoped"
@@ -304,7 +308,11 @@ class UptimeCheckTask(OperateRecordModel):
 
     @property
     def full_table_name(self):
-        return "{}_{}_{}".format(self.bk_biz_id, UPTIME_CHECK_DB, self.protocol.lower())
+        return f"{self.bk_biz_id}_{UPTIME_CHECK_DB}_{self.protocol.lower()}"
+
+    @cached_property
+    def bk_tenant_id(self):
+        return bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
 
     def delete(self, *args, **kwargs):
         """
@@ -321,14 +329,14 @@ class UptimeCheckTask(OperateRecordModel):
             self.delete_subscription()
 
         pk = self.pk
-        super(UptimeCheckTask, self).delete(*args, **kwargs)
+        super().delete(*args, **kwargs)
 
         # 在对应的分组中，将此任务剔除
         with transaction.atomic():
             for group in self.groups.all():
                 group.tasks.remove(self.id)
 
-        logger.info(_("拨测任务已删除,ID:%d" % pk))
+        logger.info(_("拨测任务已删除,ID:%d"), pk)
 
     @property
     def temp_conf_name(self):
@@ -338,7 +346,7 @@ class UptimeCheckTask(OperateRecordModel):
         """
         return "_".join([str(self.bk_biz_id), str(self.pk), "uptimecheckbeat.yml"])
 
-    def get_data_id(self) -> Tuple[bool, str]:
+    def get_data_id(self) -> tuple[bool, str]:
         """
         获取或创建数据ID
         """
@@ -371,8 +379,11 @@ class UptimeCheckTask(OperateRecordModel):
             if len(subscription_item) != 0:
                 params["subscription_id"] = subscription_item[0].subscription_id
                 params["run_immediately"] = True
-                result = api.node_man.update_subscription(params)
-                logger.info(_("订阅任务已更新，订阅ID:%d,任务ID:%d") % (result.get("subscription_id", 0), result.get("task_id", 0)))
+                result = api.node_man.update_subscription(bk_tenant_id=self.bk_tenant_id, **params)
+                logger.info(
+                    _("订阅任务已更新，订阅ID:%d,任务ID:%d")
+                    % (result.get("subscription_id", 0), result.get("task_id", 0))
+                )
                 result_list.append(result)
             else:
                 # 否则说明要新增订阅
@@ -413,7 +424,7 @@ class UptimeCheckTask(OperateRecordModel):
                 uptimecheck_id=self.pk, subscription_id__in=subscription_ids
             )
         for subscription_id in subscription_ids:
-            api.node_man.delete_subscription(subscription_id=subscription_id)
+            api.node_man.delete_subscription(bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id)
             logger.info(_("订阅任务已删除，ID:%d") % subscription_id)
         subscriptions.update(is_deleted=True)
 
@@ -427,7 +438,9 @@ class UptimeCheckTask(OperateRecordModel):
                 "subscription_id", flat=True
             )
         for subscription_id in subscription_ids:
-            api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="disable"
+            )
             logger.info(_("订阅任务已关闭，ID:%d") % subscription_id)
 
     def switch_on_subscription(self):
@@ -437,7 +450,9 @@ class UptimeCheckTask(OperateRecordModel):
         """
         subscriptions = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk)
         for subscription in subscriptions:
-            api.node_man.switch_subscription(subscription_id=subscription.subscription_id, action="enable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription.subscription_id, action="enable"
+            )
             logger.info(_("订阅任务已启动，ID:%d") % subscription.subscription_id)
 
     def stop_subscription(self, subscription_ids=None):
@@ -445,13 +460,15 @@ class UptimeCheckTask(OperateRecordModel):
         停止订阅
         立即执行自身绑定的订阅id的STOP命令
         """
-        action_name = "bkmonitorbeat_%s" % self.protocol.lower()
+        action_name = f"bkmonitorbeat_{self.protocol.lower()}"
         if subscription_ids is None:
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
                 "subscription_id", flat=True
             )
         for subscription_id in subscription_ids:
-            api.node_man.run_subscription(subscription_id=subscription_id, actions={action_name: "STOP"})
+            api.node_man.run_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, actions={action_name: "STOP"}
+            )
             logger.info(_("订阅任务执行STOP，ID:%d") % subscription_id)
 
     def start_subscription(self):
@@ -459,10 +476,14 @@ class UptimeCheckTask(OperateRecordModel):
         启动订阅
         立即执行自身绑定的订阅id的START命令
         """
-        action_name = "bkmonitorbeat_%s" % self.protocol.lower()
+        action_name = f"bkmonitorbeat_{self.protocol.lower()}"
         subscriptions = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk)
         for subscription in subscriptions:
-            api.node_man.run_subscription(subscription_id=subscription.subscription_id, actions={action_name: "START"})
+            api.node_man.run_subscription(
+                bk_tenant_id=self.bk_tenant_id,
+                subscription_id=subscription.subscription_id,
+                actions={action_name: "START"},
+            )
             logger.info(_("订阅任务执行START，ID:%d") % subscription.subscription_id)
 
     def generate_subscription_configs(self):
@@ -521,17 +542,17 @@ class UptimeCheckTask(OperateRecordModel):
                 ],
             }
             step = {
-                "id": "bkmonitorbeat_%s" % protocol,
+                "id": f"bkmonitorbeat_{protocol}",
                 "type": "PLUGIN",
                 "config": {
                     "plugin_name": "bkmonitorbeat",
                     "plugin_version": "latest",
-                    "config_templates": [{"name": "bkmonitorbeat_%s.conf" % protocol, "version": "latest"}],
+                    "config_templates": [{"name": f"bkmonitorbeat_{protocol}.conf", "version": "latest"}],
                 },
                 "params": {
                     "context": {
                         "data_id": data_id,
-                        "max_timeout": "{}ms".format(timeout),
+                        "max_timeout": f"{timeout}ms",
                         "custom_report": "true" if use_custom_report else "false",
                         "send_interval": self.config.get("send_interval"),
                         "tasks": tasks,
@@ -540,8 +561,8 @@ class UptimeCheckTask(OperateRecordModel):
                         "task_id": pk,
                         "bk_biz_id": self.bk_biz_id,
                         "period": "{}s".format(self.config["period"]),
-                        "available_duration": "{}ms".format(available_duration),
-                        "timeout": "{}ms".format(timeout),
+                        "available_duration": f"{available_duration}ms",
+                        "timeout": f"{timeout}ms",
                         "target_port": self.config.get("port"),
                         "response": response_with_prefix,
                         "request": request_with_prefix,
@@ -591,7 +612,7 @@ class UptimeCheckTask(OperateRecordModel):
         """
         result_list = []
         for params in params_list:
-            result = api.node_man.create_subscription(params)
+            result = api.node_man.create_subscription(bk_tenant_id=self.bk_tenant_id, **params)
             logger.info(_("订阅任务已创建，ID:%d") % result.get("subscription_id", 0))
             result["bk_biz_id"] = params["scope"]["bk_biz_id"]
             result_list.append(result)
@@ -611,7 +632,7 @@ class UptimeCheckTask(OperateRecordModel):
 
         self.status = self.Status.STARTING
         self.save()
-        UptimeCheckTaskCollectorLog.objects.filter(task_id=self.id).update(is_deleted=True)
+        UptimeCheckTaskCollectorLog.objects.filter(task_id=self.pk).update(is_deleted=True)
         try:
             if len(UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk)) == 0:
                 # 没有订阅id说明为新增任务，此时调用新增订阅接口
@@ -658,7 +679,7 @@ class UptimeCheckTask(OperateRecordModel):
             )
 
         # 将新拨测任务追加进缓存表中
-        result_table_id_list = ["uptimecheck.{}".format(self.protocol.lower())]
+        result_table_id_list = [f"uptimecheck.{self.protocol.lower()}"]
         append_metric_list_cache.delay(bk_biz_id_to_bk_tenant_id(self.bk_biz_id), result_table_id_list)
 
         return "success"
@@ -670,11 +691,13 @@ class UptimeCheckTask(OperateRecordModel):
         # 前置检查是否有运行中的启停任务
         try:
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
-                "subscription_id", flat=1
+                "subscription_id", flat=True
             )
             if subscription_ids:
                 subscription_id = subscription_ids[0]
-                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                instance_list = api.node_man.batch_task_result(
+                    bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id
+                )
                 for instance in instance_list:
                     if instance.get("status", None) in ["PENDING", "RUNNING"]:
                         raise CustomException(_("拨测任务启用失败：存在运行中的启停任务，请稍后再试"))
@@ -708,11 +731,13 @@ class UptimeCheckTask(OperateRecordModel):
         # 前置检查是否有运行中的启停任务
         try:
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
-                "subscription_id", flat=1
+                "subscription_id", flat=True
             )
             if subscription_ids:
                 subscription_id = subscription_ids[0]
-                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                instance_list = api.node_man.batch_task_result(
+                    bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id
+                )
                 for instance in instance_list:
                     if instance.get("status", None) in ["PENDING", "RUNNING"]:
                         raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))

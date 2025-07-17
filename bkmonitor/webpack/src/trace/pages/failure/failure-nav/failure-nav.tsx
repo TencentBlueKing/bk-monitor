@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, defineComponent, inject, ref } from 'vue';
+import {
+  computed,
+  KeepAlive,
+  type PropType,
+  type Ref,
+  defineComponent,
+  inject,
+  ref as deepRef,
+  shallowRef,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -31,6 +41,7 @@ import { incidentAlertAggregate } from 'monitor-api/modules/incident';
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
+import TroubleShooting from '../trouble-shooting/trouble-shooting';
 
 import type { ITagInfoType, IAggregationRoot } from '../types';
 
@@ -48,31 +59,83 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['nodeClick', 'filterSearch', 'nodeExpand', 'treeScroll', 'chooseOperation', 'changeSpace', 'changeTab'],
+  emits: [
+    'nodeClick',
+    'filterSearch',
+    'nodeExpand',
+    'treeScroll',
+    'chooseOperation',
+    'changeSpace',
+    'changeTab',
+    'alertList',
+  ],
   setup(props, { emit }) {
     /** 左侧头部菜单 */
     const { t } = useI18n();
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const alertAggregateParams = ref({});
-    const refNav = ref(null);
+    const incidentResults = inject<Ref<object>>('incidentResults');
+    const isShowDiagnosis = inject<Ref<boolean>>('isShowDiagnosis');
+    const alertAggregateParams = deepRef({});
+    const refNav = deepRef(null);
     const tabList = [
       {
         name: 'FailureHandle',
         label: t('故障处理'),
+        component: FailureHandle,
+        key: 'incident_handlers',
       },
       {
         name: 'FailureProcess',
         label: t('故障流转'),
+        component: FailureProcess,
+        key: 'incident_operations',
+      },
+      {
+        name: 'TroubleShooting',
+        label: t('故障诊断'),
+        component: TroubleShooting,
+        key: 'incident_diagnosis',
       },
     ];
-    const active = ref('FailureHandle');
+    const active = shallowRef('FailureHandle');
+    const showKeys = computed(() => {
+      const keys = Object.keys(incidentResults.value).filter(key => incidentResults.value[key].enabled);
+      return keys;
+    });
+    const showTabList = computed(() => {
+      return tabList.filter(item => showKeys.value.includes(item.key)) || [];
+    });
+
+    const currentTabConfig = computed(() => {
+      const key = tabList.find(item => item.name === active.value).key;
+      return incidentResults.value[key];
+    });
+    watch(
+      () => isShowDiagnosis.value,
+      val => {
+        if (val) {
+          active.value = 'TroubleShooting';
+        }
+      }
+    );
+
     const handleChange = (name: string) => {
       if (active.value !== name) {
         active.value = name;
       }
     };
+    const formatAlertObj = (ids, data) => {
+      const len = ids.length;
+      const name = data.alert_name;
+      return {
+        ids: `告警ID: ${ids.join(' OR 告警ID: ')}`,
+        label: `${name} 等共 ${len} 个告警`,
+      };
+    };
     const nodeClick = item => {
-      emit('nodeClick', item);
+      const { alert_ids, alert_example } = item;
+      const alertObj = formatAlertObj(alert_ids, alert_example);
+      emit('nodeClick', item, alertObj);
     };
     const filterSearch = data => {
       alertAggregateParams.value = data;
@@ -128,6 +191,12 @@ export default defineComponent({
     const changeTab = () => {
       emit('changeTab');
     };
+    /** 跳转到告警tab */
+    const goAlertList = list => {
+      const alertIds = list.map(item => item.id);
+      const alertObj = formatAlertObj(alertIds, list[0]);
+      emit('alertList', alertObj);
+    };
     return {
       active,
       tabList,
@@ -142,35 +211,39 @@ export default defineComponent({
       refNav,
       handleRefNavRefresh,
       changeTab,
+      showTabList,
+      showKeys,
+      currentTabConfig,
+      goAlertList,
     };
   },
   render() {
-    const Component = this.active === 'FailureHandle' ? FailureHandle : FailureProcess;
+    const Component = this.tabList.find(item => item.name === this.active).component;
     return (
       <div class='failure-nav'>
         {this.playLoading && <div class='failure-nav-loading' />}
         <FailureMenu
           width={'500px'}
           active={this.active}
-          tabList={this.tabList}
+          tabList={this.showTabList}
           top={-16}
           onChange={this.handleChange}
         />
         <div class='failure-nav-main'>
-          <KeepAlive>
-            <Component
-              ref='refNav'
-              tagInfo={this.$props.tagInfo}
-              topoNodeId={this.$props.topoNodeId}
-              onChangeSpace={this.handleSpace}
-              onChangeTab={this.changeTab}
-              onChooseOperation={this.chooseOperation}
-              onFilterSearch={this.filterSearch}
-              onNodeClick={this.nodeClick}
-              onNodeExpand={this.nodeExpand}
-              onTreeScroll={this.treeScroll}
-            />
-          </KeepAlive>
+          <Component
+            ref='refNav'
+            panelConfig={this.currentTabConfig}
+            tagInfo={this.$props.tagInfo}
+            topoNodeId={this.$props.topoNodeId}
+            onAlertList={this.goAlertList}
+            onChangeSpace={this.handleSpace}
+            onChangeTab={this.changeTab}
+            onChooseOperation={this.chooseOperation}
+            onFilterSearch={this.filterSearch}
+            onNodeClick={this.nodeClick}
+            onNodeExpand={this.nodeExpand}
+            onTreeScroll={this.treeScroll}
+          />
         </div>
       </div>
     );

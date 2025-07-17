@@ -25,7 +25,7 @@ importers:
         version: 1.9.4
       '@blueking/bkmonitor-cli':
         specifier: 7.0.1
-        version: 7.0.1(@types/node@22.9.0)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.5.3)(vue-template-compiler@2.7.16)(vue@3.5.15(typescript@5.8.3))
+        version: 7.0.1(@types/node@22.9.0)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.5.3)(vue@3.5.15(typescript@5.8.3))
       '@blueking/stylelint-config':
         specifier: 0.0.3
         version: 0.0.3
@@ -119,9 +119,6 @@ importers:
       vue-eslint-parser:
         specifier: ^10.1.3
         version: 10.1.3(eslint@9.28.0(jiti@2.4.2))
-      vue-template-compiler:
-        specifier: ^2.7.16
-        version: 2.7.16
 
   src/apm:
     dependencies:
@@ -345,8 +342,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.1.0-beta.14
-        version: 1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.1.0-beta.15
+        version: 1.1.0-beta.15(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -477,9 +474,6 @@ importers:
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
-      vue-template-compiler:
-        specifier: ^2.7.16
-        version: 2.7.16
 
   src/monitor-static:
     dependencies:
@@ -631,6 +625,12 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.4
+      '@toast-ui/editor':
+        specifier: ^3.2.2
+        version: 3.2.2
+      '@toast-ui/editor-plugin-code-syntax-highlight':
+        specifier: ^3.1.0
+        version: 3.1.0
       '@vue-flow/core':
         specifier: ^1.45.0
         version: 1.45.0(vue@3.5.15(typescript@5.8.3))
@@ -1502,8 +1502,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.1.0-beta.14':
-    resolution: {integrity: sha512-CUVu1Xn6mgNalBLJwiunoSxiKU+Rk7WmBc10wk72mZu+lyhpEs4Qvqy8N6k3mKzE35AumcuDS9VHWZ31AKETrg==}
+  '@blueking/ai-blueking@1.1.0-beta.15':
+    resolution: {integrity: sha512-ExgxwBA6F5t2cRVPLpG12HSx3o+GB8SjeYfXVszcfL+TwJwf+jrOeh7G95gjal3S9VRCo7+F9IOmZkLRxfZNjQ==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -4053,9 +4053,6 @@ packages:
 
   dayjs@1.11.13:
     resolution: {integrity: sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg==}
-
-  de-indent@1.0.2:
-    resolution: {integrity: sha512-e/1zu3xH5MQryN2zdVaF0OrdNLUbvWxzMbi+iNA6Bky7l1RoP8a2fIbRocyHclXt/arDrrR6lL3TqFD9pMQTsg==}
 
   debounce@1.2.1:
     resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
@@ -8390,9 +8387,6 @@ packages:
   vue-style-loader@4.1.3:
     resolution: {integrity: sha512-sFuh0xfbtpRlKfm39ss/ikqs9AbKCoXZBpHeVZ8Tx650o0k0q/YCM7FRvigtxpACezfq6af+a7JeqVTWvncqDg==}
 
-  vue-template-compiler@2.7.16:
-    resolution: {integrity: sha512-AYbUWAJHLGGQM7+cNTELw+KsOG9nl2CnSv467WobS5Cv9uk3wFcnr1Etsz2sEIHEZvw1U+o9mRlEO6QbZvUPGQ==}
-
   vue-template-es2015-compiler@1.9.1:
     resolution: {integrity: sha512-4gDntzrifFnCEvyoO8PqyJDmguXgVPxKiIxrBKjIowvL9l+N66196+72XVYR8BBf1Uv1Fgt3bGevJ+sEmxfZzw==}
 
@@ -9713,7 +9707,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@1.1.0-beta.14(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.1.0-beta.15(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it@13.0.2)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@agoose77/markdown-it-mermaid': 1.1.0
       '@blueking/ai-ui-sdk': 0.1.11(bkui-vue@2.0.2-beta.29(highlight.js@11.5.1)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.3)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
@@ -9772,7 +9766,7 @@ snapshots:
 
   '@blueking/bk-weweb@0.0.35-beta.7': {}
 
-  '@blueking/bkmonitor-cli@7.0.1(@types/node@22.9.0)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.5.3)(vue-template-compiler@2.7.16)(vue@3.5.15(typescript@5.8.3))':
+  '@blueking/bkmonitor-cli@7.0.1(@types/node@22.9.0)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.5.3)(vue@3.5.15(typescript@5.8.3))':
     dependencies:
       '@babel/core': 7.26.10
       '@babel/node': 7.26.0(@babel/core@7.26.10)
@@ -9823,7 +9817,7 @@ snapshots:
       tslib: 2.8.1
       typescript: 5.8.3
       url-loader: 4.1.1(file-loader@6.2.0(webpack@5.99.7))(webpack@5.99.7)
-      vue-loader: 15.11.1(@vue/compiler-sfc@3.5.15)(css-loader@7.1.2(webpack@5.99.7))(lodash@4.17.21)(prettier@3.5.3)(vue-template-compiler@2.7.16)(webpack@5.99.7)
+      vue-loader: 15.11.1(@vue/compiler-sfc@3.5.15)(css-loader@7.1.2(webpack@5.99.7))(lodash@4.17.21)(prettier@3.5.3)(webpack@5.99.7)
       vue-style-loader: 4.1.3
       webpack: 5.99.7(webpack-cli@6.0.1)
       webpack-bundle-analyzer: 4.10.2
@@ -12742,8 +12736,6 @@ snapshots:
   dayjs@1.11.10: {}
 
   dayjs@1.11.13: {}
-
-  de-indent@1.0.2: {}
 
   debounce@1.2.1: {}
 
@@ -17540,7 +17532,7 @@ snapshots:
 
   vue-lazyload@1.2.3: {}
 
-  vue-loader@15.11.1(@vue/compiler-sfc@3.5.15)(css-loader@7.1.2(webpack@5.99.7))(lodash@4.17.21)(prettier@3.5.3)(vue-template-compiler@2.7.16)(webpack@5.99.7):
+  vue-loader@15.11.1(@vue/compiler-sfc@3.5.15)(css-loader@7.1.2(webpack@5.99.7))(lodash@4.17.21)(prettier@3.5.3)(webpack@5.99.7):
     dependencies:
       '@vue/component-compiler-utils': 3.3.0(lodash@4.17.21)
       css-loader: 7.1.2(webpack@5.99.7)
@@ -17552,7 +17544,6 @@ snapshots:
     optionalDependencies:
       '@vue/compiler-sfc': 3.5.15
       prettier: 3.5.3
-      vue-template-compiler: 2.7.16
     transitivePeerDependencies:
       - arc-templates
       - atpl
@@ -17626,11 +17617,6 @@ snapshots:
     dependencies:
       hash-sum: 1.0.2
       loader-utils: 1.4.2
-
-  vue-template-compiler@2.7.16:
-    dependencies:
-      de-indent: 1.0.2
-      he: 1.2.0
 
   vue-template-es2015-compiler@1.9.1: {}
 

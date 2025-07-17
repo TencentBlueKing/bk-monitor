@@ -38,7 +38,7 @@ export const isFeatureToggleOn = (key: string, value: string | string[]) => {
   return featureToggle === 'on';
 };
 
-export const STORAGE_KEY = 'commonFilterAddition';
+export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
 
 export type FilterAdditionStorageItem = {
   indexSetIdList: string[];
@@ -56,7 +56,7 @@ export const isAiAssistantActive = (val: string[]) => {
 };
 
 export const getStorageCommonFilterAddition = () => {
-  const value = localStorage.getItem(STORAGE_KEY);
+  const value = sessionStorage.getItem(SESSION_STORAGE_KEY);
   let jsonValue: FilterAdditionStorageItem[] | OldFilterAdditionStorageItem = [];
   try {
     jsonValue = JSON.parse(value || '[]');
@@ -136,7 +136,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   if (currentItem) {
     currentItem.filterAddition = filterAddition;
     currentItem.t = new Date().getTime();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allStorage));
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
     return;
   }
 
@@ -154,7 +154,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
     allStorage.shift(); // 移除最早的一条数据
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(allStorage));
+  sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
 };
 
 export const clearStorageCommonFilterAddition = state => {
@@ -164,7 +164,7 @@ export const clearStorageCommonFilterAddition = state => {
     const index = allStorage.indexOf(currentItem);
     if (index > -1) {
       allStorage.splice(index, 1);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allStorage));
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
     }
   }
 };

@@ -6,7 +6,7 @@
 fields="pcpu,pmem,comm"
 
 usage() {
-    cat <<EOF
+    cat <<'EOF'
     get_top_proc_in_oneline.sh <cpu|mem> <number of top proc>
 EOF
     exit 1

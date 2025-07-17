@@ -422,7 +422,7 @@ class ChartHandler:
                     if "i" in arg:
                         ignore_case = True
                 if not use_not:
-                    pattern = grep_where_clause.rsplit(" ", maxsplit=1)[-1]
+                    pattern = grep_where_clause.rsplit("REGEXP ", maxsplit=1)[-1]
                     if ignore_case:
                         pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
                     pattern = pattern.strip("'")

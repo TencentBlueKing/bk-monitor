@@ -523,4 +523,10 @@ export default {
   成功覆盖当前收藏: 'Successfully covered the current collection',
   批量移动成功: 'Batch move successful',
   批量编辑成功: 'Batch edit successful',
+  暂无故障总结: 'No fault summary',
+  处置建议: 'Disposal suggestion',
+  个告警: ' alarms',
+  '维度：': 'Dimension:',
+  快速定位: 'Quick location',
+  操作失败: 'Operation failed',
 };

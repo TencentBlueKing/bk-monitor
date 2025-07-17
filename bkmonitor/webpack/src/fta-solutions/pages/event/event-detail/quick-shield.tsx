@@ -335,10 +335,10 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
             </div>
           </div>
         )}
-        <div class='column-item'>
+        {/* <div class='column-item'>
           <div class='column-label'> {`${this.$t('告警级别')}：`} </div>
           <div class='column-content'>{this.levelMap[detail.severity]}</div>
-        </div>
+        </div> */}
         <div class='column-item'>
           <div class='column-label is-special'> {`${this.$t('维度信息')}：`} </div>
           <div class='column-content'>
@@ -429,7 +429,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           </div>
         ) : undefined}
         <div class='stratrgy-item m0'>
-          <div class='item-label'> {this.$t('告警内容')} </div>
+          <div class='item-label'> {this.$t('屏蔽内容')} </div>
           <div class='item-tips'>
             <i class='icon-monitor icon-hint' />{' '}
             {this.$t('屏蔽的是告警内容的这类事件，不仅仅当前的事件还包括后续屏蔽时间内产生的事件。')}{' '}

@@ -215,8 +215,7 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const isRoot = computed(() => {
-      const { is_root } = chartInfo?.entity;
-      return is_root;
+      return chartInfo?.entity?.is_root;
     });
     // 销毁时的逻辑处理
     onUnmounted(() => {

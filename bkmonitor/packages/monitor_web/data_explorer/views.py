@@ -20,12 +20,17 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from apm_web.utils import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.data_explorer.event import resources as event_resources
+from monitor_web.data_explorer.event.resources import EventTopKResource
+from monitor_web.data_explorer.event.serializers import (
+    EventDownloadTopKRequestSerializer,
+)
 from monitor_web.data_explorer.serializers import (
     BulkDeleteFavoriteSerializer,
     BulkUpdateFavoriteSerializer,
@@ -43,11 +48,6 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from monitor_web.data_explorer.event.resources import EventTopKResource
-from monitor_web.data_explorer.event.serializers import (
-    EventDownloadTopKRequestSerializer,
-)
-from apm_web.utils import generate_csv_file_download_response
 
 
 def order_records_by_config(records: list[dict], order: list) -> list[dict]:
@@ -416,5 +416,5 @@ class DataExplorerViewSet(ResourceViewSet):
         api_topk_response = EventTopKResource().perform_request(validated_data)
         return generate_csv_file_download_response(
             f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.csv",
-            ([item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_response[0]["list"]),
+            ([item["value"], item["count"], f"{item['proportions']}%"] for item in api_topk_response[0]["list"]),
         )

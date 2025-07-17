@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
+import {
+  defineComponent,
+  nextTick,
+  onMounted,
+  inject,
+  onUnmounted,
+  provide,
+  ref as deepRef,
+  watch,
+  type Ref,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Exception, Loading, PopConfirm, Tree } from 'bkui-vue';
@@ -57,13 +67,13 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const bkzIds = inject<Ref<string[]>>('bkzIds');
-    const alertAggregateData = ref<IAggregationRoot[]>([]);
-    const listLoading = ref(false);
-    const isShowDropdown = ref(false);
-    const cacheAggregateData = ref<string[]>([]);
-    const bkBizIds = ref<number[]>([]);
-    const queryString = ref('');
-    const treeRef = ref(null);
+    const alertAggregateData = deepRef<IAggregationRoot[]>([]);
+    const listLoading = deepRef(false);
+    const isShowDropdown = deepRef(false);
+    const cacheAggregateData = deepRef<string[]>([]);
+    const bkBizIds = deepRef<number[]>([]);
+    const queryString = deepRef('');
+    const treeRef = deepRef(null);
     provide('alertAggregateDataList', alertAggregateData);
     const aggregateBysList = [
       {
@@ -87,7 +97,7 @@ export default defineComponent({
         key: 'metric_name',
       },
     ];
-    const aggregateBys = ref(['alert_name', 'node_name']);
+    const aggregateBys = deepRef(['alert_name', 'node_name']);
     const incidentId = useIncidentInject();
     const filterListHandle = (key: string) => {
       if (aggregateBys.value.includes(key)) {
@@ -96,7 +106,7 @@ export default defineComponent({
         aggregateBys.value.push(key);
       }
     };
-    const treeStatus = ref(true);
+    const treeStatus = deepRef(true);
     watch(
       () => props.topoNodeId,
       () => {
@@ -305,9 +315,9 @@ export default defineComponent({
           auto-open-parent-node={false}
           data={alertAggregateData.value}
           label='name'
+          level-line='solid 1px #DCDEE5'
           nodeKey={'id'}
           prefix-icon={getPrefixIcon}
-          level-line='solid 1px #DCDEE5'
           virtual-render
           onNodeClick={nodeClick}
           onNodeCollapse={nodeCollapse}
@@ -325,8 +335,15 @@ export default defineComponent({
       const scrollTop = e.target?.scrollTop;
       emit('treeScroll', scrollTop);
     };
+    watch(
+      () => bkzIds.value,
+      val => {
+        val.length > 0 && getIncidentAlertAggregate();
+      },
+      { immediate: true }
+    );
     onMounted(() => {
-      getIncidentAlertAggregate();
+      // getIncidentAlertAggregate();
       cacheAggregateData.value = JSON.parse(JSON.stringify(aggregateBys.value));
       nextTick(() => {
         treeRef.value?.addEventListener('scroll', scrollChange, true);

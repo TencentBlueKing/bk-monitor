@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent } from 'vue';
+import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
 
+import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -39,11 +40,11 @@ import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 // #else
 // #code const SearchResultTab = () => null;
+
 // #endif
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import { MSearchResultTab } from '../type';
 import Grep from '../grep';
-import useStore from '@/hooks/use-store';
+import { MSearchResultTab } from '../type';
 
 import './index.scss';
 
@@ -79,8 +80,14 @@ export default defineComponent({
       }
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, item => {
+    const handleFavoriteChange = item => {
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
+    };
+
+    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
+
+    onUnmounted(() => {
+      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
     });
 
     const renderTabContent = () => {

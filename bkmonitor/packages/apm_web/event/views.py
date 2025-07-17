@@ -16,11 +16,10 @@ from apm_web.decorators import user_visit_record
 from apm_web.event import resources
 from apm_web.event.serializers import EventDownloadTopKRequestSerializer
 from apm_web.models import Application
+from apm_web.utils import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
-from apm_web.utils import generate_csv_file_download_response
 
 
 class EventViewSet(ResourceViewSet):
@@ -61,5 +60,5 @@ class EventViewSet(ResourceViewSet):
         api_topk_response = resources.EventTopKResource().perform_request(validated_data)
         return generate_csv_file_download_response(
             f"bkmonitor_{validated_data['query_configs'][0]['table']}_{validated_data['fields'][0]}.csv",
-            ([item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_response[0]["list"]),
+            ([item["value"], item["count"], f"{item['proportions']}%"] for item in api_topk_response[0]["list"]),
         )

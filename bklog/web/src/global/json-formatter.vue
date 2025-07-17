@@ -1,7 +1,16 @@
 <template>
   <div
     ref="refJsonFormatterCell"
-    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    :class="[
+      'bklog-json-formatter-root',
+      {
+        'is-wrap-line': isWrap,
+        'is-inline': !isWrap,
+        'is-json': formatJson,
+        'is-hidden': !isRowIntersecting && isResolved,
+        'show-all-word': showAllWords,
+      },
+    ]"
     :style="rootElementStyle"
   >
     <template v-for="item in rootList">
@@ -38,10 +47,10 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
+  import { parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -58,21 +67,14 @@
 
   const props = defineProps({
     jsonValue: {
-      type: [Object, String],
+      type: [Object, String, Number],
       default: () => ({}),
     },
     fields: {
       type: [Array, Object],
       default: () => [],
     },
-    formatJson: {
-      type: Boolean,
-      default: true,
-    },
-    isIntersection: {
-      type: Boolean,
-      default: false,
-    },
+
     limitRow: {
       type: [Number, String, null],
       default: 3,
@@ -82,13 +84,16 @@
   const bigJson = JSONBig({ useNativeBigInt: true });
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
-  const isResolved = ref(props.isIntersection);
   const showAllText = ref(false);
   const hasScrollY = ref(false);
+  const isRowIntersecting = inject('isRowIntersecting', ref(false));
+  const isResolved = ref(isRowIntersecting.value);
 
   const isFormatDateField = computed(() => store.state.isFormatDate);
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+  const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+
   const isCurrentCellExpandText = computed(() => {
     if (isLimitExpandText.value) {
       return true;
@@ -98,7 +103,7 @@
   });
 
   const rootElementStyle = computed(() => {
-    if (props.formatJson) {
+    if (formatJson.value) {
       return {
         maxHeight: undefined,
       };
@@ -130,11 +135,15 @@
   });
 
   const showMoreTextAction = computed(() => {
-    if (typeof props.limitRow === 'number' && !props.formatJson && !isLimitExpandText.value) {
+    if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
       return true;
     }
 
     return false;
+  });
+
+  const showAllWords = computed(() => {
+    return !showMoreTextAction.value || showAllText.value;
   });
 
   const btnText = computed(() => {
@@ -160,7 +169,7 @@
   });
 
   const convertToObject = val => {
-    if (typeof val === 'string' && props.formatJson) {
+    if (typeof val === 'string' && formatJson.value) {
       if (/^(\{|\[)/.test(val)) {
         try {
           return bigJson.parse(val);
@@ -178,35 +187,27 @@
     return val;
   };
 
-  const getDateFieldValue = (field, content) => {
-    if (isFormatDateField.value) {
-      const formatFn = {
-        date: formatDate,
-        date_nanos: formatDateNanos,
-      };
-
-      if (formatFn[field.field_type]) {
-        if (/^<mark>(\d+)<\/mark>$/i.test(content)) {
-          return content.replace(/^<mark>(\d+)<\/mark>$/i, (_, p1) => {
-            return `<mark>${formatFn[field.field_type](Number(p1))}</mark>`;
-          });
-        }
-
-        return formatFn[field.field_type](Number(content)) || content || '--';
-      }
+  const getDateFieldValue = (field, content, formatDate) => {
+    if (formatDate) {
+      return RetrieveHelper.formatDateValue(content, field.field_type);
     }
 
     return content;
   };
 
   const getFieldValue = field => {
-    if (props.formatJson) {
+    if (formatJson.value) {
       if (typeof props.jsonValue === 'string') {
         return [convertToObject(props.jsonValue), props.jsonValue];
       }
 
-      const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
-      return [convertToObject(fieldValue), fieldValue];
+      if (typeof props.jsonValue === 'object') {
+        const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+        return [convertToObject(fieldValue), fieldValue];
+      }
+
+      return [props.jsonValue, props.jsonValue];
+
     }
 
     if (typeof props.jsonValue === 'object') {
@@ -230,14 +231,14 @@
     return val;
   };
 
-  const getFieldFormatter = field => {
+  const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
 
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
-      value: getDateFieldValue(field, objValue),
-      stringValue: getDateFieldValue(field, getCellRender(val)),
+      value: getDateFieldValue(field, objValue, formatDate),
+      stringValue: getDateFieldValue(field, getCellRender(val), formatDate),
       field,
     };
   };
@@ -252,7 +253,7 @@
     return fieldList.value.map((f: any) => ({
       name: f.field_name,
       type: f.field_type,
-      formatter: getFieldFormatter(f),
+      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
       __is_virtual_root__: !!f.__is_virtual_root__,
     }));
   });
@@ -266,12 +267,12 @@
       RetrieveHelper.highlightElement(refJsonFormatterCell.value);
       setIsOverflowY();
     });
-  }, 120);
+  });
 
   const setIsOverflowY = () => {
     if (refJsonFormatterCell.value) {
       const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-      hasScrollY.value = scrollHeight > offsetHeight;
+      hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
       return;
     }
 
@@ -279,9 +280,9 @@
   };
 
   watch(
-    () => [props.isIntersection],
+    () => [isRowIntersecting.value],
     () => {
-      if (props.isIntersection && !isResolved.value) {
+      if (isRowIntersecting.value && !isResolved.value) {
         debounceUpdate();
       }
     },
@@ -348,7 +349,7 @@
 
     .btn-more-action {
       position: absolute;
-      right: 6px;
+      right: 4px;
       bottom: 0px;
       color: #3a84ff;
       cursor: pointer;
@@ -416,11 +417,32 @@
       .bklog-root-field {
         .field-value {
           max-height: 50vh;
-          overflow: auto;
-          transform: translateZ(0); /* 强制开启GPU加速 */
-          will-change: transform;
+          overflow: hidden;
         }
       }
+    }
+
+    &.show-all-word {
+      .bklog-root-field {
+        .field-value {
+          max-height: 50vh;
+          overflow: auto;
+
+          &::-webkit-scrollbar {
+            width: 6px;
+            background: #fff;
+          }
+
+          &::-webkit-scrollbar-thumb {
+            background: #dcdee5;
+            border-radius: 2px;
+          }
+        }
+      }
+    }
+
+    &.is-hidden {
+      visibility: hidden;
     }
 
     .segment-content {
