@@ -193,9 +193,8 @@ export default defineComponent({
           const res = await fetchTrendChartData(urlStr, indexId, queryData);
           setChartData(res?.data?.aggs, queryData.group_field, isInit);
           isInit = false;
-          console.log('完成一次请求--------')
-          console.log('loading:', loading.value)
         } catch (err) {
+          setChartData(null, null, true); // 清空图表数据
           store.commit('retrieve/updateTrendDataLoading', false);
           break;
         }
@@ -267,24 +266,22 @@ export default defineComponent({
       const controller = new AbortController();
       logChartCancel = () => controller.abort();
 
-      return http
-        .request(
-          urlStr,
-          {
-            params: { index_set_id: indexId },
-            data: queryData,
-          },
-          {
-            signal: controller.signal,
-          },
-        )
-        .catch(err => {
-          store.commit('retrieve/updateTrendDataLoading', false); // 请求失败时,关闭loading
-        });
+      return http.request(
+        urlStr,
+        {
+          params: { index_set_id: indexId },
+          data: queryData,
+        },
+        {
+          signal: controller.signal,
+        },
+      );
     };
 
     // 加载趋势图数据
     const loadTrendData = () => {
+      store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
+
       if (totalCount.value <= 0 || isFold.value) return;
 
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
@@ -295,7 +292,6 @@ export default defineComponent({
       // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(() => {
         isInit = true;
-        store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
       });
     };

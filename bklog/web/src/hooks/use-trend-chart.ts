@@ -194,18 +194,17 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   // 补齐图表数据到指定长度
   const padDataToLength = (data: Array<[number, number, string | null]>, targetLength: number, intervalMs: number) => {
-
     if (data.length >= targetLength) return data;
-  
+
     // 按时间升序排序
     data.sort((a, b) => a[0] - b[0]);
     const result = [...data];
     const missing = targetLength - data.length;
-  
+
     // 计算需要补前面和后面的数量
     const padBefore = Math.floor(missing / 2);
     const padAfter = missing - padBefore;
-  
+
     // 前补
     let firstTime = data.length ? data[0][0] : Date.now();
     for (let i = 1; i <= padBefore; i++) {
@@ -216,36 +215,36 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     for (let i = 1; i <= padAfter; i++) {
       result.push([lastTime + i * intervalMs, 0, null]);
     }
-    
+
     return result;
   };
 
   // 计算x轴坐标点的时间显示格式
   const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
-    const totalSpan = endTime - startTime;  // 查询的总时间范围
-    const intervalMs = getIntervalValue(interval) * 1000;  // 查询的时间间隔
+    const totalSpan = endTime - startTime; // 查询的总时间范围
+    const intervalMs = getIntervalValue(interval) * 1000; // 查询的时间间隔
 
     // 若时间范围小于1天（<24h）
     if (totalSpan < 24 * 60 * 60 * 1000) {
-      if (intervalMs <= 1000) return 'HH:mm:ss.SSS';         // <=1s
-      if (intervalMs <= 60 * 1000) return 'HH:mm:ss';        // 1s~1min
-      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm';      // 1min~1h
-      return 'MM-DD HH:mm';                                  // >1h
+      if (intervalMs <= 1000) return 'HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm'; // 1min~1h
+      return 'MM-DD HH:mm'; // >1h
     }
     // 时间范围大于等于1天（>=24h）
-    else{
-      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS';         // <=1s
-      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss';        // 1s~1min
-      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm';      // 1min~1h
+    else {
+      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1min~1h
       if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
-      return 'YYYY-MM-DD HH:mm';                                        // >1d
+      return 'YYYY-MM-DD HH:mm'; // >1d
     }
-  }
+  };
 
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
     let count = 0;
-    
+
     const { start_time, end_time } = retrieveParams.value;
     const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
@@ -261,7 +260,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           options.series.push(dst);
           colors.push(group.color);
           const index = options.series.length - 1;
-          dataset.set(group.id, { group, dst: options.series[index], dataMap: new Map<string, [number, number, string | null]>() });
+          dataset.set(group.id, {
+            group,
+            dst: options.series[index],
+            dataMap: new Map<string, [number, number, string | null]>(),
+          });
         }
       });
 
@@ -315,8 +318,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     sortKeys.forEach(key => {
       const { dst, dataMap } = dataset.get(key);
       let dataArr = Array.from(dataMap.values()) as [number, number, string | null][];
-      const intervalMs = getIntervalValue(runningInterval) * 1000;  // 获取时间间隔的毫秒数
-      dataArr = padDataToLength(dataArr, 15, intervalMs);  // 补齐图表数据
+      const intervalMs = getIntervalValue(runningInterval) * 1000; // 获取时间间隔的毫秒数
+      dataArr = padDataToLength(dataArr, 15, intervalMs); // 补齐图表数据
       dst.data = dataArr;
     });
 
@@ -417,7 +420,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const { start_time, end_time } = retrieveParams.value;
     const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
-    
+
     options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v) || dayjs(v).format(formatStr);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
@@ -431,15 +434,16 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
       const intervalSeconds = getIntervalValue(runningInterval);
-      const endTimestamp = startTimestamp + (intervalSeconds * 1000); // 转换为毫秒
+      const endTimestamp = startTimestamp + intervalSeconds * 1000; // 转换为毫秒
       const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
 
       // 多 series 展示
-      const seriesHtml = params.map(item => {
-        const value = item.value[1] || 0;
-        const seriesName = item.seriesName;
-        const color = item.color;
-        return `
+      const seriesHtml = params
+        .map(item => {
+          const value = item.value[1] || 0;
+          const seriesName = item.seriesName;
+          const color = item.color;
+          return `
           <div style="display: flex; align-items: center; margin-top: 4px;">
             <span style="
               display: inline-block; 
@@ -452,8 +456,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
             <span style="font-weight: bold;">${getShowTotalNum(value)}</span>
           </div>
         `;
-      }).join('');
-      
+        })
+        .join('');
+
       return `
         <div style="min-width: 120px;">
           <div>${timeStart} <span style="font-weight:bold;margin:0 4px;">to</span> ${timeEnd}</div>
@@ -524,13 +529,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       chartInstance.dispatchAction({
         type: 'dataZoom',
         batch: [prev],
+        dblclick: false,
         isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
       });
     }
   };
 
   const handleCanvasResize = debounce(() => {
-    chartInstance?.resize();1
+    chartInstance?.resize();
   });
 
   // 回到初始趋势图（第一个历史范围）
@@ -539,13 +545,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       const first = cachedBatch.value[0];
       chartInstance.dispatchAction({
         type: 'dataZoom',
-        dblclick: true,
+        dblclick: true, // 标记本次是双击
+        isBack: true,
         batch: [first],
       });
-      cachedBatch.value = [first];
+      cachedBatch.value.length = 0; // 清空缓存，避免重复回到初始趋势图
     }
   };
-  
+
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
