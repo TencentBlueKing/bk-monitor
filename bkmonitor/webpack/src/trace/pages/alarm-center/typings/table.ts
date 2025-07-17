@@ -29,7 +29,10 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 
 // 表格列字段
 export type TableColumnItem<T = any> = TableCol<T> & {
-  is_default?: boolean; // 是否为默认列
+  /** 是否为默认列 */
+  is_default?: boolean;
+  /** 是否必须显示且不可编辑隐藏 */
+  is_locked?: boolean;
 };
 
 /** 表格通用渲染函数类型 */

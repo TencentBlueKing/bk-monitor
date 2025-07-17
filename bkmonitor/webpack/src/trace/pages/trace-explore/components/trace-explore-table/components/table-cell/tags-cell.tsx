@@ -43,6 +43,8 @@ import './tags-cell.scss';
 const DEFAULT_TAG_COLOR = {
   tagColor: '#4D4F56',
   tagBgColor: '#F0F1F5',
+  tagHoverColor: '#4D4F56',
+  tagHoverBgColor: '#DCDEE5',
 };
 export default defineComponent({
   name: 'TagsCell',
@@ -83,8 +85,8 @@ export default defineComponent({
               style={{
                 '--tag-color': tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
                 '--tag-bg-color': tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
-                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
-                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
+                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
               class={`tag-item ${this.renderCtx?.cellEllipsisClass}`}
             >

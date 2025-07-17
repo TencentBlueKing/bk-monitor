@@ -43,6 +43,11 @@ export function useAlarmTableColumns() {
       .map(item => item.colKey);
   });
   const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, defaultTableFields);
+
+  /** 必须显示且不可编辑隐藏列 */
+  const lockedTableFields = computed(() =>
+    alarmStore.alarmService.allTableColumns.filter(item => item.is_locked).map(item => item.colKey)
+  );
   const tableColumns = computed<TableColumnItem[]>(() => {
     return allTableFields.value
       .map(({ field }) => {
@@ -70,5 +75,6 @@ export function useAlarmTableColumns() {
     storageColumns,
     tableColumns,
     allTableFields,
+    lockedTableFields,
   };
 }
