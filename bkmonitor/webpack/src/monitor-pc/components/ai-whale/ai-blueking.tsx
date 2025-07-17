@@ -97,6 +97,7 @@ export default class AiBluekingWrapper extends tsc<object> {
           {
             type: 'textarea',
             key: 'bk_data_id',
+            fillBack: true,
             name: this.$t('数据源ID'),
             placeholder: this.$t('请输入数据源ID'),
           },
