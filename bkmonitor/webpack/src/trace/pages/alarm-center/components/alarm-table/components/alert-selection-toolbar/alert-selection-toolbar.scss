@@ -1,5 +1,7 @@
 .alert-selection-toolbar {
   display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 20px;
 
   .alert-selection-info {
@@ -18,7 +20,6 @@
     .action-item {
       display: flex;
       align-items: center;
-      cursor: pointer;
 
       .icon-monitor {
         flex-shrink: 0;
