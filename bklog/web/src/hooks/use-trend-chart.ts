@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, type Ref, watch } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -195,6 +195,28 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
   };
 
+  // 计算x轴坐标点的时间显示格式
+  const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
+    const totalSpan = endTime - startTime; // 查询的总时间范围
+    const intervalMs = getIntervalValue(interval) * 1000; // 查询的时间间隔
+
+    // 若时间范围小于1天（<24h）
+    if (totalSpan < 24 * 60 * 60 * 1000) {
+      if (intervalMs <= 1000) return 'HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm'; // 1min~1h
+      return 'MM-DD HH:mm'; // >1h
+    }
+    // 时间范围大于等于1天（>=24h）
+    else {
+      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1min~1h
+      if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
+      return 'YYYY-MM-DD HH:mm'; // >1d
+    }
+  };
+
   // 补齐图表数据到指定长度
   const padDataToLength = (data: Array<[number, number, string | null]>, targetLength: number, intervalMs: number) => {
     if (data.length >= targetLength) return data;
@@ -222,27 +244,21 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return result;
   };
 
-  // 计算x轴坐标点的时间显示格式
-  const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
-    const totalSpan = endTime - startTime; // 查询的总时间范围
-    const intervalMs = getIntervalValue(interval) * 1000; // 查询的时间间隔
-
-    // 若时间范围小于1天（<24h）
-    if (totalSpan < 24 * 60 * 60 * 1000) {
-      if (intervalMs <= 1000) return 'HH:mm:ss.SSS'; // <=1s
-      if (intervalMs <= 60 * 1000) return 'HH:mm:ss'; // 1s~1min
-      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm'; // 1min~1h
-      return 'MM-DD HH:mm'; // >1h
+  // 监听loading, 在接口请求结束时再补充数据
+  const loading = computed(() => store.state.retrieve.isTrendDataLoading);
+  watch(loading, val => {
+    if (val === false) {
+      const intervalMs = getIntervalValue(runningInterval) * 1000;
+      if (options.series && Array.isArray(options.series)) {
+        options.series.forEach(series => {
+          if (series.data && Array.isArray(series.data)) {
+            series.data = padDataToLength(series.data, 15, intervalMs);
+          }
+        });
+        updateChart();
+      }
     }
-    // 时间范围大于等于1天（>=24h）
-    else {
-      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS'; // <=1s
-      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss'; // 1s~1min
-      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1min~1h
-      if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
-      return 'YYYY-MM-DD HH:mm'; // >1d
-    }
-  };
+  });
 
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
@@ -318,14 +334,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       dst.data = Array.from(dataMap.values());
     });
 
-    sortKeys.forEach(key => {
-      const { dst, dataMap } = dataset.get(key);
-      let dataArr = Array.from(dataMap.values()) as [number, number, string | null][];
-      const intervalMs = getIntervalValue(runningInterval) * 1000; // 获取时间间隔的毫秒数
-      dataArr = padDataToLength(dataArr, 15, intervalMs); // 补齐图表数据
-      dst.data = dataArr;
-    });
-
     updateChart(isInit);
     return count;
   };
@@ -358,9 +366,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       const val = opt_data.get(key);
       return [key, val ? val[0] : 0, val ? val[1] : null] as [number, number, string | null];
     });
-
-    const intervalMs = getIntervalValue(runningInterval) * 1000;
-    data = padDataToLength(data, 15, intervalMs);
 
     if (isInit) {
       series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
@@ -524,7 +529,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
               ...route.query,
               start_time: timeFrom,
               end_time: timeTo,
-            }
+            },
           });
         });
       }
@@ -534,15 +539,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   // 趋势图回退到上一个时间范围
   const backToPreChart = () => {
     if (cachedBatch.value.length > 1) {
-      cachedBatch.value.pop(); // 移除当前时间范围
-      const prev = cachedBatch.value[cachedBatch.value.length - 1];
-
+      const prev = cachedBatch.value[cachedBatch.value.length - 2]; // 倒数第二个
       chartInstance.dispatchAction({
         type: 'dataZoom',
         batch: [prev],
         dblclick: false,
         isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
       });
+      cachedBatch.value.pop();
     }
   };
 
@@ -560,7 +564,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         isBack: true,
         batch: [first],
       });
-      cachedBatch.value.length = 0; // 清空缓存，避免重复回到初始趋势图
+      cachedBatch.value.splice(0, cachedBatch.value.length);  // 清空缓存时间组
     }
   };
 

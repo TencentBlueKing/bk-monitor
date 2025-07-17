@@ -74,6 +74,14 @@ export default defineComponent({
     let isInit = true; // 是否为首次请求
     let runningTimer: any = null; // 定时器
 
+    // 初始化、设置、重绘图表
+    const handleChartDataZoom = inject('handleChartDataZoom', () => {});
+    const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
+      target: trendChartCanvas,
+      handleChartDataZoom,
+      dynamicHeight,
+    });
+
     // 监听store中interval变化，自动同步到chartInterval
     watch(
       () => store.getters.retrieveParams.interval,
@@ -116,6 +124,7 @@ export default defineComponent({
 
     // 是否正在加载趋势图数据
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
+    const loadingTrend = ref(true)
 
     // 总条数和耗时
     const totalCount = computed(() => store.state.searchTotal);
@@ -156,19 +165,12 @@ export default defineComponent({
           interval: v,
         },
       });
+      loadingTrend.value = true;
       store.commit('retrieve/updateTrendDataLoading', true);
       setTimeout(() => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
       });
     };
-
-    // 初始化、设置、重绘图表
-    const handleChartDataZoom = inject('handleChartDataZoom', () => {});
-    const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
-      target: trendChartCanvas,
-      handleChartDataZoom,
-      dynamicHeight,
-    });
 
     // 节流后的回退操作函数
     const throttledBackToPreChart = throttle(backToPreChart, 500, { trailing: false });
@@ -183,8 +185,8 @@ export default defineComponent({
 
     // 趋势图数据请求主函数
     const getSeriesData = async (startTimeStamp, endTimeStamp) => {
-      const runningInterval = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔
-      const gen = getGenFn({ startTimeStamp, endTimeStamp, runningInterval }); // 定义生成器
+      const intervalTimeStamp = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔
+      const gen = getGenFn({ startTimeStamp, endTimeStamp, intervalTimeStamp }); // 定义生成器
 
       let result = gen.next();
       while (!result.done) {
@@ -195,16 +197,18 @@ export default defineComponent({
           isInit = false;
         } catch (err) {
           setChartData(null, null, true); // 清空图表数据
+          loadingTrend.value = false
           store.commit('retrieve/updateTrendDataLoading', false);
           break;
         }
         result = gen.next();
       }
+      loadingTrend.value = false;
       store.commit('retrieve/updateTrendDataLoading', false);
     };
 
     // 趋势图数据请求生成器
-    function* getGenFn({ startTimeStamp, endTimeStamp, runningInterval }) {
+    function* getGenFn({ startTimeStamp, endTimeStamp, intervalTimeStamp }) {
       const { interval } = initChartData(); // 获取趋势图汇聚周期
       let currentTimeStamp = endTimeStamp; // 从最后一段时间开始请求
 
@@ -236,10 +240,10 @@ export default defineComponent({
 
       while (currentTimeStamp >= startTimeStamp) {
         // 计算本轮请求结束时间
-        let end_time = runningInterval === 0 ? endTimeStamp : currentTimeStamp;
+        let end_time = intervalTimeStamp === 0 ? endTimeStamp : currentTimeStamp;
 
         // 计算本轮请求开始时间
-        let start_time = runningInterval === 0 ? startTimeStamp : end_time - runningInterval;
+        let start_time = intervalTimeStamp === 0 ? startTimeStamp : end_time - intervalTimeStamp;
         if (start_time < startTimeStamp) {
           start_time = startTimeStamp;
         }
@@ -251,9 +255,9 @@ export default defineComponent({
           yield { urlStr, indexId, queryData };
 
           // 如果不分段，请求一次直接结束
-          if (runningInterval === 0) break;
+          if (intervalTimeStamp === 0) break;
 
-          currentTimeStamp -= runningInterval;
+          currentTimeStamp -= intervalTimeStamp;
         }
       }
 
@@ -280,9 +284,14 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
+      loadingTrend.value = true;
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
 
-      if (totalCount.value <= 0 || isFold.value) return;
+      // if (totalCount.value <= 0 ){
+      //   loadingTrend.value = false;
+      //   store.commit('retrieve/updateTrendDataLoading', false);
+      //   return;
+      // };
 
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
       setChartData(null, null, true); // 清空图表数据, 重置为初始状态
@@ -297,17 +306,17 @@ export default defineComponent({
     };
 
     // 监听总条数数量，自动刷新趋势图（只监听一次）
-    let initLoadedTrend = false;
-    watch(
-      () => totalCount.value,
-      val => {
-        if (!initLoadedTrend && val > 0 && !isFold.value) {
-          loadTrendData();
-          initLoadedTrend = true;
-        }
-      },
-      { immediate: true },
-    );
+    // let initLoadedTrend = false;
+    // watch(
+    //   () => totalCount.value,
+    //   val => {
+    //     if (!initLoadedTrend && val > 0 && !isFold.value) {
+    //       loadTrendData();
+    //       initLoadedTrend = true;
+    //     }
+    //   },
+    //   { immediate: true },
+    // );
 
     onMounted(() => {
       // 初始化折叠状态
@@ -315,6 +324,8 @@ export default defineComponent({
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
+
+      loadTrendData();
 
       // 监听检索相关事件，自动刷新趋势图
       RetrieveHelper.on(
@@ -433,7 +444,7 @@ export default defineComponent({
           {/* 1. 标题内容 */}
           {chartTitleContent()}
           {/* 2. 加载中动画 */}
-          {loading.value && !isFold.value && <bk-spin class='chart-spin'></bk-spin>}
+          {loadingTrend.value && !isFold.value && <bk-spin class='chart-spin'></bk-spin>}
         </div>
         {/* 图表部分 */}
         <div
