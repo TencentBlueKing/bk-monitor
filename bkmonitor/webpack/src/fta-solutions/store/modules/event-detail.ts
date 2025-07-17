@@ -34,9 +34,9 @@ import store from '@store/store';
 @Module({ name: 'event-detail', dynamic: true, namespaced: true, store })
 class EventDetail extends VuexModule {
   @Action
-  async getlistEventLog(params) {
+  async getListEventLog(params) {
     const data = await listAlertLog(params);
-    data.forEach(item => {
+    for (const item of data) {
       item.logIcon = `icon-mc-alarm-${item.operate.toLocaleLowerCase()}`;
       if (item.operate === 'RECOVER' || item.operate === 'RECOVERING') {
         item.logIcon = 'icon-mc-alarm-recovered';
@@ -66,7 +66,7 @@ class EventDetail extends VuexModule {
       item.border = false;
       item.show = true;
       item.expandDate = '';
-    });
+    }
     return transformDataKey(data);
   }
 }

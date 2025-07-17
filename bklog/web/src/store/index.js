@@ -67,6 +67,9 @@ import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 Vue.use(Vuex);
+
+export const SET_APP_STATE = 'SET_APP_STATE';
+
 const stateTpl = {
   userMeta: {}, // /meta/mine
   pageLoading: true,
@@ -110,6 +113,9 @@ const stateTpl = {
   traceIndexId: '',
   // 业务Id
   bkBizId: URL_ARGS.bizId ?? '',
+  // 默认业务ID
+  defaultBizId: '',
+
   // 我的项目列表
   mySpaceList: [],
   currentMenu: {},
@@ -175,6 +181,8 @@ const stateTpl = {
     isAiAssistantActive: false,
   },
   localSort: false,
+  spaceUidMap: new Map(),
+  bizIdMap: new Map(),
 };
 
 const store = new Vuex.Store({
@@ -201,6 +209,7 @@ const store = new Vuex.Store({
     unionIndexItemList: state => state.unionIndexItemList,
     traceIndexId: state => state.traceIndexId,
     bkBizId: state => state.bkBizId,
+    defaultBizId: state => state.defaultBizId,
     mySpaceList: state => state.mySpaceList,
     pageLoading: state => state.pageLoading,
     globalsData: state => state.globalsData,
@@ -317,6 +326,12 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    [SET_APP_STATE](state, data) {
+      for (const [key, value] of Object.entries(data)) {
+        state[key] = value;
+      }
+    },
+
     updateStorage(state, payload) {
       Object.keys(payload).forEach(key => {
         state.storage[key] = payload[key];

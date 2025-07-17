@@ -103,6 +103,9 @@ class EtlConfigs(Enum):
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
 
+    # 多租户下的主机基础数据采集
+    BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG = "bk_multi_tenancy_basereport"
+
     # 多租户基础Agent事件
     BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
     # 固定指标单表(metric_name)
@@ -121,6 +124,7 @@ class EtlConfigs(Enum):
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
         (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
+        (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
     )
 
 

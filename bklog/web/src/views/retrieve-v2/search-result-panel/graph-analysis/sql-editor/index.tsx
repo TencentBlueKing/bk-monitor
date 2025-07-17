@@ -26,6 +26,7 @@
 import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
 
 import $http from '@/api/index.js';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
@@ -34,14 +35,13 @@ import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
 
-import { getCommonFilterAddition } from '../../../../../store/helper';
+import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
 import { axiosInstance } from '@/api';
 
 import './index.scss';
-import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 
 export default defineComponent({
   props: {
@@ -77,7 +77,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const filter_addition = computed(() => getCommonFilterAddition(store.state));
+    const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
 
     const requestId = 'graphAnalysis_searchSQL';
 

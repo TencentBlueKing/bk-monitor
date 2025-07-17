@@ -98,8 +98,8 @@ def test_push_data_label_table_ids_for_table_ids(create_or_delete_records):
                 table_id_list=["1001_bkmonitor_time_series_50011.__default__"], bk_tenant_id="tencent", is_publish=True
             )
             expected = {
-                "metric_data_label|tencent": '["1001_bkmonitor_time_series_50010.__default__|tencent","1001_bkmonitor_time_series_50011.__default__|tencent"]',
-                "metric_data_label_2|tencent": '["1001_bkmonitor_time_series_50011.__default__|tencent"]',
+                "metric_data_label|tencent": '["1001_bkmonitor_time_series_50010.__default__","1001_bkmonitor_time_series_50011.__default__"]',
+                "metric_data_label_2|tencent": '["1001_bkmonitor_time_series_50011.__default__"]',
             }
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:data_label_to_result_table", expected)
@@ -143,7 +143,7 @@ def test_push_data_label_table_ids_for_data_labels(create_or_delete_records):
                 data_label_list=["metric_data_label"], bk_tenant_id="tencent", is_publish=True
             )
             expected = {
-                "metric_data_label|tencent": '["1001_bkmonitor_time_series_50010.__default__|tencent","1001_bkmonitor_time_series_50011.__default__|tencent"]'
+                "metric_data_label|tencent": '["1001_bkmonitor_time_series_50010.__default__","1001_bkmonitor_time_series_50011.__default__"]'
             }
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:data_label_to_result_table", expected)
