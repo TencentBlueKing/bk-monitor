@@ -108,6 +108,7 @@ export default defineComponent({
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
+      demoId.value = mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '';
     });
 
     // 点击下拉框外内容，收起下拉框
@@ -138,6 +139,7 @@ export default defineComponent({
     });
 
     const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
+    
     const authorizedList = computed(() =>
       mySpaceList.value.filter(item => {
         let show = false;
@@ -319,7 +321,7 @@ export default defineComponent({
               class='menu-select-search'
               clearable={false}
               left-icon='bk-icon icon-search'
-              placeholder={t('搜索')}
+              placeholder={t('输入关键字')}
               value={keyword.value}
               onChange={handleBizSearchDebounce}
               onClear={() => handleBizSearchDebounce('')}

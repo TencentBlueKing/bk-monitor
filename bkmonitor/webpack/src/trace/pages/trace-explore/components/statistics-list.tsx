@@ -42,7 +42,7 @@ import { storeToRefs } from 'pinia';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { formatDurationWithUnit } from '../../../components/trace-view/utils/date';
+import { formatDurationWithUnit, formatDuration } from '../../../components/trace-view/utils/date';
 import { transformTableDataToCsvStr } from '../../../plugins/utls/menu';
 import { useAppStore } from '../../../store/modules/app';
 import { useTraceExploreStore } from '../../../store/modules/explore';
@@ -139,9 +139,9 @@ export default defineComponent({
             popoverLoading.value = false;
             const { min, max, avg, median } = statisticsInfo.value.value_analysis || {};
             statisticsInfo.value.value_analysis = {
-              min: formatDurationWithUnit(Number(min) || 0),
-              max: formatDurationWithUnit(Number(max) || 0),
-              avg: formatDurationWithUnit(Number(avg) || 0),
+              min: formatDuration(Number(min) || 0, '', 3).replace(/ /g, ''),
+              max: formatDuration(Number(max) || 0, '', 3).replace(/ /g, ''),
+              avg: formatDuration(Number(avg) || 0, '', 3).replace(/ /g, ''),
               median: median,
             };
             getDurationTopkList();
