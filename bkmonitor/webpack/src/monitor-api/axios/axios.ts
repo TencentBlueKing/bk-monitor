@@ -30,24 +30,6 @@ import * as qs from 'qs';
 
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
 
-// 扩展 Window 接口
-declare global {
-  interface Window {
-    __BK_WEWEB_DATA__?: {
-      host?: string;
-      token?: string;
-    };
-    site_url: string;
-    csrf_token: string;
-    csrf_cookie_name: string;
-    source_app: string;
-    token: string;
-    bk_paas_host: string;
-    space_list?: any[];
-    showLoginModal?: (options: { loginUrl: string }) => void;
-  }
-}
-
 // 类型定义
 interface ErrorResponse {
   status: number;
@@ -213,9 +195,8 @@ instance.interceptors.response.use(
           data: res.data,
         };
         return Promise.resolve({
-          ...res,
           data: fileData,
-        });
+        } as unknown as AxiosResponse<FileResponseData>);
       }
       if (!res.data.result) {
         return Promise.reject(res.data);

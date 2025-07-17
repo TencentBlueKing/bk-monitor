@@ -29,7 +29,7 @@ import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
 import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
