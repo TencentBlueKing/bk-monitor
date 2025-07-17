@@ -98,7 +98,7 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  仅查看新类: 'Just view new class strategy',
+  '仅查看新类 Pattern': 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
@@ -503,7 +503,7 @@ export default {
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
   填写后原字段名和别名均可查询:
     'The original field name and the alias can both be used for querying after being populated.',
-  '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
+  '只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
   '容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）':
@@ -1090,7 +1090,14 @@ export default {
   '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
   '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
     'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
-  '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
+  自定义标签key与元数据key重复: 'Custom tag key and metadata key conflict',
   '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
     'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
+  '表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增': '',
+  '如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）':
+    '',
+  '满足临时的分组需求，刷新不会保存（如需固化下来，请使用“{0}”功能)': '',
+  '只展示新类 Pattern': '',
+  当前日志查询时间范围不支持静态区间: '',
+  '搜索 占位符': 'Search placeholder',
 };

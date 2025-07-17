@@ -24,32 +24,59 @@
  * IN THE SOFTWARE.
  */
 
-import Vue from 'vue';
-export {};
+import { defineComponent, ref } from 'vue';
+import useLocale from '@/hooks/use-locale';
+import EditConfig from './edit-config';
+import './index.scss';
 
-declare global {
-  interface Window {
-    mainComponent: any;
-    bus: Vue;
-    timezone: string;
-    MONITOR_URL: string;
-    BK_LOGIN_URL: string;
-    BK_SHARED_RES_URL: string;
-    VERSION: string;
-    AJAX_URL_PREFIX: string;
-    FEATURE_TOGGLE_WHITE_LIST: Record<string, (string | number)[]>;
-    FEATURE_TOGGLE: Record<string, 'on' | 'debug'>;
-    __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
-    __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
-    __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
-    BKDATA_URL: string;
-    $t: (key: string, params?: Record<string, any>) => string;
-  }
-}
+export default defineComponent({
+  name: 'ClusterConfig',
+  components: {
+    EditConfig,
+  },
+  props: {
+    indexId: {
+      type: String,
+      require: true,
+    },
+  },
+  setup(props) {
+    const { t } = useLocale();
 
-declare module 'vue/types/vue' {
-  interface Vue {
-    $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...Object) => void;
-  }
-}
+    const showEditConfig = ref(false);
+
+    const handleShowEditConfig = () => {
+      showEditConfig.value = true;
+    };
+
+    const handleBeforeClose = () => {
+      setTimeout(() => {
+        showEditConfig.value = false;
+      });
+    };
+
+    return () => (
+      <div
+        class='cluster-config-operate-main'
+        on-click={handleShowEditConfig}
+      >
+        <log-icon
+          type='setting-line'
+          class='icon'
+        />
+        <span>{t('聚类设置')}</span>
+        <bk-sideslider
+          is-show={showEditConfig.value}
+          before-close={handleBeforeClose}
+          quick-close={true}
+          width={1140}
+          title={t('聚类设置')}
+        >
+          <div slot='content'>
+            <EditConfig indexId={props.indexId} />
+          </div>
+        </bk-sideslider>
+      </div>
+    );
+  },
+});

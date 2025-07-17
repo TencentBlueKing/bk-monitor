@@ -1,0 +1,102 @@
+.popover-content {
+  .group-popover {
+    padding-top: 8px;
+
+    .piece {
+      margin-bottom: 13px;
+    }
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #63656e;
+    }
+
+    .notice {
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+
+    .group-alert {
+      position: relative;
+      padding: 6px 30px;
+      margin: 6px 0 14px 0;
+      line-height: 20px;
+      color: #63656e;
+      background: #f0f1f5;
+      border-radius: 2px;
+
+      .icon-info {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 16px;
+        color: #979ba5;
+      }
+    }
+
+    .year-on-year {
+      display: flex;
+      align-items: center;
+    }
+
+    .popover-button {
+      padding: 12px 0;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+
+  .operation-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    outline: none;
+    transition: boder-color 0.2s;
+
+    &:hover {
+      border-color: #979ba5;
+      transition: boder-color 0.2s;
+    }
+
+    &:active {
+      border-color: #3a84ff;
+      transition: boder-color 0.2s;
+    }
+
+    .icon-more {
+      width: 16px;
+      font-size: 16px;
+      color: #979ba5;
+    }
+  }
+
+  .disabled-icon {
+    cursor: not-allowed;
+    background-color: #fff;
+    border-color: #dcdee5;
+
+    &:hover,
+    .bklog-icon {
+      color: #c4c6cc;
+      border-color: #dcdee5;
+    }
+  }
+
+  .selected-ext {
+    .bk-option.is-selected {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: none !important;
+    }
+
+    .bk-option:hover {
+      background: #f4f6fa;
+    }
+  }
+}

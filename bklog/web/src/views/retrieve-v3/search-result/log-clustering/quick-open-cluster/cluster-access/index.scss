@@ -1,0 +1,47 @@
+.cluster-access-slider-main {
+  .bk-sideslider-content {
+    padding: 20px 40px 30px 40px;
+  }
+
+  .bk-alert-info {
+    margin-bottom: 10px;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+
+    .icon-info {
+      margin-left: 10px;
+    }
+  }
+
+  .cluster-set {
+    height: 26px;
+
+    .bk-form-checkbox {
+      margin-right: 24px;
+    }
+
+    .icon-help {
+      margin-left: 6px;
+      font-size: 14px;
+      color: #999da6;
+    }
+  }
+
+  .alert-tips {
+    font-size: 12px;
+
+    .icon-info {
+      margin-right: 8px;
+      font-size: 16px;
+      color: #979ba5;
+    }
+  }
+
+  .bottom-operate {
+    display: flex;
+    gap: 8px;
+  }
+}

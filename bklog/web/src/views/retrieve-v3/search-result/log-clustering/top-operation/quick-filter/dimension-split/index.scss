@@ -1,0 +1,26 @@
+.dimension-popover {
+  padding-top: 8px;
+
+  .title-main {
+    font-size: 16px;
+    color: #313238;
+    margin-bottom: 10px;
+  }
+
+  .piece-item {
+    margin-bottom: 13px;
+    margin-top: 16px;
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #4d4f56;
+    }
+  }
+
+  .popover-button {
+    padding: 12px 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+}

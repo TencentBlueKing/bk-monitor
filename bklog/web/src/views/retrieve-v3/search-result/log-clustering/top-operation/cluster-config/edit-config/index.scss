@@ -1,0 +1,53 @@
+.setting-log-cluster {
+  position: relative;
+  padding: 20px 40px 50px;
+
+  .rule-container {
+    margin-top: 16px;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+
+    .bk-icon {
+      margin-left: 8px;
+      font-size: 18px;
+      color: #979ba5;
+    }
+  }
+
+  .submit-div {
+    position: sticky;
+    bottom: 40px;
+    padding: 10px 0;
+    background: #fff;
+  }
+}
+
+.submit-dialog {
+  :deep(.bk-dialog-tool) {
+    display: none;
+  }
+
+  .submit-dialog-container {
+    :deep(.bk-button) {
+      margin-left: 100px;
+    }
+
+    .submit-dialog-title {
+      margin-bottom: 7px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .submit-dialog-text {
+      margin-bottom: 22px;
+    }
+
+    :deep(.submit-dialog-btn) {
+      margin-left: 224px;
+    }
+  }
+}

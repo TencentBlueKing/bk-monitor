@@ -38,7 +38,11 @@ const createOrUpdateReport = {
   url: '/report/create_or_update/',
   method: 'post',
 };
-
+export type VariableList = {
+  name: string;
+    description: string;
+    example: string;
+}[]
 const getVariables = {
   url: '/report/get_variables/',
   method: 'get',
