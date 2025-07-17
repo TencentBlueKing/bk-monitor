@@ -28,3 +28,5 @@ recursiveInstall: true
 publicHoistPattern:
   - '!vue'
   - '!vue-template-compiler'
+  - '!vue-i18n'
+  - '!@vue/compiler-sfc'

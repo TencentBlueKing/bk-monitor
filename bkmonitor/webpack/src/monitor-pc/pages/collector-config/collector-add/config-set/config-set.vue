@@ -502,7 +502,7 @@
             <bk-popconfirm
               width="200"
               :content="$tc('确认采集下发?')"
-              :disabled="!canNext || info?.plugin?.type !== 'K8S'"
+              :disabled="!canNext || (info && info.plugin && info.plugin.type) !== 'K8S'"
               :tippy-options="tippyOptions"
               placement="top"
               trigger="click"
@@ -2292,9 +2292,9 @@ export default {
               :deep(.prepend-text) {
                 padding: 0 20px;
                 overflow: hidden;
+                text-overflow: ellipsis;
                 font-size: 12px;
                 line-height: 30px;
-                text-overflow: ellipsis;
                 white-space: nowrap;
               }
             }
@@ -2313,9 +2313,9 @@ export default {
               :deep(.prepend-text) {
                 padding: 0 20px;
                 overflow: hidden;
+                text-overflow: ellipsis;
                 font-size: 12px;
                 line-height: 30px;
-                text-overflow: ellipsis;
                 white-space: nowrap;
               }
             }
@@ -2328,9 +2328,9 @@ export default {
           .prepend-text {
             padding: 0 20px;
             overflow: hidden;
+            text-overflow: ellipsis;
             font-size: 12px;
             line-height: 30px;
-            text-overflow: ellipsis;
             white-space: nowrap;
 
             &.required {

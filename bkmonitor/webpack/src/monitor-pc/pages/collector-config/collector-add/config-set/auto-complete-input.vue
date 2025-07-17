@@ -212,12 +212,15 @@
             ext-popover-cls="select-popover-custom"
           >
             <bk-option
-              v-for="option in allConfig?.auth_priv?.[curAuthPriv]?.need
+              v-for="option in allConfig &&
+              allConfig.auth_priv &&
+              allConfig.auth_priv[curAuthPriv] &&
+              allConfig.auth_priv[curAuthPriv].need
                 ? allConfig.auth_priv[curAuthPriv].election
                 : allConfig.election"
               :key="option"
-              :id="option?.id ? option.id : option"
-              :name="option?.name ? option.name : option"
+              :id="option && option.id ? option.id : option"
+              :name="option && option.name ? option.name : option"
             />
           </bk-select>
         </div>
@@ -619,8 +622,8 @@ export default class StrategySetTarget extends Vue {
       top: 2px;
       padding: 0 20px;
       overflow: hidden;
-      line-height: 30px;
       text-overflow: ellipsis;
+      line-height: 30px;
       white-space: nowrap;
       background: #fafbfd;
       border: 1px solid#c4c6cc;

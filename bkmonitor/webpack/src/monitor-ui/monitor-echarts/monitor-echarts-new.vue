@@ -194,7 +194,7 @@
     >
       <div class="chart-table-title">
         <span>{{ $t('原始数据') }}</span>
-        <span class="title-count">{{ $t('共 {num} 条', { num: tableData?.length || 0 }) }}</span>
+        <span class="title-count">{{ $t('共 {num} 条', { num: (tableData && tableData.length) || 0 }) }}</span>
         <bk-button
           class="export-csv-btn"
           size="small"
