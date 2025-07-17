@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, shallowRef } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
 import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -44,7 +44,6 @@ import LogResultException from './log-result-exception';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
-  ROW_F_JSON,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
@@ -103,12 +102,17 @@ export default defineComponent({
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
 
-    const renderList = shallowRef([]);
+    const renderList = computed(() => {
+      const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+      return tableList.value.slice(0, maxLength).map((item, i) => ({
+        item,
+        [ROW_KEY]: `${item.dtEventTimeStamp}_${i}`,
+      }));
+    });
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
@@ -138,35 +142,6 @@ export default defineComponent({
     };
 
     RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
-
-    const setRenderList = (length?) => {
-      const targetLength = length ?? tableDataSize.value;
-      const inteval = 50;
-
-      const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.value.length;
-        const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.value.length;
-
-        if (appendLength > 0) {
-          const arr = [];
-          const endIndex = startIndex + stepLength;
-          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
-          for (let i = 0; i < lastIndex; i++) {
-            arr.push({
-              item: tableList.value[i],
-              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-            });
-          }
-
-          renderList.value = arr;
-          appendChildNodes();
-          return;
-        }
-      };
-
-      appendChildNodes();
-    };
 
     const searchContainerHeight = ref(52);
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
@@ -506,7 +481,6 @@ export default defineComponent({
               ref({
                 [ROW_KEY]: rowKey,
                 [ROW_INDEX]: index,
-                [ROW_F_JSON]: formatJson.value,
                 ...getRowConfigWithCache(),
               }),
             );
@@ -551,7 +525,6 @@ export default defineComponent({
 
     const resetRowListState = (oldValSize?) => {
       hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
-      setRenderList(null);
       debounceSetLoading();
       updateTableRowConfig(oldValSize ?? 0);
 
@@ -574,8 +547,6 @@ export default defineComponent({
         refScrollXBar.value?.scrollLeft(0);
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
-        renderList.value = [];
-        setRenderList(50);
         computeRect();
       },
     );
@@ -605,12 +576,10 @@ export default defineComponent({
           isRequesting.value = true;
 
           if (isLoading.value) {
+            pageIndex.value = 1;
             scrollToTop(0);
-            renderList.value = [];
             return;
           }
-
-          setRenderList();
         }
 
         if (!isLoading.value) {
@@ -679,8 +648,6 @@ export default defineComponent({
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
         isRequesting.value = true;
         pageIndex.value++;
-        const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-        setRenderList(maxLength);
         debounceSetLoading(0);
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         return;
@@ -713,9 +680,6 @@ export default defineComponent({
 
     const afterScrollTop = () => {
       pageIndex.value = 1;
-
-      const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList.value = renderList.value.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
@@ -891,7 +855,6 @@ export default defineComponent({
     const renderRowVNode = () => {
       return renderList.value.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
-
         return [
           <RowRender
             key={row[ROW_KEY]}
