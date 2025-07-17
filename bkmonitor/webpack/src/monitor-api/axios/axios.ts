@@ -94,7 +94,7 @@ const errorHandle = (response: ErrorResponse, config: CustomAxiosRequestConfig):
           }
         } else {
           const handleLoginExpire = (): void => {
-            window.location.href = `${(window as any).bk_paas_host.replace(/\/$/g, '')}/login/`;
+            window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
           };
           if (data?.has_plain) {
             try {
@@ -110,9 +110,9 @@ const errorHandle = (response: ErrorResponse, config: CustomAxiosRequestConfig):
                 url.protocol = location.protocol;
                 if (curl) {
                   url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
-                  (window as any).showLoginModal?.({ loginUrl: url.href });
+                  window.showLoginModal?.({ loginUrl: url.href });
                 } else {
-                  (window as any).showLoginModal?.({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
+                  window.showLoginModal?.({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
                 }
               } else {
                 handleLoginExpire();
@@ -134,7 +134,7 @@ const errorHandle = (response: ErrorResponse, config: CustomAxiosRequestConfig):
       /* 避免进入仪表盘内重复显示无权限提示 */
       if (
         !config.reject403 &&
-        (window as any).space_list?.length &&
+        window.space_list?.length &&
         !(
           (['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
             location.hash.includes('#/event-center/detail')) &&
@@ -157,8 +157,8 @@ const instance: AxiosInstance = axios.create({
     return qs.stringify(params, { arrayFormat: 'brackets' });
   },
   baseURL:
-    ((window as any).__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
-    (process.env.NODE_ENV === 'production' ? (window as any).site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
+    (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
+    (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
   xsrfCookieName: 'X-CSRFToken',
 });
 
