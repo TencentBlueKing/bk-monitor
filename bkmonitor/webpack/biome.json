@@ -24,9 +24,8 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": {
-          "level": "off"
+          "level": "warn"
         },
-        "noAssignInExpressions": "warn",
         "noArrayIndexKey": "warn",
         "noConfusingVoidType": {
           "level": "warn",
@@ -62,7 +61,8 @@
         "useKeyWithClickEvents": "off",
         "noSvgWithoutTitle": "off",
         "useValidAnchor": "off",
-        "noLabelWithoutControl": "off"
+        "noLabelWithoutControl": "off",
+        "noStaticElementInteractions": "off"
       }
     }
   },
