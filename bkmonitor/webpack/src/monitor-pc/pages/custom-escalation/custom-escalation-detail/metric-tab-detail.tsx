@@ -83,7 +83,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   isSearchMode: boolean;
   delGroupName = '';
 
-  created() { }
+  created() {}
 
   // 过滤后的自定义分组
   get filteredCustomGroups() {

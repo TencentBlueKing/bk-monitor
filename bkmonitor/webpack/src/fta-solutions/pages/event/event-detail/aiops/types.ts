@@ -97,6 +97,6 @@ export interface IIncidentDetail {
   duration: string;
   bk_biz_name: string;
   current_topology: Record<string, unknown>;
-  begin_time:number;
-  end_time:number;
+  begin_time: number;
+  end_time: number;
 }

@@ -243,10 +243,10 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     });
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;
-    if (!!resData.length) {
+    if (resData.length) {
       this.modelList = resData;
       modelItem.options = resData.map(item => {
-        if (!!item.is_default) defaultSelectModelId = item.id;
+        if (item.is_default) defaultSelectModelId = item.id;
         return {
           id: item.id,
           name: item.name,

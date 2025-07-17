@@ -252,7 +252,7 @@ export default class TimeSeriesForecast extends LineChart {
         );
         /** 处理上下边界 */
         const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Number.POSITIVE_INFINITY);
-        if (!!boundarySeries) {
+        if (boundarySeries) {
           const lineSeriesList = seriesList
             .map((item: any) => ({ ...item, z: 6 }))
             .filter(item => ['_result_', 'predict'].includes(item.metricField));

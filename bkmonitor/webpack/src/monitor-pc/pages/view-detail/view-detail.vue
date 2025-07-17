@@ -605,7 +605,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
           item.filter_dict[key] = val;
         }
       } else {
-        if (Object.prototype.hasOwnProperty.call(item.filter_dict, key)) {
+        if (Object.hasOwn(item.filter_dict, key)) {
           this.$delete(item.filter_dict, key);
         }
       }

@@ -96,7 +96,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   collapseChange(id: string, hasData: boolean) {
-    if (!Object.prototype.hasOwnProperty.call(id) && !hasData) {
+    if (!Object.hasOwn(id) && !hasData) {
       this.firstExpand(id);
     }
     this.$set(this.expand, id, !this.expand[id]);

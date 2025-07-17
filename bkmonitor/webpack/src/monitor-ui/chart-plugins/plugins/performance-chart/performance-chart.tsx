@@ -369,7 +369,7 @@ export default class PerformanceChart extends TimeSeries {
   }
 
   handleRestore() {
-    if (!!this.enableSelectionRestoreAll) {
+    if (this.enableSelectionRestoreAll) {
       this.handleRestoreEvent();
     } else {
       this.dataZoom(undefined, undefined);

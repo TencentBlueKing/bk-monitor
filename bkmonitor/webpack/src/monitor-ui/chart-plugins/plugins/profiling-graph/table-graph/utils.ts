@@ -34,7 +34,7 @@
 export const sortTableGraph = (list, sortKey, sortType) => {
   const comparator = (prev, next) => {
     // 排序
-    if (!!sortKey) {
+    if (sortKey) {
       // 升序
       if (sortType === 'asc') {
         // 函数名称按 字符串 升序排序

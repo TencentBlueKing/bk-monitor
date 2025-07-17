@@ -374,7 +374,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries = undefined;
+      let customEventScatterSeries;
       // 初始化事件分析配置
       if (!this.eventColumns.length) {
         const { config, columns } = await getCustomEventAnalysisConfig({

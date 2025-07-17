@@ -313,11 +313,9 @@ export default defineComponent({
                 class='loading-wrap'
                 type='search-empty'
               >
-                <div class='text'>
-                  {!!this.searchObj.selectFile ? `${this.t('文件解析中')}...` : this.t('暂无数据')}
-                </div>
+                <div class='text'>{this.searchObj.selectFile ? `${this.t('文件解析中')}...` : this.t('暂无数据')}</div>
                 <div class='desc'>
-                  {!!this.searchObj.selectFile
+                  {this.searchObj.selectFile
                     ? this.t('文件解析可能耗费较长时间，可先选择已解析文件查看')
                     : this.t('请上传文件后查看')}
                 </div>

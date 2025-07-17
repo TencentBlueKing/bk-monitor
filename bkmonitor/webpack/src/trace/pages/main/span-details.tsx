@@ -618,7 +618,7 @@ export default defineComponent({
 
     /* 复制kv部分文本 */
     const handleCopy = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
         queryStr,
         (msg: string) => {

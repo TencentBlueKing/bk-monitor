@@ -151,7 +151,7 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
             onClick={() => this.handleSelect(item.id)}
           />
         ))}
-        {!!this.moreChecked.length ? (
+        {this.moreChecked.length ? (
           <i
             ref='moreRef'
             class='icon-monitor icon-mc-more'

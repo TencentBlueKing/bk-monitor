@@ -1093,7 +1093,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   cellClassName({ column }) {
     const id = column.property;
     const columnData = this.columns[id];
-    return !!columnData?.headerPreIcon ? 'has-header-pre-icon' : '';
+    return columnData?.headerPreIcon ? 'has-header-pre-icon' : '';
   }
 
   public sort({ prop, order }: ISort) {

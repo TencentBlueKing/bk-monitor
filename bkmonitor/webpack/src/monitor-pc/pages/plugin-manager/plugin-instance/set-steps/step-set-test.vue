@@ -609,7 +609,7 @@ export default {
     },
     //  是否显示参数
     isShowParam() {
-      return !!this.info.config_json.find(item => !Object.prototype.hasOwnProperty.call(item, 'visible'));
+      return !!this.info.config_json.find(item => !Object.hasOwn(item, 'visible'));
     },
     //  是否显示调试
     isShowDebug() {
@@ -1045,12 +1045,12 @@ export default {
           if (fieldsName.includes(metric.metric_name)) {
             /** 存在的指标 更新指标和维度*/
             const existItem = temp.find(tem => tem.name === newMetric.name || tem.sourceName === newMetric.name);
-            if (!!existItem) {
+            if (existItem) {
               existItem.value = newMetric.value;
             }
             dimensionsList.forEach(dim => {
               const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
-              if (!!existItem) {
+              if (existItem) {
                 existItem.value = dim.value;
               } else {
                 temp.push(dim);
@@ -1063,7 +1063,7 @@ export default {
             if (this.checkArrIntersection(groupDim, diemArr)) {
               dimensionsList.forEach(dim => {
                 const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
-                if (!!existItem) {
+                if (existItem) {
                   existItem.value = dim.value;
                 } else {
                   temp.push(dim);
@@ -1203,7 +1203,7 @@ export default {
           const temp = item.mode === 'collector' ? collector : plugin;
           temp[item.key] = item.default.trim();
           params.target_nodes = this.snmpTargets.map(item => ({ ip: item, bk_cloud_id: 0, bk_supplier_id: 0 }));
-        } else if (pluginType !== 'JMX' && !Object.prototype.hasOwnProperty.call(item, 'visible')) {
+        } else if (pluginType !== 'JMX' && !Object.hasOwn(item, 'visible')) {
           plugin[item.name] = this.getItemParam(item);
         }
       });
