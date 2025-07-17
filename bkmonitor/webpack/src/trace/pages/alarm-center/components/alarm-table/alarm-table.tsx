@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref as deepRef, type PropType } from 'vue';
+import { computed, defineComponent, ref as deepRef, type PropType, useTemplateRef, shallowRef, watch } from 'vue';
 
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
-import AlertMetricsConfig from './components/alert-metrics-config/alert-metrics-config';
+import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { usePopover } from './hooks/use-popover';
@@ -36,7 +36,7 @@ import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
 import type { IncidentScenario } from './scenarios/incident-scenario';
 import type { BkUiSettings } from '@blueking/tdesign-ui/.';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './alarm-table.scss';
 
@@ -81,6 +81,12 @@ export default defineComponent({
     // const alarmStore = useAlarmCenterStore();
     const { showPopover, hidePopover, clearPopoverTimer } = usePopover();
 
+    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetail');
+    /** 多选状态 */
+    const selectedRowKeys = deepRef<(number | string)[]>([]);
+    /* 关注人则禁用操作 */
+    const isSelectedFollower = shallowRef(false);
+
     /** 创建场景上下文 */
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
       handleShowDetail,
@@ -93,14 +99,12 @@ export default defineComponent({
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
 
-    /** 多选状态 */
-    const selectedRowKeys = deepRef<(number | string)[]>([]);
-
     /**
      * @description 处理行选择变化
      */
-    const handleSelectionChange = (keys: (number | string)[]) => {
+    const handleSelectionChange = (keys: (number | string)[], options?: SelectOptions<any>) => {
       selectedRowKeys.value = keys;
+      isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
     /**
      * @description: 展示详情
@@ -109,17 +113,25 @@ export default defineComponent({
       alert(`记录${id}的详情弹窗`);
     }
 
+    watch(
+      () => props.data,
+      () => {
+        // 数据变化时，清空选中状态
+        handleSelectionChange([]);
+      }
+    );
+
     return {
       transformedColumns,
       currentScenario,
       selectedRowKeys,
+      isSelectedFollower,
       handleSelectionChange,
     };
   },
   render() {
     return (
       <div class='alarm-table-container'>
-        <AlertMetricsConfig />
         <CommonTable
           class='alarm-table'
           firstFullRow={
@@ -128,6 +140,7 @@ export default defineComponent({
                   (
                     <AlertSelectionToolbar
                       class='alarm-table-first-full-row'
+                      isSelectedFollower={this.isSelectedFollower}
                       selectedRowKeys={this.selectedRowKeys}
                     />
                   ) as unknown as SlotReturnValue
@@ -156,6 +169,10 @@ export default defineComponent({
           onSelectChange={this.handleSelectionChange}
           onSortChange={sort => this.$emit('sortChange', sort)}
         />
+
+        <div style='display: none;'>
+          <AlertContentDetail ref='alertContentDetailRef' />
+        </div>
       </div>
     );
   },

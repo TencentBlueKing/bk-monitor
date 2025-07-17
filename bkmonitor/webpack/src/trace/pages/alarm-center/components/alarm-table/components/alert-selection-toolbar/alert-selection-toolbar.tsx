@@ -26,6 +26,8 @@
 import { defineComponent, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BkButton from 'bkui-vue/lib/button';
+
 import './alert-selection-toolbar.scss';
 
 export default defineComponent({
@@ -35,6 +37,10 @@ export default defineComponent({
     selectedRowKeys: {
       type: Array as PropType<(number | string)[]>,
       default: () => [],
+    },
+    /* 关注人则禁用操作 */
+    isSelectedFollower: {
+      type: Boolean,
     },
   },
   setup() {
@@ -109,14 +115,17 @@ export default defineComponent({
         </div>
         <div class='alert-selection-actions'>
           {this.showActionsIds.map(actionId => (
-            <div
+            <BkButton
               key={actionId}
               class='action-item'
+              disabled={actionId === 'chat' ? false : this.isSelectedFollower}
+              text={true}
+              theme='primary'
               onClick={this.allSelectActionsMap[actionId].onClick}
             >
               <i class={`icon-monitor ${this.allSelectActionsMap[actionId].prefixIcon}`} />
               <span class='action-label'>{this.allSelectActionsMap[actionId].label}</span>
-            </div>
+            </BkButton>
           ))}
         </div>
       </div>

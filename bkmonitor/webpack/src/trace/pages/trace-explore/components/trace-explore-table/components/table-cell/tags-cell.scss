@@ -2,6 +2,9 @@
   --tag-height: 22px;
   display: flex;
   flex-wrap: wrap;
+  // 避免在 自适应行高表格 在tag组件计算时高度样式会出现抖动，
+  // 所以 根元素.explore-tags-col 和 .item-tags 都需要设置 flex-wrap: nowrap 不允许换行
+  flex-wrap: nowrap;
   align-items: center;
   height: var(--tag-height);
 
@@ -9,10 +12,17 @@
     min-height: var(--tag-height);
   }
 
+  .item-tags {
+    // 避免在 自适应行高表格 在tag组件计算时高度样式会出现抖动，
+    // 所以 根元素 和 tag-item 都需要设置 flex-wrap: nowrap 不允许换行
+    flex-wrap: nowrap;
+  }
+
   .tag-item {
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
+    max-width: 180px;
     height: var(--tag-height);
     padding: 0 8px;
     color: var(--tag-color);

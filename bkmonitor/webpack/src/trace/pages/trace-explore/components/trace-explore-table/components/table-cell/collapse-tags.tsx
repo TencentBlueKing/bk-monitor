@@ -225,7 +225,7 @@ export default defineComponent({
           <span
             class='collapse-tag'
             v-tippy={{
-              content: this.ellipsisTip?.(ellipsisList) || ellipsisList.join(','),
+              content: this.ellipsisTip ? this.ellipsisTip(ellipsisList) : ellipsisList.join(','),
               theme: 'dark text-wrap max-width-50vw',
               delay: 300,
             }}

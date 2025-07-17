@@ -81,6 +81,8 @@ export interface TagCellItem {
   value: string;
   tagColor?: string;
   tagBgColor?: string;
+  tagHoverColor?: string;
+  tagHoverBgColor?: string;
 }
 
 /**  trace检索 table表格不同类型列 渲染值类型映射表 */

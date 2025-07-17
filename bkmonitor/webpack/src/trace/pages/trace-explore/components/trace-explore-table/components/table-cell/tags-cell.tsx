@@ -31,28 +31,44 @@ import { Tag } from 'bkui-vue';
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';
 import CollapseTags from './collapse-tags';
 
-import type { ExploreTableColumn, ExploreTableColumnTypeEnum, GetTableCellRenderValue } from '../../typing';
+import type {
+  ExploreTableColumn,
+  ExploreTableColumnTypeEnum,
+  GetTableCellRenderValue,
+  TableCellRenderContext,
+} from '../../typing';
 
 import './tags-cell.scss';
 
 const DEFAULT_TAG_COLOR = {
   tagColor: '#4D4F56',
   tagBgColor: '#F0F1F5',
+  tagHoverColor: '#4D4F56',
+  tagHoverBgColor: '#DCDEE5',
 };
 export default defineComponent({
   name: 'TagsCell',
   props: {
+    /** 当前列配置信息 */
     column: {
       type: Object as PropType<ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>>,
     },
+    /** 当前需要渲染的数据 */
     tags: {
       type: Object as PropType<GetTableCellRenderValue<ExploreTableColumnTypeEnum.TAGS>>,
     },
+    /** 当前列 id */
     colId: {
       type: String,
     },
+    /** 当前行数据 id */
     rowId: {
       type: String,
+    },
+    /** table 单元格渲染上下文信息 */
+    renderCtx: {
+      type: Object as PropType<TableCellRenderContext>,
+      default: () => ({}),
     },
   },
   setup() {
@@ -69,10 +85,10 @@ export default defineComponent({
               style={{
                 '--tag-color': tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
                 '--tag-bg-color': tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
-                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
-                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
+                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
-              class='tag-item'
+              class={`tag-item ${this.renderCtx?.cellEllipsisClass}`}
             >
               {{
                 default: () => (
