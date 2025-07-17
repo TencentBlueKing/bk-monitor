@@ -89,19 +89,19 @@ export default class AiBluekingWrapper extends tsc<object> {
           },
         ],
       },
-      // {
-      //   id: 'metadata_diagnosis',
-      //   name: this.$t('链路排障'),
-      //   // icon: 'bk-icon icon-monitors-cog',
-      //   components: [
-      //     {
-      //       type: 'textarea',
-      //       key: 'bk_data_id',
-      //       name: this.$t('数据源ID'),
-      //       placeholder: this.$t('请输入数据源ID'),
-      //     },
-      //   ],
-      // },
+      {
+        id: 'metadata_diagnosis',
+        name: this.$t('链路排障'),
+        // icon: 'bk-icon icon-monitors-cog',
+        components: [
+          {
+            type: 'textarea',
+            key: 'bk_data_id',
+            name: this.$t('数据源ID'),
+            placeholder: this.$t('请输入数据源ID'),
+          },
+        ],
+      },
     ];
   }
   @Watch('showDialog')
